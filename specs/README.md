@@ -10,7 +10,7 @@ Each subfolder contains one user story and its implementation tasks.
 4. `004-third-party-data-provider-abstraction`
 5. `005-data-ingestion-and-normalization`
 6. `006-derived-metrics-engine`
-7. `007-natural-language-scanner-parser`
+7. `007-natural-language-scanner-parser` - AI Query Orchestration and internal Scanner Tool parsing
 8. `008-scanner-execution-engine`
 9. `009-explainable-results`
 10. `010-usage-metering-and-billing-readiness`

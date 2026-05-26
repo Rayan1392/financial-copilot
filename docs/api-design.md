@@ -1,22 +1,24 @@
 # API Design
 
-## API Versioning
+## Public AI Facade Decision
 
-Base path:
+The React chat UI must call one backend facade endpoint for every user message:
 
-```text
-/api/v1
+```http
+POST /api/ai/v1/query
 ```
+
+The frontend must not infer intent or choose a scanner, portfolio, market summary, single stock, or deep search service. The backend performs Intent Detection, Tool Routing, execution, answer generation, Usage Accounting, and Conversation persistence behind this endpoint.
 
 ## Authentication Models
 
-### Owned Web App
+### Owned Web Application
 
-Use JWT bearer authentication.
+Use JWT bearer authentication for the React application.
 
 ### SaaS/API Consumers
 
-Use API keys initially. Design so OAuth2 client credentials can be added later.
+Use API keys initially. Design authentication so OAuth2 client credentials can be added later. An external client using the AI conversation experience uses the same AI facade contract.
 
 Headers:
 
@@ -26,108 +28,131 @@ X-Api-Key: <api-key>
 X-Correlation-Id: <uuid>
 ```
 
-## Scanner Endpoints
+## AI Query API
 
-### Create Scanner Query
+### Submit User Message
 
 ```http
-POST /api/v1/scanner/query
+POST /api/ai/v1/query
 ```
 
 Request:
 
 ```json
 {
-  "question": "List symbols with latest quarter net profit growth above 50% and P/E below 5",
+  "conversationId": "uuid-or-null",
+  "message": "List symbols with latest quarter net profit growth above 50% and P/E below 5",
   "language": "fa-IR",
-  "limit": 50,
-  "executionMode": "sync"
+  "responseMode": "sync"
 }
 ```
 
-Response:
+`conversationId` is omitted or null when starting a Conversation. The API creates a Conversation, persists the user Message, routes the request to the appropriate backend tool/use case, persists the assistant Message, and returns the answer.
+
+Example response when the backend selects the Scanner Tool:
 
 ```json
 {
-  "queryId": "uuid",
+  "conversationId": "uuid",
+  "messageId": "uuid",
   "status": "completed",
+  "detectedIntent": "scanner",
+  "toolUsed": "Scanner",
   "needsClarification": false,
-  "interpretedPlan": {},
-  "results": [
-    {
-      "symbol": "ABC",
-      "companyName": "Example Company",
-      "industry": "Chemicals",
-      "score": 87.5,
-      "matchedConditions": [
-        {
-          "metric": "NetProfitGrowth",
-          "actualValue": 72.4,
-          "threshold": 50,
-          "unit": "percent",
-          "period": "LatestQuarter",
-          "comparison": "YoY"
-        },
-        {
-          "metric": "PE",
-          "actualValue": 4.2,
-          "threshold": 5,
-          "period": "TTM"
-        }
-      ],
-      "explanation": "Matched because latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
-      "sources": [
-        {
-          "type": "FinancialStatement",
-          "period": "LatestQuarter",
-          "reportDate": "2026-05-01",
-          "provider": "ThirdPartyProvider"
-        }
-      ],
-      "confidence": 0.91,
-      "warnings": []
-    }
-  ],
+  "answer": {
+    "text": "Two symbols matched your screening conditions.",
+    "results": [
+      {
+        "symbol": "ABC",
+        "companyName": "Example Company",
+        "industry": "Chemicals",
+        "score": 87.5,
+        "matchedConditions": [
+          {
+            "metric": "NetProfitGrowth",
+            "actualValue": 72.4,
+            "threshold": 50,
+            "unit": "percent",
+            "period": "LatestQuarter",
+            "comparison": "YoY"
+          },
+          {
+            "metric": "PE",
+            "actualValue": 4.2,
+            "threshold": 5,
+            "period": "TTM"
+          }
+        ],
+        "explanation": "Latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
+        "citations": [
+          {
+            "type": "FinancialStatement",
+            "period": "LatestQuarter",
+            "reportDate": "2026-05-01",
+            "sourceProvider": "ThirdPartyProvider",
+            "lastSyncAt": "2026-05-02T08:15:00Z"
+          }
+        ],
+        "confidenceScore": 0.91,
+        "warnings": []
+      }
+    ]
+  },
   "usage": {
+    "operation": "AiQuery.Scanner",
     "creditsCharged": 1,
     "quotaRemaining": 99
   }
 }
 ```
 
-### Parse Scanner Query Only
+The returned `detectedIntent` and `toolUsed` are informational output. They do not create a frontend routing responsibility.
 
-Useful for UI preview and debugging.
+## Conversation History API
 
-```http
-POST /api/v1/scanner/parse
-```
-
-### Execute Structured Scanner Plan
-
-Useful for SaaS clients that build their own filter UI.
+Conversation history is generic AI chat history, not scanner-specific history.
 
 ```http
-POST /api/v1/scanner/execute
+POST /api/ai/v1/query
+GET  /api/ai/v1/conversations
+GET  /api/ai/v1/conversations/{conversationId}
+GET  /api/ai/v1/conversations/{conversationId}/messages
 ```
 
-### Get Query History
+Each Conversation may contain Messages answered through different tools over time. For example, one conversation can include a market summary question followed by a scanner question.
+
+## Supporting Reference APIs
+
+These endpoints support UI controls, discovery, and integrations. They do not replace `POST /api/ai/v1/query` for a user chat message.
 
 ```http
-GET /api/v1/scanner/history
+GET /api/ai/v1/metadata/metrics
+GET /api/ai/v1/metadata/periods
+GET /api/ai/v1/metadata/symbols
+GET /api/ai/v1/metadata/industries
 ```
 
-### Get Supported Metrics
+## Internal Scanner Services
+
+Scanner parsing and execution are Application-layer responsibilities invoked by `IAiQueryOrchestrator` after Tool Routing selects the Scanner Tool:
+
+```csharp
+public interface IAiQueryOrchestrator
+public interface IIntentDetectionService
+public interface IScannerQueryParser
+public interface IScannerExecutionService
+public interface IScannerResultRanker
+public interface IExplainableAnswerBuilder
+```
+
+They are not frontend-facing public APIs. If operational diagnostics eventually require HTTP access, it must be admin-authorized, disabled or protected outside intended environments, and explicitly documented as internal-only:
 
 ```http
-GET /api/v1/scanner/metadata/metrics
+POST /api/internal/scanner/parse
+POST /api/internal/scanner/execute
 ```
 
-### Get Supported Periods
-
-```http
-GET /api/v1/scanner/metadata/periods
-```
+The React UI must never call internal scanner diagnostic endpoints.
 
 ## Admin/Data Endpoints
 
@@ -141,6 +166,8 @@ GET  /api/v1/admin/provider-health
 
 ## Billing/Usage Endpoints
 
+Every invocation of `POST /api/ai/v1/query` creates Usage Accounting records after authentication and according to the validation/charging policy. The response includes charged credits and remaining quota where permitted.
+
 ```http
 GET  /api/v1/usage/me
 GET  /api/v1/usage/api-client/{clientId}
@@ -151,7 +178,7 @@ POST /api/v1/subscriptions/subscribe
 
 ## Error Response
 
-Use a consistent problem-details format:
+Use a consistent problem-details format for the AI facade and supporting APIs:
 
 ```json
 {
@@ -160,6 +187,7 @@ Use a consistent problem-details format:
   "status": 400,
   "detail": "Unsupported metric: EV/EBITDA",
   "traceId": "00-...",
+  "correlationId": "uuid",
   "errors": {
     "metric": ["EV/EBITDA is not supported in Phase 1."]
   }

@@ -2,6 +2,22 @@
 
 ## Core Concepts
 
+### Conversation
+
+A user-visible AI chat session that contains Messages and may invoke different backend tools over its lifetime.
+
+### Message
+
+A user or assistant entry persisted within a Conversation. A user Message is submitted through the AI facade and the assistant Message stores the resulting Explainable Answer.
+
+### AI Query Orchestrator
+
+The Application-layer coordinator behind `POST /api/ai/v1/query`. It performs Intent Detection, Tool Routing, use-case execution, Usage Accounting, and Conversation persistence.
+
+### Scanner Tool
+
+The internal use case selected when a Message requests financial screening. The React UI does not call it directly.
+
 ### Symbol
 
 A tradable stock ticker in the Iranian capital market.
@@ -75,9 +91,9 @@ Recommended calculation policy:
 - Use latest market cap divided by TTM sales.
 - Persist calculation policy and show it in explanation.
 
-### Explainability
+### Explainable Answer
 
-Every scanner result should include:
+Every Scanner Tool answer should include:
 
 - matched conditions,
 - actual metric values,
@@ -85,7 +101,19 @@ Every scanner result should include:
 - source report date,
 - calculation policy,
 - data freshness,
-- confidence score.
+- Confidence Score.
+
+### Data Citation
+
+Traceable source metadata attached to an Explainable Answer, including provider, report date, and relevant freshness timestamp.
+
+### Confidence Score
+
+A policy-defined confidence value reflecting interpretation and data sufficiency. It must not substitute for deterministic financial calculation.
+
+### Usage Accounting
+
+The record of credits/cost units and outcome associated with executing an AI facade request for a user or API client.
 
 ## Metric Families
 
@@ -136,4 +164,4 @@ When the user does not specify comparison type:
 - If the phrase includes "latest quarter", use the latest 3-month statement period.
 - If the phrase includes "latest financial statement", use latest available statement regardless of period length, but show period type.
 
-When ambiguity materially affects results, API should return `needsClarification = true` with suggested interpretations.
+When ambiguity materially affects results, the AI facade response should return `needsClarification = true` with suggested interpretations.

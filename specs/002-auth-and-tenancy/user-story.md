@@ -15,6 +15,7 @@ so that the same backend can serve our own UI and external partners.
 - Authenticated but forbidden requests return 403.
 - Rate limiting can be applied per user and per API client.
 - Tenant/client context is not optional in protected business endpoints.
+- The public `POST /api/ai/v1/query` endpoint supports the authenticated web app user and SaaS API client authentication models.
 
 ## Technical Notes
 

@@ -27,8 +27,11 @@ Use a hybrid data strategy:
 - Monthly production/sales line items.
 - Derived financial metrics.
 - Data provider sync metadata.
-- Scanner query logs.
+- Conversations and Messages for AI chat history.
+- AI query executions and routed tool activity.
+- Scanner query plans/executions as internal evidence when the Scanner Tool is selected.
 - Scanner result snapshots where needed for usage analytics and explainability.
+- Usage ledger entries associated with AI query execution.
 
 ### Persist Later
 
@@ -70,6 +73,10 @@ DerivedMetrics
 ProviderRawPayloads
 ProviderSyncRuns
 ProviderSyncErrors
+Conversations
+Messages
+AiQueryExecutions
+AiToolExecutions
 ScannerQueries
 ScannerQueryPlans
 ScannerExecutions
@@ -80,6 +87,8 @@ Subscriptions
 UserCreditAccounts
 ```
 
+`ScannerQueries`, `ScannerQueryPlans`, `ScannerExecutions`, and `ScannerResultItems` are internal execution/audit data. User-facing chat history is retrieved from `Conversations` and `Messages`.
+
 ## Data Freshness
 
 Each API response should include:
@@ -89,6 +98,8 @@ Each API response should include:
 - `sourceProvider`
 - `lastSyncAt`
 - `warnings`
+
+Answers returned from `POST /api/ai/v1/query` should additionally include applicable Data Citations, Confidence Score, and Usage Accounting output.
 
 ## Ingestion Pipeline
 

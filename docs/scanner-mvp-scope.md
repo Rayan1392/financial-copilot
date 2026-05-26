@@ -2,7 +2,15 @@
 
 ## MVP Goal
 
-Build a backend scanner that receives natural language financial screening questions, converts them into a validated scanner plan, executes the plan on normalized financial and market data, and returns ranked explainable results.
+Build a Scanner Tool behind the AI facade. The React chat UI submits every user Message through `POST /api/ai/v1/query`; the AI Query Orchestrator detects scanner intent, invokes the Scanner Use Case, and returns an Explainable Answer with Data Citations and a Confidence Score.
+
+## Public Entry Point
+
+```http
+POST /api/ai/v1/query
+```
+
+The frontend does not call scanner parse or execute APIs. Scanner-specific behavior is internal to the Application layer.
 
 ## In Scope
 
@@ -51,7 +59,8 @@ Phase 1 metrics:
 - Explanation per symbol.
 - Data source and report date.
 - Warnings for missing/stale data.
-- Export-ready API response.
+- Explainable Answer content usable in the generic Conversation response.
+- Usage Accounting associated with the facade request.
 
 ## Out of Scope for Phase 1
 
@@ -67,7 +76,7 @@ Phase 1 metrics:
 
 ## Scanner Query Plan
 
-The LLM should output a structured plan such as:
+After Tool Routing selects the Scanner Tool, `IScannerQueryParser` should produce a structured plan such as:
 
 ```json
 {
@@ -132,7 +141,7 @@ Keep scoring deterministic and documented.
 
 ## Explainability Contract
 
-Each result item must explain:
+When the Scanner Tool answers a Message, each result item in the Explainable Answer must explain:
 
 - why it matched,
 - actual values vs thresholds,
@@ -140,7 +149,22 @@ Each result item must explain:
 - comparison basis,
 - provider/source,
 - last update,
-- confidence.
+- Confidence Score.
+
+The answer is persisted as an assistant Message in the Conversation, along with traceable Data Citations and usage outcome.
+
+## Internal Application Services
+
+The MVP scanner is implemented behind the facade through services such as:
+
+- `IAiQueryOrchestrator`
+- `IIntentDetectionService`
+- `IScannerQueryParser`
+- `IScannerExecutionService`
+- `IScannerResultRanker`
+- `IExplainableAnswerBuilder`
+
+No scanner-specific parse or execute endpoint is part of the React UI contract.
 
 ## Non-Functional Requirements
 
@@ -148,5 +172,5 @@ Each result item must explain:
 - Async execution for heavy queries.
 - All calculations covered by unit tests.
 - All AI-generated plans validated before execution.
-- Query logs stored for product analytics.
+- Conversation Messages, routed tool activity, and query evidence stored for product analytics and audit.
 - Rate limiting per user and API client.

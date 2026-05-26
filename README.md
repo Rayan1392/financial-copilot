@@ -20,11 +20,12 @@ The scanner must answer questions such as:
 - "Which symbols have P/S below 1?"
 - "Find companies with improving production, sales, profitability, and attractive valuation ratios."
 
-The scanner should convert natural language into a validated financial query plan, execute it against normalized market/fundamental data, rank the results, and return explainable answers with data sources and calculation details.
+The React chat UI submits every message to `POST /api/ai/v1/query`. The backend AI Query Orchestrator detects intent and, for scanner questions, invokes an internal Scanner Tool that converts natural language into a validated financial query plan, executes it against normalized market/fundamental data, ranks the results, and returns an Explainable Answer with Data Citations and a Confidence Score.
 
 ## Core Principles
 
 - API-first backend.
+- Single public AI facade endpoint for React chat queries; tool routing stays in the backend.
 - Clean Architecture.
 - SOLID, testable, maintainable code.
 - Domain-specific financial semantics, not generic chatbot behavior.
@@ -32,6 +33,7 @@ The scanner should convert natural language into a validated financial query pla
 - Third-party data abstraction from day one.
 - Hybrid data strategy: on-demand API calls for lightweight/fresh data; persisted normalized datasets for screening, historical analytics, textual analysis, and repeatable calculations.
 - Usage metering and API key readiness from day one, even if billing is fully activated later.
+- Generic Conversation and Message persistence for chat history.
 
 ## Recommended Documentation Reading Order
 

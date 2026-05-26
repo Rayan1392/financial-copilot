@@ -35,6 +35,8 @@ Responsibilities:
 - API versioning.
 - OpenAPI/Swagger.
 - Composition root and DI wiring.
+- Public AI facade controller for `POST /api/ai/v1/query`.
+- Generic Conversation and Message query endpoints.
 
 ### FinancialCopilot.Application
 
@@ -45,9 +47,12 @@ Responsibilities:
 - Commands/queries.
 - Validators.
 - Interfaces for repositories, data providers, AI services, cache, messaging, billing/metering.
-- Scanner orchestration.
+- AI Query Orchestrator, Intent Detection, and Tool Routing.
+- Scanner Tool / Scanner Use Case execution behind the facade.
+- Conversation and Message application services.
 - Query plan generation and validation.
-- Result ranking and explanation assembly.
+- Result ranking, Data Citation mapping, Confidence Score policy, and Explainable Answer assembly.
+- Usage Accounting orchestration for AI query execution.
 
 ### FinancialCopilot.Domain
 
@@ -77,6 +82,7 @@ Responsibilities:
 - Search provider implementation.
 - Repository implementations.
 - Data sync persistence.
+- Conversation, Message, and usage ledger persistence.
 
 ### FinancialCopilot.Worker
 
@@ -93,27 +99,48 @@ Responsibilities:
 ## Architectural Flow
 
 ```text
-Frontend / External SaaS Client
-  -> FinancialCopilot.API
-  -> Application Use Case
-  -> Domain Rules + Query Plan
-  -> Infrastructure Data Providers / Repositories / Cache
-  -> Scanner Result + Explanations
-  -> API Response
+React Chat UI / External Conversational Client
+  -> POST /api/ai/v1/query
+  -> FinancialCopilot.API AI Facade
+  -> Application: AI Query Orchestrator
+  -> Intent Detection
+  -> Tool Routing / Use-Case Selection
+  -> Scanner Tool / Single Stock Analysis / Market Summary / Portfolio / Deep Search
+  -> Data Fetching / Cached Data / Third-Party APIs
+  -> Explainable Answer Generation
+  -> Data Citations / Confidence Score / Usage Accounting
+  -> Conversation + Message Persistence
+  -> Facade Response
 ```
 
-## Scanner Flow
+The React UI has no responsibility for selecting a tool. A message that is ultimately handled by the Scanner Tool follows the same public facade contract as any other user message.
+
+## Scanner Tool Flow
 
 ```text
-Natural language query
-  -> Intent detection
+AI Query Orchestrator selects Scanner Tool
   -> Metric and period extraction
   -> Query plan generation
   -> Query plan validation
   -> Data availability check
   -> Query execution
   -> Ranking
-  -> Explainable response
+  -> Explainable Answer with Data Citations and Confidence Score
+```
+
+Scanner parsing, execution, and ranking are Application-layer services, such as `IScannerQueryParser`, `IScannerExecutionService`, and `IScannerResultRanker`. They are not public React UI endpoints.
+
+## Conversation Flow
+
+```text
+Authenticated actor
+  -> Submit Message through POST /api/ai/v1/query
+  -> Create or continue Conversation
+  -> Persist user Message
+  -> Execute routed use case
+  -> Record Usage Accounting outcome
+  -> Persist assistant Message and answer evidence
+  -> Retrieve history through /api/ai/v1/conversations endpoints
 ```
 
 ## Data Access Strategy
@@ -125,6 +152,7 @@ Use Redis for:
 - short-lived cache for API responses,
 - query plan cache,
 - popular scanner results,
+- conversation read-model cache where safe,
 - provider access token cache,
 - rate-limit counters.
 
@@ -150,11 +178,12 @@ For Phase 1 Scanner, Elasticsearch is optional. Design an `ISearchIndex` abstrac
 
 ## AI Recommendation
 
-For Phase 1, AI should not directly execute SQL. It should produce a structured `ScannerQueryPlan` JSON that is validated by the backend before execution.
+For Phase 1, the AI Query Orchestrator detects intent and routes a user Message to an Application-layer use case. When the Scanner Tool is selected, AI should not directly execute SQL. It should produce a structured `ScannerQueryPlan` JSON that is validated by the backend before execution.
 
 Use LLM for:
 
 - natural language parsing,
+- Intent Detection and Tool Routing suggestions,
 - metric synonym mapping,
 - ambiguity detection,
 - explanation text generation.
@@ -165,6 +194,7 @@ Use deterministic code for:
 - filtering,
 - ranking,
 - subscription and usage metering,
+- Conversation ownership and Message persistence,
 - permissions,
 - result reproducibility.
 
@@ -174,6 +204,7 @@ Use deterministic code for:
 - API keys or OAuth2 client credentials for SaaS clients.
 - Tenant-aware data access.
 - Per-user and per-client rate limits.
+- The React UI accesses tools only through the public AI facade.
 - Request logging without leaking sensitive tokens.
 - Strict validation of generated scanner plans.
 - No dynamic SQL from AI output.

@@ -8,11 +8,11 @@ so that SaaS/API and owned web app monetization can be introduced without redesi
 
 ## Acceptance Criteria
 
-- Each scanner request records usage ledger entry.
+- Each `POST /api/ai/v1/query` execution records a Usage Accounting ledger entry.
 - Usage can be attributed to user or API client.
 - Usage contains operation type, cost units/credits, timestamp, and status.
 - Failed validation should cost zero or reduced credits based on policy.
-- Successful scanner query charges configured credits.
+- A successful AI query charges configured credits based on the routed tool/use case.
 - API can return quota remaining.
 - Rate limits can be enforced by subscription/API plan.
 
@@ -20,3 +20,4 @@ so that SaaS/API and owned web app monetization can be introduced without redesi
 
 - Do not block MVP on payment gateway integration.
 - Implement ledger and quota model first.
+- Store routed operation type such as `AiQuery.Scanner` so charging remains auditable without exposing tool-specific chat routes.

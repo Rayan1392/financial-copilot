@@ -14,6 +14,7 @@ so that the product feels responsive and scalable.
 - Cache keys include tenant/client and relevant data version.
 - Cache invalidation occurs after data sync/metric recalculation.
 - API response includes data freshness metadata.
+- AI facade responses can use cached internal Scanner Tool results without exposing tool routing to the React UI.
 
 ## Technical Notes
 

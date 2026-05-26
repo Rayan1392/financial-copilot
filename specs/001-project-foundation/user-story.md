@@ -16,6 +16,7 @@ so that the product can evolve safely from MVP to SaaS platform.
 - Centralized exception handling middleware exists.
 - Correlation id middleware exists.
 - Structured logging is configured.
+- The API project can host the public AI facade route family under `/api/ai/v1`.
 
 ## Technical Notes
 

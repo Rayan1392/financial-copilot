@@ -121,5 +121,6 @@ public sealed class BillingOutboxMessageRowConfiguration : IEntityTypeConfigurat
         builder.Property(row => row.IdempotencyKey).HasMaxLength(220).IsRequired();
         builder.Property(row => row.Payload).IsRequired();
         builder.Property(row => row.AttemptCount).IsRequired();
+        builder.Property(row => row.LastError).HasMaxLength(1000);
     }
 }

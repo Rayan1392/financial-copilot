@@ -539,6 +539,79 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task BillingOutboxProcessor_DispatchesPendingMessageOnceAndMarksItProcessed()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.OutboxMessages.Add(new BillingOutboxMessageRow
+        {
+            Id = Guid.NewGuid(),
+            AggregateType = "UsageReservation",
+            AggregateId = Guid.NewGuid(),
+            EventType = "Billing.UsageCommitted",
+            IdempotencyKey = "outbox-commit",
+            Payload = """{"credits":1}""",
+            OccurredAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var dispatcher = new TestOutboxDispatcher();
+        var service = new BillingOutboxProcessor(
+            dbContext,
+            dispatcher,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+
+        var processedCount = await service.ProcessPendingAsync(10, CancellationToken.None);
+        var replayedCount = await service.ProcessPendingAsync(10, CancellationToken.None);
+
+        Assert.Equal(1, processedCount);
+        Assert.Equal(0, replayedCount);
+        Assert.Single(dispatcher.Messages);
+        Assert.Equal(0, dispatcher.Messages.Single().AttemptCount);
+        var row = dbContext.OutboxMessages.Single();
+        Assert.Equal(1, row.AttemptCount);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-26T12:00:00Z"), row.ProcessedAt);
+        Assert.Null(row.LastError);
+    }
+
+    [Fact]
+    public async Task BillingOutboxProcessor_RecordsFailureAndRetriesPendingMessage()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.OutboxMessages.Add(new BillingOutboxMessageRow
+        {
+            Id = Guid.NewGuid(),
+            AggregateType = "UsageLedgerEntry",
+            AggregateId = Guid.NewGuid(),
+            EventType = "Billing.UsageRefunded",
+            IdempotencyKey = "outbox-refund",
+            Payload = """{"credits":0.5}""",
+            OccurredAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var dispatcher = new TestOutboxDispatcher(failNextDispatch: true);
+        var service = new BillingOutboxProcessor(
+            dbContext,
+            dispatcher,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+
+        var failedCount = await service.ProcessPendingAsync(10, CancellationToken.None);
+        var failedRow = dbContext.OutboxMessages.Single();
+
+        Assert.Equal(0, failedCount);
+        Assert.Null(failedRow.ProcessedAt);
+        Assert.Equal(1, failedRow.AttemptCount);
+        Assert.Equal("Dispatch unavailable.", failedRow.LastError);
+
+        var retriedCount = await service.ProcessPendingAsync(10, CancellationToken.None);
+        var completedRow = dbContext.OutboxMessages.Single();
+
+        Assert.Equal(1, retriedCount);
+        Assert.Equal(2, completedRow.AttemptCount);
+        Assert.NotNull(completedRow.ProcessedAt);
+        Assert.Null(completedRow.LastError);
+        Assert.Equal([0, 1], dispatcher.Messages.Select(message => message.AttemptCount).ToArray());
+    }
+
+    [Fact]
     public async Task SubscriptionAndInvoiceRepositories_ReadConfiguredBillingProfiles()
     {
         await using var dbContext = CreateDbContext();
@@ -608,5 +681,25 @@ public sealed class BillingPersistenceTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class TestOutboxDispatcher(bool failNextDispatch = false) : IBillingOutboxDispatcher
+    {
+        private bool _failNextDispatch = failNextDispatch;
+
+        public List<BillingOutboxMessage> Messages { get; } = [];
+
+        public Task DispatchAsync(BillingOutboxMessage message, CancellationToken cancellationToken)
+        {
+            Messages.Add(message);
+
+            if (_failNextDispatch)
+            {
+                _failNextDispatch = false;
+                throw new InvalidOperationException("Dispatch unavailable.");
+            }
+
+            return Task.CompletedTask;
+        }
     }
 }

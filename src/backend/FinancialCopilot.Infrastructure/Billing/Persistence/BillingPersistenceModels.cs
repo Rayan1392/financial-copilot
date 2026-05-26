@@ -144,4 +144,8 @@ public sealed class BillingOutboxMessageRow
     public DateTimeOffset? ProcessedAt { get; set; }
 
     public int AttemptCount { get; set; }
+
+    public DateTimeOffset? LastAttemptAt { get; set; }
+
+    public string? LastError { get; set; }
 }

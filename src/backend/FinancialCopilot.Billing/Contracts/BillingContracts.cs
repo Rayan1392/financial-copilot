@@ -85,6 +85,26 @@ public interface IFinancialAccountingService
         CancellationToken cancellationToken);
 }
 
+public sealed record BillingOutboxMessage(
+    Guid Id,
+    string AggregateType,
+    Guid AggregateId,
+    string EventType,
+    string IdempotencyKey,
+    string Payload,
+    DateTimeOffset OccurredAt,
+    int AttemptCount);
+
+public interface IBillingOutboxDispatcher
+{
+    Task DispatchAsync(BillingOutboxMessage message, CancellationToken cancellationToken);
+}
+
+public interface IBillingOutboxProcessor
+{
+    Task<int> ProcessPendingAsync(int maximumCount, CancellationToken cancellationToken);
+}
+
 public interface IUsageReservationRepository
 {
     Task<UsageReservation?> FindByIdempotencyKeyAsync(

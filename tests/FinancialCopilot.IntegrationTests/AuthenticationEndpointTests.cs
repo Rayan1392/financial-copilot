@@ -59,6 +59,15 @@ public sealed class AuthenticationEndpointTests : IClassFixture<AuthenticationAp
         Assert.Equal(
             AuthenticationMode.WebAppUser.ToString(),
             problemDetails.RootElement.GetProperty("authenticationMode").GetString());
+        Assert.Equal(
+            ActorType.User.ToString(),
+            problemDetails.RootElement.GetProperty("actorType").GetString());
+        Assert.Equal(
+            AuthenticationApiFactory.UserId,
+            problemDetails.RootElement.GetProperty("actorId").GetGuid());
+        Assert.Equal(
+            AuthenticationApiFactory.TenantId,
+            problemDetails.RootElement.GetProperty("tenantId").GetGuid());
     }
 
     [Fact]
@@ -86,6 +95,15 @@ public sealed class AuthenticationEndpointTests : IClassFixture<AuthenticationAp
         Assert.Equal(
             AuthenticationMode.ApiClient.ToString(),
             problemDetails.RootElement.GetProperty("authenticationMode").GetString());
+        Assert.Equal(
+            ActorType.ApiClient.ToString(),
+            problemDetails.RootElement.GetProperty("actorType").GetString());
+        Assert.Equal(
+            AuthenticationApiFactory.ClientId,
+            problemDetails.RootElement.GetProperty("actorId").GetGuid());
+        Assert.Equal(
+            AuthenticationApiFactory.TenantId,
+            problemDetails.RootElement.GetProperty("tenantId").GetGuid());
     }
 
     [Fact]
@@ -190,7 +208,7 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
     public const string ApiKey = "integration-client-secret";
     public static readonly Guid TenantId = Guid.Parse("39fd0553-95fb-4882-ae72-d96e67320611");
     public static readonly Guid ClientId = Guid.Parse("eb93553e-504c-4131-9145-6258b968f1c5");
-    private static readonly Guid UserId = Guid.Parse("fc3b4b7b-61cf-4295-aa53-5273e4c0d5a0");
+    public static readonly Guid UserId = Guid.Parse("fc3b4b7b-61cf-4295-aa53-5273e4c0d5a0");
     private const string Issuer = "FinancialCopilot.Tests";
     private const string Audience = "FinancialCopilot.Tests.Web";
     private const string SigningKey = "integration-test-signing-key-with-more-than-32-characters";

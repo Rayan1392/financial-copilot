@@ -22,10 +22,14 @@ public sealed class HttpCurrentActorContext(IHttpContextAccessor httpContextAcce
             return mode switch
             {
                 AuthenticationMode.WebAppUser => new CurrentActor(
+                    ActorType.User,
+                    ReadSubject(principal),
                     tenantId,
                     mode,
                     UserId: ReadSubject(principal)),
                 AuthenticationMode.ApiClient => new CurrentActor(
+                    ActorType.ApiClient,
+                    ReadRequiredGuid(principal, FinancialCopilotClaimTypes.ApiClientId),
                     tenantId,
                     mode,
                     ApiClientId: ReadRequiredGuid(principal, FinancialCopilotClaimTypes.ApiClientId)),

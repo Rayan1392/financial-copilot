@@ -1,4 +1,5 @@
 using FinancialCopilot.Domain.Identity;
+using FinancialCopilot.Application.Authentication;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -21,5 +22,25 @@ public sealed class IdentityModelTests
 
         Assert.Equal(tenantId, client.TenantId);
         Assert.True(client.IsActive);
+    }
+
+    [Fact]
+    public void CurrentActor_ApiClientDoesNotRequireUserId()
+    {
+        var tenantId = Guid.NewGuid();
+        var apiClientId = Guid.NewGuid();
+
+        var actor = new CurrentActor(
+            ActorType.ApiClient,
+            apiClientId,
+            tenantId,
+            AuthenticationMode.ApiClient,
+            ApiClientId: apiClientId);
+
+        Assert.Equal(ActorType.ApiClient, actor.ActorType);
+        Assert.Equal(apiClientId, actor.ActorId);
+        Assert.Null(actor.UserId);
+        Assert.Equal(apiClientId, actor.ApiClientId);
+        Assert.Equal(tenantId, actor.TenantId);
     }
 }

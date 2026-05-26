@@ -44,9 +44,9 @@ These stories establish the executable solution, actor/tenant isolation, and bil
 
 | Done | Order | Spec | User story | Dependency / implementation intent |
 |---|---:|---|---|---|
-| [ ] | 01 | [001](./001-project-foundation/user-story.md) / [tasks](./001-project-foundation/tasks.md) | Project Foundation | Establish solution structure, configuration, test hosts, and architecture rules. Verify existing foundation before checking. |
-| [ ] | 02 | [002](./002-auth-and-tenancy/user-story.md) / [tasks](./002-auth-and-tenancy/tasks.md) | Authentication and Tenant Context | Depends on `001`; establish authenticated actor, tenant, API client, authorization, and rate-limit context. |
-| [ ] | 03 | [013](./013-billing-and-credits-domain/user-story.md) / [tasks](./013-billing-and-credits-domain/tasks.md) | Billing and Credits Domain | Depends on `001`, `002`; establish the isolated Billing bounded context, account model, ledger, pricing, entitlement, and reservation contracts. |
+| [x] | 01 | [001](./001-project-foundation/user-story.md) / [tasks](./001-project-foundation/tasks.md) | Project Foundation | Establish solution structure, configuration, test hosts, and architecture rules. Verify existing foundation before checking. |
+| [x] | 02 | [002](./002-auth-and-tenancy/user-story.md) / [tasks](./002-auth-and-tenancy/tasks.md) | Authentication and Tenant Context | Depends on `001`; establish authenticated actor, tenant, API client, authorization, and rate-limit context. |
+| [~] | 03 | [013](./013-billing-and-credits-domain/user-story.md) / [tasks](./013-billing-and-credits-domain/tasks.md) | Billing and Credits Domain | Depends on `001`, `002`; establish the isolated Billing bounded context, account model, ledger, pricing, entitlement, and reservation contracts. |
 
 ### Stage 2 - Governed Financial Data And Calculation Core
 
@@ -108,7 +108,9 @@ Add one row only after verification. Do not mark an item complete solely because
 
 | Date | Spec | Status | Verification evidence / notes |
 |---|---|---|---|
-| YYYY-MM-DD | `NNN-title` | Completed / Partially verified / Blocked | Tests executed, contracts completed, and explicitly deferred work. |
+| 2026-05-26 | `001-project-foundation` | Completed | Audited existing modular solution, API middleware/endpoints, Billing module, and architecture tests. `dotnet test src/backend/FinancialCopilot.sln --configuration Release --no-restore` passed: Unit 4, Integration 16, Architecture 1. |
+| 2026-05-26 | `002-auth-and-tenancy` | Completed | Added explicit `ActorType` and canonical `ActorId` current-context contract for user/API-client Billing handoff without billing decisions in auth. Verified JWT/API-key, 401/403, tenant/client access and per-actor rate limit behavior. `dotnet test src/backend/FinancialCopilot.sln --configuration Release --no-restore` passed: Unit 5, Integration 16, Architecture 1. |
+| 2026-05-26 | `013-billing-and-credits-domain` | Partially verified | Implemented Billing domain/contracts and service foundation: accounts/modes, wallet/credit-line capacity, subscription/invoice records, partner attribution, account resolution, entitlement validation, reservation commit/release idempotency, immutable usage/refund ledger primitives, financial transactions, wallet projection rebuilding, operation-based pricing, and accounting interfaces/services. PostgreSQL persistence, distributed concurrency, AI workflow/facade integration, endpoints/reports, and payment/invoice implementations remain. `dotnet test src/backend/FinancialCopilot.sln --configuration Release --no-restore` passed: Unit 20, Integration 16, Architecture 1. |
 
 ## Agent Handoff Rule
 

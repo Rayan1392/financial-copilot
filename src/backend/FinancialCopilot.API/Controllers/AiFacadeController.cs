@@ -38,6 +38,9 @@ public sealed class AiFacadeController(ICurrentActorContext actorContext) : Cont
         };
 
         details.Extensions["authenticationMode"] = actor.AuthenticationMode.ToString();
+        details.Extensions["actorType"] = actor.ActorType.ToString();
+        details.Extensions["actorId"] = actor.ActorId;
+        details.Extensions["tenantId"] = actor.TenantId;
 
         return StatusCode(StatusCodes.Status501NotImplemented, details);
     }

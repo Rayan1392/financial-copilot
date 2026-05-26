@@ -139,6 +139,26 @@ public interface IUsageAccountingService
     Task AppendAsync(UsageLedgerEntry entry, CancellationToken cancellationToken);
 }
 
+public sealed record CreditAdjustmentCommand(
+    Guid CustomerAccountId,
+    Guid ActorId,
+    Guid TenantId,
+    decimal Credits,
+    string Reason,
+    string IdempotencyKey);
+
+public sealed record CreditAdjustmentResult(
+    UsageLedgerEntry LedgerEntry,
+    WalletSnapshot Wallet,
+    bool AlreadyApplied);
+
+public interface ICreditAdjustmentService
+{
+    Task<CreditAdjustmentResult> ApplyAsync(
+        CreditAdjustmentCommand command,
+        CancellationToken cancellationToken);
+}
+
 public interface IEntitlementService
 {
     Task ValidateCanExecuteAsync(

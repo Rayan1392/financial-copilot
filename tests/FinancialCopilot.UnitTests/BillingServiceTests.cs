@@ -52,6 +52,24 @@ public sealed class BillingServiceTests
     }
 
     [Fact]
+    public async Task BillingAdministrationService_RejectsAccountOutsideAdministratorTenant()
+    {
+        var foreignAccount = new CustomerAccount(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            CustomerAccountType.Organization,
+            BillingMode.Prepaid);
+        var service = new BillingAdministrationService(
+            new TestAccountRepository(organization: foreignAccount));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.GetTenantAccountAsync(
+                Guid.NewGuid(),
+                foreignAccount.Id,
+                CancellationToken.None));
+    }
+
+    [Fact]
     public async Task CreditReservationService_ReservesAndCommitsWalletProjectionOnce()
     {
         var accountId = Guid.NewGuid();

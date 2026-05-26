@@ -233,7 +233,7 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
         });
     }
 
-    public string CreateWebAppToken(bool includeTenant)
+    public string CreateWebAppToken(bool includeTenant, bool billingAdmin = false)
     {
         var claims = new List<Claim>
         {
@@ -243,6 +243,11 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
         if (includeTenant)
         {
             claims.Add(new Claim(FinancialCopilotClaimTypes.TenantId, TenantId.ToString()));
+        }
+
+        if (billingAdmin)
+        {
+            claims.Add(new Claim("role", "BillingAdmin"));
         }
 
         var token = new JwtSecurityToken(

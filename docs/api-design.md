@@ -213,6 +213,8 @@ GET  /api/v1/admin/billing/customers/{customerAccountId}/invoices
 POST /api/v1/admin/billing/customers/{customerAccountId}/adjustments
 ```
 
+Billing administration endpoints require a billing-administrator role and remain tenant-scoped. The implemented manual adjustment operation records a positive usage-credit adjustment with an audit reason and idempotency key, and updates the wallet projection as part of the same persistence operation. It does not convert payment currency to credits or serve as a payment gateway.
+
 Payment gateway callbacks and partner invoice settlement endpoints must be provider-specific authenticated/internal integration contracts when implemented, with idempotency enforced. Full payment gateway and automatic invoice delivery are not required for the initial scanner milestone.
 
 ## Error Response

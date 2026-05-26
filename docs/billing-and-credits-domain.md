@@ -43,6 +43,8 @@ Immutable UsageLedger and financial transaction ledger are the source of truth.
 
 Wallet state is a materialized projection used for performant entitlement and balance reads. It must be rebuildable from ledger records. Every reservation, commit, release, refund, adjustment, invoice attribution, and payment reconciliation is idempotent and auditable.
 
+Manual usage-credit adjustments are administrator-authorized, tenant-scoped ledger entries with required audit reason and idempotency key. They are separate from currency-denominated payment or invoice-settlement transactions; currency is never converted into credits without an explicit future settlement policy.
+
 ## Customer Types
 
 ### SaaS Organization

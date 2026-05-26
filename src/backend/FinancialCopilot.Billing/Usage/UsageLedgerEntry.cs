@@ -12,7 +12,8 @@ public sealed record UsageLedgerEntry(
     string PricingPolicyVersion,
     string IdempotencyKey,
     DateTimeOffset OccurredAt,
-    string? ExternalUserId = null)
+    string? ExternalUserId = null,
+    string? AuditDescription = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

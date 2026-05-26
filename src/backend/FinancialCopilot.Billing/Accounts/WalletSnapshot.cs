@@ -55,6 +55,21 @@ public sealed record WalletSnapshot(
         };
     }
 
+    public WalletSnapshot AddCredits(decimal credits, DateTimeOffset updatedAt)
+    {
+        if (credits <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(credits));
+        }
+
+        return this with
+        {
+            Balance = Balance + credits,
+            UpdatedAt = updatedAt,
+            Revision = Revision + 1
+        };
+    }
+
     private void ValidateReservedAmount(decimal credits)
     {
         if (credits <= 0 || credits > ReservedAmount)

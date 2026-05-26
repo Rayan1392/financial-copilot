@@ -178,6 +178,50 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task CreditAdjustmentService_AppliesLedgerAndWalletOnceForSameCommand()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Organization.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 50,
+            ReservedAmount = 0,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new CreditAdjustmentService(
+            dbContext,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+        var command = new FinancialCopilot.Billing.Contracts.CreditAdjustmentCommand(
+            customerAccountId,
+            actorId,
+            tenantId,
+            5,
+            "Compensating credit",
+            "adjustment-1");
+
+        var applied = await service.ApplyAsync(command, CancellationToken.None);
+        var replayed = await service.ApplyAsync(command, CancellationToken.None);
+
+        Assert.False(applied.AlreadyApplied);
+        Assert.True(replayed.AlreadyApplied);
+        Assert.Equal(55, replayed.Wallet.Balance);
+        Assert.Equal(1, replayed.Wallet.Revision);
+        Assert.Single(dbContext.UsageLedgerEntries);
+        Assert.Equal("Compensating credit", dbContext.UsageLedgerEntries.Single().AuditDescription);
+    }
+
+    [Fact]
     public async Task SubscriptionAndInvoiceRepositories_ReadConfiguredBillingProfiles()
     {
         await using var dbContext = CreateDbContext();
@@ -226,5 +270,10 @@ public sealed class BillingPersistenceTests
             .Options;
 
         return new BillingDbContext(options);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

@@ -78,6 +78,8 @@ public sealed class UsageLedgerEntryRow
     public DateTimeOffset OccurredAt { get; set; }
 
     public string? ExternalUserId { get; set; }
+
+    public string? AuditDescription { get; set; }
 }
 
 public sealed class FinancialTransactionRow

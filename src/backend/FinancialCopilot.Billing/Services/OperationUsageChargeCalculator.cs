@@ -20,13 +20,29 @@ public sealed class OperationUsageChargeCalculator(IPricingPolicyProvider policy
                 $"Operation '{request.OperationCode}' is not priced by policy '{policy.Version}'.");
         }
 
-        var multiplier = request.Cached ? policy.CachedMultiplier : 1m;
+        var cachedMultiplier = request.Cached ? policy.CachedMultiplier : 1m;
 
-        if (multiplier < 0 || multiplier > 1)
+        if (cachedMultiplier < 0 || cachedMultiplier > 1)
         {
             throw new InvalidOperationException("Cached multiplier must be between zero and one.");
         }
 
-        return new UsageChargeResult(decimal.Round(credits * multiplier, 4), policy.Version, request.Cached);
+        var outcomeMultiplier = 1m;
+
+        if (policy.CompletionMultipliers is not null &&
+            policy.CompletionMultipliers.TryGetValue(request.CompletionStatus, out var configuredMultiplier))
+        {
+            outcomeMultiplier = configuredMultiplier;
+        }
+
+        if (outcomeMultiplier < 0 || outcomeMultiplier > 1)
+        {
+            throw new InvalidOperationException("Completion multiplier must be between zero and one.");
+        }
+
+        return new UsageChargeResult(
+            decimal.Round(credits * cachedMultiplier * outcomeMultiplier, 4),
+            policy.Version,
+            request.Cached);
     }
 }

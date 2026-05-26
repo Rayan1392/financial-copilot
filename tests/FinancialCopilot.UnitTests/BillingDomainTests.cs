@@ -136,6 +136,9 @@ public sealed class BillingDomainTests
     [InlineData("AiQuery.DeepResearch", 15)]
     [InlineData("AiQuery.CodalAnalysis", 8)]
     [InlineData("AiQuery.Summarization", 4)]
+    [InlineData("AiQuery.Embeddings", 0.5)]
+    [InlineData("AiQuery.RagSearch", 2)]
+    [InlineData("AiQuery.BackgroundJob", 6)]
     [InlineData("AiQuery.FutureRiskScore", 6.5)]
     public void UsageChargeCalculator_PricesConfiguredOperationsWithoutQueryCountAssumption(
         string operationCode,
@@ -177,6 +180,23 @@ public sealed class BillingDomainTests
         Assert.Equal(0, result.CreditsCharged);
     }
 
+    [Fact]
+    public void UsageChargeCalculator_ChargesConfiguredReducedAmountForPartialCompletion()
+    {
+        var calculator = new OperationUsageChargeCalculator(
+            new ConfiguredPricingPolicyProvider([CreateOperationPricingPolicy()]));
+
+        var result = calculator.Calculate(new UsageChargeRequest(
+            "AiQuery.DeepResearch",
+            "v1",
+            Cached: false,
+            CompletionStatus: "PartiallyCompleted",
+            UsageUnits: [],
+            ProviderCosts: []));
+
+        Assert.Equal(7.5m, result.CreditsCharged);
+    }
+
     private static PricingPolicy CreateOperationPricingPolicy() =>
         new(
             "v1",
@@ -187,6 +207,9 @@ public sealed class BillingDomainTests
                 ["AiQuery.DeepResearch"] = 15,
                 ["AiQuery.CodalAnalysis"] = 8,
                 ["AiQuery.Summarization"] = 4,
+                ["AiQuery.Embeddings"] = 0.5m,
+                ["AiQuery.RagSearch"] = 2,
+                ["AiQuery.BackgroundJob"] = 6,
                 ["AiQuery.FutureRiskScore"] = 6.5m
             },
             CachedMultiplier: 0.2m,
@@ -197,5 +220,9 @@ public sealed class BillingDomainTests
                 "ProviderFailed",
                 "CancelledBeforeExecution",
                 "TimedOutBeforeExecution"
+            },
+            CompletionMultipliers: new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["PartiallyCompleted"] = 0.5m
             });
 }

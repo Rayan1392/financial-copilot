@@ -12,7 +12,8 @@ public sealed record PricingPolicy(
     string Version,
     IReadOnlyDictionary<string, decimal> OperationCredits,
     decimal CachedMultiplier,
-    IReadOnlySet<string> ZeroChargeStatuses);
+    IReadOnlySet<string> ZeroChargeStatuses,
+    IReadOnlyDictionary<string, decimal>? CompletionMultipliers = null);
 
 public sealed record UsageChargeRequest(
     string OperationCode,

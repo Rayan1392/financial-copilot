@@ -60,7 +60,10 @@ public static class ServiceCollectionExtensions
                 ["AiQuery.FinancialComparison"] = 3m,
                 ["AiQuery.DeepResearch"] = 15m,
                 ["AiQuery.CodalAnalysis"] = 8m,
-                ["AiQuery.Summarization"] = 4m
+                ["AiQuery.Summarization"] = 4m,
+                ["AiQuery.Embeddings"] = 0.5m,
+                ["AiQuery.RagSearch"] = 2m,
+                ["AiQuery.BackgroundJob"] = 6m
             },
             CachedMultiplier: 0.2m,
             ZeroChargeStatuses: new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -70,6 +73,10 @@ public static class ServiceCollectionExtensions
                 "ProviderFailed",
                 "CancelledBeforeExecution",
                 "TimedOutBeforeExecution"
+            },
+            CompletionMultipliers: new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["PartiallyCompleted"] = 0.5m
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
 

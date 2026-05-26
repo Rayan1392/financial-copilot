@@ -50,7 +50,8 @@ The React chat UI submits every message to `POST /api/ai/v1/query`. The backend 
 5. `docs/api-design.md`
 6. `docs/billing-and-credits-domain.md`
 7. `docs/codex-agent-instructions.md`
-8. `specs/*/user-story.md`
+8. `specs/implementation-checklist.md`
+9. `specs/*/user-story.md`
 
 ## Backend Development
 

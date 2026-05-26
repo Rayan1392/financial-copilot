@@ -69,17 +69,9 @@ AI/Scanner -> Billing persistence implementations
 
 ## Implementation Order
 
-1. Create solution and project structure.
-2. Add architecture test dependencies.
-3. Implement Domain primitives for symbols, periods, metrics, scanner conditions.
-4. Implement Application interfaces, `IAiQueryOrchestrator`, Intent Detection, Tool Routing, and scanner use cases.
-5. Implement Infrastructure persistence and provider abstractions.
-6. Implement scanner parser and execution services with deterministic mock provider/repository first.
-7. Implement `POST /api/ai/v1/query` and generic Conversation history endpoints.
-8. Add real financial-data provider integration behind interfaces and AI model adapters behind provider-neutral contracts, based on available provider documentation.
-9. Add data ingestion worker.
-10. Add Phase 1 Usage Accounting tied to AI query execution using `FinancialCopilot.Billing` reservation and immutable-ledger contracts.
-11. Implement organization/direct-consumer billing capabilities, payment/invoice interfaces, and reports according to `specs/013-billing-and-credits-domain`.
+Use `specs/implementation-checklist.md` as the authoritative implementation order and progress ledger. Before starting a story, read its `user-story.md` and `tasks.md`, review current implementation state, and update the checklist item only according to its completion gate.
+
+The checklist intentionally places Billing foundations and the Financial Semantic Layer before the workflows that depend on their contracts. It also distinguishes the Scanner MVP delivery from future platform evolution features.
 
 ## Definition of Done
 

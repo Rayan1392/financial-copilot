@@ -2,6 +2,10 @@
 
 Each subfolder contains one user story and its implementation tasks. The numbered folders identify capabilities, not a strict implementation sequence; the dependency map below governs sequencing where capabilities overlap.
 
+## Implementation Control File
+
+Implementation agents must use [implementation-checklist.md](./implementation-checklist.md) as the ordered execution and completion ledger. Read the selected story and task file from this index, but mark work in the checklist only after its completion gate and verification evidence are satisfied.
+
 ## Phase 1 Scanner MVP Specs
 
 1. `001-project-foundation`

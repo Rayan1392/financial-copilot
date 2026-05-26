@@ -115,6 +115,42 @@ A policy-defined confidence value reflecting interpretation and data sufficiency
 
 The record of credits/cost units and outcome associated with executing an AI facade request for a user or API client.
 
+### Financial Metric Definition
+
+A stable semantic identity and governed meaning for a metric, independent from source-provider fields, database columns, prompt terminology, or UI wording.
+
+### Metric Code
+
+A canonical executable identifier for a Financial Metric Definition, for example `NET_PROFIT_GROWTH_YOY`, `NET_PROFIT_GROWTH_QOQ`, or `PE_TTM`. Scanner plans and calculated evidence use this identifier rather than raw language or provider fields.
+
+### Metric Version
+
+An auditable revision of a Financial Metric Definition. Historical calculated values and explanations retain the metric version that governed them.
+
+### Metric Calculation Policy
+
+A deterministic, versioned policy defining how a metric is calculated, what periods/dependencies are required, and what fallback or missing-data behavior applies.
+
+### Metric Alias
+
+A Persian, English, or alternative financial term that resolves to a governed Financial Metric Definition when its meaning is unambiguous.
+
+### Derived Feature
+
+A deterministic or explicitly governed computed signal based on metrics or observations, such as future momentum, liquidity, or earnings-quality scores. It is separate from a raw financial metric and can be snapshotted/versioned for future intelligence use cases.
+
+### AI Evaluation Dataset
+
+An internal versioned collection of Golden Questions and expected outcomes used to measure interpretation, explanation, and workflow changes over time.
+
+### AI Execution Trace
+
+Correlated operational telemetry across an AI query workflow, tool calls, provider attempts, timing, errors, and usage facts, subject to tenant and privacy controls.
+
+### Conversation Memory
+
+Optional context that may be supplied to future orchestration beyond persisted chat history. Durable or sensitive memory requires consent and does not replace authoritative user, portfolio, or billing records.
+
 ## Metric Families
 
 ### Valuation Ratios
@@ -153,6 +189,8 @@ The record of credits/cost units and outcome associated with executing an AI fac
 - Cash flow from operations
 - Inventory growth
 - Receivable growth
+
+This list is illustrative only. EPS, P/E, margins, growth measures, and cash-flow measures are examples, not the full financial domain. The platform's semantic metric catalog is extensible and versioned; it must not be treated as a closed hardcoded list. Scanner parsing resolves supported Persian/English terminology through metric aliases into canonical metric codes, and derived calculations/explanations retain the selected definition and calculation-policy version.
 
 ## Ambiguity Rules
 

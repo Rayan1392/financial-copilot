@@ -21,6 +21,7 @@
 - Update `IScannerQueryParser` and answer-generation adapters to depend on normalized AI provider contracts, not vendor SDK types.
 - Enforce strict schema validation and deterministic fallback when the selected model/provider cannot reliably produce required structured output.
 - Preserve provider-selection, model-selection, fallback, and normalized execution facts as internal audit evidence correlated to the AI query execution.
+- Emit provider-attempt telemetry compatible with `018-ai-observability-and-telemetry` without making model adapters responsible for end-to-end workflow tracing.
 
 ## Billing and Security
 
@@ -34,4 +35,4 @@
 - Add integration tests for the AI facade using the deterministic fake provider.
 - Add adapter contract tests for each implemented hosted/local provider.
 - Add architecture tests preventing vendor SDK dependencies from leaking into Domain, Scanner, Billing, or public API contract assemblies.
-
+- Provide execution metadata needed by `017-ai-evaluation-and-regression` to compare approved provider/workflow configurations in controlled evaluation runs.

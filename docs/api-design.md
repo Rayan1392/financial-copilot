@@ -88,7 +88,9 @@ Example response when the backend selects the Scanner Tool:
           "score": 87.5,
           "matchedConditions": [
             {
-              "metric": "NetProfitGrowth",
+              "metric": "NET_PROFIT_GROWTH_YOY",
+              "metricVersion": "v1",
+              "calculationPolicyVersion": "yoy-quarterly-v1",
               "actualValue": 72.4,
               "threshold": 50,
               "unit": "percent",
@@ -96,7 +98,9 @@ Example response when the backend selects the Scanner Tool:
               "comparison": "YoY"
             },
             {
-              "metric": "PE",
+              "metric": "PE_TTM",
+              "metricVersion": "v1",
+              "calculationPolicyVersion": "ttm-valuation-v1",
               "actualValue": 4.2,
               "threshold": 5,
               "period": "TTM"
@@ -155,6 +159,8 @@ GET /api/ai/v1/metadata/periods
 GET /api/ai/v1/metadata/symbols
 GET /api/ai/v1/metadata/industries
 ```
+
+The metrics metadata response is backed by the versioned Financial Semantic Layer. It may expose stable semantic metric identifiers, localized display aliases, unit/category, supported period/comparison options, and current public definition/policy version. It must not expose an ungoverned hardcoded frontend formula list.
 
 ## Internal Scanner Services
 

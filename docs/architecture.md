@@ -64,6 +64,7 @@ Responsibilities:
 - Enums.
 - Domain services.
 - Financial metric definitions.
+- Versioned Financial Semantic Layer definitions, bilingual aliases, metric dependencies, and calculation-policy contracts.
 - Period comparison semantics.
 - Scanner condition model.
 - Domain exceptions.
@@ -96,6 +97,7 @@ Responsibilities:
 - Scheduled refresh of quarterly financial statements.
 - Embedding/indexing jobs for textual analysis.
 - Derived metric calculation jobs.
+- Future deterministic derived-feature computation jobs when feature definitions are promoted into scope.
 
 ### FinancialCopilot.Billing
 
@@ -341,3 +343,68 @@ Use deterministic code for:
 ## Future Evolution
 
 The module boundaries and billing ledger are intended to support later AI agents, autonomous research, portfolio copilots, ranking engines, alerts, financial monitoring, B2B AI APIs, mobile applications, and enterprise integrations without redesigning account charging or AI workflow enforcement.
+
+## Financial Semantic Layer
+
+The platform requires a formal semantic layer for financial meaning. The Phase 1 metric catalog is an initial set, not a closed enumeration. A future production catalog may include hundreds of metrics, aliases, formulas, indicator policies, industry-specific variations, and Persian/English terminology.
+
+Model concepts include:
+
+```text
+FinancialMetricDefinition
+MetricCode
+MetricVersion
+MetricCalculationPolicy
+MetricAlias
+MetricCategory
+MetricUnit
+MetricFormula
+MetricDependency
+Requirement
+MetricCalculator
+MetricResolutionResult
+MetricCalculationContext
+MetricCalculationResult
+```
+
+EPS, P/E, margins, growth measures, and cash-flow measures are examples only; they are not the complete or fixed domain scope. Scanner interpretation must resolve terminology through versioned semantic metric definitions and canonical `MetricCode` values, and calculated observations and explanations must retain the definition/policy version used. Calculator implementations should be registered through strategies/DI, for example `IFinancialMetricCalculator` and `IFinancialMetricRegistry`, rather than routed through central `switch`/`case` or `if`/`else` formula logic.
+
+The required semantic execution path is:
+
+```text
+User expression
+  -> IMetricAliasResolver
+  -> Canonical MetricCode
+  -> IFinancialMetricRegistry
+  -> IMetricCalculationPolicyProvider
+  -> IFinancialMetricCalculator
+  -> MetricCalculationResult
+```
+
+For example, a Persian expression for latest-quarter net profit growth may resolve to `NET_PROFIT_GROWTH_QOQ` or `NET_PROFIT_GROWTH_YOY` depending on the validated context. If the comparison basis is ambiguous, the backend returns clarification rather than silently choosing a calculation.
+
+The backend owns canonical definitions, formulas, policies, period handling, dependencies, validation, and confidence rules. The LLM may identify candidate terminology, request clarification, and compose explanation text, but it cannot establish metric meaning, formula selection, version selection, or numeric calculation. Financial terminology must be extensible through semantic definitions and calculator strategies, not hardcoded procedural logic. Detailed evolution rules are documented in `docs/financial-intelligence-platform-capabilities.md` and `specs/015-financial-semantic-layer`.
+
+## Derived Feature Foundation
+
+Future intelligence capabilities consume reproducible derived features such as momentum, liquidity, volatility, growth consistency, relative strength, or earnings quality. The platform defines `DerivedFeature`, `FeatureDefinition`, `FeatureSnapshot`, `FeatureVersion`, `FeatureComputationJob`, and `FeatureDependency` as a lightweight evolution boundary.
+
+Feature snapshots are deterministic and historically traceable where the definition is deterministic. Worker/RabbitMQ flows may recalculate them asynchronously. This is a future-compatible foundation, not a Phase 1 requirement to build a full ML platform or new feature-store infrastructure.
+
+## AI Evaluation And Observability
+
+AI workflow quality and operation need dedicated internal boundaries:
+
+- Evaluation models include `GoldenQuestion`, `GoldenAnswer`, `EvaluationDataset`, `PromptVersion`, `EvaluationRun`, `EvaluationScore`, and `RegressionResult`.
+- Evaluation measures structured interpretation, semantic metric resolution, clarification, ranking consistency, evidence/citation completeness, and protection of deterministic financial/billing output.
+- Operational models include `AiExecutionTrace`, `PromptTrace`, `ToolExecutionTrace`, `ProviderLatency`, `TokenUsage`, `CostTelemetry`, and `WorkflowTelemetry`.
+- Use OpenTelemetry-compatible correlation across API request, Message, workflow, tool, provider, data lookup, confidence function, Billing reservation/ledger, and persistence.
+- Apply explicit prompt/response privacy, redaction, retention, and tenant policy. Operational telemetry does not replace the Billing ledger.
+
+Potential later telemetry integrations include internal dashboards and Langfuse where approved by data protection policy. Evaluation and observability are internal platform capabilities, not frontend tool-selection APIs.
+
+## Conversation Memory Evolution
+
+Conversation persistence is required for Phase 1. Advanced memory is separate future functionality, with potential types including `ShortTermConversationMemory`, `LongTermUserMemory`, `PortfolioAwareMemory`, `PreferenceMemory`, `ResearchMemory`, and `WatchlistMemory`.
+
+Future memory must be tenant-aware, subject- and purpose-scoped, explicitly consented where durable or sensitive, protected from provider/log leakage, user-controllable, and explainable when it materially informs an answer. Orchestration may later retrieve authorized memory through stable Application interfaces behind the same AI facade. Advanced memory/vector infrastructure is not introduced merely for the Scanner MVP.

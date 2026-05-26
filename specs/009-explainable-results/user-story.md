@@ -11,6 +11,7 @@ so that I can trust and audit the output in my Conversation.
 - Each result includes matched condition details.
 - Each condition includes actual value, threshold, period, and comparison basis.
 - Each result includes Data Citations with source provider, report date, and last sync timestamp.
+- Displayed financial metric evidence includes its resolved semantic definition and calculation-policy version where applicable.
 - Each completed scanner answer includes an answer-level Confidence Score; per-result confidence is optional only when a documented policy calculates it separately.
 - Each result includes warnings if data is stale or incomplete.
 - Scanner answers include applied filter chips whose labels and values match the executed plan and identify inferred defaults.
@@ -31,6 +32,7 @@ so that I can trust and audit the output in my Conversation.
 - Numeric explanations should be generated from deterministic result data.
 - LLM may polish text but must not change numbers.
 - Text generation and suggested-question generation use provider-neutral model interfaces from `014-ai-model-provider-abstraction`; model-provider changes must not alter deterministic evidence, confidence, table data, or Billing metadata.
+- AI explanations consume semantic metric labels/definitions from `015-financial-semantic-layer`; they must not invent or silently redefine a financial metric.
 - Implement confidence calculation behind SOLID Application-layer abstractions; policy implementations must be independently replaceable and unit testable.
 - In the Microsoft Agent Framework orchestration, confidence calculation is a required deterministic workflow function/executor after result evidence exists and before the assistant Message is finalized. It is not an optional tool call selected by the LLM.
 - A Microsoft Agent Framework adapter may expose the function result to answer generation, but the calculation service remains independent of the agent framework and AI provider.

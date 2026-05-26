@@ -19,6 +19,16 @@ Each subfolder contains one user story and its implementation tasks. The numbere
 13. `013-billing-and-credits-domain` - unified SaaS organization and direct-consumer billing bounded context
 14. `014-ai-model-provider-abstraction` - hosted and local LLM/provider-neutral execution contracts
 
+## Platform Evolution Specs
+
+These specifications extend the AI-native Financial Intelligence Platform architecture without expanding the Phase 1 Scanner MVP unless a capability is explicitly promoted into delivery scope:
+
+15. `015-financial-semantic-layer` - versioned metric ontology, aliases, formulas, policies, and extensible calculation registration
+16. `016-derived-feature-foundation` - reproducible feature snapshots and asynchronous feature-computation contracts
+17. `017-ai-evaluation-and-regression` - internal datasets, baselines, prompt/workflow evaluation, and regression analysis
+18. `018-ai-observability-and-telemetry` - correlated AI workflow, provider, tool, cost, and latency telemetry
+19. `019-conversation-memory-strategy` - future consent-aware memory beyond Phase 1 Conversation persistence
+
 ## Coherence Rules
 
 - The React UI submits user Messages only through `POST /api/ai/v1/query`; scanner parser/execution operations are internal Application capabilities.
@@ -30,6 +40,12 @@ Each subfolder contains one user story and its implementation tasks. The numbere
 - `011` may improve latency with cache hits, but it must still execute Billing accounting policy and return freshness/usage metadata.
 - `004` concerns financial/market data providers; `014` concerns LLM/embedding model providers and keeps vendor SDKs outside business use cases.
 - `007` invokes model capabilities through `014` interfaces; model providers never own scanner validation, confidence calculation, or Billing decisions.
+- `015` extends `003` metric vocabulary and governs the semantic definition/version contracts used by deterministic calculations in `006`; metric growth must not create hardcoded parser or formula-routing logic.
+- `007` resolves user metric language through `015` semantic definitions; `009` cites resolved metric/policy versions in explanations.
+- `016` consumes normalized data and versioned metric results for future features; it does not make advanced ranking or ML a Phase 1 prerequisite.
+- `017` evaluates parser/orchestration/explanation behavior internally and never becomes a public API dependency.
+- `018` observes execution across `014`, orchestration, tools, and Billing; observability is not the accounting source of truth.
+- `019` separates optional consent-aware future memory from required Conversation and Message persistence.
 
 ## Recommended Delivery Dependencies
 
@@ -51,3 +67,19 @@ Each subfolder contains one user story and its implementation tasks. The numbere
 ```
 
 Payment gateway automation, invoice delivery automation, deep research, portfolio tools, Codal analysis, Elasticsearch/OpenSearch, and vector retrieval remain later increments unless separately promoted into MVP scope.
+
+Future platform capability delivery can proceed incrementally after or alongside the stable MVP boundaries:
+
+```text
+003 Financial Domain Model
+  -> 015 Financial Semantic Layer foundation
+  -> 006 Derived Metrics Engine integration
+  -> 016 Derived Feature Foundation
+
+014 AI Model Provider + 007/009 AI workflows
+  -> 017 AI Evaluation and Regression
+  -> 018 AI Observability and Telemetry
+
+Conversation persistence
+  -> 019 Consent-Aware Memory Strategy
+```

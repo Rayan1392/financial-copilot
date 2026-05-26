@@ -42,6 +42,8 @@ Phase 1 metrics:
 - Operating margin
 - Net margin
 
+These entries are the initial supported semantic metric definitions, not a hardcoded closed catalog. EPS, P/E, margins, growth measures, and cash-flow measures are examples of an extensible domain that can grow substantially. The scanner resolves Persian or English user terminology into canonical metric codes through the versioned Financial Semantic Layer and retains metric/calculation-policy versions for explanation and audit. Future metric additions should be registered through extensible calculation strategies without modifying core orchestration logic.
+
 ### Period Coverage
 
 - Latest month
@@ -76,6 +78,7 @@ Phase 1 metrics:
 - Complex technical analysis.
 - Backtesting.
 - Full Elasticsearch deployment unless PostgreSQL search is insufficient.
+- Advanced derived-feature scoring, ML feature-store infrastructure, AI evaluation dashboards, and personalized long-term memory.
 
 ## Scanner Query Plan
 
@@ -91,7 +94,8 @@ After Tool Routing selects the Scanner Tool, `IScannerQueryParser` should produc
   },
   "conditions": [
     {
-      "metric": "NetProfitGrowth",
+      "metric": "NET_PROFIT_GROWTH_YOY",
+      "metricVersion": "v1",
       "operator": ">",
       "value": 50,
       "unit": "percent",
@@ -99,7 +103,8 @@ After Tool Routing selects the Scanner Tool, `IScannerQueryParser` should produc
       "comparison": "YoY"
     },
     {
-      "metric": "PE",
+      "metric": "PE_TTM",
+      "metricVersion": "v1",
       "operator": "<",
       "value": 5,
       "period": "TTM"
@@ -107,7 +112,7 @@ After Tool Routing selects the Scanner Tool, `IScannerQueryParser` should produc
   ],
   "sort": [
     {
-      "metric": "NetProfitGrowth",
+      "metric": "NET_PROFIT_GROWTH_YOY",
       "direction": "desc"
     }
   ],
@@ -126,6 +131,7 @@ Reject or clarify when:
 - ambiguity changes financial meaning,
 - LLM output contains executable SQL,
 - limit exceeds allowed plan/user quota.
+- terminology cannot be resolved to an allowed semantic metric definition/version.
 
 ## Ranking Policy
 
@@ -170,6 +176,10 @@ The MVP scanner is implemented behind the facade through services such as:
 - `IExplainableAnswerBuilder`
 
 No scanner-specific parse or execute endpoint is part of the React UI contract.
+
+## Future Platform Extensions
+
+The Scanner MVP sits on architecture that can later add versioned derived features, AI evaluation/regression datasets, OpenTelemetry-compatible AI workflow observability, and consent-aware memory. Those capabilities remain internal extensions behind the same AI facade and do not expand the Phase 1 public scanner API.
 
 ## Non-Functional Requirements
 

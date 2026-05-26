@@ -52,6 +52,8 @@ Supported period types:
 - Trailing twelve months
 - Latest available period
 
+The financial Domain represents latest-month and latest-quarter requests as selectors. A selector must be resolved to a closed reporting period before period comparison is calculated or a derived metric result is retained as evidence.
+
 ### Growth
 
 A percentage change between a current period and a comparison period.
@@ -62,6 +64,8 @@ Examples:
 - latest month vs previous month,
 - latest month vs same month last year,
 - latest 3-month period vs previous 3-month period.
+
+The reusable Domain comparison policy supports year-over-year comparisons for closed periods and month-over-month comparisons for monthly reports. Derived metric calculation execution remains outside the Domain model.
 
 ### Net Profit Growth
 
@@ -130,6 +134,10 @@ An auditable revision of a Financial Metric Definition. Historical calculated va
 ### Metric Calculation Policy
 
 A deterministic, versioned policy defining how a metric is calculated, what periods/dependencies are required, and what fallback or missing-data behavior applies.
+
+### Financial Observation Quality
+
+Source observations and derived metric evidence can carry nullable values plus explicit missing-data or stale-data warnings, together with observation and synchronization timestamps.
 
 ### Metric Alias
 

@@ -275,6 +275,54 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task FinancialTransactionAccountingService_RecordsPaymentAndOutboxOnce()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var transaction = new FinancialTransaction(
+            Guid.NewGuid(),
+            customerAccountId,
+            FinancialTransactionType.Payment,
+            500_000m,
+            "IRR",
+            "gateway-callback-1",
+            DateTimeOffset.Parse("2026-05-26T12:00:00Z"));
+        var service = new FinancialTransactionAccountingService(dbContext);
+
+        await service.RecordAsync(transaction, CancellationToken.None);
+        await service.RecordAsync(transaction, CancellationToken.None);
+
+        var stored = Assert.Single(dbContext.FinancialTransactions);
+        Assert.Equal("Payment", stored.Type);
+        var outbox = Assert.Single(dbContext.OutboxMessages);
+        Assert.Equal("Billing.PaymentRecorded", outbox.EventType);
+        Assert.Equal("gateway-callback-1:recorded", outbox.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task FinancialTransactionAccountingService_RejectsChangedDuplicatePayment()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = new FinancialTransactionAccountingService(dbContext);
+        var transaction = new FinancialTransaction(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            FinancialTransactionType.InvoiceSettlement,
+            10_000_000m,
+            "IRR",
+            "invoice-settlement-1",
+            DateTimeOffset.Parse("2026-05-26T12:00:00Z"));
+
+        await service.RecordAsync(transaction, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordAsync(
+            transaction with { Amount = 11_000_000m },
+            CancellationToken.None));
+        Assert.Single(dbContext.FinancialTransactions);
+        Assert.Single(dbContext.OutboxMessages);
+    }
+
+    [Fact]
     public async Task CreditAdjustmentService_AppliesLedgerAndWalletOnceForSameCommand()
     {
         await using var dbContext = CreateDbContext();

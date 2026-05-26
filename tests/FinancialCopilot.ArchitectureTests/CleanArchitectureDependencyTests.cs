@@ -42,6 +42,24 @@ public sealed class CleanArchitectureDependencyTests
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 
+    [Fact]
+    public void ScannerAndOrchestratorCode_DoesNotEmbedMetricFormulaRoutingCodes()
+    {
+        var applicationRoot = Path.Combine(FindSolutionRoot(), "FinancialCopilot.Application");
+        var governedFormulaCodes = new[] { "NET_PROFIT_GROWTH_YOY", "NET_PROFIT_GROWTH_QOQ", "PE_TTM" };
+        var failures = Directory
+            .EnumerateFiles(applicationRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+                Path.GetFileName(path).Contains("Scanner", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetFileName(path).Contains("Orchestrator", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(path => governedFormulaCodes
+                .Where(code => File.ReadAllText(path).Contains(code, StringComparison.Ordinal))
+                .Select(code => $"{Path.GetFileName(path)} must resolve '{code}' through semantic contracts."))
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
     private static string FindSolutionRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

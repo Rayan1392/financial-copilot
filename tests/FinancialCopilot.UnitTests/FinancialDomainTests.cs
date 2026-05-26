@@ -166,6 +166,22 @@ public sealed class FinancialDomainTests
     }
 
     [Fact]
+    public void PeriodComparisonPolicy_ResolvesQuarterOverQuarterForQuarterlyStatement()
+    {
+        var current = FiscalPeriod.Closed(
+            FiscalPeriodType.ThreeMonths,
+            new DateOnly(2026, 4, 1),
+            new DateOnly(2026, 6, 30));
+
+        var comparison = new PeriodComparisonPolicy().GetComparisonPeriod(
+            current,
+            GrowthComparison.QuarterOverQuarter);
+
+        Assert.Equal(new DateOnly(2026, 1, 1), comparison.StartDate);
+        Assert.Equal(new DateOnly(2026, 3, 31), comparison.EndDate);
+    }
+
+    [Fact]
     public void PeriodComparisonPolicy_RejectsUnresolvedLatestSelectionAndQuarterlyMonthOverMonth()
     {
         var policy = new PeriodComparisonPolicy();

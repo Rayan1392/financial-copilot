@@ -385,6 +385,8 @@ For example, a Persian expression for latest-quarter net profit growth may resol
 
 The backend owns canonical definitions, formulas, policies, period handling, dependencies, validation, and confidence rules. The LLM may identify candidate terminology, request clarification, and compose explanation text, but it cannot establish metric meaning, formula selection, version selection, or numeric calculation. Financial terminology must be extensible through semantic definitions and calculator strategies, not hardcoded procedural logic. Detailed evolution rules are documented in `docs/financial-intelligence-platform-capabilities.md` and `specs/015-financial-semantic-layer`.
 
+The initial registered catalog exposes governed public metric metadata through authenticated `GET /api/ai/v1/metadata/metrics`. EF Core semantic read models retain definition, alias, policy, and dependency version structures for later normalized data and calculation persistence. Calculator interfaces and DI resolution are established here; executable metric strategy implementations and persisted calculated observations are delivered by the Derived Metrics Engine.
+
 ## Derived Feature Foundation
 
 Future intelligence capabilities consume reproducible derived features such as momentum, liquidity, volatility, growth consistency, relative strength, or earnings quality. The platform defines `DerivedFeature`, `FeatureDefinition`, `FeatureSnapshot`, `FeatureVersion`, `FeatureComputationJob`, and `FeatureDependency` as a lightweight evolution boundary.

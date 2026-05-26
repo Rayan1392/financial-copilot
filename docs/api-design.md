@@ -162,6 +162,8 @@ GET /api/ai/v1/metadata/industries
 
 The metrics metadata response is backed by the versioned Financial Semantic Layer. It may expose stable semantic metric identifiers, localized display aliases, unit/category, supported period/comparison options, and current public definition/policy version. It must not expose an ungoverned hardcoded frontend formula list.
 
+`GET /api/ai/v1/metadata/metrics` is implemented as an authenticated reference endpoint backed by the registered semantic catalog. It exposes metric codes, definition versions, localized aliases, supported periods, units/categories, and registered public calculation-policy versions; it does not expose executable formula expressions.
+
 ## Internal Scanner Services
 
 Scanner parsing and execution are Application-layer responsibilities invoked by `IAiQueryOrchestrator` after Tool Routing selects the Scanner Tool:

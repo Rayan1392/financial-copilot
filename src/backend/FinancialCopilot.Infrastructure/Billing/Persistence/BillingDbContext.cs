@@ -21,5 +21,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<BillingOutboxMessageRow> OutboxMessages => Set<BillingOutboxMessageRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(BillingDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(BillingDbContext).Assembly,
+            type => type.Namespace == typeof(BillingDbContext).Namespace);
 }

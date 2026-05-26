@@ -277,7 +277,8 @@ public sealed class DerivedMetric
         decimal? value,
         MetricValueUnit unit,
         FinancialObservationQuality quality,
-        IReadOnlyCollection<FinancialSourceEvidence> sourceEvidence)
+        IReadOnlyCollection<FinancialSourceEvidence> sourceEvidence,
+        IReadOnlyCollection<DerivedMetricDependencyEvidence>? dependencyEvidence = null)
     {
         if (id == Guid.Empty || symbolId == Guid.Empty)
         {
@@ -300,6 +301,7 @@ public sealed class DerivedMetric
         Unit = unit;
         Quality = quality ?? throw new ArgumentNullException(nameof(quality));
         SourceEvidence = sourceEvidence ?? throw new ArgumentNullException(nameof(sourceEvidence));
+        DependencyEvidence = dependencyEvidence ?? [];
     }
 
     public Guid Id { get; }
@@ -321,4 +323,11 @@ public sealed class DerivedMetric
     public FinancialObservationQuality Quality { get; }
 
     public IReadOnlyCollection<FinancialSourceEvidence> SourceEvidence { get; }
+
+    public IReadOnlyCollection<DerivedMetricDependencyEvidence> DependencyEvidence { get; }
 }
+
+public sealed record DerivedMetricDependencyEvidence(
+    MetricCode MetricCode,
+    MetricVersion MetricVersion,
+    CalculationPolicyVersion CalculationPolicyVersion);

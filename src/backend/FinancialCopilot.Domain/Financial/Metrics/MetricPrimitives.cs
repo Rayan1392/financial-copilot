@@ -88,7 +88,11 @@ public sealed record MetricCalculationPolicy(
     MetricValueUnit Unit,
     GrowthComparison? Comparison,
     MissingDataPolicy MissingDataPolicy,
-    IReadOnlyCollection<MetricDataRequirement> Requirements);
+    IReadOnlyCollection<MetricDataRequirement> Requirements,
+    MetricVersion? DefinitionVersion = null,
+    MetricFormula? Formula = null,
+    DateOnly? EffectiveFrom = null,
+    DateOnly? EffectiveTo = null);
 
 public sealed record MetricIdentity(
     MetricCode Code,

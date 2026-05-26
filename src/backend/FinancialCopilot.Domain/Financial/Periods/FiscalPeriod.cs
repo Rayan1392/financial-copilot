@@ -61,6 +61,22 @@ public sealed record FiscalPeriod
                 "A latest-period selection must be resolved before it can be compared.");
         }
 
-        return Closed(Type, StartDate.Value.AddMonths(months), EndDate.Value.AddMonths(months));
+        var shiftedStart = StartDate.Value.AddMonths(months);
+        var durationMonths = Type switch
+        {
+            FiscalPeriodType.Monthly => 1,
+            FiscalPeriodType.ThreeMonths => 3,
+            FiscalPeriodType.SixMonths => 6,
+            FiscalPeriodType.NineMonths => 9,
+            FiscalPeriodType.TwelveMonths or FiscalPeriodType.TrailingTwelveMonths => 12,
+            _ => 0
+        };
+        var isCompleteCalendarPeriod = durationMonths > 0 &&
+            EndDate.Value == StartDate.Value.AddMonths(durationMonths).AddDays(-1);
+        var shiftedEnd = isCompleteCalendarPeriod
+            ? shiftedStart.AddMonths(durationMonths).AddDays(-1)
+            : EndDate.Value.AddMonths(months);
+
+        return Closed(Type, shiftedStart, shiftedEnd);
     }
 }

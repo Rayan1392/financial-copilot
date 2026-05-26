@@ -67,6 +67,8 @@ Examples:
 
 The reusable Domain comparison policy supports year-over-year comparisons for closed periods and month-over-month comparisons for monthly reports. Derived metric calculation execution remains outside the Domain model.
 
+For semantic resolution of latest-quarter net profit growth, quarter-over-quarter is represented explicitly as a candidate alongside year-over-year. If the user has not identified the comparison basis, the semantic resolver returns ambiguity rather than silently choosing either candidate.
+
 ### Net Profit Growth
 
 Growth in net profit for a financial statement period. Default comparison for quarterly statements should be YoY unless the user asks otherwise.

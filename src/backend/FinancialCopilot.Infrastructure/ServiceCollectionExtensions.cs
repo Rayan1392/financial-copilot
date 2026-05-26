@@ -1,7 +1,9 @@
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
+using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,7 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("Connection string 'FinancialCopilot' is required.");
 
         services.AddDbContext<BillingDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -86,6 +89,18 @@ public static class ServiceCollectionExtensions
                 ["PartiallyCompleted"] = 0.5m
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
+
+        services.AddSingleton<FinancialMetricRegistry>(provider =>
+            new FinancialMetricRegistry(
+                PhaseOneFinancialSemanticCatalog.Definitions,
+                provider.GetServices<IFinancialMetricCalculator>()));
+        services.AddSingleton<IFinancialMetricRegistry>(provider =>
+            provider.GetRequiredService<FinancialMetricRegistry>());
+        services.AddSingleton<IMetricDependencyResolver>(provider =>
+            provider.GetRequiredService<FinancialMetricRegistry>());
+        services.AddSingleton<IMetricAliasResolver, MetricAliasResolver>();
+        services.AddSingleton<IMetricCalculationPolicyProvider>(_ =>
+            new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies));
 
         return services;
     }

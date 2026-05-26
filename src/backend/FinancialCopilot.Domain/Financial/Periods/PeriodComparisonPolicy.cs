@@ -3,7 +3,8 @@ namespace FinancialCopilot.Domain.Financial.Periods;
 public enum GrowthComparison
 {
     YearOverYear,
-    MonthOverMonth
+    MonthOverMonth,
+    QuarterOverQuarter
 }
 
 public sealed class PeriodComparisonPolicy
@@ -27,6 +28,10 @@ public sealed class PeriodComparisonPolicy
                 currentPeriod.ShiftMonths(-1),
             GrowthComparison.MonthOverMonth => throw new InvalidOperationException(
                 "Month-over-month comparison is supported only for monthly periods."),
+            GrowthComparison.QuarterOverQuarter when currentPeriod.Type == FiscalPeriodType.ThreeMonths =>
+                currentPeriod.ShiftMonths(-3),
+            GrowthComparison.QuarterOverQuarter => throw new InvalidOperationException(
+                "Quarter-over-quarter comparison is supported only for three-month periods."),
             _ => throw new ArgumentOutOfRangeException(nameof(comparison))
         };
     }

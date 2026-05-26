@@ -248,6 +248,37 @@ public sealed class BillingEndpointTests : IClassFixture<BillingApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task AdminRefund_WithBillingAdmin_RefundsUsageChargeOnlyOnce()
+    {
+        await _factory.ResetBillingDataAsync();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                _factory.CreateWebAppToken(includeTenant: true, billingAdmin: true));
+        var request = new
+        {
+            originalChargeIdempotencyKey = $"usage-{BillingApiFactory.OrganizationAccountId:N}",
+            credits = 0.5m,
+            reason = "Partial-result reimbursement",
+            idempotencyKey = "admin-refund-1"
+        };
+        var path = $"/api/v1/admin/billing/customers/{BillingApiFactory.OrganizationAccountId}/refunds";
+
+        using var firstResponse = await client.PostAsJsonAsync(path, request, CancellationToken.None);
+        using var firstDocument = await ReadJsonAsync(firstResponse);
+        using var repeatedResponse = await client.PostAsJsonAsync(path, request, CancellationToken.None);
+        using var repeatedDocument = await ReadJsonAsync(repeatedResponse);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.False(firstDocument.RootElement.GetProperty("alreadyApplied").GetBoolean());
+        Assert.Equal(100.5m, firstDocument.RootElement.GetProperty("updatedBalance").GetDecimal());
+        Assert.Equal(HttpStatusCode.OK, repeatedResponse.StatusCode);
+        Assert.True(repeatedDocument.RootElement.GetProperty("alreadyApplied").GetBoolean());
+        Assert.Equal(100.5m, repeatedDocument.RootElement.GetProperty("updatedBalance").GetDecimal());
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);

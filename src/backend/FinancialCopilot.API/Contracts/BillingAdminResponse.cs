@@ -28,3 +28,17 @@ public sealed record AdminCreditAdjustmentResponse(
     decimal UpdatedBalance,
     decimal AvailableSpendingCapacity,
     bool AlreadyApplied);
+
+public sealed record AdminUsageRefundRequest(
+    string OriginalChargeIdempotencyKey,
+    decimal Credits,
+    string Reason,
+    string IdempotencyKey);
+
+public sealed record AdminUsageRefundResponse(
+    Guid LedgerEntryId,
+    Guid OriginalChargeLedgerEntryId,
+    decimal Credits,
+    decimal UpdatedBalance,
+    decimal AvailableSpendingCapacity,
+    bool AlreadyApplied);

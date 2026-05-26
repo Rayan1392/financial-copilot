@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUsageAccountingService, UsageAccountingService>();
         services.AddScoped<IFinancialAccountingService, FinancialAccountingService>();
         services.AddScoped<ICreditAdjustmentService, CreditAdjustmentService>();
+        services.AddScoped<IUsageRefundService, UsageRefundService>();
         services.AddScoped<IUsageFinalizationService, UsageFinalizationService>();
         services.AddScoped<IWalletProjectionBuilder, WalletProjectionBuilder>();
         services.AddScoped<IEntitlementService>(provider =>

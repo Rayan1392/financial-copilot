@@ -249,7 +249,8 @@ public sealed class UsageFinalizationService(
             row.IdempotencyKey,
             row.OccurredAt,
             row.ExternalUserId,
-            row.AuditDescription);
+            row.AuditDescription,
+            row.RelatedEntryId);
 
     private static UsageLedgerEntryRow MapLedgerRow(UsageLedgerEntry entry) =>
         new()
@@ -266,6 +267,7 @@ public sealed class UsageFinalizationService(
             IdempotencyKey = entry.IdempotencyKey,
             OccurredAt = entry.OccurredAt,
             ExternalUserId = entry.ExternalUserId,
-            AuditDescription = entry.AuditDescription
+            AuditDescription = entry.AuditDescription,
+            RelatedEntryId = entry.RelatedEntryId
         };
 }

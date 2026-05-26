@@ -20,6 +20,7 @@ public sealed class AdminBillingController(
     IApiUsageReportService usageReports,
     IInvoiceService invoices,
     ICreditAdjustmentService adjustments,
+    IUsageRefundService refunds,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpGet("wallet")]
@@ -119,6 +120,34 @@ public sealed class AdminBillingController(
 
         return Ok(new AdminCreditAdjustmentResponse(
             result.LedgerEntry.Id,
+            result.LedgerEntry.CreditsCharged,
+            result.Wallet.Balance,
+            account.GetAvailableSpendingCapacity(result.Wallet),
+            result.AlreadyApplied));
+    }
+
+    [HttpPost("refunds")]
+    public async Task<ActionResult<AdminUsageRefundResponse>> RefundUsage(
+        Guid customerAccountId,
+        [FromBody] AdminUsageRefundRequest request,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetTenantAccountAsync(customerAccountId, cancellationToken);
+        var actor = actorContext.Actor;
+        var result = await refunds.RefundAsync(
+            new UsageRefundCommand(
+                customerAccountId,
+                actor.ActorId,
+                actor.TenantId,
+                request.OriginalChargeIdempotencyKey,
+                request.Credits,
+                request.Reason,
+                request.IdempotencyKey),
+            cancellationToken);
+
+        return Ok(new AdminUsageRefundResponse(
+            result.LedgerEntry.Id,
+            result.LedgerEntry.RelatedEntryId!.Value,
             result.LedgerEntry.CreditsCharged,
             result.Wallet.Balance,
             account.GetAvailableSpendingCapacity(result.Wallet),

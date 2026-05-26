@@ -149,6 +149,27 @@ public interface ICreditAdjustmentService
         CancellationToken cancellationToken);
 }
 
+public sealed record UsageRefundCommand(
+    Guid CustomerAccountId,
+    Guid ActorId,
+    Guid TenantId,
+    string OriginalChargeIdempotencyKey,
+    decimal Credits,
+    string Reason,
+    string IdempotencyKey);
+
+public sealed record UsageRefundResult(
+    UsageLedgerEntry LedgerEntry,
+    WalletSnapshot Wallet,
+    bool AlreadyApplied);
+
+public interface IUsageRefundService
+{
+    Task<UsageRefundResult> RefundAsync(
+        UsageRefundCommand command,
+        CancellationToken cancellationToken);
+}
+
 public sealed record UsageCommitCommand(
     Guid CustomerAccountId,
     Guid ActorId,

@@ -13,7 +13,8 @@ public sealed record UsageLedgerEntry(
     string IdempotencyKey,
     DateTimeOffset OccurredAt,
     string? ExternalUserId = null,
-    string? AuditDescription = null)
+    string? AuditDescription = null,
+    Guid? RelatedEntryId = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

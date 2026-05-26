@@ -228,7 +228,8 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             IdempotencyKey = entry.IdempotencyKey,
             OccurredAt = entry.OccurredAt,
             ExternalUserId = entry.ExternalUserId,
-            AuditDescription = entry.AuditDescription
+            AuditDescription = entry.AuditDescription,
+            RelatedEntryId = entry.RelatedEntryId
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -307,7 +308,8 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             row.IdempotencyKey,
             row.OccurredAt,
             row.ExternalUserId,
-            row.AuditDescription);
+            row.AuditDescription,
+            row.RelatedEntryId);
 
     private static FinancialTransaction Map(FinancialTransactionRow row) =>
         new(

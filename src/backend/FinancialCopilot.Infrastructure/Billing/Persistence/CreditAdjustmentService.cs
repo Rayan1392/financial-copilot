@@ -138,5 +138,6 @@ public sealed class CreditAdjustmentService(
             row.IdempotencyKey,
             row.OccurredAt,
             row.ExternalUserId,
-            row.AuditDescription);
+            row.AuditDescription,
+            row.RelatedEntryId);
 }

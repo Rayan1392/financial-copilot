@@ -54,6 +54,7 @@ public sealed class UsageLedgerEntryRowConfiguration : IEntityTypeConfiguration<
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => row.IdempotencyKey).IsUnique();
         builder.HasIndex(row => new { row.CustomerAccountId, row.OccurredAt });
+        builder.HasIndex(row => row.RelatedEntryId);
         builder.Property(row => row.EntryType).HasMaxLength(32).IsRequired();
         builder.Property(row => row.OperationCode).HasMaxLength(128).IsRequired();
         builder.Property(row => row.CreditsCharged).HasPrecision(18, 4).IsRequired();

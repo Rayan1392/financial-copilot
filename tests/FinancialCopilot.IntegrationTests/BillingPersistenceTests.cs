@@ -313,6 +313,115 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task UsageRefundService_RefundsCommittedChargeAndRestoresWalletOnlyOnce()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var chargeId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Organization.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 47,
+            ReservedAmount = 0,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+        {
+            Id = chargeId,
+            CustomerAccountId = customerAccountId,
+            ActorId = actorId,
+            TenantId = tenantId,
+            EntryType = UsageLedgerEntryType.Charge.ToString(),
+            OperationCode = "AiQuery.Scanner",
+            CreditsCharged = 3,
+            PricingPolicyVersion = "v1",
+            IdempotencyKey = "original-charge",
+            OccurredAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new UsageRefundService(
+            dbContext,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+        var command = new UsageRefundCommand(
+            customerAccountId,
+            actorId,
+            tenantId,
+            "original-charge",
+            2,
+            "Provider partial failure refund",
+            "refund-1");
+
+        var applied = await service.RefundAsync(command, CancellationToken.None);
+        var replayed = await service.RefundAsync(command, CancellationToken.None);
+
+        Assert.False(applied.AlreadyApplied);
+        Assert.True(replayed.AlreadyApplied);
+        Assert.Equal(49, replayed.Wallet.Balance);
+        Assert.Equal(1, replayed.Wallet.Revision);
+        Assert.Equal(chargeId, replayed.LedgerEntry.RelatedEntryId);
+        Assert.Equal(2, dbContext.UsageLedgerEntries.Count());
+    }
+
+    [Fact]
+    public async Task UsageRefundService_RejectsCumulativeRefundAboveOriginalCharge()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Individual.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 8,
+            ReservedAmount = 0,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
+        {
+            Id = Guid.NewGuid(),
+            CustomerAccountId = customerAccountId,
+            ActorId = actorId,
+            TenantId = tenantId,
+            EntryType = UsageLedgerEntryType.Charge.ToString(),
+            OperationCode = "AiQuery.Scanner",
+            CreditsCharged = 2,
+            PricingPolicyVersion = "v1",
+            IdempotencyKey = "original-charge",
+            OccurredAt = DateTimeOffset.Parse("2026-05-26T11:00:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new UsageRefundService(
+            dbContext,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+
+        await service.RefundAsync(
+            new UsageRefundCommand(
+                customerAccountId, actorId, tenantId, "original-charge", 1.5m, "First refund", "refund-1"),
+            CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RefundAsync(
+            new UsageRefundCommand(
+                customerAccountId, actorId, tenantId, "original-charge", 1m, "Excess refund", "refund-2"),
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task UsageFinalizationService_CommitsReservationLedgerAndWalletOnlyOnce()
     {
         await using var dbContext = CreateDbContext();

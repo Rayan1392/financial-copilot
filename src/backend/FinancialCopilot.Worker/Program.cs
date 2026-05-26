@@ -12,6 +12,7 @@ builder.Services
         "Billing maintenance settings must be positive.")
     .ValidateOnStart();
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<DataSyncConsumerWorker>();
 
 var host = builder.Build();
 host.Run();

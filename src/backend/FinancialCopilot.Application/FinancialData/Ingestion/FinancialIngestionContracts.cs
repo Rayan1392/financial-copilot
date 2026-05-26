@@ -1,0 +1,76 @@
+using FinancialCopilot.Application.FinancialData.Providers;
+
+namespace FinancialCopilot.Application.FinancialData.Ingestion;
+
+public sealed record DataSyncRequest(
+    Guid RequestId,
+    ProviderDataset Dataset,
+    string? ExternalReference,
+    DateTimeOffset RequestedAt,
+    string IdempotencyKey);
+
+public enum DataSyncRunStatus
+{
+    Queued,
+    Running,
+    Completed,
+    Failed
+}
+
+public sealed record DataSyncRun(
+    Guid Id,
+    string IdempotencyKey,
+    ProviderDataset Dataset,
+    string? ExternalReference,
+    DataSyncRunStatus Status,
+    DateTimeOffset RequestedAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    int ProcessedRecords,
+    int ErrorCount,
+    string? ErrorMessage,
+    string? SourcePayloadChecksum);
+
+public sealed record DataSyncProcessingResult(
+    DataSyncRun Run,
+    bool AlreadyProcessed);
+
+public sealed record DerivedMetricRecalculationRequested(
+    Guid Id,
+    ProviderDataset SourceDataset,
+    string? ExternalReference,
+    string SourcePayloadChecksum,
+    DateTimeOffset RequestedAt);
+
+public interface IDataSyncRequestPublisher
+{
+    Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken);
+}
+
+public interface IDataSyncRequestConsumer
+{
+    Task ConsumeAsync(
+        Func<DataSyncRequest, CancellationToken, Task> handler,
+        CancellationToken cancellationToken);
+}
+
+public interface IFinancialDataSyncProcessor
+{
+    Task<DataSyncProcessingResult> ProcessAsync(
+        DataSyncRequest request,
+        CancellationToken cancellationToken);
+}
+
+public interface IDataSyncRunReader
+{
+    Task<IReadOnlyCollection<DataSyncRun>> QueryRecentAsync(
+        int maximumCount,
+        CancellationToken cancellationToken);
+}
+
+public interface IDerivedMetricRecalculationPublisher
+{
+    Task PublishAsync(
+        DerivedMetricRecalculationRequested request,
+        CancellationToken cancellationToken);
+}

@@ -23,7 +23,7 @@ public sealed class MockFinancialDataProvider(
             ProviderDataset.Symbols,
             "/mock/symbols",
             "all",
-            """[{"symbol":"LIVE","company":"Live Quote Company"},{"symbol":"FALLBACK","company":"Fallback Quote Company"}]""",
+            """[{"externalSymbolId":"symbol-live","symbol":"LIVE","externalCompanyId":"company-live","company":"Live Quote Company"},{"externalSymbolId":"symbol-fallback","symbol":"FALLBACK","externalCompanyId":"company-fallback","company":"Fallback Quote Company"}]""",
             cancellationToken);
 
     public Task<ProviderRawPayload> FetchFinancialStatementsAsync(
@@ -33,7 +33,7 @@ public sealed class MockFinancialDataProvider(
             ProviderDataset.FinancialStatements,
             $"/mock/financial-statements/{externalCompanyId}",
             RequireReference(externalCompanyId),
-            $$"""{"companyId":"{{externalCompanyId}}","netProfit":1500,"period":"ThreeMonths"}""",
+            $$"""{"statementId":"{{externalCompanyId}}-2026-q1","companyId":"{{externalCompanyId}}","netProfit":1500,"period":"ThreeMonths","periodStart":"2026-01-01","periodEnd":"2026-03-31"}""",
             cancellationToken);
 
     public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
@@ -43,7 +43,7 @@ public sealed class MockFinancialDataProvider(
             ProviderDataset.MonthlyProductionSales,
             $"/mock/monthly-reports/{externalCompanyId}",
             RequireReference(externalCompanyId),
-            $$"""{"companyId":"{{externalCompanyId}}","salesAmount":800,"period":"Monthly"}""",
+            $$"""{"reportId":"{{externalCompanyId}}-2026-04","companyId":"{{externalCompanyId}}","periodStart":"2026-04-01","periodEnd":"2026-04-30","productCode":"PRODUCT_A","productionQuantity":10,"salesQuantity":8,"salesAmount":800}""",
             cancellationToken);
 
     public Task<BatchMarketQuoteResult> GetLatestQuotesAsync(

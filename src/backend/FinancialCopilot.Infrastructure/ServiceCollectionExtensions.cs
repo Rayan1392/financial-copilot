@@ -7,6 +7,9 @@ using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<BillingDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -135,6 +139,23 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<MockFinancialDataProvider>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<MockFinancialDataProvider>());
+
+        services.AddScoped<IFinancialPayloadNormalizer, SymbolPayloadNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, MonthlyReportPayloadNormalizer>();
+        services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
+        services.AddScoped<FinancialDataSyncProcessor>();
+        services.AddScoped<IFinancialDataSyncProcessor>(provider =>
+            provider.GetRequiredService<FinancialDataSyncProcessor>());
+        services.AddScoped<IDataSyncRunReader>(provider =>
+            provider.GetRequiredService<FinancialDataSyncProcessor>());
+        services.AddOptions<RabbitMqDataSyncOptions>()
+            .BindConfiguration(RabbitMqDataSyncOptions.SectionName);
+        services.AddSingleton<RabbitMqDataSyncRequestBus>();
+        services.AddSingleton<IDataSyncRequestPublisher>(provider =>
+            provider.GetRequiredService<RabbitMqDataSyncRequestBus>());
+        services.AddSingleton<IDataSyncRequestConsumer>(provider =>
+            provider.GetRequiredService<RabbitMqDataSyncRequestBus>());
 
         return services;
     }

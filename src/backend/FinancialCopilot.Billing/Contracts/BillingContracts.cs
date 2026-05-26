@@ -248,8 +248,20 @@ public interface IWalletProjectionBuilder
         DateTimeOffset asOf);
 }
 
+public sealed record CreditLineReservationAssessment(
+    bool Approved,
+    decimal AvailableSpendingCapacity,
+    decimal RemainingSpendingCapacity,
+    decimal CreditLineUsedAfterReservation,
+    bool WarningThresholdReached);
+
 public interface ICreditLinePolicyService
 {
+    CreditLineReservationAssessment AssessReservation(
+        CustomerAccount account,
+        WalletSnapshot wallet,
+        decimal requestedCredits);
+
     bool CanReserve(
         CustomerAccount account,
         WalletSnapshot wallet,

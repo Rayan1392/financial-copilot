@@ -56,3 +56,23 @@
 - Add integration tests for `POST /api/ai/v1/query` reservation/commit/release behavior for both organization and individual customers.
 - Add integration tests for idempotent query retry, provider failure, cancellation, duplicate payment callback, tenant isolation, and partner external-user attribution.
 - Add architecture tests preventing AI/Scanner orchestration from owning billing calculations or directly updating wallet balances.
+
+## Implementation Status - 2026-05-26
+
+Implemented in this story:
+
+- Added the isolated `FinancialCopilot.Billing` module, dependency-boundary test coverage, customer/account/wallet/reservation/ledger/invoice/subscription models, repositories, and tenant-scoped authorization surfaces.
+- Implemented billable account resolution for web users and API clients, organization prepaid/postpaid/hybrid rules, individual prepaid/no-overdraft rules, external-user attribution, and credit-line capacity assessment with warning threshold and hard stop.
+- Implemented PostgreSQL/EF Core usage and financial ledgers, wallet projection handling, atomic reservation holds and finalization, abandoned-reservation expiry, idempotent currency accounting, manual credit adjustments, linked usage refunds, transactional outbox events, and processing diagnostics.
+- Implemented versioned operation pricing primitives/services and configured outcomes for success, cached work, zero-charge failures/clarification, cancellation/timeout before execution, and partial completion.
+- Implemented organization/self-service usage and transaction reads plus billing-admin wallet, usage, invoice-profile, adjustment, and refund APIs.
+- Implemented consumer and settlement boundary contracts (`ISubscriptionService`, `ITopUpService`, `IPaymentGatewayService`, and `IPaymentReconciliationService`) and ledger/read support required by the foundation scope.
+- Added scheduled worker maintenance for abandoned reservation expiry and optional outbox dispatch. Outbox events remain pending unless an external `IBillingOutboxDispatcher` transport is registered.
+- Added unit and integration verification for Billing domain policies, pricing, reservation/finalization/refund/idempotency behavior, persistence/outbox handling, endpoint authorization/reporting, tenant boundaries, external-user attribution, and scheduled-maintenance coordination.
+
+Explicitly deferred to dependent delivery stories or external integration scope:
+
+- `010-usage-metering-and-billing-readiness`: invoke entitlement/reservation/finalization around `POST /api/ai/v1/query` and return final AI-facade usage metadata.
+- `014-ai-model-provider-abstraction`: provide normalized provider execution facts consumed by Billing policy inputs.
+- `018-ai-observability-and-telemetry`: correlate conversations, tool/model executions, reservations, ledgers, and reports in telemetry.
+- Direct payment-gateway execution, webhook adapters, subscription-change/top-up initiation APIs, automated invoicing/settlement, and an external outbox transport/scale-out claiming strategy remain later commercial/operations increments as permitted by this story scope.

@@ -6,6 +6,7 @@ namespace FinancialCopilot.Billing.Services;
 public sealed class WalletEntitlementService(
     IWalletService wallets,
     IPricingPolicyProvider pricingPolicies,
+    ICreditLinePolicyService creditLinePolicy,
     string defaultPricingPolicyVersion) : IEntitlementService
 {
     public async Task ValidateCanExecuteAsync(
@@ -24,7 +25,7 @@ public sealed class WalletEntitlementService(
 
         var wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
 
-        if (!account.CanReserve(wallet, maximumCredits))
+        if (!creditLinePolicy.CanReserve(account, wallet, maximumCredits))
         {
             throw new InvalidOperationException("Available spending capacity is insufficient.");
         }

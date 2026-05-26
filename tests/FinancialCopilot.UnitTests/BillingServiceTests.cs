@@ -297,6 +297,7 @@ public sealed class BillingServiceTests
         var service = new WalletEntitlementService(
             new TestWalletRepository(new WalletSnapshot(accountId, 1, 0, DateTimeOffset.UnixEpoch)),
             new ConfiguredPricingPolicyProvider([policy]),
+            new CreditLinePolicyService(),
             "v1");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateCanExecuteAsync(

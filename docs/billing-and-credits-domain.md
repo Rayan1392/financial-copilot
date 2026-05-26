@@ -139,6 +139,8 @@ Execution outcomes must have defined policies:
 
 The persistence implementation must apply a reservation hold and wallet-reserved amount together. Successful finalization must apply reservation commit status, usage-ledger charge, and wallet debit in one persistence operation. Failure finalization must apply reservation release reason and wallet reserved-capacity release in one persistence operation, without a charge ledger row for zero-charge failure policy. These contracts are exposed through deterministic `ICreditReservationService` and `IUsageFinalizationService` boundaries for later workflow invocation.
 
+The worker schedules Billing maintenance to expire abandoned reservation holds. It also processes pending Billing outbox records when an `IBillingOutboxDispatcher` transport is registered; without a configured external transport, durable outbox records remain pending rather than being treated as delivered.
+
 ## AI Orchestration Boundary
 
 `POST /api/ai/v1/query` remains the only frontend chat-query endpoint. Microsoft Agent Framework coordinates AI capabilities, but Billing controls charges through deterministic Application services.

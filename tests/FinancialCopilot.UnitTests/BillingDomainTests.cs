@@ -51,6 +51,48 @@ public sealed class BillingDomainTests
     }
 
     [Fact]
+    public void CreditLinePolicy_AssessesWarningThresholdAndHardStopForHybridAccount()
+    {
+        var accountId = Guid.NewGuid();
+        var account = new CustomerAccount(
+            accountId,
+            Guid.NewGuid(),
+            CustomerAccountType.Organization,
+            BillingMode.Hybrid,
+            new CreditLine(approvedLimit: 10, warningThreshold: 2));
+        var wallet = new WalletSnapshot(accountId, Balance: 0, ReservedAmount: 0, DateTimeOffset.UtcNow);
+        var policy = new CreditLinePolicyService();
+
+        var warning = policy.AssessReservation(account, wallet, requestedCredits: 8);
+        var blocked = policy.AssessReservation(account, wallet, requestedCredits: 10.01m);
+
+        Assert.True(warning.Approved);
+        Assert.Equal(8, warning.CreditLineUsedAfterReservation);
+        Assert.True(warning.WarningThresholdReached);
+        Assert.False(blocked.Approved);
+        Assert.True(blocked.WarningThresholdReached);
+    }
+
+    [Fact]
+    public void CreditLinePolicy_DoesNotWarnWhenReservationIsCoveredByPrepaidBalance()
+    {
+        var accountId = Guid.NewGuid();
+        var account = new CustomerAccount(
+            accountId,
+            Guid.NewGuid(),
+            CustomerAccountType.Organization,
+            BillingMode.Hybrid,
+            new CreditLine(approvedLimit: 10, warningThreshold: 2));
+        var wallet = new WalletSnapshot(accountId, Balance: 20, ReservedAmount: 0, DateTimeOffset.UtcNow);
+
+        var assessment = new CreditLinePolicyService().AssessReservation(account, wallet, requestedCredits: 18);
+
+        Assert.True(assessment.Approved);
+        Assert.Equal(0, assessment.CreditLineUsedAfterReservation);
+        Assert.False(assessment.WarningThresholdReached);
+    }
+
+    [Fact]
     public void Reservation_CanBeCommittedOnceWithinReservedAmount()
     {
         var reservation = new UsageReservation(

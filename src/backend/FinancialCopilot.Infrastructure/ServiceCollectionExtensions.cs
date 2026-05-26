@@ -38,11 +38,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreditAdjustmentService, CreditAdjustmentService>();
         services.AddScoped<IUsageRefundService, UsageRefundService>();
         services.AddScoped<IUsageFinalizationService, UsageFinalizationService>();
+        services.AddScoped<IBillingOutboxProcessor>(provider =>
+            new BillingOutboxProcessor(
+                provider.GetRequiredService<BillingDbContext>(),
+                provider.GetRequiredService<IBillingOutboxDispatcher>(),
+                provider.GetRequiredService<TimeProvider>()));
+        services.AddScoped<IBillingMaintenanceService, BillingMaintenanceService>();
         services.AddScoped<IWalletProjectionBuilder, WalletProjectionBuilder>();
         services.AddScoped<IEntitlementService>(provider =>
             new WalletEntitlementService(
                 provider.GetRequiredService<IWalletService>(),
                 provider.GetRequiredService<IPricingPolicyProvider>(),
+                provider.GetRequiredService<ICreditLinePolicyService>(),
                 "v1"));
         services.AddScoped<IPartnerAccountService, PartnerAccountService>();
         services.AddScoped<IBillingAdministrationService, BillingAdministrationService>();

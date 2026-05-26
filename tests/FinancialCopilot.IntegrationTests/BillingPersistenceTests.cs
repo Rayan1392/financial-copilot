@@ -4,6 +4,7 @@ using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 
 namespace FinancialCopilot.IntegrationTests;
@@ -660,6 +661,43 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task BillingMaintenanceService_ExpiresReservationsWithoutConfiguredOutboxTransport()
+    {
+        var reservations = new TestReservationMaintenanceService(expiredCount: 2);
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var maintenance = new BillingMaintenanceService(reservations, services);
+
+        var result = await maintenance.ProcessAsync(10, CancellationToken.None);
+
+        Assert.Equal(2, result.ExpiredReservationCount);
+        Assert.Equal(0, result.DispatchedOutboxMessageCount);
+        Assert.False(result.OutboxDispatcherConfigured);
+        Assert.Equal(10, reservations.MaximumCount);
+    }
+
+    [Fact]
+    public async Task BillingMaintenanceService_DispatchesOutboxWhenTransportIsConfigured()
+    {
+        var reservations = new TestReservationMaintenanceService(expiredCount: 1);
+        var outbox = new TestOutboxProcessor(processedCount: 3);
+        var services = new ServiceCollection()
+            .AddSingleton<IBillingOutboxDispatcher>(new TestOutboxDispatcher())
+            .AddSingleton<IBillingOutboxProcessor>(outbox)
+            .BuildServiceProvider();
+        using (services)
+        {
+            var maintenance = new BillingMaintenanceService(reservations, services);
+
+            var result = await maintenance.ProcessAsync(25, CancellationToken.None);
+
+            Assert.Equal(1, result.ExpiredReservationCount);
+            Assert.Equal(3, result.DispatchedOutboxMessageCount);
+            Assert.True(result.OutboxDispatcherConfigured);
+            Assert.Equal(25, outbox.MaximumCount);
+        }
+    }
+
+    [Fact]
     public async Task SubscriptionAndInvoiceRepositories_ReadConfiguredBillingProfiles()
     {
         await using var dbContext = CreateDbContext();
@@ -748,6 +786,39 @@ public sealed class BillingPersistenceTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestReservationMaintenanceService(int expiredCount) : ICreditReservationService
+    {
+        public int? MaximumCount { get; private set; }
+
+        public Task<UsageReservation> ReserveAsync(
+            CustomerAccount account,
+            WalletSnapshot wallet,
+            string operationCode,
+            decimal maximumCredits,
+            string idempotencyKey,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<int> ExpireAbandonedAsync(
+            int maximumCount,
+            CancellationToken cancellationToken)
+        {
+            MaximumCount = maximumCount;
+            return Task.FromResult(expiredCount);
+        }
+    }
+
+    private sealed class TestOutboxProcessor(int processedCount) : IBillingOutboxProcessor
+    {
+        public int? MaximumCount { get; private set; }
+
+        public Task<int> ProcessPendingAsync(int maximumCount, CancellationToken cancellationToken)
+        {
+            MaximumCount = maximumCount;
+            return Task.FromResult(processedCount);
         }
     }
 }

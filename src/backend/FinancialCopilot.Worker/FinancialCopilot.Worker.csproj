@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-FinancialCopilot.Worker-f744a3cf-79d5-4c94-a0a0-e3924bf03efe</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FinancialCopilot.Application\FinancialCopilot.Application.csproj" />
+    <ProjectReference Include="..\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

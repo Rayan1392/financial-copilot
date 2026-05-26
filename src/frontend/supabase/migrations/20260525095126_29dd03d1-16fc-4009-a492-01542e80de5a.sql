@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS subs_update_own ON public.user_subscriptions;

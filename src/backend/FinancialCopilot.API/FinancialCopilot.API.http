@@ -1,0 +1,12 @@
+@FinancialCopilot.API_HostAddress = http://localhost:5074
+
+GET {{FinancialCopilot.API_HostAddress}}/health
+X-Correlation-Id: local-smoke-test
+Accept: application/json
+
+###
+
+GET {{FinancialCopilot.API_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###

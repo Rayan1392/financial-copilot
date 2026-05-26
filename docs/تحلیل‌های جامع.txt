@@ -1,0 +1,36 @@
+تحلیل‌های جامع:
+Tahlil-Jame: https://back1.cyclicalwaves.com/api/blog/getUserBlogs?page=1&paginate=10&filter%5Bdate%5D=&filter%5Bsearch%5D=&filter%5Bportfolio%5D=0&filter%5Bcategory%5D=1
+
+جریان پول:
+top_20_avg_buy_per_real:
+top_20_avg_sell_per_real:
+top_20_co_buy_power:
+top_20_real_buy_power:
+https://back1.cyclicalwaves.com/api/clienttypepercapita
+
+smartmoney: https://back1.cyclicalwaves.com/api/smartmoney?
+
+codetocode: https://back1.cyclicalwaves.com/api/codetocode?
+
+https://back1.cyclicalwaves.com/api/averages_market_data/30?
+
+نرم افزار تعادلی:
+لیست نمادهای ولید:
+https://back1.cyclicalwaves.com/api/equilibrium-valid?state=symbols
+top-1:
+https://back1.cyclicalwaves.com/api/newequilibrium/IRO1TAIR0001
+gauge: https://back1.cyclicalwaves.com/api/equilibrium/gauge/IRO1TAIR0001
+
+
+PS: https://back1.cyclicalwaves.com/api/ps/IRO1TBAS0001
+circle-chart-data: https://back1.cyclicalwaves.com/api/ps/circle-chart-data/IRO1TBAS0001
+https://back1.cyclicalwaves.com/api/ps-data/IRO1TBAS0001
+
+PE: https://back1.cyclicalwaves.com/api/pe-tickers
+https://back1.cyclicalwaves.com/api/pe/IRO1TBAS0001
+https://back1.cyclicalwaves.com/api/pe/circle-chart-data/IRO1TBAS0001
+https://back1.cyclicalwaves.com/api/pe-data/IRO1TBAS0001
+
+سهام خوش نوسان:
+https://back1.cyclicalwaves.com/api/fluctuating/daily
+https://back1.cyclicalwaves.com/api/fluctuating/weekly

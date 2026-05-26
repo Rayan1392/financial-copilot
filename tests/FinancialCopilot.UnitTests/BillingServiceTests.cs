@@ -400,6 +400,19 @@ public sealed class BillingServiceTests
                     entry.CustomerAccountId == customerAccountId &&
                     entry.OccurredAt >= from &&
                     entry.OccurredAt <= to).ToArray());
+
+        public Task<IReadOnlyCollection<UsageLedgerEntry>> QueryForApiClientAsync(
+            Guid customerAccountId,
+            Guid apiClientId,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<UsageLedgerEntry>>(
+                Entries.Where(entry =>
+                    entry.CustomerAccountId == customerAccountId &&
+                    entry.ApiClientId == apiClientId &&
+                    entry.OccurredAt >= from &&
+                    entry.OccurredAt <= to).ToArray());
     }
 
     private sealed class TestFinancialTransactionRepository : IFinancialTransactionRepository

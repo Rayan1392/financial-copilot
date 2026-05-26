@@ -251,6 +251,24 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
         .Select(Map)
         .ToArray();
 
+    public async Task<IReadOnlyCollection<UsageLedgerEntry>> QueryForApiClientAsync(
+        Guid customerAccountId,
+        Guid apiClientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken) =>
+        (await dbContext.UsageLedgerEntries
+            .AsNoTracking()
+            .Where(row =>
+                row.CustomerAccountId == customerAccountId &&
+                row.ApiClientId == apiClientId &&
+                row.OccurredAt >= from &&
+                row.OccurredAt <= to)
+            .OrderBy(row => row.OccurredAt)
+            .ToListAsync(cancellationToken))
+        .Select(Map)
+        .ToArray();
+
     public async Task AppendAsync(FinancialTransaction transaction, CancellationToken cancellationToken)
     {
         dbContext.FinancialTransactions.Add(new FinancialTransactionRow

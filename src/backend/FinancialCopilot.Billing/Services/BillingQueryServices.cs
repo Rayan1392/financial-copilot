@@ -56,6 +56,31 @@ public sealed class ApiUsageReportService(IUsageLedgerRepository ledger) : IApiU
 
         return ledger.QueryAsync(customerAccountId, from, to, cancellationToken);
     }
+
+    public Task<IReadOnlyCollection<UsageLedgerEntry>> QueryApiClientUsageAsync(
+        Guid customerAccountId,
+        Guid apiClientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken)
+    {
+        if (apiClientId == Guid.Empty)
+        {
+            throw new ArgumentException("API client id is required.", nameof(apiClientId));
+        }
+
+        if (to < from)
+        {
+            throw new ArgumentException("Usage report end must be after its start.", nameof(to));
+        }
+
+        return ledger.QueryForApiClientAsync(
+            customerAccountId,
+            apiClientId,
+            from,
+            to,
+            cancellationToken);
+    }
 }
 
 public sealed class SubscriptionService(ISubscriptionPlanRepository plans) : ISubscriptionService

@@ -57,6 +57,13 @@ public interface IUsageLedgerRepository
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<UsageLedgerEntry>> QueryForApiClientAsync(
+        Guid customerAccountId,
+        Guid apiClientId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken);
 }
 
 public interface IFinancialTransactionRepository
@@ -287,6 +294,13 @@ public interface IApiUsageReportService
 {
     Task<IReadOnlyCollection<UsageLedgerEntry>> QueryUsageAsync(
         Guid customerAccountId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<UsageLedgerEntry>> QueryApiClientUsageAsync(
+        Guid customerAccountId,
+        Guid apiClientId,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken);

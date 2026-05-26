@@ -50,7 +50,59 @@ public sealed class UsageController(
             periodTo,
             cancellationToken);
 
-        return Ok(new UsageSummaryResponse(
+        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries));
+    }
+
+    [HttpGet("api-client/{clientId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.ApiClientOnly)]
+    public async Task<ActionResult<UsageSummaryResponse>> GetApiClientUsage(
+        Guid clientId,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        CancellationToken cancellationToken)
+    {
+        var actor = actorContext.Actor;
+
+        if (actor.ApiClientId != clientId)
+        {
+            return Forbid();
+        }
+
+        var periodTo = to ?? timeProvider.GetUtcNow();
+        var periodFrom = from ?? periodTo.AddDays(-30);
+
+        if (periodFrom > periodTo)
+        {
+            ModelState.AddModelError(nameof(from), "Usage period start must not be after its end.");
+            return ValidationProblem(ModelState);
+        }
+
+        var account = await accountResolver.ResolveAsync(
+            new BillableActorContext(
+                actor.ActorId,
+                actor.TenantId,
+                actor.UserId,
+                actor.ApiClientId,
+                ExternalUserId: null),
+            cancellationToken);
+        var wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+        var entries = await usageReports.QueryApiClientUsageAsync(
+            account.Id,
+            clientId,
+            periodFrom,
+            periodTo,
+            cancellationToken);
+
+        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries));
+    }
+
+    private static UsageSummaryResponse MapResponse(
+        FinancialCopilot.Billing.Accounts.CustomerAccount account,
+        FinancialCopilot.Billing.Accounts.WalletSnapshot wallet,
+        DateTimeOffset periodFrom,
+        DateTimeOffset periodTo,
+        IReadOnlyCollection<FinancialCopilot.Billing.Usage.UsageLedgerEntry> entries) =>
+        new(
             account.AccountType.ToString(),
             account.BillingMode.ToString(),
             wallet.Balance,
@@ -67,26 +119,5 @@ public sealed class UsageController(
                     entry.PricingPolicyVersion,
                     entry.OccurredAt,
                     entry.ExternalUserId))
-                .ToArray()));
-    }
-
-    [HttpGet("api-client/{clientId:guid}")]
-    [Authorize(Policy = AuthorizationPolicies.ApiClientOnly)]
-    public IActionResult GetApiClientUsage(Guid clientId)
-    {
-        var actor = actorContext.Actor;
-
-        if (actor.ApiClientId != clientId)
-        {
-            return Forbid();
-        }
-
-        return StatusCode(StatusCodes.Status501NotImplemented, new ProblemDetails
-        {
-            Type = "https://financialcopilot/errors/not-implemented",
-            Title = "Capability is not implemented.",
-            Status = StatusCodes.Status501NotImplemented,
-            Detail = "Usage Accounting will be implemented in a subsequent story."
-        });
-    }
+                .ToArray());
 }

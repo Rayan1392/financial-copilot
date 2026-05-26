@@ -73,6 +73,24 @@ public sealed class BillingEndpointTests : IClassFixture<BillingApiFactory>
     }
 
     [Fact]
+    public async Task ApiClientUsage_WithPartnerApiClient_ReturnsOnlyItsAttributedEntries()
+    {
+        await _factory.ResetBillingDataAsync();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.GetAsync(
+            $"/api/v1/usage/api-client/{AuthenticationApiFactory.ClientId}",
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var entry = Assert.Single(document.RootElement.GetProperty("entries").EnumerateArray());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Organization", document.RootElement.GetProperty("customerType").GetString());
+        Assert.Equal("partner-user-123", entry.GetProperty("externalUserId").GetString());
+    }
+
+    [Fact]
     public async Task BillingTransactions_WithIndividualUser_ReturnsOnlyIndividualMoneyLedger()
     {
         await _factory.ResetBillingDataAsync();
@@ -381,6 +399,7 @@ public sealed class BillingApiFactory : AuthenticationApiFactory
             Id = Guid.NewGuid(),
             CustomerAccountId = customerAccountId,
             ActorId = actorId,
+            ApiClientId = externalUserId is null ? null : actorId,
             TenantId = TenantId,
             EntryType = "Charge",
             OperationCode = "AiQuery.Scanner",

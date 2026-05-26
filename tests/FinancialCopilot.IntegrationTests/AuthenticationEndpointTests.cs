@@ -13,11 +13,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace FinancialCopilot.IntegrationTests;
 
-public sealed class AuthenticationEndpointTests : IClassFixture<AuthenticationApiFactory>
+public sealed class AuthenticationEndpointTests : IClassFixture<BillingApiFactory>
 {
-    private readonly AuthenticationApiFactory _factory;
+    private readonly BillingApiFactory _factory;
 
-    public AuthenticationEndpointTests(AuthenticationApiFactory factory)
+    public AuthenticationEndpointTests(BillingApiFactory factory)
     {
         _factory = factory;
     }
@@ -143,8 +143,9 @@ public sealed class AuthenticationEndpointTests : IClassFixture<AuthenticationAp
     }
 
     [Fact]
-    public async Task ApiClientUsage_WithMatchingApiKeyActor_ReachesProtectedCapability()
+    public async Task ApiClientUsage_WithMatchingApiKeyActor_ReturnsScopedUsage()
     {
+        await _factory.ResetBillingDataAsync();
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
@@ -152,7 +153,7 @@ public sealed class AuthenticationEndpointTests : IClassFixture<AuthenticationAp
             $"/api/v1/usage/api-client/{AuthenticationApiFactory.ClientId}",
             CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotImplemented, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

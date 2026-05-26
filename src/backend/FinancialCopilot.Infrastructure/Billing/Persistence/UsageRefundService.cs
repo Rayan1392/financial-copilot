@@ -90,6 +90,20 @@ public sealed class UsageRefundService(
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
+        BillingOutboxWriter.Add(
+            dbContext,
+            "UsageLedgerEntry",
+            entry.Id,
+            "Billing.UsageRefunded",
+            $"{entry.IdempotencyKey}:refunded",
+            new
+            {
+                entry.CustomerAccountId,
+                entry.RelatedEntryId,
+                Credits = entry.CreditsCharged,
+                entry.AuditDescription
+            },
+            now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

@@ -84,6 +84,20 @@ public sealed class UsageReservationAuthorizationService(
             Status = reservation.Status.ToString()
         });
         ApplyWallet(walletRow, reservedWallet);
+        BillingOutboxWriter.Add(
+            dbContext,
+            "UsageReservation",
+            reservation.Id,
+            "Billing.UsageReservationCreated",
+            $"{reservation.IdempotencyKey}:created",
+            new
+            {
+                reservation.CustomerAccountId,
+                reservation.OperationCode,
+                reservation.ReservedCredits,
+                reservation.ExpiresAt
+            },
+            now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -120,6 +134,19 @@ public sealed class UsageReservationAuthorizationService(
             reservationRow.Status = reservation.Status.ToString();
             reservationRow.FinalizationReason = reservation.FinalizationReason;
             ApplyWallet(walletRow, releasedWallet);
+            BillingOutboxWriter.Add(
+                dbContext,
+                "UsageReservation",
+                reservation.Id,
+                "Billing.UsageReservationExpired",
+                $"{reservation.IdempotencyKey}:expired",
+                new
+                {
+                    reservation.CustomerAccountId,
+                    reservation.ReservedCredits,
+                    reservation.FinalizationReason
+                },
+                now);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

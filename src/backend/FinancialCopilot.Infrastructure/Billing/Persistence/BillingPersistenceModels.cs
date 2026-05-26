@@ -124,3 +124,24 @@ public sealed class InvoiceAccountRow
 
     public string SettlementTerms { get; set; } = string.Empty;
 }
+
+public sealed class BillingOutboxMessageRow
+{
+    public Guid Id { get; set; }
+
+    public string AggregateType { get; set; } = string.Empty;
+
+    public Guid AggregateId { get; set; }
+
+    public string EventType { get; set; } = string.Empty;
+
+    public string IdempotencyKey { get; set; } = string.Empty;
+
+    public string Payload { get; set; } = string.Empty;
+
+    public DateTimeOffset OccurredAt { get; set; }
+
+    public DateTimeOffset? ProcessedAt { get; set; }
+
+    public int AttemptCount { get; set; }
+}

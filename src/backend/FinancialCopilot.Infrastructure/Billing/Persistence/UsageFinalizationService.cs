@@ -80,6 +80,22 @@ public sealed class UsageFinalizationService(
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
         dbContext.UsageLedgerEntries.Add(MapLedgerRow(entry));
+        BillingOutboxWriter.Add(
+            dbContext,
+            "UsageReservation",
+            reservation.Id,
+            "Billing.UsageCommitted",
+            $"{reservation.IdempotencyKey}:committed",
+            new
+            {
+                entry.Id,
+                entry.CustomerAccountId,
+                entry.OperationCode,
+                entry.CreditsCharged,
+                entry.PricingPolicyVersion,
+                entry.ExternalUserId
+            },
+            now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -131,6 +147,19 @@ public sealed class UsageFinalizationService(
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
+        BillingOutboxWriter.Add(
+            dbContext,
+            "UsageReservation",
+            reservation.Id,
+            "Billing.UsageReleased",
+            $"{reservation.IdempotencyKey}:released",
+            new
+            {
+                reservation.CustomerAccountId,
+                reservation.ReservedCredits,
+                reservation.FinalizationReason
+            },
+            now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

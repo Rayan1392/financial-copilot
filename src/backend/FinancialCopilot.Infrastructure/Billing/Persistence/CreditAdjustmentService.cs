@@ -84,6 +84,19 @@ public sealed class CreditAdjustmentService(
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
+        BillingOutboxWriter.Add(
+            dbContext,
+            "UsageLedgerEntry",
+            entry.Id,
+            "Billing.CreditAdjusted",
+            $"{entry.IdempotencyKey}:adjusted",
+            new
+            {
+                entry.CustomerAccountId,
+                Credits = entry.CreditsCharged,
+                entry.AuditDescription
+            },
+            now);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

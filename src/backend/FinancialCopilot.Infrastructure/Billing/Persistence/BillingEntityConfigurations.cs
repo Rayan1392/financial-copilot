@@ -107,3 +107,19 @@ public sealed class InvoiceAccountRowConfiguration : IEntityTypeConfiguration<In
         builder.Property(row => row.SettlementTerms).HasMaxLength(250).IsRequired();
     }
 }
+
+public sealed class BillingOutboxMessageRowConfiguration : IEntityTypeConfiguration<BillingOutboxMessageRow>
+{
+    public void Configure(EntityTypeBuilder<BillingOutboxMessageRow> builder)
+    {
+        builder.ToTable("billing_outbox_messages");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => row.IdempotencyKey).IsUnique();
+        builder.HasIndex(row => new { row.ProcessedAt, row.OccurredAt });
+        builder.Property(row => row.AggregateType).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.EventType).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(220).IsRequired();
+        builder.Property(row => row.Payload).IsRequired();
+        builder.Property(row => row.AttemptCount).IsRequired();
+    }
+}

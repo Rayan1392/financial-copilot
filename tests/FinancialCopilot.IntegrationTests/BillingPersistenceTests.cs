@@ -4,6 +4,7 @@ using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -173,6 +174,9 @@ public sealed class BillingPersistenceTests
         Assert.Single(dbContext.UsageReservations);
         Assert.Equal(2, dbContext.WalletProjections.Single().ReservedAmount);
         Assert.Equal(1, dbContext.WalletProjections.Single().Revision);
+        var outbox = Assert.Single(dbContext.OutboxMessages);
+        Assert.Equal("Billing.UsageReservationCreated", outbox.EventType);
+        Assert.Equal("atomic-reserve:created", outbox.IdempotencyKey);
     }
 
     [Fact]
@@ -216,6 +220,8 @@ public sealed class BillingPersistenceTests
         Assert.Equal(
             "Reservation expired before finalization.",
             dbContext.UsageReservations.Single().FinalizationReason);
+        var outbox = Assert.Single(dbContext.OutboxMessages);
+        Assert.Equal("Billing.UsageReservationExpired", outbox.EventType);
     }
 
     [Fact]
@@ -310,6 +316,7 @@ public sealed class BillingPersistenceTests
         Assert.Equal(1, replayed.Wallet.Revision);
         Assert.Single(dbContext.UsageLedgerEntries);
         Assert.Equal("Compensating credit", dbContext.UsageLedgerEntries.Single().AuditDescription);
+        Assert.Equal("Billing.CreditAdjusted", Assert.Single(dbContext.OutboxMessages).EventType);
     }
 
     [Fact]
@@ -369,6 +376,10 @@ public sealed class BillingPersistenceTests
         Assert.Equal(1, replayed.Wallet.Revision);
         Assert.Equal(chargeId, replayed.LedgerEntry.RelatedEntryId);
         Assert.Equal(2, dbContext.UsageLedgerEntries.Count());
+        var outbox = Assert.Single(dbContext.OutboxMessages);
+        Assert.Equal("Billing.UsageRefunded", outbox.EventType);
+        Assert.Equal(chargeId, JsonDocument.Parse(outbox.Payload).RootElement
+            .GetProperty("RelatedEntryId").GetGuid());
     }
 
     [Fact]
@@ -472,6 +483,10 @@ public sealed class BillingPersistenceTests
         Assert.Equal(2, replayed.Wallet.Revision);
         Assert.Single(dbContext.UsageLedgerEntries);
         Assert.Equal("partner-user-1", replayed.LedgerEntry!.ExternalUserId);
+        var outbox = Assert.Single(dbContext.OutboxMessages);
+        Assert.Equal("Billing.UsageCommitted", outbox.EventType);
+        Assert.Equal("partner-user-1", JsonDocument.Parse(outbox.Payload).RootElement
+            .GetProperty("ExternalUserId").GetString());
     }
 
     [Fact]
@@ -520,6 +535,7 @@ public sealed class BillingPersistenceTests
         Assert.Equal(0, replayed.Wallet.ReservedAmount);
         Assert.Equal(2, replayed.Wallet.Revision);
         Assert.Empty(dbContext.UsageLedgerEntries);
+        Assert.Equal("Billing.UsageReleased", Assert.Single(dbContext.OutboxMessages).EventType);
     }
 
     [Fact]

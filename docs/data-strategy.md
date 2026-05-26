@@ -31,7 +31,9 @@ Use a hybrid data strategy:
 - AI query executions and routed tool activity.
 - Scanner query plans/executions as internal evidence when the Scanner Tool is selected.
 - Scanner result snapshots where needed for usage analytics and explainability.
-- Usage ledger entries associated with AI query execution.
+- Customer accounts, subscription/entitlement state, approved organization credit lines, and invoice-account profiles required for authorization and charging.
+- Usage reservations and immutable usage ledger entries associated with AI query execution.
+- Wallet balance projections derived from ledger entries for performant balance reads.
 
 ### Persist Later
 
@@ -41,6 +43,16 @@ Use a hybrid data strategy:
 - Codal disclosure summaries.
 - Watchlist events.
 - Portfolio snapshots.
+
+For future large-scale textual/research retrieval, evolve toward:
+
+```text
+PostgreSQL
++ Elasticsearch/OpenSearch
++ Vector Storage
+```
+
+Do not introduce Elasticsearch or vector storage for the Phase 1 scanner unless real query/search requirements justify it. PostgreSQL with appropriate indexes remains the initial structured scanner and billing store.
 
 ### On-Demand Candidate Data
 
@@ -81,13 +93,21 @@ ScannerQueries
 ScannerQueryPlans
 ScannerExecutions
 ScannerResultItems
-UsageLedgerEntries
-ApiClients
+CustomerAccounts
+InvoiceAccounts
+CreditLines
+SubscriptionPlans
 Subscriptions
-UserCreditAccounts
+WalletBalanceProjections
+UsageReservations
+UsageLedgerEntries
+FinancialTransactions
+ApiClients
 ```
 
 `ScannerQueries`, `ScannerQueryPlans`, `ScannerExecutions`, and `ScannerResultItems` are internal execution/audit data. User-facing chat history is retrieved from `Conversations` and `Messages`.
+
+`UsageLedgerEntries` and `FinancialTransactions` are append-only accounting truth for the `FinancialCopilot.Billing` bounded context. `WalletBalanceProjections` are rebuildable read models and must not be treated as authoritative ledger state.
 
 ## Data Freshness
 
@@ -125,6 +145,10 @@ Recommended event names:
 - `financial-metrics.recalculate.requested`
 - `scanner.cache.refresh.requested`
 - `textual-report.embedding.requested`
+- `billing.usage-reservation.expiry.requested`
+- `billing.invoice.generate.requested`
+- `billing.payment.reconcile.requested`
+- `billing.wallet-projection.rebuild.requested`
 
 ## Derived Metrics Policy
 
@@ -153,6 +177,31 @@ public interface ITextualAnalysisProvider
 ```
 
 Infrastructure implements these interfaces for each third-party provider.
+
+## AI Model Provider Boundary
+
+Financial-data providers are separate from LLM/model providers. AI model adapters may target hosted execution such as OpenAI or Anthropic/Claude, a future Abravran integration once its contract is available, or local execution such as Ollama.
+
+Define provider-neutral model contracts for:
+
+```csharp
+public interface IAiModelClient
+public interface IAiModelProviderResolver
+public interface IAiProviderCapabilityRegistry
+public interface IAiExecutionTelemetrySink
+```
+
+Persist normalized internal AI execution evidence when required for audit and Billing, including provider/model alias, requested capabilities, status, timing, fallback outcome, and provider-supplied usage metrics where available. Do not store provider secrets in operational data or make scanner correctness depend on a provider-specific response format.
+
+## Billing Data Boundary
+
+Use the dedicated `FinancialCopilot.Billing` bounded context for both organization partners and direct consumers:
+
+- Organization partners may use prepaid, postpaid, or hybrid balance plus approved credit-line policies.
+- Direct consumers use subscription allowances and top-ups, with no overdraft by default.
+- Store partner-provided `externalUserId` values only as tenant-scoped usage attribution identifiers.
+- Keep internal operation/provider/compute cost data separate from displayed credits and currency transactions.
+- Apply idempotency to reservations, ledger commits, releases, refunds, payment callbacks, and invoice settlements.
 
 ## API Licensing Note
 

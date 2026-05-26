@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Domain\FinancialCopilot.Domain.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Worker\FinancialCopilot.Worker.csproj" />
+    <ProjectReference Include="..\..\src\backend\FinancialCopilot.Billing\FinancialCopilot.Billing.csproj" />
   </ItemGroup>
 
 </Project>

@@ -53,7 +53,10 @@ Phase 1 metrics:
 
 ### Result Features
 
-- List of matching symbols.
+- Matching stock lists represented as structured result tables.
+- Default table columns: symbol, latest price, price change percentage, market capitalization, and query-relevant metrics.
+- User-requested table-column overrides, validated to a maximum of 10 displayed data columns.
+- Live/low-latency price values when available, otherwise latest completed trading-day price statistics with visible source/freshness metadata.
 - Metric values.
 - Ranking score.
 - Explanation per symbol.
@@ -152,6 +155,8 @@ When the Scanner Tool answers a Message, each result item in the Explainable Ans
 - Confidence Score.
 
 The answer is persisted as an assistant Message in the Conversation, along with traceable Data Citations and usage outcome.
+
+For stock-list answers, table schema and row values are assembled by deterministic Application-layer services. Use a result-column policy to select default/query-specific columns and a market quote resolver to retrieve prices in batches with live-to-previous-trading-day fallback. The AI may describe the table but must not choose unvalidated columns or generate its numerical data.
 
 ## Internal Application Services
 

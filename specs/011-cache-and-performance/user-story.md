@@ -15,8 +15,10 @@ so that the product feels responsive and scalable.
 - Cache invalidation occurs after data sync/metric recalculation.
 - API response includes data freshness metadata.
 - AI facade responses can use cached internal Scanner Tool results without exposing tool routing to the React UI.
+- Cache hits still pass through `FinancialCopilot.Billing` entitlement, reservation/finalization, and versioned operation-pricing policy; cache use may reduce cost but never bypass accounting.
 
 ## Technical Notes
 
 - Do not cache user-specific sensitive data globally.
 - Cache deterministic scanner results, not raw LLM messages.
+- Cached result freshness and `cached` usage metadata must be returned through the same facade contract as non-cached answers.

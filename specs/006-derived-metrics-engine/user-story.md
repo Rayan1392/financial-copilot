@@ -17,6 +17,8 @@ so that filters like net profit growth, sales growth, P/E, and P/S are accurate 
 - P/S can be calculated using documented policy.
 - Missing or invalid denominator cases are handled safely.
 - Calculation policy is stored with derived metric result.
+- Metric calculations consume concepts and period policies from `003-financial-domain-model` and normalized source data produced by `005-data-ingestion-and-normalization`.
+- Valuation metric observations retain price source/as-of metadata; `008-scanner-execution-engine` separately resolves the displayed latest/live-or-fallback table price.
 - Unit tests cover normal and edge cases.
 
 ## Technical Notes

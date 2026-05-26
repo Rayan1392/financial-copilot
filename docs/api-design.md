@@ -10,6 +10,8 @@ POST /api/ai/v1/query
 
 The frontend must not infer intent or choose a scanner, portfolio, market summary, single stock, or deep search service. The backend performs Intent Detection, Tool Routing, execution, answer generation, Usage Accounting, and Conversation persistence behind this endpoint.
 
+The public API contract is also independent of the selected LLM runtime. The backend may execute an AI workflow through configured hosted model providers or local models, but it must not expose vendor-specific request/response formats to the React UI.
+
 ## Authentication Models
 
 ### Owned Web Application
@@ -61,52 +63,74 @@ Example response when the backend selects the Scanner Tool:
   "needsClarification": false,
   "answer": {
     "text": "Two symbols matched your screening conditions.",
-    "results": [
-      {
-        "symbol": "ABC",
-        "companyName": "Example Company",
-        "industry": "Chemicals",
-        "score": 87.5,
-        "matchedConditions": [
-          {
-            "metric": "NetProfitGrowth",
-            "actualValue": 72.4,
-            "threshold": 50,
-            "unit": "percent",
-            "period": "LatestQuarter",
-            "comparison": "YoY"
-          },
-          {
-            "metric": "PE",
-            "actualValue": 4.2,
-            "threshold": 5,
-            "period": "TTM"
-          }
-        ],
-        "explanation": "Latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
-        "citations": [
-          {
-            "type": "FinancialStatement",
-            "period": "LatestQuarter",
-            "reportDate": "2026-05-01",
-            "sourceProvider": "ThirdPartyProvider",
-            "lastSyncAt": "2026-05-02T08:15:00Z"
-          }
-        ],
-        "confidenceScore": 0.91,
-        "warnings": []
-      }
-    ]
+    "table": {
+      "columns": [
+        { "key": "symbol", "label": "Symbol" },
+        { "key": "latestPrice", "label": "Latest Price" },
+        { "key": "priceChangePercent", "label": "Price Change Percentage" },
+        { "key": "marketCapitalization", "label": "Market Capitalization" },
+        { "key": "netProfitGrowth", "label": "Net Profit Growth" },
+        { "key": "pe", "label": "P/E" }
+      ],
+      "omittedColumns": [],
+      "rows": [
+        {
+          "symbol": "ABC",
+          "companyName": "Example Company",
+          "industry": "Chemicals",
+          "latestPrice": 23450,
+          "priceChangePercent": 2.4,
+          "priceSource": "LiveQuote",
+          "priceAsOf": "2026-05-26T09:30:00Z",
+          "marketCapitalization": 42000000000000,
+          "netProfitGrowth": 72.4,
+          "pe": 4.2,
+          "score": 87.5,
+          "matchedConditions": [
+            {
+              "metric": "NetProfitGrowth",
+              "actualValue": 72.4,
+              "threshold": 50,
+              "unit": "percent",
+              "period": "LatestQuarter",
+              "comparison": "YoY"
+            },
+            {
+              "metric": "PE",
+              "actualValue": 4.2,
+              "threshold": 5,
+              "period": "TTM"
+            }
+          ],
+          "citations": [
+            {
+              "type": "FinancialStatement",
+              "period": "LatestQuarter",
+              "reportDate": "2026-05-01",
+              "sourceProvider": "ThirdPartyProvider",
+              "lastSyncAt": "2026-05-02T08:15:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    "explanation": "Latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
+    "confidenceScore": 0.91,
+    "warnings": []
   },
   "usage": {
     "operation": "AiQuery.Scanner",
-    "creditsCharged": 1,
-    "quotaRemaining": 99
+    "creditsCharged": 1.0,
+    "remainingBalance": 99.0,
+    "pricingPolicyVersion": "v1",
+    "cached": false
   }
 }
 ```
 
 The returned `detectedIntent` and `toolUsed` are informational output. They do not create a frontend routing responsibility.
+
+When an answer contains a list of stocks, the response uses a table schema. Default columns are symbol, latest price, price change percentage, market capitalization, and metrics relevant to the user's query; user-requested column changes are accepted after validation. The backend enforces a maximum of 10 displayed data columns. Price values prefer available live/low-latency quote data and fall back to the latest completed trading-day statistics with explicit `priceSource` and `priceAsOf` metadata.
 
 ## Conversation History API
 
@@ -166,15 +190,24 @@ GET  /api/v1/admin/provider-health
 
 ## Billing/Usage Endpoints
 
-Every invocation of `POST /api/ai/v1/query` creates Usage Accounting records after authentication and according to the validation/charging policy. The response includes charged credits and remaining quota where permitted.
+Every invocation of `POST /api/ai/v1/query` resolves a billable `CustomerAccount`, validates entitlement, reserves spending capacity before expensive work, and commits or releases usage after execution according to a versioned operation-based pricing policy. The immutable Usage Ledger is the source of accounting truth; wallet balance is a read projection.
+
+For SaaS organization accounts, API usage is charged to the organization and may be attributed to an optional partner-scoped `externalUserId`. Organization accounts may be prepaid, postpaid, or hybrid with an explicitly approved credit line. For direct consumer accounts, the product manages subscriptions/top-ups and rejects billable execution without allowance or balance by default.
 
 ```http
 GET  /api/v1/usage/me
 GET  /api/v1/usage/api-client/{clientId}
+GET  /api/v1/billing/wallet
+GET  /api/v1/billing/transactions
 POST /api/v1/credits/top-up
 GET  /api/v1/subscriptions/plans
 POST /api/v1/subscriptions/subscribe
+GET  /api/v1/admin/billing/customers/{customerAccountId}/usage
+GET  /api/v1/admin/billing/customers/{customerAccountId}/invoices
+POST /api/v1/admin/billing/customers/{customerAccountId}/adjustments
 ```
+
+Payment gateway callbacks and partner invoice settlement endpoints must be provider-specific authenticated/internal integration contracts when implemented, with idempotency enforced. Full payment gateway and automatic invoice delivery are not required for the initial scanner milestone.
 
 ## Error Response
 

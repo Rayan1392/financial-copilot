@@ -10,6 +10,7 @@ public sealed class CleanArchitectureDependencyTests
             ["FinancialCopilot.API"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"]),
             ["FinancialCopilot.Application"] = new HashSet<string>(["FinancialCopilot.Domain"]),
             ["FinancialCopilot.Domain"] = new HashSet<string>(),
+            ["FinancialCopilot.Billing"] = new HashSet<string>(["FinancialCopilot.Domain"]),
             ["FinancialCopilot.Infrastructure"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Domain"]),
             ["FinancialCopilot.Worker"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"])
         };

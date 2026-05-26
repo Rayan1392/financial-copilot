@@ -9,6 +9,10 @@ Financial Copilot is an AI-powered capital market assistant for the Iranian stoc
 
 The existing React + TypeScript frontend prototype built with Lovable should be preserved as the UI foundation. Backend services will be implemented separately with .NET 10, C#, PostgreSQL, EF Core, Redis, RabbitMQ, and Clean Architecture.
 
+## Communication Rule
+
+Codex must always respond in English, even when a request is written in Persian. Persian end-user prompts or localized UI examples may be retained where they are part of product requirements.
+
 ## Phase 1 Scope — Scanner MVP
 
 Phase 1 focuses on the **Natural Language Financial Scanner**.
@@ -34,6 +38,8 @@ The React chat UI submits every message to `POST /api/ai/v1/query`. The backend 
 - Hybrid data strategy: on-demand API calls for lightweight/fresh data; persisted normalized datasets for screening, historical analytics, textual analysis, and repeatable calculations.
 - Usage metering and API key readiness from day one, even if billing is fully activated later.
 - Generic Conversation and Message persistence for chat history.
+- Dedicated `FinancialCopilot.Billing` bounded context for organization partners and direct consumers, using immutable usage ledger and operation-based charging.
+- Provider-neutral AI model integration for configured hosted providers and local runtimes, without vendor-specific business logic.
 
 ## Recommended Documentation Reading Order
 
@@ -42,8 +48,9 @@ The React chat UI submits every message to `POST /api/ai/v1/query`. The backend 
 3. `docs/data-strategy.md`
 4. `docs/scanner-mvp-scope.md`
 5. `docs/api-design.md`
-6. `docs/codex-agent-instructions.md`
-7. `specs/*/user-story.md`
+6. `docs/billing-and-credits-domain.md`
+7. `docs/codex-agent-instructions.md`
+8. `specs/*/user-story.md`
 
 ## Backend Development
 
@@ -65,3 +72,9 @@ In the Development environment, the initial foundation endpoints are:
 
 - `GET /health`
 - `GET /openapi/v1.json`
+
+## Authentication Configuration
+
+Protected AI routes accept either a configured JWT bearer token or an `X-Api-Key` credential. JWT actors must include a tenant id claim (`financial_copilot:tenant_id`) and a GUID subject. API client configuration stores SHA-256 key hashes rather than raw API keys and supplies both client and tenant ids.
+
+JWT signing keys and API key hashes must be supplied through secrets or environment configuration; the repository settings do not contain active credentials. Authenticated AI requests are rate limited by user id or API client id using `RateLimiting:AuthenticatedActor` settings.

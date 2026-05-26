@@ -59,6 +59,47 @@ public sealed class UsageReservation
 
     public UsageReservationStatus Status { get; private set; }
 
+    public static UsageReservation Restore(
+        Guid id,
+        Guid customerAccountId,
+        string idempotencyKey,
+        string operationCode,
+        decimal reservedCredits,
+        decimal? committedCredits,
+        DateTimeOffset createdAt,
+        DateTimeOffset expiresAt,
+        UsageReservationStatus status)
+    {
+        var reservation = new UsageReservation(
+            id,
+            customerAccountId,
+            idempotencyKey,
+            operationCode,
+            reservedCredits,
+            createdAt,
+            expiresAt);
+
+        switch (status)
+        {
+            case UsageReservationStatus.Reserved:
+                break;
+            case UsageReservationStatus.Committed:
+                reservation.Commit(committedCredits ??
+                    throw new ArgumentException("Committed credits are required for committed reservations."));
+                break;
+            case UsageReservationStatus.Released:
+                reservation.Release();
+                break;
+            case UsageReservationStatus.Expired:
+                reservation.Expire();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(status));
+        }
+
+        return reservation;
+    }
+
     public void Commit(decimal actualCredits)
     {
         EnsureReserved();

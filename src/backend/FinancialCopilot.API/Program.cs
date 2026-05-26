@@ -1,5 +1,6 @@
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
+using FinancialCopilot.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
@@ -17,6 +18,7 @@ builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
+builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)

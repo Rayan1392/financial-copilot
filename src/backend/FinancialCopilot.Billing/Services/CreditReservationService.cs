@@ -91,6 +91,34 @@ public sealed class CreditReservationService(
         await wallets.SaveAsync(wallet.Release(reservation.ReservedCredits, now), cancellationToken);
     }
 
+    public async Task<int> ExpireAbandonedAsync(
+        int maximumCount,
+        CancellationToken cancellationToken)
+    {
+        if (maximumCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumCount));
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var expiredReservations = await reservations.FindExpiredReservedAsync(
+            now,
+            maximumCount,
+            cancellationToken);
+
+        foreach (var reservation in expiredReservations)
+        {
+            var wallet = await wallets.GetSnapshotAsync(reservation.CustomerAccountId, cancellationToken);
+            reservation.Expire();
+            await reservations.SaveAsync(reservation, cancellationToken);
+            await wallets.SaveAsync(
+                wallet.Release(reservation.ReservedCredits, now),
+                cancellationToken);
+        }
+
+        return expiredReservations.Count;
+    }
+
     private static void ValidateExistingReservation(
         UsageReservation existing,
         CustomerAccount account,

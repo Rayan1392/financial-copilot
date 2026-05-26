@@ -51,17 +51,49 @@ public interface IUsageLedgerRepository
         CancellationToken cancellationToken);
 
     Task AppendAsync(UsageLedgerEntry entry, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<UsageLedgerEntry>> QueryAsync(
+        Guid customerAccountId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken);
 }
 
 public interface IFinancialTransactionRepository
 {
+    Task<FinancialTransaction?> FindByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken);
+
     Task AppendAsync(FinancialTransaction transaction, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<FinancialTransaction>> QueryAsync(
+        Guid customerAccountId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken);
+}
+
+public interface IFinancialAccountingService
+{
+    Task RecordAsync(FinancialTransaction transaction, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<FinancialTransaction>> QueryAsync(
+        Guid customerAccountId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken);
 }
 
 public interface IUsageReservationRepository
 {
     Task<UsageReservation?> FindByIdempotencyKeyAsync(
         string idempotencyKey,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<UsageReservation>> FindExpiredReservedAsync(
+        DateTimeOffset asOf,
+        int maximumCount,
         CancellationToken cancellationToken);
 
     Task SaveAsync(UsageReservation reservation, CancellationToken cancellationToken);
@@ -85,6 +117,10 @@ public interface ICreditReservationService
     Task ReleaseAsync(
         UsageReservation reservation,
         string reason,
+        CancellationToken cancellationToken);
+
+    Task<int> ExpireAbandonedAsync(
+        int maximumCount,
         CancellationToken cancellationToken);
 }
 
@@ -136,10 +172,30 @@ public interface IInvoiceService
         CancellationToken cancellationToken);
 }
 
+public interface IInvoiceAccountRepository
+{
+    Task<InvoiceAccount?> FindAsync(Guid customerAccountId, CancellationToken cancellationToken);
+}
+
+public interface ISubscriptionPlanRepository
+{
+    Task<SubscriptionPlan?> FindForCustomerAsync(
+        Guid customerAccountId,
+        CancellationToken cancellationToken);
+}
+
 public interface IPartnerAccountService
 {
     Task<CustomerAccount> GetOrganizationAccountAsync(
         Guid tenantId,
+        CancellationToken cancellationToken);
+}
+
+public interface IBillingAdministrationService
+{
+    Task<CustomerAccount> GetTenantAccountAsync(
+        Guid tenantId,
+        Guid customerAccountId,
         CancellationToken cancellationToken);
 }
 

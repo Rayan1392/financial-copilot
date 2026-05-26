@@ -4,7 +4,8 @@ public sealed record WalletSnapshot(
     Guid CustomerAccountId,
     decimal Balance,
     decimal ReservedAmount,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    long Revision = 0)
 {
     public decimal AvailableSpendingCapacity(CreditLine? creditLine) =>
         Balance + (creditLine?.ApprovedLimit ?? 0) - ReservedAmount;
@@ -19,7 +20,8 @@ public sealed record WalletSnapshot(
         return this with
         {
             ReservedAmount = ReservedAmount + credits,
-            UpdatedAt = updatedAt
+            UpdatedAt = updatedAt,
+            Revision = Revision + 1
         };
     }
 
@@ -36,7 +38,8 @@ public sealed record WalletSnapshot(
         {
             Balance = Balance - chargedCredits,
             ReservedAmount = ReservedAmount - reservedCredits,
-            UpdatedAt = updatedAt
+            UpdatedAt = updatedAt,
+            Revision = Revision + 1
         };
     }
 
@@ -47,7 +50,8 @@ public sealed record WalletSnapshot(
         return this with
         {
             ReservedAmount = ReservedAmount - reservedCredits,
-            UpdatedAt = updatedAt
+            UpdatedAt = updatedAt,
+            Revision = Revision + 1
         };
     }
 

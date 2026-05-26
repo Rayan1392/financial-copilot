@@ -49,9 +49,9 @@ Act as a senior .NET backend engineer. Prioritize correctness, maintainability, 
 Allowed dependencies:
 
 ```text
-API -> Application, Infrastructure
+API -> Application, Billing contracts, Infrastructure
 Application -> Domain
-Infrastructure -> Application, Domain
+Infrastructure -> Application, Billing contracts, Domain
 Worker -> Application, Infrastructure
 Billing -> Domain
 API/Application -> Billing contracts as required for charging workflows

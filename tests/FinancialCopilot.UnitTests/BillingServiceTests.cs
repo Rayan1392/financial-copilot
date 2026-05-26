@@ -133,6 +133,36 @@ public sealed class BillingServiceTests
     }
 
     [Fact]
+    public async Task CreditReservationService_ExpiresAbandonedReservationsAndReleasesCapacity()
+    {
+        var accountId = Guid.NewGuid();
+        var repository = new TestReservationRepository();
+        var wallet = new TestWalletRepository(new WalletSnapshot(accountId, 4, 1, DateTimeOffset.UnixEpoch));
+        var expiredReservation = new UsageReservation(
+            Guid.NewGuid(),
+            accountId,
+            "abandoned-request",
+            "AiQuery.Scanner",
+            1,
+            DateTimeOffset.Parse("2026-05-26T11:00:00Z"),
+            DateTimeOffset.Parse("2026-05-26T11:05:00Z"));
+        await repository.SaveAsync(expiredReservation, CancellationToken.None);
+        var service = new CreditReservationService(
+            repository,
+            wallet,
+            new CreditLinePolicyService(),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+
+        var expiredCount = await service.ExpireAbandonedAsync(10, CancellationToken.None);
+        var retriedCount = await service.ExpireAbandonedAsync(10, CancellationToken.None);
+
+        Assert.Equal(1, expiredCount);
+        Assert.Equal(0, retriedCount);
+        Assert.Equal(0, wallet.Snapshot.ReservedAmount);
+        Assert.Equal(UsageReservationStatus.Expired, expiredReservation.Status);
+    }
+
+    [Fact]
     public async Task UsageAccountingService_DoesNotAppendDuplicateLedgerEntry()
     {
         var ledger = new TestLedgerRepository();
@@ -156,6 +186,47 @@ public sealed class BillingServiceTests
 
         Assert.Single(ledger.Entries);
         Assert.Equal("partner-user-123", ledger.Entries[0].ExternalUserId);
+    }
+
+    [Fact]
+    public async Task FinancialAccountingService_DoesNotRecordDuplicatePaymentCallback()
+    {
+        var repository = new TestFinancialTransactionRepository();
+        var service = new FinancialAccountingService(repository);
+        var transaction = new FinancialTransaction(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            FinancialTransactionType.Payment,
+            500_000m,
+            "IRR",
+            "gateway-callback-1",
+            DateTimeOffset.Parse("2026-05-26T12:00:00Z"));
+
+        await service.RecordAsync(transaction, CancellationToken.None);
+        await service.RecordAsync(transaction, CancellationToken.None);
+
+        Assert.Single(repository.Transactions);
+    }
+
+    [Fact]
+    public async Task FinancialAccountingService_RejectsChangedTransactionWithSameIdempotencyKey()
+    {
+        var repository = new TestFinancialTransactionRepository();
+        var service = new FinancialAccountingService(repository);
+        var transaction = new FinancialTransaction(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            FinancialTransactionType.Payment,
+            500_000m,
+            "IRR",
+            "gateway-callback-1",
+            DateTimeOffset.Parse("2026-05-26T12:00:00Z"));
+        await service.RecordAsync(transaction, CancellationToken.None);
+
+        var changed = transaction with { Amount = 600_000m };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordAsync(changed, CancellationToken.None));
     }
 
     [Fact]
@@ -264,6 +335,19 @@ public sealed class BillingServiceTests
             return Task.FromResult(reservation);
         }
 
+        public Task<IReadOnlyCollection<UsageReservation>> FindExpiredReservedAsync(
+            DateTimeOffset asOf,
+            int maximumCount,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<UsageReservation>>(
+                _reservations.Values
+                    .Where(reservation =>
+                        reservation.Status == UsageReservationStatus.Reserved &&
+                        reservation.ExpiresAt <= asOf)
+                    .OrderBy(reservation => reservation.ExpiresAt)
+                    .Take(maximumCount)
+                    .ToArray());
+
         public Task SaveAsync(UsageReservation reservation, CancellationToken cancellationToken)
         {
             _reservations[reservation.IdempotencyKey] = reservation;
@@ -285,6 +369,45 @@ public sealed class BillingServiceTests
             Entries.Add(entry);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyCollection<UsageLedgerEntry>> QueryAsync(
+            Guid customerAccountId,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<UsageLedgerEntry>>(
+                Entries.Where(entry =>
+                    entry.CustomerAccountId == customerAccountId &&
+                    entry.OccurredAt >= from &&
+                    entry.OccurredAt <= to).ToArray());
+    }
+
+    private sealed class TestFinancialTransactionRepository : IFinancialTransactionRepository
+    {
+        public List<FinancialTransaction> Transactions { get; } = [];
+
+        public Task<FinancialTransaction?> FindByIdempotencyKeyAsync(
+            string idempotencyKey,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Transactions.FirstOrDefault(transaction =>
+                transaction.IdempotencyKey == idempotencyKey));
+
+        public Task AppendAsync(FinancialTransaction transaction, CancellationToken cancellationToken)
+        {
+            Transactions.Add(transaction);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<FinancialTransaction>> QueryAsync(
+            Guid customerAccountId,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<FinancialTransaction>>(
+                Transactions.Where(transaction =>
+                    transaction.CustomerAccountId == customerAccountId &&
+                    transaction.OccurredAt >= from &&
+                    transaction.OccurredAt <= to).ToArray());
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

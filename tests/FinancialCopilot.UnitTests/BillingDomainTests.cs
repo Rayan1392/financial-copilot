@@ -129,4 +129,73 @@ public sealed class BillingDomainTests
 
         Assert.Equal(0, result.CreditsCharged);
     }
+
+    [Theory]
+    [InlineData("AiQuery.Scanner", 1)]
+    [InlineData("AiQuery.FinancialComparison", 3)]
+    [InlineData("AiQuery.DeepResearch", 15)]
+    [InlineData("AiQuery.CodalAnalysis", 8)]
+    [InlineData("AiQuery.Summarization", 4)]
+    [InlineData("AiQuery.FutureRiskScore", 6.5)]
+    public void UsageChargeCalculator_PricesConfiguredOperationsWithoutQueryCountAssumption(
+        string operationCode,
+        decimal expectedCredits)
+    {
+        var policy = CreateOperationPricingPolicy();
+        var calculator = new OperationUsageChargeCalculator(
+            new ConfiguredPricingPolicyProvider([policy]));
+
+        var result = calculator.Calculate(new UsageChargeRequest(
+            operationCode,
+            "v1",
+            Cached: false,
+            CompletionStatus: "Completed",
+            UsageUnits: [],
+            ProviderCosts: []));
+
+        Assert.Equal(expectedCredits, result.CreditsCharged);
+    }
+
+    [Theory]
+    [InlineData("ClarificationRequired")]
+    [InlineData("ProviderFailed")]
+    [InlineData("CancelledBeforeExecution")]
+    [InlineData("TimedOutBeforeExecution")]
+    public void UsageChargeCalculator_DoesNotChargeConfiguredPreExecutionOutcome(string completionStatus)
+    {
+        var calculator = new OperationUsageChargeCalculator(
+            new ConfiguredPricingPolicyProvider([CreateOperationPricingPolicy()]));
+
+        var result = calculator.Calculate(new UsageChargeRequest(
+            "AiQuery.Scanner",
+            "v1",
+            Cached: false,
+            CompletionStatus: completionStatus,
+            UsageUnits: [],
+            ProviderCosts: []));
+
+        Assert.Equal(0, result.CreditsCharged);
+    }
+
+    private static PricingPolicy CreateOperationPricingPolicy() =>
+        new(
+            "v1",
+            new Dictionary<string, decimal>
+            {
+                ["AiQuery.Scanner"] = 1,
+                ["AiQuery.FinancialComparison"] = 3,
+                ["AiQuery.DeepResearch"] = 15,
+                ["AiQuery.CodalAnalysis"] = 8,
+                ["AiQuery.Summarization"] = 4,
+                ["AiQuery.FutureRiskScore"] = 6.5m
+            },
+            CachedMultiplier: 0.2m,
+            ZeroChargeStatuses: new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "ValidationFailed",
+                "ClarificationRequired",
+                "ProviderFailed",
+                "CancelledBeforeExecution",
+                "TimedOutBeforeExecution"
+            });
 }

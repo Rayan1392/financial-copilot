@@ -7,11 +7,11 @@ public sealed class CleanArchitectureDependencyTests
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> AllowedReferences =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["FinancialCopilot.API"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"]),
+            ["FinancialCopilot.API"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Billing", "FinancialCopilot.Infrastructure"]),
             ["FinancialCopilot.Application"] = new HashSet<string>(["FinancialCopilot.Domain"]),
             ["FinancialCopilot.Domain"] = new HashSet<string>(),
             ["FinancialCopilot.Billing"] = new HashSet<string>(["FinancialCopilot.Domain"]),
-            ["FinancialCopilot.Infrastructure"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Domain"]),
+            ["FinancialCopilot.Infrastructure"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Billing", "FinancialCopilot.Domain"]),
             ["FinancialCopilot.Worker"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"])
         };
 

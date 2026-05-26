@@ -52,6 +52,15 @@ public static class ServiceCollectionExtensions
                     HasValidActorContext(context.User) &&
                     IsMode(context.User, AuthenticationMode.ApiClient));
             });
+
+            options.AddPolicy(AuthorizationPolicies.BillingAdmin, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                    HasValidActorContext(context.User) &&
+                    IsMode(context.User, AuthenticationMode.WebAppUser) &&
+                    context.User.HasClaim("role", "BillingAdmin"));
+            });
         });
 
         return services;

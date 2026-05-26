@@ -31,11 +31,12 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IBillableAccountResolver, BillableAccountResolver>();
         services.AddScoped<ICreditLinePolicyService, CreditLinePolicyService>();
-        services.AddScoped<ICreditReservationService, CreditReservationService>();
+        services.AddScoped<ICreditReservationService, UsageReservationAuthorizationService>();
         services.AddScoped<IUsageChargeCalculator, OperationUsageChargeCalculator>();
         services.AddScoped<IUsageAccountingService, UsageAccountingService>();
         services.AddScoped<IFinancialAccountingService, FinancialAccountingService>();
         services.AddScoped<ICreditAdjustmentService, CreditAdjustmentService>();
+        services.AddScoped<IUsageFinalizationService, UsageFinalizationService>();
         services.AddScoped<IWalletProjectionBuilder, WalletProjectionBuilder>();
         services.AddScoped<IEntitlementService>(provider =>
             new WalletEntitlementService(

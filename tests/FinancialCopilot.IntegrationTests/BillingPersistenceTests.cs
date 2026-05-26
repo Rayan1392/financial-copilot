@@ -1,4 +1,5 @@
 using FinancialCopilot.Billing.Accounts;
+using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -128,6 +129,96 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task UsageReservationAuthorizationService_ReservesWalletCapacityOnlyOnce()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Organization.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 10,
+            ReservedAmount = 0,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:55:00Z")
+        });
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var account = new CustomerAccount(
+            customerAccountId,
+            tenantId,
+            CustomerAccountType.Organization,
+            BillingMode.Prepaid);
+        var service = new UsageReservationAuthorizationService(
+            dbContext,
+            new FinancialCopilot.Billing.Services.CreditLinePolicyService(),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+        var wallet = new WalletSnapshot(
+            customerAccountId,
+            10,
+            0,
+            DateTimeOffset.Parse("2026-05-26T11:55:00Z"));
+
+        var created = await service.ReserveAsync(
+            account, wallet, "AiQuery.Scanner", 2, "atomic-reserve", CancellationToken.None);
+        var replayed = await service.ReserveAsync(
+            account, wallet, "AiQuery.Scanner", 2, "atomic-reserve", CancellationToken.None);
+
+        Assert.Equal(created.Id, replayed.Id);
+        Assert.Single(dbContext.UsageReservations);
+        Assert.Equal(2, dbContext.WalletProjections.Single().ReservedAmount);
+        Assert.Equal(1, dbContext.WalletProjections.Single().Revision);
+    }
+
+    [Fact]
+    public async Task UsageReservationAuthorizationService_ExpiresHoldAndRestoresCapacity()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Individual.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 5,
+            ReservedAmount = 1,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:50:00Z"),
+            Revision = 1
+        });
+        dbContext.UsageReservations.Add(CreateReservedRow(
+            customerAccountId,
+            "expired-hold",
+            reservedCredits: 1));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new UsageReservationAuthorizationService(
+            dbContext,
+            new FinancialCopilot.Billing.Services.CreditLinePolicyService(),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:10:00Z")));
+
+        var expiredCount = await service.ExpireAbandonedAsync(10, CancellationToken.None);
+        var replayedCount = await service.ExpireAbandonedAsync(10, CancellationToken.None);
+
+        Assert.Equal(1, expiredCount);
+        Assert.Equal(0, replayedCount);
+        Assert.Equal(0, dbContext.WalletProjections.Single().ReservedAmount);
+        Assert.Equal(2, dbContext.WalletProjections.Single().Revision);
+        Assert.Equal(
+            "Reservation expired before finalization.",
+            dbContext.UsageReservations.Single().FinalizationReason);
+    }
+
+    [Fact]
     public async Task UsageLedgerRepository_RoundTripsUsageAndFinancialTransactions()
     {
         await using var dbContext = CreateDbContext();
@@ -222,6 +313,107 @@ public sealed class BillingPersistenceTests
     }
 
     [Fact]
+    public async Task UsageFinalizationService_CommitsReservationLedgerAndWalletOnlyOnce()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Organization.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 10,
+            ReservedAmount = 2,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:55:00Z"),
+            Revision = 1
+        });
+        dbContext.UsageReservations.Add(CreateReservedRow(
+            customerAccountId,
+            "reservation-commit",
+            reservedCredits: 2));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new UsageFinalizationService(
+            dbContext,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+        var command = new UsageCommitCommand(
+            customerAccountId,
+            actorId,
+            tenantId,
+            ApiClientId: Guid.NewGuid(),
+            ExternalUserId: "partner-user-1",
+            ReservationIdempotencyKey: "reservation-commit",
+            LedgerIdempotencyKey: "ledger-commit",
+            ActualCharge: new UsageChargeResult(1.5m, "v1", Cached: false));
+
+        var committed = await service.CommitAsync(command, CancellationToken.None);
+        var replayed = await service.CommitAsync(command, CancellationToken.None);
+
+        Assert.False(committed.AlreadyFinalized);
+        Assert.True(replayed.AlreadyFinalized);
+        Assert.Equal(UsageReservationStatus.Committed, replayed.Reservation.Status);
+        Assert.Equal(8.5m, replayed.Wallet.Balance);
+        Assert.Equal(0, replayed.Wallet.ReservedAmount);
+        Assert.Equal(2, replayed.Wallet.Revision);
+        Assert.Single(dbContext.UsageLedgerEntries);
+        Assert.Equal("partner-user-1", replayed.LedgerEntry!.ExternalUserId);
+    }
+
+    [Fact]
+    public async Task UsageFinalizationService_ReleasesFailedReservationWithReasonOnlyOnce()
+    {
+        await using var dbContext = CreateDbContext();
+        var customerAccountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = customerAccountId,
+            TenantId = tenantId,
+            AccountType = CustomerAccountType.Individual.ToString(),
+            BillingMode = BillingMode.Prepaid.ToString()
+        });
+        dbContext.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = customerAccountId,
+            Balance = 4,
+            ReservedAmount = 1,
+            UpdatedAt = DateTimeOffset.Parse("2026-05-26T11:55:00Z"),
+            Revision = 1
+        });
+        dbContext.UsageReservations.Add(CreateReservedRow(
+            customerAccountId,
+            "reservation-release",
+            reservedCredits: 1));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var service = new UsageFinalizationService(
+            dbContext,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-26T12:00:00Z")));
+        var command = new UsageReleaseCommand(
+            customerAccountId,
+            tenantId,
+            "reservation-release",
+            "Provider failed before billable completion.");
+
+        var released = await service.ReleaseAsync(command, CancellationToken.None);
+        var replayed = await service.ReleaseAsync(command, CancellationToken.None);
+
+        Assert.False(released.AlreadyFinalized);
+        Assert.True(replayed.AlreadyFinalized);
+        Assert.Equal(UsageReservationStatus.Released, replayed.Reservation.Status);
+        Assert.Equal("Provider failed before billable completion.", replayed.Reservation.FinalizationReason);
+        Assert.Equal(4, replayed.Wallet.Balance);
+        Assert.Equal(0, replayed.Wallet.ReservedAmount);
+        Assert.Equal(2, replayed.Wallet.Revision);
+        Assert.Empty(dbContext.UsageLedgerEntries);
+    }
+
+    [Fact]
     public async Task SubscriptionAndInvoiceRepositories_ReadConfiguredBillingProfiles()
     {
         await using var dbContext = CreateDbContext();
@@ -271,6 +463,22 @@ public sealed class BillingPersistenceTests
 
         return new BillingDbContext(options);
     }
+
+    private static UsageReservationRow CreateReservedRow(
+        Guid customerAccountId,
+        string idempotencyKey,
+        decimal reservedCredits) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            CustomerAccountId = customerAccountId,
+            IdempotencyKey = idempotencyKey,
+            OperationCode = "AiQuery.Scanner",
+            ReservedCredits = reservedCredits,
+            CreatedAt = DateTimeOffset.Parse("2026-05-26T11:55:00Z"),
+            ExpiresAt = DateTimeOffset.Parse("2026-05-26T12:05:00Z"),
+            Status = UsageReservationStatus.Reserved.ToString()
+        };
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {

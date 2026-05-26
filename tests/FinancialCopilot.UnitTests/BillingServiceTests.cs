@@ -148,6 +148,7 @@ public sealed class BillingServiceTests
         Assert.Equal(4, wallet.Snapshot.Balance);
         Assert.Equal(0, wallet.Snapshot.ReservedAmount);
         Assert.Equal(UsageReservationStatus.Released, reservation.Status);
+        Assert.Equal("Provider failure", reservation.FinalizationReason);
     }
 
     [Fact]
@@ -178,6 +179,7 @@ public sealed class BillingServiceTests
         Assert.Equal(0, retriedCount);
         Assert.Equal(0, wallet.Snapshot.ReservedAmount);
         Assert.Equal(UsageReservationStatus.Expired, expiredReservation.Status);
+        Assert.Equal("Reservation expired before finalization.", expiredReservation.FinalizationReason);
     }
 
     [Fact]

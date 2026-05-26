@@ -39,7 +39,8 @@ public sealed class UsageReservationRowConfiguration : IEntityTypeConfiguration<
         builder.HasIndex(row => row.IdempotencyKey).IsUnique();
         builder.Property(row => row.IdempotencyKey).HasMaxLength(160).IsRequired();
         builder.Property(row => row.OperationCode).HasMaxLength(128).IsRequired();
-        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired().IsConcurrencyToken();
+        builder.Property(row => row.FinalizationReason).HasMaxLength(500);
         builder.Property(row => row.ReservedCredits).HasPrecision(18, 4).IsRequired();
         builder.Property(row => row.CommittedCredits).HasPrecision(18, 4);
     }

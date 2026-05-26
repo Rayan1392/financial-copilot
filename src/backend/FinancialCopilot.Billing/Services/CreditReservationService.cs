@@ -86,7 +86,7 @@ public sealed class CreditReservationService(
         var wallet = await wallets.GetSnapshotAsync(reservation.CustomerAccountId, cancellationToken);
         var now = timeProvider.GetUtcNow();
 
-        reservation.Release();
+        reservation.Release(reason);
         await reservations.SaveAsync(reservation, cancellationToken);
         await wallets.SaveAsync(wallet.Release(reservation.ReservedCredits, now), cancellationToken);
     }
@@ -109,7 +109,7 @@ public sealed class CreditReservationService(
         foreach (var reservation in expiredReservations)
         {
             var wallet = await wallets.GetSnapshotAsync(reservation.CustomerAccountId, cancellationToken);
-            reservation.Expire();
+            reservation.Expire("Reservation expired before finalization.");
             await reservations.SaveAsync(reservation, cancellationToken);
             await wallets.SaveAsync(
                 wallet.Release(reservation.ReservedCredits, now),

@@ -179,6 +179,7 @@ public sealed class UsageReservationRepository(BillingDbContext dbContext) : IUs
 
         row.Status = reservation.Status.ToString();
         row.CommittedCredits = reservation.CommittedCredits;
+        row.FinalizationReason = reservation.FinalizationReason;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -192,7 +193,8 @@ public sealed class UsageReservationRepository(BillingDbContext dbContext) : IUs
             row.CommittedCredits,
             row.CreatedAt,
             row.ExpiresAt,
-            Enum.Parse<UsageReservationStatus>(row.Status));
+            Enum.Parse<UsageReservationStatus>(row.Status),
+            row.FinalizationReason);
 }
 
 public sealed class UsageLedgerRepository(BillingDbContext dbContext) :

@@ -109,16 +109,6 @@ public interface ICreditReservationService
         string idempotencyKey,
         CancellationToken cancellationToken);
 
-    Task CommitAsync(
-        UsageReservation reservation,
-        UsageChargeResult actualCharge,
-        CancellationToken cancellationToken);
-
-    Task ReleaseAsync(
-        UsageReservation reservation,
-        string reason,
-        CancellationToken cancellationToken);
-
     Task<int> ExpireAbandonedAsync(
         int maximumCount,
         CancellationToken cancellationToken);
@@ -156,6 +146,39 @@ public interface ICreditAdjustmentService
 {
     Task<CreditAdjustmentResult> ApplyAsync(
         CreditAdjustmentCommand command,
+        CancellationToken cancellationToken);
+}
+
+public sealed record UsageCommitCommand(
+    Guid CustomerAccountId,
+    Guid ActorId,
+    Guid TenantId,
+    Guid? ApiClientId,
+    string? ExternalUserId,
+    string ReservationIdempotencyKey,
+    string LedgerIdempotencyKey,
+    UsageChargeResult ActualCharge);
+
+public sealed record UsageReleaseCommand(
+    Guid CustomerAccountId,
+    Guid TenantId,
+    string ReservationIdempotencyKey,
+    string Reason);
+
+public sealed record UsageFinalizationResult(
+    UsageReservation Reservation,
+    WalletSnapshot Wallet,
+    UsageLedgerEntry? LedgerEntry,
+    bool AlreadyFinalized);
+
+public interface IUsageFinalizationService
+{
+    Task<UsageFinalizationResult> CommitAsync(
+        UsageCommitCommand command,
+        CancellationToken cancellationToken);
+
+    Task<UsageFinalizationResult> ReleaseAsync(
+        UsageReleaseCommand command,
         CancellationToken cancellationToken);
 }
 

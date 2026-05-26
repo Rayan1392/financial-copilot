@@ -137,6 +137,8 @@ Execution outcomes must have defined policies:
 | Timeout or cancellation | Apply explicit completion/partial-work policy and record outcome. |
 | Retry or duplicate request | Enforce idempotency; do not double charge. |
 
+The persistence implementation must apply a reservation hold and wallet-reserved amount together. Successful finalization must apply reservation commit status, usage-ledger charge, and wallet debit in one persistence operation. Failure finalization must apply reservation release reason and wallet reserved-capacity release in one persistence operation, without a charge ledger row for zero-charge failure policy. These contracts are exposed through deterministic `ICreditReservationService` and `IUsageFinalizationService` boundaries for later workflow invocation.
+
 ## AI Orchestration Boundary
 
 `POST /api/ai/v1/query` remains the only frontend chat-query endpoint. Microsoft Agent Framework coordinates AI capabilities, but Billing controls charges through deterministic Application services.

@@ -198,6 +198,8 @@ GET  /api/v1/admin/provider-health
 
 Every invocation of `POST /api/ai/v1/query` resolves a billable `CustomerAccount`, validates entitlement, reserves spending capacity before expensive work, and commits or releases usage after execution according to a versioned operation-based pricing policy. The immutable Usage Ledger is the source of accounting truth; wallet balance is a read projection.
 
+Billing persistence applies reservation creation and wallet-capacity hold atomically. It also applies successful reservation commit, usage-ledger charge, and wallet debit atomically; a zero-charge failure release records the reservation reason and restores reserved capacity without creating a charge entry. AI facade orchestration will call these Billing contracts in the metering integration story.
+
 For SaaS organization accounts, API usage is charged to the organization and may be attributed to an optional partner-scoped `externalUserId`. Organization accounts may be prepaid, postpaid, or hybrid with an explicitly approved credit line. For direct consumer accounts, the product manages subscriptions/top-ups and rejects billable execution without allowance or balance by default.
 
 ```http

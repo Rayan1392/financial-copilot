@@ -59,6 +59,8 @@ public sealed class UsageReservation
 
     public UsageReservationStatus Status { get; private set; }
 
+    public string? FinalizationReason { get; private set; }
+
     public static UsageReservation Restore(
         Guid id,
         Guid customerAccountId,
@@ -68,7 +70,8 @@ public sealed class UsageReservation
         decimal? committedCredits,
         DateTimeOffset createdAt,
         DateTimeOffset expiresAt,
-        UsageReservationStatus status)
+        UsageReservationStatus status,
+        string? finalizationReason = null)
     {
         var reservation = new UsageReservation(
             id,
@@ -88,10 +91,10 @@ public sealed class UsageReservation
                     throw new ArgumentException("Committed credits are required for committed reservations."));
                 break;
             case UsageReservationStatus.Released:
-                reservation.Release();
+                reservation.Release(finalizationReason);
                 break;
             case UsageReservationStatus.Expired:
-                reservation.Expire();
+                reservation.Expire(finalizationReason);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(status));
@@ -115,14 +118,15 @@ public sealed class UsageReservation
         Status = UsageReservationStatus.Committed;
     }
 
-    public void Release() => TransitionTo(UsageReservationStatus.Released);
+    public void Release(string? reason = null) => TransitionTo(UsageReservationStatus.Released, reason);
 
-    public void Expire() => TransitionTo(UsageReservationStatus.Expired);
+    public void Expire(string? reason = null) => TransitionTo(UsageReservationStatus.Expired, reason);
 
-    private void TransitionTo(UsageReservationStatus status)
+    private void TransitionTo(UsageReservationStatus status, string? reason)
     {
         EnsureReserved();
         Status = status;
+        FinalizationReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
     }
 
     private void EnsureReserved()

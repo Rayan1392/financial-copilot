@@ -51,6 +51,8 @@ public sealed class UsageReservationRow
     public DateTimeOffset ExpiresAt { get; set; }
 
     public string Status { get; set; } = string.Empty;
+
+    public string? FinalizationReason { get; set; }
 }
 
 public sealed class UsageLedgerEntryRow

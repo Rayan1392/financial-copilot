@@ -86,6 +86,8 @@ Responsibilities:
 - Data sync persistence.
 - Conversation, Message, and usage ledger persistence.
 
+The initial financial-data provider boundary exposes provider-neutral Application interfaces and uses an Infrastructure deterministic mock adapter until a production provider contract is selected. Infrastructure also contains a configurable typed HTTP provider client, raw-payload persistence, provider-health adapter, and timeout/retry/circuit-breaker handling; scanner services consume none of its provider-specific transport details.
+
 ### FinancialCopilot.Worker
 
 Responsibilities:

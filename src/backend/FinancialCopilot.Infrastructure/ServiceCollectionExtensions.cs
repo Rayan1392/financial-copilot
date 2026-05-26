@@ -1,8 +1,11 @@
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Providers;
+using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +24,7 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<BillingDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -101,6 +105,36 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMetricAliasResolver, MetricAliasResolver>();
         services.AddSingleton<IMetricCalculationPolicyProvider>(_ =>
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies));
+
+        services
+            .AddOptions<FinancialProviderOptions>()
+            .BindConfiguration(FinancialProviderOptions.SectionName);
+        services.AddTransient<FinancialProviderResilienceHandler>();
+        services
+            .AddHttpClient<ConfiguredFinancialDataProviderClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<FinancialProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+
+                if (!string.IsNullOrWhiteSpace(settings.ApiKey))
+                {
+                    client.DefaultRequestHeaders.Add("X-Api-Key", settings.ApiKey);
+                }
+            })
+            .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
+        services.AddScoped<IProviderRawPayloadStore, ProviderRawPayloadStore>();
+        services.AddScoped<MockFinancialDataProvider>();
+        services.AddScoped<ISymbolDataProvider>(provider =>
+            provider.GetRequiredService<MockFinancialDataProvider>());
+        services.AddScoped<IFinancialStatementProvider>(provider =>
+            provider.GetRequiredService<MockFinancialDataProvider>());
+        services.AddScoped<IMonthlyProductionSalesProvider>(provider =>
+            provider.GetRequiredService<MockFinancialDataProvider>());
+        services.AddScoped<IMarketDataProvider>(provider =>
+            provider.GetRequiredService<MockFinancialDataProvider>());
+        services.AddScoped<IFinancialDataProviderHealthService>(provider =>
+            provider.GetRequiredService<MockFinancialDataProvider>());
 
         return services;
     }

@@ -203,6 +203,8 @@ public interface ITextualAnalysisProvider
 
 Infrastructure implements these interfaces for each third-party provider.
 
+The provider abstraction foundation implements Application-facing contracts for raw symbols/reports and batched quote retrieval. A deterministic mock provider is the active initial adapter. It supplies repeatable live-quote, previous-completed-trading-day fallback, unavailable-symbol, and health behavior for downstream implementation and tests. A configurable typed HTTP adapter is registered for later activation once a production financial-data provider contract, secret configuration, and licensing policy are approved; its calls use timeout/retry/circuit-breaking handling and can persist raw payload evidence before normalization.
+
 ## AI Model Provider Boundary
 
 Financial-data providers are separate from LLM/model providers. AI model adapters may target hosted execution such as OpenAI or Anthropic/Claude, a future Abravran integration once its contract is available, or local execution such as Ollama.

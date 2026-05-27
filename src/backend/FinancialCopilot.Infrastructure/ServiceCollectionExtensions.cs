@@ -7,6 +7,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
+using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
@@ -22,6 +23,8 @@ using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Features;
+using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -328,6 +331,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
         services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();
         services.AddScoped<IDerivedMetricRecalculationCommand, DerivedMetricRecalculationCommand>();
+        services.AddScoped<IFeatureDefinitionRegistry, PersistedFeatureDefinitionRegistry>();
+        services.AddScoped<IFeatureSnapshotRepository, PersistedFeatureSnapshotRepository>();
+        services.AddScoped<IFeatureQueryService>(provider =>
+            provider.GetRequiredService<IFeatureSnapshotRepository>() as IFeatureQueryService ??
+            throw new InvalidOperationException("Feature snapshot repository does not provide query services."));
+        services.AddScoped<IFeatureComputationJobRepository, PersistedFeatureComputationJobRepository>();
+        services.AddScoped<IFeatureInputReader, NoOpFeatureInputReader>();
+        services.AddScoped<IDerivedFeatureCalculationService, DerivedFeatureCalculationService>();
+        services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
+        services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<FinancialDataSyncProcessor>();
         services.AddScoped<IFinancialDataSyncProcessor>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());
@@ -340,6 +353,13 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<RabbitMqDataSyncRequestBus>());
         services.AddSingleton<IDataSyncRequestConsumer>(provider =>
             provider.GetRequiredService<RabbitMqDataSyncRequestBus>());
+        services.AddOptions<RabbitMqFeatureOptions>()
+            .BindConfiguration(RabbitMqFeatureOptions.SectionName);
+        services.AddSingleton<RabbitMqFeatureBus>();
+        services.AddSingleton<IFeatureRecalculationPublisher>(provider =>
+            provider.GetRequiredService<RabbitMqFeatureBus>());
+        services.AddSingleton<IFeatureRecalculationConsumer>(provider =>
+            provider.GetRequiredService<RabbitMqFeatureBus>());
 
         return services;
     }

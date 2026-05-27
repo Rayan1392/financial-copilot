@@ -25,6 +25,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
 
+    public DbSet<FeatureDefinitionRow> FeatureDefinitions => Set<FeatureDefinitionRow>();
+
+    public DbSet<FeatureSnapshotRow> FeatureSnapshots => Set<FeatureSnapshotRow>();
+
+    public DbSet<FeatureComputationJobRow> FeatureComputationJobs => Set<FeatureComputationJobRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,

@@ -13,6 +13,7 @@ builder.Services
     .ValidateOnStart();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
+builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 
 var host = builder.Build();
 host.Run();

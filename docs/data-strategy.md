@@ -36,6 +36,7 @@ Use a hybrid data strategy:
 - Usage reservations and immutable usage ledger entries associated with AI query execution.
 - Wallet balance projections derived from ledger entries for performant balance reads.
 - Correlated AI/provider/tool workflow trace evidence needed under approved telemetry retention policy.
+- Versioned derived-feature definitions, reproducible historical feature snapshots, and feature computation jobs for promoted feature calculations.
 
 ### Persist Later
 
@@ -45,7 +46,7 @@ Use a hybrid data strategy:
 - Codal disclosure summaries.
 - Watchlist events.
 - Portfolio snapshots.
-- Historical derived-feature snapshots and feature computation jobs once feature-based intelligence is promoted into delivery scope.
+- Concrete advanced feature score implementations beyond explicitly promoted calculations.
 - AI evaluation datasets, run results, and regression baselines.
 - Consent-managed long-term, portfolio-aware, research, preference, or watchlist memory.
 
@@ -87,6 +88,9 @@ FinancialStatementLineItems
 MonthlyReports
 MonthlyReportLineItems
 DerivedMetrics
+FeatureDefinitions
+FeatureSnapshots
+FeatureComputationJobs
 FinancialMetricDefinitions
 MetricAliases
 MetricCalculationPolicies
@@ -121,6 +125,8 @@ ToolExecutionTraces
 `UsageLedgerEntries` and `FinancialTransactions` are append-only accounting truth for the `FinancialCopilot.Billing` bounded context. `WalletBalanceProjections` are rebuildable read models and must not be treated as authoritative ledger state.
 
 `FinancialMetricDefinitions`, aliases, policies, and dependencies form the versioned semantic catalog for calculation and explanation. `DerivedMetrics` reference the metric and policy versions used so historical observations remain auditable.
+
+`FeatureDefinitions` declare versioned metric/feature dependencies, policy versions, observation windows, output units/ranges, and reproducibility metadata. `FeatureSnapshots` retain historical values with versioned dependency evidence and input fingerprints; `FeatureComputationJobs` retain idempotent asynchronous execution state.
 
 ## Data Freshness
 
@@ -157,7 +163,9 @@ Recommended event names:
 - `provider.financial-statements.sync.requested`
 - `provider.monthly-reports.sync.requested`
 - `financial-metrics.recalculate.requested`
-- `financial-features.recalculate.requested`, future feature-foundation event
+- `financial-features.recalculate.requested`
+- `financial-features.recalculate.completed`
+- `financial-features.recalculate.failed`
 - `scanner.cache.refresh.requested`
 - `textual-report.embedding.requested`
 - `billing.usage-reservation.expiry.requested`
@@ -186,11 +194,13 @@ Scanner query plans and Explainable Answers retain semantic metric identifiers a
 
 Phase 1 scanner plan/result caching is implemented through an `IScannerCache` abstraction backed by `IDistributedCache`, with Redis selectable for shared deployments. Keys include tenant/actor or API-client scope and a financial-data version token. Successful normalization and derived-metric persistence rotate that token so cached deterministic results are not reused after source/calculation changes; cached responses retain row freshness evidence and still flow through Billing.
 
-## Future Derived Feature Storage
+## Derived Feature Foundation
 
-The platform may later persist deterministic, historical `FeatureSnapshot` values for feature definitions such as momentum, liquidity, volatility, relative strength, growth consistency, and earnings quality. Feature computations use versioned metric inputs and may be recalculated by worker/RabbitMQ workflows.
+The platform persists versioned `FeatureDefinition`, historical `FeatureSnapshot`, and idempotent `FeatureComputationJob` records for promoted deterministic features. Computation consumes versioned metric/feature inputs through Application interfaces and may be scheduled through RabbitMQ worker workflows.
 
-This is a future-compatible computation boundary, not a Phase 1 commitment to deploy a full feature store, training pipeline, or online ML serving platform.
+Candidate signals include momentum, liquidity, volatility, relative strength, growth consistency, earnings quality, and smart-money indicators. Their production formulas are not implemented until separately scoped.
+
+This foundation is not a feature store, training pipeline, model registry, or online ML serving platform.
 
 ## Provider Abstraction
 

@@ -99,7 +99,7 @@ Responsibilities:
 - Scheduled refresh of quarterly financial statements.
 - Embedding/indexing jobs for textual analysis.
 - Derived metric calculation jobs.
-- Future deterministic derived-feature computation jobs when feature definitions are promoted into scope.
+- Deterministic derived-feature computation jobs when feature definitions are promoted into calculation scope.
 
 ### FinancialCopilot.Billing
 
@@ -391,9 +391,9 @@ The initial registered catalog exposes governed public metric metadata through a
 
 ## Derived Feature Foundation
 
-Future intelligence capabilities consume reproducible derived features such as momentum, liquidity, volatility, growth consistency, relative strength, or earnings quality. The platform defines `DerivedFeature`, `FeatureDefinition`, `FeatureSnapshot`, `FeatureVersion`, `FeatureComputationJob`, and `FeatureDependency` as a lightweight evolution boundary.
+Future intelligence capabilities consume reproducible derived features such as momentum, liquidity, volatility, growth consistency, relative strength, or earnings quality. The platform defines `DerivedFeature`, `FeatureDefinition`, `FeatureSnapshot`, `FeatureVersion`, `FeatureComputationJob`, and `FeatureDependency` as a lightweight evolution boundary. The foundation persists versioned definitions, historical snapshots with dependency/input-fingerprint evidence, and idempotent computation jobs.
 
-Feature snapshots are deterministic and historically traceable where the definition is deterministic. Worker/RabbitMQ flows may recalculate them asynchronously. This is a future-compatible foundation, not a Phase 1 requirement to build a full ML platform or new feature-store infrastructure.
+Feature snapshots are deterministic and historically traceable where the definition is deterministic. Worker/RabbitMQ flows process requested calculations and publish completed or failed outcomes. Production formulas for advanced feature scores remain separately scoped. This is not a Phase 1 requirement to build a full ML platform or new feature-store infrastructure.
 
 ## AI Evaluation And Observability
 

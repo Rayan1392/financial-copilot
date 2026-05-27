@@ -111,3 +111,60 @@ public sealed class DerivedMetricRowConfiguration : IEntityTypeConfiguration<Der
         builder.Property(row => row.Unit).HasMaxLength(32);
     }
 }
+
+public sealed class FeatureDefinitionRowConfiguration : IEntityTypeConfiguration<FeatureDefinitionRow>
+{
+    public void Configure(EntityTypeBuilder<FeatureDefinitionRow> builder)
+    {
+        builder.ToTable("FeatureDefinitions");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.FeatureCode, row.FeatureVersion }).IsUnique();
+        builder.Property(row => row.FeatureCode).HasMaxLength(128);
+        builder.Property(row => row.FeatureVersion).HasMaxLength(64);
+        builder.Property(row => row.PolicyVersion).HasMaxLength(64);
+        builder.Property(row => row.Unit).HasMaxLength(32);
+        builder.Property(row => row.StrategyKey).HasMaxLength(128);
+        builder.Property(row => row.AlgorithmVersion).HasMaxLength(64);
+        builder.Property(row => row.InputSchemaVersion).HasMaxLength(64);
+    }
+}
+
+public sealed class FeatureSnapshotRowConfiguration : IEntityTypeConfiguration<FeatureSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<FeatureSnapshotRow> builder)
+    {
+        builder.ToTable("FeatureSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new
+        {
+            row.SymbolId,
+            row.FeatureCode,
+            row.FeatureVersion,
+            row.PolicyVersion,
+            row.PeriodEnd,
+            row.InputFingerprint
+        }).IsUnique();
+        builder.Property(row => row.FeatureCode).HasMaxLength(128);
+        builder.Property(row => row.FeatureVersion).HasMaxLength(64);
+        builder.Property(row => row.PolicyVersion).HasMaxLength(64);
+        builder.Property(row => row.PeriodType).HasMaxLength(32);
+        builder.Property(row => row.Unit).HasMaxLength(32);
+        builder.Property(row => row.InputFingerprint).HasMaxLength(128);
+    }
+}
+
+public sealed class FeatureComputationJobRowConfiguration : IEntityTypeConfiguration<FeatureComputationJobRow>
+{
+    public void Configure(EntityTypeBuilder<FeatureComputationJobRow> builder)
+    {
+        builder.ToTable("FeatureComputationJobs");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => row.IdempotencyKey).IsUnique();
+        builder.Property(row => row.FeatureCode).HasMaxLength(128);
+        builder.Property(row => row.FeatureVersion).HasMaxLength(64);
+        builder.Property(row => row.PeriodType).HasMaxLength(32);
+        builder.Property(row => row.Status).HasMaxLength(32);
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(256);
+        builder.Property(row => row.ErrorMessage).HasMaxLength(1000);
+    }
+}

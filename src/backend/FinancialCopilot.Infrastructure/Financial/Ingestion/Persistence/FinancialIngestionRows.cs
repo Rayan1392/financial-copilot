@@ -166,3 +166,98 @@ public sealed class DerivedMetricRow
 
     public string DependencyEvidenceJson { get; set; } = "[]";
 }
+
+public sealed class FeatureDefinitionRow
+{
+    public Guid Id { get; set; }
+
+    public string FeatureCode { get; set; } = string.Empty;
+
+    public string FeatureVersion { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+
+    public string PolicyVersion { get; set; } = string.Empty;
+
+    public int RequiredObservationWindow { get; set; }
+
+    public string Unit { get; set; } = string.Empty;
+
+    public decimal? MinimumValue { get; set; }
+
+    public decimal? MaximumValue { get; set; }
+
+    public string StrategyKey { get; set; } = string.Empty;
+
+    public string AlgorithmVersion { get; set; } = string.Empty;
+
+    public string InputSchemaVersion { get; set; } = string.Empty;
+
+    public string DependenciesJson { get; set; } = "[]";
+}
+
+public sealed class FeatureSnapshotRow
+{
+    public Guid Id { get; set; }
+
+    public Guid SymbolId { get; set; }
+
+    public string FeatureCode { get; set; } = string.Empty;
+
+    public string FeatureVersion { get; set; } = string.Empty;
+
+    public string PolicyVersion { get; set; } = string.Empty;
+
+    public string PeriodType { get; set; } = string.Empty;
+
+    public DateOnly PeriodStart { get; set; }
+
+    public DateOnly PeriodEnd { get; set; }
+
+    public decimal? Value { get; set; }
+
+    public string Unit { get; set; } = string.Empty;
+
+    public DateTimeOffset ObservedAt { get; set; }
+
+    public DateTimeOffset LastSynchronizedAt { get; set; }
+
+    public string WarningsJson { get; set; } = "[]";
+
+    public string SourceEvidenceJson { get; set; } = "[]";
+
+    public string DependencyEvidenceJson { get; set; } = "[]";
+
+    public string InputFingerprint { get; set; } = string.Empty;
+}
+
+public sealed class FeatureComputationJobRow
+{
+    public Guid Id { get; set; }
+
+    public string FeatureCode { get; set; } = string.Empty;
+
+    public string FeatureVersion { get; set; } = string.Empty;
+
+    public Guid? SymbolId { get; set; }
+
+    public string PeriodType { get; set; } = string.Empty;
+
+    public DateOnly PeriodStart { get; set; }
+
+    public DateOnly PeriodEnd { get; set; }
+
+    public string IdempotencyKey { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTimeOffset RequestedAt { get; set; }
+
+    public DateTimeOffset? StartedAt { get; set; }
+
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    public string? ErrorMessage { get; set; }
+}

@@ -2,12 +2,18 @@ using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Application.AI.Observability;
 using FinancialCopilot.Infrastructure.AI.ModelProviders;
+using FinancialCopilot.Infrastructure.AI.Observability;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
@@ -33,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -113,6 +120,7 @@ public static class ServiceCollectionExtensions
                 "Enabled AI model providers must specify provider and model keys.")
             .ValidateOnStart();
         services.AddSingleton<IAiExecutionTelemetrySink, LoggingAiExecutionTelemetrySink>();
+        services.AddSingleton<IAiWorkflowTelemetrySink, LoggingAiWorkflowTelemetrySink>();
         services.AddSingleton<IAiStructuredOutputValidator, JsonStructuredOutputValidator>();
         services.AddSingleton<IAiModelClient>(provider =>
         {
@@ -186,6 +194,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAiProviderCapabilityRegistry>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
+
+        services.AddScoped<IConversationRepository, ConversationRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
+        services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
+        services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();
+        services.AddScoped<IBillingFacadeHook, NoOpBillingFacadeHook>();
+        services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
 
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
             new MetricCode("NET_PROFIT_GROWTH_YOY"),

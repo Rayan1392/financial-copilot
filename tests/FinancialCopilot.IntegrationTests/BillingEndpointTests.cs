@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -307,6 +308,7 @@ public sealed class BillingEndpointTests : IClassFixture<BillingApiFactory>
 public sealed class BillingApiFactory : AuthenticationApiFactory
 {
     private readonly string _billingDatabaseName = $"billing-endpoints-{Guid.NewGuid():N}";
+    private readonly string _conversationDatabaseName = $"conversations-{Guid.NewGuid():N}";
 
     public static readonly Guid OrganizationAccountId = Guid.Parse("b68c35fb-096f-4530-b44c-b22368cc8031");
     public static readonly Guid IndividualAccountId = Guid.Parse("0bf82036-9d36-42a0-b4af-8c48756c1765");
@@ -321,6 +323,12 @@ public sealed class BillingApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDbContextOptionsConfiguration<BillingDbContext>>();
             services.AddDbContext<BillingDbContext>(options =>
                 options.UseInMemoryDatabase(_billingDatabaseName));
+
+            services.RemoveAll<ConversationDbContext>();
+            services.RemoveAll<DbContextOptions<ConversationDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<ConversationDbContext>>();
+            services.AddDbContext<ConversationDbContext>(options =>
+                options.UseInMemoryDatabase(_conversationDatabaseName));
         });
     }
 

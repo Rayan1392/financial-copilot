@@ -1,5 +1,9 @@
+using FinancialCopilot.API.Contracts;
+using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.Conversations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,38 +14,129 @@ namespace FinancialCopilot.API.Controllers;
 [Route("api/ai/v1")]
 [Authorize(Policy = AuthorizationPolicies.AiFacade)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
-public sealed class AiFacadeController(ICurrentActorContext actorContext) : ControllerBase
+public sealed class AiFacadeController(
+    ICurrentActorContext actorContext,
+    IAiQueryOrchestrationService orchestrationService,
+    IConversationRepository conversationRepository,
+    IMessageRepository messageRepository) : ControllerBase
 {
     [HttpPost("query")]
-    public IActionResult Query() => NotImplementedResponse("AI Query Orchestrator");
+    public async Task<ActionResult<AiQueryHttpResponse>> Query(
+        [FromBody] AiQueryHttpRequest httpRequest,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(httpRequest.Message))
+        {
+            ModelState.AddModelError(nameof(httpRequest.Message), "Message is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = actorContext.Actor;
+        var correlationId = HttpContext.TraceIdentifier;
+
+        var result = await orchestrationService.ExecuteAsync(
+            new AiQueryRequest(
+                httpRequest.Message,
+                actor.TenantId,
+                actor.ActorId,
+                correlationId,
+                httpRequest.ConversationId),
+            cancellationToken);
+
+        return Ok(MapQueryResponse(result));
+    }
 
     [HttpGet("conversations")]
-    public IActionResult Conversations() => NotImplementedResponse("Conversation history");
+    public async Task<ActionResult<IReadOnlyCollection<ConversationSummaryResponse>>> Conversations(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = actorContext.Actor;
+        var conversations = await conversationRepository.ListByActorAsync(
+            actor.TenantId,
+            actor.ActorId,
+            limit,
+            cancellationToken);
+
+        return Ok(conversations.Select(MapConversationSummary).ToList());
+    }
 
     [HttpGet("conversations/{conversationId:guid}")]
-    public IActionResult Conversation(Guid conversationId) =>
-        NotImplementedResponse($"Conversation {conversationId}");
-
-    [HttpGet("conversations/{conversationId:guid}/messages")]
-    public IActionResult Messages(Guid conversationId) =>
-        NotImplementedResponse($"Messages for conversation {conversationId}");
-
-    private IActionResult NotImplementedResponse(string capability)
+    public async Task<ActionResult<ConversationSummaryResponse>> Conversation(
+        Guid conversationId,
+        CancellationToken cancellationToken)
     {
         var actor = actorContext.Actor;
-        var details = new ProblemDetails
+        var summary = await conversationRepository.FindAsync(
+            conversationId,
+            actor.TenantId,
+            cancellationToken);
+
+        if (summary is null)
         {
-            Type = "https://financialcopilot/errors/not-implemented",
-            Title = "Capability is not implemented.",
-            Status = StatusCodes.Status501NotImplemented,
-            Detail = $"{capability} will be implemented in a subsequent story."
-        };
+            return NotFound();
+        }
 
-        details.Extensions["authenticationMode"] = actor.AuthenticationMode.ToString();
-        details.Extensions["actorType"] = actor.ActorType.ToString();
-        details.Extensions["actorId"] = actor.ActorId;
-        details.Extensions["tenantId"] = actor.TenantId;
-
-        return StatusCode(StatusCodes.Status501NotImplemented, details);
+        return Ok(MapConversationSummary(summary));
     }
+
+    [HttpGet("conversations/{conversationId:guid}/messages")]
+    public async Task<ActionResult<ConversationDetailResponse>> Messages(
+        Guid conversationId,
+        CancellationToken cancellationToken)
+    {
+        var actor = actorContext.Actor;
+        var summary = await conversationRepository.FindAsync(
+            conversationId,
+            actor.TenantId,
+            cancellationToken);
+
+        if (summary is null)
+        {
+            return NotFound();
+        }
+
+        var messages = await messageRepository.ListByConversationAsync(
+            conversationId,
+            cancellationToken);
+
+        return Ok(new ConversationDetailResponse(
+            summary.ConversationId,
+            summary.StartedAt,
+            summary.UpdatedAt,
+            messages.Select(MapMessage).ToList()));
+    }
+
+    private static AiQueryHttpResponse MapQueryResponse(AiQueryResponse result) =>
+        new(
+            result.ConversationId,
+            result.MessageId,
+            result.AssistantMessageId,
+            result.Intent.ToString(),
+            result.ClarificationRequired,
+            result.ClarificationMessage,
+            result.TextAnswer,
+            result.ScannerPlan is null ? null : new ScannerPlanResponse(
+                result.ScannerPlan.PlanId,
+                result.ScannerPlan.Conditions.Count,
+                result.ScannerPlan.ClarificationRequired,
+                result.ScannerPlan.ClarificationMessage,
+                result.ScannerPlan.ColumnOverflowWarnings));
+
+    private static ConversationSummaryResponse MapConversationSummary(ConversationSummary summary) =>
+        new(summary.ConversationId, summary.StartedAt, summary.UpdatedAt, summary.MessageCount);
+
+    private static MessageResponse MapMessage(MessageRecord message) =>
+        new(
+            message.MessageId,
+            message.Role.ToString(),
+            message.Content,
+            message.ScannerQueryPlanJson is not null,
+            message.CreatedAt);
 }

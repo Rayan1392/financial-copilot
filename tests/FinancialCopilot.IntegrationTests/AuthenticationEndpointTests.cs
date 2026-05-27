@@ -46,28 +46,16 @@ public sealed class AuthenticationEndpointTests : IClassFixture<BillingApiFactor
     }
 
     [Fact]
-    public async Task AiQuery_WithValidWebAppJwt_UsesWebAppUserContext()
+    public async Task AiQuery_WithValidWebAppJwt_CanReachAiFacadeEndpoints()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
 
-        using var response = await client.PostAsync("/api/ai/v1/query", null, CancellationToken.None);
-        var problemDetails = await ReadJsonAsync(response);
+        // Authenticated WebApp JWT reaches the conversations endpoint (returns empty list, not 401/403).
+        using var response = await client.GetAsync("/api/ai/v1/conversations", CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotImplemented, response.StatusCode);
-        Assert.Equal(
-            AuthenticationMode.WebAppUser.ToString(),
-            problemDetails.RootElement.GetProperty("authenticationMode").GetString());
-        Assert.Equal(
-            ActorType.User.ToString(),
-            problemDetails.RootElement.GetProperty("actorType").GetString());
-        Assert.Equal(
-            AuthenticationApiFactory.UserId,
-            problemDetails.RootElement.GetProperty("actorId").GetGuid());
-        Assert.Equal(
-            AuthenticationApiFactory.TenantId,
-            problemDetails.RootElement.GetProperty("tenantId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
@@ -83,38 +71,28 @@ public sealed class AuthenticationEndpointTests : IClassFixture<BillingApiFactor
     }
 
     [Fact]
-    public async Task AiQuery_WithValidApiKey_UsesApiClientContext()
+    public async Task AiQuery_WithValidApiKey_CanReachAiFacadeEndpoints()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
-        using var response = await client.PostAsync("/api/ai/v1/query", null, CancellationToken.None);
-        var problemDetails = await ReadJsonAsync(response);
+        // Authenticated API-key client reaches the conversations endpoint (returns empty list, not 401/403).
+        using var response = await client.GetAsync("/api/ai/v1/conversations", CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotImplemented, response.StatusCode);
-        Assert.Equal(
-            AuthenticationMode.ApiClient.ToString(),
-            problemDetails.RootElement.GetProperty("authenticationMode").GetString());
-        Assert.Equal(
-            ActorType.ApiClient.ToString(),
-            problemDetails.RootElement.GetProperty("actorType").GetString());
-        Assert.Equal(
-            AuthenticationApiFactory.ClientId,
-            problemDetails.RootElement.GetProperty("actorId").GetGuid());
-        Assert.Equal(
-            AuthenticationApiFactory.TenantId,
-            problemDetails.RootElement.GetProperty("tenantId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
-    public async Task ConversationHistory_WithValidApiKey_ReachesProtectedCapability()
+    public async Task ConversationHistory_WithValidApiKey_ReturnsEmptyCollection()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
         using var response = await client.GetAsync("/api/ai/v1/conversations", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
 
-        Assert.Equal(HttpStatusCode.NotImplemented, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(document.RootElement.EnumerateArray());
     }
 
     [Fact]
@@ -198,9 +176,9 @@ public sealed class RateLimitEndpointTests : IClassFixture<RateLimitedAuthentica
         using var secondClientResponse = await apiClient.PostAsync("/api/ai/v1/query", null, CancellationToken.None);
         using var userResponse = await userClient.PostAsync("/api/ai/v1/query", null, CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.NotImplemented, firstClientResponse.StatusCode);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, firstClientResponse.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, secondClientResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NotImplemented, userResponse.StatusCode);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, userResponse.StatusCode);
     }
 }
 

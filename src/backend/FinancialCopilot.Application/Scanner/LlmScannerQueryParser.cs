@@ -1,0 +1,343 @@
+using System.Text.Json;
+using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Domain.Financial.Metrics;
+using FinancialCopilot.Domain.Financial.Periods;
+
+namespace FinancialCopilot.Application.Scanner;
+
+public sealed class LlmScannerQueryParser(
+    IAiModelExecutionService executionService,
+    IMetricAliasResolver aliasResolver,
+    IScannerQueryPlanValidator validator,
+    TimeProvider timeProvider) : IScannerQueryParser
+{
+    private const string PolicyVersion = "v1";
+    private const string SchemaName = "ScannerParseOutput";
+
+    private static readonly AiStructuredOutputContract ParseContract = new(
+        SchemaName,
+        ["detectedLanguage", "conditions", "clarificationRequired"]);
+
+    private const string SystemPrompt =
+        "You are a financial stock screening parser. " +
+        "Parse the user's screening request and return structured JSON.\n\n" +
+        "Instructions:\n" +
+        "- Extract screening conditions: what metric, what comparison operator, and what threshold.\n" +
+        "- For each condition, return the user's ORIGINAL terminology exactly as written — do not translate or resolve metric names.\n" +
+        "- Detect the language of the query (e.g. 'en', 'fa').\n" +
+        "- Extract any explicit column requests the user made.\n" +
+        "- Set clarificationRequired=true if the query is ambiguous.\n" +
+        "- NEVER add conditions the user did not explicitly request.\n" +
+        "- NEVER produce SQL.\n\n" +
+        "Operators: GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Equal, NotEqual\n" +
+        "GrowthComparison: YearOverYear, QuarterOverQuarter, MonthOverMonth, or null\n" +
+        "PeriodHint: Monthly, Quarterly, TTM, LatestQuarter, LatestMonth, or null\n\n" +
+        "Schema: {\"detectedLanguage\":\"en\",\"conditions\":[{\"userTerminology\":\"P/E\",\"language\":\"en\"," +
+        "\"operator\":\"LessThan\",\"threshold\":6.0,\"periodHint\":null,\"growthComparison\":null," +
+        "\"inferredDefault\":false,\"inferredReason\":null}],\"requestedColumns\":[]," +
+        "\"clarificationRequired\":false,\"clarificationMessage\":null}";
+
+    public async Task<ScannerParseResult> ParseAsync(
+        ScannerParseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var llmOutput = await InvokeLlmAsync(request, cancellationToken);
+        return BuildPlan(request, llmOutput);
+    }
+
+    private async Task<LlmScannerParseOutput> InvokeLlmAsync(
+        ScannerParseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var selection = new AiModelSelectionRequest(
+            request.TenantId,
+            AiWorkloadKind.ScannerParsing,
+            AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
+            request.CorrelationId);
+
+        var aiRequest = new AiModelRequest(
+            request.CorrelationId,
+            request.TenantId,
+            AiWorkloadKind.ScannerParsing,
+            [
+                new AiConversationMessage(AiMessageRole.System, SystemPrompt),
+                new AiConversationMessage(AiMessageRole.User, request.UserQuery)
+            ],
+            StructuredOutput: ParseContract);
+
+        var result = await executionService.ExecuteAsync(selection, aiRequest, cancellationToken);
+        return ParseLlmOutput(result.StructuredJson);
+    }
+
+    private static LlmScannerParseOutput ParseLlmOutput(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new LlmScannerParseOutput("en", [], [], true, "AI model returned empty output.");
+        }
+
+        try
+        {
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var language = root.TryGetProperty("detectedLanguage", out var langProp)
+                ? langProp.GetString() ?? "en"
+                : "en";
+
+            var clarificationRequired = root.TryGetProperty("clarificationRequired", out var clarProp) &&
+                clarProp.ValueKind == JsonValueKind.True;
+
+            var clarificationMessage = root.TryGetProperty("clarificationMessage", out var clarMsgProp)
+                ? clarMsgProp.GetString()
+                : null;
+
+            var conditions = new List<LlmConditionCandidate>();
+            if (root.TryGetProperty("conditions", out var condsProp) &&
+                condsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var cond in condsProp.EnumerateArray())
+                {
+                    var terminology = GetString(cond, "userTerminology") ?? string.Empty;
+                    var condLanguage = GetString(cond, "language") ?? language;
+                    var operatorStr = GetString(cond, "operator") ?? "LessThan";
+                    var threshold = cond.TryGetProperty("threshold", out var threshProp) &&
+                        threshProp.TryGetDecimal(out var threshVal) ? threshVal : 0;
+                    var periodHint = GetString(cond, "periodHint");
+                    var growthComparison = GetString(cond, "growthComparison");
+                    var inferredDefault = cond.TryGetProperty("inferredDefault", out var infProp) &&
+                        infProp.ValueKind == JsonValueKind.True;
+                    var inferredReason = GetString(cond, "inferredReason");
+
+                    if (!string.IsNullOrWhiteSpace(terminology))
+                    {
+                        conditions.Add(new LlmConditionCandidate(
+                            terminology, condLanguage, operatorStr, threshold,
+                            periodHint, growthComparison, inferredDefault, inferredReason));
+                    }
+                }
+            }
+
+            var requestedColumns = new List<string>();
+            if (root.TryGetProperty("requestedColumns", out var colsProp) &&
+                colsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var col in colsProp.EnumerateArray())
+                {
+                    var colStr = col.GetString();
+                    if (!string.IsNullOrWhiteSpace(colStr))
+                    {
+                        requestedColumns.Add(colStr);
+                    }
+                }
+            }
+
+            return new LlmScannerParseOutput(language, conditions, requestedColumns, clarificationRequired, clarificationMessage);
+        }
+        catch (JsonException)
+        {
+            return new LlmScannerParseOutput("en", [], [], true, "AI model output was not valid JSON.");
+        }
+    }
+
+    private ScannerParseResult BuildPlan(ScannerParseRequest request, LlmScannerParseOutput llmOutput)
+    {
+        var conditions = new List<ScannerCondition>();
+        var clarificationItems = new List<ScannerClarificationItem>();
+        var clarificationRequired = llmOutput.ClarificationRequired;
+        var clarificationMessage = llmOutput.ClarificationMessage;
+
+        foreach (var candidate in llmOutput.Conditions)
+        {
+            if (string.IsNullOrWhiteSpace(candidate.UserTerminology))
+            {
+                continue;
+            }
+
+            var context = new MetricResolutionContext(
+                PeriodType: MapPeriodHint(candidate.PeriodHint),
+                Comparison: MapGrowthComparison(candidate.GrowthComparison));
+
+            var resolution = aliasResolver.ResolveAlias(
+                candidate.UserTerminology,
+                NormalizeBcp47(candidate.Language),
+                context,
+                request.AsOf);
+
+            switch (resolution.Status)
+            {
+                case MetricResolutionStatus.Resolved:
+                    var definition = resolution.Candidates.Single();
+                    var metricRef = new ScannerMetricReference(
+                        candidate.UserTerminology,
+                        definition.Code,
+                        definition.Version,
+                        ResolvePolicy(definition.Code),
+                        ResolvePeriod(definition, candidate.PeriodHint),
+                        MapGrowthComparison(candidate.GrowthComparison));
+
+                    conditions.Add(new ScannerCondition(
+                        metricRef,
+                        MapOperator(candidate.Operator),
+                        candidate.Threshold,
+                        candidate.InferredDefault ? FilterOrigin.InferredDefault : FilterOrigin.Explicit,
+                        candidate.InferredReason));
+                    break;
+
+                case MetricResolutionStatus.Ambiguous:
+                    clarificationRequired = true;
+                    clarificationItems.Add(new ScannerClarificationItem(
+                        candidate.UserTerminology,
+                        resolution.ClarificationMessage ?? "Ambiguous metric expression.",
+                        resolution.Candidates.Select(d => d.Code.Value).ToArray()));
+                    break;
+
+                case MetricResolutionStatus.NotFound:
+                    clarificationRequired = true;
+                    clarificationItems.Add(new ScannerClarificationItem(
+                        candidate.UserTerminology,
+                        "Metric term is not recognized in the supported catalog.",
+                        []));
+                    break;
+            }
+        }
+
+        if (clarificationRequired && clarificationItems.Count > 0 && clarificationMessage is null)
+        {
+            var unresolved = string.Join(", ", clarificationItems.Select(i => $"'{i.UserTerminology}'"));
+            clarificationMessage = $"The following metric terms could not be uniquely resolved: {unresolved}.";
+        }
+
+        // Build requested column list; enforce max-10 limit on user-requested columns.
+        var columnWarnings = new List<string>();
+        var requestedColumns = new List<ScannerColumnRequest>();
+        var userColumns = llmOutput.RequestedColumns.ToList();
+
+        if (userColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
+        {
+            columnWarnings.Add(
+                $"Column request exceeded the {ScannerQueryPlan.MaxDisplayColumns}-column limit. " +
+                $"Only the first {ScannerQueryPlan.MaxDisplayColumns} columns were accepted.");
+            userColumns = userColumns.Take(ScannerQueryPlan.MaxDisplayColumns).ToList();
+        }
+
+        foreach (var col in userColumns)
+        {
+            requestedColumns.Add(new ScannerColumnRequest(col, IsUserRequested: true));
+        }
+
+        var plan = new ScannerQueryPlan(
+            Guid.NewGuid(),
+            request.UserQuery,
+            llmOutput.DetectedLanguage,
+            conditions,
+            requestedColumns,
+            clarificationRequired,
+            clarificationMessage,
+            clarificationItems,
+            columnWarnings,
+            timeProvider.GetUtcNow(),
+            PolicyVersion);
+
+        var validationError = validator.Validate(plan);
+        if (validationError is not null)
+        {
+            return new ScannerParseResult(plan, Succeeded: false, validationError);
+        }
+
+        return new ScannerParseResult(plan, Succeeded: true);
+    }
+
+    private static CalculationPolicyVersion ResolvePolicy(MetricCode metricCode) =>
+        new($"{metricCode.Value}_v1");
+
+    private static FiscalPeriodType ResolvePeriod(FinancialMetricDefinition definition, string? periodHint)
+    {
+        if (!string.IsNullOrWhiteSpace(periodHint))
+        {
+            var mapped = MapPeriodHint(periodHint);
+            if (mapped.HasValue && definition.SupportedPeriodTypes.Contains(mapped.Value))
+            {
+                return mapped.Value;
+            }
+        }
+
+        return definition.SupportedPeriodTypes.FirstOrDefault();
+    }
+
+    private static ConditionOperator MapOperator(string operatorStr) =>
+        operatorStr.Trim() switch
+        {
+            "GreaterThan" => ConditionOperator.GreaterThan,
+            "GreaterThanOrEqual" => ConditionOperator.GreaterThanOrEqual,
+            "LessThanOrEqual" => ConditionOperator.LessThanOrEqual,
+            "Equal" => ConditionOperator.Equal,
+            "NotEqual" => ConditionOperator.NotEqual,
+            _ => ConditionOperator.LessThan
+        };
+
+    private static FiscalPeriodType? MapPeriodHint(string? hint) =>
+        hint?.Trim() switch
+        {
+            "Monthly" => FiscalPeriodType.Monthly,
+            "Quarterly" => FiscalPeriodType.ThreeMonths,
+            "TTM" => FiscalPeriodType.TrailingTwelveMonths,
+            "LatestQuarter" => FiscalPeriodType.LatestQuarter,
+            "LatestMonth" => FiscalPeriodType.LatestMonth,
+            _ => null
+        };
+
+    private static GrowthComparison? MapGrowthComparison(string? comparison) =>
+        comparison?.Trim() switch
+        {
+            "YearOverYear" => GrowthComparison.YearOverYear,
+            "QuarterOverQuarter" => GrowthComparison.QuarterOverQuarter,
+            "MonthOverMonth" => GrowthComparison.MonthOverMonth,
+            _ => null
+        };
+
+    private static string? GetString(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+            ? prop.GetString()
+            : null;
+
+    // Expands short ISO language codes from LLM output to BCP-47 tags used in the catalog.
+    private static string NormalizeBcp47(string language) =>
+        language.Trim().ToLowerInvariant() switch
+        {
+            "en" => "en-US",
+            "fa" => "fa-IR",
+            _ => language
+        };
+}
+
+public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator
+{
+    public string? Validate(ScannerQueryPlan plan)
+    {
+        if (string.IsNullOrWhiteSpace(plan.OriginalUserQuery))
+        {
+            return "Scanner plan must retain the original user query.";
+        }
+
+        if (plan.Conditions.Count == 0 && !plan.ClarificationRequired)
+        {
+            return "Scanner plan must contain at least one condition or require clarification.";
+        }
+
+        foreach (var condition in plan.Conditions)
+        {
+            if (string.IsNullOrWhiteSpace(condition.MetricReference.MetricCode.Value))
+            {
+                return "All conditions must resolve to a canonical MetricCode.";
+            }
+        }
+
+        if (plan.RequestedColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
+        {
+            return $"Requested columns exceed the {ScannerQueryPlan.MaxDisplayColumns}-column maximum.";
+        }
+
+        return null;
+    }
+}

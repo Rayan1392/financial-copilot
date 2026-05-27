@@ -13,7 +13,33 @@ public static class PhaseOneFinancialSemanticCatalog
     [
         DefineSource("NET_PROFIT", "Net Profit", MetricCategory.Profitability, Amount, FiscalPeriodType.ThreeMonths),
         DefineSource("MONTHLY_SALES", "Monthly Sales", MetricCategory.SalesAndProduction, Amount, FiscalPeriodType.Monthly),
-        DefineSource("TTM_EPS", "TTM EPS", MetricCategory.Profitability, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        DefineSource("LATEST_PRICE", "Latest Observed Price", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        DefineSource("MARKET_CAP", "Market Capitalization", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        DefineSource("SHARES_OUTSTANDING", "Shares Outstanding", MetricCategory.FinancialHealth, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        Define(
+            "TTM_SALES",
+            "TTM Sales",
+            MetricCategory.SalesAndProduction,
+            Amount,
+            [FiscalPeriodType.TrailingTwelveMonths],
+            [],
+            [Dependency("MONTHLY_SALES")]),
+        Define(
+            "TTM_EARNINGS",
+            "TTM Earnings",
+            MetricCategory.Profitability,
+            Amount,
+            [FiscalPeriodType.TrailingTwelveMonths],
+            [],
+            [Dependency("NET_PROFIT")]),
+        Define(
+            "TTM_EPS",
+            "TTM EPS",
+            MetricCategory.Profitability,
+            Amount,
+            [FiscalPeriodType.TrailingTwelveMonths],
+            [],
+            [Dependency("TTM_EARNINGS"), Dependency("SHARES_OUTSTANDING")]),
         Define(
             "NET_PROFIT_GROWTH_YOY",
             "Net Profit Growth YoY",
@@ -67,7 +93,7 @@ public static class PhaseOneFinancialSemanticCatalog
             Ratio,
             [FiscalPeriodType.TrailingTwelveMonths],
             [Alias("p/e", "en-US", "PE_TTM"), Alias("نسبت پی به ای", "fa-IR", "PE_TTM")],
-            [Dependency("TTM_EPS")]),
+            [Dependency("LATEST_PRICE"), Dependency("TTM_EPS")]),
         Define(
             "PS_TTM",
             "P/S (TTM)",
@@ -75,7 +101,7 @@ public static class PhaseOneFinancialSemanticCatalog
             Ratio,
             [FiscalPeriodType.TrailingTwelveMonths],
             [Alias("p/s", "en-US", "PS_TTM"), Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM")],
-            [])
+            [Dependency("MARKET_CAP"), Dependency("TTM_SALES")])
     ];
 
     public static IReadOnlyCollection<MetricCalculationPolicy> Policies { get; } =
@@ -84,13 +110,31 @@ public static class PhaseOneFinancialSemanticCatalog
         GrowthPolicy("NET_PROFIT_GROWTH_QOQ", "qoq-quarterly-v1", GrowthComparison.QuarterOverQuarter, "NET_PROFIT", FiscalPeriodType.ThreeMonths),
         GrowthPolicy("MONTHLY_SALES_GROWTH_YOY", "yoy-monthly-sales-v1", GrowthComparison.YearOverYear, "MONTHLY_SALES", FiscalPeriodType.Monthly),
         GrowthPolicy("MONTHLY_SALES_GROWTH_MOM", "mom-monthly-sales-v1", GrowthComparison.MonthOverMonth, "MONTHLY_SALES", FiscalPeriodType.Monthly),
+        SumPolicy("TTM_SALES", "ttm-sales-v1", "MONTHLY_SALES", FiscalPeriodType.Monthly),
+        SumPolicy("TTM_EARNINGS", "ttm-earnings-v1", "NET_PROFIT", FiscalPeriodType.ThreeMonths),
+        new MetricCalculationPolicy(
+            new MetricCode("TTM_EPS"),
+            new CalculationPolicyVersion("ttm-eps-v1"),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [
+                new MetricDataRequirement(new MetricCode("TTM_EARNINGS"), FiscalPeriodType.TrailingTwelveMonths, true),
+                new MetricDataRequirement(new MetricCode("SHARES_OUTSTANDING"), FiscalPeriodType.TrailingTwelveMonths, true)
+            ],
+            new MetricVersion("v1"),
+            new MetricFormula("ttm-earnings-divided-by-shares", "TTM earnings divided by shares outstanding."),
+            EffectiveFrom),
         new MetricCalculationPolicy(
             new MetricCode("PE_TTM"),
             new CalculationPolicyVersion("ttm-valuation-v1"),
             MetricValueUnit.Ratio,
             null,
             MissingDataPolicy.ReturnMissingValue,
-            [new MetricDataRequirement(new MetricCode("TTM_EPS"), FiscalPeriodType.TrailingTwelveMonths, true)],
+            [
+                new MetricDataRequirement(new MetricCode("LATEST_PRICE"), FiscalPeriodType.TrailingTwelveMonths, true),
+                new MetricDataRequirement(new MetricCode("TTM_EPS"), FiscalPeriodType.TrailingTwelveMonths, true)
+            ],
             new MetricVersion("v1"),
             new MetricFormula("price-divided-by-ttm-eps", "Latest observed price divided by TTM EPS."),
             EffectiveFrom),
@@ -100,7 +144,10 @@ public static class PhaseOneFinancialSemanticCatalog
             MetricValueUnit.Ratio,
             null,
             MissingDataPolicy.ReturnMissingValue,
-            [],
+            [
+                new MetricDataRequirement(new MetricCode("MARKET_CAP"), FiscalPeriodType.TrailingTwelveMonths, true),
+                new MetricDataRequirement(new MetricCode("TTM_SALES"), FiscalPeriodType.TrailingTwelveMonths, true)
+            ],
             new MetricVersion("v1"),
             new MetricFormula("market-cap-divided-by-ttm-sales", "Market capitalization divided by TTM sales."),
             EffectiveFrom)
@@ -162,5 +209,21 @@ public static class PhaseOneFinancialSemanticCatalog
             [new MetricDataRequirement(new MetricCode(dependencyCode), periodType, true)],
             new MetricVersion("v1"),
             new MetricFormula("percent-change", "Percentage change between governed current and comparison observations."),
+            EffectiveFrom);
+
+    private static MetricCalculationPolicy SumPolicy(
+        string code,
+        string policyVersion,
+        string dependencyCode,
+        FiscalPeriodType dependencyPeriodType) =>
+        new(
+            new MetricCode(code),
+            new CalculationPolicyVersion(policyVersion),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode(dependencyCode), dependencyPeriodType, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("trailing-twelve-month-sum", "Sum of required observations within the trailing twelve month period."),
             EffectiveFrom);
 }

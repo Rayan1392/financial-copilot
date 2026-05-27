@@ -89,3 +89,25 @@ public sealed class MetricRecalculationRequestRowConfiguration :
         builder.HasIndex(row => new { row.SourceDataset, row.SourcePayloadChecksum }).IsUnique();
     }
 }
+
+public sealed class DerivedMetricRowConfiguration : IEntityTypeConfiguration<DerivedMetricRow>
+{
+    public void Configure(EntityTypeBuilder<DerivedMetricRow> builder)
+    {
+        builder.ToTable("DerivedMetrics");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new
+        {
+            row.SymbolId,
+            row.MetricCode,
+            row.MetricVersion,
+            row.CalculationPolicyVersion,
+            row.PeriodEnd
+        }).IsUnique();
+        builder.Property(row => row.MetricCode).HasMaxLength(128);
+        builder.Property(row => row.MetricVersion).HasMaxLength(64);
+        builder.Property(row => row.CalculationPolicyVersion).HasMaxLength(64);
+        builder.Property(row => row.PeriodType).HasMaxLength(32);
+        builder.Property(row => row.Unit).HasMaxLength(32);
+    }
+}

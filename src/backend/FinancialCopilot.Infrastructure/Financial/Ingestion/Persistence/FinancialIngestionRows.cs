@@ -133,3 +133,36 @@ public sealed class MetricRecalculationRequestRow
 
     public DateTimeOffset RequestedAt { get; set; }
 }
+
+public sealed class DerivedMetricRow
+{
+    public Guid Id { get; set; }
+
+    public Guid SymbolId { get; set; }
+
+    public string MetricCode { get; set; } = string.Empty;
+
+    public string MetricVersion { get; set; } = string.Empty;
+
+    public string CalculationPolicyVersion { get; set; } = string.Empty;
+
+    public string PeriodType { get; set; } = string.Empty;
+
+    public DateOnly PeriodStart { get; set; }
+
+    public DateOnly PeriodEnd { get; set; }
+
+    public decimal? Value { get; set; }
+
+    public string Unit { get; set; } = string.Empty;
+
+    public DateTimeOffset ObservedAt { get; set; }
+
+    public DateTimeOffset LastSynchronizedAt { get; set; }
+
+    public string WarningsJson { get; set; } = "[]";
+
+    public string SourceEvidenceJson { get; set; } = "[]";
+
+    public string DependencyEvidenceJson { get; set; } = "[]";
+}

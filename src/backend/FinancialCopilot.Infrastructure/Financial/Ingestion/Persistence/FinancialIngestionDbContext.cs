@@ -23,6 +23,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<MetricRecalculationRequestRow> MetricRecalculationRequests =>
         Set<MetricRecalculationRequestRow>();
 
+    public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,

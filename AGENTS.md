@@ -1,1 +1,3 @@
-# AGENTS.md
+# AGENTS
+
+read [README](README.md)

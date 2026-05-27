@@ -1,6 +1,8 @@
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -98,6 +100,38 @@ public static class ServiceCollectionExtensions
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
 
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
+            new MetricCode("NET_PROFIT_GROWTH_YOY"),
+            new MetricCode("NET_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
+            new MetricCode("NET_PROFIT_GROWTH_QOQ"),
+            new MetricCode("NET_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
+            new MetricCode("MONTHLY_SALES_GROWTH_YOY"),
+            new MetricCode("MONTHLY_SALES")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
+            new MetricCode("MONTHLY_SALES_GROWTH_MOM"),
+            new MetricCode("MONTHLY_SALES")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new TrailingTwelveMonthSumMetricCalculator(
+            new MetricCode("TTM_SALES"),
+            new MetricCode("MONTHLY_SALES"),
+            requiredObservationCount: 12));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new TrailingTwelveMonthSumMetricCalculator(
+            new MetricCode("TTM_EARNINGS"),
+            new MetricCode("NET_PROFIT"),
+            requiredObservationCount: 4));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new EarningsPerShareMetricCalculator(
+            new MetricCode("TTM_EPS"),
+            new MetricCode("TTM_EARNINGS"),
+            new MetricCode("SHARES_OUTSTANDING")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new ValuationRatioMetricCalculator(
+            new MetricCode("PE_TTM"),
+            new MetricCode("LATEST_PRICE"),
+            new MetricCode("TTM_EPS")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new ValuationRatioMetricCalculator(
+            new MetricCode("PS_TTM"),
+            new MetricCode("MARKET_CAP"),
+            new MetricCode("TTM_SALES")));
         services.AddSingleton<FinancialMetricRegistry>(provider =>
             new FinancialMetricRegistry(
                 PhaseOneFinancialSemanticCatalog.Definitions,
@@ -144,6 +178,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, MonthlyReportPayloadNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
+        services.AddScoped<INormalizedMetricInputSource, NetProfitMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
+        services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
+        services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();
+        services.AddScoped<IDerivedMetricRecalculationCommand, DerivedMetricRecalculationCommand>();
         services.AddScoped<FinancialDataSyncProcessor>();
         services.AddScoped<IFinancialDataSyncProcessor>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());

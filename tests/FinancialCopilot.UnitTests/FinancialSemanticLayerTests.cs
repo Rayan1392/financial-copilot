@@ -83,7 +83,9 @@ public sealed class FinancialSemanticLayerTests
         var dependencies = registry.ResolveDependencies(new MetricCode("PE_TTM"), ActiveDate);
         var policy = policies.GetPolicy(new MetricCode("PE_TTM"), new CalculationPolicyVersion("ttm-valuation-v1"));
 
-        Assert.Equal("TTM_EPS", dependencies.Single().MetricCode.Value);
+        Assert.Equal(
+            ["LATEST_PRICE", "TTM_EPS"],
+            dependencies.Select(dependency => dependency.MetricCode.Value).Order().ToArray());
         Assert.Equal("price-divided-by-ttm-eps", policy.Formula!.Identifier);
         Assert.Equal("v1", policy.DefinitionVersion!.Value);
     }

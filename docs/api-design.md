@@ -123,9 +123,10 @@ Example response when the backend selects the Scanner Tool:
     "warnings": []
   },
   "usage": {
-    "operation": "AiQuery.Scanner",
+    "operationCode": "AiQuery.Scanner",
+    "completionStatus": "Completed",
     "creditsCharged": 1.0,
-    "remainingBalance": 99.0,
+    "remainingSpendingCapacity": 99.0,
     "pricingPolicyVersion": "v1",
     "cached": false
   }
@@ -200,9 +201,11 @@ GET  /api/v1/admin/provider-health
 
 Every invocation of `POST /api/ai/v1/query` resolves a billable `CustomerAccount`, validates entitlement, reserves spending capacity before expensive work, and commits or releases usage after execution according to a versioned operation-based pricing policy. The immutable Usage Ledger is the source of accounting truth; wallet balance is a read projection.
 
-Billing persistence applies reservation creation and wallet-capacity hold atomically. It also applies successful reservation commit, usage-ledger charge, and wallet debit atomically; a zero-charge failure release records the reservation reason and restores reserved capacity without creating a charge entry. AI facade orchestration will call these Billing contracts in the metering integration story.
+Billing persistence applies reservation creation and wallet-capacity hold atomically. The AI facade now finalizes every reserved execution through Billing: successful work debits the policy-calculated charge, while configured zero-charge clarification, validation, cancellation, or failure outcomes commit a zero-credit usage-ledger entry and restore held capacity. The query response returns the Billing-calculated operation code, completion status, charged credits, remaining spending capacity, policy version, and cache flag.
 
 For SaaS organization accounts, API usage is charged to the organization and may be attributed to an optional partner-scoped `externalUserId`. Organization accounts may be prepaid, postpaid, or hybrid with an explicitly approved credit line. For direct consumer accounts, the product manages subscriptions/top-ups and rejects billable execution without allowance or balance by default.
+
+Internal Scanner Tool plans and deterministic table results may be served from the configured distributed cache. Cache keys include tenant plus actor/API-client scope and a financial-data version token. Data synchronization and derived-metric persistence rotate that token. A cached table preserves cell source timestamps and returns `scannerTable.executionFacts.fromCache: true`; Billing still reserves and finalizes each facade request and applies its configured cached-response multiplier.
 
 ```http
 GET  /api/v1/usage/me

@@ -205,7 +205,8 @@ public sealed record UsageCommitCommand(
     string? ExternalUserId,
     string ReservationIdempotencyKey,
     string LedgerIdempotencyKey,
-    UsageChargeResult ActualCharge);
+    UsageChargeResult ActualCharge,
+    string CompletionStatus = "Completed");
 
 public sealed record UsageReleaseCommand(
     Guid CustomerAccountId,

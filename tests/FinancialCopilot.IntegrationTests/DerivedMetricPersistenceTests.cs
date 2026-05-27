@@ -3,6 +3,7 @@ using System.Text;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Periods;
@@ -43,6 +44,7 @@ public sealed class DerivedMetricPersistenceTests
 
         var reader = new NormalizedMetricInputReader([new MonthlySalesMetricInputSource(ingestionDb)]);
         var inputs = await reader.LoadAsync("company-live", new MetricCode("MONTHLY_SALES"), CancellationToken.None);
+        var cache = new TrackingScannerCache();
         var service = new DerivedMetricCalculationService(
             new FinancialMetricRegistry(
                 PhaseOneFinancialSemanticCatalog.Definitions,
@@ -50,7 +52,7 @@ public sealed class DerivedMetricPersistenceTests
                     new MetricCode("MONTHLY_SALES_GROWTH_MOM"),
                     new MetricCode("MONTHLY_SALES"))]),
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies),
-            new PersistedDerivedMetricResultStore(ingestionDb));
+            new PersistedDerivedMetricResultStore(ingestionDb, cache, new FixedTimeProvider(Now)));
 
         var metrics = await new DerivedMetricRecalculationCommand(service).ExecuteAsync(
             [new CalculateDerivedMetricCommand(
@@ -70,6 +72,7 @@ public sealed class DerivedMetricPersistenceTests
         Assert.Contains("MONTHLY_SALES", row.DependencyEvidenceJson);
         Assert.Contains(MonthlySequenceProvider.ProviderName, row.SourceEvidenceJson);
         Assert.Equal(2, await ingestionDb.MetricRecalculationRequests.CountAsync());
+        Assert.Contains(cache.Invalidations, item => item.Reason == "DerivedMetric.MONTHLY_SALES_GROWTH_MOM");
     }
 
     [Fact]

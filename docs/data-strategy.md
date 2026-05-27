@@ -184,6 +184,8 @@ Metric examples are not an exhaustive or hardcoded catalog. EPS, P/E, margins, g
 
 Scanner query plans and Explainable Answers retain semantic metric identifiers and calculation-policy versions. Persian and English aliases map into the same definition only when they have the same governed financial meaning.
 
+Phase 1 scanner plan/result caching is implemented through an `IScannerCache` abstraction backed by `IDistributedCache`, with Redis selectable for shared deployments. Keys include tenant/actor or API-client scope and a financial-data version token. Successful normalization and derived-metric persistence rotate that token so cached deterministic results are not reused after source/calculation changes; cached responses retain row freshness evidence and still flow through Billing.
+
 ## Future Derived Feature Storage
 
 The platform may later persist deterministic, historical `FeatureSnapshot` values for feature definitions such as momentum, liquidity, volatility, relative strength, growth consistency, and earnings quality. Feature computations use versioned metric inputs and may be recalculated by worker/RabbitMQ workflows.

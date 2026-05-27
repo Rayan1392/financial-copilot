@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -183,7 +186,105 @@ public sealed class ScannerExecutionEndpointTests : IClassFixture<ScannerExecuti
     }
 }
 
-public sealed class ScannerExecutionApiFactory : AiFacadeApiFactory
+public sealed class CachedScannerExecutionEndpointTests : IClassFixture<CachedScannerExecutionApiFactory>
+{
+    private readonly CachedScannerExecutionApiFactory _factory;
+
+    public CachedScannerExecutionEndpointTests(CachedScannerExecutionApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task RepeatedScannerQuery_ReturnsCachedFreshnessAndBillsCachedRateOncePerRequest()
+    {
+        var countBefore = _factory.ReadUsageEntries().Count;
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6" },
+            CancellationToken.None);
+        using var first = await ReadJsonAsync(firstResponse);
+        using var secondResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6" },
+            CancellationToken.None);
+        using var second = await ReadJsonAsync(secondResponse);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.False(first.RootElement.GetProperty("scannerTable")
+            .GetProperty("executionFacts").GetProperty("fromCache").GetBoolean());
+        Assert.True(second.RootElement.GetProperty("scannerTable")
+            .GetProperty("executionFacts").GetProperty("fromCache").GetBoolean());
+        Assert.Equal(1m, first.RootElement.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal(0.2m, second.RootElement.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.True(second.RootElement.GetProperty("usage").GetProperty("cached").GetBoolean());
+        Assert.Equal(
+            first.RootElement.GetProperty("usage").GetProperty("remainingSpendingCapacity").GetDecimal() - 0.2m,
+            second.RootElement.GetProperty("usage").GetProperty("remainingSpendingCapacity").GetDecimal());
+
+        var firstObservedAt = GetLivePriceTimestamp(first);
+        var secondObservedAt = GetLivePriceTimestamp(second);
+        Assert.Equal(firstObservedAt, secondObservedAt);
+
+        var entries = _factory.ReadUsageEntries().OrderBy(entry => entry.OccurredAt).ToList();
+        Assert.Equal(countBefore + 2, entries.Count);
+        Assert.Equal([1m, 0.2m], entries.TakeLast(2).Select(entry => entry.CreditsCharged).ToArray());
+    }
+
+    [Fact]
+    public async Task DataInvalidation_StopsPreviouslyCachedResultFromBeingReused()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6 after invalidation" },
+            CancellationToken.None);
+        using var cachedResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6 after invalidation" },
+            CancellationToken.None);
+        using var cached = await ReadJsonAsync(cachedResponse);
+        Assert.True(cached.RootElement.GetProperty("scannerTable")
+            .GetProperty("executionFacts").GetProperty("fromCache").GetBoolean());
+
+        await _factory.InvalidateScannerDataAsync();
+
+        using var refreshedResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6 after invalidation" },
+            CancellationToken.None);
+        using var refreshed = await ReadJsonAsync(refreshedResponse);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, refreshedResponse.StatusCode);
+        Assert.False(refreshed.RootElement.GetProperty("scannerTable")
+            .GetProperty("executionFacts").GetProperty("fromCache").GetBoolean());
+        Assert.Equal(1m, refreshed.RootElement.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+    }
+
+    private static DateTimeOffset GetLivePriceTimestamp(JsonDocument document)
+    {
+        var liveRow = document.RootElement.GetProperty("scannerTable").GetProperty("rows")
+            .EnumerateArray().Single(row => row.GetProperty("symbolCode").GetString() == "LIVE");
+        return liveRow.GetProperty("cells").GetProperty("LATEST_PRICE")
+            .GetProperty("sourceTimestamp").GetDateTimeOffset();
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public class ScannerExecutionApiFactory : AiFacadeApiFactory
 {
     private readonly string _seededIngestionDatabaseName = $"scanner-exec-ingestion-{Guid.NewGuid():N}";
     private bool _seeded;
@@ -201,6 +302,7 @@ public sealed class ScannerExecutionApiFactory : AiFacadeApiFactory
 
     public void EnsureSeeded()
     {
+        EnsureBillingSeeded();
         if (_seeded) return;
         lock (_seedLock)
         {
@@ -320,6 +422,28 @@ public sealed class ScannerExecutionApiFactory : AiFacadeApiFactory
             SourceEvidenceJson = "[]",
             DependencyEvidenceJson = "[]"
         };
+}
+
+public sealed class CachedScannerExecutionApiFactory : ScannerExecutionApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IScannerCache>();
+            services.AddSingleton<IScannerCache, DistributedScannerCache>();
+        });
+    }
+
+    public async Task InvalidateScannerDataAsync()
+    {
+        using var scope = Services.CreateScope();
+        var cache = scope.ServiceProvider.GetRequiredService<IScannerCache>();
+        await cache.InvalidateAsync(
+            new ScannerCacheInvalidation("integration-test", DateTimeOffset.UtcNow),
+            CancellationToken.None);
+    }
 }
 
 // Fake AI client that returns two conditions: NET_PROFIT_GROWTH_YOY > 50 AND PE_TTM < 6

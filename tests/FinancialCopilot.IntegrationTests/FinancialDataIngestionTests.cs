@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers;
@@ -18,7 +19,8 @@ public sealed class FinancialDataIngestionTests
     {
         await using var providerDb = CreateProviderDbContext();
         await using var ingestionDb = CreateIngestionDbContext();
-        var processor = CreateProcessor(providerDb, ingestionDb);
+        var cache = new TrackingScannerCache();
+        var processor = CreateProcessor(providerDb, ingestionDb, cache);
 
         var symbolResult = await processor.ProcessAsync(
             Request(ProviderDataset.Symbols, null, "symbols-v1"),
@@ -40,6 +42,10 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(3, await ingestionDb.SyncRuns.CountAsync());
         Assert.Equal(3, await ingestionDb.MetricRecalculationRequests.CountAsync());
         Assert.Equal(3, await providerDb.ProviderRawPayloads.CountAsync());
+        Assert.Equal(3, cache.Invalidations.Count);
+        Assert.Contains(cache.Invalidations, item => item.Reason == "DataSync.Symbols");
+        Assert.Contains(cache.Invalidations, item => item.Reason == "DataSync.FinancialStatements");
+        Assert.Contains(cache.Invalidations, item => item.Reason == "DataSync.MonthlyProductionSales");
     }
 
     [Fact]
@@ -117,7 +123,8 @@ public sealed class FinancialDataIngestionTests
 
     private static FinancialDataSyncProcessor CreateProcessor(
         FinancialProviderDbContext providerDb,
-        FinancialIngestionDbContext ingestionDb)
+        FinancialIngestionDbContext ingestionDb,
+        IScannerCache? scannerCache = null)
     {
         var provider = CreateProvider(providerDb);
 
@@ -134,7 +141,8 @@ public sealed class FinancialDataIngestionTests
             ],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
-            NullLogger<FinancialDataSyncProcessor>.Instance);
+            NullLogger<FinancialDataSyncProcessor>.Instance,
+            scannerCache);
     }
 
     private static MockFinancialDataProvider CreateProvider(FinancialProviderDbContext dbContext) =>

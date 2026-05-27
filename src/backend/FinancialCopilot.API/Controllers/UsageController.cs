@@ -118,6 +118,7 @@ public sealed class UsageController(
                     entry.CreditsCharged,
                     entry.PricingPolicyVersion,
                     entry.OccurredAt,
-                    entry.ExternalUserId))
+                    entry.ExternalUserId,
+                    entry.CompletionStatus))
                 .ToArray());
 }

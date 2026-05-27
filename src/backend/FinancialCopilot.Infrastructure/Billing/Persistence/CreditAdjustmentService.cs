@@ -152,5 +152,6 @@ public sealed class CreditAdjustmentService(
             row.OccurredAt,
             row.ExternalUserId,
             row.AuditDescription,
-            row.RelatedEntryId);
+            row.RelatedEntryId,
+            row.CompletionStatus);
 }

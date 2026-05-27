@@ -1,12 +1,15 @@
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Domain.Financial.Entities;
+using FinancialCopilot.Application.Scanner;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 
 public sealed class PersistedDerivedMetricResultStore(
-    FinancialIngestionDbContext dbContext) : IDerivedMetricResultStore
+    FinancialIngestionDbContext dbContext,
+    IScannerCache? scannerCache = null,
+    TimeProvider? timeProvider = null) : IDerivedMetricResultStore
 {
     public async Task StoreAsync(DerivedMetric metric, CancellationToken cancellationToken)
     {
@@ -47,6 +50,14 @@ public sealed class PersistedDerivedMetricResultStore(
         row.SourceEvidenceJson = JsonSerializer.Serialize(metric.SourceEvidence, JsonOptions);
         row.DependencyEvidenceJson = JsonSerializer.Serialize(metric.DependencyEvidence, JsonOptions);
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (scannerCache is not null)
+        {
+            await scannerCache.InvalidateAsync(
+                new ScannerCacheInvalidation(
+                    $"DerivedMetric.{metric.Code.Value}",
+                    (timeProvider ?? TimeProvider.System).GetUtcNow()),
+                cancellationToken);
+        }
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

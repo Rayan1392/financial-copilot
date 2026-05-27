@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,8 @@ public sealed class FinancialDataSyncProcessor(
     IEnumerable<IFinancialPayloadNormalizer> normalizers,
     IDerivedMetricRecalculationPublisher recalculationPublisher,
     TimeProvider timeProvider,
-    ILogger<FinancialDataSyncProcessor> logger) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    ILogger<FinancialDataSyncProcessor> logger,
+    IScannerCache? scannerCache = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<ProviderDataset, IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => normalizer.Dataset);
@@ -72,6 +74,14 @@ public sealed class FinancialDataSyncProcessor(
                     payload.Checksum,
                     timeProvider.GetUtcNow()),
                 cancellationToken);
+            if (scannerCache is not null)
+            {
+                await scannerCache.InvalidateAsync(
+                    new ScannerCacheInvalidation(
+                        $"DataSync.{request.Dataset}",
+                        timeProvider.GetUtcNow()),
+                    cancellationToken);
+            }
 
             return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
         }

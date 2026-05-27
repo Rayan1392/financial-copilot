@@ -82,7 +82,8 @@ public sealed class AdminBillingController(
                 entry.CreditsCharged,
                 entry.PricingPolicyVersion,
                 entry.OccurredAt,
-                entry.ExternalUserId)).ToArray()));
+                entry.ExternalUserId,
+                entry.CompletionStatus)).ToArray()));
     }
 
     [HttpGet("invoices")]

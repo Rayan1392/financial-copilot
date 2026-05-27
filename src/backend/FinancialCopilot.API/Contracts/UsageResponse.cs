@@ -17,4 +17,5 @@ public sealed record UsageEntryResponse(
     decimal CreditsCharged,
     string PricingPolicyVersion,
     DateTimeOffset OccurredAt,
-    string? ExternalUserId);
+    string? ExternalUserId,
+    string? CompletionStatus);

@@ -14,7 +14,8 @@ public sealed record UsageLedgerEntry(
     DateTimeOffset OccurredAt,
     string? ExternalUserId = null,
     string? AuditDescription = null,
-    Guid? RelatedEntryId = null)
+    Guid? RelatedEntryId = null,
+    string? CompletionStatus = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

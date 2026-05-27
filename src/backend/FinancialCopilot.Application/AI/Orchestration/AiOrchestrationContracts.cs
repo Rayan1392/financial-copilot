@@ -31,7 +31,10 @@ public sealed record AiQueryRequest(
     Guid TenantId,
     Guid ActorId,
     string CorrelationId,
-    Guid? ConversationId = null);
+    Guid? ConversationId = null,
+    Guid? UserId = null,
+    Guid? ApiClientId = null,
+    string? ExternalUserId = null);
 
 public sealed record AiQueryResponse(
     Guid ConversationId,
@@ -43,7 +46,16 @@ public sealed record AiQueryResponse(
     ExplainableAnswer? ExplainableAnswer,
     string? TextAnswer,
     bool ClarificationRequired,
-    string? ClarificationMessage);
+    string? ClarificationMessage,
+    UsageAccountingResult? Usage);
+
+public sealed record UsageAccountingResult(
+    string OperationCode,
+    string CompletionStatus,
+    decimal CreditsCharged,
+    decimal RemainingSpendingCapacity,
+    string PricingPolicyVersion,
+    bool Cached);
 
 // Integration point for mandatory Billing reservation/finalization.
 // Story 007 defines this boundary; Story 010 provides the real implementation.
@@ -53,15 +65,24 @@ public sealed record BillingReservationRequest(
     string CorrelationId,
     Guid TenantId,
     Guid ActorId,
-    string OperationCode);
+    string OperationCode,
+    Guid? UserId,
+    Guid? ApiClientId,
+    string? ExternalUserId = null);
 
 public sealed record BillingReservationHandle(
     string ReservationId,
-    string CorrelationId);
+    string CorrelationId,
+    Guid CustomerAccountId,
+    Guid TenantId,
+    Guid ActorId,
+    Guid? ApiClientId,
+    string? ExternalUserId,
+    string OperationCode);
 
 public sealed record BillingFinalizationRequest(
-    bool Succeeded,
-    string? ErrorCategory = null);
+    string CompletionStatus,
+    bool Cached = false);
 
 public interface IBillingFacadeHook
 {
@@ -72,7 +93,7 @@ public interface IBillingFacadeHook
         CancellationToken cancellationToken);
 
     // Finalizes the reservation after the workflow completes.
-    Task FinalizeAsync(
+    Task<UsageAccountingResult?> FinalizeAsync(
         BillingReservationHandle handle,
         BillingFinalizationRequest request,
         CancellationToken cancellationToken);

@@ -84,6 +84,8 @@ public sealed class UsageLedgerEntryRow
     public string? AuditDescription { get; set; }
 
     public Guid? RelatedEntryId { get; set; }
+
+    public string? CompletionStatus { get; set; }
 }
 
 public sealed class FinancialTransactionRow

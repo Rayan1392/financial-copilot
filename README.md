@@ -79,3 +79,7 @@ In the Development environment, the initial foundation endpoints are:
 Protected AI routes accept either a configured JWT bearer token or an `X-Api-Key` credential. JWT actors must include a tenant id claim (`financial_copilot:tenant_id`) and a GUID subject. API client configuration stores SHA-256 key hashes rather than raw API keys and supplies both client and tenant ids.
 
 JWT signing keys and API key hashes must be supplied through secrets or environment configuration; the repository settings do not contain active credentials. Authenticated AI requests are rate limited by user id or API client id using `RateLimiting:AuthenticatedActor` settings.
+
+## Scanner Cache Configuration
+
+Scanner plan and deterministic result caching is configured through `ScannerCache`. The default local configuration uses distributed in-memory storage so local development does not require Redis. For shared deployment, set `ScannerCache:UseRedis` to `true` and configure `ScannerCache:RedisConfiguration`; keys remain tenant/actor scoped and are version-invalidated after data synchronization or derived-metric persistence.

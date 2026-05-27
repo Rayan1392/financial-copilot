@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -21,6 +23,7 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     public AiFacadeEndpointTests(AiFacadeApiFactory factory)
     {
         _factory = factory;
+        factory.EnsureBillingSeeded();
     }
 
     [Fact]
@@ -42,6 +45,11 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         var scannerPlan = document.RootElement.GetProperty("scannerPlan");
         Assert.NotEqual(Guid.Empty, scannerPlan.GetProperty("planId").GetGuid());
         Assert.Equal(1, scannerPlan.GetProperty("conditionCount").GetInt32());
+        var usage = document.RootElement.GetProperty("usage");
+        Assert.Equal("AiQuery.Scanner", usage.GetProperty("operationCode").GetString());
+        Assert.Equal("Completed", usage.GetProperty("completionStatus").GetString());
+        Assert.Equal(1m, usage.GetProperty("creditsCharged").GetDecimal());
+        Assert.Equal("v1", usage.GetProperty("pricingPolicyVersion").GetString());
     }
 
     [Fact]
@@ -146,6 +154,7 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     [Fact]
     public async Task AiQuery_UnknownTerm_SetsClarificationRequired()
     {
+        var countBefore = _factory.ReadUsageEntries().Count;
         using var client = _factory.CreateUnknownTermClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
@@ -157,6 +166,61 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(document.RootElement.GetProperty("clarificationRequired").GetBoolean());
+        var usage = document.RootElement.GetProperty("usage");
+        Assert.Equal("ClarificationRequired", usage.GetProperty("completionStatus").GetString());
+        Assert.Equal(0m, usage.GetProperty("creditsCharged").GetDecimal());
+        var entries = _factory.ReadUsageEntries();
+        Assert.Equal(countBefore + 1, entries.Count);
+        var entry = entries.OrderBy(item => item.OccurredAt).Last();
+        Assert.Equal(0m, entry.CreditsCharged);
+        Assert.Equal("ClarificationRequired", entry.CompletionStatus);
+    }
+
+    [Fact]
+    public async Task AiQuery_RecordsExactlyOneAttributedUsageEntryPerFacadeExecution()
+    {
+        var countBefore = _factory.ReadUsageEntries().Count;
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var entries = _factory.ReadUsageEntries();
+        Assert.Equal(countBefore + 1, entries.Count);
+        var entry = entries.OrderBy(item => item.OccurredAt).Last();
+        Assert.Equal(AiFacadeApiFactory.OrganizationAccountId, entry.CustomerAccountId);
+        Assert.Equal(AuthenticationApiFactory.ClientId, entry.ActorId);
+        Assert.Equal(AuthenticationApiFactory.ClientId, entry.ApiClientId);
+        Assert.Equal("AiQuery.Scanner", entry.OperationCode);
+        Assert.Equal(1m, entry.CreditsCharged);
+        Assert.Equal("Completed", entry.CompletionStatus);
+    }
+
+    [Fact]
+    public async Task AiQuery_WithWebAppUser_ChargesIndividualCustomerAccount()
+    {
+        var countBefore = _factory.ReadUsageEntries().Count;
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var entries = _factory.ReadUsageEntries();
+        Assert.Equal(countBefore + 1, entries.Count);
+        var entry = entries.OrderBy(item => item.OccurredAt).Last();
+        Assert.Equal(AiFacadeApiFactory.IndividualAccountId, entry.CustomerAccountId);
+        Assert.Equal(AuthenticationApiFactory.UserId, entry.ActorId);
+        Assert.Null(entry.ApiClientId);
+        Assert.Equal(1m, entry.CreditsCharged);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -168,9 +232,13 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
 
 public class AiFacadeApiFactory : AuthenticationApiFactory
 {
+    public static readonly Guid OrganizationAccountId = Guid.Parse("fa52a16d-4eea-462e-be0c-8964a9dcc05c");
+    public static readonly Guid IndividualAccountId = Guid.Parse("a9799917-4309-4d35-acad-1c821f89cd82");
     private readonly string _billingDatabaseName = $"ai-facade-billing-{Guid.NewGuid():N}";
     private readonly string _conversationDatabaseName = $"ai-facade-conversations-{Guid.NewGuid():N}";
     protected readonly string IngestionDatabaseName = $"ai-facade-ingestion-{Guid.NewGuid():N}";
+    private bool _billingSeeded;
+    private readonly object _billingSeedLock = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -182,6 +250,8 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDbContextOptionsConfiguration<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>>();
             services.AddDbContext<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>(options =>
                 options.UseInMemoryDatabase(_billingDatabaseName));
+            services.RemoveAll<IScannerCache>();
+            services.AddSingleton<IScannerCache, NoOpScannerCache>();
 
             services.RemoveAll<ConversationDbContext>();
             services.RemoveAll<DbContextOptions<ConversationDbContext>>();
@@ -205,6 +275,60 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
         services.RemoveAll<IDbContextOptionsConfiguration<FinancialIngestionDbContext>>();
         services.AddDbContext<FinancialIngestionDbContext>(options =>
             options.UseInMemoryDatabase(databaseName));
+    }
+
+    public void EnsureBillingSeeded()
+    {
+        if (_billingSeeded) return;
+
+        lock (_billingSeedLock)
+        {
+            if (_billingSeeded) return;
+
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+            db.Database.EnsureCreated();
+            db.CustomerAccounts.AddRange(
+                new CustomerAccountRow
+                {
+                    Id = OrganizationAccountId,
+                    TenantId = TenantId,
+                    AccountType = "Organization",
+                    BillingMode = "Prepaid"
+                },
+                new CustomerAccountRow
+                {
+                    Id = IndividualAccountId,
+                    TenantId = TenantId,
+                    UserId = UserId,
+                    AccountType = "Individual",
+                    BillingMode = "Prepaid"
+                });
+            db.WalletProjections.AddRange(
+                new WalletProjectionRow
+                {
+                    CustomerAccountId = OrganizationAccountId,
+                    Balance = 1000m,
+                    ReservedAmount = 0m,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                },
+                new WalletProjectionRow
+                {
+                    CustomerAccountId = IndividualAccountId,
+                    Balance = 1000m,
+                    ReservedAmount = 0m,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+            db.SaveChanges();
+            _billingSeeded = true;
+        }
+    }
+
+    public IReadOnlyCollection<UsageLedgerEntryRow> ReadUsageEntries()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        return db.UsageLedgerEntries.AsNoTracking().ToList();
     }
 
     public HttpClient CreateUnknownTermClient()

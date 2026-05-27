@@ -71,7 +71,8 @@ public sealed class UsageFinalizationService(
             command.ActualCharge.PricingPolicyVersion,
             command.LedgerIdempotencyKey.Trim(),
             now,
-            command.ExternalUserId);
+            command.ExternalUserId,
+            CompletionStatus: command.CompletionStatus);
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.CommittedCredits = reservation.CommittedCredits;
@@ -93,6 +94,7 @@ public sealed class UsageFinalizationService(
                 entry.OperationCode,
                 entry.CreditsCharged,
                 entry.PricingPolicyVersion,
+                entry.CompletionStatus,
                 entry.ExternalUserId
             },
             now);
@@ -211,6 +213,7 @@ public sealed class UsageFinalizationService(
             string.IsNullOrWhiteSpace(command.ReservationIdempotencyKey) ||
             string.IsNullOrWhiteSpace(command.LedgerIdempotencyKey) ||
             string.IsNullOrWhiteSpace(command.ActualCharge.PricingPolicyVersion) ||
+            string.IsNullOrWhiteSpace(command.CompletionStatus) ||
             command.ActualCharge.CreditsCharged < 0)
         {
             throw new ArgumentException("Usage commit command is invalid.", nameof(command));
@@ -241,6 +244,8 @@ public sealed class UsageFinalizationService(
             ledger.OperationCode != reservation.OperationCode ||
             ledger.CreditsCharged != command.ActualCharge.CreditsCharged ||
             ledger.PricingPolicyVersion != command.ActualCharge.PricingPolicyVersion ||
+            (ledger.CompletionStatus is not null &&
+                ledger.CompletionStatus != command.CompletionStatus) ||
             ledger.ExternalUserId != command.ExternalUserId)
         {
             throw new InvalidOperationException(
@@ -279,7 +284,8 @@ public sealed class UsageFinalizationService(
             row.OccurredAt,
             row.ExternalUserId,
             row.AuditDescription,
-            row.RelatedEntryId);
+            row.RelatedEntryId,
+            row.CompletionStatus);
 
     private static UsageLedgerEntryRow MapLedgerRow(UsageLedgerEntry entry) =>
         new()
@@ -297,6 +303,7 @@ public sealed class UsageFinalizationService(
             OccurredAt = entry.OccurredAt,
             ExternalUserId = entry.ExternalUserId,
             AuditDescription = entry.AuditDescription,
-            RelatedEntryId = entry.RelatedEntryId
+            RelatedEntryId = entry.RelatedEntryId,
+            CompletionStatus = entry.CompletionStatus
         };
 }

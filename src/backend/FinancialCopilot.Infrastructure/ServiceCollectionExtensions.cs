@@ -10,6 +10,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.Billing;
 using FinancialCopilot.Application.AI.Observability;
 using FinancialCopilot.Infrastructure.AI.ModelProviders;
 using FinancialCopilot.Infrastructure.AI.Observability;
@@ -24,6 +25,7 @@ using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure;
 
@@ -41,6 +43,25 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
+
+        services.AddOptions<ScannerCacheOptions>()
+            .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
+        var scannerCacheSettings = configuration
+            .GetSection(ScannerCacheOptions.SectionName)
+            .Get<ScannerCacheOptions>() ?? new ScannerCacheOptions();
+        if (scannerCacheSettings.UseRedis)
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = scannerCacheSettings.RedisConfiguration;
+                options.InstanceName = scannerCacheSettings.InstanceName;
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+        services.AddSingleton<IScannerCache, DistributedScannerCache>();
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -208,7 +229,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConfidenceScoreCalculator, ConfidenceScoreCalculator>();
         services.AddScoped<IScannerExplanationGenerator, LlmScannerExplanationGenerator>();
         services.AddScoped<IExplainableAnswerBuilder, ExplainableAnswerBuilder>();
-        services.AddScoped<IBillingFacadeHook, NoOpBillingFacadeHook>();
+        services.AddScoped<IBillingFacadeHook, AiFacadeBillingHook>();
         services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
 
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(

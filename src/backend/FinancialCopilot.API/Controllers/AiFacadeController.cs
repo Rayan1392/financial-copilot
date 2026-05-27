@@ -41,7 +41,9 @@ public sealed class AiFacadeController(
                 actor.TenantId,
                 actor.ActorId,
                 correlationId,
-                httpRequest.ConversationId),
+                httpRequest.ConversationId,
+                actor.UserId,
+                actor.ApiClientId),
             cancellationToken);
 
         return Ok(MapQueryResponse(result));
@@ -130,7 +132,14 @@ public sealed class AiFacadeController(
                 result.ScannerPlan.ClarificationMessage,
                 result.ScannerPlan.ColumnOverflowWarnings),
             MapScannerTable(result.ScannerTable),
-            MapExplainableAnswer(result.ExplainableAnswer));
+            MapExplainableAnswer(result.ExplainableAnswer),
+            result.Usage is null ? null : new UsageAccountingResponse(
+                result.Usage.OperationCode,
+                result.Usage.CompletionStatus,
+                result.Usage.CreditsCharged,
+                result.Usage.RemainingSpendingCapacity,
+                result.Usage.PricingPolicyVersion,
+                result.Usage.Cached));
 
     private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
     {

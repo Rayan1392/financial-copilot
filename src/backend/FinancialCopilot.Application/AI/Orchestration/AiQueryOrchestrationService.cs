@@ -11,6 +11,7 @@ public sealed class AiQueryOrchestrationService(
     IScannerQueryParser scannerParser,
     IScannerExecutionService scannerExecutionService,
     IExplainableAnswerBuilder explainableAnswerBuilder,
+    IScannerCache scannerCache,
     IBillingFacadeHook billingHook,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
@@ -39,7 +40,10 @@ public sealed class AiQueryOrchestrationService(
                 request.CorrelationId,
                 request.TenantId,
                 request.ActorId,
-                "AiQuery.Scanner"),
+                "AiQuery.Scanner",
+                request.UserId,
+                request.ApiClientId,
+                request.ExternalUserId),
             cancellationToken);
 
         ScannerQueryPlan? scannerPlan = null;
@@ -49,6 +53,9 @@ public sealed class AiQueryOrchestrationService(
         bool clarificationRequired;
         string? clarificationMessage;
         var detectedIntent = DetectedIntent.Unknown;
+        UsageAccountingResult? usage = null;
+        var completionStatus = "Completed";
+        var fromCache = false;
 
         try
         {
@@ -64,14 +71,33 @@ public sealed class AiQueryOrchestrationService(
 
             if (intentResult.Intent == DetectedIntent.Scanner)
             {
-                var parseResult = await scannerParser.ParseAsync(
-                    new ScannerParseRequest(
-                        request.Message,
-                        "en",
-                        request.CorrelationId,
-                        request.TenantId,
-                        DateOnly.FromDateTime(now.DateTime)),
-                    cancellationToken);
+                var cacheScope = new ScannerCacheScope(
+                    request.TenantId,
+                    request.ActorId,
+                    request.ApiClientId);
+                var dataVersion = await scannerCache.GetDataVersionAsync(cancellationToken);
+                var parseRequest = new ScannerParseRequest(
+                    request.Message,
+                    "en",
+                    request.CorrelationId,
+                    request.TenantId,
+                    DateOnly.FromDateTime(now.DateTime));
+                var parseResult = await scannerCache.GetPlanAsync(
+                    cacheScope,
+                    dataVersion,
+                    parseRequest,
+                    cancellationToken) ??
+                    await scannerParser.ParseAsync(parseRequest, cancellationToken);
+
+                if (parseResult.Succeeded && !parseResult.Plan.ClarificationRequired)
+                {
+                    await scannerCache.SetPlanAsync(
+                        cacheScope,
+                        dataVersion,
+                        parseRequest,
+                        parseResult,
+                        cancellationToken);
+                }
 
                 scannerPlan = parseResult.Plan;
                 clarificationRequired = parseResult.Plan.ClarificationRequired;
@@ -81,14 +107,40 @@ public sealed class AiQueryOrchestrationService(
                 {
                     clarificationRequired = true;
                     clarificationMessage = parseResult.FailureReason;
+                    completionStatus = "ValidationFailed";
                 }
                 else if (!clarificationRequired)
                 {
-                    scannerTable = await scannerExecutionService.ExecuteAsync(
-                        new ScannerExecutionRequest(
-                            parseResult.Plan,
-                            DateOnly.FromDateTime(now.DateTime)),
+                    var executionRequest = new ScannerExecutionRequest(
+                        parseResult.Plan,
+                        DateOnly.FromDateTime(now.DateTime));
+                    var cachedTable = await scannerCache.GetResultAsync(
+                        cacheScope,
+                        dataVersion,
+                        executionRequest,
                         cancellationToken);
+
+                    if (cachedTable is not null)
+                    {
+                        scannerTable = cachedTable with
+                        {
+                            ExecutionFacts = cachedTable.ExecutionFacts with { FromCache = true }
+                        };
+                    }
+                    else
+                    {
+                        scannerTable = await scannerExecutionService.ExecuteAsync(
+                            executionRequest,
+                            cancellationToken);
+                        await scannerCache.SetResultAsync(
+                            cacheScope,
+                            dataVersion,
+                            executionRequest,
+                            scannerTable,
+                            cancellationToken);
+                    }
+
+                    fromCache = scannerTable.ExecutionFacts.FromCache;
 
                     explainableAnswer = await explainableAnswerBuilder.BuildAsync(
                         new ExplainableAnswerRequest(
@@ -98,11 +150,16 @@ public sealed class AiQueryOrchestrationService(
                             request.CorrelationId),
                         cancellationToken);
                 }
+                else
+                {
+                    completionStatus = "ClarificationRequired";
+                }
             }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
                 clarificationMessage = "Your request needs clarification before I can screen stocks.";
+                completionStatus = "ClarificationRequired";
             }
             else
             {
@@ -113,17 +170,32 @@ public sealed class AiQueryOrchestrationService(
 
             if (billingReservation is not null)
             {
-                await billingHook.FinalizeAsync(
+                usage = await billingHook.FinalizeAsync(
                     billingReservation,
-                    new BillingFinalizationRequest(Succeeded: true),
+                    new BillingFinalizationRequest(completionStatus, fromCache),
                     cancellationToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            if (billingReservation is not null)
+            {
+                await billingHook.FinalizeAsync(
+                    billingReservation,
+                    new BillingFinalizationRequest("CancelledBeforeExecution"),
+                    CancellationToken.None);
+            }
+
+            throw;
         }
         catch
         {
             if (billingReservation is not null)
             {
-                await billingHook.ReleaseAsync(billingReservation, cancellationToken);
+                await billingHook.FinalizeAsync(
+                    billingReservation,
+                    new BillingFinalizationRequest("ProviderFailed"),
+                    CancellationToken.None);
             }
             throw;
         }
@@ -155,7 +227,8 @@ public sealed class AiQueryOrchestrationService(
             explainableAnswer,
             textAnswer,
             clarificationRequired,
-            clarificationMessage);
+            clarificationMessage,
+            usage);
     }
 
     private static string BuildAssistantContent(
@@ -190,11 +263,11 @@ public sealed class NoOpBillingFacadeHook : IBillingFacadeHook
         CancellationToken cancellationToken) =>
         Task.FromResult<BillingReservationHandle?>(null);
 
-    public Task FinalizeAsync(
+    public Task<UsageAccountingResult?> FinalizeAsync(
         BillingReservationHandle handle,
         BillingFinalizationRequest request,
         CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+        Task.FromResult<UsageAccountingResult?>(null);
 
     public Task ReleaseAsync(
         BillingReservationHandle handle,

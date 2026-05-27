@@ -132,12 +132,12 @@ Execution outcomes must have defined policies:
 | --- | --- |
 | Successful operation | Commit actual usage and release unused reservation. |
 | Cached operation | Commit policy-defined cached cost. |
-| Validation/clarification before billable work | Release reservation and apply configured zero/minimal charge. |
-| Provider/backend failure | Release reservation; do not charge unless contract explicitly permits a recorded partial charge. |
+| Validation/clarification before billable work | Commit a policy-calculated zero/minimal usage entry and release unused held capacity. |
+| Provider/backend failure | Commit a recorded zero/partial usage outcome according to policy and release unused held capacity. |
 | Timeout or cancellation | Apply explicit completion/partial-work policy and record outcome. |
 | Retry or duplicate request | Enforce idempotency; do not double charge. |
 
-The persistence implementation must apply a reservation hold and wallet-reserved amount together. Successful finalization must apply reservation commit status, usage-ledger charge, and wallet debit in one persistence operation. Failure finalization must apply reservation release reason and wallet reserved-capacity release in one persistence operation, without a charge ledger row for zero-charge failure policy. These contracts are exposed through deterministic `ICreditReservationService` and `IUsageFinalizationService` boundaries for later workflow invocation.
+The persistence implementation applies a reservation hold and wallet-reserved amount together. Facade finalization applies reservation commit status, a usage-ledger entry, and the wallet debit or release of unused held capacity in one persistence operation. A configured zero-charge outcome is still represented by an immutable zero-credit usage entry so each executed facade workflow is auditable. These contracts are exposed through deterministic `ICreditReservationService` and `IUsageFinalizationService` boundaries.
 
 The worker schedules Billing maintenance to expire abandoned reservation holds. It also processes pending Billing outbox records when an `IBillingOutboxDispatcher` transport is registered; without a configured external transport, durable outbox records remain pending rather than being treated as delivered.
 
@@ -183,8 +183,10 @@ The facade returns billing data calculated by the Billing module:
 
 ```json
 {
+  "operationCode": "AiQuery.Scanner",
+  "completionStatus": "Completed",
   "creditsCharged": 2.4,
-  "remainingBalance": 183.5,
+  "remainingSpendingCapacity": 183.5,
   "pricingPolicyVersion": "v1",
   "cached": false
 }

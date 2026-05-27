@@ -16,7 +16,16 @@ public sealed record AiQueryHttpResponse(
     string? TextAnswer,
     ScannerPlanResponse? ScannerPlan,
     ScannerTableResponse? ScannerTable = null,
-    ExplainableAnswerResponse? ExplainableAnswer = null);
+    ExplainableAnswerResponse? ExplainableAnswer = null,
+    UsageAccountingResponse? Usage = null);
+
+public sealed record UsageAccountingResponse(
+    string OperationCode,
+    string CompletionStatus,
+    decimal CreditsCharged,
+    decimal RemainingSpendingCapacity,
+    string PricingPolicyVersion,
+    bool Cached);
 
 public sealed record ScannerPlanResponse(
     Guid PlanId,

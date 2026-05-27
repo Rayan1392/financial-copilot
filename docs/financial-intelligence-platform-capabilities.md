@@ -249,8 +249,12 @@ Suggested future extension points:
 ```csharp
 public interface IMemoryContextProvider
 public interface IMemoryConsentService
+public interface IMemoryControlService
 public interface IMemoryAuditService
+public interface IMemoryProtectionPolicy
 ```
+
+Phase 1 wires fail-closed implementations: optional memory context is empty and disabled, durable consent cannot be granted, and no optional memory is injected into orchestration. Future activation must provide approved storage and user controls rather than altering generic Conversation/Message persistence.
 
 ## Architectural Position
 

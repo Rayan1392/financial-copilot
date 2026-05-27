@@ -242,6 +242,8 @@ Operational telemetry should support OpenTelemetry-compatible traces and metrics
 
 Phase 1 persists Conversations and Messages only. Future memory such as user preferences, portfolio-aware context, research memory, or watchlist memory requires consent, tenant/subject scoping, sensitive-data protection, auditability, and deletion/revocation rules before persistence or use in orchestration.
 
+No optional memory tables or vector-memory infrastructure are added for Phase 1. The implemented Application policy boundary is disabled by default and defines future inspection, revocation, deletion, retention, provenance, disclosure, prompt-protection, and telemetry-protection contracts. Authoritative portfolio, watchlist, billing, and financial-data records remain outside memory.
+
 ## Billing Data Boundary
 
 Use the dedicated `FinancialCopilot.Billing` bounded context for both organization partners and direct consumers:

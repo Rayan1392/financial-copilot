@@ -5,6 +5,7 @@ using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
@@ -223,6 +224,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddSingleton<IMemoryContextProvider, DisabledMemoryContextProvider>();
+        services.AddSingleton<IMemoryConsentService, DisabledMemoryConsentService>();
+        services.AddSingleton<IMemoryControlService, DisabledMemoryControlService>();
+        services.AddSingleton<IMemoryAuditService, DisabledMemoryAuditService>();
+        services.AddSingleton<IMemoryProtectionPolicy, ConsentAwareMemoryProtectionPolicy>();
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
         services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();

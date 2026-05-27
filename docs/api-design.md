@@ -141,6 +141,8 @@ When an answer contains a list of stocks, the response uses a table schema. Defa
 
 Conversation history is generic AI chat history, not scanner-specific history.
 
+Conversation history is also not consent for personalized memory. Phase 1 does not expose optional memory inspection or management endpoints and does not feed long-term, preference, portfolio, research, or watchlist memory into `POST /api/ai/v1/query`. Such endpoints and orchestration use require an approved consent-aware scope.
+
 ```http
 POST /api/ai/v1/query
 GET  /api/ai/v1/conversations

@@ -1,6 +1,7 @@
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
+using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
@@ -231,6 +232,17 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExplainableAnswerBuilder, ExplainableAnswerBuilder>();
         services.AddScoped<IBillingFacadeHook, AiFacadeBillingHook>();
         services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
+
+        // Evaluation framework — internal quality infrastructure, no public API surface.
+        services.AddSingleton<IEvaluationDatasetRepository, SeedEvaluationDatasetRepository>();
+        services.AddSingleton<IEvaluationRunRepository, InMemoryEvaluationRunRepository>();
+        services.AddSingleton<IPromptVersionRegistry, NoOpPromptVersionRegistry>();
+        services.AddSingleton<IInterpretationScorer, InterpretationScorer>();
+        services.AddSingleton<IClarificationScorer, ClarificationScorer>();
+        services.AddSingleton<IEvidenceCompletenessScorer, EvidenceCompletenessScorer>();
+        services.AddSingleton<IConfidenceProtectionScorer, ConfidenceProtectionScorer>();
+        services.AddSingleton<IRegressionReporter, RegressionReporter>();
+        services.AddScoped<IAiEvaluationRunner, AiEvaluationRunner>();
 
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
             new MetricCode("NET_PROFIT_GROWTH_YOY"),

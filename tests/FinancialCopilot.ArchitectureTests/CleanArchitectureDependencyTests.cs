@@ -60,6 +60,28 @@ public sealed class CleanArchitectureDependencyTests
         Assert.Empty(failures);
     }
 
+    [Fact]
+    public void BusinessAndPublicContractAssemblies_DoNotReferenceVendorModelProviders()
+    {
+        var root = FindSolutionRoot();
+        var protectedRoots = new[]
+        {
+            Path.Combine(root, "FinancialCopilot.Domain"),
+            Path.Combine(root, "FinancialCopilot.Billing"),
+            Path.Combine(root, "FinancialCopilot.API", "Contracts")
+        };
+        var vendorTerms = new[] { "OpenAI", "Anthropic", "Claude", "Abravran", "Ollama" };
+        var failures = protectedRoots
+            .Where(Directory.Exists)
+            .SelectMany(path => Directory.EnumerateFiles(path, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(path => vendorTerms
+                .Where(term => File.ReadAllText(path).Contains(term, StringComparison.OrdinalIgnoreCase))
+                .Select(term => $"{Path.GetFileName(path)} must not reference AI vendor '{term}'."))
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
     private static string FindSolutionRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

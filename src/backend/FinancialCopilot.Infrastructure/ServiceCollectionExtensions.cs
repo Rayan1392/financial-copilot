@@ -1,11 +1,13 @@
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
+using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
+using FinancialCopilot.Infrastructure.AI.ModelProviders;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
@@ -99,6 +101,91 @@ public static class ServiceCollectionExtensions
                 ["PartiallyCompleted"] = 0.5m
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
+
+        services
+            .AddOptions<AiModelProviderOptions>()
+            .Bind(configuration.GetSection(AiModelProviderOptions.SectionName))
+            .Validate(
+                options => options.Providers.All(provider =>
+                    !provider.Enabled ||
+                    (!string.IsNullOrWhiteSpace(provider.ProviderKey) &&
+                        !string.IsNullOrWhiteSpace(provider.ModelKey))),
+                "Enabled AI model providers must specify provider and model keys.")
+            .ValidateOnStart();
+        services.AddSingleton<IAiExecutionTelemetrySink, LoggingAiExecutionTelemetrySink>();
+        services.AddSingleton<IAiStructuredOutputValidator, JsonStructuredOutputValidator>();
+        services.AddSingleton<IAiModelClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = settings.Providers.FirstOrDefault(item =>
+                string.Equals(item.Adapter, "Fake", StringComparison.OrdinalIgnoreCase)) ??
+                new AiModelProviderRegistration
+                {
+                    ProviderKey = "DeterministicFake",
+                    ModelKey = "fake-model",
+                    HostingMode = AiProviderHostingMode.Fake,
+                    Capabilities = AiModelCapability.ChatCompletion |
+                        AiModelCapability.StructuredOutput |
+                        AiModelCapability.ToolCalling |
+                        AiModelCapability.Streaming |
+                        AiModelCapability.Embeddings |
+                        AiModelCapability.UsageReporting |
+                        AiModelCapability.HealthCheck,
+                    Enabled = false,
+                    Priority = 1000
+                };
+
+            return new DeterministicFakeAiModelClient(
+                ToDescriptor(registration),
+                provider.GetRequiredService<TimeProvider>());
+        });
+        services.AddHttpClient("OllamaAiModelClient", (provider, client) =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = settings.Providers.FirstOrDefault(item =>
+                string.Equals(item.Adapter, "Ollama", StringComparison.OrdinalIgnoreCase));
+
+            if (registration?.Endpoint is not null)
+            {
+                client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
+            }
+        });
+        services.AddSingleton<IAiModelClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = settings.Providers.FirstOrDefault(item =>
+                string.Equals(item.Adapter, "Ollama", StringComparison.OrdinalIgnoreCase)) ??
+                new AiModelProviderRegistration
+                {
+                    ProviderKey = "Ollama",
+                    ModelKey = "unconfigured",
+                    HostingMode = AiProviderHostingMode.Local,
+                    Enabled = false
+                };
+
+            return new OllamaAiModelClient(
+                provider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaAiModelClient"),
+                ToDescriptor(registration),
+                provider.GetRequiredService<TimeProvider>());
+        });
+        services.AddSingleton<IAiModelClient>(_ => new ContractPendingAiModelClient(
+            new AiModelProviderDescriptor(
+                "Abravran",
+                "contract-pending",
+                AiProviderHostingMode.ContractPending,
+                AiModelCapability.None,
+                Enabled: false,
+                Priority: int.MaxValue)));
+        services.AddSingleton<CapabilityBasedAiModelProviderResolver>();
+        services.AddSingleton<IAiModelProviderResolver>(provider =>
+            provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
+        services.AddSingleton<IAiProviderCapabilityRegistry>(provider =>
+            provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
+        services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
             new MetricCode("NET_PROFIT_GROWTH_YOY"),
@@ -199,4 +286,18 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    private static AiModelProviderDescriptor ToDescriptor(AiModelProviderRegistration registration) =>
+        new(
+            registration.ProviderKey,
+            registration.ModelKey,
+            registration.HostingMode,
+            registration.Capabilities,
+            registration.Enabled,
+            registration.Priority,
+            registration.AllowedTenantIds.Count == 0
+                ? null
+                : registration.AllowedTenantIds.ToHashSet(),
+            registration.DataResidency,
+            registration.AllowSensitivePrompts);
 }

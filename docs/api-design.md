@@ -197,6 +197,8 @@ GET  /api/v1/admin/data-sync/runs
 GET  /api/v1/admin/provider-health
 ```
 
+These endpoints require an authenticated web-application actor with the `DataAdmin` role. Trigger endpoints return `202 Accepted` after publishing an ingestion request through the configured `IDataSyncRequestPublisher`; the Worker performs normalization and persists resulting run state. Financial-statement and monthly-report requests require an `externalReference` identifying the source company. Run responses expose dataset, status, requested/started/completed times, processed record count, error count/message, and source-payload checksum. The provider-health endpoint delegates to `IFinancialDataProviderHealthService`.
+
 ## Billing/Usage Endpoints
 
 Every invocation of `POST /api/ai/v1/query` resolves a billable `CustomerAccount`, validates entitlement, reserves spending capacity before expensive work, and commits or releases usage after execution according to a versioned operation-based pricing policy. The immutable Usage Ledger is the source of accounting truth; wallet balance is a read projection.

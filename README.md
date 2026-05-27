@@ -83,3 +83,7 @@ JWT signing keys and API key hashes must be supplied through secrets or environm
 ## Scanner Cache Configuration
 
 Scanner plan and deterministic result caching is configured through `ScannerCache`. The default local configuration uses distributed in-memory storage so local development does not require Redis. For shared deployment, set `ScannerCache:UseRedis` to `true` and configure `ScannerCache:RedisConfiguration`; keys remain tenant/actor scoped and are version-invalidated after data synchronization or derived-metric persistence.
+
+## Admin Data Operations
+
+Users with the `DataAdmin` role can enqueue ingestion work and inspect provider operations through `POST /api/v1/admin/data-sync/*`, `GET /api/v1/admin/data-sync/runs`, and `GET /api/v1/admin/provider-health`. Sync trigger endpoints publish to RabbitMQ and require `DataSyncMessaging:Enabled=true` with a configured broker in the API and Worker processes.

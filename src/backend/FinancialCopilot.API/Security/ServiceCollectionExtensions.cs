@@ -61,6 +61,15 @@ public static class ServiceCollectionExtensions
                     IsMode(context.User, AuthenticationMode.WebAppUser) &&
                     context.User.HasClaim("role", "BillingAdmin"));
             });
+
+            options.AddPolicy(AuthorizationPolicies.DataAdmin, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                    HasValidActorContext(context.User) &&
+                    IsMode(context.User, AuthenticationMode.WebAppUser) &&
+                    context.User.HasClaim("role", "DataAdmin"));
+            });
         });
 
         return services;

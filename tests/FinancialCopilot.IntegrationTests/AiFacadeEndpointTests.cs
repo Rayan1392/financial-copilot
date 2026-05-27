@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -165,10 +166,11 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     }
 }
 
-public sealed class AiFacadeApiFactory : AuthenticationApiFactory
+public class AiFacadeApiFactory : AuthenticationApiFactory
 {
     private readonly string _billingDatabaseName = $"ai-facade-billing-{Guid.NewGuid():N}";
     private readonly string _conversationDatabaseName = $"ai-facade-conversations-{Guid.NewGuid():N}";
+    protected readonly string IngestionDatabaseName = $"ai-facade-ingestion-{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -187,11 +189,22 @@ public sealed class AiFacadeApiFactory : AuthenticationApiFactory
             services.AddDbContext<ConversationDbContext>(options =>
                 options.UseInMemoryDatabase(_conversationDatabaseName));
 
+            ReplaceIngestionDbContext(services, IngestionDatabaseName);
+
             // Replace all registered AI model clients with a single scanner-aware fake.
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(_ =>
                 new ScannerAwareFakeAiModelClient(returnUnknownTerm: false));
         });
+    }
+
+    protected static void ReplaceIngestionDbContext(IServiceCollection services, string databaseName)
+    {
+        services.RemoveAll<FinancialIngestionDbContext>();
+        services.RemoveAll<DbContextOptions<FinancialIngestionDbContext>>();
+        services.RemoveAll<IDbContextOptionsConfiguration<FinancialIngestionDbContext>>();
+        services.AddDbContext<FinancialIngestionDbContext>(options =>
+            options.UseInMemoryDatabase(databaseName));
     }
 
     public HttpClient CreateUnknownTermClient()

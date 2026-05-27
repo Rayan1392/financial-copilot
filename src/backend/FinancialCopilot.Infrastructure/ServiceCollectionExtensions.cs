@@ -20,6 +20,7 @@ using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Scanner;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -200,6 +201,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
         services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();
+        services.AddScoped<IScannerResultColumnPolicy, ScannerResultColumnPolicy>();
+        services.AddScoped<IScannerResultRanker, ScannerResultRanker>();
+        services.AddScoped<IMarketQuoteResolver, ProviderMarketQuoteResolver>();
+        services.AddScoped<IScannerExecutionService, EfCoreScannerExecutionService>();
         services.AddScoped<IBillingFacadeHook, NoOpBillingFacadeHook>();
         services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
 

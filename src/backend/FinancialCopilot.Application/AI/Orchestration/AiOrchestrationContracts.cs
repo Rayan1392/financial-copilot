@@ -39,6 +39,7 @@ public sealed record AiQueryResponse(
     Guid AssistantMessageId,
     DetectedIntent Intent,
     ScannerQueryPlan? ScannerPlan,
+    ScannerTableResult? ScannerTable,
     string? TextAnswer,
     bool ClarificationRequired,
     string? ClarificationMessage);

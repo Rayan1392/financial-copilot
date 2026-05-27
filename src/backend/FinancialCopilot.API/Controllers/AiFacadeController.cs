@@ -4,6 +4,7 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.Scanner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -127,7 +128,37 @@ public sealed class AiFacadeController(
                 result.ScannerPlan.Conditions.Count,
                 result.ScannerPlan.ClarificationRequired,
                 result.ScannerPlan.ClarificationMessage,
-                result.ScannerPlan.ColumnOverflowWarnings));
+                result.ScannerPlan.ColumnOverflowWarnings),
+            MapScannerTable(result.ScannerTable));
+
+    private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
+    {
+        if (table is null) return null;
+
+        return new ScannerTableResponse(
+            table.PlanId,
+            table.Columns.Select(c => new ScannerTableColumnResponse(
+                c.Identifier, c.DisplayName, c.ColumnType.ToString(), c.MetricCode)).ToList(),
+            table.Rows.Select(r => new ScannerTableRowResponse(
+                r.SymbolCode,
+                r.CompanyName,
+                r.Cells.ToDictionary(
+                    kv => kv.Key,
+                    kv => new ScannerTableCellResponse(
+                        kv.Value.Value,
+                        kv.Value.FormattedValue,
+                        kv.Value.FreshnessStatus.ToString(),
+                        kv.Value.SourceTimestamp)),
+                r.Score,
+                r.MatchedConditionMetrics)).ToList(),
+            new ScannerExecutionFactsResponse(
+                table.ExecutionFacts.ExecutedAt,
+                table.ExecutionFacts.Duration,
+                table.ExecutionFacts.TotalSymbolsEvaluated,
+                table.ExecutionFacts.MatchingSymbolCount,
+                table.ExecutionFacts.FromCache),
+            table.MissingDataWarnings);
+    }
 
     private static ConversationSummaryResponse MapConversationSummary(ConversationSummary summary) =>
         new(summary.ConversationId, summary.StartedAt, summary.UpdatedAt, summary.MessageCount);

@@ -9,6 +9,7 @@ public sealed class AiQueryOrchestrationService(
     IMessageRepository messageRepository,
     IAiIntentDetector intentDetector,
     IScannerQueryParser scannerParser,
+    IScannerExecutionService scannerExecutionService,
     IBillingFacadeHook billingHook,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
@@ -41,6 +42,7 @@ public sealed class AiQueryOrchestrationService(
             cancellationToken);
 
         ScannerQueryPlan? scannerPlan = null;
+        ScannerTableResult? scannerTable = null;
         string? textAnswer = null;
         bool clarificationRequired;
         string? clarificationMessage;
@@ -78,6 +80,14 @@ public sealed class AiQueryOrchestrationService(
                     clarificationRequired = true;
                     clarificationMessage = parseResult.FailureReason;
                 }
+                else if (!clarificationRequired)
+                {
+                    scannerTable = await scannerExecutionService.ExecuteAsync(
+                        new ScannerExecutionRequest(
+                            parseResult.Plan,
+                            DateOnly.FromDateTime(now.DateTime)),
+                        cancellationToken);
+                }
             }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
@@ -113,7 +123,7 @@ public sealed class AiQueryOrchestrationService(
             : null;
 
         var assistantContent = BuildAssistantContent(
-            detectedIntent, scannerPlan, textAnswer, clarificationRequired, clarificationMessage);
+            detectedIntent, scannerPlan, scannerTable, textAnswer, clarificationRequired, clarificationMessage);
 
         var assistantMessageId = await messageRepository.AppendAsync(
             conversationId,
@@ -131,6 +141,7 @@ public sealed class AiQueryOrchestrationService(
             assistantMessageId,
             detectedIntent,
             scannerPlan,
+            scannerTable,
             textAnswer,
             clarificationRequired,
             clarificationMessage);
@@ -139,6 +150,7 @@ public sealed class AiQueryOrchestrationService(
     private static string BuildAssistantContent(
         DetectedIntent intent,
         ScannerQueryPlan? plan,
+        ScannerTableResult? table,
         string? textAnswer,
         bool clarificationRequired,
         string? clarificationMessage)
@@ -146,6 +158,11 @@ public sealed class AiQueryOrchestrationService(
         if (clarificationRequired && clarificationMessage is not null)
         {
             return clarificationMessage;
+        }
+
+        if (table is not null)
+        {
+            return $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
         }
 
         if (plan is not null)

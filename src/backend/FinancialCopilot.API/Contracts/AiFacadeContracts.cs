@@ -14,7 +14,8 @@ public sealed record AiQueryHttpResponse(
     bool ClarificationRequired,
     string? ClarificationMessage,
     string? TextAnswer,
-    ScannerPlanResponse? ScannerPlan);
+    ScannerPlanResponse? ScannerPlan,
+    ScannerTableResponse? ScannerTable = null);
 
 public sealed record ScannerPlanResponse(
     Guid PlanId,
@@ -22,6 +23,39 @@ public sealed record ScannerPlanResponse(
     bool ClarificationRequired,
     string? ClarificationMessage,
     IReadOnlyCollection<string> ColumnOverflowWarnings);
+
+public sealed record ScannerTableColumnResponse(
+    string Identifier,
+    string DisplayName,
+    string ColumnType,
+    string? MetricCode);
+
+public sealed record ScannerTableCellResponse(
+    decimal? Value,
+    string? FormattedValue,
+    string FreshnessStatus,
+    DateTimeOffset? SourceTimestamp);
+
+public sealed record ScannerTableRowResponse(
+    string SymbolCode,
+    string? CompanyName,
+    IReadOnlyDictionary<string, ScannerTableCellResponse> Cells,
+    double Score,
+    IReadOnlyCollection<string> MatchedConditionMetrics);
+
+public sealed record ScannerExecutionFactsResponse(
+    DateTimeOffset ExecutedAt,
+    TimeSpan Duration,
+    int TotalSymbolsEvaluated,
+    int MatchingSymbolCount,
+    bool FromCache);
+
+public sealed record ScannerTableResponse(
+    Guid PlanId,
+    IReadOnlyCollection<ScannerTableColumnResponse> Columns,
+    IReadOnlyCollection<ScannerTableRowResponse> Rows,
+    ScannerExecutionFactsResponse ExecutionFacts,
+    IReadOnlyCollection<string> MissingDataWarnings);
 
 public sealed record ConversationSummaryResponse(
     Guid ConversationId,

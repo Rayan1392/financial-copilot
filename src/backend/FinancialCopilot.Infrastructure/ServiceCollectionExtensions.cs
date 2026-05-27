@@ -18,6 +18,8 @@ using FinancialCopilot.Application.AI.Observability;
 using FinancialCopilot.Infrastructure.AI.ModelProviders;
 using FinancialCopilot.Infrastructure.AI.Observability;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
+using FinancialCopilot.Infrastructure.Memory;
+using FinancialCopilot.Infrastructure.Memory.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
@@ -48,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddOptions<ScannerCacheOptions>()
             .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
@@ -224,10 +227,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
-        services.AddSingleton<IMemoryContextProvider, DisabledMemoryContextProvider>();
-        services.AddSingleton<IMemoryConsentService, DisabledMemoryConsentService>();
-        services.AddSingleton<IMemoryControlService, DisabledMemoryControlService>();
-        services.AddSingleton<IMemoryAuditService, DisabledMemoryAuditService>();
+        services.AddScoped<EfCoreMemoryRecordRepository>();
+        services.AddScoped<IMemoryConsentService, EfCoreMemoryConsentService>();
+        services.AddScoped<IMemoryAuditService, EfCoreMemoryAuditService>();
+        services.AddScoped<IMemoryControlService, EfCoreMemoryControlService>();
+        services.AddScoped<IMemoryContextProvider, EfCoreMemoryContextProvider>();
         services.AddSingleton<IMemoryProtectionPolicy, ConsentAwareMemoryProtectionPolicy>();
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();

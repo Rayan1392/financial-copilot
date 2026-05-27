@@ -17,7 +17,8 @@ public sealed record AiQueryHttpResponse(
     ScannerPlanResponse? ScannerPlan,
     ScannerTableResponse? ScannerTable = null,
     ExplainableAnswerResponse? ExplainableAnswer = null,
-    UsageAccountingResponse? Usage = null);
+    UsageAccountingResponse? Usage = null,
+    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,

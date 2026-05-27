@@ -236,6 +236,7 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
     public static readonly Guid IndividualAccountId = Guid.Parse("a9799917-4309-4d35-acad-1c821f89cd82");
     private readonly string _billingDatabaseName = $"ai-facade-billing-{Guid.NewGuid():N}";
     private readonly string _conversationDatabaseName = $"ai-facade-conversations-{Guid.NewGuid():N}";
+    private readonly string _memoryDatabaseName = $"ai-facade-memory-{Guid.NewGuid():N}";
     protected readonly string IngestionDatabaseName = $"ai-facade-ingestion-{Guid.NewGuid():N}";
     private bool _billingSeeded;
     private readonly object _billingSeedLock = new();
@@ -258,6 +259,12 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDbContextOptionsConfiguration<ConversationDbContext>>();
             services.AddDbContext<ConversationDbContext>(options =>
                 options.UseInMemoryDatabase(_conversationDatabaseName));
+
+            services.RemoveAll<FinancialCopilot.Infrastructure.Memory.Persistence.MemoryDbContext>();
+            services.RemoveAll<DbContextOptions<FinancialCopilot.Infrastructure.Memory.Persistence.MemoryDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<FinancialCopilot.Infrastructure.Memory.Persistence.MemoryDbContext>>();
+            services.AddDbContext<FinancialCopilot.Infrastructure.Memory.Persistence.MemoryDbContext>(options =>
+                options.UseInMemoryDatabase(_memoryDatabaseName));
 
             ReplaceIngestionDbContext(services, IngestionDatabaseName);
 

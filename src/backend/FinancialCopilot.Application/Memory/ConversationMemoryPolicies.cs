@@ -103,6 +103,15 @@ public sealed class DisabledMemoryControlService : IMemoryControlService
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<OptionalMemoryRecord>>([]);
 
+    public Task<Guid> WriteAsync(
+        MemorySubject owner, MemoryType type, MemoryPurpose purpose, MemorySensitivity sensitivity,
+        string summary, MemoryProvenance provenance, MemoryRetentionPolicy? retention,
+        CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Optional durable memory is not enabled in Phase 1.");
+
     public Task DeleteAsync(MemoryDeletionRequest request, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Optional durable memory is not enabled in Phase 1.");
+
+    public Task DeleteAllAsync(MemorySubject subject, string correlationId, CancellationToken cancellationToken) =>
         throw new InvalidOperationException("Optional durable memory is not enabled in Phase 1.");
 }

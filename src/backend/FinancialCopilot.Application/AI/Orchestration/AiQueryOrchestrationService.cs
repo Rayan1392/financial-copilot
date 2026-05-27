@@ -1,5 +1,7 @@
+using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
@@ -13,6 +15,8 @@ public sealed class AiQueryOrchestrationService(
     IExplainableAnswerBuilder explainableAnswerBuilder,
     IScannerCache scannerCache,
     IBillingFacadeHook billingHook,
+    IMemoryContextProvider memoryContextProvider,
+    IMemoryAuditService memoryAuditService,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -34,6 +38,19 @@ public sealed class AiQueryOrchestrationService(
             scannerQueryPlanJson: null,
             now,
             cancellationToken);
+
+        // Retrieve authorized memory context before AI execution.
+        var subjectId = request.UserId ?? request.ActorId;
+        var memoryContext = await memoryContextProvider.GetAuthorizedContextAsync(
+            new MemoryContextRequest(
+                new MemorySubject(request.TenantId, subjectId),
+                conversationId,
+                MemoryPurpose.CurrentConversationContinuity,
+                request.CorrelationId,
+                PermitProviderPromptContext: true),
+            cancellationToken);
+
+        var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
 
         var billingReservation = await billingHook.TryReserveAsync(
             new BillingReservationRequest(
@@ -61,7 +78,7 @@ public sealed class AiQueryOrchestrationService(
         {
             var intentResult = await intentDetector.DetectAsync(
                 new IntentDetectionInput(
-                    request.Message,
+                    enrichedMessage,
                     "en",
                     request.CorrelationId,
                     request.TenantId),
@@ -77,7 +94,7 @@ public sealed class AiQueryOrchestrationService(
                     request.ApiClientId);
                 var dataVersion = await scannerCache.GetDataVersionAsync(cancellationToken);
                 var parseRequest = new ScannerParseRequest(
-                    request.Message,
+                    enrichedMessage,
                     "en",
                     request.CorrelationId,
                     request.TenantId,
@@ -200,6 +217,20 @@ public sealed class AiQueryOrchestrationService(
             throw;
         }
 
+        // Record audit events for each memory item used in this execution.
+        foreach (var item in memoryContext.Items)
+        {
+            await memoryAuditService.RecordAsync(new MemoryAuditEvent(
+                Guid.NewGuid(),
+                item.Owner,
+                item.MemoryId,
+                MemoryAuditAction.UsedInAnswer,
+                item.Purpose,
+                request.CorrelationId,
+                timeProvider.GetUtcNow()),
+                CancellationToken.None);
+        }
+
         var planJson = scannerPlan is not null
             ? JsonSerializer.Serialize(scannerPlan)
             : null;
@@ -228,7 +259,43 @@ public sealed class AiQueryOrchestrationService(
             textAnswer,
             clarificationRequired,
             clarificationMessage,
-            usage);
+            usage,
+            memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null);
+    }
+
+    private static string BuildEnrichedMessage(string originalMessage, AuthorizedMemoryContext memoryContext)
+    {
+        var promptItems = memoryContext.Items
+            .Where(i => i.Type != MemoryType.ShortTermConversationMemory)
+            .ToList();
+
+        var conversationItems = memoryContext.Items
+            .Where(i => i.Type == MemoryType.ShortTermConversationMemory)
+            .ToList();
+
+        if (promptItems.Count == 0 && conversationItems.Count == 0)
+            return originalMessage;
+
+        var sb = new StringBuilder();
+
+        if (conversationItems.Count > 0)
+        {
+            sb.AppendLine("[Recent conversation]");
+            foreach (var item in conversationItems)
+                sb.AppendLine(item.Summary);
+            sb.AppendLine("---");
+        }
+
+        if (promptItems.Count > 0)
+        {
+            sb.AppendLine("[Stored context]");
+            foreach (var item in promptItems)
+                sb.AppendLine($"- {item.Type}: {item.Summary}");
+            sb.AppendLine("---");
+        }
+
+        sb.Append(originalMessage);
+        return sb.ToString();
     }
 
     private static string BuildAssistantContent(

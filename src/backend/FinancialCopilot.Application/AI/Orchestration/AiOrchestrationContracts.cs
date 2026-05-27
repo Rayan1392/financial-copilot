@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
@@ -47,7 +48,8 @@ public sealed record AiQueryResponse(
     string? TextAnswer,
     bool ClarificationRequired,
     string? ClarificationMessage,
-    UsageAccountingResult? Usage);
+    UsageAccountingResult? Usage,
+    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

@@ -4,6 +4,7 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -139,7 +140,9 @@ public sealed class AiFacadeController(
                 result.Usage.CreditsCharged,
                 result.Usage.RemainingSpendingCapacity,
                 result.Usage.PricingPolicyVersion,
-                result.Usage.Cached));
+                result.Usage.Cached),
+            result.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
+                d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
 
     private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
     {

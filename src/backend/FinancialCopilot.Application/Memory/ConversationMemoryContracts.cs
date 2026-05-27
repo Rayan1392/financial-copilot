@@ -161,7 +161,36 @@ public interface IMemoryControlService
         MemorySubject subject,
         CancellationToken cancellationToken);
 
+    Task<Guid> WriteAsync(
+        MemorySubject owner,
+        MemoryType type,
+        MemoryPurpose purpose,
+        MemorySensitivity sensitivity,
+        string summary,
+        MemoryProvenance provenance,
+        MemoryRetentionPolicy? retention,
+        CancellationToken cancellationToken);
+
     Task DeleteAsync(MemoryDeletionRequest request, CancellationToken cancellationToken);
+
+    Task DeleteAllAsync(MemorySubject subject, string correlationId, CancellationToken cancellationToken);
+}
+
+public interface IMemoryRecordRepository
+{
+    Task<IReadOnlyCollection<OptionalMemoryRecord>> GetRecordsAsync(
+        MemorySubject subject,
+        CancellationToken cancellationToken);
+
+    Task<Guid> WriteAsync(
+        MemorySubject owner,
+        MemoryType type,
+        MemoryPurpose purpose,
+        MemorySensitivity sensitivity,
+        string summary,
+        MemoryProvenance provenance,
+        MemoryRetentionPolicy? retention,
+        CancellationToken cancellationToken);
 }
 
 public interface IMemoryProtectionPolicy

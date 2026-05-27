@@ -40,6 +40,7 @@ public sealed record AiQueryResponse(
     DetectedIntent Intent,
     ScannerQueryPlan? ScannerPlan,
     ScannerTableResult? ScannerTable,
+    ExplainableAnswer? ExplainableAnswer,
     string? TextAnswer,
     bool ClarificationRequired,
     string? ClarificationMessage);

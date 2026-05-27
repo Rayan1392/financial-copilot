@@ -129,7 +129,8 @@ public sealed class AiFacadeController(
                 result.ScannerPlan.ClarificationRequired,
                 result.ScannerPlan.ClarificationMessage,
                 result.ScannerPlan.ColumnOverflowWarnings),
-            MapScannerTable(result.ScannerTable));
+            MapScannerTable(result.ScannerTable),
+            MapExplainableAnswer(result.ExplainableAnswer));
 
     private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
     {
@@ -158,6 +159,48 @@ public sealed class AiFacadeController(
                 table.ExecutionFacts.MatchingSymbolCount,
                 table.ExecutionFacts.FromCache),
             table.MissingDataWarnings);
+    }
+
+    private static ExplainableAnswerResponse? MapExplainableAnswer(ExplainableAnswer? answer)
+    {
+        if (answer is null) return null;
+
+        return new ExplainableAnswerResponse(
+            answer.FilterChips.Select(chip => new ConditionFilterChipResponse(
+                chip.MetricCode,
+                chip.MetricDisplayName,
+                chip.OperatorSymbol,
+                chip.OperatorLabel,
+                chip.Threshold,
+                chip.ThresholdFormatted,
+                chip.FilterOrigin,
+                chip.IsInferred,
+                chip.InferredReason)).ToList(),
+            answer.MetricEvidence.Select(ev => new MetricEvidenceSummaryResponse(
+                ev.MetricCode,
+                ev.MetricVersion,
+                ev.CalculationPolicyVersion,
+                ev.MetricDisplayName,
+                ev.Unit,
+                ev.ActualValue,
+                ev.FormattedValue,
+                ev.PeriodType,
+                ev.ObservedAt)).ToList(),
+            answer.DataCitations.Select(c => new DataCitationResponse(
+                c.SymbolCode,
+                c.MetricCode,
+                c.ObservedAt,
+                c.FreshnessStatus)).ToList(),
+            new ConfidenceScoreResponse(
+                answer.Confidence.Score,
+                new ConfidenceFactorsResponse(
+                    answer.Confidence.Factors.InterpretationCertainty,
+                    answer.Confidence.Factors.EvidenceCompleteness,
+                    answer.Confidence.Factors.SourceFreshness,
+                    answer.Confidence.Factors.WarningPenalty),
+                answer.Confidence.PolicyVersion),
+            answer.SuggestedFollowUpQuestions,
+            answer.ExplanationText);
     }
 
     private static ConversationSummaryResponse MapConversationSummary(ConversationSummary summary) =>

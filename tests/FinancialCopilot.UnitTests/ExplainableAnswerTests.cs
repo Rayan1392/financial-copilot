@@ -1,0 +1,311 @@
+using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Domain.Financial.Metrics;
+using FinancialCopilot.Domain.Financial.Periods;
+
+namespace FinancialCopilot.UnitTests;
+
+public sealed class ConfidenceScoreCalculatorTests
+{
+    private readonly ConfidenceScoreCalculator _sut = new();
+
+    [Fact]
+    public void Calculate_AllOptimal_ReturnsMaxScore()
+    {
+        var plan = MakePlan(clarification: false, [D.Condition("PE_TTM")]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: true)]);
+
+        var score = _sut.Calculate(plan, result);
+
+        Assert.Equal(1.0, score.Score);
+        Assert.Equal(1.0, score.Factors.InterpretationCertainty);
+        Assert.Equal(1.0, score.Factors.EvidenceCompleteness);
+        Assert.Equal(1.0, score.Factors.SourceFreshness);
+        Assert.Equal(0.0, score.Factors.WarningPenalty);
+    }
+
+    [Fact]
+    public void Calculate_ClarificationRequired_ZeroInterpretation()
+    {
+        var plan = MakePlan(clarification: true, []);
+
+        var score = _sut.Calculate(plan, null);
+
+        Assert.Equal(0.0, score.Factors.InterpretationCertainty);
+        Assert.True(score.Score < 0.2);
+    }
+
+    [Fact]
+    public void Calculate_OneInferredCondition_ReducesInterpretationByTenPercent()
+    {
+        var condition = new ScannerCondition(
+            D.MetricRef("PE_TTM"),
+            ConditionOperator.LessThan, 6m, FilterOrigin.InferredDefault);
+        var plan = MakePlan(clarification: false, [condition]);
+
+        var score = _sut.Calculate(plan, null);
+
+        Assert.Equal(0.9, score.Factors.InterpretationCertainty);
+    }
+
+    [Fact]
+    public void Calculate_MissingMetricForOneRow_HalfEvidenceCompleteness()
+    {
+        var plan = MakePlan(clarification: false, [D.Condition("PE_TTM")]);
+        var result = D.Result(plan.PlanId, [
+            D.Row("A", "PE_TTM", 3.5m, live: true),
+            D.RowMissing("B", "PE_TTM")
+        ]);
+
+        var score = _sut.Calculate(plan, result);
+
+        Assert.Equal(0.5, score.Factors.EvidenceCompleteness);
+    }
+
+    [Fact]
+    public void Calculate_TwoWarnings_WarningPenaltyIsTwentyPercent()
+    {
+        var plan = MakePlan(clarification: false, [D.Condition("PE_TTM")],
+            overflowWarnings: ["w1", "w2"]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: true)]);
+
+        var score = _sut.Calculate(plan, result);
+
+        Assert.Equal(0.2, score.Factors.WarningPenalty);
+        Assert.Equal(Math.Round(1.0 * 0.8, 2), score.Score);
+    }
+
+    [Fact]
+    public void Calculate_NoRows_ZeroEvidenceAndNeutralFreshness()
+    {
+        var plan = MakePlan(clarification: false, [D.Condition("PE_TTM")]);
+        var result = D.Result(plan.PlanId, []);
+
+        var score = _sut.Calculate(plan, result);
+
+        Assert.Equal(0.0, score.Factors.EvidenceCompleteness);
+        Assert.Equal(0.5, score.Factors.SourceFreshness);
+    }
+
+    [Fact]
+    public void Calculate_PolicyVersionIsV1()
+    {
+        var score = _sut.Calculate(MakePlan(clarification: false, []), null);
+        Assert.Equal("v1", score.PolicyVersion);
+    }
+
+    private static ScannerQueryPlan MakePlan(
+        bool clarification,
+        IReadOnlyCollection<ScannerCondition> conditions,
+        IReadOnlyCollection<string>? overflowWarnings = null) =>
+        new(Guid.NewGuid(), "test", "en", conditions, [], clarification,
+            clarification ? "needs clarification" : null,
+            [], overflowWarnings ?? [], DateTimeOffset.UtcNow, "v1");
+}
+
+public sealed class ExplainableAnswerBuilderTests
+{
+    [Fact]
+    public async Task Build_FilterChips_ReflectPlanConditions()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var builder = MakeBuilder();
+
+        var answer = await builder.BuildAsync(
+            new ExplainableAnswerRequest(plan, null, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.Single(answer.FilterChips);
+        var chip = answer.FilterChips.Single();
+        Assert.Equal("PE_TTM", chip.MetricCode);
+        Assert.Equal("<", chip.OperatorSymbol);
+        Assert.Equal("below", chip.OperatorLabel);
+        Assert.Equal(6m, chip.Threshold);
+        Assert.Equal("6", chip.ThresholdFormatted);
+    }
+
+    [Fact]
+    public async Task Build_FilterChips_ExplicitOriginNotMarkedInferred()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m, FilterOrigin.Explicit)]);
+
+        var answer = await MakeBuilder().BuildAsync(
+            new ExplainableAnswerRequest(plan, null, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.False(answer.FilterChips.Single().IsInferred);
+    }
+
+    [Fact]
+    public async Task Build_FilterChips_InferredOriginIsMarked()
+    {
+        var condition = new ScannerCondition(
+            D.MetricRef("PE_TTM"), ConditionOperator.LessThan, 6m,
+            FilterOrigin.InferredDefault, "inferred reason");
+        var plan = MakePlan([condition]);
+
+        var answer = await MakeBuilder().BuildAsync(
+            new ExplainableAnswerRequest(plan, null, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        var chip = answer.FilterChips.Single();
+        Assert.True(chip.IsInferred);
+        Assert.Equal("InferredDefault", chip.FilterOrigin);
+        Assert.Equal("inferred reason", chip.InferredReason);
+    }
+
+    [Fact]
+    public async Task Build_MetricEvidence_HasActualValueFromRow()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: false)]);
+
+        var answer = await MakeBuilder().BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        var ev = answer.MetricEvidence.Single();
+        Assert.Equal("PE_TTM", ev.MetricCode);
+        Assert.Equal(3.5m, ev.ActualValue);
+        Assert.Equal("v1", ev.MetricVersion);
+        Assert.Equal("PE_TTM_v1", ev.CalculationPolicyVersion);
+    }
+
+    [Fact]
+    public async Task Build_MetricEvidence_NullValueWhenAllCellsMissing()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var result = D.Result(plan.PlanId, [D.RowMissing("A", "PE_TTM")]);
+
+        var answer = await MakeBuilder().BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.Null(answer.MetricEvidence.Single().ActualValue);
+    }
+
+    [Fact]
+    public async Task Build_ConfidenceScore_InRange()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: true)]);
+
+        var answer = await MakeBuilder().BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.InRange(answer.Confidence.Score, 0.0, 1.0);
+        Assert.Equal("v1", answer.Confidence.PolicyVersion);
+    }
+
+    [Fact]
+    public async Task Build_SuggestedQuestions_ReturnedFromGenerator()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: true)]);
+
+        var answer = await MakeBuilder(suggestions: ["Q1", "Q2"]).BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.Equal(2, answer.SuggestedFollowUpQuestions.Count);
+        Assert.Contains("Q1", answer.SuggestedFollowUpQuestions);
+    }
+
+    [Fact]
+    public async Task Build_GeneratorThrows_DeterministicEvidenceStillReturned()
+    {
+        var plan = MakePlan([D.Condition("PE_TTM", ConditionOperator.LessThan, 6m)]);
+        var result = D.Result(plan.PlanId, [D.Row("A", "PE_TTM", 3.5m, live: true)]);
+
+        var answer = await MakeBuilder(throwOnGenerate: true).BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.NotNull(answer.Confidence);
+        Assert.NotEmpty(answer.FilterChips);
+        Assert.Empty(answer.SuggestedFollowUpQuestions);
+        Assert.Null(answer.ExplanationText);
+    }
+
+    // --- helpers ---
+
+    private static ExplainableAnswerBuilder MakeBuilder(
+        IReadOnlyCollection<string>? suggestions = null,
+        bool throwOnGenerate = false) =>
+        new(new ConfidenceScoreCalculator(),
+            new FakeGenerator("Explanation.", suggestions ?? ["Q1"], throwOnGenerate),
+            new ThrowingRegistry(),
+            TimeProvider.System);
+
+    private static ScannerQueryPlan MakePlan(IReadOnlyCollection<ScannerCondition> conditions) =>
+        new(Guid.NewGuid(), "test query", "en", conditions, [], false, null, [], [],
+            DateTimeOffset.UtcNow, "v1");
+
+    private sealed class FakeGenerator(string? text, IReadOnlyCollection<string> questions, bool shouldThrow)
+        : IScannerExplanationGenerator
+    {
+        public Task<ScannerExplanationOutput> GenerateAsync(
+            ScannerExplanationRequest request, CancellationToken cancellationToken)
+        {
+            if (shouldThrow) throw new InvalidOperationException("AI unavailable");
+            return Task.FromResult(new ScannerExplanationOutput(text, questions));
+        }
+    }
+
+    private sealed class ThrowingRegistry : IFinancialMetricRegistry
+    {
+        public FinancialMetricDefinition ResolveDefinition(MetricCode code, DateOnly asOf) =>
+            throw new InvalidOperationException($"Not found: {code.Value}");
+        public IFinancialMetricCalculator ResolveCalculator(MetricCode code) => throw new NotImplementedException();
+        public IReadOnlyCollection<FinancialMetricDefinition> GetSupportedMetrics(DateOnly asOf) => [];
+    }
+}
+
+// D = shared test data factory used across both test classes in this file
+internal static class D
+{
+    public static ScannerMetricReference MetricRef(string code) =>
+        new(code, new MetricCode(code), new MetricVersion("v1"),
+            new CalculationPolicyVersion($"{code}_v1"),
+            FiscalPeriodType.TrailingTwelveMonths, null);
+
+    public static ScannerCondition Condition(
+        string code,
+        ConditionOperator op = ConditionOperator.LessThan,
+        decimal threshold = 6m,
+        FilterOrigin origin = FilterOrigin.Explicit) =>
+        new(MetricRef(code), op, threshold, origin);
+
+    public static ScannerTableResult Result(
+        Guid planId,
+        IReadOnlyCollection<ScannerTableRow> rows,
+        IReadOnlyCollection<string>? warnings = null) =>
+        new(planId, [], rows,
+            new ScannerExecutionFacts(DateTimeOffset.UtcNow, TimeSpan.Zero, rows.Count, rows.Count, false),
+            warnings ?? []);
+
+    public static ScannerTableRow Row(string symbol, string metricCode, decimal value, bool live)
+    {
+        var priceFreshness = live ? CellFreshnessStatus.Live : CellFreshnessStatus.Persisted;
+        var now = DateTimeOffset.UtcNow;
+        return new ScannerTableRow(symbol, null,
+            new Dictionary<string, ScannerTableCell>
+            {
+                [metricCode] = new(value, value.ToString("N2"), CellFreshnessStatus.Persisted, now),
+                ["LATEST_PRICE"] = new(100m, "100.00", priceFreshness, now)
+            },
+            0.0, [metricCode]);
+    }
+
+    public static ScannerTableRow RowMissing(string symbol, string metricCode)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new ScannerTableRow(symbol, null,
+            new Dictionary<string, ScannerTableCell>
+            {
+                [metricCode] = new(null, null, CellFreshnessStatus.Missing, null),
+                ["LATEST_PRICE"] = new(100m, "100.00", CellFreshnessStatus.Persisted, now)
+            },
+            0.0, []);
+    }
+}

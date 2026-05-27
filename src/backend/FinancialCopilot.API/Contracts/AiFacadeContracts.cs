@@ -15,7 +15,8 @@ public sealed record AiQueryHttpResponse(
     string? ClarificationMessage,
     string? TextAnswer,
     ScannerPlanResponse? ScannerPlan,
-    ScannerTableResponse? ScannerTable = null);
+    ScannerTableResponse? ScannerTable = null,
+    ExplainableAnswerResponse? ExplainableAnswer = null);
 
 public sealed record ScannerPlanResponse(
     Guid PlanId,
@@ -56,6 +57,53 @@ public sealed record ScannerTableResponse(
     IReadOnlyCollection<ScannerTableRowResponse> Rows,
     ScannerExecutionFactsResponse ExecutionFacts,
     IReadOnlyCollection<string> MissingDataWarnings);
+
+public sealed record ConditionFilterChipResponse(
+    string MetricCode,
+    string MetricDisplayName,
+    string OperatorSymbol,
+    string OperatorLabel,
+    decimal Threshold,
+    string ThresholdFormatted,
+    string FilterOrigin,
+    bool IsInferred,
+    string? InferredReason);
+
+public sealed record MetricEvidenceSummaryResponse(
+    string MetricCode,
+    string MetricVersion,
+    string CalculationPolicyVersion,
+    string MetricDisplayName,
+    string Unit,
+    decimal? ActualValue,
+    string? FormattedValue,
+    string PeriodType,
+    DateTimeOffset? ObservedAt);
+
+public sealed record DataCitationResponse(
+    string SymbolCode,
+    string MetricCode,
+    DateTimeOffset? ObservedAt,
+    string FreshnessStatus);
+
+public sealed record ConfidenceFactorsResponse(
+    double InterpretationCertainty,
+    double EvidenceCompleteness,
+    double SourceFreshness,
+    double WarningPenalty);
+
+public sealed record ConfidenceScoreResponse(
+    double Score,
+    ConfidenceFactorsResponse Factors,
+    string PolicyVersion);
+
+public sealed record ExplainableAnswerResponse(
+    IReadOnlyCollection<ConditionFilterChipResponse> FilterChips,
+    IReadOnlyCollection<MetricEvidenceSummaryResponse> MetricEvidence,
+    IReadOnlyCollection<DataCitationResponse> DataCitations,
+    ConfidenceScoreResponse Confidence,
+    IReadOnlyCollection<string> SuggestedFollowUpQuestions,
+    string? ExplanationText);
 
 public sealed record ConversationSummaryResponse(
     Guid ConversationId,

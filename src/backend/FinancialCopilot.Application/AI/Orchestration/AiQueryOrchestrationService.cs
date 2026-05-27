@@ -10,6 +10,7 @@ public sealed class AiQueryOrchestrationService(
     IAiIntentDetector intentDetector,
     IScannerQueryParser scannerParser,
     IScannerExecutionService scannerExecutionService,
+    IExplainableAnswerBuilder explainableAnswerBuilder,
     IBillingFacadeHook billingHook,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
@@ -43,6 +44,7 @@ public sealed class AiQueryOrchestrationService(
 
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
+        ExplainableAnswer? explainableAnswer = null;
         string? textAnswer = null;
         bool clarificationRequired;
         string? clarificationMessage;
@@ -87,6 +89,14 @@ public sealed class AiQueryOrchestrationService(
                             parseResult.Plan,
                             DateOnly.FromDateTime(now.DateTime)),
                         cancellationToken);
+
+                    explainableAnswer = await explainableAnswerBuilder.BuildAsync(
+                        new ExplainableAnswerRequest(
+                            parseResult.Plan,
+                            scannerTable,
+                            request.TenantId,
+                            request.CorrelationId),
+                        cancellationToken);
                 }
             }
             else if (intentResult.Intent == DetectedIntent.Clarification)
@@ -123,7 +133,7 @@ public sealed class AiQueryOrchestrationService(
             : null;
 
         var assistantContent = BuildAssistantContent(
-            detectedIntent, scannerPlan, scannerTable, textAnswer, clarificationRequired, clarificationMessage);
+            detectedIntent, scannerPlan, scannerTable, explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
 
         var assistantMessageId = await messageRepository.AppendAsync(
             conversationId,
@@ -142,6 +152,7 @@ public sealed class AiQueryOrchestrationService(
             detectedIntent,
             scannerPlan,
             scannerTable,
+            explainableAnswer,
             textAnswer,
             clarificationRequired,
             clarificationMessage);
@@ -151,24 +162,22 @@ public sealed class AiQueryOrchestrationService(
         DetectedIntent intent,
         ScannerQueryPlan? plan,
         ScannerTableResult? table,
+        ExplainableAnswer? explainableAnswer,
         string? textAnswer,
         bool clarificationRequired,
         string? clarificationMessage)
     {
         if (clarificationRequired && clarificationMessage is not null)
-        {
             return clarificationMessage;
-        }
+
+        if (explainableAnswer?.ExplanationText is not null)
+            return explainableAnswer.ExplanationText;
 
         if (table is not null)
-        {
             return $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
-        }
 
         if (plan is not null)
-        {
             return $"Scanner plan created with {plan.Conditions.Count} condition(s).";
-        }
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
     }

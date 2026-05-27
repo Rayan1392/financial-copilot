@@ -338,6 +338,8 @@ internal sealed class DualConditionFakeAiModelClient : IAiModelClient
             "IntentDetectionOutput" => "{\"intent\":\"Scanner\",\"confidence\":0.97}",
             "ScannerParseOutput" =>
                 """{"detectedLanguage":"en","conditions":[{"userTerminology":"net profit growth yoy","language":"en","operator":"GreaterThan","threshold":50.0,"periodHint":null,"growthComparison":"YearOverYear","inferredDefault":false,"inferredReason":null},{"userTerminology":"P/E","language":"en","operator":"LessThan","threshold":6.0,"periodHint":null,"growthComparison":null,"inferredDefault":false,"inferredReason":null}],"requestedColumns":[],"clarificationRequired":false,"clarificationMessage":null}""",
+            "ScannerExplanationOutput" =>
+                """{"explanationText":"Found matching symbols meeting dual screening criteria.","suggestedFollowUpQuestions":["Show high dividend yield stocks","Filter by revenue growth above 30%","Find value stocks with PE below 5"]}""",
             _ => "{}"
         };
 

@@ -280,6 +280,8 @@ internal sealed class ScannerAwareFakeAiModelClient(bool returnUnknownTerm) : IA
                 """{"detectedLanguage":"en","conditions":[{"userTerminology":"supersecret_metric_xyz","language":"en","operator":"GreaterThan","threshold":100,"periodHint":null,"growthComparison":null,"inferredDefault":false,"inferredReason":null}],"requestedColumns":[],"clarificationRequired":false,"clarificationMessage":null}""",
             "ScannerParseOutput" =>
                 """{"detectedLanguage":"en","conditions":[{"userTerminology":"P/E","language":"en","operator":"LessThan","threshold":6.0,"periodHint":null,"growthComparison":null,"inferredDefault":false,"inferredReason":null}],"requestedColumns":[],"clarificationRequired":false,"clarificationMessage":null}""",
+            "ScannerExplanationOutput" =>
+                """{"explanationText":"Found matching symbols meeting the screening criteria.","suggestedFollowUpQuestions":["Show high dividend yield stocks","Filter by revenue growth above 20%","Find stocks with PE below 4"]}""",
             _ =>
                 "{}"
         };

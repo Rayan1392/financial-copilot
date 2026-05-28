@@ -30,3 +30,10 @@ public sealed record AdminProviderHealthResponse(
     string Status,
     DateTimeOffset CheckedAt,
     string? Detail);
+
+public sealed record AdminCyclicalWavesFullSyncResponse(
+    int SymbolsSynced,
+    int TickersSynced,
+    int TickersFailed,
+    IReadOnlyCollection<string> FailedTickers,
+    string Duration);

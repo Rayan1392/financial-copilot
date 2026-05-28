@@ -1,0 +1,265 @@
+Cyclical Waves  API 
+
+1.0 :
+
+:)Base URL( https://back1.cyclicalwaves.com/api
+
+ 
+
+Bearer Token (JWT) :  
+
+JSON :  
+
+ 
+)Authentication(   .1
+ 
+  
+)Endpoints(  .2
+   
+    
+  .3   .4
+
+ 
+Access(            .     )Token
+  :
+
+POST /api/auth/login Content-Type: application/json
+
+:)Request Body(  
+
+Untitled
+
+1
+
+
+4371939600 Rayan1392
+
+
+string string
+
+  
+
+    
+
+:cURL   
+
+curl -X POST "<https://back1.cyclicalwaves.com/api/auth/login >" \\
+-H "Content-Type: application/json" \\ -d '{"user_name":"your_username","password":"your_passwor d"}'
+:)OK 200(  
+
+{ "token_type": "Bearer", "expires_in": 864000, "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...", "refresh_token": "def50200b51e5380b0b5f8f4b00a294c4..."
+}
+
+: 
+
+
+token_type
+
+
+string
+
+expires_in access_token
+
+
+string
+
+refresh_token string
+
+
+    "Bearer" . )   864000 : (     .  JWT         . )    (       .
+
+  
+            access_token    : 
+
+Untitled
+
+2
+
+Authorization: Bearer <access_token>
+
+:  
+
+GET /api/custom-filtering/tickers Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...
+ Unauthorized 401           : . 
+
+    .1
+.          :
+
+GET /api/custom-filtering/tickers Authorization: Bearer <access_token>
+:cURL   
+curl -X GET "<https://back1.cyclicalwaves.com/api/custom-filt ering/tickers>" \\
+-H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+:)OK 200(  
+[ ,"" ,"" ,"" ,"" ,""
+
+Untitled
+
+3
+
+,"" ,"" ,"" ,"" ... ]
+.               .  )Scanner (        
+  Scanner   .2
+    )     (      .      :
+GET /api/custom-filtering/ticker/{ticker} Authorization: Bearer <access_token>
+{ticker} :       :.)  (      encode       percent-encoded   ( ). %D8%B4%D9%84%D8%B1%D8%AF
+:cURL   
+curl -X GET "<https://back1.cyclicalwaves.com/api/custom-filt ering/ticker/>" \\
+-H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+:)OK 200(  
+{ "success": true, "data": { "_id": "6a144b2e5fad5d3fae081f92",
+
+Untitled
+
+4
+
+"ticker": "", "enticker": "IRO7SHLP0001", "last_quarter_sale": 53244165000000, "penultimate_quarter_sale": 48760460000000, "last_year_same_quarter_sale": 22690236000000, "average_4_quarter_sale": 35280265250000, "last_quarter_net_profit": -222559000000, "penultimate_quarter_net_profit": 8401790000000, "last_year_same_quarter_net_profit": -3957691000000, "last_quarter_gross_profit": 23160189000000, "penultimate_quarter_gross_profit": 14785508000000, "last_year_same_quarter_gross_profit": 6713062000000, "last_quarter_operating_profit": 9632455000000, "penultimate_quarter_operating_profit": 10980303000000, "last_year_same_quarter_operating_profit": 904067000000, "last_quarter_net_profit_margin": -0.42, "penultimate_quarter_net_profit_margin": 17.23, "last_year_same_quarter_net_profit_margin": -17.44, "last_quarter_gross_profit_margin": 43.5, "penultimate_quarter_gross_profit_margin": 30.32, "last_year_same_quarter_gross_profit_margin": 29.59, "last_quarter_operating_profit_margin": 18.09, "penultimate_quarter_operating_profit_margin": 22.52, "last_year_same_quarter_operating_profit_margin": 3.98, "average_12_month_sale": 13832075333333.334, "last_year_average_12_month_sale": 0, "last_month_sale": 2297714000000, "penultimate_month_sale": 23119257000000, "last_year_same_month_sale": 1221867000000, "pe": 20.66, "ps": 0.42 } }
+:) data (   
+
+Untitled
+
+5
+
+
+_id ticker enticker
+last_quarter_sale penultimate_quarter_sale last_year_same_quarter_sale average_4_quarter_sale last_quarter_net_profit penultimate_quarter_net_profit last_year_same_quarter_net_profit last_quarter_gross_profit penultimate_quarter_gross_profit last_year_same_quarter_gross_profit last_quarter_operating_profit penultimate_quarter_operating_profit last_year_same_quarter_operating_profit
+
+
+string string string
+            
+
+)  ( 
+   
+ .   . /   (ISIN   ).  )(  )(  .
+  
+.
+  
+ .
+   
+.
+  
+.
+   
+.
+  
+  .
+  
+.
+  
+ .
+  
+  .
+  
+.
+  
+ .
+  
+  .
+
+Untitled
+
+6
+
+
+last_quarter_net_profit_margin
+
+  
+
+penultimate_quarter_net_profit_margin
+
+ 
+
+last_year_same_quarter_net_profit_margin
+
+ 
+
+last_quarter_gross_profit_margin
+
+ 
+
+penultimate_quarter_gross_profit_margin
+
+ 
+
+last_year_same_quarter_gross_profit_margin
+
+ 
+
+last_quarter_operating_profit_margin
+
+ 
+
+penultimate_quarter_operating_profit_margin
+
+ 
+
+last_year_same_quarter_operating_profit_margin  
+
+average_12_month_sale
+
+
+
+last_year_average_12_month_sale last_month_sale penultimate_month_sale last_year_same_month_sale pe ps
+
+       
+
+)  ( 
+  
+)(  .
+  
+  .
+  
+   .
+  
+ .
+  
+  .
+  
+   .
+  
+ .
+  
+  .
+  
+   .
+   
+  (      ).
+   
+ (   )  .   .    .
+   
+.
+   
+(P/E).
+   
+(P/S).
+
+Untitled
+
+7
+
+.  )   (           : (            )(   . -   0.42-   .)   
+
+ 
+API     HTTP      .
+
+ 
+401 404 500
+
+
+Unauthorized ­      .
+Not Found ­     ticker/{ticker}  .
+Internal Server Error ­   .
+
+)(  
+{"error": "Unauthenticated."} 
+.
+{"success": false, "message": "Ticker not found"}
+    debug   .
+
+.     auth/login/        
+     (          .         ) expires_in
+
+Untitled
+
+8
+
+

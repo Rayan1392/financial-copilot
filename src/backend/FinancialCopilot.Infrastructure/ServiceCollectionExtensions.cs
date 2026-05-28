@@ -20,7 +20,9 @@ using FinancialCopilot.Infrastructure.AI.Observability;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Memory;
 using FinancialCopilot.Infrastructure.Memory.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers;
+using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
@@ -319,21 +321,40 @@ public static class ServiceCollectionExtensions
             })
             .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
         services.AddScoped<IProviderRawPayloadStore, ProviderRawPayloadStore>();
+
+        // CyclicalWaves data provider
+        services
+            .AddOptions<CyclicalWavesProviderOptions>()
+            .BindConfiguration(CyclicalWavesProviderOptions.SectionName);
+        services.AddSingleton<CyclicalWavesTokenCache>();
+        services.AddTransient<CyclicalWavesAuthHandler>();
+        services
+            .AddHttpClient<CyclicalWavesDataProviderClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+            })
+            .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
+            .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
         services.AddScoped<MockFinancialDataProvider>();
         services.AddScoped<ISymbolDataProvider>(provider =>
-            provider.GetRequiredService<MockFinancialDataProvider>());
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IFinancialStatementProvider>(provider =>
-            provider.GetRequiredService<MockFinancialDataProvider>());
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IMonthlyProductionSalesProvider>(provider =>
-            provider.GetRequiredService<MockFinancialDataProvider>());
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<MockFinancialDataProvider>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
-            provider.GetRequiredService<MockFinancialDataProvider>());
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
 
         services.AddScoped<IFinancialPayloadNormalizer, SymbolPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, MonthlyReportPayloadNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesSymbolNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesFinancialStatementNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesMonthlyReportNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         services.AddScoped<INormalizedMetricInputSource, NetProfitMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
@@ -351,6 +372,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDerivedFeatureCalculationService, DerivedFeatureCalculationService>();
         services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
+        services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();
         services.AddScoped<FinancialDataSyncProcessor>();
         services.AddScoped<IFinancialDataSyncProcessor>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());

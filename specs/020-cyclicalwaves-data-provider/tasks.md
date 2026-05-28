@@ -1,0 +1,102 @@
+# Tasks
+
+## Infrastructure — Authentication
+
+- [ ] Add `CyclicalWavesProviderOptions` with `SectionName = "CyclicalWaves"`, `ProviderName`,
+      `BaseAddress`, `UserName`, `Password`, `TimeoutSeconds`, `RetryCount`,
+      `CircuitBreakSeconds`, `CircuitFailureThreshold`.
+- [ ] Add `CyclicalWavesTokenCache` (singleton) — thread-safe JWT storage with expiry tracking
+      and a `TryGetToken` / `SetToken` / `Invalidate` API.
+- [ ] Add `CyclicalWavesAuthHandler` (DelegatingHandler) — on each request: inject Bearer
+      header from cache; on cache miss: POST `/api/auth/login`, cache result, retry; on 401
+      from API: invalidate cache, re-login once, throw `FinancialProviderException(Unauthorized)`
+      on second failure.
+
+## Infrastructure — Provider Client
+
+- [ ] Add `CyclicalWavesPayloadModels.cs` — internal records for JSON deserialization:
+      `CyclicalWavesAuthResponse`, `CyclicalWavesTickerDetailResponse` (all fields with
+      `[JsonPropertyName]` snake_case attributes).
+- [ ] Add `CyclicalWavesDataProviderClient` implementing `ISymbolDataProvider`,
+      `IFinancialStatementProvider`, `IMonthlyProductionSalesProvider`,
+      `IFinancialDataProviderHealthService`:
+      - `FetchSymbolsAsync` → `GET /custom-filtering/tickers` → store raw array payload.
+      - `FetchFinancialStatementsAsync(ticker)` → `GET /custom-filtering/ticker/{PercentEncode(ticker)}`
+        → store raw object payload under `ProviderDataset.FinancialStatements`.
+      - `FetchMonthlyReportsAsync(ticker)` → same HTTP call as above → store raw payload
+        under `ProviderDataset.MonthlyProductionSales` (checksum dedup prevents double storage).
+      - `CheckAsync` → attempt login; return `Healthy` or `Unavailable`.
+- [ ] Apply `FinancialProviderResilienceHandler` (existing) to the CyclicalWaves typed
+      `HttpClient` for timeout, retry, and circuit-breaker behavior.
+
+## Application — Interface Extension
+
+- [ ] Add `string ProviderName { get; }` to `IFinancialPayloadNormalizer`
+      in `FinancialProviderContracts.cs`.
+- [ ] Update existing `SymbolPayloadNormalizer`, `FinancialStatementPayloadNormalizer`,
+      `MonthlyReportPayloadNormalizer` to implement `ProviderName` (return
+      `"ConfiguredFinancialProvider"`).
+- [ ] Update `FinancialDataSyncProcessor` normalizer selection from `Dataset` alone to
+      `(ProviderName, Dataset)` pair using `payload.ProviderName`.
+
+## Infrastructure — Fiscal Period Resolver
+
+- [ ] Add `CyclicalWavesRelativePeriodResolver` (static helper) — converts relative quarter
+      and month labels to `(DateOnly Start, DateOnly End)` using Iranian fiscal-year calendar
+      boundaries derived from a given `DateTimeOffset asOf`. Quarters: Q1 Mar 21–Jun 21,
+      Q2 Jun 22–Sep 22, Q3 Sep 23–Dec 22, Q4 Dec 23–Mar 20 (Gregorian approximation).
+
+## Infrastructure — Normalizers
+
+- [ ] Add `CyclicalWavesSymbolNormalizer` (`ProviderName = "CyclicalWaves"`,
+      `Dataset = Symbols`):
+      - Deserialize `string[]` ticker list.
+      - Upsert `NormalizedCompanyRow` (name = Persian ticker) + `NormalizedSymbolRow`
+        (SymbolCode = Persian ticker, provisional; enriched by financial-statement normalizer).
+- [ ] Add `CyclicalWavesFinancialStatementNormalizer` (`Dataset = FinancialStatements`):
+      - Deserialize `CyclicalWavesTickerDetailResponse`.
+      - Enrich `NormalizedSymbolRow.SymbolCode` with `enticker`; set `ExternalSymbolId` = `_id`.
+      - For each of Q-0, Q-1, Q-4: upsert `NormalizedFinancialStatementRow` (IncomeStatement)
+        + line items for REVENUE, NET_PROFIT, GROSS_PROFIT, OPERATING_PROFIT,
+        NET_PROFIT_MARGIN, GROSS_PROFIT_MARGIN, OPERATING_PROFIT_MARGIN.
+      - Add PE_RATIO and PS_RATIO line items on Q-0 row only.
+      - Use `CyclicalWavesRelativePeriodResolver` for period dates; attach `StaleData` warning.
+- [ ] Add `CyclicalWavesMonthlyReportNormalizer` (`Dataset = MonthlyProductionSales`):
+      - Deserialize `CyclicalWavesTickerDetailResponse`.
+      - For each of M-0, M-1, M-12: upsert `NormalizedMonthlyReportRow` + REVENUE line item.
+      - Use `CyclicalWavesRelativePeriodResolver` for month dates; attach `StaleData` warning.
+
+## Infrastructure — DI Registration
+
+- [ ] Register `CyclicalWavesProviderOptions` from configuration section `"CyclicalWaves"`.
+- [ ] Register `CyclicalWavesTokenCache` as singleton.
+- [ ] Register `CyclicalWavesAuthHandler` as transient.
+- [ ] Register typed `HttpClient<CyclicalWavesDataProviderClient>` with
+      `CyclicalWavesAuthHandler` + `FinancialProviderResilienceHandler` pipeline.
+- [ ] Replace `MockFinancialDataProvider` registrations for `ISymbolDataProvider`,
+      `IFinancialStatementProvider`, `IMonthlyProductionSalesProvider`,
+      `IFinancialDataProviderHealthService` with `CyclicalWavesDataProviderClient`.
+- [ ] Keep `MockFinancialDataProvider` for `IMarketDataProvider` (CyclicalWaves has no
+      real-time price data).
+- [ ] Register `CyclicalWavesSymbolNormalizer`, `CyclicalWavesFinancialStatementNormalizer`,
+      `CyclicalWavesMonthlyReportNormalizer` as `IFinancialPayloadNormalizer`.
+
+## Tests
+
+- [ ] Add `CyclicalWavesNormalizerTests` (unit, ~10 tests) using EF Core in-memory:
+      - Symbol normalizer parses ticker array and creates company + symbol rows.
+      - Financial-statement normalizer produces 3 statement rows with correct line items
+        including PE/PS on Q-0 only.
+      - Monthly-report normalizer produces 3 report rows with REVENUE line item.
+      - Second normalization of identical payload is idempotent (no duplicate rows).
+      - `enticker` overwrites provisional `SymbolCode` set by symbol normalizer.
+- [ ] Add `CyclicalWavesAuthHandlerTests` (unit, ~5 tests) using mock `HttpMessageHandler`:
+      - First request calls `/auth/login`, caches token, adds Authorization header.
+      - Cached token is reused without re-login.
+      - 401 response triggers re-login and retry.
+      - Expired token triggers re-login.
+      - Login failure throws `FinancialProviderException(Unauthorized)`.
+- [ ] Add `CyclicalWavesRelativePeriodResolverTests` (unit, ~6 tests):
+      - Last-quarter resolves correctly for each of the four Iranian fiscal quarters.
+      - Penultimate quarter crosses fiscal-year boundary correctly.
+      - Monthly resolution matches expected calendar month.

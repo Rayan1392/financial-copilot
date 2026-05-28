@@ -7,6 +7,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
 public interface IFinancialPayloadNormalizer
 {
+    string ProviderName { get; }
+
     ProviderDataset Dataset { get; }
 
     Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken);
@@ -15,6 +17,8 @@ public interface IFinancialPayloadNormalizer
 public sealed class SymbolPayloadNormalizer(
     FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
 {
+    public string ProviderName => "ConfiguredFinancialProvider";
+
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
     public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
@@ -84,6 +88,8 @@ public sealed class SymbolPayloadNormalizer(
 public sealed class FinancialStatementPayloadNormalizer(
     FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
 {
+    public string ProviderName => "ConfiguredFinancialProvider";
+
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
     public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
@@ -148,6 +154,8 @@ public sealed class FinancialStatementPayloadNormalizer(
 public sealed class MonthlyReportPayloadNormalizer(
     FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
 {
+    public string ProviderName => "ConfiguredFinancialProvider";
+
     public ProviderDataset Dataset => ProviderDataset.MonthlyProductionSales;
 
     public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)

@@ -19,8 +19,8 @@ public sealed class FinancialDataSyncProcessor(
     ILogger<FinancialDataSyncProcessor> logger,
     IScannerCache? scannerCache = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
-    private readonly IReadOnlyDictionary<ProviderDataset, IFinancialPayloadNormalizer> _normalizers =
-        normalizers.ToDictionary(normalizer => normalizer.Dataset);
+    private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
+        normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
 
     public async Task<DataSyncProcessingResult> ProcessAsync(
         DataSyncRequest request,
@@ -57,7 +57,7 @@ public sealed class FinancialDataSyncProcessor(
         {
             var payload = await FetchPayloadAsync(request, cancellationToken);
             await rawPayloads.StoreAsync(payload, cancellationToken);
-            var processedRecords = await _normalizers[request.Dataset]
+            var processedRecords = await _normalizers[(payload.ProviderName, payload.Dataset)]
                 .NormalizeAsync(payload, cancellationToken);
 
             run.SourcePayloadChecksum = payload.Checksum;

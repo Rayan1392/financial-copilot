@@ -5,6 +5,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.API.Controllers;
 
@@ -16,6 +17,7 @@ public sealed class AdminDataOperationsController(
     IDataSyncRequestPublisher publisher,
     IDataSyncRunReader runReader,
     IFinancialDataProviderHealthService providerHealth,
+    ICyclicalWavesFullSyncService cyclicalWavesFullSync,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -60,6 +62,19 @@ public sealed class AdminDataOperationsController(
             run.ErrorCount,
             run.ErrorMessage,
             run.SourcePayloadChecksum)).ToArray());
+    }
+
+    [HttpPost("cyclicalwaves/full-sync")]
+    public async Task<ActionResult<AdminCyclicalWavesFullSyncResponse>> RunCyclicalWavesFullSync(
+        CancellationToken cancellationToken)
+    {
+        var result = await cyclicalWavesFullSync.ExecuteAsync(cancellationToken);
+        return Ok(new AdminCyclicalWavesFullSyncResponse(
+            result.SymbolsSynced,
+            result.TickersSynced,
+            result.TickersFailed,
+            result.FailedTickers,
+            result.Duration.ToString("g")));
     }
 
     [HttpGet("provider-health")]

@@ -172,6 +172,8 @@ public sealed class FinancialDataIngestionTests
 
     private sealed class FailingStatementNormalizer : IFinancialPayloadNormalizer
     {
+        public string ProviderName => "ConfiguredFinancialProvider";
+
         public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
         public Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>

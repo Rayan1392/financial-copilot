@@ -47,6 +47,8 @@ public sealed class NormalizedFinancialStatementRow
     public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public DateTimeOffset LastSynchronizedAt { get; set; }
+
+    public string WarningsJson { get; set; } = "[]";
 }
 
 public sealed class NormalizedFinancialStatementLineItemRow
@@ -77,6 +79,8 @@ public sealed class NormalizedMonthlyReportRow
     public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public DateTimeOffset LastSynchronizedAt { get; set; }
+
+    public string WarningsJson { get; set; } = "[]";
 }
 
 public sealed class NormalizedMonthlyReportLineItemRow

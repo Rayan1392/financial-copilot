@@ -3,20 +3,42 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole(options =>
-{
-    options.IncludeScopes = true;
-    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
-    options.UseUtcTimestamp = true;
-});
+builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Enter your JWT (without the 'Bearer ' prefix)"
+        };
+        return Task.CompletedTask;
+    });
+    options.AddOperationTransformer((operation, context, _) =>
+    {
+        var hasAuthorize = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Any();
+        if (!hasAuthorize) return Task.CompletedTask;
+        var requirement = new OpenApiSecurityRequirement();
+        requirement[new OpenApiSecuritySchemeReference("Bearer", context.Document)] = [];
+        operation.Security = [requirement];
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services
@@ -38,12 +60,14 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseAuthentication();

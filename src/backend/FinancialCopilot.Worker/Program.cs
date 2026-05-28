@@ -1,7 +1,10 @@
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Worker;
+using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSerilog((_, lc) => lc.ReadFrom.Configuration(builder.Configuration));
 
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services

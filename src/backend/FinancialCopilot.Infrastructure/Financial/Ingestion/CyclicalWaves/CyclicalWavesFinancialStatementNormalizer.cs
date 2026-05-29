@@ -127,8 +127,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         CancellationToken cancellationToken)
     {
         var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
-            row => row.ProviderName == ProviderName &&
-                (row.ExternalSymbolId == data.Id || row.ExternalSymbolId == data.Ticker),
+            row => row.ProviderName == ProviderName && row.ExternalSymbolId == data.Ticker,
             cancellationToken);
 
         if (symbol is null)
@@ -137,7 +136,6 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         }
 
         symbol.SymbolCode = data.Enticker;
-        symbol.ExternalSymbolId = data.Id;
         symbol.LastSynchronizedAt = receivedAt;
 
         var company = await dbContext.Companies.SingleOrDefaultAsync(
@@ -146,7 +144,6 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
 
         if (company is not null)
         {
-            company.ExternalCompanyId = data.Id;
             company.Name = data.Ticker;
             company.LastSynchronizedAt = receivedAt;
         }

@@ -36,13 +36,15 @@ public sealed class CyclicalWavesFullSyncService(
             "CyclicalWaves symbol sync complete — {Count} symbols.",
             symbolsSynced);
 
-        // Step 2: load all CyclicalWaves tickers from DB
-        var tickers = await dbContext.Symbols
+        // Step 2: load all CyclicalWaves tickers from DB, keep only Persian symbols
+        var tickers = (await dbContext.Symbols
             .AsNoTracking()
             .Where(s => s.ProviderName == CyclicalWavesProvider)
             .Select(s => s.ExternalSymbolId)
             .Distinct()
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+            .Where(t => t.Any(c => c is >= '؀' and <= 'ۿ'))
+            .ToList();
 
         logger.LogInformation(
             "CyclicalWaves full sync — processing {Count} tickers.",

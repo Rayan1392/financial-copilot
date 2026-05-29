@@ -21,6 +21,7 @@ public sealed class CyclicalWavesSymbolNormalizer(
 
         var uniqueTickers = tickers
             .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Where(ContainsPersianCharacter)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -69,6 +70,10 @@ public sealed class CyclicalWavesSymbolNormalizer(
         await dbContext.SaveChangesAsync(cancellationToken);
         return uniqueTickers.Count;
     }
+
+    // Persian/Arabic Unicode block: U+0600–U+06FF
+    private static bool ContainsPersianCharacter(string ticker) =>
+        ticker.Any(c => c is >= '؀' and <= 'ۿ');
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

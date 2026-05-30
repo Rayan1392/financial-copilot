@@ -9,7 +9,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 /// inside the provider/normalization layers so CodalDB specifics never leak into Application code.
 /// Property names mirror the source columns exactly so the serialized payload is unambiguous.
 /// </summary>
-internal sealed record CodalDbCompanyRecord(
+public sealed record CodalDbCompanyRecord(
     [property: JsonPropertyName("CoID")] int CoID,
     [property: JsonPropertyName("CoName")] string CoName,
     [property: JsonPropertyName("CoNameEnglish")] string? CoNameEnglish,

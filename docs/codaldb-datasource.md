@@ -289,6 +289,18 @@ set + a SHA-256 checksum** of it, persisted for idempotency/dedup the same way.
 > **or** run a normalizer that ingests it into the project's own DB (mirroring the CyclicalWaves
 > normalizer pipeline in `005`). This document does not choose; it presents both.
 
+> **Implemented (spec 021 — provider foundation).** The ingest-into-our-DB path was taken. A
+> read-only SQL gateway under `…/Providers/CodalDb/` implements the `004` provider interfaces:
+> `CodalDbConnectionFactory` (`Microsoft.Data.SqlClient`, `ApplicationIntent=ReadOnly`, no
+> writes/DDL), `ICodalDbQueryExecutor`/`SqlCodalDbQueryExecutor` (parameterized queries, command
+> timeout, `CodalDbSqlResilience` transient retry → `FinancialProviderException`), and
+> `CodalDbDataProviderClient`, which serializes queried rows into a canonical JSON
+> `ProviderRawPayload` (`CodalDbPayloadSerializer`, stable order + SHA-256) under
+> `ProviderName="CodalDb"`. It does **not** implement `IMarketDataProvider`. Provider selection for
+> ingestion is driven by `DataSyncRequest.ProviderName` via `IFinancialDataProviderRouter`
+> (default primary = CyclicalWaves). Connection settings come from the `CodalDb` configuration
+> section/secrets — never hardcoded. Dataset normalizers consume these payloads in specs 022–026.
+
 ### 5.2 Domain-model mapping (`003`)
 
 Domain types confirmed in `specs/003-financial-domain-model`:

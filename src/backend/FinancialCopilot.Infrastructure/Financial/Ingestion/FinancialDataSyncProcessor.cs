@@ -17,7 +17,8 @@ public sealed class FinancialDataSyncProcessor(
     IDerivedMetricRecalculationPublisher recalculationPublisher,
     TimeProvider timeProvider,
     ILogger<FinancialDataSyncProcessor> logger,
-    IScannerCache? scannerCache = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    IScannerCache? scannerCache = null,
+    IFinancialDataProviderRouter? providerRouter = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -120,16 +121,32 @@ public sealed class FinancialDataSyncProcessor(
         CancellationToken cancellationToken) =>
         request.Dataset switch
         {
-            ProviderDataset.Symbols => symbolProvider.FetchSymbolsAsync(cancellationToken),
-            ProviderDataset.FinancialStatements => statementProvider.FetchFinancialStatementsAsync(
-                RequireExternalReference(request),
-                cancellationToken),
-            ProviderDataset.MonthlyProductionSales => monthlyProvider.FetchMonthlyReportsAsync(
-                RequireExternalReference(request),
-                cancellationToken),
+            ProviderDataset.Symbols => ResolveSymbolProvider(request.ProviderName)
+                .FetchSymbolsAsync(cancellationToken),
+            ProviderDataset.FinancialStatements => ResolveStatementProvider(request.ProviderName)
+                .FetchFinancialStatementsAsync(RequireExternalReference(request), cancellationToken),
+            ProviderDataset.MonthlyProductionSales => ResolveMonthlyProvider(request.ProviderName)
+                .FetchMonthlyReportsAsync(RequireExternalReference(request), cancellationToken),
             _ => throw new InvalidOperationException(
                 $"Dataset '{request.Dataset}' is not supported for normalized ingestion.")
         };
+
+    // Route to a named coexisting provider when requested; otherwise use the configured primary
+    // (the directly-injected default provider), preserving existing single-provider behavior.
+    private ISymbolDataProvider ResolveSymbolProvider(string? providerName) =>
+        providerName is not null && providerRouter?.ResolveSymbolProvider(providerName) is { } provider
+            ? provider
+            : symbolProvider;
+
+    private IFinancialStatementProvider ResolveStatementProvider(string? providerName) =>
+        providerName is not null && providerRouter?.ResolveStatementProvider(providerName) is { } provider
+            ? provider
+            : statementProvider;
+
+    private IMonthlyProductionSalesProvider ResolveMonthlyProvider(string? providerName) =>
+        providerName is not null && providerRouter?.ResolveMonthlyProvider(providerName) is { } provider
+            ? provider
+            : monthlyProvider;
 
     private static string RequireExternalReference(DataSyncRequest request) =>
         string.IsNullOrWhiteSpace(request.ExternalReference)

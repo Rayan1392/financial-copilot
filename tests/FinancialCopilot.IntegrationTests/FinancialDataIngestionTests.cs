@@ -185,6 +185,58 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(1, await ingestionDb.MetricRecalculationRequests.CountAsync());
     }
 
+    [Fact]
+    public async Task Processor_RoutesToNamedProviderViaRouter_OverridingDefault()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+
+        var codalPayload = new ProviderRawPayload(
+            Guid.NewGuid(),
+            "CodalDb",
+            ProviderDataset.Symbols,
+            "codaldb://companies",
+            "all",
+            CodalDbCompaniesJson,
+            "codaldb-router-checksum",
+            Now);
+        var codalProvider = new StubCodalDbSymbolProvider(codalPayload);
+        var defaultProvider = new ThrowingSymbolProvider();
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider> { ["CodalDb"] = codalProvider },
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider>());
+
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            defaultProvider,
+            defaultProvider,
+            defaultProvider,
+            [new CodalDbSymbolNormalizer(
+                ingestionDb,
+                new CanonicalSymbolLinkageResolver(),
+                NullLogger<CodalDbSymbolNormalizer>.Instance)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            NullLogger<FinancialDataSyncProcessor>.Instance,
+            scannerCache: null,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.Symbols,
+                ExternalReference: null,
+                Now,
+                "codaldb-router-v1",
+                ProviderName: "CodalDb"),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == "CodalDb"));
+    }
+
     private const string CodalDbCompaniesJson = """
         [
           {
@@ -282,5 +334,23 @@ public sealed class FinancialDataIngestionTests
             string externalCompanyId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    // Default provider that must NOT be invoked when routing selects a named provider.
+    private sealed class ThrowingSymbolProvider :
+        ISymbolDataProvider, IFinancialStatementProvider, IMonthlyProductionSalesProvider
+    {
+        public Task<ProviderRawPayload> FetchSymbolsAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Default provider should not be used when routed.");
+
+        public Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Default provider should not be used when routed.");
+
+        public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Default provider should not be used when routed.");
     }
 }

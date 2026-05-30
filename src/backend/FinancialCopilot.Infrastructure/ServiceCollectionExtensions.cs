@@ -24,6 +24,7 @@ using FinancialCopilot.Infrastructure.Memory.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers;
+using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
@@ -350,6 +351,43 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<MockFinancialDataProvider>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+
+        // CodalDb data provider (read-only SQL Server; coexists with CyclicalWaves). It is NOT
+        // registered as the default ISymbolDataProvider/etc. nor as IMarketDataProvider; it is
+        // selected for ingestion by name through IFinancialDataProviderRouter.
+        services
+            .AddOptions<CodalDbProviderOptions>()
+            .BindConfiguration(CodalDbProviderOptions.SectionName);
+        services.AddSingleton<CodalDbConnectionFactory>();
+        services.AddSingleton<CodalDbSqlResilience>();
+        services.AddScoped<ICodalDbQueryExecutor, SqlCodalDbQueryExecutor>();
+        services.AddScoped<CodalDbDataProviderClient>();
+        services.AddScoped<IFinancialDataProviderRouter>(provider =>
+        {
+            var cyclicalWaves = provider.GetRequiredService<CyclicalWavesDataProviderClient>();
+            var codalDb = provider.GetRequiredService<CodalDbDataProviderClient>();
+            var cyclicalWavesName = provider
+                .GetRequiredService<IOptions<CyclicalWavesProviderOptions>>().Value.ProviderName;
+            var codalDbName = provider
+                .GetRequiredService<IOptions<CodalDbProviderOptions>>().Value.ProviderName;
+
+            return new FinancialDataProviderRouter(
+                new Dictionary<string, ISymbolDataProvider>
+                {
+                    [cyclicalWavesName] = cyclicalWaves,
+                    [codalDbName] = codalDb
+                },
+                new Dictionary<string, IFinancialStatementProvider>
+                {
+                    [cyclicalWavesName] = cyclicalWaves,
+                    [codalDbName] = codalDb
+                },
+                new Dictionary<string, IMonthlyProductionSalesProvider>
+                {
+                    [cyclicalWavesName] = cyclicalWaves,
+                    [codalDbName] = codalDb
+                });
+        });
 
         services.AddScoped<IFinancialPayloadNormalizer, SymbolPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();

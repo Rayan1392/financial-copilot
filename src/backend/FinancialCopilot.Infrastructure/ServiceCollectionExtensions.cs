@@ -397,6 +397,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesMonthlyReportNormalizer>();
         services.AddSingleton<CanonicalSymbolLinkageResolver>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbSymbolNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, CodalDbFinancialStatementNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         services.AddScoped<INormalizedMetricInputSource, NetProfitMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();

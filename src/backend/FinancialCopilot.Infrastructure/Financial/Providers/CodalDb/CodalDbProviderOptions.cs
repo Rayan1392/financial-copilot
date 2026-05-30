@@ -22,4 +22,10 @@ public sealed class CodalDbProviderOptions
 
     /// <summary>Base backoff (milliseconds) between transient retries; grows linearly per attempt.</summary>
     public int RetryBaseDelayMilliseconds { get; init; } = 200;
+
+    /// <summary>
+    /// When both consolidated (IsComposing=1) and parent variants exist for the same period,
+    /// prefer the consolidated statement. Default: true. Set to false to prefer parent statements.
+    /// </summary>
+    public bool PreferConsolidatedStatements { get; init; } = true;
 }

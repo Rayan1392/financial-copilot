@@ -33,6 +33,31 @@ These specifications extend the AI-native Financial Intelligence Platform archit
 18. `018-ai-observability-and-telemetry` - correlated AI workflow, provider, tool, cost, and latency telemetry
 19. `019-conversation-memory-strategy` - future consent-aware memory beyond Phase 1 Conversation persistence
 
+## Data Provider Implementation Specs
+
+These specs implement concrete financial-data providers behind the `004` abstraction and feed the
+`005` normalized PostgreSQL tables. They follow the spec format but sit outside the ordered MVP
+delivery checklist (they are added as data sources become available).
+
+- `020-cyclicalwaves-data-provider` — CyclicalWaves HTTP API provider (Tehran Stock Exchange).
+- **CodalDB** (MS SQL Server, vendor: Noavaran Amin Data Processing Company) — schema reference
+  in [../docs/codaldb-datasource.md](../docs/codaldb-datasource.md), delivered as a dependency
+  chain that **coexists** with CyclicalWaves:
+  1. `021-codaldb-provider-foundation` — read-only SQL gateway returning `ProviderRawPayload`,
+     health, resilience, options/secrets, DI.
+  2. `022-codaldb-company-symbol-sync` — company/symbol normalization + canonical-symbol linkage
+     (`InstCode`→ISIN→`CoTSESymbol`→`CompanySymbol`; never `InstrumentRef`).
+  3. `023-codaldb-financial-statement-ingestion` — curated income/balance line items, canonical
+     audited/consolidated/restated variant selection, fiscal-period mapping.
+  4. `024-codaldb-monthly-activity-ingestion` — monthly production/sales normalization.
+  5. `025-codaldb-precomputed-ratios` — curated vendor-precomputed ratios persisted as scannable
+     derived-metric observations (`codal-ratio-source-v1`).
+  6. `026-codaldb-derived-growth-metrics` — engine-derived YoY/QoQ growth for revenue, net
+     profit, operating profit, gross profit, EPS, EBIT, equity + vendor-precomputed growth ratios.
+  7. `027-codaldb-scheduled-sync-and-recalculation` — nightly incremental (watermark on
+     `ModifiedDateTime`) sync orchestrator + the missing derived-metric recalculation outbox
+     processor, so growth metrics are precomputed and the scanner reads them at query time.
+
 ## Coherence Rules
 
 - The React UI submits user Messages only through `POST /api/ai/v1/query`; scanner parser/execution operations are internal Application capabilities.

@@ -8,6 +8,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<NormalizedSymbolRow> Symbols => Set<NormalizedSymbolRow>();
 
+    public DbSet<NormalizedIndustryRow> Industries => Set<NormalizedIndustryRow>();
+
+    public DbSet<NormalizedIndustryGroupRow> IndustryGroups => Set<NormalizedIndustryGroupRow>();
+
+    public DbSet<NormalizedMarketRow> Markets => Set<NormalizedMarketRow>();
+
     public DbSet<NormalizedFinancialStatementRow> FinancialStatements => Set<NormalizedFinancialStatementRow>();
 
     public DbSet<NormalizedFinancialStatementLineItemRow> FinancialStatementLineItems =>

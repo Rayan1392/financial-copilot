@@ -40,6 +40,7 @@ public sealed class FinancialDataSyncProcessor(
             Id = request.RequestId,
             IdempotencyKey = request.IdempotencyKey,
             Dataset = request.Dataset.ToString(),
+            ProviderName = request.ProviderName,
             ExternalReference = request.ExternalReference,
             RequestedAt = request.RequestedAt
         };
@@ -148,7 +149,8 @@ public sealed class FinancialDataSyncProcessor(
             row.ProcessedRecords,
             row.ErrorCount,
             row.ErrorMessage,
-            row.SourcePayloadChecksum);
+            row.SourcePayloadChecksum,
+            row.ProviderName);
 
     private static string Limit(string message) => message.Length <= 1000 ? message : message[..1000];
 }

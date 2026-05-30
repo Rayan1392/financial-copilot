@@ -7,7 +7,8 @@ public sealed record DataSyncRequest(
     ProviderDataset Dataset,
     string? ExternalReference,
     DateTimeOffset RequestedAt,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    string? ProviderName = null);
 
 public enum DataSyncRunStatus
 {
@@ -29,7 +30,8 @@ public sealed record DataSyncRun(
     int ProcessedRecords,
     int ErrorCount,
     string? ErrorMessage,
-    string? SourcePayloadChecksum);
+    string? SourcePayloadChecksum,
+    string? ProviderName = null);
 
 public sealed record DataSyncProcessingResult(
     DataSyncRun Run,

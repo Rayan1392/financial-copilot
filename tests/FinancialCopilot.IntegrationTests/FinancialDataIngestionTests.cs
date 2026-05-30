@@ -1,7 +1,9 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
@@ -121,6 +123,91 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(DataSyncRunStatus.Completed, runs.Single().Status);
     }
 
+    [Fact]
+    public async Task Processor_RoutesCodalDbSymbolsPayload_EnrichesCompanyMasterDataAndDimensions()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(),
+            "CodalDb",
+            ProviderDataset.Symbols,
+            "codaldb://companies",
+            "all",
+            CodalDbCompaniesJson,
+            "codaldb-symbols-checksum",
+            Now);
+        var provider = new StubCodalDbSymbolProvider(payload);
+
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            provider,
+            provider,
+            provider,
+            [new CodalDbSymbolNormalizer(
+                ingestionDb,
+                new CanonicalSymbolLinkageResolver(),
+                NullLogger<CodalDbSymbolNormalizer>.Instance)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            NullLogger<FinancialDataSyncProcessor>.Instance);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.Symbols,
+                ExternalReference: null,
+                Now,
+                "codaldb-symbols-v1",
+                ProviderName: "CodalDb"),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.Equal("CodalDb", result.Run.ProviderName);
+
+        var company = await ingestionDb.Companies.SingleAsync(c => c.ProviderName == "CodalDb");
+        Assert.Equal("Mobarakeh Steel", company.NameEnglish);
+        Assert.Equal("IRO1FOLD0006", company.CompanyIsin);
+        Assert.NotNull(company.IndustryId);
+        Assert.NotNull(company.GroupId);
+        Assert.NotNull(company.MarketId);
+
+        Assert.Equal(1, await ingestionDb.Industries.CountAsync());
+        Assert.Equal(1, await ingestionDb.IndustryGroups.CountAsync());
+        Assert.Equal(1, await ingestionDb.Markets.CountAsync());
+
+        var symbol = await ingestionDb.Symbols.SingleAsync(s => s.ProviderName == "CodalDb");
+        Assert.Equal("IRO1FOLD0001", symbol.SymbolCode);
+        Assert.Equal("SymbolIsin", symbol.LinkageBasis);
+
+        Assert.Equal(1, await ingestionDb.MetricRecalculationRequests.CountAsync());
+    }
+
+    private const string CodalDbCompaniesJson = """
+        [
+          {
+            "CoID": 1001,
+            "CoName": "فولاد مبارکه",
+            "CoNameEnglish": "Mobarakeh Steel",
+            "CompanySymbol": "فولاد",
+            "CoTSESymbol": "فولاد",
+            "GroupID": 27,
+            "GroupName": "فلزات اساسی",
+            "IndustryID": 270,
+            "IndustryName": "فلزات اساسی",
+            "InstCode": "46348559193224090",
+            "TseCIsinCode": "IRO1FOLD0006",
+            "TseSIsinCode": "IRO1FOLD0001",
+            "MarketID": 1,
+            "MarketName": "بورس",
+            "InstrumentRef": "9455D05D-0000-0000-0000-000000000000",
+            "ModifiedDateTime": "2026-01-15T10:00:00Z"
+          }
+        ]
+        """;
+
     private static FinancialDataSyncProcessor CreateProcessor(
         FinancialProviderDbContext providerDb,
         FinancialIngestionDbContext ingestionDb,
@@ -178,5 +265,22 @@ public sealed class FinancialDataIngestionTests
 
         public Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("normalization failed");
+    }
+
+    private sealed class StubCodalDbSymbolProvider(ProviderRawPayload payload) :
+        ISymbolDataProvider, IFinancialStatementProvider, IMonthlyProductionSalesProvider
+    {
+        public Task<ProviderRawPayload> FetchSymbolsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(payload);
+
+        public Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

@@ -10,6 +10,59 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
         builder.ToTable("Companies");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId }).IsUnique();
+
+        // Classification FKs are optional dimension references; no cascade. Indexed for
+        // scanner filtering/segmentation by industry, group, and market.
+        builder.HasOne<NormalizedIndustryRow>()
+            .WithMany()
+            .HasForeignKey(row => row.IndustryId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<NormalizedIndustryGroupRow>()
+            .WithMany()
+            .HasForeignKey(row => row.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<NormalizedMarketRow>()
+            .WithMany()
+            .HasForeignKey(row => row.MarketId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(row => row.IndustryId);
+        builder.HasIndex(row => row.GroupId);
+        builder.HasIndex(row => row.MarketId);
+    }
+}
+
+public sealed class NormalizedIndustryRowConfiguration : IEntityTypeConfiguration<NormalizedIndustryRow>
+{
+    public void Configure(EntityTypeBuilder<NormalizedIndustryRow> builder)
+    {
+        builder.ToTable("Industries");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalId }).IsUnique();
+        builder.HasOne<NormalizedIndustryRow>()
+            .WithMany()
+            .HasForeignKey(row => row.ParentId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class NormalizedIndustryGroupRowConfiguration : IEntityTypeConfiguration<NormalizedIndustryGroupRow>
+{
+    public void Configure(EntityTypeBuilder<NormalizedIndustryGroupRow> builder)
+    {
+        builder.ToTable("IndustryGroups");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalId }).IsUnique();
+    }
+}
+
+public sealed class NormalizedMarketRowConfiguration : IEntityTypeConfiguration<NormalizedMarketRow>
+{
+    public void Configure(EntityTypeBuilder<NormalizedMarketRow> builder)
+    {
+        builder.ToTable("Markets");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalId }).IsUnique();
     }
 }
 

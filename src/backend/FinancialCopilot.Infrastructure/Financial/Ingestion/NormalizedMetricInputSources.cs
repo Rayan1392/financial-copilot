@@ -22,10 +22,16 @@ public sealed class NormalizedMetricInputReader(
             : throw new KeyNotFoundException($"No normalized input source is registered for metric '{metricCode}'.");
 }
 
-public sealed class NetProfitMetricInputSource(
-    FinancialIngestionDbContext dbContext) : INormalizedMetricInputSource
+/// <summary>
+/// Generic input source for any metric code backed by <c>NormalizedFinancialStatementLineItems</c>.
+/// Reads line items keyed by <paramref name="metricCode"/> from all providers, provider-agnostically.
+/// Replaces/subsumes per-metric source classes such as the legacy <c>NetProfitMetricInputSource</c>.
+/// </summary>
+public sealed class LineItemMetricInputSource(
+    FinancialIngestionDbContext dbContext,
+    MetricCode metricCode) : INormalizedMetricInputSource
 {
-    public MetricCode MetricCode { get; } = new("NET_PROFIT");
+    public MetricCode MetricCode { get; } = metricCode;
 
     public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
@@ -50,6 +56,18 @@ public sealed class NetProfitMetricInputSource(
             observation.statement.ExternalStatementId,
             observation.statement.LastSynchronizedAt)).ToArray();
     }
+}
+
+// Kept for backward compatibility in tests that construct it directly.
+public sealed class NetProfitMetricInputSource(
+    FinancialIngestionDbContext dbContext) : INormalizedMetricInputSource
+{
+    public MetricCode MetricCode { get; } = new("NET_PROFIT");
+
+    public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken) =>
+        await new LineItemMetricInputSource(dbContext, MetricCode).LoadAsync(externalCompanyId, cancellationToken);
 }
 
 public sealed class MonthlySalesMetricInputSource(

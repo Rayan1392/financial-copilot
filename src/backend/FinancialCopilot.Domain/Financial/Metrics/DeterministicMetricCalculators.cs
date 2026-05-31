@@ -93,6 +93,35 @@ public sealed class ValuationRatioMetricCalculator(
     }
 }
 
+/// <summary>
+/// Calculates a metric as the sum of several component metrics for the <c>EffectivePeriod</c>.
+/// All components must have a non-null value for the same period; otherwise the result is null
+/// (MissingData warning). Typical use: EBIT = NET_PROFIT + FINANCE_COSTS + INCOME_TAX.
+/// </summary>
+public sealed class AdditiveCompositeMetricCalculator(
+    MetricCode metricCode,
+    IReadOnlyCollection<MetricCode> componentMetricCodes) : IFinancialMetricCalculator
+{
+    public MetricCode MetricCode { get; } = metricCode;
+
+    public Task<MetricCalculationResult> CalculateAsync(
+        MetricCalculationContext context,
+        CancellationToken cancellationToken)
+    {
+        var components = componentMetricCodes
+            .Select(code => context.Inputs.SingleOrDefault(
+                input => input.Code == code && input.Period == context.EffectivePeriod))
+            .ToArray();
+
+        decimal? value = components.All(c => c?.Value is not null)
+            ? components.Sum(c => c!.Value!.Value)
+            : null;
+
+        var used = components.Where(c => c is not null).Cast<MetricInputObservation>().ToArray();
+        return Task.FromResult(MetricCalculationResultFactory.Create(context, value, used));
+    }
+}
+
 internal static class MetricCalculationResultFactory
 {
     public static MetricCalculationResult Create(

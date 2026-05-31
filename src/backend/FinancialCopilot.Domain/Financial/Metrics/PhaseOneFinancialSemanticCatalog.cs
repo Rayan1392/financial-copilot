@@ -157,6 +157,75 @@ public static class PhaseOneFinancialSemanticCatalog
             [Alias("p/s", "en-US", "PS_TTM"), Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM")],
             [Dependency("MARKET_CAP"), Dependency("TTM_SALES")]),
 
+        // EBIT (engine-derived composite: NET_PROFIT + FINANCE_COSTS + INCOME_TAX).
+        Define("EBIT", "EBIT", MetricCategory.Profitability, Amount,
+            [FiscalPeriodType.ThreeMonths],
+            [Alias("ebit", "en-US", "EBIT"), Alias("سود قبل از بهره و مالیات", "fa-IR", "EBIT"),
+             Alias("سود عملیاتی پیش از بهره", "fa-IR", "EBIT")],
+            [Dependency("NET_PROFIT"), Dependency("FINANCE_COSTS"), Dependency("INCOME_TAX")]),
+
+        // Engine-derived YoY growth metrics (depend on Codal line items from spec 023).
+        DefineGrowth("REVENUE_GROWTH_YOY", "Revenue Growth YoY", "REVENUE",
+            [Alias("revenue growth yoy", "en-US", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد درآمد سالانه", "fa-IR", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("GROSS_PROFIT_GROWTH_YOY", "Gross Profit Growth YoY", "GROSS_PROFIT",
+            [Alias("gross profit growth yoy", "en-US", "GROSS_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد سود ناخالص سالانه", "fa-IR", "GROSS_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("OPERATING_PROFIT_GROWTH_YOY", "Operating Profit Growth YoY", "OPERATING_PROFIT",
+            [Alias("operating profit growth yoy", "en-US", "OPERATING_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد سود عملیاتی سالانه", "fa-IR", "OPERATING_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("EPS_GROWTH_YOY", "EPS Growth YoY", "EPS",
+            [Alias("eps growth yoy", "en-US", "EPS_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد سود هر سهم سالانه", "fa-IR", "EPS_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("EBIT_GROWTH_YOY", "EBIT Growth YoY", "EBIT",
+            [Alias("ebit growth yoy", "en-US", "EBIT_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد سود قبل از بهره و مالیات سالانه", "fa-IR", "EBIT_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("EQUITY_GROWTH_YOY", "Equity Growth YoY", "TOTAL_EQUITY",
+            [Alias("equity growth yoy", "en-US", "EQUITY_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد حقوق صاحبان سهام سالانه", "fa-IR", "EQUITY_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+
+        // Engine-derived QoQ growth metrics (use CodalDiscreteQuarterDeriver to convert cumulative first).
+        DefineGrowth("REVENUE_GROWTH_QOQ", "Revenue Growth QoQ", "REVENUE",
+            [Alias("revenue growth qoq", "en-US", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد درآمد فصلی", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+        DefineGrowth("GROSS_PROFIT_GROWTH_QOQ", "Gross Profit Growth QoQ", "GROSS_PROFIT",
+            [Alias("gross profit growth qoq", "en-US", "GROSS_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود ناخالص فصلی", "fa-IR", "GROSS_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+        DefineGrowth("OPERATING_PROFIT_GROWTH_QOQ", "Operating Profit Growth QoQ", "OPERATING_PROFIT",
+            [Alias("operating profit growth qoq", "en-US", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود عملیاتی فصلی", "fa-IR", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+        DefineGrowth("EPS_GROWTH_QOQ", "EPS Growth QoQ", "EPS",
+            [Alias("eps growth qoq", "en-US", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود هر سهم فصلی", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+        DefineGrowth("EBIT_GROWTH_QOQ", "EBIT Growth QoQ", "EBIT",
+            [Alias("ebit growth qoq", "en-US", "EBIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود قبل از بهره و مالیات فصلی", "fa-IR", "EBIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+        DefineGrowth("EQUITY_GROWTH_QOQ", "Equity Growth QoQ", "TOTAL_EQUITY",
+            [Alias("equity growth qoq", "en-US", "EQUITY_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد حقوق صاحبان سهام فصلی", "fa-IR", "EQUITY_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+
+        // Vendor-precomputed growth rates (CodalDB FinancialRatios; CalculationPolicyVersion = "codal-ratio-source-v1").
+        // Codes are distinct from engine-derived codes so they never overwrite each other.
+        DefineRatio("SALES_GROWTH_RATE", "Sales Growth Rate (Vendor)", MetricCategory.Growth, Percentage,
+            [Alias("sales growth rate", "en-US", "SALES_GROWTH_RATE"),
+             Alias("نرخ رشد فروش", "fa-IR", "SALES_GROWTH_RATE")]),
+        DefineRatio("NET_PROFIT_GROWTH_RATE", "Net Profit Growth Rate (Vendor)", MetricCategory.Growth, Percentage,
+            [Alias("net profit growth rate", "en-US", "NET_PROFIT_GROWTH_RATE"),
+             Alias("نرخ رشد سود خالص", "fa-IR", "NET_PROFIT_GROWTH_RATE")]),
+        DefineRatio("EQUITY_GROWTH_RATE", "Equity Growth Rate (Vendor)", MetricCategory.Growth, Percentage,
+            [Alias("equity growth rate", "en-US", "EQUITY_GROWTH_RATE"),
+             Alias("نرخ رشد حقوق صاحبان سهام", "fa-IR", "EQUITY_GROWTH_RATE")]),
+        DefineRatio("TOTAL_ASSETS_GROWTH_RATE", "Total Assets Growth Rate (Vendor)", MetricCategory.Growth, Percentage,
+            [Alias("total assets growth rate", "en-US", "TOTAL_ASSETS_GROWTH_RATE"),
+             Alias("نرخ رشد کل دارایی‌ها", "fa-IR", "TOTAL_ASSETS_GROWTH_RATE")]),
+        DefineRatio("TOTAL_DEBT_GROWTH_RATE", "Total Debt Growth Rate (Vendor)", MetricCategory.Growth, Percentage,
+            [Alias("total debt growth rate", "en-US", "TOTAL_DEBT_GROWTH_RATE"),
+             Alias("نرخ رشد کل بدهی‌ها", "fa-IR", "TOTAL_DEBT_GROWTH_RATE")]),
+        DefineRatio("TANGIBLE_FIXED_ASSETS_GROWTH_RATE", "Tangible Fixed Assets Growth Rate (Vendor)",
+            MetricCategory.Growth, Percentage,
+            [Alias("tangible fixed assets growth rate", "en-US", "TANGIBLE_FIXED_ASSETS_GROWTH_RATE"),
+             Alias("نرخ رشد دارایی‌های ثابت مشهود", "fa-IR", "TANGIBLE_FIXED_ASSETS_GROWTH_RATE")]),
+
         // CodalDB vendor-precomputed ratios (CalculationPolicyVersion = "codal-ratio-source-v1").
         // Period types: 3/6/9/12-month cumulative, matching FinancialRatios.PeriodType values.
         DefineRatio("CURRENT_RATIO", "Current Ratio", MetricCategory.FinancialHealth, Ratio,
@@ -235,6 +304,41 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricVersion("v1"),
             new MetricFormula("ttm-earnings-divided-by-shares", "TTM earnings divided by shares outstanding."),
             EffectiveFrom),
+        // EBIT composite policy (NET_PROFIT + FINANCE_COSTS + INCOME_TAX).
+        // MissingDataPolicy: OPERATING_PROFIT (ItemId 140) is documented as a proxy fallback when
+        // component items are absent; the proxy substitution is deferred to the orchestration layer.
+        new MetricCalculationPolicy(
+            new MetricCode("EBIT"),
+            new CalculationPolicyVersion("ebit-composite-v1"),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [
+                new MetricDataRequirement(new MetricCode("NET_PROFIT"), FiscalPeriodType.ThreeMonths, true),
+                new MetricDataRequirement(new MetricCode("FINANCE_COSTS"), FiscalPeriodType.ThreeMonths, true),
+                new MetricDataRequirement(new MetricCode("INCOME_TAX"), FiscalPeriodType.ThreeMonths, true)
+            ],
+            new MetricVersion("v1"),
+            new MetricFormula("additive-composite",
+                "EBIT = NET_PROFIT + FINANCE_COSTS + INCOME_TAX. Proxy: OPERATING_PROFIT when components missing (deferred)."),
+            EffectiveFrom),
+
+        // Engine-derived YoY growth policies (same cumulative period, shifted −12 months).
+        GrowthPolicy("REVENUE_GROWTH_YOY",         "yoy-revenue-v1",          GrowthComparison.YearOverYear,          "REVENUE",           FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("GROSS_PROFIT_GROWTH_YOY",    "yoy-gross-profit-v1",     GrowthComparison.YearOverYear,          "GROSS_PROFIT",      FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("OPERATING_PROFIT_GROWTH_YOY","yoy-operating-profit-v1", GrowthComparison.YearOverYear,          "OPERATING_PROFIT",  FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EPS_GROWTH_YOY",             "yoy-eps-v1",              GrowthComparison.YearOverYear,          "EPS",               FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EBIT_GROWTH_YOY",            "yoy-ebit-v1",             GrowthComparison.YearOverYear,          "EBIT",              FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EQUITY_GROWTH_YOY",          "yoy-equity-v1",           GrowthComparison.YearOverYear,          "TOTAL_EQUITY",      FiscalPeriodType.ThreeMonths),
+
+        // Engine-derived QoQ growth policies (discrete ThreeMonths via CodalDiscreteQuarterDeriver).
+        GrowthPolicy("REVENUE_GROWTH_QOQ",         "qoq-revenue-v1",          GrowthComparison.QuarterOverQuarter,    "REVENUE",           FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("GROSS_PROFIT_GROWTH_QOQ",    "qoq-gross-profit-v1",     GrowthComparison.QuarterOverQuarter,    "GROSS_PROFIT",      FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("OPERATING_PROFIT_GROWTH_QOQ","qoq-operating-profit-v1", GrowthComparison.QuarterOverQuarter,    "OPERATING_PROFIT",  FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EPS_GROWTH_QOQ",             "qoq-eps-v1",              GrowthComparison.QuarterOverQuarter,    "EPS",               FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EBIT_GROWTH_QOQ",            "qoq-ebit-v1",             GrowthComparison.QuarterOverQuarter,    "EBIT",              FiscalPeriodType.ThreeMonths),
+        GrowthPolicy("EQUITY_GROWTH_QOQ",          "qoq-equity-v1",           GrowthComparison.QuarterOverQuarter,    "TOTAL_EQUITY",      FiscalPeriodType.ThreeMonths),
+
         new MetricCalculationPolicy(
             new MetricCode("PE_TTM"),
             new CalculationPolicyVersion("ttm-valuation-v1"),
@@ -262,6 +366,19 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricFormula("market-cap-divided-by-ttm-sales", "Market capitalization divided by TTM sales."),
             EffectiveFrom)
     ];
+
+    // Growth metrics are computed over ThreeMonths periods (Q1 cumulative = Q1 discrete).
+    // YoY uses the same cumulative period shifted one year back; QoQ uses discrete quarters
+    // produced by CodalDiscreteQuarterDeriver before being passed to the growth calculator.
+    private static FinancialMetricDefinition DefineGrowth(
+        string code,
+        string name,
+        string dependencyCode,
+        IReadOnlyCollection<MetricAlias> aliases) =>
+        Define(code, name, MetricCategory.Growth, Percentage,
+            [FiscalPeriodType.ThreeMonths],
+            aliases,
+            [Dependency(dependencyCode)]);
 
     // Vendor-precomputed ratios support cumulative quarterly periods (3/6/9/12-month) matching
     // CodalDB FinancialRatios.PeriodType values; no dependencies (values come from the vendor).

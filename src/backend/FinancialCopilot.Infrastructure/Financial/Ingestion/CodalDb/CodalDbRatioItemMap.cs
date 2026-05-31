@@ -36,7 +36,15 @@ public static class CodalDbRatioItemMap
             [4139]  = ("RETURN_ON_INVESTMENT",           "Percentage"),
             [4140]  = ("NET_RETURN_ON_WORKING_CAPITAL",  "Percentage"),
             [4135]  = ("NET_PROFIT_MARGIN",              "Percentage"),
-            [4117]  = ("DEBT_TO_EQUITY",                 "Ratio"),
+            [4117]  = ("DEBT_TO_EQUITY",                         "Ratio"),
+
+            // Vendor-precomputed growth rates (spec 026). Distinct codes from engine-derived growth.
+            [6902]  = ("SALES_GROWTH_RATE",                      "Percentage"),
+            [6903]  = ("NET_PROFIT_GROWTH_RATE",                 "Percentage"),
+            [8092]  = ("EQUITY_GROWTH_RATE",                     "Percentage"),
+            [6904]  = ("TOTAL_ASSETS_GROWTH_RATE",               "Percentage"),
+            [8091]  = ("TOTAL_DEBT_GROWTH_RATE",                 "Percentage"),
+            [6905]  = ("TANGIBLE_FIXED_ASSETS_GROWTH_RATE",      "Percentage"),
         };
 
     /// <summary>The complete set of mapped ratio item ids, used to filter SQL queries.</summary>

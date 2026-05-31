@@ -262,6 +262,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRegressionReporter, RegressionReporter>();
         services.AddScoped<IAiEvaluationRunner, AiEvaluationRunner>();
 
+        // EBIT = NET_PROFIT + FINANCE_COSTS + INCOME_TAX (additive composite).
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new AdditiveCompositeMetricCalculator(
+            new MetricCode("EBIT"),
+            [new MetricCode("NET_PROFIT"), new MetricCode("FINANCE_COSTS"), new MetricCode("INCOME_TAX")]));
+
+        // Growth calculators — existing NET_PROFIT and MONTHLY_SALES.
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
             new MetricCode("NET_PROFIT_GROWTH_YOY"),
             new MetricCode("NET_PROFIT")));
@@ -294,6 +300,23 @@ public static class ServiceCollectionExtensions
             new MetricCode("PS_TTM"),
             new MetricCode("MARKET_CAP"),
             new MetricCode("TTM_SALES")));
+
+        // CodalDB-derived YoY growth calculators (use cumulative ThreeMonths input, shifted −12 months).
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("REVENUE_GROWTH_YOY"),          new MetricCode("REVENUE")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("GROSS_PROFIT_GROWTH_YOY"),     new MetricCode("GROSS_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("OPERATING_PROFIT_GROWTH_YOY"), new MetricCode("OPERATING_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EPS_GROWTH_YOY"),              new MetricCode("EPS")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EBIT_GROWTH_YOY"),             new MetricCode("EBIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EQUITY_GROWTH_YOY"),           new MetricCode("TOTAL_EQUITY")));
+
+        // CodalDB-derived QoQ growth calculators (input must be discrete ThreeMonths via CodalDiscreteQuarterDeriver).
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("REVENUE_GROWTH_QOQ"),          new MetricCode("REVENUE")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("GROSS_PROFIT_GROWTH_QOQ"),     new MetricCode("GROSS_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("OPERATING_PROFIT_GROWTH_QOQ"), new MetricCode("OPERATING_PROFIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EPS_GROWTH_QOQ"),              new MetricCode("EPS")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EBIT_GROWTH_QOQ"),             new MetricCode("EBIT")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("EQUITY_GROWTH_QOQ"),           new MetricCode("TOTAL_EQUITY")));
+
         services.AddSingleton<FinancialMetricRegistry>(provider =>
             new FinancialMetricRegistry(
                 PhaseOneFinancialSemanticCatalog.Definitions,
@@ -402,7 +425,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbMonthlyReportNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbRatioNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
-        services.AddScoped<INormalizedMetricInputSource, NetProfitMetricInputSource>();
+        // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
+        // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
+        foreach (var code in new[] { "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
+                                     "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX" })
+        {
+            var captured = new MetricCode(code);
+            services.AddScoped<INormalizedMetricInputSource>(sp =>
+                new LineItemMetricInputSource(
+                    sp.GetRequiredService<FinancialIngestionDbContext>(), captured));
+        }
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
         services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();

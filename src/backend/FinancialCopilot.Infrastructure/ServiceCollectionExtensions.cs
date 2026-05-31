@@ -454,6 +454,22 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
         services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
+
+        // Missing-answer feedback (spec 028). Phase 1 default: real repository, no-op collector
+        // (so production has zero collection overhead until MissingAnswerFeedback:Enabled=true).
+        services
+            .AddOptions<MissingAnswerFeedbackOptions>()
+            .BindConfiguration(MissingAnswerFeedbackOptions.SectionName);
+        services.AddScoped<IMissingAnswerFeedbackRepository, EfCoreMissingAnswerFeedbackRepository>();
+        services.AddSingleton<NoOpMissingAnswerFeedbackCollector>();
+        services.AddSingleton<AsyncFireAndForgetMissingAnswerFeedbackCollector>();
+        services.AddSingleton<IMissingAnswerFeedbackCollector>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<MissingAnswerFeedbackOptions>>().Value;
+            return settings.Enabled
+                ? provider.GetRequiredService<AsyncFireAndForgetMissingAnswerFeedbackCollector>()
+                : provider.GetRequiredService<NoOpMissingAnswerFeedbackCollector>();
+        });
         services.AddScoped<FinancialDataSyncProcessor>();
         services.AddScoped<IFinancialDataSyncProcessor>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());

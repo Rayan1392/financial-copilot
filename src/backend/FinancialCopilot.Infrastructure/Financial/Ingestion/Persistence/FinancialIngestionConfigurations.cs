@@ -155,6 +155,36 @@ public sealed class CodalDbSyncStateRowConfiguration : IEntityTypeConfiguration<
     }
 }
 
+public sealed class MissingAnswerFeedbackRowConfiguration : IEntityTypeConfiguration<MissingAnswerFeedbackRow>
+{
+    public void Configure(EntityTypeBuilder<MissingAnswerFeedbackRow> builder)
+    {
+        builder.ToTable("MissingAnswerFeedbacks");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ActorId).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.QueryText).HasMaxLength(500).IsRequired();
+        builder.Property(row => row.QueryHashSha256).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.Classification).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.RequestedMetricCode).HasMaxLength(128);
+        builder.Property(row => row.AffectedDataCodeOrName).HasMaxLength(256);
+        builder.Property(row => row.Context).HasMaxLength(2000);
+
+        builder.HasIndex(row => row.ActorId);
+        builder.HasIndex(row => row.Classification);
+        builder.HasIndex(row => row.RequestedMetricCode);
+        builder.HasIndex(row => row.SubmittedAt);
+        builder.HasIndex(row => row.DateBucket);
+        // Coalesce key — duplicate (actor, query, classification) within the same day-bucket increments count.
+        builder.HasIndex(row => new
+        {
+            row.ActorId,
+            row.QueryHashSha256,
+            row.Classification,
+            row.DateBucket
+        }).IsUnique();
+    }
+}
+
 public sealed class DerivedMetricRowConfiguration : IEntityTypeConfiguration<DerivedMetricRow>
 {
     public void Configure(EntityTypeBuilder<DerivedMetricRow> builder)

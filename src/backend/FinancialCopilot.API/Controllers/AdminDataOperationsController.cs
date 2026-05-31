@@ -2,6 +2,8 @@ using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Domain.Financial.MissingAnswer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,6 +21,7 @@ public sealed class AdminDataOperationsController(
     IFinancialDataProviderHealthService providerHealth,
     ICyclicalWavesFullSyncService cyclicalWavesFullSync,
     ICodalDbScheduledSyncService codalDbScheduledSync,
+    IMissingAnswerFeedbackRepository missingAnswerFeedback,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -106,6 +109,75 @@ public sealed class AdminDataOperationsController(
             result.FailedCompanyIds,
             result.AdvancedWatermark,
             result.Duration.ToString("g")));
+    }
+
+    [HttpGet("missing-answer-feedback")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminMissingAnswerFeedbackItem>>> GetMissingAnswerFeedback(
+        [FromQuery] DateTimeOffset? dateFrom,
+        [FromQuery] DateTimeOffset? dateTo,
+        [FromQuery] string? classification,
+        [FromQuery] string? metricCode,
+        [FromQuery] string? actorId,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 100,
+        CancellationToken cancellationToken = default)
+    {
+        MissingAnswerFeedbackClassification? classificationFilter = null;
+        if (!string.IsNullOrWhiteSpace(classification))
+        {
+            if (!Enum.TryParse<MissingAnswerFeedbackClassification>(classification, ignoreCase: true, out var parsed))
+            {
+                ModelState.AddModelError(nameof(classification),
+                    $"Unknown classification '{classification}'. Valid: {string.Join(", ", Enum.GetNames<MissingAnswerFeedbackClassification>())}.");
+                return ValidationProblem(ModelState);
+            }
+            classificationFilter = parsed;
+        }
+
+        if (take is < 1 or > 1000)
+        {
+            ModelState.AddModelError(nameof(take), "Take must be between 1 and 1000.");
+            return ValidationProblem(ModelState);
+        }
+
+        var rows = await missingAnswerFeedback.QueryAsync(
+            new MissingAnswerFeedbackQuery(
+                DateFrom: dateFrom,
+                DateTo: dateTo,
+                Classification: classificationFilter,
+                RequestedMetricCode: metricCode,
+                ActorId: actorId,
+                Skip: skip,
+                Take: take),
+            cancellationToken);
+
+        return Ok(rows.Select(item => new AdminMissingAnswerFeedbackItem(
+            item.Id,
+            item.ActorId,
+            item.QueryText,
+            item.Classification.ToString(),
+            item.RequestedMetricCode,
+            item.AffectedDataCodeOrName,
+            item.SymbolCountTotal,
+            item.SymbolCountMatched,
+            item.SubmittedAt,
+            item.FrequencyCount,
+            item.ResolvedAt)).ToArray());
+    }
+
+    [HttpGet("missing-answer-feedback/summary")]
+    public async Task<ActionResult<AdminMissingAnswerFeedbackSummary>> GetMissingAnswerFeedbackSummary(
+        [FromQuery] DateTimeOffset? dateFrom,
+        [FromQuery] DateTimeOffset? dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        var counts = await missingAnswerFeedback.GetCountByClassificationAsync(dateFrom, dateTo, cancellationToken);
+        var byCode = counts.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value);
+        return Ok(new AdminMissingAnswerFeedbackSummary(
+            dateFrom,
+            dateTo,
+            byCode,
+            counts.Values.Sum()));
     }
 
     [HttpGet("provider-health")]

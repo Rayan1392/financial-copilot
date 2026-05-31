@@ -261,6 +261,41 @@ public sealed class CodalDbSyncStateRow
     public DateTimeOffset? LastRunCompletedAt { get; set; }
 }
 
+/// <summary>
+/// Persisted form of <c>MissingAnswerFeedback</c> (spec 028). Coalesced on
+/// <c>(ActorId, QueryHashSha256, Classification, DateBucket)</c>.
+/// </summary>
+public sealed class MissingAnswerFeedbackRow
+{
+    public Guid Id { get; set; }
+
+    public string ActorId { get; set; } = string.Empty;
+
+    public string QueryText { get; set; } = string.Empty;
+
+    public string QueryHashSha256 { get; set; } = string.Empty;
+
+    public string Classification { get; set; } = string.Empty;
+
+    public string? RequestedMetricCode { get; set; }
+
+    public string? AffectedDataCodeOrName { get; set; }
+
+    public int SymbolCountTotal { get; set; }
+
+    public int SymbolCountMatched { get; set; }
+
+    public DateTimeOffset SubmittedAt { get; set; }
+
+    public DateOnly DateBucket { get; set; }
+
+    public string? Context { get; set; }
+
+    public int FrequencyCount { get; set; } = 1;
+
+    public DateTimeOffset? ResolvedAt { get; set; }
+}
+
 public sealed class DerivedMetricRow
 {
     public Guid Id { get; set; }

@@ -46,3 +46,22 @@ public sealed record AdminCodalDbSyncResponse(
     IReadOnlyCollection<int> FailedCompanyIds,
     DateTimeOffset? AdvancedWatermark,
     string Duration);
+
+public sealed record AdminMissingAnswerFeedbackItem(
+    Guid Id,
+    string ActorId,
+    string QueryText,
+    string Classification,
+    string? RequestedMetricCode,
+    string? AffectedDataCodeOrName,
+    int SymbolCountTotal,
+    int SymbolCountMatched,
+    DateTimeOffset SubmittedAt,
+    int FrequencyCount,
+    DateTimeOffset? ResolvedAt);
+
+public sealed record AdminMissingAnswerFeedbackSummary(
+    DateTimeOffset? DateFrom,
+    DateTimeOffset? DateTo,
+    IReadOnlyDictionary<string, int> CountsByClassification,
+    int TotalCount);

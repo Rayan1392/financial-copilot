@@ -130,7 +130,9 @@ public sealed class AiQueryOrchestrationService(
                 {
                     var executionRequest = new ScannerExecutionRequest(
                         parseResult.Plan,
-                        DateOnly.FromDateTime(now.DateTime));
+                        DateOnly.FromDateTime(now.DateTime),
+                        ActorId: request.ActorId.ToString(),
+                        QueryText: request.Message);
                     var cachedTable = await scannerCache.GetResultAsync(
                         cacheScope,
                         dataVersion,

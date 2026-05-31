@@ -1,5 +1,8 @@
+using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Domain.Financial.Metrics;
+using FinancialCopilot.Domain.Financial.MissingAnswer;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +14,9 @@ public sealed class EfCoreScannerExecutionService(
     IScannerResultColumnPolicy columnPolicy,
     IMarketQuoteResolver quoteResolver,
     IScannerResultRanker ranker,
-    TimeProvider timeProvider) : IScannerExecutionService
+    TimeProvider timeProvider,
+    IFinancialMetricRegistry metricRegistry,
+    IMissingAnswerFeedbackCollector feedbackCollector) : IScannerExecutionService
 {
     public async Task<ScannerTableResult> ExecuteAsync(
         ScannerExecutionRequest request,
@@ -42,6 +47,12 @@ public sealed class EfCoreScannerExecutionService(
 
         if (totalSymbolCount == 0 || !plan.Conditions.Any())
         {
+            await TryCollectMissingAnswerFeedbackAsync(
+                request,
+                plan,
+                totalSymbolCount,
+                matchedSymbolCount: 0,
+                cancellationToken);
             return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), totalSymbolCount);
         }
 
@@ -124,6 +135,13 @@ public sealed class EfCoreScannerExecutionService(
         var ranked = ranker.Rank(rows, plan);
         var limited = ranked.Take(request.MaxRows).ToList();
 
+        await TryCollectMissingAnswerFeedbackAsync(
+            request,
+            plan,
+            totalSymbolCount,
+            matchingSymbols.Count,
+            cancellationToken);
+
         var endTime = timeProvider.GetUtcNow();
         return new ScannerTableResult(
             plan.PlanId,
@@ -131,6 +149,87 @@ public sealed class EfCoreScannerExecutionService(
             limited,
             new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbolCount, matchingSymbols.Count, FromCache: false),
             warnings);
+    }
+
+    /// <summary>
+    /// Spec 028: emit missing-answer feedback when the execution produced no rows or a sparse result
+    /// (matched &lt; 50% of the universe). Fire-and-forget by collector contract — this method must
+    /// never throw and must add no measurable latency to the query.
+    /// </summary>
+    private async Task TryCollectMissingAnswerFeedbackAsync(
+        ScannerExecutionRequest request,
+        ScannerQueryPlan plan,
+        int totalSymbolCount,
+        int matchedSymbolCount,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (request.ActorId is null || request.QueryText is null) return;
+            if (plan.Conditions.Count == 0) return;
+
+            var primary = plan.Conditions.First().MetricReference;
+            var primaryCode = primary.MetricCode.Value;
+            var asOf = request.AsOf;
+
+            var registered = TryResolveDefinition(primary.MetricCode, asOf);
+            var derivedRowCount = registered
+                ? await dbContext.DerivedMetrics.AsNoTracking()
+                    .CountAsync(row => row.MetricCode == primaryCode, cancellationToken)
+                : 0;
+
+            var classification = MissingAnswerFeedbackClassifier.Classify(
+                new MissingAnswerClassificationContext(
+                    PrimaryMetricCode: primaryCode,
+                    MetricRegistered: registered,
+                    DerivedMetricRowCountForMetric: derivedRowCount,
+                    TotalSymbolCount: totalSymbolCount,
+                    MatchedSymbolCount: matchedSymbolCount));
+            if (classification is null) return;
+
+            var context = JsonSerializer.Serialize(new
+            {
+                planId = plan.PlanId,
+                primaryMetric = primaryCode,
+                conditions = plan.Conditions.Select(c => new
+                {
+                    metric = c.MetricReference.MetricCode.Value,
+                    op = c.Operator.ToString(),
+                    threshold = c.Threshold
+                }).ToArray()
+            });
+
+            await feedbackCollector.CollectAsync(
+                new MissingAnswerFeedbackRequest(
+                    ActorId: request.ActorId,
+                    QueryText: request.QueryText,
+                    Classification: classification.Value,
+                    RequestedMetricCode: primaryCode,
+                    AffectedDataCodeOrName: primary.OriginalUserTerminology,
+                    SymbolCountTotal: totalSymbolCount,
+                    SymbolCountMatched: matchedSymbolCount,
+                    SubmittedAt: timeProvider.GetUtcNow(),
+                    Context: context),
+                cancellationToken);
+        }
+        catch
+        {
+            // Collection must never disturb the scanner response. Failures are observed by the
+            // collector itself (logging); we deliberately swallow here as a second safety net.
+        }
+    }
+
+    private bool TryResolveDefinition(MetricCode code, DateOnly asOf)
+    {
+        try
+        {
+            _ = metricRegistry.ResolveDefinition(code, asOf);
+            return true;
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(

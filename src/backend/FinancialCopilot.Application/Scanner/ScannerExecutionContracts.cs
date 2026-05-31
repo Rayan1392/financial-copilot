@@ -57,7 +57,11 @@ public sealed record ScannerTableResult(
 public sealed record ScannerExecutionRequest(
     ScannerQueryPlan Plan,
     DateOnly AsOf,
-    int MaxRows = 50);
+    int MaxRows = 50,
+    // Optional execution-time context used only for missing-answer feedback collection (spec 028).
+    // Null values disable feedback for this call; supplied by the AI facade orchestrator.
+    string? ActorId = null,
+    string? QueryText = null);
 
 public interface IScannerExecutionService
 {

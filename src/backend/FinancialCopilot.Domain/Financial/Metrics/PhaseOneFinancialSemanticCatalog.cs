@@ -9,6 +9,7 @@ public static class PhaseOneFinancialSemanticCatalog
     private static readonly MetricUnit Percentage = new("percent", "Percent");
     private static readonly MetricUnit Ratio = new("ratio", "Ratio");
     private static readonly MetricUnit PerShare = new("amount-per-share", "Amount per share");
+    private static readonly MetricUnit Days = new("days", "Days");
 
     public static IReadOnlyCollection<FinancialMetricDefinition> Definitions { get; } =
     [
@@ -154,7 +155,63 @@ public static class PhaseOneFinancialSemanticCatalog
             Ratio,
             [FiscalPeriodType.TrailingTwelveMonths],
             [Alias("p/s", "en-US", "PS_TTM"), Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM")],
-            [Dependency("MARKET_CAP"), Dependency("TTM_SALES")])
+            [Dependency("MARKET_CAP"), Dependency("TTM_SALES")]),
+
+        // CodalDB vendor-precomputed ratios (CalculationPolicyVersion = "codal-ratio-source-v1").
+        // Period types: 3/6/9/12-month cumulative, matching FinancialRatios.PeriodType values.
+        DefineRatio("CURRENT_RATIO", "Current Ratio", MetricCategory.FinancialHealth, Ratio,
+            [Alias("current ratio", "en-US", "CURRENT_RATIO"), Alias("نسبت جاری", "fa-IR", "CURRENT_RATIO")]),
+        DefineRatio("QUICK_RATIO", "Quick Ratio", MetricCategory.FinancialHealth, Ratio,
+            [Alias("quick ratio", "en-US", "QUICK_RATIO"), Alias("نسبت آنی", "fa-IR", "QUICK_RATIO"),
+             Alias("نسبت سریع", "fa-IR", "QUICK_RATIO")]),
+        DefineRatio("NET_WORKING_CAPITAL", "Net Working Capital", MetricCategory.FinancialHealth, Amount,
+            [Alias("net working capital", "en-US", "NET_WORKING_CAPITAL"),
+             Alias("سرمایه در گردش خالص", "fa-IR", "NET_WORKING_CAPITAL")]),
+        DefineRatio("COMPREHENSIVE_LIQUIDITY_INDEX", "Comprehensive Liquidity Index",
+            MetricCategory.FinancialHealth, Ratio,
+            [Alias("comprehensive liquidity index", "en-US", "COMPREHENSIVE_LIQUIDITY_INDEX"),
+             Alias("شاخص نقدینگی جامع", "fa-IR", "COMPREHENSIVE_LIQUIDITY_INDEX")]),
+        DefineRatio("CURRENT_ASSETS_TO_TOTAL_ASSETS", "Current Assets to Total Assets",
+            MetricCategory.FinancialHealth, Ratio,
+            [Alias("current assets to total assets", "en-US", "CURRENT_ASSETS_TO_TOTAL_ASSETS"),
+             Alias("نسبت دارایی‌های جاری به کل دارایی‌ها", "fa-IR", "CURRENT_ASSETS_TO_TOTAL_ASSETS")]),
+        DefineRatio("CURRENT_DEBT_TO_TOTAL_ASSETS", "Current Debt to Total Assets",
+            MetricCategory.FinancialHealth, Ratio,
+            [Alias("current debt to total assets", "en-US", "CURRENT_DEBT_TO_TOTAL_ASSETS"),
+             Alias("نسبت بدهی جاری به کل دارایی‌ها", "fa-IR", "CURRENT_DEBT_TO_TOTAL_ASSETS")]),
+        DefineRatio("ASSET_TURNOVER", "Asset Turnover", MetricCategory.FinancialHealth, Ratio,
+            [Alias("asset turnover", "en-US", "ASSET_TURNOVER"),
+             Alias("گردش دارایی‌ها", "fa-IR", "ASSET_TURNOVER")]),
+        DefineRatio("TANGIBLE_FIXED_ASSETS_TURNOVER", "Tangible Fixed Assets Turnover",
+            MetricCategory.FinancialHealth, Ratio,
+            [Alias("tangible fixed assets turnover", "en-US", "TANGIBLE_FIXED_ASSETS_TURNOVER"),
+             Alias("گردش دارایی‌های ثابت مشهود", "fa-IR", "TANGIBLE_FIXED_ASSETS_TURNOVER")]),
+        DefineRatio("OPERATING_ASSETS_RATIO", "Operating Assets Ratio", MetricCategory.FinancialHealth, Ratio,
+            [Alias("operating assets ratio", "en-US", "OPERATING_ASSETS_RATIO"),
+             Alias("نسبت دارایی‌های عملیاتی", "fa-IR", "OPERATING_ASSETS_RATIO")]),
+        DefineRatio("AVERAGE_COLLECTION_PERIOD", "Average Collection Period",
+            MetricCategory.FinancialHealth, Days,
+            [Alias("average collection period", "en-US", "AVERAGE_COLLECTION_PERIOD"),
+             Alias("دوره وصول مطالبات", "fa-IR", "AVERAGE_COLLECTION_PERIOD")]),
+        DefineRatio("RETURN_ON_ASSETS", "Return on Assets", MetricCategory.Profitability, Percentage,
+            [Alias("return on assets", "en-US", "RETURN_ON_ASSETS"), Alias("roa", "en-US", "RETURN_ON_ASSETS"),
+             Alias("بازده دارایی‌ها", "fa-IR", "RETURN_ON_ASSETS")]),
+        DefineRatio("RETURN_ON_EQUITY", "Return on Equity", MetricCategory.Profitability, Percentage,
+            [Alias("return on equity", "en-US", "RETURN_ON_EQUITY"), Alias("roe", "en-US", "RETURN_ON_EQUITY"),
+             Alias("بازده حقوق صاحبان سهام", "fa-IR", "RETURN_ON_EQUITY")]),
+        DefineRatio("RETURN_ON_INVESTMENT", "Return on Investment", MetricCategory.Profitability, Percentage,
+            [Alias("return on investment", "en-US", "RETURN_ON_INVESTMENT"), Alias("roi", "en-US", "RETURN_ON_INVESTMENT"),
+             Alias("بازده سرمایه‌گذاری", "fa-IR", "RETURN_ON_INVESTMENT")]),
+        DefineRatio("NET_RETURN_ON_WORKING_CAPITAL", "Net Return on Working Capital",
+            MetricCategory.Profitability, Percentage,
+            [Alias("net return on working capital", "en-US", "NET_RETURN_ON_WORKING_CAPITAL"),
+             Alias("بازده خالص سرمایه در گردش", "fa-IR", "NET_RETURN_ON_WORKING_CAPITAL")]),
+        DefineRatio("NET_PROFIT_MARGIN", "Net Profit Margin", MetricCategory.Profitability, Percentage,
+            [Alias("net profit margin", "en-US", "NET_PROFIT_MARGIN"),
+             Alias("حاشیه سود خالص", "fa-IR", "NET_PROFIT_MARGIN")]),
+        DefineRatio("DEBT_TO_EQUITY", "Debt to Equity", MetricCategory.FinancialHealth, Ratio,
+            [Alias("debt to equity", "en-US", "DEBT_TO_EQUITY"), Alias("d/e ratio", "en-US", "DEBT_TO_EQUITY"),
+             Alias("نسبت بدهی به حقوق صاحبان سهام", "fa-IR", "DEBT_TO_EQUITY")])
     ];
 
     public static IReadOnlyCollection<MetricCalculationPolicy> Policies { get; } =
@@ -205,6 +262,19 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricFormula("market-cap-divided-by-ttm-sales", "Market capitalization divided by TTM sales."),
             EffectiveFrom)
     ];
+
+    // Vendor-precomputed ratios support cumulative quarterly periods (3/6/9/12-month) matching
+    // CodalDB FinancialRatios.PeriodType values; no dependencies (values come from the vendor).
+    private static FinancialMetricDefinition DefineRatio(
+        string code,
+        string name,
+        MetricCategory category,
+        MetricUnit unit,
+        IReadOnlyCollection<MetricAlias> aliases) =>
+        Define(code, name, category, unit,
+            [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths,
+             FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
+            aliases, []);
 
     private static FinancialMetricDefinition DefineSource(
         string code,

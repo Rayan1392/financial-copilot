@@ -178,6 +178,58 @@ public sealed class SqlCodalDbQueryExecutor(
             return (IReadOnlyList<CodalMonthlyActivityRow>)rows;
         }, cancellationToken);
 
+    public Task<IReadOnlyList<CodalRatioRow>> QueryFinancialRatiosAsync(
+        int companyId,
+        IReadOnlyCollection<int> mappedItemIds,
+        CancellationToken cancellationToken) =>
+        resilience.ExecuteAsync("query financial ratios", async ct =>
+        {
+            if (mappedItemIds.Count == 0)
+                return (IReadOnlyList<CodalRatioRow>)[];
+
+            // Build a parameterized IN list; bind each id individually to avoid SQL injection.
+            var paramNames = mappedItemIds.Select((_, i) => $"@item{i}").ToList();
+            var sql = $"""
+                SELECT fr.Id, fr.CompanyId, fr.FiscalYearEnd, fr.JalaliFiscalYearEnd,
+                       fr.PeriodEnd, fr.JalaliPeriodEnd, fr.PeriodType,
+                       fr.IsAudited, fr.IsRepresented, fr.IsComposing,
+                       fr.ItemID, fr.ItemValue, fr.ModifiedDateTime
+                FROM FinancialRatios fr
+                WHERE fr.CompanyId = @companyId
+                  AND fr.ItemID IN ({string.Join(", ", paramNames)})
+                ORDER BY fr.PeriodEnd DESC, fr.ItemID;
+                """;
+
+            await using var connection = await connectionFactory.OpenAsync(ct);
+            await using var command = CreateCommand(connection, sql);
+            command.Parameters.AddWithValue("@companyId", companyId);
+            var ids = mappedItemIds.ToList();
+            for (var i = 0; i < ids.Count; i++)
+                command.Parameters.AddWithValue(paramNames[i], ids[i]);
+
+            var rows = new List<CodalRatioRow>();
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                rows.Add(new CodalRatioRow(
+                    Id: Convert.ToInt64(reader["Id"]),
+                    CompanyId: Convert.ToInt32(reader["CompanyId"]),
+                    FiscalYearEnd: ReqDateTimeOffset(reader["FiscalYearEnd"]),
+                    JalaliFiscalYearEnd: Str(reader["JalaliFiscalYearEnd"]),
+                    PeriodEnd: ReqDateTimeOffset(reader["PeriodEnd"]),
+                    JalaliPeriodEnd: Str(reader["JalaliPeriodEnd"]),
+                    PeriodType: Convert.ToInt32(reader["PeriodType"]),
+                    IsAudited: NBool(reader["IsAudited"]),
+                    IsRepresented: NBool(reader["IsRepresented"]),
+                    IsComposing: NBool(reader["IsComposing"]),
+                    ItemId: Convert.ToInt32(reader["ItemID"]),
+                    ItemValue: Convert.ToDouble(reader["ItemValue"]),
+                    ModifiedDateTime: NDateTimeOffset(reader["ModifiedDateTime"])));
+            }
+
+            return (IReadOnlyList<CodalRatioRow>)rows;
+        }, cancellationToken);
+
     public Task<CodalDbHealthProbe> ProbeAsync(CancellationToken cancellationToken) =>
         resilience.ExecuteAsync("health probe", async ct =>
         {

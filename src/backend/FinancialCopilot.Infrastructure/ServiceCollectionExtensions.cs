@@ -362,6 +362,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CodalDbSqlResilience>();
         services.AddScoped<ICodalDbQueryExecutor, SqlCodalDbQueryExecutor>();
         services.AddScoped<CodalDbDataProviderClient>();
+        services.AddScoped<IFinancialRatioProvider>(sp => sp.GetRequiredService<CodalDbDataProviderClient>());
         services.AddScoped<IFinancialDataProviderRouter>(provider =>
         {
             var cyclicalWaves = provider.GetRequiredService<CyclicalWavesDataProviderClient>();
@@ -399,6 +400,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbSymbolNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbMonthlyReportNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, CodalDbRatioNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         services.AddScoped<INormalizedMetricInputSource, NetProfitMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();

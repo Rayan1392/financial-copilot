@@ -49,5 +49,23 @@ public sealed record CodalMonthlyActivityRow(
     DateTimeOffset? ModifiedDateTime,
     IReadOnlyList<CodalMonthlyActivityAmount> Products);
 
+/// <summary>
+/// One row from <c>FinancialRatios</c> (vendor-precomputed ratio value, period, qualifier flags).
+/// </summary>
+public sealed record CodalRatioRow(
+    long Id,
+    int CompanyId,
+    DateTimeOffset FiscalYearEnd,
+    string? JalaliFiscalYearEnd,
+    DateTimeOffset PeriodEnd,
+    string? JalaliPeriodEnd,
+    int PeriodType,
+    bool? IsAudited,
+    bool? IsRepresented,
+    bool? IsComposing,
+    int ItemId,
+    double ItemValue,
+    DateTimeOffset? ModifiedDateTime);
+
 /// <summary>Result of a lightweight CodalDB health probe.</summary>
 public sealed record CodalDbHealthProbe(bool Reachable, long? CompanyCount, string? Detail);

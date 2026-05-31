@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
@@ -14,7 +15,7 @@ public sealed class CodalDbDataProviderClient(
     ICodalDbQueryExecutor queryExecutor,
     IOptions<CodalDbProviderOptions> options,
     TimeProvider timeProvider)
-    : ISymbolDataProvider, IFinancialStatementProvider, IMonthlyProductionSalesProvider, IFinancialDataProviderHealthService
+    : ISymbolDataProvider, IFinancialStatementProvider, IMonthlyProductionSalesProvider, IFinancialRatioProvider, IFinancialDataProviderHealthService
 {
     private readonly CodalDbProviderOptions _options = options.Value;
 
@@ -51,6 +52,21 @@ public sealed class CodalDbDataProviderClient(
         return BuildPayload(
             ProviderDataset.MonthlyProductionSales,
             $"codaldb://monthly-activity/{companyId}",
+            externalCompanyId,
+            serialized);
+    }
+
+    public async Task<ProviderRawPayload> FetchFinancialRatiosAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = ParseCompanyId(externalCompanyId);
+        var rows = await queryExecutor.QueryFinancialRatiosAsync(
+            companyId, CodalDbRatioItemMap.MappedItemIds, cancellationToken);
+        var serialized = CodalDbPayloadSerializer.Serialize(rows, row => row.Id);
+        return BuildPayload(
+            ProviderDataset.FinancialRatios,
+            $"codaldb://financial-ratios/{companyId}",
             externalCompanyId,
             serialized);
     }

@@ -487,3 +487,204 @@ internal sealed class DualConditionFakeAiModelClient : IAiModelClient
         Task.FromResult(new AiProviderHealthResult(
             Descriptor.ProviderKey, Descriptor.ModelKey, Available: true, DateTimeOffset.UtcNow, "OK"));
 }
+
+// ── CodalDB vendor-precomputed ratio scanner tests ─────────────────────────────────────────────
+
+/// <summary>
+/// Verifies that vendor-precomputed CodalDB ratios persisted as <c>DerivedMetricRow</c>s with
+/// <c>CalculationPolicyVersion = "codal-ratio-source-v1"</c> are scannable through the existing
+/// <c>DerivedMetrics</c> read path with no scanner-engine changes.
+/// </summary>
+public sealed class CodalDbRatioScannerTests : IClassFixture<CodalDbRatioScannerApiFactory>
+{
+    private readonly CodalDbRatioScannerApiFactory _factory;
+
+    public CodalDbRatioScannerTests(CodalDbRatioScannerApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task AiQuery_ReturnOnEquityAbove15_ReturnsCodalCompanyWithVendorRatio()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "ROE above 15" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var rows = document.RootElement.GetProperty("scannerTable")
+            .GetProperty("rows").EnumerateArray().ToList();
+        Assert.Single(rows);
+        Assert.Equal("CODAL1", rows[0].GetProperty("symbolCode").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_CurrentRatioAbove1_ReturnsMatchingCodalCompany()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "current ratio above 1" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var rows = document.RootElement.GetProperty("scannerTable")
+            .GetProperty("rows").EnumerateArray().ToList();
+        Assert.Single(rows);
+        Assert.Equal("CODAL1", rows[0].GetProperty("symbolCode").GetString());
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class CodalDbRatioScannerApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"codal-ratio-scanner-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _lock = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => new CodalDbRatioFakeAiModelClient());
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_lock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTestData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTestData(FinancialIngestionDbContext db)
+    {
+        var companyId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+        var symbolId  = Guid.Parse("40000000-0000-0000-0000-000000000001");
+        var now = DateTimeOffset.UtcNow;
+        var periodStart = new DateOnly(2024, 4, 1);
+        var periodEnd   = new DateOnly(2025, 3, 31);
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId, Name = "Codal Company One",
+            ProviderName = "CodalDb", ExternalCompanyId = "3001",
+            LastSynchronizedAt = now
+        });
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = symbolId, CompanyId = companyId,
+            ProviderName = "CodalDb", ExternalSymbolId = "3001",
+            SymbolCode = "CODAL1", LastSynchronizedAt = now
+        });
+
+        // ROE = 18.5% (CodalDB vendor-precomputed) — qualifies for "ROE > 15"
+        db.DerivedMetrics.Add(MakeVendorRatio(symbolId, "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
+        // CURRENT_RATIO = 2.3 — qualifies for "current ratio > 1"
+        db.DerivedMetrics.Add(MakeVendorRatio(symbolId, "CURRENT_RATIO", 2.3m, periodStart, periodEnd, now));
+        // MARKET_CAP for default columns
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(), SymbolId = symbolId,
+            MetricCode = "MARKET_CAP", MetricVersion = "v1", CalculationPolicyVersion = "mktcap_v1",
+            PeriodType = "TwelveMonths", PeriodStart = periodStart, PeriodEnd = periodEnd,
+            Value = 3_000_000_000m, Unit = "Amount",
+            ObservedAt = now, LastSynchronizedAt = now,
+            WarningsJson = "[]", SourceEvidenceJson = "[]", DependencyEvidenceJson = "[]"
+        });
+    }
+
+    private static DerivedMetricRow MakeVendorRatio(
+        Guid symbolId, string metricCode, decimal value,
+        DateOnly periodStart, DateOnly periodEnd, DateTimeOffset now) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbolId,
+            MetricCode = metricCode,
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "codal-ratio-source-v1",
+            PeriodType = "TwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = value,
+            Unit = "Percentage",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"CodalDb\",\"vendorPrecomputed\":true}]",
+            DependencyEvidenceJson = "[]"
+        };
+}
+
+/// <summary>Routes scanner conditions for RETURN_ON_EQUITY and CURRENT_RATIO.</summary>
+internal sealed class CodalDbRatioFakeAiModelClient : IAiModelClient
+{
+    public AiModelProviderDescriptor Descriptor { get; } = new(
+        "CodalRatioFake", "fake-v1", AiProviderHostingMode.Fake,
+        AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput |
+        AiModelCapability.UsageReporting | AiModelCapability.HealthCheck,
+        Enabled: true, Priority: 1);
+
+    public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
+    {
+        var isRoe = request.Messages.Any(m => m.Content?.Contains("ROE", StringComparison.OrdinalIgnoreCase) == true
+            || m.Content?.Contains("return on equity", StringComparison.OrdinalIgnoreCase) == true);
+
+        var condition = isRoe
+            ? """{"userTerminology":"ROE","language":"en","operator":"GreaterThan","threshold":15.0,"periodHint":null,"growthComparison":null,"inferredDefault":false,"inferredReason":null}"""
+            : """{"userTerminology":"current ratio","language":"en","operator":"GreaterThan","threshold":1.0,"periodHint":null,"growthComparison":null,"inferredDefault":false,"inferredReason":null}""";
+
+        var json = request.StructuredOutput?.SchemaName switch
+        {
+            "IntentDetectionOutput" => "{\"intent\":\"Scanner\",\"confidence\":0.97}",
+            "ScannerParseOutput" =>
+                $$"""{"detectedLanguage":"en","conditions":[{{condition}}],"requestedColumns":[],"clarificationRequired":false,"clarificationMessage":null}""",
+            "ScannerExplanationOutput" =>
+                """{"explanationText":"Vendor-precomputed ratio from CodalDB (codal-ratio-source-v1).","suggestedFollowUpQuestions":["Show P/E ratio","Filter by current ratio > 2"]}""",
+            _ => "{}"
+        };
+
+        return Task.FromResult(new AiModelResult(
+            Text: null, StructuredJson: json, ToolCalls: [],
+            Usage: new AiExecutionUsageFacts(
+                request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
+                AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
+                InputTokens: 10, OutputTokens: 5)));
+    }
+
+    public IAsyncEnumerable<AiStreamingChunk> StreamAsync(AiModelRequest request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiEmbeddingResult> CreateEmbeddingsAsync(AiEmbeddingRequest request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new AiProviderHealthResult(
+            Descriptor.ProviderKey, Descriptor.ModelKey, Available: true, DateTimeOffset.UtcNow, "OK"));
+}

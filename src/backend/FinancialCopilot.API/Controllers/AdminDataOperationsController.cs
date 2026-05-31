@@ -38,6 +38,13 @@ public sealed class AdminDataOperationsController(
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.MonthlyProductionSales, request, requiresReference: true, cancellationToken);
 
+    [HttpPost("data-sync/financial-ratios")]
+    public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueFinancialRatiosSync(
+        [FromBody] AdminDataSyncRequest? request,
+        CancellationToken cancellationToken) =>
+        QueueAsync(ProviderDataset.FinancialRatios, request, requiresReference: true, cancellationToken,
+            providerName: "CodalDb");
+
     [HttpGet("data-sync/runs")]
     public async Task<ActionResult<IReadOnlyCollection<AdminDataSyncRunResponse>>> GetRuns(
         [FromQuery] int limit = 20,
@@ -93,7 +100,8 @@ public sealed class AdminDataOperationsController(
         ProviderDataset dataset,
         AdminDataSyncRequest? request,
         bool requiresReference,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? providerName = null)
     {
         var externalReference = string.IsNullOrWhiteSpace(request?.ExternalReference)
             ? null
@@ -115,7 +123,8 @@ public sealed class AdminDataOperationsController(
             dataset,
             externalReference,
             now,
-            idempotencyKey);
+            idempotencyKey,
+            ProviderName: providerName);
 
         await publisher.PublishAsync(message, cancellationToken);
         return Accepted(new AdminDataSyncQueuedResponse(

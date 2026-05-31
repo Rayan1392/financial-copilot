@@ -8,7 +8,8 @@ public enum ProviderDataset
     Symbols,
     MarketQuotes,
     FinancialStatements,
-    MonthlyProductionSales
+    MonthlyProductionSales,
+    FinancialRatios
 }
 
 public sealed record ProviderFetchRequest(
@@ -51,6 +52,13 @@ public interface IFinancialStatementProvider
 public interface IMonthlyProductionSalesProvider
 {
     Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken);
+}
+
+public interface IFinancialRatioProvider
+{
+    Task<ProviderRawPayload> FetchFinancialRatiosAsync(
         string externalCompanyId,
         CancellationToken cancellationToken);
 }

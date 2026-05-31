@@ -15,5 +15,14 @@ public interface ICodalDbQueryExecutor
         int companyId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Returns vendor-precomputed ratio rows for <paramref name="companyId"/>, filtered to the
+    /// curated <paramref name="mappedItemIds"/> set. Never a full-table scan.
+    /// </summary>
+    Task<IReadOnlyList<CodalRatioRow>> QueryFinancialRatiosAsync(
+        int companyId,
+        IReadOnlyCollection<int> mappedItemIds,
+        CancellationToken cancellationToken);
+
     Task<CodalDbHealthProbe> ProbeAsync(CancellationToken cancellationToken);
 }

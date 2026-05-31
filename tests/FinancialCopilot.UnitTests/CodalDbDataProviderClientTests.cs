@@ -89,6 +89,7 @@ public sealed class CodalDbDataProviderClientTests
         public IReadOnlyList<CodalDbCompanyRecord> Companies { get; init; } = [];
         public IReadOnlyList<CodalStatementRow> Statements { get; init; } = [];
         public IReadOnlyList<CodalMonthlyActivityRow> Monthly { get; init; } = [];
+        public IReadOnlyList<CodalRatioRow> Ratios { get; init; } = [];
         public CodalDbHealthProbe Probe { get; init; } = new(true, 1, null);
         public Exception? ProbeError { get; init; }
 
@@ -100,6 +101,12 @@ public sealed class CodalDbDataProviderClientTests
 
         public Task<IReadOnlyList<CodalMonthlyActivityRow>> QueryMonthlyActivityAsync(int companyId, CancellationToken cancellationToken) =>
             Task.FromResult(Monthly);
+
+        public Task<IReadOnlyList<CodalRatioRow>> QueryFinancialRatiosAsync(
+            int companyId,
+            IReadOnlyCollection<int> mappedItemIds,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Ratios);
 
         public Task<CodalDbHealthProbe> ProbeAsync(CancellationToken cancellationToken) =>
             ProbeError is not null

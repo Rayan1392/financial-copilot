@@ -18,7 +18,8 @@ public sealed class FinancialDataSyncProcessor(
     TimeProvider timeProvider,
     ILogger<FinancialDataSyncProcessor> logger,
     IScannerCache? scannerCache = null,
-    IFinancialDataProviderRouter? providerRouter = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    IFinancialDataProviderRouter? providerRouter = null,
+    IFinancialRatioProvider? ratioProvider = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -127,6 +128,10 @@ public sealed class FinancialDataSyncProcessor(
                 .FetchFinancialStatementsAsync(RequireExternalReference(request), cancellationToken),
             ProviderDataset.MonthlyProductionSales => ResolveMonthlyProvider(request.ProviderName)
                 .FetchMonthlyReportsAsync(RequireExternalReference(request), cancellationToken),
+            ProviderDataset.FinancialRatios =>
+                (ratioProvider ?? throw new InvalidOperationException(
+                    "No IFinancialRatioProvider is registered for the FinancialRatios dataset."))
+                .FetchFinancialRatiosAsync(RequireExternalReference(request), cancellationToken),
             _ => throw new InvalidOperationException(
                 $"Dataset '{request.Dataset}' is not supported for normalized ingestion.")
         };

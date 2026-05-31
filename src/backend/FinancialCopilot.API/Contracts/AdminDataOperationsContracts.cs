@@ -37,3 +37,12 @@ public sealed record AdminCyclicalWavesFullSyncResponse(
     int TickersFailed,
     IReadOnlyCollection<string> FailedTickers,
     string Duration);
+
+public sealed record AdminCodalDbSyncResponse(
+    bool FullReload,
+    int CompaniesConsidered,
+    int CompaniesEnqueued,
+    int FailedCompanies,
+    IReadOnlyCollection<int> FailedCompanyIds,
+    DateTimeOffset? AdvancedWatermark,
+    string Duration);

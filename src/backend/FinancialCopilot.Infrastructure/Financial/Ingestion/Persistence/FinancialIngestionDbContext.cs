@@ -29,6 +29,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<MetricRecalculationRequestRow> MetricRecalculationRequests =>
         Set<MetricRecalculationRequestRow>();
 
+    public DbSet<CodalDbSyncStateRow> CodalDbSyncStates => Set<CodalDbSyncStateRow>();
+
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
 
     public DbSet<FeatureDefinitionRow> FeatureDefinitions => Set<FeatureDefinitionRow>();

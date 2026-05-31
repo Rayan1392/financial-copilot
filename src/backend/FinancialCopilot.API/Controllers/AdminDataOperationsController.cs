@@ -18,6 +18,7 @@ public sealed class AdminDataOperationsController(
     IDataSyncRunReader runReader,
     IFinancialDataProviderHealthService providerHealth,
     ICyclicalWavesFullSyncService cyclicalWavesFullSync,
+    ICodalDbScheduledSyncService codalDbScheduledSync,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -81,6 +82,29 @@ public sealed class AdminDataOperationsController(
             result.TickersSynced,
             result.TickersFailed,
             result.FailedTickers,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpPost("codaldb/full-sync")]
+    public Task<ActionResult<AdminCodalDbSyncResponse>> RunCodalDbFullSync(CancellationToken cancellationToken) =>
+        RunCodalDbSyncAsync(fullReload: true, cancellationToken);
+
+    [HttpPost("codaldb/incremental-sync")]
+    public Task<ActionResult<AdminCodalDbSyncResponse>> RunCodalDbIncrementalSync(CancellationToken cancellationToken) =>
+        RunCodalDbSyncAsync(fullReload: false, cancellationToken);
+
+    private async Task<ActionResult<AdminCodalDbSyncResponse>> RunCodalDbSyncAsync(
+        bool fullReload,
+        CancellationToken cancellationToken)
+    {
+        var result = await codalDbScheduledSync.ExecuteAsync(fullReload, cancellationToken);
+        return Ok(new AdminCodalDbSyncResponse(
+            result.FullReload,
+            result.CompaniesConsidered,
+            result.CompaniesEnqueued,
+            result.FailedCompanies,
+            result.FailedCompanyIds,
+            result.AdvancedWatermark,
             result.Duration.ToString("g")));
     }
 

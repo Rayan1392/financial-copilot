@@ -451,6 +451,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();
+        services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
+        services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
+        services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
         services.AddScoped<FinancialDataSyncProcessor>();
         services.AddScoped<IFinancialDataSyncProcessor>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());

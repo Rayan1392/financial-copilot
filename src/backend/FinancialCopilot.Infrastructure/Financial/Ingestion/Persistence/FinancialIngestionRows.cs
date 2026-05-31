@@ -233,6 +233,32 @@ public sealed class MetricRecalculationRequestRow
     public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public DateTimeOffset RequestedAt { get; set; }
+
+    /// <summary>Set by <c>MetricRecalculationProcessor</c> once the row has been processed.</summary>
+    public DateTimeOffset? ProcessedAt { get; set; }
+
+    public int AttemptCount { get; set; }
+
+    public DateTimeOffset? LastAttemptAt { get; set; }
+
+    /// <summary>Truncated to 1000 chars; null after a successful attempt.</summary>
+    public string? LastError { get; set; }
+}
+
+/// <summary>
+/// Per-dataset incremental-sync watermark for the CodalDB scheduled orchestrator (spec 027). One row
+/// per <see cref="Dataset"/>, holding the maximum source <c>ModifiedDateTime</c> we have successfully
+/// enqueued — the next incremental run only considers rows newer than this.
+/// </summary>
+public sealed class CodalDbSyncStateRow
+{
+    public string Dataset { get; set; } = string.Empty;
+
+    public DateTimeOffset? LastSyncedModifiedDateTime { get; set; }
+
+    public DateTimeOffset? LastRunStartedAt { get; set; }
+
+    public DateTimeOffset? LastRunCompletedAt { get; set; }
 }
 
 public sealed class DerivedMetricRow

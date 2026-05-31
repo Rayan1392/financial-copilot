@@ -142,6 +142,57 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         Assert.Equal("Healthy", document.RootElement.GetProperty("status").GetString());
     }
 
+    [Fact]
+    public async Task CodalDb_FullSync_AsDataAdmin_ReturnsRunSummary()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync("/api/v1/admin/codaldb/full-sync", content: null, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("fullReload").GetBoolean());
+        Assert.Equal(5, document.RootElement.GetProperty("companiesConsidered").GetInt32());
+        Assert.Equal(5, document.RootElement.GetProperty("companiesEnqueued").GetInt32());
+        Assert.Equal([true], _factory.CodalDbSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task CodalDb_IncrementalSync_AsDataAdmin_InvokesIncrementalMode()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync("/api/v1/admin/codaldb/incremental-sync", content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([false], _factory.CodalDbSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task CodalDb_FullSync_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsync("/api/v1/admin/codaldb/full-sync", content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.CodalDbSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task CodalDb_FullSync_AsApiClient_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsync("/api/v1/admin/codaldb/full-sync", content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.CodalDbSync.InvocationModes);
+    }
+
     private HttpClient CreateDataAdminClient()
     {
         var client = _factory.CreateClient();
@@ -164,8 +215,10 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly CapturingDataSyncPublisher _publisher = new();
     private readonly StubDataSyncRunReader _runReader = new();
     private readonly StubProviderHealthService _providerHealth = new();
+    private readonly StubCodalDbScheduledSyncService _codalDbSync = new();
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
+    public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -175,13 +228,39 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDataSyncRequestPublisher>();
             services.RemoveAll<IDataSyncRunReader>();
             services.RemoveAll<IFinancialDataProviderHealthService>();
+            services.RemoveAll<ICodalDbScheduledSyncService>();
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
             services.AddSingleton<IFinancialDataProviderHealthService>(_providerHealth);
+            services.AddSingleton<ICodalDbScheduledSyncService>(_codalDbSync);
         });
     }
 
-    public void Reset() => _publisher.Requests.Clear();
+    public void Reset()
+    {
+        _publisher.Requests.Clear();
+        _codalDbSync.Reset();
+    }
+
+    public sealed class StubCodalDbScheduledSyncService : ICodalDbScheduledSyncService
+    {
+        public List<bool> InvocationModes { get; } = [];
+
+        public Task<CodalDbScheduledSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
+        {
+            InvocationModes.Add(fullReload);
+            return Task.FromResult(new CodalDbScheduledSyncResult(
+                fullReload,
+                CompaniesConsidered: 5,
+                CompaniesEnqueued: 5,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                AdvancedWatermark: DateTimeOffset.Parse("2026-05-31T08:00:00Z"),
+                Duration: TimeSpan.FromSeconds(1.25)));
+        }
+
+        public void Reset() => InvocationModes.Clear();
+    }
 
     private sealed class CapturingDataSyncPublisher : IDataSyncRequestPublisher
     {

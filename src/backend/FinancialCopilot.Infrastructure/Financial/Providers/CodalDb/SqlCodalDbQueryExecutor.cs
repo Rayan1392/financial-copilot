@@ -230,6 +230,64 @@ public sealed class SqlCodalDbQueryExecutor(
             return (IReadOnlyList<CodalRatioRow>)rows;
         }, cancellationToken);
 
+    public Task<IReadOnlyList<int>> QueryChangedCompanyIdsAsync(
+        DateTimeOffset? since,
+        CancellationToken cancellationToken) =>
+        resilience.ExecuteAsync("query changed company ids", async ct =>
+        {
+            // UNION across the four mutable tables; DISTINCT companies whose source ModifiedDateTime
+            // is newer than the watermark. When @since is NULL this returns every company present in
+            // any of the source tables (full-reload mode).
+            const string sql = """
+                SELECT DISTINCT CoID AS CompanyId
+                FROM Companies WHERE @since IS NULL OR ModifiedDateTime > @since
+                UNION
+                SELECT DISTINCT CompanyId
+                FROM Statements
+                WHERE (isDeleted = 0 OR isDeleted IS NULL)
+                  AND (@since IS NULL OR ModifiedDateTime > @since)
+                UNION
+                SELECT DISTINCT CompanyId
+                FROM MonthlyActivity
+                WHERE @since IS NULL OR ModifiedDateTime > @since
+                UNION
+                SELECT DISTINCT CompanyId
+                FROM FinancialRatios
+                WHERE @since IS NULL OR ModifiedDateTime > @since;
+                """;
+
+            await using var connection = await connectionFactory.OpenAsync(ct);
+            await using var command = CreateCommand(connection, sql);
+            command.Parameters.AddWithValue("@since", (object?)since ?? DBNull.Value);
+            await using var reader = await command.ExecuteReaderAsync(ct);
+
+            var ids = new List<int>();
+            while (await reader.ReadAsync(ct))
+            {
+                ids.Add(Convert.ToInt32(reader["CompanyId"]));
+            }
+
+            return (IReadOnlyList<int>)ids;
+        }, cancellationToken);
+
+    public Task<DateTimeOffset?> QueryMaxModifiedDateTimeAsync(CancellationToken cancellationToken) =>
+        resilience.ExecuteAsync("query max modified", async ct =>
+        {
+            const string sql = """
+                SELECT MAX(m) FROM (
+                    SELECT MAX(ModifiedDateTime) AS m FROM Companies
+                    UNION ALL SELECT MAX(ModifiedDateTime) FROM Statements WHERE (isDeleted = 0 OR isDeleted IS NULL)
+                    UNION ALL SELECT MAX(ModifiedDateTime) FROM MonthlyActivity
+                    UNION ALL SELECT MAX(ModifiedDateTime) FROM FinancialRatios
+                ) t;
+                """;
+
+            await using var connection = await connectionFactory.OpenAsync(ct);
+            await using var command = CreateCommand(connection, sql);
+            var result = await command.ExecuteScalarAsync(ct);
+            return result is null or DBNull ? null : (DateTimeOffset?)ReqDateTimeOffset(result);
+        }, cancellationToken);
+
     public Task<CodalDbHealthProbe> ProbeAsync(CancellationToken cancellationToken) =>
         resilience.ExecuteAsync("health probe", async ct =>
         {

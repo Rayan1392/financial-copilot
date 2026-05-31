@@ -140,6 +140,18 @@ public sealed class MetricRecalculationRequestRowConfiguration :
         builder.ToTable("MetricRecalculationRequests");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.SourceDataset, row.SourcePayloadChecksum }).IsUnique();
+        builder.HasIndex(row => row.ProcessedAt);
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+    }
+}
+
+public sealed class CodalDbSyncStateRowConfiguration : IEntityTypeConfiguration<CodalDbSyncStateRow>
+{
+    public void Configure(EntityTypeBuilder<CodalDbSyncStateRow> builder)
+    {
+        builder.ToTable("CodalDbSyncStates");
+        builder.HasKey(row => row.Dataset);
+        builder.Property(row => row.Dataset).HasMaxLength(64);
     }
 }
 

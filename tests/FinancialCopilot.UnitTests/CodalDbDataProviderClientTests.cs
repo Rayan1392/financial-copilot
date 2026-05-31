@@ -112,5 +112,13 @@ public sealed class CodalDbDataProviderClientTests
             ProbeError is not null
                 ? Task.FromException<CodalDbHealthProbe>(ProbeError)
                 : Task.FromResult(Probe);
+
+        public Task<IReadOnlyList<int>> QueryChangedCompanyIdsAsync(
+            DateTimeOffset? since,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<int>>([]);
+
+        public Task<DateTimeOffset?> QueryMaxModifiedDateTimeAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<DateTimeOffset?>(null);
     }
 }

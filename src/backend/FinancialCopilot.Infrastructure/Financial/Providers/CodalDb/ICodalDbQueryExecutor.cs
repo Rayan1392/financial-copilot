@@ -25,4 +25,20 @@ public interface ICodalDbQueryExecutor
         CancellationToken cancellationToken);
 
     Task<CodalDbHealthProbe> ProbeAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the distinct <c>CompanyId</c> values for which Companies/Statements/MonthlyActivity/
+    /// FinancialRatios <c>ModifiedDateTime</c> is strictly greater than <paramref name="since"/>.
+    /// When <paramref name="since"/> is null this is a full inventory (used by full-reload mode).
+    /// </summary>
+    Task<IReadOnlyList<int>> QueryChangedCompanyIdsAsync(
+        DateTimeOffset? since,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the maximum <c>ModifiedDateTime</c> across Companies/Statements/MonthlyActivity/
+    /// FinancialRatios, or null when every source table is empty. Used by the incremental sync
+    /// orchestrator to advance the watermark after a successful run.
+    /// </summary>
+    Task<DateTimeOffset?> QueryMaxModifiedDateTimeAsync(CancellationToken cancellationToken);
 }

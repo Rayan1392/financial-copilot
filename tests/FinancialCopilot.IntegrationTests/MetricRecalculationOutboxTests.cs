@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
@@ -106,6 +107,7 @@ public sealed class MetricRecalculationOutboxTests
             ProviderName = "CodalDb",
             ExternalCompanyId = externalCompanyId,
             ExternalStatementId = $"{externalCompanyId}-2025-Q1",
+            StatementType = nameof(FinancialStatementType.IncomeStatement),
             PeriodType = nameof(FiscalPeriodType.ThreeMonths),
             PeriodStart = new DateOnly(2025, 1, 1),
             PeriodEnd = new DateOnly(2025, 3, 31),
@@ -118,6 +120,7 @@ public sealed class MetricRecalculationOutboxTests
             ProviderName = "CodalDb",
             ExternalCompanyId = externalCompanyId,
             ExternalStatementId = $"{externalCompanyId}-2026-Q1",
+            StatementType = nameof(FinancialStatementType.IncomeStatement),
             PeriodType = nameof(FiscalPeriodType.ThreeMonths),
             PeriodStart = new DateOnly(2026, 1, 1),
             PeriodEnd = new DateOnly(2026, 3, 31),

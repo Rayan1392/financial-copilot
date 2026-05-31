@@ -128,6 +128,22 @@ public sealed class CyclicalWavesNormalizerTests
     }
 
     [Fact]
+    public async Task FinancialStatementNormalizer_WritesIncomeStatementTypeAndThreeMonthsPeriodType()
+    {
+        // Spec 029 regression guard: CyclicalWaves writes only quarterly income data, so every row
+        // must have StatementType=IncomeStatement and PeriodType=ThreeMonths.
+        await using var db = CreateDbContext();
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
+
+        await normalizer.NormalizeAsync(payload, default);
+
+        var rows = await db.FinancialStatements.ToListAsync();
+        Assert.All(rows, row => Assert.Equal("IncomeStatement", row.StatementType));
+        Assert.All(rows, row => Assert.Equal("ThreeMonths", row.PeriodType));
+    }
+
+    [Fact]
     public async Task FinancialStatementNormalizer_Q0RowHasPeAndPsLineItems()
     {
         await using var db = CreateDbContext();

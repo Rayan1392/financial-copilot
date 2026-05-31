@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531141010_AddRecalculationOutboxAndCodalSyncState")]
+    partial class AddRecalculationOutboxAndCodalSyncState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -614,20 +617,13 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("StatementType")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
                     b.Property<string>("WarningsJson")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProviderName", "StatementType");
-
-                    b.HasIndex("ProviderName", "ExternalStatementId", "StatementType")
+                    b.HasIndex("ProviderName", "ExternalStatementId")
                         .IsUnique();
 
                     b.ToTable("FinancialStatements", (string)null);

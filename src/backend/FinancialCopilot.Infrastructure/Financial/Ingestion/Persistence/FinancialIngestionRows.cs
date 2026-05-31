@@ -132,6 +132,13 @@ public sealed class NormalizedFinancialStatementRow
 
     public string ExternalStatementId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Stringified <c>FinancialCopilot.Domain.Financial.Entities.FinancialStatementType</c> value
+    /// — <c>IncomeStatement</c>, <c>BalanceSheet</c>, or <c>CashFlow</c>. Distinguishes the kind
+    /// of statement (spec 029); the period duration lives in <see cref="PeriodType"/>.
+    /// </summary>
+    public string StatementType { get; set; } = string.Empty;
+
     public string PeriodType { get; set; } = string.Empty;
 
     public DateOnly PeriodStart { get; set; }

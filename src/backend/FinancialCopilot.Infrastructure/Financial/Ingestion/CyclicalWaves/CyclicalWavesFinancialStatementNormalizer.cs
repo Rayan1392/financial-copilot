@@ -1,6 +1,8 @@
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.DataQuality;
+using FinancialCopilot.Domain.Financial.Entities;
+using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
@@ -75,10 +77,17 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             )
         };
 
+        // CyclicalWaves exposes only quarterly income data in Phase 1. Spec 029 disambiguates the
+        // statement *kind* (StatementType) from the period *duration* (PeriodType).
+        var incomeStatementType = nameof(FinancialStatementType.IncomeStatement);
+        var threeMonthsPeriodType = nameof(FiscalPeriodType.ThreeMonths);
+
         foreach (var p in periods)
         {
             var statement = await dbContext.FinancialStatements.SingleOrDefaultAsync(
-                row => row.ProviderName == ProviderName && row.ExternalStatementId == p.StatementId,
+                row => row.ProviderName == ProviderName &&
+                    row.ExternalStatementId == p.StatementId &&
+                    row.StatementType == incomeStatementType,
                 cancellationToken);
 
             if (statement is null)
@@ -87,13 +96,15 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
                 {
                     Id = Guid.NewGuid(),
                     ProviderName = ProviderName,
-                    ExternalStatementId = p.StatementId
+                    ExternalStatementId = p.StatementId,
+                    StatementType = incomeStatementType
                 };
                 dbContext.FinancialStatements.Add(statement);
             }
 
             statement.ExternalCompanyId = data.Id;
-            statement.PeriodType = "IncomeStatement";
+            statement.StatementType = incomeStatementType;
+            statement.PeriodType = threeMonthsPeriodType;
             statement.PeriodStart = p.Period.Start;
             statement.PeriodEnd = p.Period.End;
             statement.SourcePayloadChecksum = payload.Checksum;

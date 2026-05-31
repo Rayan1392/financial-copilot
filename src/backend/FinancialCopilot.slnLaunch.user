@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "FinancialCopilot.API\\FinancialCopilot.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "FinancialCopilot.Worker\\FinancialCopilot.Worker.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

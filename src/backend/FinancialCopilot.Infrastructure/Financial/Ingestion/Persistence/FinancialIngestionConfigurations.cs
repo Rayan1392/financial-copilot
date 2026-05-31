@@ -84,7 +84,17 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
     {
         builder.ToTable("FinancialStatements");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalStatementId }).IsUnique();
+        builder.Property(row => row.StatementType).HasMaxLength(32).IsRequired();
+        // Spec 029: the natural key is now (Provider, ExternalStatementId, StatementType) so the
+        // same CodalDB statement can keep its native id while income and balance share it.
+        builder.HasIndex(row => new
+        {
+            row.ProviderName,
+            row.ExternalStatementId,
+            row.StatementType
+        }).IsUnique();
+        // Support index for "all balance sheets from provider X" filtering.
+        builder.HasIndex(row => new { row.ProviderName, row.StatementType });
     }
 }
 

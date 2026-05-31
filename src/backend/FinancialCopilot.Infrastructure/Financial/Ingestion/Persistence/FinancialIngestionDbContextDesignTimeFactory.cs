@@ -14,7 +14,7 @@ public sealed class FinancialIngestionDbContextDesignTimeFactory
     public FinancialIngestionDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<FinancialIngestionDbContext>()
-            .UseNpgsql("Host=localhost;Database=financialcopilot;Username=postgres;Password=postgres")
+            .UseNpgsql("Server=localhost;Port=5432;Database=financial_copilot;User Id=maahfit;Password=Rayan1392!")
             .Options;
         return new FinancialIngestionDbContext(options);
     }

@@ -85,19 +85,24 @@ public sealed class CodalDbFinancialStatementNormalizerTests
             json, "checksum-" + Guid.NewGuid(), DateTimeOffset.UtcNow);
 
     [Fact]
-    public async Task Normalize_SingleStatement_ProducesIncomeAndBalanceRows()
+    public async Task Normalize_SingleStatement_ProducesIncomeAndBalanceRowsSharingExternalId()
     {
         await using var db = CreateDb();
         var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
         Assert.Equal(1, count);
-        Assert.Equal(2, await db.FinancialStatements.CountAsync()); // :INC + :BS
-        var inc = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:INC");
-        var bs  = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:BS");
+        Assert.Equal(2, await db.FinancialStatements.CountAsync()); // income + balance, same ExternalStatementId
+        var inc = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
+        var bs = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "BalanceSheet");
         Assert.Equal("ThreeMonths", inc.PeriodType);
         Assert.Equal("ThreeMonths", bs.PeriodType);
         Assert.Equal(inc.PeriodStart, bs.PeriodStart);
         Assert.Equal(inc.PeriodEnd,   bs.PeriodEnd);
+        // Spec 029: no more :INC / :BS suffix mangling on ExternalStatementId.
+        Assert.DoesNotContain(":INC", inc.ExternalStatementId);
+        Assert.DoesNotContain(":BS",  bs.ExternalStatementId);
     }
 
     [Fact]
@@ -106,11 +111,10 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
+        var incomeStmt = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
         var incomeItems = await db.FinancialStatementLineItems
-            .Where(li => db.FinancialStatements
-                .Where(s => s.ExternalStatementId == "100:INC")
-                .Select(s => s.Id)
-                .Contains(li.FinancialStatementId))
+            .Where(li => li.FinancialStatementId == incomeStmt.Id)
             .ToListAsync();
 
         // Only mapped income items: NET_PROFIT (143) + REVENUE (15); unmapped (999) excluded
@@ -126,7 +130,8 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
-        var stmt = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:INC");
+        var stmt = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
         var netProfit = await db.FinancialStatementLineItems.SingleAsync(
             li => li.FinancialStatementId == stmt.Id && li.MetricCode == "NET_PROFIT");
 
@@ -139,7 +144,8 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
-        var stmt = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:BS");
+        var stmt = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "BalanceSheet");
         var equity = await db.FinancialStatementLineItems.SingleAsync(
             li => li.FinancialStatementId == stmt.Id && li.MetricCode == "TOTAL_EQUITY");
 
@@ -166,7 +172,8 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
-        var stmt = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:INC");
+        var stmt = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
         Assert.Contains("CodalStatementSelection", stmt.WarningsJson);
         Assert.Contains("MillionRials", stmt.WarningsJson);
         Assert.Contains("1403/03/31", stmt.WarningsJson); // PeriodEndJalali retained
@@ -179,7 +186,7 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoPeriodsJson), default);
 
         Assert.Equal(2, count);
-        Assert.Equal(4, await db.FinancialStatements.CountAsync()); // Q1:INC Q1:BS Q2:INC Q2:BS
+        Assert.Equal(4, await db.FinancialStatements.CountAsync()); // 2 periods × (income + balance)
     }
 
     [Fact]
@@ -188,8 +195,10 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoPeriodsJson), default);
 
-        var q1 = await db.FinancialStatements.FirstAsync(s => s.ExternalStatementId == "100:INC");
-        var q2 = await db.FinancialStatements.FirstAsync(s => s.ExternalStatementId == "200:INC");
+        var q1 = await db.FinancialStatements.FirstAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
+        var q2 = await db.FinancialStatements.FirstAsync(s =>
+            s.ExternalStatementId == "200" && s.StatementType == "IncomeStatement");
 
         // These must be parseable back to FiscalPeriodType via Enum.Parse (MetricInputSource requirement)
         Assert.Equal("ThreeMonths", q1.PeriodType);
@@ -202,7 +211,8 @@ public sealed class CodalDbFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoPeriodsJson), default);
 
-        var bs = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "100:BS");
+        var bs = await db.FinancialStatements.SingleAsync(s =>
+            s.ExternalStatementId == "100" && s.StatementType == "BalanceSheet");
         var items = await db.FinancialStatementLineItems
             .Where(li => li.FinancialStatementId == bs.Id)
             .ToListAsync();

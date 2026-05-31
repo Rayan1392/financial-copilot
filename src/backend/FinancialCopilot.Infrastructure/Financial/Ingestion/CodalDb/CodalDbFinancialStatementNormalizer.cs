@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,16 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 /// <c>NormalizedFinancialStatementRow</c> / <c>NormalizedFinancialStatementLineItemRow</c> tables.
 /// <para>
 /// For each selected canonical statement variant (one per cumulative period window), two rows are
-/// written: one for income line items and one for balance-sheet line items. They share the same
-/// period window but have distinct <c>ExternalStatementId</c>s (<c>"{StmtId}:INC"</c> /
-/// <c>"{StmtId}:BS"</c>) and distinct <c>PeriodType</c> values (the
-/// <see cref="FinancialCopilot.Domain.Financial.Periods.FiscalPeriodType"/> enum name, which is
-/// what <c>NetProfitMetricInputSource</c> and similar sources parse back via <c>Enum.Parse</c>).
+/// written: one with <c>StatementType = IncomeStatement</c> for income items and one with
+/// <c>StatementType = BalanceSheet</c> for balance-sheet items. They share the same
+/// <c>ExternalStatementId</c> (<c>{StmtId}</c>) and the same period window; the
+/// <c>(ProviderName, ExternalStatementId, StatementType)</c> unique key disambiguates them
+/// (spec 029).
+/// </para>
+/// <para>
+/// <c>PeriodType</c> stores the
+/// <see cref="FinancialCopilot.Domain.Financial.Periods.FiscalPeriodType"/> enum name (the period
+/// duration — e.g. <c>ThreeMonths</c>) so input sources can round-trip it via <c>Enum.Parse</c>.
 /// </para>
 /// <para>
 /// Amounts are assumed to be in million Iranian Rials (<c>Unit='N/A'</c> in source); this is
@@ -53,15 +59,21 @@ public sealed class CodalDbFinancialStatementNormalizer(
             var warningsJson = BuildSelectionEvidence(stmt, period);
             var externalCompanyId = stmt.CompanyId.ToString(CultureInfo.InvariantCulture);
 
+            // Spec 029: ExternalStatementId keeps the source StmtId verbatim on both rows; the
+            // StatementType column disambiguates income vs. balance under the new unique key.
+            var externalStatementId = stmt.StmtId.ToString(CultureInfo.InvariantCulture);
+
             await UpsertStatementRowAsync(
                 payload, externalCompanyId, stmt, period, warningsJson,
-                $"{stmt.StmtId}:INC", stmt.IncomeItems,
+                externalStatementId, FinancialStatementType.IncomeStatement,
+                stmt.IncomeItems,
                 CodalDbStatementItemMaps.IncomeItemIdToMetricCode,
                 cancellationToken);
 
             await UpsertStatementRowAsync(
                 payload, externalCompanyId, stmt, period, warningsJson,
-                $"{stmt.StmtId}:BS", stmt.BalanceItems,
+                externalStatementId, FinancialStatementType.BalanceSheet,
+                stmt.BalanceItems,
                 CodalDbStatementItemMaps.BalanceItemIdToMetricCode,
                 cancellationToken);
         }
@@ -77,12 +89,16 @@ public sealed class CodalDbFinancialStatementNormalizer(
         CodalDbMappedPeriod period,
         string warningsJson,
         string externalStatementId,
+        FinancialStatementType statementType,
         IReadOnlyList<CodalStatementLineItem> sourceItems,
         IReadOnlyDictionary<int, string> itemMap,
         CancellationToken cancellationToken)
     {
+        var statementTypeText = statementType.ToString();
         var statement = await dbContext.FinancialStatements.SingleOrDefaultAsync(
-            row => row.ProviderName == ProviderName && row.ExternalStatementId == externalStatementId,
+            row => row.ProviderName == ProviderName &&
+                row.ExternalStatementId == externalStatementId &&
+                row.StatementType == statementTypeText,
             cancellationToken);
 
         if (statement is null)
@@ -91,7 +107,8 @@ public sealed class CodalDbFinancialStatementNormalizer(
             {
                 Id = Guid.NewGuid(),
                 ProviderName = ProviderName,
-                ExternalStatementId = externalStatementId
+                ExternalStatementId = externalStatementId,
+                StatementType = statementTypeText
             };
             dbContext.FinancialStatements.Add(statement);
         }
@@ -99,6 +116,7 @@ public sealed class CodalDbFinancialStatementNormalizer(
         // PeriodType stores the FiscalPeriodType enum name (e.g. "ThreeMonths") so that
         // metric input sources can round-trip it via Enum.Parse<FiscalPeriodType>.
         statement.ExternalCompanyId = externalCompanyId;
+        statement.StatementType = statementTypeText;
         statement.PeriodType = period.FiscalPeriodType.ToString();
         statement.PeriodStart = period.PeriodStart;
         statement.PeriodEnd = period.PeriodEnd;

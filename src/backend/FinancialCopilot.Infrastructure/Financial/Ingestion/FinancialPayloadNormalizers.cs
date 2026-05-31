@@ -1,5 +1,7 @@
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Entities;
+using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -98,9 +100,29 @@ public sealed class FinancialStatementPayloadNormalizer(
             throw new FinancialProviderException(
                 FinancialProviderErrorCode.InvalidResponse,
                 "Financial statement provider payload is invalid.");
+
+        // Spec 029: validate the two enum-shaped string fields up-front so a bad provider
+        // contract fails fast at ingestion rather than silently writing garbage that the metric
+        // engine cannot parse.
+        if (!Enum.TryParse<FiscalPeriodType>(document.Period, ignoreCase: false, out _))
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"Unknown PeriodType value '{document.Period}'. " +
+                $"Expected one of: {string.Join(", ", Enum.GetNames<FiscalPeriodType>())}.");
+        }
+        if (!Enum.TryParse<FinancialStatementType>(document.StatementType, ignoreCase: false, out _))
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"Unknown StatementType value '{document.StatementType}'. " +
+                $"Expected one of: {string.Join(", ", Enum.GetNames<FinancialStatementType>())}.");
+        }
+
         var statement = await dbContext.FinancialStatements.SingleOrDefaultAsync(
             row => row.ProviderName == payload.ProviderName &&
-                row.ExternalStatementId == document.StatementId,
+                row.ExternalStatementId == document.StatementId &&
+                row.StatementType == document.StatementType,
             cancellationToken);
 
         if (statement is null)
@@ -109,12 +131,14 @@ public sealed class FinancialStatementPayloadNormalizer(
             {
                 Id = Guid.NewGuid(),
                 ProviderName = payload.ProviderName,
-                ExternalStatementId = document.StatementId
+                ExternalStatementId = document.StatementId,
+                StatementType = document.StatementType
             };
             dbContext.FinancialStatements.Add(statement);
         }
 
         statement.ExternalCompanyId = document.CompanyId;
+        statement.StatementType = document.StatementType;
         statement.PeriodType = document.Period;
         statement.PeriodStart = document.PeriodStart;
         statement.PeriodEnd = document.PeriodEnd;
@@ -147,6 +171,7 @@ public sealed class FinancialStatementPayloadNormalizer(
         string CompanyId,
         decimal? NetProfit,
         string Period,
+        string StatementType,
         DateOnly PeriodStart,
         DateOnly PeriodEnd);
 }

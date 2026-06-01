@@ -33,7 +33,7 @@ public sealed class MockFinancialDataProvider(
             ProviderDataset.FinancialStatements,
             $"/mock/financial-statements/{externalCompanyId}",
             RequireReference(externalCompanyId),
-            $$"""{"statementId":"{{externalCompanyId}}-2026-q1","companyId":"{{externalCompanyId}}","netProfit":1500,"period":"ThreeMonths","periodStart":"2026-01-01","periodEnd":"2026-03-31"}""",
+            $$"""{"statementId":"{{externalCompanyId}}-2026-q1","companyId":"{{externalCompanyId}}","statementType":"IncomeStatement","netProfit":1500,"period":"ThreeMonths","periodStart":"2026-01-01","periodEnd":"2026-03-31"}""",
             cancellationToken);
 
     public Task<ProviderRawPayload> FetchMonthlyReportsAsync(

@@ -17,9 +17,10 @@ public interface IFinancialPayloadNormalizer
 }
 
 public sealed class SymbolPayloadNormalizer(
-    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext,
+    string providerName = "ConfiguredFinancialProvider") : IFinancialPayloadNormalizer
 {
-    public string ProviderName => "ConfiguredFinancialProvider";
+    public string ProviderName => providerName;
 
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
@@ -88,9 +89,10 @@ public sealed class SymbolPayloadNormalizer(
 }
 
 public sealed class FinancialStatementPayloadNormalizer(
-    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext,
+    string providerName = "ConfiguredFinancialProvider") : IFinancialPayloadNormalizer
 {
-    public string ProviderName => "ConfiguredFinancialProvider";
+    public string ProviderName => providerName;
 
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
@@ -177,9 +179,10 @@ public sealed class FinancialStatementPayloadNormalizer(
 }
 
 public sealed class MonthlyReportPayloadNormalizer(
-    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext,
+    string providerName = "ConfiguredFinancialProvider") : IFinancialPayloadNormalizer
 {
-    public string ProviderName => "ConfiguredFinancialProvider";
+    public string ProviderName => providerName;
 
     public ProviderDataset Dataset => ProviderDataset.MonthlyProductionSales;
 

@@ -58,6 +58,16 @@ delivery checklist (they are added as data sources become available).
      `ModifiedDateTime`) sync orchestrator + the missing derived-metric recalculation outbox
      processor, so growth metrics are precomputed and the scanner reads them at query time.
 
+## Trading Statistics Implementation Specs
+
+These specs add a separate read-only SQL Server trading-statistics source. The source database
+is `StockMarketDB`, distinct from `CodalDB`; it has different cadence, retention, and
+partitioning needs:
+
+- `030-stockmarketdb-trading-statistics-sync` — registered TSE instruments, intraday trade
+  snapshots, daily instrument trades, intraday indices, historical daily-index backfill, and
+  PostgreSQL latest-quote projections.
+
 ## Coherence Rules
 
 - The React UI submits user Messages only through `POST /api/ai/v1/query`; scanner parser/execution operations are internal Application capabilities.

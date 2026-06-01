@@ -2,7 +2,8 @@ namespace FinancialCopilot.API.Contracts;
 
 public sealed record AdminDataSyncRequest(
     string? ExternalReference = null,
-    string? IdempotencyKey = null);
+    string? IdempotencyKey = null,
+    string? ProviderName = null);
 
 public sealed record AdminDataSyncQueuedResponse(
     Guid RequestId,

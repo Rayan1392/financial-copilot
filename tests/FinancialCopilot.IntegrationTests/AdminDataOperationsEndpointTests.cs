@@ -115,6 +115,22 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task DataAdmin_CanRouteSymbolsSyncToCodalDbWithoutFullSyncFanOut()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/data-sync/symbols",
+            new { idempotencyKey = "codaldb-symbols-only", providerName = " CodalDb " },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var request = Assert.Single(_factory.PublishedRequests);
+        Assert.Equal(ProviderDataset.Symbols, request.Dataset);
+        Assert.Equal("CodalDb", request.ProviderName);
+    }
+
+    [Fact]
     public async Task DataAdmin_CanViewSyncRunOperationalFields()
     {
         using var client = CreateDataAdminClient();

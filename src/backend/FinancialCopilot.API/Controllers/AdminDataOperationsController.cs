@@ -210,6 +210,9 @@ public sealed class AdminDataOperationsController(
             return ValidationProblem(ModelState);
         }
 
+        var selectedProviderName = string.IsNullOrWhiteSpace(providerName)
+            ? request?.ProviderName?.Trim()
+            : providerName;
         var now = timeProvider.GetUtcNow();
         var idempotencyKey = string.IsNullOrWhiteSpace(request?.IdempotencyKey)
             ? $"admin-data-sync:{dataset}:{externalReference ?? "all"}:{Guid.NewGuid():N}"
@@ -220,7 +223,7 @@ public sealed class AdminDataOperationsController(
             externalReference,
             now,
             idempotencyKey,
-            ProviderName: providerName);
+            ProviderName: selectedProviderName);
 
         await publisher.PublishAsync(message, cancellationToken);
         return Accepted(new AdminDataSyncQueuedResponse(

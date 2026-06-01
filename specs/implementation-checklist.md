@@ -125,6 +125,17 @@ incomplete or inconsistent.
 |---|---:|---|---|---|
 | [x] | 28 | [029](./029-financial-statement-schema-fix/user-story.md) / [tasks](./029-financial-statement-schema-fix/tasks.md) | Financial Statement Schema Fix | Depends on `003`, `005`, `020`, `023` (and `004` for the configured-provider contract). Introduce `StatementType` column on `NormalizedFinancialStatementRow` (uses the existing `FinancialStatementType` enum: `IncomeStatement` / `BalanceSheet` / `CashFlow`), change the unique key from `(ProviderName, ExternalStatementId)` to `(ProviderName, ExternalStatementId, StatementType)`, and fix **all three** financial-statement normalizers consistently: `CyclicalWavesFinancialStatementNormalizer` (which writes the wrong literal `"IncomeStatement"` into `PeriodType`, making rows unparseable by `LineItemMetricInputSource`), `CodalDbFinancialStatementNormalizer` (drops the `:INC`/`:BS` `ExternalStatementId` suffix workaround in favor of the new column), and `FinancialStatementPayloadNormalizer` (the configured HTTP provider contract gains a required `StatementType` field plus enum validation for both `Period` and `StatementType`, so a future HTTP adapter cannot reintroduce the bug). Migration strategy: TRUNCATE `FinancialStatements`/`FinancialStatementLineItems`/`DerivedMetrics`/`MetricRecalculationRequests`/`MonthlyReports`/`MonthlyReportLineItems`/`ProviderRawPayloads` + reset CodalDb watermark, then add `StatementType` as NOT NULL with no default and the new indexes — clean slate is simpler than backfilling and avoids invalidating `DerivedMetrics.SourceEvidenceJson` references. Operator runs `POST /api/v1/admin/codaldb/full-sync` after migration to repopulate. Discovered after a CodalDb full-sync produced 19,682 correctly-shaped rows alongside 1,825 broken CyclicalWaves rows (`PeriodType="IncomeStatement"` can't be parsed by `LineItemMetricInputSource`); the third normalizer was found during scope review as a latent vulnerability. Out of scope: cash-flow line items, balance-sheet point-in-time semantics. |
 
+### Stage 9 - StockMarketDB Trading Statistics
+
+This story adds fresh trading statistics from the separate local `StockMarketDB` SQL Server
+source. It follows the CodalDB financial source but uses dedicated time-series ingestion,
+watermarks, retention, and polling cadence. Verified source mapping:
+[stockmarketdb-trading-statistics-datasource.md](../docs/stockmarketdb-trading-statistics-datasource.md).
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 29 | [030](./030-stockmarketdb-trading-statistics-sync/user-story.md) / [tasks](./030-stockmarketdb-trading-statistics-sync/tasks.md) | StockMarketDB Trading Statistics Synchronization | Depends on `004`, `005`, `011`, `012`, `022`; add a separate read-only SQL Server adapter for `Tse.Instrument`, one-minute `Tse.Trade`, daily `Tse.InstTrade`, five-minute `Tse.IndexB1LastDay`, and historical `Tse.IndexNew2`. Normalize PostgreSQL time-series rows plus a `LatestMarketQuotes` projection. Link optional companies through `InsCode -> InstrumentCode`; never treat non-company instruments as companies and never use CodalDB's placeholder `InstrumentRef`. |
+
 ## Milestone View
 
 | Milestone | Stories required | Completion condition |

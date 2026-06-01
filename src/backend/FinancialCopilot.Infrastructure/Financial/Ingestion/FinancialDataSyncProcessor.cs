@@ -139,19 +139,27 @@ public sealed class FinancialDataSyncProcessor(
     // Route to a named coexisting provider when requested; otherwise use the configured primary
     // (the directly-injected default provider), preserving existing single-provider behavior.
     private ISymbolDataProvider ResolveSymbolProvider(string? providerName) =>
-        providerName is not null && providerRouter?.ResolveSymbolProvider(providerName) is { } provider
-            ? provider
-            : symbolProvider;
+        string.IsNullOrWhiteSpace(providerName)
+            ? symbolProvider
+            : providerRouter?.ResolveSymbolProvider(providerName) ??
+              throw UnknownProvider(providerName, ProviderDataset.Symbols);
 
     private IFinancialStatementProvider ResolveStatementProvider(string? providerName) =>
-        providerName is not null && providerRouter?.ResolveStatementProvider(providerName) is { } provider
-            ? provider
-            : statementProvider;
+        string.IsNullOrWhiteSpace(providerName)
+            ? statementProvider
+            : providerRouter?.ResolveStatementProvider(providerName) ??
+              throw UnknownProvider(providerName, ProviderDataset.FinancialStatements);
 
     private IMonthlyProductionSalesProvider ResolveMonthlyProvider(string? providerName) =>
-        providerName is not null && providerRouter?.ResolveMonthlyProvider(providerName) is { } provider
-            ? provider
-            : monthlyProvider;
+        string.IsNullOrWhiteSpace(providerName)
+            ? monthlyProvider
+            : providerRouter?.ResolveMonthlyProvider(providerName) ??
+              throw UnknownProvider(providerName, ProviderDataset.MonthlyProductionSales);
+
+    private static InvalidOperationException UnknownProvider(
+        string providerName,
+        ProviderDataset dataset) =>
+        new($"No provider named '{providerName}' is registered for dataset '{dataset}'.");
 
     private static string RequireExternalReference(DataSyncRequest request) =>
         string.IsNullOrWhiteSpace(request.ExternalReference)

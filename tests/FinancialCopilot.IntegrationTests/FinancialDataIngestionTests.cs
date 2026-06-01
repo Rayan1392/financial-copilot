@@ -139,6 +139,10 @@ public sealed class FinancialDataIngestionTests
             "codaldb-symbols-checksum",
             Now);
         var provider = new StubCodalDbSymbolProvider(payload);
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider> { ["CodalDb"] = provider },
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider>());
 
         var processor = new FinancialDataSyncProcessor(
             ingestionDb,
@@ -152,7 +156,8 @@ public sealed class FinancialDataIngestionTests
                 NullLogger<CodalDbSymbolNormalizer>.Instance)],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
-            NullLogger<FinancialDataSyncProcessor>.Instance);
+            NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
 
         var result = await processor.ProcessAsync(
             new DataSyncRequest(
@@ -237,6 +242,29 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == "CodalDb"));
     }
 
+    [Fact]
+    public async Task Processor_ExplicitUnknownProvider_FailsInsteadOfUsingDefault()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+        var processor = CreateProcessor(providerDb, ingestionDb);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.Symbols,
+                ExternalReference: null,
+                Now,
+                "unknown-provider-v1",
+                ProviderName: "CodalDbb"),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
+        Assert.Contains("No provider named 'CodalDbb'", result.Run.ErrorMessage);
+        Assert.Empty(await providerDb.ProviderRawPayloads.ToListAsync());
+        Assert.Empty(await ingestionDb.Symbols.ToListAsync());
+    }
+
     private const string CodalDbCompaniesJson = """
         [
           {
@@ -274,9 +302,9 @@ public sealed class FinancialDataIngestionTests
             provider,
             provider,
             [
-                new SymbolPayloadNormalizer(ingestionDb),
-                new FinancialStatementPayloadNormalizer(ingestionDb),
-                new MonthlyReportPayloadNormalizer(ingestionDb)
+                new SymbolPayloadNormalizer(ingestionDb, MockFinancialDataProvider.ProviderName),
+                new FinancialStatementPayloadNormalizer(ingestionDb, MockFinancialDataProvider.ProviderName),
+                new MonthlyReportPayloadNormalizer(ingestionDb, MockFinancialDataProvider.ProviderName)
             ],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
@@ -311,7 +339,7 @@ public sealed class FinancialDataIngestionTests
 
     private sealed class FailingStatementNormalizer : IFinancialPayloadNormalizer
     {
-        public string ProviderName => "ConfiguredFinancialProvider";
+        public string ProviderName => MockFinancialDataProvider.ProviderName;
 
         public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 

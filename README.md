@@ -87,3 +87,15 @@ Scanner plan and deterministic result caching is configured through `ScannerCach
 ## Admin Data Operations
 
 Users with the `DataAdmin` role can enqueue ingestion work and inspect provider operations through `POST /api/v1/admin/data-sync/*`, `GET /api/v1/admin/data-sync/runs`, and `GET /api/v1/admin/provider-health`. Sync trigger endpoints publish to RabbitMQ and require `DataSyncMessaging:Enabled=true` with a configured broker in the API and Worker processes.
+
+Generic sync requests accept an optional `providerName` when an operator needs to target a coexisting source. For example, enqueue a CodalDB companies/symbols-only sync without the full per-company fan-out:
+
+```http
+POST /api/v1/admin/data-sync/symbols
+Content-Type: application/json
+
+{
+  "idempotencyKey": "manual-codaldb-symbols-2026-06-01",
+  "providerName": "CodalDb"
+}
+```

@@ -34,7 +34,7 @@ public sealed class DerivedMetricPersistenceTests
             mock,
             mock,
             monthlyProvider,
-            [new MonthlyReportPayloadNormalizer(ingestionDb)],
+            [new MonthlyReportPayloadNormalizer(ingestionDb, MonthlySequenceProvider.ProviderName)],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
             NullLogger<FinancialDataSyncProcessor>.Instance);

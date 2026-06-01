@@ -1,178 +1,222 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { generateMockReply, generateThreadTitle, type ChatBlock } from "./mock-data.server";
+import {
+  financialCopilotServerApi,
+  requireFinancialCopilotAuth,
+} from "@/integrations/financial-copilot/api-client.server";
 
-// List threads for the signed-in user.
+export interface ChatThread {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: { text: string } | AssistantChatBlock;
+  created_at: string;
+}
+
+export interface AssistantChatBlock {
+  message: string;
+  intent: string;
+  confidence: number;
+  creditsUsed: number;
+  suggestedQuestions: string[];
+  filters: Array<{ label: string; value: string }>;
+  table?: ScannerTable;
+  citations: Array<{
+    symbolCode: string;
+    metricCode: string;
+    observedAt?: string;
+    freshnessStatus: string;
+  }>;
+}
+
+export interface ScannerTable {
+  columns: Array<{ identifier: string; displayName: string }>;
+  rows: Array<{
+    symbolCode: string;
+    companyName?: string;
+    score: number;
+    cells: Record<
+      string,
+      { formattedValue?: string; value?: number; freshnessStatus: string; sourceTimestamp?: string }
+    >;
+  }>;
+  executionFacts: {
+    matchingSymbolCount: number;
+    totalSymbolsEvaluated: number;
+    fromCache: boolean;
+  };
+  missingDataWarnings: string[];
+}
+
+interface ConversationSummaryResponse {
+  conversationId: string;
+  title: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
+interface QueryResponse extends AssistantContentResponse {
+  conversationId: string;
+  messageId: string;
+  assistantMessageId: string;
+}
+
+interface ConversationMessagesResponse {
+  messages: Array<{
+    messageId: string;
+    role: "User" | "Assistant";
+    content: string;
+    createdAt: string;
+    assistantContent?: AssistantContentResponse;
+  }>;
+}
+
+interface AssistantContentResponse {
+  intent: string;
+  clarificationRequired: boolean;
+  clarificationMessage?: string;
+  textAnswer?: string;
+  scannerTable?: ScannerTable;
+  explainableAnswer?: {
+    filterChips: Array<{
+      metricDisplayName: string;
+      operatorSymbol: string;
+      thresholdFormatted: string;
+    }>;
+    dataCitations: AssistantChatBlock["citations"];
+    confidence: { score: number };
+    suggestedFollowUpQuestions: string[];
+    explanationText?: string;
+  };
+  usage?: { creditsCharged: number };
+}
+
 export const listThreads = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFinancialCopilotAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase
-      .from("threads")
-      .select("id, title, updated_at, created_at")
-      .order("updated_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return data ?? [];
+    const rows = await financialCopilotServerApi<ConversationSummaryResponse[]>(
+      context,
+      "/api/ai/v1/conversations",
+    );
+    return rows.map(mapThread);
   });
 
-// Create a new thread.
 export const createThread = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("threads")
-      .insert({ user_id: userId, title: "گفتگوی جدید" })
-      .select("id, title, updated_at, created_at")
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
-  });
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    mapThread(
+      await financialCopilotServerApi<ConversationSummaryResponse>(
+        context,
+        "/api/ai/v1/conversations",
+        { method: "POST" },
+      ),
+    ),
+  );
 
-// Load messages for a thread.
 export const getThreadMessages = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFinancialCopilotAuth])
   .inputValidator((d) => z.object({ threadId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    const { data: rows, error } = await supabase
-      .from("messages")
-      .select("id, role, content, created_at")
-      .eq("thread_id", data.threadId)
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
-    return rows ?? [];
+    const result = await financialCopilotServerApi<ConversationMessagesResponse>(
+      context,
+      `/api/ai/v1/conversations/${data.threadId}/messages`,
+    );
+    return result.messages.map(mapPersistedMessage);
   });
 
-// Delete a thread.
 export const deleteThread = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFinancialCopilotAuth])
   .inputValidator((d) => z.object({ threadId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    const { error } = await supabase.from("threads").delete().eq("id", data.threadId);
-    if (error) throw new Error(error.message);
+    await financialCopilotServerApi<void>(context, `/api/ai/v1/conversations/${data.threadId}`, {
+      method: "DELETE",
+    });
     return { ok: true };
   });
 
-// Send a user message and get a mocked AI reply. Persists both.
 export const sendChatMessage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFinancialCopilotAuth])
   .inputValidator((d) =>
     z
       .object({
-        threadId: z.string().uuid(),
-        message: z.string().min(1).max(2000),
-        deepResearch: z.boolean().optional(),
+        threadId: z.string().uuid().optional(),
+        message: z.string().trim().min(1).max(2000),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { supabase, userId } = context;
-
-    // Save user message
-    const userContent = { text: data.message };
-    const { data: userMsg, error: userErr } = await supabase
-      .from("messages")
-      .insert({
-        thread_id: data.threadId,
-        user_id: userId,
+    const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
+      method: "POST",
+      body: JSON.stringify({ conversationId: data.threadId, message: data.message }),
+    });
+    const createdAt = new Date().toISOString();
+    return {
+      threadId: result.conversationId,
+      userMsg: {
+        id: result.messageId,
         role: "user",
-        content: userContent,
-      })
-      .select("id, role, content, created_at")
-      .single();
-    if (userErr) throw new Error(userErr.message);
-
-    // Generate mock AI reply
-    const reply: ChatBlock = generateMockReply(data.message, !!data.deepResearch);
-
-    const { data: aiMsg, error: aiErr } = await supabase
-      .from("messages")
-      .insert({
-        thread_id: data.threadId,
-        user_id: userId,
+        content: { text: data.message },
+        created_at: createdAt,
+      } satisfies ChatMessage,
+      aiMsg: {
+        id: result.assistantMessageId,
         role: "assistant",
-        content: reply as never,
-      })
-      .select("id, role, content, created_at")
-      .single();
-    if (aiErr) throw new Error(aiErr.message);
-
-    // Update thread title from first user message if still default
-    const { data: thread } = await supabase
-      .from("threads")
-      .select("title")
-      .eq("id", data.threadId)
-      .single();
-    if (thread?.title === "گفتگوی جدید") {
-      await supabase
-        .from("threads")
-        .update({ title: generateThreadTitle(data.message) })
-        .eq("id", data.threadId);
-    }
-
-    // Decrement credits (server-side only via admin client; RLS forbids user updates)
-    const { data: sub } = await supabaseAdmin
-      .from("user_subscriptions")
-      .select("ai_credits_remaining")
-      .eq("user_id", userId)
-      .single();
-    if (sub) {
-      await supabaseAdmin
-        .from("user_subscriptions")
-        .update({
-          ai_credits_remaining: Math.max(0, sub.ai_credits_remaining - reply.creditsUsed),
-        })
-        .eq("user_id", userId);
-    }
-
-    return { userMsg, aiMsg };
+        content: mapAssistantBlock(result, result.textAnswer ?? ""),
+        created_at: createdAt,
+      } satisfies ChatMessage,
+    };
   });
 
-// Subscription
-export const getSubscription = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("user_subscriptions")
-      .select("plan, ai_credits_remaining, ai_credits_total")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) {
-      // Backfill if trigger didn't fire (e.g. legacy users)
-      const { data: created } = await supabase
-        .from("user_subscriptions")
-        .insert({ user_id: userId })
-        .select("plan, ai_credits_remaining, ai_credits_total")
-        .single();
-      return created!;
-    }
-    return data;
-  });
+function mapThread(row: ConversationSummaryResponse): ChatThread {
+  return {
+    id: row.conversationId,
+    title: row.title,
+    created_at: row.startedAt,
+    updated_at: row.updatedAt,
+  };
+}
 
-// Watchlist
-export const getWatchlist = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("watchlists")
-      .select("symbols")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) {
-      const { data: created } = await supabase
-        .from("watchlists")
-        .insert({ user_id: userId })
-        .select("symbols")
-        .single();
-      return created!.symbols;
-    }
-    return data.symbols;
-  });
+function mapPersistedMessage(
+  message: ConversationMessagesResponse["messages"][number],
+): ChatMessage {
+  return {
+    id: message.messageId,
+    role: message.role.toLowerCase() as ChatMessage["role"],
+    content:
+      message.role === "User"
+        ? { text: message.content }
+        : mapAssistantBlock(message.assistantContent, message.content),
+    created_at: message.createdAt,
+  };
+}
+
+function mapAssistantBlock(
+  content: AssistantContentResponse | undefined,
+  fallbackMessage: string,
+): AssistantChatBlock {
+  const explanation = content?.explainableAnswer;
+  return {
+    message:
+      explanation?.explanationText ??
+      content?.clarificationMessage ??
+      content?.textAnswer ??
+      fallbackMessage,
+    intent: content?.intent ?? "Unknown",
+    confidence: explanation?.confidence.score ?? 0,
+    creditsUsed: content?.usage?.creditsCharged ?? 0,
+    suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],
+    filters:
+      explanation?.filterChips.map((chip) => ({
+        label: chip.metricDisplayName,
+        value: `${chip.operatorSymbol} ${chip.thresholdFormatted}`,
+      })) ?? [],
+    table: content?.scannerTable,
+    citations: explanation?.dataCitations ?? [],
+  };
+}

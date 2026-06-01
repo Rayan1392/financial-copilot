@@ -119,7 +119,8 @@ public sealed record ConversationSummaryResponse(
     Guid ConversationId,
     DateTimeOffset StartedAt,
     DateTimeOffset UpdatedAt,
-    int MessageCount);
+    int MessageCount,
+    string Title);
 
 public sealed record ConversationDetailResponse(
     Guid ConversationId,
@@ -132,4 +133,17 @@ public sealed record MessageResponse(
     string Role,
     string Content,
     bool HasScannerPlan,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    AssistantMessageContentResponse? AssistantContent = null);
+
+public sealed record AssistantMessageContentResponse(
+    int Version,
+    string Intent,
+    bool ClarificationRequired,
+    string? ClarificationMessage,
+    string? TextAnswer,
+    ScannerPlanResponse? ScannerPlan,
+    ScannerTableResponse? ScannerTable,
+    ExplainableAnswerResponse? ExplainableAnswer,
+    UsageAccountingResponse? Usage,
+    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures);

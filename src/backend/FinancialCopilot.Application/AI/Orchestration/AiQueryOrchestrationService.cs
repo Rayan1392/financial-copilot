@@ -8,7 +8,6 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 
 public sealed class AiQueryOrchestrationService(
     IConversationRepository conversationRepository,
-    IMessageRepository messageRepository,
     IAiIntentDetector intentDetector,
     IScannerQueryParser scannerParser,
     IScannerExecutionService scannerExecutionService,
@@ -25,19 +24,17 @@ public sealed class AiQueryOrchestrationService(
     {
         var now = timeProvider.GetUtcNow();
 
-        var conversationId = request.ConversationId ?? await conversationRepository.CreateAsync(
-            request.TenantId,
-            request.ActorId,
-            now,
-            cancellationToken);
-
-        var userMessageId = await messageRepository.AppendAsync(
-            conversationId,
-            MessageRole.User,
-            request.Message,
-            scannerQueryPlanJson: null,
-            now,
-            cancellationToken);
+        var createConversation = request.ConversationId is null;
+        var conversationId = request.ConversationId ?? Guid.NewGuid();
+        if (!createConversation &&
+            await conversationRepository.FindAsync(
+                conversationId,
+                request.TenantId,
+                request.ActorId,
+                cancellationToken) is null)
+        {
+            throw new ConversationNotFoundException(conversationId);
+        }
 
         // Retrieve authorized memory context before AI execution.
         var subjectId = request.UserId ?? request.ActorId;
@@ -240,20 +237,34 @@ public sealed class AiQueryOrchestrationService(
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
 
-        var assistantMessageId = await messageRepository.AppendAsync(
-            conversationId,
-            MessageRole.Assistant,
-            assistantContent,
-            planJson,
-            timeProvider.GetUtcNow(),
+        var persistedExchange = await conversationRepository.PersistExchangeAsync(
+            new ConversationExchange(
+                conversationId,
+                request.TenantId,
+                request.ActorId,
+                timeProvider.GetUtcNow(),
+                BuildConversationTitle(request.Message),
+                request.Message,
+                assistantContent,
+                planJson,
+                new AssistantMessagePayload(
+                    Version: 1,
+                    detectedIntent,
+                    clarificationRequired,
+                    clarificationMessage,
+                    textAnswer,
+                    scannerPlan,
+                    scannerTable,
+                    explainableAnswer,
+                    usage,
+                    memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null)),
+            createConversation,
             cancellationToken);
-
-        await conversationRepository.TouchAsync(conversationId, timeProvider.GetUtcNow(), cancellationToken);
 
         return new AiQueryResponse(
             conversationId,
-            userMessageId,
-            assistantMessageId,
+            persistedExchange.UserMessageId,
+            persistedExchange.AssistantMessageId,
             detectedIntent,
             scannerPlan,
             scannerTable,
@@ -263,6 +274,15 @@ public sealed class AiQueryOrchestrationService(
             clarificationMessage,
             usage,
             memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null);
+    }
+
+    private static string BuildConversationTitle(string message)
+    {
+        const int maxLength = 80;
+        var normalized = string.Join(' ', message.Split(
+            [' ', '\t', '\r', '\n'],
+            StringSplitOptions.RemoveEmptyEntries));
+        return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
 
     private static string BuildEnrichedMessage(string originalMessage, AuthorizedMemoryContext memoryContext)

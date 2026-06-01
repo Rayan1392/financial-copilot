@@ -1,3 +1,7 @@
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Memory;
+using FinancialCopilot.Application.Scanner;
+
 namespace FinancialCopilot.Application.Conversations;
 
 public enum MessageRole { User, Assistant }
@@ -8,7 +12,8 @@ public sealed record ConversationSummary(
     Guid ActorId,
     DateTimeOffset StartedAt,
     DateTimeOffset UpdatedAt,
-    int MessageCount);
+    int MessageCount,
+    string Title);
 
 public sealed record ConversationDetail(
     Guid ConversationId,
@@ -24,7 +29,40 @@ public sealed record MessageRecord(
     MessageRole Role,
     string Content,
     string? ScannerQueryPlanJson,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    AssistantMessagePayload? AssistantPayload = null);
+
+public sealed record AssistantMessagePayload(
+    int Version,
+    DetectedIntent Intent,
+    bool ClarificationRequired,
+    string? ClarificationMessage,
+    string? TextAnswer,
+    ScannerQueryPlan? ScannerPlan,
+    ScannerTableResult? ScannerTable,
+    ExplainableAnswer? ExplainableAnswer,
+    UsageAccountingResult? Usage,
+    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures);
+
+public sealed record ConversationExchange(
+    Guid ConversationId,
+    Guid TenantId,
+    Guid ActorId,
+    DateTimeOffset CreatedAt,
+    string Title,
+    string UserContent,
+    string AssistantContent,
+    string? ScannerQueryPlanJson,
+    AssistantMessagePayload AssistantPayload);
+
+public sealed record PersistedConversationExchange(
+    Guid UserMessageId,
+    Guid AssistantMessageId);
+
+public sealed class ConversationNotFoundException(Guid conversationId)
+    : Exception($"Conversation '{conversationId}' was not found.")
+{
+}
 
 public interface IConversationRepository
 {
@@ -34,9 +72,16 @@ public interface IConversationRepository
         DateTimeOffset startedAt,
         CancellationToken cancellationToken);
 
+    Task<Guid> CreateEmptyAsync(
+        Guid tenantId,
+        Guid actorId,
+        DateTimeOffset startedAt,
+        CancellationToken cancellationToken);
+
     Task<ConversationSummary?> FindAsync(
         Guid conversationId,
         Guid tenantId,
+        Guid actorId,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<ConversationSummary>> ListByActorAsync(
@@ -48,6 +93,17 @@ public interface IConversationRepository
     Task TouchAsync(
         Guid conversationId,
         DateTimeOffset updatedAt,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(
+        Guid conversationId,
+        Guid tenantId,
+        Guid actorId,
+        CancellationToken cancellationToken);
+
+    Task<PersistedConversationExchange> PersistExchangeAsync(
+        ConversationExchange exchange,
+        bool createConversation,
         CancellationToken cancellationToken);
 }
 

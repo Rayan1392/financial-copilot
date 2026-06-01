@@ -1,13 +1,8 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  listThreads,
-  createThread,
-  deleteThread,
-  getSubscription,
-  getWatchlist,
-} from "@/lib/chat.functions";
+import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
+import { getSubscription, getWatchlist } from "@/lib/prototype-sidebar.functions";
 import { logout } from "@/integrations/financial-copilot/auth";
 import { formatPercent, toPersianDigits } from "@/lib/format/persian";
 import { STOCK_DB } from "@/lib/mock/data";

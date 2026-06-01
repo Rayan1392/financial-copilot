@@ -36,18 +36,48 @@ public sealed class AiFacadeController(
         var actor = actorContext.Actor;
         var correlationId = HttpContext.TraceIdentifier;
 
-        var result = await orchestrationService.ExecuteAsync(
-            new AiQueryRequest(
-                httpRequest.Message,
-                actor.TenantId,
-                actor.ActorId,
-                correlationId,
-                httpRequest.ConversationId,
-                actor.UserId,
-                actor.ApiClientId),
-            cancellationToken);
+        AiQueryResponse result;
+        try
+        {
+            result = await orchestrationService.ExecuteAsync(
+                new AiQueryRequest(
+                    httpRequest.Message,
+                    actor.TenantId,
+                    actor.ActorId,
+                    correlationId,
+                    httpRequest.ConversationId,
+                    actor.UserId,
+                    actor.ApiClientId),
+                cancellationToken);
+        }
+        catch (ConversationNotFoundException)
+        {
+            return NotFound();
+        }
 
         return Ok(MapQueryResponse(result));
+    }
+
+    [HttpPost("conversations")]
+    public async Task<ActionResult<ConversationSummaryResponse>> CreateConversation(
+        CancellationToken cancellationToken)
+    {
+        var actor = actorContext.Actor;
+        var conversationId = await conversationRepository.CreateEmptyAsync(
+            actor.TenantId,
+            actor.ActorId,
+            DateTimeOffset.UtcNow,
+            cancellationToken);
+        var summary = await conversationRepository.FindAsync(
+            conversationId,
+            actor.TenantId,
+            actor.ActorId,
+            cancellationToken);
+
+        return CreatedAtAction(
+            nameof(Conversation),
+            new { conversationId },
+            MapConversationSummary(summary!));
     }
 
     [HttpGet("conversations")]
@@ -80,6 +110,7 @@ public sealed class AiFacadeController(
         var summary = await conversationRepository.FindAsync(
             conversationId,
             actor.TenantId,
+            actor.ActorId,
             cancellationToken);
 
         if (summary is null)
@@ -99,6 +130,7 @@ public sealed class AiFacadeController(
         var summary = await conversationRepository.FindAsync(
             conversationId,
             actor.TenantId,
+            actor.ActorId,
             cancellationToken);
 
         if (summary is null)
@@ -115,6 +147,21 @@ public sealed class AiFacadeController(
             summary.StartedAt,
             summary.UpdatedAt,
             messages.Select(MapMessage).ToList()));
+    }
+
+    [HttpDelete("conversations/{conversationId:guid}")]
+    public async Task<IActionResult> DeleteConversation(
+        Guid conversationId,
+        CancellationToken cancellationToken)
+    {
+        var actor = actorContext.Actor;
+        var deleted = await conversationRepository.DeleteAsync(
+            conversationId,
+            actor.TenantId,
+            actor.ActorId,
+            cancellationToken);
+
+        return deleted ? NoContent() : NotFound();
     }
 
     private static AiQueryHttpResponse MapQueryResponse(AiQueryResponse result) =>
@@ -216,7 +263,7 @@ public sealed class AiFacadeController(
     }
 
     private static ConversationSummaryResponse MapConversationSummary(ConversationSummary summary) =>
-        new(summary.ConversationId, summary.StartedAt, summary.UpdatedAt, summary.MessageCount);
+        new(summary.ConversationId, summary.StartedAt, summary.UpdatedAt, summary.MessageCount, summary.Title);
 
     private static MessageResponse MapMessage(MessageRecord message) =>
         new(
@@ -224,5 +271,33 @@ public sealed class AiFacadeController(
             message.Role.ToString(),
             message.Content,
             message.ScannerQueryPlanJson is not null,
-            message.CreatedAt);
+            message.CreatedAt,
+            MapAssistantContent(message.AssistantPayload));
+
+    private static AssistantMessageContentResponse? MapAssistantContent(AssistantMessagePayload? payload) =>
+        payload is null
+            ? null
+            : new AssistantMessageContentResponse(
+                payload.Version,
+                payload.Intent.ToString(),
+                payload.ClarificationRequired,
+                payload.ClarificationMessage,
+                payload.TextAnswer,
+                payload.ScannerPlan is null ? null : new ScannerPlanResponse(
+                    payload.ScannerPlan.PlanId,
+                    payload.ScannerPlan.Conditions.Count,
+                    payload.ScannerPlan.ClarificationRequired,
+                    payload.ScannerPlan.ClarificationMessage,
+                    payload.ScannerPlan.ColumnOverflowWarnings),
+                MapScannerTable(payload.ScannerTable),
+                MapExplainableAnswer(payload.ExplainableAnswer),
+                payload.Usage is null ? null : new UsageAccountingResponse(
+                    payload.Usage.OperationCode,
+                    payload.Usage.CompletionStatus,
+                    payload.Usage.CreditsCharged,
+                    payload.Usage.RemainingSpendingCapacity,
+                    payload.Usage.PricingPolicyVersion,
+                    payload.Usage.Cached),
+                payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
+                    d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
 }

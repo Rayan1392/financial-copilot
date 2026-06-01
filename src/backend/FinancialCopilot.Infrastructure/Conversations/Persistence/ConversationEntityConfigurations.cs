@@ -10,6 +10,7 @@ public sealed class ConversationRowConfiguration : IEntityTypeConfiguration<Conv
         builder.ToTable("Conversations");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.TenantId, row.ActorId, row.UpdatedAt });
+        builder.Property(row => row.Title).HasMaxLength(160);
     }
 }
 

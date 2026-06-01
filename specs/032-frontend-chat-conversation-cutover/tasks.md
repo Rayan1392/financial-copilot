@@ -12,3 +12,8 @@
 8. Adapt `MessageList` to backend query and persisted-message DTOs.
 9. Hide or disable controls whose backend behavior is not implemented.
 10. Add authorization, persistence-reload, query, and frontend build verification.
+
+## Implementation Status
+
+Completed on 2026-06-01. The sidebar usage, watchlist, and market-summary prototype reads remain
+isolated for spec `033`; they are not part of the production chat persistence path.

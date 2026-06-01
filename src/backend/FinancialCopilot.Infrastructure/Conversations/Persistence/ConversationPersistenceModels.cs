@@ -13,6 +13,8 @@ public sealed class ConversationRow
     public DateTimeOffset UpdatedAt { get; set; }
 
     public int MessageCount { get; set; }
+
+    public string Title { get; set; } = string.Empty;
 }
 
 public sealed class MessageRow
@@ -26,6 +28,8 @@ public sealed class MessageRow
     public string Content { get; set; } = string.Empty;
 
     public string? ScannerQueryPlanJson { get; set; }
+
+    public string? AssistantPayloadJson { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 }

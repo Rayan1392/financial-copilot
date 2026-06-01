@@ -223,6 +223,108 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         Assert.Equal(1m, entry.CreditsCharged);
     }
 
+    [Fact]
+    public async Task Conversations_CreateThenDelete_ProvidesSidebarLifecycle()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var createResponse = await client.PostAsync(
+            "/api/ai/v1/conversations",
+            content: null,
+            CancellationToken.None);
+        var createDocument = await ReadJsonAsync(createResponse);
+        var conversationId = createDocument.RootElement.GetProperty("conversationId").GetGuid();
+
+        using var deleteResponse = await client.DeleteAsync(
+            $"/api/ai/v1/conversations/{conversationId}",
+            CancellationToken.None);
+        using var getResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal("New conversation", createDocument.RootElement.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Messages_ReloadsStructuredAssistantPayload_AndPromotesTitle()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var createResponse = await client.PostAsync(
+            "/api/ai/v1/conversations",
+            content: null,
+            CancellationToken.None);
+        var createDocument = await ReadJsonAsync(createResponse);
+        var conversationId = createDocument.RootElement.GetProperty("conversationId").GetGuid();
+        using var queryResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6", conversationId },
+            CancellationToken.None);
+        using var messagesResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages",
+            CancellationToken.None);
+        var messagesDocument = await ReadJsonAsync(messagesResponse);
+        using var summaryResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}",
+            CancellationToken.None);
+        var summaryDocument = await ReadJsonAsync(summaryResponse);
+
+        var assistant = messagesDocument.RootElement
+            .GetProperty("messages")
+            .EnumerateArray()
+            .Last();
+        var assistantContent = assistant.GetProperty("assistantContent");
+
+        Assert.Equal(HttpStatusCode.OK, queryResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, messagesResponse.StatusCode);
+        Assert.Equal("P/E below 6", summaryDocument.RootElement.GetProperty("title").GetString());
+        Assert.Equal(1, assistantContent.GetProperty("version").GetInt32());
+        Assert.Equal("Scanner", assistantContent.GetProperty("intent").GetString());
+        Assert.Equal(1m, assistantContent.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
+        Assert.NotEqual(
+            Guid.Empty,
+            assistantContent.GetProperty("scannerTable").GetProperty("planId").GetGuid());
+        Assert.Equal(
+            "v1",
+            assistantContent.GetProperty("explainableAnswer").GetProperty("confidence").GetProperty("policyVersion").GetString());
+    }
+
+    [Fact]
+    public async Task ConversationReads_AndContinuation_AreDeniedForTenantPeer()
+    {
+        using var owner = _factory.CreateClient();
+        owner.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        using var queryResponse = await owner.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6" },
+            CancellationToken.None);
+        var queryDocument = await ReadJsonAsync(queryResponse);
+        var conversationId = queryDocument.RootElement.GetProperty("conversationId").GetGuid();
+
+        using var peer = _factory.CreateClient();
+        peer.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+        using var summaryResponse = await peer.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}",
+            CancellationToken.None);
+        using var messagesResponse = await peer.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages",
+            CancellationToken.None);
+        using var continueResponse = await peer.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "P/E below 6", conversationId },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.NotFound, summaryResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, messagesResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, continueResponse.StatusCode);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);

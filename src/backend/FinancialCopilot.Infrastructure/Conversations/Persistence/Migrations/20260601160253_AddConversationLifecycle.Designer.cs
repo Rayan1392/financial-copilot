@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Conversations.Persistence.Migrations
 {
     [DbContext(typeof(ConversationDbContext))]
-    partial class ConversationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601160253_AddConversationLifecycle")]
+    partial class AddConversationLifecycle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

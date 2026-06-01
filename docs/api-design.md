@@ -170,10 +170,18 @@ Conversation history is also not consent for personalized memory. Phase 1 does n
 
 ```http
 POST /api/ai/v1/query
+POST /api/ai/v1/conversations
 GET  /api/ai/v1/conversations
 GET  /api/ai/v1/conversations/{conversationId}
 GET  /api/ai/v1/conversations/{conversationId}/messages
+DELETE /api/ai/v1/conversations/{conversationId}
 ```
+
+Conversation list/detail/message operations are tenant- and actor-scoped. Summaries include
+backend-owned titles. Assistant messages persist a versioned structured payload so scanner rows,
+freshness, citations, confidence, follow-up questions, and usage metadata remain renderable after
+reload. An initial `POST /api/ai/v1/query` without a `conversationId` persists the new conversation
+and both messages atomically.
 
 Each Conversation may contain Messages answered through different tools over time. For example, one conversation can include a market summary question followed by a scanner question.
 

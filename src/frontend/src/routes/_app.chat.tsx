@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createThread, sendChatMessage } from "@/lib/chat.functions";
+import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
-import { useState } from "react";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
@@ -19,15 +18,11 @@ const SUGGESTIONS = [
 
 function NewChatPage() {
   const navigate = useNavigate();
-  const create = useServerFn(createThread);
   const send = useServerFn(sendChatMessage);
-  const [deepResearch, setDeepResearch] = useState(false);
-
   const startChat = useMutation({
     mutationFn: async (message: string) => {
-      const thread = await create();
-      await send({ data: { threadId: thread.id, message, deepResearch } });
-      return thread.id;
+      const result = await send({ data: { message } });
+      return result.threadId;
     },
     onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),
   });
@@ -43,7 +38,8 @@ function NewChatPage() {
             دستیار هوشمند تحلیل بازار
           </h1>
           <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto text-pretty">
-            یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و خلاصه بازار را در یک گفتگو دریافت کنید.
+            یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و
+            خلاصه بازار را در یک گفتگو دریافت کنید.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-right">
             {SUGGESTIONS.map((s) => (
@@ -59,12 +55,7 @@ function NewChatPage() {
           </div>
         </div>
       </div>
-      <PromptInput
-        deepResearch={deepResearch}
-        onToggleDeep={() => setDeepResearch((v) => !v)}
-        onSubmit={(text) => startChat.mutate(text)}
-        loading={startChat.isPending}
-      />
+      <PromptInput onSubmit={(text) => startChat.mutate(text)} loading={startChat.isPending} />
     </>
   );
 }

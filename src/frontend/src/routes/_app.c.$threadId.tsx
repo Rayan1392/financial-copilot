@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages, sendChatMessage } from "@/lib/chat.functions";
 import { MessageList } from "@/components/app/message-list";
 import { PromptInput } from "@/components/app/prompt-input";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export const Route = createFileRoute("/_app/c/$threadId")({
   component: ChatThreadPage,
@@ -15,7 +15,6 @@ function ChatThreadPage() {
   const qc = useQueryClient();
   const fetchMessages = useServerFn(getThreadMessages);
   const send = useServerFn(sendChatMessage);
-  const [deepResearch, setDeepResearch] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: messages = [], isLoading } = useQuery({
@@ -26,9 +25,8 @@ function ChatThreadPage() {
     refetchOnWindowFocus: false,
   });
 
-
   const sendMutation = useMutation({
-    mutationFn: (message: string) => send({ data: { threadId, message, deepResearch } }),
+    mutationFn: (message: string) => send({ data: { threadId, message } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
       qc.invalidateQueries({ queryKey: ["threads"] });
@@ -47,13 +45,10 @@ function ChatThreadPage() {
           messages={messages}
           loading={isLoading}
           streaming={sendMutation.isPending}
-          deepResearch={deepResearch}
           onSuggested={(q) => sendMutation.mutate(q)}
         />
       </div>
       <PromptInput
-        deepResearch={deepResearch}
-        onToggleDeep={() => setDeepResearch((v) => !v)}
         onSubmit={(text) => sendMutation.mutate(text)}
         loading={sendMutation.isPending}
       />

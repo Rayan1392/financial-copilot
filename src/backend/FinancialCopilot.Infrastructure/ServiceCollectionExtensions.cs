@@ -25,12 +25,14 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
+using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
@@ -370,8 +372,6 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IMonthlyProductionSalesProvider>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
-        services.AddScoped<IMarketDataProvider>(provider =>
-            provider.GetRequiredService<MockFinancialDataProvider>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
 
@@ -454,6 +454,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
         services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
+        services
+            .AddOptions<StockMarketDbProviderOptions>()
+            .BindConfiguration(StockMarketDbProviderOptions.SectionName);
+        services.AddSingleton<StockMarketDbConnectionFactory>();
+        services.AddSingleton<StockMarketDbSqlResilience>();
+        services.AddScoped<IStockMarketDbQueryExecutor, SqlStockMarketDbQueryExecutor>();
+        services.AddScoped<StockMarketDbSyncService>();
+        services.AddScoped<IStockMarketDbSyncService>(provider =>
+            provider.GetRequiredService<StockMarketDbSyncService>());
+        services.AddScoped<IStockMarketDbSyncStateReader>(provider =>
+            provider.GetRequiredService<StockMarketDbSyncService>());
+        services.AddScoped<IStockMarketHistoryRetentionService, StockMarketHistoryRetentionService>();
+        services.AddScoped<PersistedMarketDataProvider>();
+        services.AddScoped<IMarketDataProvider>(provider =>
+            provider.GetRequiredService<IOptions<StockMarketDbProviderOptions>>().Value.UsePersistedMarketQuotes
+                ? provider.GetRequiredService<PersistedMarketDataProvider>()
+                : provider.GetRequiredService<MockFinancialDataProvider>());
 
         // Missing-answer feedback (spec 028). Phase 1 default: real repository, no-op collector
         // (so production has zero collection overhead until MissingAnswerFeedback:Enabled=true).

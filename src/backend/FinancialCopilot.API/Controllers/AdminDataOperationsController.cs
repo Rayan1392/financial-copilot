@@ -21,6 +21,8 @@ public sealed class AdminDataOperationsController(
     IFinancialDataProviderHealthService providerHealth,
     ICyclicalWavesFullSyncService cyclicalWavesFullSync,
     ICodalDbScheduledSyncService codalDbScheduledSync,
+    IStockMarketDbSyncService stockMarketDbSync,
+    IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
     TimeProvider timeProvider) : ControllerBase
 {
@@ -109,6 +111,41 @@ public sealed class AdminDataOperationsController(
             result.FailedCompanyIds,
             result.AdvancedWatermark,
             result.Duration.ToString("g")));
+    }
+
+    [HttpPost("stockmarketdb/{dataset}/sync")]
+    public async Task<ActionResult<AdminStockMarketSyncResponse>> RunStockMarketDbSync(
+        string dataset,
+        [FromQuery] bool fullReload = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<StockMarketDataset>(dataset, ignoreCase: true, out var parsed))
+        {
+            ModelState.AddModelError(
+                nameof(dataset),
+                $"Unknown dataset '{dataset}'. Valid: {string.Join(", ", Enum.GetNames<StockMarketDataset>())}.");
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await stockMarketDbSync.SynchronizeAsync(parsed, fullReload, cancellationToken);
+        return Ok(new AdminStockMarketSyncResponse(
+            result.Dataset.ToString(),
+            result.RowsRead,
+            result.RowsPersisted,
+            result.AdvancedWatermark,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpGet("stockmarketdb/sync-state")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminStockMarketSyncStateResponse>>> GetStockMarketDbSyncState(
+        CancellationToken cancellationToken)
+    {
+        var states = await stockMarketDbSyncStateReader.QueryAsync(cancellationToken);
+        return Ok(states.Select(state => new AdminStockMarketSyncStateResponse(
+            state.Dataset.ToString(),
+            state.Watermark,
+            state.LastRunStartedAt,
+            state.LastRunCompletedAt)).ToArray());
     }
 
     [HttpGet("missing-answer-feedback")]

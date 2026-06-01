@@ -99,3 +99,32 @@ Content-Type: application/json
   "providerName": "CodalDb"
 }
 ```
+
+## StockMarketDB Trading Statistics
+
+Trading-statistics ingestion reads the separate SQL Server `StockMarketDB` source through a
+read-only adapter. Keep its connection string in secrets or environment configuration:
+
+```powershell
+$env:StockMarketDb__ConnectionString = "Server=localhost;Database=StockMarketDB;User Id=sa;Password=<secret>;TrustServerCertificate=true"
+```
+
+Apply PostgreSQL migrations, synchronize instruments first, then ingest bounded pages. During
+initial warm-up, repeat the incremental instrument call until it returns fewer rows than the
+configured page size before enabling time-series polling:
+
+```http
+POST /api/v1/admin/stockmarketdb/instruments/sync?fullReload=true
+POST /api/v1/admin/stockmarketdb/instruments/sync
+POST /api/v1/admin/stockmarketdb/intradaytrades/sync
+POST /api/v1/admin/stockmarketdb/dailytrades/sync
+POST /api/v1/admin/stockmarketdb/intradayindices/sync
+POST /api/v1/admin/stockmarketdb/historicaldailyindices/sync
+GET  /api/v1/admin/stockmarketdb/sync-state
+```
+
+After initial instruments and trade synchronization, set
+`StockMarketDb:UsePersistedMarketQuotes=true` for the API and enable
+`StockMarketDbPolling:Enabled=true` for the Worker. Polling defaults to one minute for trades,
+five minutes for indices, hourly for daily summaries, and daily for instruments. Intraday
+snapshots are retained for 30 days by default.

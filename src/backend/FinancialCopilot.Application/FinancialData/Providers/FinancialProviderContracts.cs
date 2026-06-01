@@ -9,7 +9,12 @@ public enum ProviderDataset
     MarketQuotes,
     FinancialStatements,
     MonthlyProductionSales,
-    FinancialRatios
+    FinancialRatios,
+    TradingInstruments,
+    IntradayTrades,
+    DailyTrades,
+    IntradayIndices,
+    DailyIndices
 }
 
 public sealed record ProviderFetchRequest(

@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601121203_AddStockMarketTradingStatisticsForeignKeys")]
+    partial class AddStockMarketTradingStatisticsForeignKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1074,12 +1077,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("Dataset")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("ContinuationExternalId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("ContinuationWatermark")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("LastRunCompletedAt")
                         .HasColumnType("timestamp with time zone");

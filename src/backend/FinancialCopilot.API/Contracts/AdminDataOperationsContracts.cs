@@ -48,6 +48,19 @@ public sealed record AdminCodalDbSyncResponse(
     DateTimeOffset? AdvancedWatermark,
     string Duration);
 
+public sealed record AdminStockMarketSyncResponse(
+    string Dataset,
+    int RowsRead,
+    int RowsPersisted,
+    DateTimeOffset? AdvancedWatermark,
+    string Duration);
+
+public sealed record AdminStockMarketSyncStateResponse(
+    string Dataset,
+    DateTimeOffset? Watermark,
+    DateTimeOffset? LastRunStartedAt,
+    DateTimeOffset? LastRunCompletedAt);
+
 public sealed record AdminMissingAnswerFeedbackItem(
     Guid Id,
     string ActorId,

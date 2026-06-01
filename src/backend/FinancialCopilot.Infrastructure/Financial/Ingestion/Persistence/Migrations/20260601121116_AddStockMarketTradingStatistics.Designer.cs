@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601121116_AddStockMarketTradingStatistics")]
+    partial class AddStockMarketTradingStatistics
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,8 +81,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("numeric");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TradingInstrumentId");
 
                     b.HasIndex("ProviderName", "TradingInstrumentId", "TradingDate")
                         .IsUnique();
@@ -596,8 +597,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TradingInstrumentId");
-
                     b.HasIndex("ProviderName", "TradingInstrumentId")
                         .IsUnique();
 
@@ -1075,12 +1074,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("ContinuationExternalId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("ContinuationWatermark")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset?>("LastRunCompletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1156,51 +1149,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("TradingInstruments", (string)null);
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyIndexSnapshotRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
-                        .WithMany()
-                        .HasForeignKey("TradingInstrumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.DailyInstrumentTradeRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
-                        .WithMany()
-                        .HasForeignKey("TradingInstrumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IntradayIndexSnapshotRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
-                        .WithMany()
-                        .HasForeignKey("TradingInstrumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.IntradayTradeSnapshotRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
-                        .WithMany()
-                        .HasForeignKey("TradingInstrumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.LatestMarketQuoteRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
-                        .WithMany()
-                        .HasForeignKey("TradingInstrumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryGroupRow", null)
@@ -1225,14 +1173,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .WithMany()
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
-                        .WithMany()
-                        .HasForeignKey("NormalizedCompanyId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 #pragma warning restore 612, 618
         }

@@ -134,7 +134,23 @@ watermarks, retention, and polling cadence. Verified source mapping:
 
 | Done | Order | Spec | User story | Dependency / implementation intent |
 |---|---:|---|---|---|
-| [ ] | 29 | [030](./030-stockmarketdb-trading-statistics-sync/user-story.md) / [tasks](./030-stockmarketdb-trading-statistics-sync/tasks.md) | StockMarketDB Trading Statistics Synchronization | Depends on `004`, `005`, `011`, `012`, `022`; add a separate read-only SQL Server adapter for `Tse.Instrument`, one-minute `Tse.Trade`, daily `Tse.InstTrade`, five-minute `Tse.IndexB1LastDay`, and historical `Tse.IndexNew2`. Normalize PostgreSQL time-series rows plus a `LatestMarketQuotes` projection. Link optional companies through `InsCode -> InstrumentCode`; never treat non-company instruments as companies and never use CodalDB's placeholder `InstrumentRef`. |
+| [x] | 29 | [030](./030-stockmarketdb-trading-statistics-sync/user-story.md) / [tasks](./030-stockmarketdb-trading-statistics-sync/tasks.md) | StockMarketDB Trading Statistics Synchronization | Depends on `004`, `005`, `011`, `012`, `022`; add a separate read-only SQL Server adapter for `Tse.Instrument`, one-minute `Tse.Trade`, daily `Tse.InstTrade`, five-minute `Tse.IndexB1LastDay`, and historical `Tse.IndexNew2`. Normalize PostgreSQL time-series rows plus a `LatestMarketQuotes` projection. Link optional companies through `InsCode -> InstrumentCode`; never treat non-company instruments as companies and never use CodalDB's placeholder `InstrumentRef`. |
+
+Implementation progress (`2026-06-01`): added the read-only `StockMarketDb` SQL adapter
+(`ApplicationIntent=ReadOnly`, bounded parameterized pages, retry/error mapping); normalized
+PostgreSQL rows and EF migrations for `TradingInstruments`, intraday/daily trades,
+intraday/daily indices, `LatestMarketQuotes`, and dataset watermarks; optional
+`InsCode -> Companies.InstrumentCode` linkage; idempotent source-id upserts; intraday-first
+latest-quote projection with daily fallback; current daily-index close projection from the last
+intraday index snapshot; config-gated `PersistedMarketDataProvider`; DataAdmin manual sync route;
+and configurable Worker polling. Added 30-day default retention cleanup for append-heavy
+intraday history and documented the future partition migration tradeoff; composite
+timestamp/source-id continuation cursors preserve bounded-page progress while overlap replay
+handles late arrivals. Verification: `dotnet test src/backend/FinancialCopilot.sln
+--configuration Release --no-restore` passed (`299` unit, `172` integration, `3` architecture).
+Applied all PostgreSQL migrations locally,
+drained the `76,810`-row instrument dimension in bounded pages, and live-verified two
+`Tse.Trade` pages (`5,000` rows persisted each) with forward watermark progress.
 
 ## Milestone View
 

@@ -212,6 +212,30 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task StockMarketDb_IntradayTradesSync_AsDataAdmin_InvokesDataset()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/stockmarketdb/intradaytrades/sync?fullReload=true",
+            content: null,
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([(StockMarketDataset.IntradayTrades, true)], _factory.StockMarketDbSync.Invocations);
+    }
+
+    [Fact]
+    public async Task StockMarketDb_SyncState_AsDataAdmin_ReturnsOperationalState()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync("/api/v1/admin/stockmarketdb/sync-state", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task MissingAnswerFeedback_AsDataAdmin_ReturnsItems()
     {
         _factory.MissingAnswerFeedback.Items.Add(new MissingAnswerFeedback(
@@ -338,12 +362,14 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubDataSyncRunReader _runReader = new();
     private readonly StubProviderHealthService _providerHealth = new();
     private readonly StubCodalDbScheduledSyncService _codalDbSync = new();
+    private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
+    public StubStockMarketDbSyncService StockMarketDbSync => _stockMarketDbSync;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -354,11 +380,15 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDataSyncRunReader>();
             services.RemoveAll<IFinancialDataProviderHealthService>();
             services.RemoveAll<ICodalDbScheduledSyncService>();
+            services.RemoveAll<IStockMarketDbSyncService>();
+            services.RemoveAll<IStockMarketDbSyncStateReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
             services.AddSingleton<IFinancialDataProviderHealthService>(_providerHealth);
             services.AddSingleton<ICodalDbScheduledSyncService>(_codalDbSync);
+            services.AddSingleton<IStockMarketDbSyncService>(_stockMarketDbSync);
+            services.AddSingleton<IStockMarketDbSyncStateReader>(_stockMarketDbSync);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
         });
     }
@@ -367,6 +397,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     {
         _publisher.Requests.Clear();
         _codalDbSync.Reset();
+        _stockMarketDbSync.Reset();
         _missingAnswerFeedback.Reset();
     }
 
@@ -421,6 +452,28 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         }
 
         public void Reset() => InvocationModes.Clear();
+    }
+
+    public sealed class StubStockMarketDbSyncService : IStockMarketDbSyncService, IStockMarketDbSyncStateReader
+    {
+        public List<(StockMarketDataset Dataset, bool FullReload)> Invocations { get; } = [];
+
+        public Task<StockMarketSyncResult> SynchronizeAsync(
+            StockMarketDataset dataset,
+            bool fullReload,
+            CancellationToken cancellationToken)
+        {
+            Invocations.Add((dataset, fullReload));
+            return Task.FromResult(new StockMarketSyncResult(
+                dataset, RowsRead: 3, RowsPersisted: 3,
+                AdvancedWatermark: DateTimeOffset.Parse("2026-06-01T12:35:00Z"),
+                Duration: TimeSpan.FromSeconds(1)));
+        }
+
+        public void Reset() => Invocations.Clear();
+
+        public Task<IReadOnlyCollection<StockMarketSyncState>> QueryAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<StockMarketSyncState>>([]);
     }
 
     private sealed class CapturingDataSyncPublisher : IDataSyncRequestPublisher

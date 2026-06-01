@@ -68,8 +68,16 @@ Add provider-scoped tables:
 `TradingInstruments.NormalizedCompanyId` is nullable. Company linkage uses `InstrumentCode`;
 non-company instruments remain queryable without inventing company records.
 
-Use PostgreSQL date partitioning for append-heavy intraday snapshot tables. Keep
-`LatestMarketQuotes` as a small upsert projection for scanner and market-summary reads.
+Keep `LatestMarketQuotes` as a small upsert projection for scanner and market-summary reads.
+
+The initial PostgreSQL migration keeps the append-heavy intraday tables unpartitioned because
+their global `(ProviderName, ExternalSnapshotId)` unique keys guarantee idempotency across the
+entire history. PostgreSQL declarative partitions require partition keys in parent-level unique
+constraints, so converting immediately would weaken that guarantee or require a different key
+design. The polling worker runs daily retention cleanup and keeps 30 days of intraday trade and
+index snapshots by default. Before retained volume becomes operationally significant, introduce
+a dedicated partition migration with date-aware idempotency keys and detach/drop old partitions
+instead of row deletes.
 
 ## Incremental Watermarks
 
@@ -81,8 +89,10 @@ Use PostgreSQL date partitioning for append-heavy intraday snapshot tables. Keep
 | Intraday indices | `ChangeTime` plus `Id` overlap | Upsert by source `Id` |
 | Historical daily indices | bounded date-range paging from `IndexNew2` | One-time/backfill workflow |
 
-The overlap strategy is required because source rows arrive late in some periods and GUID keys
-cannot provide timestamp tie-breaking by themselves.
+The overlap strategy is required because source rows arrive late in some periods. While a
+bounded page is full, persist a timestamp plus source-id continuation cursor so dense timestamps
+drain deterministically. After a short page completes the cycle, clear the continuation cursor
+and start the next cycle from the timestamp overlap window.
 
 ## Source Index Recommendations
 
@@ -129,3 +139,10 @@ Do not enqueue every one-minute poll through the existing per-company CodalDB fu
 fan-out. Trading statistics are time-series ingestion workloads with different cadence,
 retention, partitioning, and failure-recovery requirements.
 
+## Initial Warm-Up
+
+Before enabling the polling worker, call the instrument sync endpoint incrementally until a
+page returns fewer rows than `StockMarketDb:PageSize`. The source instrument dimension is larger
+than one bounded page. Time-series sync rejects a page containing unresolved instrument
+references and leaves its watermark unchanged, so it can be retried after dimension warm-up
+without losing early observations.

@@ -165,6 +165,105 @@ public sealed class CodalDbSyncStateRowConfiguration : IEntityTypeConfiguration<
     }
 }
 
+public sealed class TradingInstrumentRowConfiguration : IEntityTypeConfiguration<TradingInstrumentRow>
+{
+    public void Configure(EntityTypeBuilder<TradingInstrumentRow> builder)
+    {
+        builder.ToTable("TradingInstruments");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalInstrumentId }).IsUnique();
+        builder.HasIndex(row => new { row.ProviderName, row.InstrumentCode }).IsUnique();
+        builder.HasIndex(row => row.NormalizedCompanyId);
+        builder.HasOne<NormalizedCompanyRow>()
+            .WithMany()
+            .HasForeignKey(row => row.NormalizedCompanyId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+public sealed class IntradayTradeSnapshotRowConfiguration : IEntityTypeConfiguration<IntradayTradeSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<IntradayTradeSnapshotRow> builder)
+    {
+        builder.ToTable("IntradayTradeSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalSnapshotId }).IsUnique();
+        builder.HasIndex(row => new { row.TradingInstrumentId, row.ReceivedAt });
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class DailyInstrumentTradeRowConfiguration : IEntityTypeConfiguration<DailyInstrumentTradeRow>
+{
+    public void Configure(EntityTypeBuilder<DailyInstrumentTradeRow> builder)
+    {
+        builder.ToTable("DailyInstrumentTrades");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalTradeId }).IsUnique();
+        builder.HasIndex(row => new { row.TradingInstrumentId, row.TradingDate });
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class IntradayIndexSnapshotRowConfiguration : IEntityTypeConfiguration<IntradayIndexSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<IntradayIndexSnapshotRow> builder)
+    {
+        builder.ToTable("IntradayIndexSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalSnapshotId }).IsUnique();
+        builder.HasIndex(row => new { row.TradingInstrumentId, row.TradingDate });
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class DailyIndexSnapshotRowConfiguration : IEntityTypeConfiguration<DailyIndexSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<DailyIndexSnapshotRow> builder)
+    {
+        builder.ToTable("DailyIndexSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.TradingInstrumentId, row.TradingDate }).IsUnique();
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class LatestMarketQuoteRowConfiguration : IEntityTypeConfiguration<LatestMarketQuoteRow>
+{
+    public void Configure(EntityTypeBuilder<LatestMarketQuoteRow> builder)
+    {
+        builder.ToTable("LatestMarketQuotes");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.ProviderName, row.TradingInstrumentId }).IsUnique();
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class StockMarketSyncStateRowConfiguration : IEntityTypeConfiguration<StockMarketSyncStateRow>
+{
+    public void Configure(EntityTypeBuilder<StockMarketSyncStateRow> builder)
+    {
+        builder.ToTable("StockMarketSyncStates");
+        builder.HasKey(row => row.Dataset);
+        builder.Property(row => row.Dataset).HasMaxLength(64);
+    }
+}
+
 public sealed class MissingAnswerFeedbackRowConfiguration : IEntityTypeConfiguration<MissingAnswerFeedbackRow>
 {
     public void Configure(EntityTypeBuilder<MissingAnswerFeedbackRow> builder)

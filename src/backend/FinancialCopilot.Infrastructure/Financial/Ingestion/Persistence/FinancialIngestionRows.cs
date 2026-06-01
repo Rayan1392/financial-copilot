@@ -268,6 +268,107 @@ public sealed class CodalDbSyncStateRow
     public DateTimeOffset? LastRunCompletedAt { get; set; }
 }
 
+public sealed class TradingInstrumentRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public Guid ExternalInstrumentId { get; set; }
+    public long InstrumentCode { get; set; }
+    public string InstrumentIsin { get; set; } = string.Empty;
+    public string Symbol { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string MarketCode { get; set; } = string.Empty;
+    public string InstrumentKind { get; set; } = string.Empty;
+    public Guid? NormalizedCompanyId { get; set; }
+    public bool IsActive { get; set; }
+    public DateTimeOffset SourceChangedAt { get; set; }
+    public DateTimeOffset LastSynchronizedAt { get; set; }
+}
+
+public sealed class IntradayTradeSnapshotRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public Guid ExternalSnapshotId { get; set; }
+    public Guid TradingInstrumentId { get; set; }
+    public DateOnly TradingDate { get; set; }
+    public TimeOnly? TradingTime { get; set; }
+    public decimal ClosingPrice { get; set; }
+    public decimal LastTradedPrice { get; set; }
+    public decimal PriceChange { get; set; }
+    public decimal PriceYesterday { get; set; }
+    public decimal TotalTransactions { get; set; }
+    public decimal Volume { get; set; }
+    public decimal TotalCapital { get; set; }
+    public DateTimeOffset ReceivedAt { get; set; }
+}
+
+public sealed class DailyInstrumentTradeRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public long ExternalTradeId { get; set; }
+    public Guid TradingInstrumentId { get; set; }
+    public DateOnly TradingDate { get; set; }
+    public decimal ClosingPrice { get; set; }
+    public decimal LastTradedPrice { get; set; }
+    public decimal PriceChange { get; set; }
+    public decimal PriceYesterday { get; set; }
+    public decimal TotalTransactions { get; set; }
+    public decimal Volume { get; set; }
+    public decimal TotalCapital { get; set; }
+    public decimal MarketValue { get; set; }
+    public DateTimeOffset SourceInsertedAt { get; set; }
+}
+
+public sealed class IntradayIndexSnapshotRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public Guid ExternalSnapshotId { get; set; }
+    public Guid TradingInstrumentId { get; set; }
+    public DateOnly TradingDate { get; set; }
+    public TimeOnly? TradingTime { get; set; }
+    public decimal Value { get; set; }
+    public decimal? ChangePercent { get; set; }
+    public DateTimeOffset SourceChangedAt { get; set; }
+}
+
+public sealed class DailyIndexSnapshotRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public Guid TradingInstrumentId { get; set; }
+    public DateOnly TradingDate { get; set; }
+    public decimal? Value { get; set; }
+    public decimal? High { get; set; }
+    public decimal? Low { get; set; }
+    public decimal? ChangePercent { get; set; }
+    public string SourceKind { get; set; } = string.Empty;
+    public DateTimeOffset ObservedAt { get; set; }
+}
+
+public sealed class LatestMarketQuoteRow
+{
+    public Guid Id { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public Guid TradingInstrumentId { get; set; }
+    public decimal LatestPrice { get; set; }
+    public decimal PriceChangePercentage { get; set; }
+    public string SourceKind { get; set; } = string.Empty;
+    public DateTimeOffset AsOf { get; set; }
+}
+
+public sealed class StockMarketSyncStateRow
+{
+    public string Dataset { get; set; } = string.Empty;
+    public DateTimeOffset? Watermark { get; set; }
+    public DateTimeOffset? ContinuationWatermark { get; set; }
+    public string? ContinuationExternalId { get; set; }
+    public DateTimeOffset? LastRunStartedAt { get; set; }
+    public DateTimeOffset? LastRunCompletedAt { get; set; }
+}
+
 /// <summary>
 /// Persisted form of <c>MissingAnswerFeedback</c> (spec 028). Coalesced on
 /// <c>(ActorId, QueryHashSha256, Classification, DateBucket)</c>.

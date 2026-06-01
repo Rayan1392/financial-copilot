@@ -31,6 +31,14 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CodalDbSyncStateRow> CodalDbSyncStates => Set<CodalDbSyncStateRow>();
 
+    public DbSet<TradingInstrumentRow> TradingInstruments => Set<TradingInstrumentRow>();
+    public DbSet<IntradayTradeSnapshotRow> IntradayTradeSnapshots => Set<IntradayTradeSnapshotRow>();
+    public DbSet<DailyInstrumentTradeRow> DailyInstrumentTrades => Set<DailyInstrumentTradeRow>();
+    public DbSet<IntradayIndexSnapshotRow> IntradayIndexSnapshots => Set<IntradayIndexSnapshotRow>();
+    public DbSet<DailyIndexSnapshotRow> DailyIndexSnapshots => Set<DailyIndexSnapshotRow>();
+    public DbSet<LatestMarketQuoteRow> LatestMarketQuotes => Set<LatestMarketQuoteRow>();
+    public DbSet<StockMarketSyncStateRow> StockMarketSyncStates => Set<StockMarketSyncStateRow>();
+
     public DbSet<MissingAnswerFeedbackRow> MissingAnswerFeedbacks => Set<MissingAnswerFeedbackRow>();
 
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();

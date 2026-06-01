@@ -16,6 +16,8 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
     public DbSet<SubscriptionPlanRow> SubscriptionPlans => Set<SubscriptionPlanRow>();
 
+    public DbSet<PlanCapabilityRow> PlanCapabilities => Set<PlanCapabilityRow>();
+
     public DbSet<InvoiceAccountRow> InvoiceAccounts => Set<InvoiceAccountRow>();
 
     public DbSet<BillingOutboxMessageRow> OutboxMessages => Set<BillingOutboxMessageRow>();

@@ -18,6 +18,8 @@ using FinancialCopilot.Infrastructure.Billing;
 using FinancialCopilot.Application.AI.Observability;
 using FinancialCopilot.Infrastructure.AI.ModelProviders;
 using FinancialCopilot.Infrastructure.AI.Observability;
+using FinancialCopilot.Infrastructure.Authentication;
+using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Memory;
 using FinancialCopilot.Infrastructure.Memory.Persistence;
@@ -53,11 +55,32 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("Connection string 'FinancialCopilot' is required.");
 
         services.AddDbContext<BillingDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<AuthDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));
+
+        services
+            .AddIdentityCore<FinancialCopilotUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            })
+            .AddRoles<FinancialCopilotRole>()
+            .AddEntityFrameworkStores<AuthDbContext>();
+        services
+            .AddOptions<OwnedIdentityOptions>()
+            .Bind(configuration.GetSection(OwnedIdentityOptions.SectionName))
+            .Validate(options =>
+                Guid.TryParse(options.DefaultTenantId, out _) &&
+                options.AccessTokenMinutes > 0 &&
+                options.RefreshTokenDays > 0,
+                "Owned Identity tenant and token lifetime settings must be valid.")
+            .ValidateOnStart();
+        services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
 
         services.AddOptions<ScannerCacheOptions>()
             .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
@@ -87,6 +110,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialTransactionRepository, UsageLedgerRepository>();
         services.AddScoped<IInvoiceAccountRepository, InvoiceAccountRepository>();
         services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
+        services.AddScoped<IPlanCapabilityService, PlanCapabilityService>();
 
         services.AddScoped<IBillableAccountResolver, BillableAccountResolver>();
         services.AddScoped<ICreditLinePolicyService, CreditLinePolicyService>();
@@ -109,7 +133,8 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<IWalletService>(),
                 provider.GetRequiredService<IPricingPolicyProvider>(),
                 provider.GetRequiredService<ICreditLinePolicyService>(),
-                "v1"));
+                "v1",
+                provider.GetRequiredService<IPlanCapabilityService>()));
         services.AddScoped<IPartnerAccountService, PartnerAccountService>();
         services.AddScoped<IBillingAdministrationService, BillingAdministrationService>();
         services.AddScoped<IInvoiceService, InvoiceService>();
@@ -122,9 +147,11 @@ public static class ServiceCollectionExtensions
             new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
             {
                 ["AiQuery.Scanner"] = 1m,
+                ["AiQuery.StockAnalysis"] = 3m,
                 ["AiQuery.CachedResponse"] = 0.2m,
                 ["AiQuery.FinancialComparison"] = 3m,
                 ["AiQuery.DeepResearch"] = 15m,
+                ["AiQuery.PortfolioAnalysis"] = 6m,
                 ["AiQuery.CodalAnalysis"] = 8m,
                 ["AiQuery.Summarization"] = 4m,
                 ["AiQuery.Embeddings"] = 0.5m,

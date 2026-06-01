@@ -107,3 +107,29 @@
 36. Run frontend lint/build checks after the authentication cutover.
 37. Document local configuration, migration commands, role/permission seed strategy,
     plan-capability policy, token lifetimes, and operational refresh-token revocation behavior.
+
+## Implementation Status - 2026-06-01
+
+Implemented in this story:
+
+- Added backend-owned ASP.NET Core Identity persistence, tenant memberships, stable permission
+  catalog seeding, role-to-permission claims, JWT issuance, and hashed rotating refresh-token
+  sessions with replay-family revocation.
+- Added register, login, refresh, logout, revoke, and current-profile APIs with HttpOnly refresh
+  cookies, stable authentication ProblemDetails, credentialed local CORS, and preserved SaaS
+  API-key support.
+- Replaced role-name authorization branches with permission requirements while translating
+  existing synthetic/legacy JWT role claims during validation for compatibility.
+- Added Billing-owned versioned `PlanCapabilities`, Free/Pro/Plus/Premium seed migrations, and
+  monthly quota enforcement before wallet-capacity validation for limited AI operations.
+- Replaced frontend Supabase sign-in, route-session checks, logout, and global bearer attachment
+  with backend-owned authentication and a typed FinancialCopilot API client.
+- Added owned-auth integration tests, plan-capability unit tests, migration operations
+  documentation, and local PostgreSQL migration verification.
+
+Explicitly deferred to dependent delivery stories:
+
+- `032-frontend-chat-conversation-cutover` removes Supabase thread/message persistence and mock
+  AI responses.
+- `033-frontend-usage-watchlist-market-summary` replaces remaining Supabase/mock widget reads
+  with authoritative .NET projections.

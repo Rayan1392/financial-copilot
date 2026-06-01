@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 {
     [DbContext(typeof(BillingDbContext))]
-    partial class BillingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601153932_AddPlanCapabilities")]
+    partial class AddPlanCapabilities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -222,31 +225,7 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         new
                         {
                             PlanCode = "Free",
-                            CapabilityCode = "AiQuery.StockAnalysis",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 5m
-                        },
-                        new
-                        {
-                            PlanCode = "Free",
                             CapabilityCode = "AiQuery.FinancialComparison",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 5m
-                        },
-                        new
-                        {
-                            PlanCode = "Free",
-                            CapabilityCode = "Reports.Read",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 100m
-                        },
-                        new
-                        {
-                            PlanCode = "Free",
-                            CapabilityCode = "Watchlist.Symbols",
                             PolicyVersion = "v1",
                             IsEnabled = true,
                             Limit = 5m
@@ -255,13 +234,6 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         {
                             PlanCode = "Pro",
                             CapabilityCode = "AiQuery.Scanner",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Pro",
-                            CapabilityCode = "AiQuery.StockAnalysis",
                             PolicyVersion = "v1",
                             IsEnabled = true
                         },
@@ -282,46 +254,8 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
-                            PlanCode = "Pro",
-                            CapabilityCode = "AiQuery.PortfolioAnalysis",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 10m
-                        },
-                        new
-                        {
-                            PlanCode = "Pro",
-                            CapabilityCode = "Reports.Read",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Pro",
-                            CapabilityCode = "Watchlist.Symbols",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 20m
-                        },
-                        new
-                        {
-                            PlanCode = "Pro",
-                            CapabilityCode = "Portfolio.Records",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 10m
-                        },
-                        new
-                        {
                             PlanCode = "Plus",
                             CapabilityCode = "AiQuery.Scanner",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Plus",
-                            CapabilityCode = "AiQuery.StockAnalysis",
                             PolicyVersion = "v1",
                             IsEnabled = true
                         },
@@ -349,46 +283,8 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
-                            PlanCode = "Plus",
-                            CapabilityCode = "AiQuery.PortfolioAnalysis",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 50m
-                        },
-                        new
-                        {
-                            PlanCode = "Plus",
-                            CapabilityCode = "Reports.Read",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Plus",
-                            CapabilityCode = "Watchlist.Symbols",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 50m
-                        },
-                        new
-                        {
-                            PlanCode = "Plus",
-                            CapabilityCode = "Portfolio.Records",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 50m
-                        },
-                        new
-                        {
                             PlanCode = "Premium",
                             CapabilityCode = "AiQuery.Scanner",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Premium",
-                            CapabilityCode = "AiQuery.StockAnalysis",
                             PolicyVersion = "v1",
                             IsEnabled = true
                         },
@@ -412,36 +308,6 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                             CapabilityCode = "AiQuery.DeepResearch",
                             PolicyVersion = "v1",
                             IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Premium",
-                            CapabilityCode = "AiQuery.PortfolioAnalysis",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Premium",
-                            CapabilityCode = "Reports.Read",
-                            PolicyVersion = "v1",
-                            IsEnabled = true
-                        },
-                        new
-                        {
-                            PlanCode = "Premium",
-                            CapabilityCode = "Watchlist.Symbols",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 100m
-                        },
-                        new
-                        {
-                            PlanCode = "Premium",
-                            CapabilityCode = "Portfolio.Records",
-                            PolicyVersion = "v1",
-                            IsEnabled = true,
-                            Limit = 100m
                         });
                 });
 

@@ -94,7 +94,78 @@ public sealed class SubscriptionPlanRowConfiguration : IEntityTypeConfiguration<
             .WithOne()
             .HasForeignKey(row => row.SubscriptionPlanCode)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasData(
+            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 100m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 300m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Premium", Name = "Premium", IncludedCredits = 1000m, PricingPolicyVersion = "v1" });
     }
+}
+
+public sealed class PlanCapabilityRowConfiguration : IEntityTypeConfiguration<PlanCapabilityRow>
+{
+    public void Configure(EntityTypeBuilder<PlanCapabilityRow> builder)
+    {
+        builder.ToTable("billing_plan_capabilities");
+        builder.HasKey(row => new { row.PlanCode, row.CapabilityCode, row.PolicyVersion });
+        builder.Property(row => row.PlanCode).HasMaxLength(64);
+        builder.Property(row => row.CapabilityCode).HasMaxLength(160);
+        builder.Property(row => row.PolicyVersion).HasMaxLength(64);
+        builder.Property(row => row.Limit).HasPrecision(18, 4);
+        builder.HasOne<SubscriptionPlanRow>()
+            .WithMany()
+            .HasForeignKey(row => row.PlanCode)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasData(BaselinePlanCapabilities.All);
+    }
+}
+
+internal static class BaselinePlanCapabilities
+{
+    public static readonly PlanCapabilityRow[] All =
+    [
+        Enabled("Free", "AiQuery.Scanner", 10),
+        Enabled("Free", "AiQuery.StockAnalysis", 5),
+        Enabled("Free", "AiQuery.FinancialComparison", 5),
+        Enabled("Free", "Reports.Read", 100),
+        Enabled("Free", "Watchlist.Symbols", 5),
+        Enabled("Pro", "AiQuery.Scanner"),
+        Enabled("Pro", "AiQuery.StockAnalysis"),
+        Enabled("Pro", "AiQuery.FinancialComparison"),
+        Enabled("Pro", "AiQuery.CodalAnalysis", 30),
+        Enabled("Pro", "AiQuery.PortfolioAnalysis", 10),
+        Enabled("Pro", "Reports.Read"),
+        Enabled("Pro", "Watchlist.Symbols", 20),
+        Enabled("Pro", "Portfolio.Records", 10),
+        Enabled("Plus", "AiQuery.Scanner"),
+        Enabled("Plus", "AiQuery.StockAnalysis"),
+        Enabled("Plus", "AiQuery.FinancialComparison"),
+        Enabled("Plus", "AiQuery.CodalAnalysis"),
+        Enabled("Plus", "AiQuery.DeepResearch", 10),
+        Enabled("Plus", "AiQuery.PortfolioAnalysis", 50),
+        Enabled("Plus", "Reports.Read"),
+        Enabled("Plus", "Watchlist.Symbols", 50),
+        Enabled("Plus", "Portfolio.Records", 50),
+        Enabled("Premium", "AiQuery.Scanner"),
+        Enabled("Premium", "AiQuery.StockAnalysis"),
+        Enabled("Premium", "AiQuery.FinancialComparison"),
+        Enabled("Premium", "AiQuery.CodalAnalysis"),
+        Enabled("Premium", "AiQuery.DeepResearch"),
+        Enabled("Premium", "AiQuery.PortfolioAnalysis"),
+        Enabled("Premium", "Reports.Read"),
+        Enabled("Premium", "Watchlist.Symbols", 100),
+        Enabled("Premium", "Portfolio.Records", 100)
+    ];
+
+    private static PlanCapabilityRow Enabled(string planCode, string capabilityCode, decimal? limit = null) =>
+        new()
+        {
+            PlanCode = planCode,
+            CapabilityCode = capabilityCode,
+            PolicyVersion = "v1",
+            IsEnabled = true,
+            Limit = limit
+        };
 }
 
 public sealed class InvoiceAccountRowConfiguration : IEntityTypeConfiguration<InvoiceAccountRow>

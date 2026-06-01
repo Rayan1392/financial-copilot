@@ -40,6 +40,8 @@ Permission claim
 
 Permission handlers do not mutate balances or treat JWT claims as plan state. See
 [authorization-and-plan-entitlements.md](./authorization-and-plan-entitlements.md).
+Local configuration, migration, seed, and refresh-session revocation commands are documented in
+[owned-identity-operations.md](./owned-identity-operations.md).
 
 ### SaaS/API Consumers
 

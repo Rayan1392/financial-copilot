@@ -239,6 +239,14 @@ public interface IEntitlementService
         CancellationToken cancellationToken);
 }
 
+public interface IPlanCapabilityService
+{
+    Task ValidateCanExecuteAsync(
+        CustomerAccount account,
+        string operationCode,
+        CancellationToken cancellationToken);
+}
+
 public interface IWalletProjectionBuilder
 {
     WalletSnapshot Rebuild(

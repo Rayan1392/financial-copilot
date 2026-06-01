@@ -116,6 +116,15 @@ public sealed class SubscriptionPlanRow
     public string PricingPolicyVersion { get; set; } = string.Empty;
 }
 
+public sealed class PlanCapabilityRow
+{
+    public string PlanCode { get; set; } = string.Empty;
+    public string CapabilityCode { get; set; } = string.Empty;
+    public string PolicyVersion { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+    public decimal? Limit { get; set; }
+}
+
 public sealed class InvoiceAccountRow
 {
     public Guid CustomerAccountId { get; set; }

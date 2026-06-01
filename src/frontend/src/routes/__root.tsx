@@ -8,7 +8,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { subscribeToAuthChanges } from "@/integrations/financial-copilot/auth";
 import { useQueryClient } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
@@ -19,7 +19,12 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">۴۰۴</h1>
         <p className="mt-4 text-sm text-muted-foreground">صفحه‌ای که می‌خواهید پیدا نشد.</p>
-        <Link to="/" className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">بازگشت به خانه</Link>
+        <Link
+          to="/"
+          className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          بازگشت به خانه
+        </Link>
       </div>
     </div>
   );
@@ -32,7 +37,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold text-foreground">خطایی رخ داد</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-        <button onClick={() => { router.invalidate(); reset(); }} className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">تلاش مجدد</button>
+        <button
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
+          className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          تلاش مجدد
+        </button>
       </div>
     </div>
   );
@@ -50,8 +63,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "دستیار هوشمند تحلیل بازار" },
       { property: "og:description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
       { name: "twitter:description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp" },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/bwtrv7ryw1gzeXPKAE6bV9W35wY2/social-images/social-1779702784036-a92e9a13-c65b-47ce-add4-40e79fb35ddd.webp",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -74,7 +95,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fa" dir="rtl" className="dark">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         {children}
         <Scripts />
@@ -87,15 +110,10 @@ function AuthSync() {
   const router = useRouter();
   const qc = useQueryClient();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        qc.clear();
-      } else {
-        qc.invalidateQueries();
-      }
+    return subscribeToAuthChanges(() => {
+      qc.clear();
       router.invalidate();
     });
-    return () => subscription.unsubscribe();
   }, [router, qc]);
 
   return null;

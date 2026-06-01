@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentActorContext, HttpCurrentActorContext>();
+        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.Configure<ApiKeyAuthenticationOptions>(
             configuration.GetSection(ApiKeyAuthenticationOptions.SectionName));
 
@@ -43,6 +44,9 @@ public static class ServiceCollectionExtensions
             {
                 policy.RequireAuthenticatedUser();
                 policy.RequireAssertion(context => HasValidActorContext(context.User));
+                policy.AddRequirements(new PermissionRequirement(
+                    FinancialCopilotPermissions.AiQuery,
+                    AllowApiClient: true));
             });
 
             options.AddPolicy(AuthorizationPolicies.ApiClientOnly, policy =>
@@ -58,8 +62,8 @@ public static class ServiceCollectionExtensions
                 policy.RequireAuthenticatedUser();
                 policy.RequireAssertion(context =>
                     HasValidActorContext(context.User) &&
-                    IsMode(context.User, AuthenticationMode.WebAppUser) &&
-                    context.User.HasClaim("role", "BillingAdmin"));
+                    IsMode(context.User, AuthenticationMode.WebAppUser));
+                policy.AddRequirements(new PermissionRequirement(FinancialCopilotPermissions.BillingManage));
             });
 
             options.AddPolicy(AuthorizationPolicies.DataAdmin, policy =>
@@ -67,8 +71,8 @@ public static class ServiceCollectionExtensions
                 policy.RequireAuthenticatedUser();
                 policy.RequireAssertion(context =>
                     HasValidActorContext(context.User) &&
-                    IsMode(context.User, AuthenticationMode.WebAppUser) &&
-                    context.User.HasClaim("role", "DataAdmin"));
+                    IsMode(context.User, AuthenticationMode.WebAppUser));
+                policy.AddRequirements(new PermissionRequirement(FinancialCopilotPermissions.DataSyncManage));
             });
         });
 
@@ -121,9 +125,38 @@ public static class ServiceCollectionExtensions
                         AuthenticationMode.WebAppUser.ToString()));
                 }
 
+                AddLegacyPermissionClaims(context.Principal);
+
                 return Task.CompletedTask;
             }
         };
+    }
+
+    private static void AddLegacyPermissionClaims(ClaimsPrincipal? principal)
+    {
+        if (principal?.Identity is not ClaimsIdentity identity ||
+            !IsMode(principal, AuthenticationMode.WebAppUser))
+        {
+            return;
+        }
+
+        AddPermissionIfMissing(identity, FinancialCopilotPermissions.AiQuery);
+        if (principal.HasClaim("role", "DataAdmin"))
+        {
+            AddPermissionIfMissing(identity, FinancialCopilotPermissions.DataSyncManage);
+        }
+        if (principal.HasClaim("role", "BillingAdmin"))
+        {
+            AddPermissionIfMissing(identity, FinancialCopilotPermissions.BillingManage);
+        }
+    }
+
+    private static void AddPermissionIfMissing(ClaimsIdentity identity, string permission)
+    {
+        if (!identity.HasClaim(FinancialCopilotClaimTypes.Permission, permission))
+        {
+            identity.AddClaim(new Claim(FinancialCopilotClaimTypes.Permission, permission));
+        }
     }
 
     private static bool HasValidActorContext(ClaimsPrincipal principal)

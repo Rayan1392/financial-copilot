@@ -16,7 +16,30 @@ The public API contract is also independent of the selected LLM runtime. The bac
 
 ### Owned Web Application
 
-Use JWT bearer authentication for the React application.
+Use backend-owned ASP.NET Core Identity for web users. The React application signs in through
+`POST /api/auth/v1/login`, sends a short-lived JWT access token as a bearer token, and renews
+sessions through rotating opaque refresh tokens. Persist refresh-token hashes only.
+
+Authorization is permission-based:
+
+```text
+Role -> Permissions -> JWT permission claims -> ASP.NET Core authorization requirement
+```
+
+Roles remain an administration grouping mechanism. Protected capabilities authorize stable
+permission claims rather than hardcoded role-name checks. Tenant membership is resolved
+server-side and included in the access token actor context.
+
+Product access then applies Billing-owned plan entitlement and AI-credit enforcement:
+
+```text
+Permission claim
+-> active subscription-plan capability and quota
+-> credit reservation for billable execution
+```
+
+Permission handlers do not mutate balances or treat JWT claims as plan state. See
+[authorization-and-plan-entitlements.md](./authorization-and-plan-entitlements.md).
 
 ### SaaS/API Consumers
 
@@ -199,7 +222,15 @@ GET  /api/v1/admin/data-sync/runs
 GET  /api/v1/admin/provider-health
 ```
 
-These endpoints require an authenticated web-application actor with the `DataAdmin` role. Trigger endpoints return `202 Accepted` after publishing an ingestion request through the configured `IDataSyncRequestPublisher`; the Worker performs normalization and persists resulting run state. Financial-statement and monthly-report requests require an `externalReference` identifying the source company. Run responses expose dataset, status, requested/started/completed times, processed record count, error count/message, and source-payload checksum. The provider-health endpoint delegates to `IFinancialDataProviderHealthService`.
+These endpoints require an authenticated web-application actor with the `data.sync.manage`
+permission. A `DataAdmin` role may grant that permission, but policies do not authorize by role
+name. Trigger endpoints return `202 Accepted` after publishing an ingestion request through the
+configured `IDataSyncRequestPublisher`; the Worker performs normalization and persists resulting
+run state. Financial-statement and monthly-report requests require an `externalReference`
+identifying the source company. Run responses expose dataset, status,
+requested/started/completed times, processed record count, error count/message, and
+source-payload checksum. The provider-health endpoint delegates to
+`IFinancialDataProviderHealthService`.
 
 ## Billing/Usage Endpoints
 
@@ -224,7 +255,12 @@ GET  /api/v1/admin/billing/customers/{customerAccountId}/invoices
 POST /api/v1/admin/billing/customers/{customerAccountId}/adjustments
 ```
 
-Billing administration endpoints require a billing-administrator role and remain tenant-scoped. The implemented manual adjustment operation records a positive usage-credit adjustment with an audit reason and idempotency key, and updates the wallet projection as part of the same persistence operation. It does not convert payment currency to credits or serve as a payment gateway.
+Billing administration endpoints require the `billing.manage` permission and remain
+tenant-scoped. A `BillingAdmin` role may grant that permission, but policies do not authorize by
+role name. The implemented manual adjustment operation records a positive usage-credit
+adjustment with an audit reason and idempotency key, and updates the wallet projection as part
+of the same persistence operation. It does not convert payment currency to credits or serve as
+a payment gateway.
 
 Payment gateway callbacks and partner invoice settlement endpoints must be provider-specific authenticated/internal integration contracts when implemented, with idempotency enforced. Full payment gateway and automatic invoice delivery are not required for the initial scanner milestone.
 

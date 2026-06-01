@@ -68,6 +68,32 @@ partitioning needs:
   snapshots, daily instrument trades, intraday indices, historical daily-index backfill, and
   PostgreSQL latest-quote projections.
 
+## Frontend Integration Specs
+
+These specs replace the Lovable/TanStack prototype's Supabase chat persistence and canned
+financial responses with the implemented .NET backend boundaries. They are deliberately split
+so implementation can proceed incrementally without presenting unsupported features as live:
+
+1. `031-frontend-authenticated-api-bridge` - replace Supabase authentication with backend-owned
+   ASP.NET Core Identity, JWT access tokens, refresh-token rotation, permission policies,
+   Billing-owned plan capabilities, and AI-credit enforcement.
+2. `032-frontend-chat-conversation-cutover` - route chat, history, structured explainability,
+   and usage results through the single AI facade.
+3. `033-frontend-usage-watchlist-market-summary` - replace sidebar credits, watchlist mocks, and
+   context-panel mocks with normalized backend projections.
+4. `034-frontend-assisted-query-metadata` - populate optional assisted filter controls from
+   governed metadata while still submitting prompts only through the AI facade.
+
+## Administration Specs
+
+These specs expose controlled backend administration surfaces over existing Identity, tenancy,
+and Billing boundaries. They are API-first so a future React Admin UI can consume stable
+contracts without moving domain rules into controllers:
+
+1. `035-admin-identity-and-entitlement-management` - manage users, roles, permission mappings,
+   tenant memberships, plans, plan capabilities, subscriptions, credit adjustments, immutable
+   usage-ledger reads, and security/Billing audit visibility with granular permission policies.
+
 ## Coherence Rules
 
 - The React UI submits user Messages only through `POST /api/ai/v1/query`; scanner parser/execution operations are internal Application capabilities.
@@ -85,6 +111,16 @@ partitioning needs:
 - `017` evaluates parser/orchestration/explanation behavior internally and never becomes a public API dependency.
 - `018` observes execution across `014`, orchestration, tools, and Billing; observability is not the accounting source of truth.
 - `019` separates optional consent-aware future memory from required Conversation and Message persistence.
+- `031` establishes backend-owned web identity and permission authorization before frontend
+  calls protected .NET endpoints. Billing remains the source of truth for subscription-plan
+  capabilities, quotas, and AI-credit reservation.
+- `032` removes mock chat behavior and keeps every user prompt on `POST /api/ai/v1/query`.
+- `033` exposes read models for UI widgets; it must return unavailable values honestly instead
+  of fabricating unsupported market analytics.
+- `034` may add discovery controls, but it never exposes scanner execution as a frontend API.
+- `035` exposes controlled admin APIs over `031` Identity and `013` Billing boundaries. It does
+  not duplicate entitlement logic, mutate wallet projections directly, or authorize by
+  hardcoded role or plan names.
 
 ## Recommended Delivery Dependencies
 

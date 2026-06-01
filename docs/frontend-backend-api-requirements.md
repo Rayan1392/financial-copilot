@@ -6,6 +6,25 @@ This document derives the backend API requirements from the current React and Ty
 
 The central constraint is unchanged: the React chat UI sends every user message to one AI facade endpoint. It does not detect intent or call scanner, portfolio, market summary, or research services directly.
 
+## Current Implementation Audit
+
+Audit completed on `2026-06-01`:
+
+| Area | Current state | Delivery spec |
+| --- | --- | --- |
+| Frontend identity | Supabase signs users in today. The target is backend-owned ASP.NET Core Identity with JWT access tokens, rotating refresh tokens, tenant membership, and permission claims. | `031-frontend-authenticated-api-bridge` |
+| AI query | `.NET` already exposes `POST /api/ai/v1/query`; the frontend still calls `generateMockReply`. | `032-frontend-chat-conversation-cutover` |
+| Conversation history | `.NET` exposes list/detail/message reads, but lacks empty create, delete, titles, reloadable structured assistant content, and complete actor-scoped reads. | `032-frontend-chat-conversation-cutover` |
+| Usage | `.NET` already exposes `GET /api/v1/usage/me`; the frontend still reads Supabase mock subscription credits. | `033-frontend-usage-watchlist-market-summary` |
+| Watchlist | Prototype Supabase table and `STOCK_DB` quotes only; no .NET API exists. | `033-frontend-usage-watchlist-market-summary` |
+| Market panel | Prototype imports `MARKET_SNAPSHOT`; StockMarketDB projections exist but no web summary endpoint exists. | `033-frontend-usage-watchlist-market-summary` |
+| Metadata | `.NET` exposes metric metadata only; periods, symbols, and industries remain missing. | `034-frontend-assisted-query-metadata` |
+
+Spec `031` replaces Supabase authentication rather than adding a bridge. The backend owns user
+registration, login, refresh, logout, revoke, tenant membership, roles, permissions, and JWT
+issuance. This avoids accepting arbitrary tenant identifiers from the browser and keeps the
+FinancialCopilot API's existing tenant-scoped authorization contract intact.
+
 ## Frontend Evidence Reviewed
 
 | Frontend area | Current dependency | Backend implication |
@@ -17,7 +36,7 @@ The central constraint is unchanged: the React chat UI sends every user message 
 | `src/components/app/context-panel.tsx` | Displays a mocked market snapshot | A market summary endpoint is required to replace mocked context data. |
 | `src/components/app/message-list.tsx` | Renders structured assistant results | The AI response DTO must carry structured explainable-answer content. |
 | `src/lib/mock/data.ts` | Generates scanner, analysis, market, portfolio, and deep research answers | All mock intent handling must move behind the AI Query Orchestrator. |
-| `src/routes/auth.tsx` and `src/integrations/supabase/auth-attacher.ts` | Supabase authentication and bearer-token attachment | The backend must accept and validate the authenticated bearer token, unless authentication is migrated later. |
+| `src/routes/auth.tsx` and `src/integrations/supabase/auth-attacher.ts` | Supabase authentication and bearer-token attachment | Replace with backend Identity register/login, JWT access-token handling, refresh rotation, and logout. |
 
 ## Migration Rule
 
@@ -158,6 +177,11 @@ These services follow SOLID boundaries and are testable without an LLM or agent 
 
 | Priority | UI requirement | Endpoint | Notes |
 | --- | --- | --- | --- |
+| P0 | Register an owned web-app user | `POST /api/auth/v1/register` | Uses ASP.NET Core Identity and server-side tenant membership rules. |
+| P0 | Sign in and receive tokens | `POST /api/auth/v1/login` | Returns short-lived JWT access token plus opaque rotating refresh token. |
+| P0 | Rotate an authenticated session | `POST /api/auth/v1/refresh` | Rotates the hashed refresh-token session and rejects replay. |
+| P0 | End or explicitly revoke a session | `POST /api/auth/v1/logout`, `POST /api/auth/v1/revoke` | Revokes persisted refresh-token state. |
+| P0 | Read the current actor profile | `GET /api/auth/v1/me` | Returns backend-owned identity, tenant, roles, and effective permissions. |
 | P0 | Submit a chat prompt and receive an AI answer | `POST /api/ai/v1/query` | The only public frontend-facing chat query endpoint. |
 | P0 | List chat history in the sidebar | `GET /api/ai/v1/conversations` | Replaces the current thread list. |
 | P0 | Create an empty chat from the sidebar | `POST /api/ai/v1/conversations` | Required because the current New Chat action navigates before a first prompt exists. |
@@ -173,25 +197,54 @@ These services follow SOLID boundaries and are testable without an LLM or agent 
 | P2 | Populate symbol search/autocomplete | `GET /api/ai/v1/metadata/symbols` | Supporting metadata only. |
 | P2 | Populate industry search/autocomplete | `GET /api/ai/v1/metadata/industries` | Supporting metadata only. |
 
-## Authentication Compatibility
+## Backend-Owned Authentication
 
-The current frontend signs in through Supabase and attaches an access token to authenticated server-function requests:
-
-```http
-Authorization: Bearer <access-token>
-```
-
-For the first backend integration, the API should validate this bearer token and resolve the authenticated user and tenant context server-side. The frontend must not supply an arbitrary tenant identifier to gain access to another tenant's conversations, usage, or watchlist.
-
-If authentication is later moved out of Supabase and into the backend, the following become additional public requirements:
+The target frontend signs in through FinancialCopilot backend APIs implemented with ASP.NET
+Core Identity:
 
 ```http
-POST /api/auth/v1/sign-in
-POST /api/auth/v1/sign-up
-POST /api/auth/v1/sign-out
+POST /api/auth/v1/register
+POST /api/auth/v1/login
+POST /api/auth/v1/refresh
+POST /api/auth/v1/logout
+POST /api/auth/v1/revoke
+GET  /api/auth/v1/me
 ```
 
-These authentication endpoints are conditional and are not required while the frontend retains Supabase authentication.
+Login returns a short-lived JWT access token and an opaque refresh token. Refresh tokens rotate
+on use and are persisted only as hashes. The backend resolves tenant membership, roles, and
+effective permissions server-side. The frontend must not supply an arbitrary tenant identifier
+to gain access to another tenant's conversations, usage, or watchlist.
+
+Authorization is permission-based:
+
+```text
+Role -> Permissions -> JWT permission claims -> ASP.NET Core authorization requirement
+```
+
+Product access then applies subscription and Billing checks:
+
+```text
+permission claim
+-> active plan capability and quota
+-> AI credit reservation for billable execution
+```
+
+See [authorization-and-plan-entitlements.md](./authorization-and-plan-entitlements.md) for the
+catalog and initial configurable plan matrix.
+
+Required persistence:
+
+| Table | Responsibility |
+| --- | --- |
+| `Users` | ASP.NET Core Identity web users and credential state. |
+| `Roles` | Named permission groups used for administration. |
+| `Permissions` | Stable authorization capability codes. |
+| `UserRoles` | User-to-role assignments. |
+| `RolePermissions` | Role-to-permission assignments. |
+| `RefreshTokens` | Hashed rotating refresh-token sessions and revocation metadata. |
+| `Tenants` | Tenant records required by backend actor context. |
+| `UserTenants` | Server-owned user-to-tenant membership. |
 
 ## AI Query Contract
 
@@ -199,7 +252,7 @@ These authentication endpoints are conditional and are not required while the fr
 
 ```http
 POST /api/ai/v1/query
-Authorization: Bearer <access-token>
+Authorization: Bearer <financial-copilot-jwt>
 Content-Type: application/json
 ```
 
@@ -433,7 +486,7 @@ GET /api/v1/market/summary
 | `getSubscription` | `GET /api/v1/usage/me` |
 | `getWatchlist` plus mocked sidebar price data | `GET /api/v1/watchlists/me` |
 | `MARKET_SNAPSHOT` in the context panel | `GET /api/v1/market/summary` |
-| Supabase access-token attachment | Keep `Authorization: Bearer <access-token>` for authenticated API calls. |
+| Supabase authentication and bearer attachment | Replace with backend register/login, JWT access-token forwarding, refresh rotation, and logout. |
 | Future scanner/filter selector UI | Fetch metadata endpoints; submit the final user request through `POST /api/ai/v1/query`. |
 
 ## Internal Services, Not Frontend APIs
@@ -492,9 +545,10 @@ They are not part of the public frontend API.
 
 ## Suggested Implementation Order
 
-1. Implement authenticated Conversation and Message persistence and the `POST /api/ai/v1/query` orchestration boundary.
-2. Replace thread and message server functions with conversation APIs.
-3. Connect Usage Accounting to AI query execution and replace subscription reads.
-4. Replace mock assistant content with the explainable-answer response DTO.
+1. Implement ASP.NET Core Identity, JWT access tokens, refresh-token rotation, permission
+   policies, and the server-only TanStack API client.
+2. Complete conversation lifecycle and reloadable structured assistant persistence.
+3. Replace thread and message server functions, `generateMockReply`, and local credit changes.
+4. Connect `GET /api/v1/usage/me` and render backend explainability DTOs.
 5. Expose watchlist quotes and market summary data to remove sidebar and context-panel mocks.
 6. Add metadata endpoints when assisted query/filter controls are implemented.

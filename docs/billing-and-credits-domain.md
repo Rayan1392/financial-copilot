@@ -117,7 +117,9 @@ AI model integrations are defined by `014-ai-model-provider-abstraction`. Billin
 ```text
 Authenticate Actor
 -> Resolve CustomerAccount and Tenant
--> Resolve Pricing Policy and Entitlements
+-> Require role-derived permission claim at the API/application boundary
+-> Resolve active SubscriptionPlan capability and quota
+-> Resolve Pricing Policy
 -> Estimate and Reserve Spending Capacity
 -> Execute Microsoft Agent Framework Workflow
 -> Calculate Actual Billable Usage
@@ -125,6 +127,12 @@ Authenticate Actor
 -> Append UsageLedger Entry and Update Wallet Projection
 -> Return Usage Metadata
 ```
+
+Permission authorization and Billing entitlement are separate checks. ASP.NET Core
+authorization determines whether an actor may attempt a capability. Billing then resolves the
+active plan capability, requested quota, pricing policy, and reservable capacity. JWT claims
+must not carry mutable plan limits or wallet balances. See
+[authorization-and-plan-entitlements.md](./authorization-and-plan-entitlements.md).
 
 Execution outcomes must have defined policies:
 

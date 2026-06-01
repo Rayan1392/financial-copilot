@@ -152,6 +152,31 @@ Applied all PostgreSQL migrations locally,
 drained the `76,810`-row instrument dimension in bounded pages, and live-verified two
 `Tse.Trade` pages (`5,000` rows persisted each) with forward watermark progress.
 
+### Stage 10 - Frontend Backend Integration
+
+These stories replace the Lovable/TanStack prototype's Supabase authentication/chat persistence,
+mock credit decrements, and canned financial responses with the .NET backend. Implementation
+must proceed in order: establish backend-owned identity first, cut chat over to the AI facade
+second, then replace supporting widget mocks, then add optional assisted metadata controls. Audit source:
+[frontend-backend-api-requirements.md](../docs/frontend-backend-api-requirements.md).
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 30 | [031](./031-frontend-authenticated-api-bridge/user-story.md) / [tasks](./031-frontend-authenticated-api-bridge/tasks.md) | Backend Identity Authentication And Permission Authorization | Depends on `002`, `010`, `013`; replace Supabase authentication with ASP.NET Core Identity, short-lived JWT access tokens, rotating hashed refresh tokens, persisted `Users`/`Roles`/`Permissions`/`UserRoles`/`RolePermissions`/`RefreshTokens`, tenant membership, and permission policies (`Role -> Permissions -> Claims`). Add layered plan-capability and AI-credit enforcement for scanner, stock analysis, reports, watchlist, portfolio, and deep research without moving accounting into authorization. Preserve SaaS API-key auth and never trust a browser-supplied tenant id. Reference: [authorization-and-plan-entitlements.md](../docs/authorization-and-plan-entitlements.md). |
+| [ ] | 31 | [032](./032-frontend-chat-conversation-cutover/user-story.md) / [tasks](./032-frontend-chat-conversation-cutover/tasks.md) | Frontend Chat And Conversation API Cutover | Depends on `031`, `007`, `009`, `010`; complete actor-scoped conversation lifecycle APIs and reloadable structured assistant content, then replace Supabase thread/message writes, `generateMockReply`, and local credit decrement with `POST /api/ai/v1/query` plus generic conversation reads. Hide unsupported prototype controls. |
+| [ ] | 32 | [033](./033-frontend-usage-watchlist-market-summary/user-story.md) / [tasks](./033-frontend-usage-watchlist-market-summary/tasks.md) | Frontend Usage, Watchlist, And Market Summary Integration | Depends on `031`, `010`, `030`; connect `GET /api/v1/usage/me`, add actor-scoped watchlist APIs enriched from `LatestMarketQuotes`, expose normalized market-summary reads, and remove `STOCK_DB`/`MARKET_SNAPSHOT` widget mocks. Unsupported analytics remain nullable or hidden. |
+| [ ] | 33 | [034](./034-frontend-assisted-query-metadata/user-story.md) / [tasks](./034-frontend-assisted-query-metadata/tasks.md) | Frontend Assisted Query Metadata | Depends on `031`, `015`, `032`; connect governed metric metadata and add bounded period/symbol/industry discovery for optional assisted prompt composition. The final prompt still goes only to `POST /api/ai/v1/query`; no public scanner parse/execute endpoints. |
+
+### Stage 11 - Admin Management APIs
+
+This story adds a controlled API-only administration surface over the owned Identity, tenancy,
+and Billing boundaries. It prepares stable backend contracts for a future React Admin UI
+without implementing that UI or moving Identity/Billing domain rules into controllers.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 34 | [035](./035-admin-identity-and-entitlement-management/user-story.md) / [tasks](./035-admin-identity-and-entitlement-management/tasks.md) | Admin Identity And Entitlement Management | Depends on `031`, `013`; add granular permission-protected, tenant-scoped, audited Admin APIs for users, refresh-session revocation, roles, permission mappings, tenant memberships, Billing-owned plans and `PlanCapabilities`, subscriptions, manual credit adjustments, immutable usage-ledger reads, and security/Billing audit visibility. Preserve the final active `SuperAdmin` administration path transactionally. React Admin UI is out of scope. |
+
 ## Milestone View
 
 | Milestone | Stories required | Completion condition |
@@ -163,6 +188,8 @@ drained the `76,810`-row instrument dimension in bounded pages, and live-verifie
 | Platform evolution ready | `016`, `017`, `019` and expanded `018` as promoted | Future features, evaluation, and optional memory are delivered under approved scope. |
 | CodalDB source live | `021`, `022`, `023`, `024`, `025`, `026`, `027` | CodalDB coexists with CyclicalWaves: companies/symbols, statements, monthly activity, precomputed ratios, and derived growth metrics flow into the normalized tables and `DerivedMetrics`, recomputed automatically on a nightly incremental schedule and scannable through the existing facade with no engine changes. |
 | Query intelligence & platform learning | `028` | Every unanswered/partial query (metric gap, data gap, parser limitation) is captured, classified, and logged as structured feedback that drives catalog expansion, data ingestion prioritization, and AI model improvements. |
+| Owned web app connected | `031`, `032`, `033` | TanStack users authenticate through backend-owned Identity and reach tenant-scoped .NET APIs; chat, history, credits, watchlist quotes, and market context no longer rely on Supabase or canned financial mocks. |
+| Admin operations ready | `035` | Authorized administrators can operate Identity, tenancy, plans, subscriptions, credit adjustments, and audit reads through granular tenant-scoped backend APIs without direct database changes. |
 
 ## Completion Log
 

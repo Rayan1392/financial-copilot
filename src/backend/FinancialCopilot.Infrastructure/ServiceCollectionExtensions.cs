@@ -40,6 +40,10 @@ using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
+using FinancialCopilot.Infrastructure.Financial.Metadata;
+using FinancialCopilot.Application.FinancialData.Metadata;
+using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Infrastructure.Administration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,6 +87,7 @@ public static class ServiceCollectionExtensions
                 "Owned Identity tenant and token lifetime settings must be valid.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
+        services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 
         services.AddOptions<ScannerCacheOptions>()
             .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
@@ -482,6 +487,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();
         services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
+        services.AddScoped<IAssistedQueryMetadataService, EfCoreAssistedQueryMetadataService>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
         services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
         services

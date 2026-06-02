@@ -20,6 +20,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserTenantRow> UserTenants => Set<UserTenantRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
+    public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -27,6 +28,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
         builder.Entity<FinancialCopilotUser>().ToTable("auth_users");
         builder.Entity<FinancialCopilotRole>().ToTable("auth_roles");
+        builder.Entity<FinancialCopilotRole>().Property(role => role.IsEnabled).HasDefaultValue(true);
         builder.Entity<IdentityUserRole<Guid>>().ToTable("auth_user_roles");
         builder.Entity<IdentityUserClaim<Guid>>().ToTable("auth_user_claims");
         builder.Entity<IdentityUserLogin<Guid>>().ToTable("auth_user_logins");
@@ -69,6 +71,22 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
             entity.Property(row => row.RevocationReason).HasMaxLength(250);
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
+        });
+        builder.Entity<SecurityAdminAuditRow>(entity =>
+        {
+            entity.ToTable("auth_security_admin_audits");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.TenantId, row.OccurredAt });
+            entity.Property(row => row.ActorType).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.PermissionCode).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.ActionCode).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.TargetType).HasMaxLength(80).IsRequired();
+            entity.Property(row => row.TargetId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Reason).HasMaxLength(500);
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Before).HasMaxLength(2000);
+            entity.Property(row => row.After).HasMaxLength(2000);
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(160);
         });
     }
 }

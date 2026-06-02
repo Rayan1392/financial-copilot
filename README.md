@@ -135,3 +135,9 @@ Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMa
 projections. Configure quote staleness, the short-lived summary cache, top-mover count, and the
 fallback watchlist limit through `MarketViews`. Subscription plans with a `Watchlist.Symbols`
 capability override the fallback limit.
+
+## Admin Management API
+
+Apply the Auth and Billing migrations before using the permission-protected Admin Management
+API. The route catalog, permission codes, `SuperAdmin` bootstrap rule, audit policy, and update
+commands are documented in [docs/admin-management-api.md](docs/admin-management-api.md).

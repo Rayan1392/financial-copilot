@@ -162,3 +162,9 @@
 55. Document that React Admin UI implementation remains a later feature consuming these
     backend contracts.
 
+## Implementation Status
+
+Completed on 2026-06-02. The delivered backend-only module exposes narrow permission-protected
+Admin APIs, serializable final-`SuperAdmin` lockout protection, immutable security and Billing
+administration audit stores, append-only plan-capability publication, subscription revision
+checks, and Billing-owned idempotent credit adjustment. React Admin UI remains out of scope.

@@ -15,3 +15,18 @@ public sealed record MetricDefinitionResponse(
     IReadOnlyCollection<string> CalculationPolicyVersions);
 
 public sealed record MetricAliasResponse(string Expression, string Language);
+
+public sealed record PeriodMetadataResponse(
+    string Code,
+    string DisplayName,
+    string DisplayNameFa);
+
+public sealed record SymbolMetadataResponse(
+    string SymbolCode,
+    string CompanyName,
+    string? CompanyNameEnglish,
+    string? IndustryName);
+
+public sealed record IndustryMetadataResponse(
+    string IndustryId,
+    string DisplayName);

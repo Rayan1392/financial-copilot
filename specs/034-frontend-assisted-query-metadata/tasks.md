@@ -8,3 +8,7 @@
 6. Implement assisted prompt composition without direct scanner invocation.
 7. Add endpoint authorization/search-bound tests and frontend lint/build verification.
 
+## Implementation Status
+
+Completed on 2026-06-02. Assisted controls compose a visible prompt in the existing textarea;
+the user still submits that prompt only through `POST /api/ai/v1/query`.

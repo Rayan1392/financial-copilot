@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
+import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
 
 interface Props {
   onSubmit: (text: string) => void;
@@ -37,6 +38,9 @@ export function PromptInput({ onSubmit, loading }: Props) {
             className="w-full bg-transparent border-none resize-none p-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
           />
           <div className="flex items-center justify-end px-3 pb-3">
+            <div className="ml-auto">
+              <AssistedQueryDialog onCompose={setValue} />
+            </div>
             <button
               onClick={submit}
               disabled={!value.trim() || loading}

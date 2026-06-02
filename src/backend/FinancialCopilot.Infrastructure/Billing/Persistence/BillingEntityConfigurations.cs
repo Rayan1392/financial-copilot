@@ -15,6 +15,7 @@ public sealed class CustomerAccountRowConfiguration : IEntityTypeConfiguration<C
         builder.Property(row => row.SubscriptionPlanCode).HasMaxLength(64);
         builder.Property(row => row.CreditLineApprovedLimit).HasPrecision(18, 4);
         builder.Property(row => row.CreditLineWarningThreshold).HasPrecision(18, 4);
+        builder.Property(row => row.SubscriptionRevision).IsConcurrencyToken();
     }
 }
 
@@ -99,6 +100,24 @@ public sealed class SubscriptionPlanRowConfiguration : IEntityTypeConfiguration<
             new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 100m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 300m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Premium", Name = "Premium", IncludedCredits = 1000m, PricingPolicyVersion = "v1" });
+    }
+}
+
+public sealed class BillingAdminAuditRowConfiguration : IEntityTypeConfiguration<BillingAdminAuditRow>
+{
+    public void Configure(EntityTypeBuilder<BillingAdminAuditRow> builder)
+    {
+        builder.ToTable("billing_admin_audits");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.TenantId, row.OccurredAt });
+        builder.Property(row => row.ActionCode).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.TargetType).HasMaxLength(80).IsRequired();
+        builder.Property(row => row.TargetId).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.Reason).HasMaxLength(500).IsRequired();
+        builder.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(160);
+        builder.Property(row => row.Before).HasMaxLength(2000);
+        builder.Property(row => row.After).HasMaxLength(2000);
     }
 }
 

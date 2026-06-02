@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentActorContext, HttpCurrentActorContext>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, AdminAuthorizationResultHandler>();
         services.Configure<ApiKeyAuthenticationOptions>(
             configuration.GetSection(ApiKeyAuthenticationOptions.SectionName));
 
@@ -92,6 +93,22 @@ public static class ServiceCollectionExtensions
                 policy.RequireAuthenticatedUser();
                 policy.RequireAssertion(context => HasValidActorContext(context.User));
             });
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminUsersRead, FinancialCopilotPermissions.AdminUsersRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminUsersManage, FinancialCopilotPermissions.AdminUsersManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminRolesRead, FinancialCopilotPermissions.AdminRolesRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminRolesManage, FinancialCopilotPermissions.AdminRolesManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminPermissionsRead, FinancialCopilotPermissions.AdminPermissionsRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminPermissionsManage, FinancialCopilotPermissions.AdminPermissionsManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminTenantsRead, FinancialCopilotPermissions.AdminTenantsRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminTenantsManage, FinancialCopilotPermissions.AdminTenantsManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminPlansRead, FinancialCopilotPermissions.AdminPlansRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminPlansManage, FinancialCopilotPermissions.AdminPlansManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminSubscriptionsRead, FinancialCopilotPermissions.AdminSubscriptionsRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminSubscriptionsManage, FinancialCopilotPermissions.AdminSubscriptionsManage);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminUsageLedgerRead, FinancialCopilotPermissions.AdminUsageLedgerRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminCreditsAdjust, FinancialCopilotPermissions.AdminCreditsAdjust);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminBillingAuditRead, FinancialCopilotPermissions.AdminBillingAuditRead);
+            AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminSecurityAuditRead, FinancialCopilotPermissions.AdminSecurityAuditRead);
         });
 
         return services;
@@ -190,6 +207,21 @@ public static class ServiceCollectionExtensions
             policy.RequireAuthenticatedUser();
             policy.RequireAssertion(context => HasValidActorContext(context.User));
             policy.AddRequirements(new PermissionRequirement(permission, AllowApiClient: true));
+        });
+    }
+
+    private static void AddWebAdminPermissionPolicy(
+        AuthorizationOptions options,
+        string policyName,
+        string permission)
+    {
+        options.AddPolicy(policyName, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireAssertion(context =>
+                HasValidActorContext(context.User) &&
+                IsMode(context.User, AuthenticationMode.WebAppUser));
+            policy.AddRequirements(new PermissionRequirement(permission));
         });
     }
 

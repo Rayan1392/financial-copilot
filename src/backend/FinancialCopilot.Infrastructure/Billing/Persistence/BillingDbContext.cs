@@ -21,6 +21,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<InvoiceAccountRow> InvoiceAccounts => Set<InvoiceAccountRow>();
 
     public DbSet<BillingOutboxMessageRow> OutboxMessages => Set<BillingOutboxMessageRow>();
+    public DbSet<BillingAdminAuditRow> AdminAudits => Set<BillingAdminAuditRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(

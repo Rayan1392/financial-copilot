@@ -200,6 +200,13 @@ The metrics metadata response is backed by the versioned Financial Semantic Laye
 
 `GET /api/ai/v1/metadata/metrics` is implemented as an authenticated reference endpoint backed by the registered semantic catalog. It exposes metric codes, definition versions, localized aliases, supported periods, units/categories, and registered public calculation-policy versions; it does not expose executable formula expressions.
 
+`GET /api/ai/v1/metadata/periods` returns backend-owned English and Persian period labels.
+`GET /api/ai/v1/metadata/symbols?search=&limit=` and
+`GET /api/ai/v1/metadata/industries?search=&limit=` query normalized PostgreSQL projections.
+Search text is limited to 100 characters and `limit` must be between `1` and `50`. These
+discovery endpoints help the React UI compose a user-visible prompt; they do not invoke scanner
+parsing or execution.
+
 ## Internal Scanner Services
 
 Scanner parsing and execution are Application-layer responsibilities invoked by `IAiQueryOrchestrator` after Tool Routing selects the Scanner Tool:
@@ -273,6 +280,15 @@ of the same persistence operation. It does not convert payment currency to credi
 a payment gateway.
 
 Payment gateway callbacks and partner invoice settlement endpoints must be provider-specific authenticated/internal integration contracts when implemented, with idempotency enforced. Full payment gateway and automatic invoice delivery are not required for the initial scanner milestone.
+
+## Admin Management Endpoints
+
+Identity, tenancy, entitlement, subscription, credit-adjustment, immutable-ledger, and audit
+administration routes are documented in
+[admin-management-api.md](./admin-management-api.md). These routes require narrow
+`admin.*` permission policies and web-user JWTs. SaaS API keys cannot call them. Controllers
+delegate to the application-layer admin boundary; they do not authorize by role name, branch on
+plan names, mutate wallet projections directly, or rewrite immutable ledger history.
 
 ## Error Response
 

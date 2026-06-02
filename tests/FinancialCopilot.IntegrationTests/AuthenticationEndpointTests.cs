@@ -215,7 +215,8 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
     public string CreateWebAppToken(
         bool includeTenant,
         bool billingAdmin = false,
-        bool dataAdmin = false)
+        bool dataAdmin = false,
+        IReadOnlyCollection<string>? permissions = null)
     {
         var claims = new List<Claim>
         {
@@ -235,6 +236,11 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
         if (dataAdmin)
         {
             claims.Add(new Claim("role", "DataAdmin"));
+        }
+        if (permissions is not null)
+        {
+            claims.AddRange(permissions.Select(permission =>
+                new Claim(FinancialCopilotClaimTypes.Permission, permission)));
         }
 
         var token = new JwtSecurityToken(

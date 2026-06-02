@@ -23,6 +23,7 @@ public sealed class OwnedIdentityService(
     private const string UserRole = "User";
     private const string DataAdminRole = "DataAdmin";
     private const string BillingAdminRole = "BillingAdmin";
+    private const string SuperAdminRole = "SuperAdmin";
 
     public async Task<OwnedIdentitySession> RegisterAsync(
         string email,
@@ -243,7 +244,7 @@ public sealed class OwnedIdentityService(
             from role in dbContext.Roles
             join rolePermission in dbContext.RolePermissions on role.Id equals rolePermission.RoleId
             join permission in dbContext.Permissions on rolePermission.PermissionId equals permission.Id
-            where normalizedNames.Contains(role.NormalizedName!)
+            where normalizedNames.Contains(role.NormalizedName!) && role.IsEnabled
             select permission.Code)
             .Distinct()
             .OrderBy(code => code)
@@ -289,6 +290,12 @@ public sealed class OwnedIdentityService(
         await EnsureRoleAsync(UserRole, FinancialCopilotPermissions.WebUserDefaults, cancellationToken);
         await EnsureRoleAsync(DataAdminRole, [FinancialCopilotPermissions.DataSyncManage], cancellationToken);
         await EnsureRoleAsync(BillingAdminRole, [FinancialCopilotPermissions.BillingManage], cancellationToken);
+        await EnsureRoleAsync(
+            SuperAdminRole,
+            FinancialCopilotPermissions.AdminAll
+                .Concat([FinancialCopilotPermissions.DataSyncManage, FinancialCopilotPermissions.BillingManage])
+                .ToArray(),
+            cancellationToken);
     }
 
     private async Task EnsureRoleAsync(

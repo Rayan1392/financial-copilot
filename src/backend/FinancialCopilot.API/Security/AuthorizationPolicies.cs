@@ -10,4 +10,20 @@ public static class AuthorizationPolicies
     public const string WatchlistReadSelf = "WatchlistReadSelf";
     public const string WatchlistWriteSelf = "WatchlistWriteSelf";
     public const string MarketSummaryRead = "MarketSummaryRead";
+    public const string AdminUsersRead = "AdminUsersRead";
+    public const string AdminUsersManage = "AdminUsersManage";
+    public const string AdminRolesRead = "AdminRolesRead";
+    public const string AdminRolesManage = "AdminRolesManage";
+    public const string AdminPermissionsRead = "AdminPermissionsRead";
+    public const string AdminPermissionsManage = "AdminPermissionsManage";
+    public const string AdminTenantsRead = "AdminTenantsRead";
+    public const string AdminTenantsManage = "AdminTenantsManage";
+    public const string AdminPlansRead = "AdminPlansRead";
+    public const string AdminPlansManage = "AdminPlansManage";
+    public const string AdminSubscriptionsRead = "AdminSubscriptionsRead";
+    public const string AdminSubscriptionsManage = "AdminSubscriptionsManage";
+    public const string AdminUsageLedgerRead = "AdminUsageLedgerRead";
+    public const string AdminCreditsAdjust = "AdminCreditsAdjust";
+    public const string AdminBillingAuditRead = "AdminBillingAuditRead";
+    public const string AdminSecurityAuditRead = "AdminSecurityAuditRead";
 }

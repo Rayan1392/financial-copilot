@@ -17,6 +17,9 @@ public sealed class CustomerAccountRow
     public decimal? CreditLineWarningThreshold { get; set; }
 
     public string? SubscriptionPlanCode { get; set; }
+    public DateTimeOffset? SubscriptionEffectiveFrom { get; set; }
+    public DateTimeOffset? SubscriptionEffectiveTo { get; set; }
+    public long SubscriptionRevision { get; set; }
 }
 
 public sealed class WalletProjectionRow
@@ -159,4 +162,20 @@ public sealed class BillingOutboxMessageRow
     public DateTimeOffset? LastAttemptAt { get; set; }
 
     public string? LastError { get; set; }
+}
+
+public sealed class BillingAdminAuditRow
+{
+    public Guid Id { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ActorId { get; set; }
+    public string ActionCode { get; set; } = string.Empty;
+    public string TargetType { get; set; } = string.Empty;
+    public string TargetId { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string CorrelationId { get; set; } = string.Empty;
+    public string? IdempotencyKey { get; set; }
+    public string? Before { get; set; }
+    public string? After { get; set; }
 }

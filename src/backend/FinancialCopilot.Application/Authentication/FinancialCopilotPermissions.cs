@@ -18,6 +18,22 @@ public static class FinancialCopilotPermissions
     public const string MemoryManageSelf = "memory.manage.self";
     public const string DataSyncManage = "data.sync.manage";
     public const string BillingManage = "billing.manage";
+    public const string AdminUsersRead = "admin.users.read";
+    public const string AdminUsersManage = "admin.users.manage";
+    public const string AdminRolesRead = "admin.roles.read";
+    public const string AdminRolesManage = "admin.roles.manage";
+    public const string AdminPermissionsRead = "admin.permissions.read";
+    public const string AdminPermissionsManage = "admin.permissions.manage";
+    public const string AdminTenantsRead = "admin.tenants.read";
+    public const string AdminTenantsManage = "admin.tenants.manage";
+    public const string AdminPlansRead = "admin.plans.read";
+    public const string AdminPlansManage = "admin.plans.manage";
+    public const string AdminSubscriptionsRead = "admin.subscriptions.read";
+    public const string AdminSubscriptionsManage = "admin.subscriptions.manage";
+    public const string AdminUsageLedgerRead = "admin.usage-ledger.read";
+    public const string AdminCreditsAdjust = "admin.credits.adjust";
+    public const string AdminBillingAuditRead = "admin.billing-audit.read";
+    public const string AdminSecurityAuditRead = "admin.security-audit.read";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -36,7 +52,43 @@ public static class FinancialCopilotPermissions
         UsageReadSelf,
         MemoryManageSelf,
         DataSyncManage,
-        BillingManage
+        BillingManage,
+        AdminUsersRead,
+        AdminUsersManage,
+        AdminRolesRead,
+        AdminRolesManage,
+        AdminPermissionsRead,
+        AdminPermissionsManage,
+        AdminTenantsRead,
+        AdminTenantsManage,
+        AdminPlansRead,
+        AdminPlansManage,
+        AdminSubscriptionsRead,
+        AdminSubscriptionsManage,
+        AdminUsageLedgerRead,
+        AdminCreditsAdjust,
+        AdminBillingAuditRead,
+        AdminSecurityAuditRead
+    ];
+
+    public static readonly IReadOnlyCollection<string> AdminAll =
+    [
+        AdminUsersRead,
+        AdminUsersManage,
+        AdminRolesRead,
+        AdminRolesManage,
+        AdminPermissionsRead,
+        AdminPermissionsManage,
+        AdminTenantsRead,
+        AdminTenantsManage,
+        AdminPlansRead,
+        AdminPlansManage,
+        AdminSubscriptionsRead,
+        AdminSubscriptionsManage,
+        AdminUsageLedgerRead,
+        AdminCreditsAdjust,
+        AdminBillingAuditRead,
+        AdminSecurityAuditRead
     ];
 
     public static readonly IReadOnlyCollection<string> WebUserDefaults =

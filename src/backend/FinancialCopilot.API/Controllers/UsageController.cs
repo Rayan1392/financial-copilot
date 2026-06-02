@@ -10,7 +10,7 @@ namespace FinancialCopilot.API.Controllers;
 
 [ApiController]
 [Route("api/v1/usage")]
-[Authorize(Policy = AuthorizationPolicies.AiFacade)]
+[Authorize(Policy = AuthorizationPolicies.UsageReadSelf)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class UsageController(
     ICurrentActorContext actorContext,

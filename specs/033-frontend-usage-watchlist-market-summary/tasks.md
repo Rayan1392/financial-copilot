@@ -10,3 +10,9 @@
 8. Add loading, empty, stale, and error presentation states.
 9. Add migration, authorization, fallback, cache, and frontend lint/build verification.
 
+## Implementation Status
+
+Completed on 2026-06-02. The sidebar and context panel now use backend-owned usage,
+watchlist, quote, and market-summary reads. Unsupported analytics remain explicitly
+unavailable until normalized sources are added.
+

@@ -7,6 +7,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
@@ -35,6 +36,7 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
+using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
@@ -97,9 +99,10 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            services.AddDistributedMemoryCache();
+        services.AddDistributedMemoryCache();
         }
         services.AddSingleton<IScannerCache, DistributedScannerCache>();
+        services.AddMemoryCache();
 
         services.AddScoped<ICustomerAccountRepository, CustomerAccountRepository>();
         services.AddScoped<IWalletProjectionRepository, WalletProjectionRepository>();
@@ -493,6 +496,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStockMarketDbSyncStateReader>(provider =>
             provider.GetRequiredService<StockMarketDbSyncService>());
         services.AddScoped<IStockMarketHistoryRetentionService, StockMarketHistoryRetentionService>();
+        services
+            .AddOptions<MarketViewOptions>()
+            .BindConfiguration(MarketViewOptions.SectionName);
+        services.AddSingleton<IMarketViewCache, MemoryMarketViewCache>();
+        services.AddScoped<IWatchlistService, WatchlistService>();
+        services.AddScoped<IMarketSummaryService, MarketSummaryService>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<IOptions<StockMarketDbProviderOptions>>().Value.UsePersistedMarketQuotes

@@ -74,6 +74,24 @@ public static class ServiceCollectionExtensions
                     IsMode(context.User, AuthenticationMode.WebAppUser));
                 policy.AddRequirements(new PermissionRequirement(FinancialCopilotPermissions.DataSyncManage));
             });
+
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.UsageReadSelf,
+                FinancialCopilotPermissions.UsageReadSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.WatchlistReadSelf,
+                FinancialCopilotPermissions.WatchlistReadSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.WatchlistWriteSelf,
+                FinancialCopilotPermissions.WatchlistWriteSelf);
+            options.AddPolicy(AuthorizationPolicies.MarketSummaryRead, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context => HasValidActorContext(context.User));
+            });
         });
 
         return services;
@@ -140,7 +158,10 @@ public static class ServiceCollectionExtensions
             return;
         }
 
-        AddPermissionIfMissing(identity, FinancialCopilotPermissions.AiQuery);
+        foreach (var permission in FinancialCopilotPermissions.WebUserDefaults)
+        {
+            AddPermissionIfMissing(identity, permission);
+        }
         if (principal.HasClaim("role", "DataAdmin"))
         {
             AddPermissionIfMissing(identity, FinancialCopilotPermissions.DataSyncManage);
@@ -157,6 +178,19 @@ public static class ServiceCollectionExtensions
         {
             identity.AddClaim(new Claim(FinancialCopilotClaimTypes.Permission, permission));
         }
+    }
+
+    private static void AddActorPermissionPolicy(
+        AuthorizationOptions options,
+        string policyName,
+        string permission)
+    {
+        options.AddPolicy(policyName, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireAssertion(context => HasValidActorContext(context.User));
+            policy.AddRequirements(new PermissionRequirement(permission, AllowApiClient: true));
+        });
     }
 
     private static bool HasValidActorContext(ClaimsPrincipal principal)

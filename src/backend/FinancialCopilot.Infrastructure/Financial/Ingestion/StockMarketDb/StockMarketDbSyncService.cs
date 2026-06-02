@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
@@ -17,6 +18,7 @@ public sealed class StockMarketDbSyncService(
     IProviderRawPayloadStore rawPayloadStore,
     IOptions<StockMarketDbProviderOptions> options,
     IScannerCache scannerCache,
+    IMarketViewCache marketViewCache,
     TimeProvider timeProvider) : IStockMarketDbSyncService, IStockMarketDbSyncStateReader
 {
     private readonly StockMarketDbProviderOptions _options = options.Value;
@@ -112,6 +114,13 @@ public sealed class StockMarketDbSyncService(
             await scannerCache.InvalidateAsync(
                 new ScannerCacheInvalidation($"StockMarketDb.{dataset}", timeProvider.GetUtcNow()),
                 cancellationToken);
+        }
+        if (dataset is StockMarketDataset.IntradayTrades or
+            StockMarketDataset.DailyTrades or
+            StockMarketDataset.IntradayIndices or
+            StockMarketDataset.HistoricalDailyIndices)
+        {
+            await marketViewCache.InvalidateAsync(cancellationToken);
         }
 
         return new StockMarketSyncResult(

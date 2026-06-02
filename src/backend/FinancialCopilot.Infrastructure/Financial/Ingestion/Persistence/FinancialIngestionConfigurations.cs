@@ -264,6 +264,19 @@ public sealed class StockMarketSyncStateRowConfiguration : IEntityTypeConfigurat
     }
 }
 
+public sealed class WatchlistSymbolRowConfiguration : IEntityTypeConfiguration<WatchlistSymbolRow>
+{
+    public void Configure(EntityTypeBuilder<WatchlistSymbolRow> builder)
+    {
+        builder.ToTable("WatchlistSymbols");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ActorType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Symbol).HasMaxLength(64).IsRequired();
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.Symbol }).IsUnique();
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.Position });
+    }
+}
+
 public sealed class MissingAnswerFeedbackRowConfiguration : IEntityTypeConfiguration<MissingAnswerFeedbackRow>
 {
     public void Configure(EntityTypeBuilder<MissingAnswerFeedbackRow> builder)

@@ -38,6 +38,7 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<DailyIndexSnapshotRow> DailyIndexSnapshots => Set<DailyIndexSnapshotRow>();
     public DbSet<LatestMarketQuoteRow> LatestMarketQuotes => Set<LatestMarketQuoteRow>();
     public DbSet<StockMarketSyncStateRow> StockMarketSyncStates => Set<StockMarketSyncStateRow>();
+    public DbSet<WatchlistSymbolRow> WatchlistSymbols => Set<WatchlistSymbolRow>();
 
     public DbSet<MissingAnswerFeedbackRow> MissingAnswerFeedbacks => Set<MissingAnswerFeedbackRow>();
 

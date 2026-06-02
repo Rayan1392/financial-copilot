@@ -369,6 +369,17 @@ public sealed class StockMarketSyncStateRow
     public DateTimeOffset? LastRunCompletedAt { get; set; }
 }
 
+public sealed class WatchlistSymbolRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ActorId { get; set; }
+    public string ActorType { get; set; } = string.Empty;
+    public string Symbol { get; set; } = string.Empty;
+    public int Position { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 /// <summary>
 /// Persisted form of <c>MissingAnswerFeedback</c> (spec 028). Coalesced on
 /// <c>(ActorId, QueryHashSha256, Classification, DateBucket)</c>.

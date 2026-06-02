@@ -245,6 +245,11 @@ public interface IPlanCapabilityService
         CustomerAccount account,
         string operationCode,
         CancellationToken cancellationToken);
+
+    Task<decimal?> GetLimitAsync(
+        CustomerAccount account,
+        string capabilityCode,
+        CancellationToken cancellationToken);
 }
 
 public interface IWalletProjectionBuilder

@@ -128,3 +128,10 @@ After initial instruments and trade synchronization, set
 `StockMarketDbPolling:Enabled=true` for the Worker. Polling defaults to one minute for trades,
 five minutes for indices, hourly for daily summaries, and daily for instruments. Intraday
 snapshots are retained for 30 days by default.
+
+## Market View Configuration
+
+Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMarketDB
+projections. Configure quote staleness, the short-lived summary cache, top-mover count, and the
+fallback watchlist limit through `MarketViews`. Subscription plans with a `Watchlist.Symbols`
+capability override the fallback limit.

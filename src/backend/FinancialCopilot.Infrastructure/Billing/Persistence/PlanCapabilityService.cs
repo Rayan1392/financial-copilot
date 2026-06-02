@@ -53,4 +53,28 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCap
             throw new InvalidOperationException("The active subscription plan quota is exhausted for the requested operation.");
         }
     }
+
+    public async Task<decimal?> GetLimitAsync(
+        CustomerAccount account,
+        string capabilityCode,
+        CancellationToken cancellationToken)
+    {
+        var planCode = await dbContext.CustomerAccounts
+            .Where(row => row.Id == account.Id)
+            .Select(row => row.SubscriptionPlanCode)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(planCode))
+        {
+            return null;
+        }
+
+        return await dbContext.PlanCapabilities
+            .Where(row =>
+                row.PlanCode == planCode &&
+                row.CapabilityCode == capabilityCode &&
+                row.IsEnabled)
+            .OrderByDescending(row => row.PolicyVersion)
+            .Select(row => row.Limit)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

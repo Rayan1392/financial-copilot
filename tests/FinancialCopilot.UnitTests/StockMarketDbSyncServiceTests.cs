@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.ValueObjects;
@@ -55,7 +56,7 @@ public sealed class StockMarketDbSyncServiceTests
         var service = new StockMarketDbSyncService(
             db, executor, store,
             Options.Create(new StockMarketDbProviderOptions { PageSize = 100 }),
-            new NoOpScannerCache(), new FixedTimeProvider(Now));
+            new NoOpScannerCache(), new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
         await service.SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
 
@@ -95,7 +96,7 @@ public sealed class StockMarketDbSyncServiceTests
         var service = new StockMarketDbSyncService(
             db, executor, new FakeRawPayloadStore(),
             Options.Create(new StockMarketDbProviderOptions { PageSize = 1, OverlapMinutes = 10 }),
-            new NoOpScannerCache(), new FixedTimeProvider(Now));
+            new NoOpScannerCache(), new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
         await service.SynchronizeAsync(StockMarketDataset.Instruments, false, CancellationToken.None);
         await service.SynchronizeAsync(StockMarketDataset.Instruments, false, CancellationToken.None);
@@ -222,6 +223,27 @@ public sealed class StockMarketDbSyncServiceTests
     }
 
     [Fact]
+    public async Task IntradayTrade_InvalidatesMarketViewCache()
+    {
+        await using var db = CreateDb();
+        await SeedLinkedInstrumentAsync(db);
+        var executor = new FakeExecutor
+        {
+            IntradayTrades =
+            [
+                new(Guid.NewGuid(), InstrumentRef, new DateOnly(2026, 6, 1), 5, 100, 1000,
+                    110, 10, 110, 10, 100, 110, 100, 100, new TimeOnly(12, 30), Now)
+            ]
+        };
+        var marketCache = new TrackingMarketViewCache();
+
+        await Service(db, executor, marketViewCache: marketCache)
+            .SynchronizeAsync(StockMarketDataset.IntradayTrades, false, CancellationToken.None);
+
+        Assert.Equal(1, marketCache.InvalidationCount);
+    }
+
+    [Fact]
     public async Task IntradayTrade_UnresolvedInstrumentDoesNotAdvanceWatermark()
     {
         await using var db = CreateDb();
@@ -274,9 +296,10 @@ public sealed class StockMarketDbSyncServiceTests
     private static StockMarketDbSyncService Service(
         FinancialIngestionDbContext db,
         FakeExecutor executor,
-        IScannerCache? cache = null) =>
+        IScannerCache? cache = null,
+        IMarketViewCache? marketViewCache = null) =>
         new(db, executor, new FakeRawPayloadStore(), Options.Create(new StockMarketDbProviderOptions { PageSize = 100, OverlapMinutes = 10 }),
-            cache ?? new NoOpScannerCache(), new FixedTimeProvider(Now));
+            cache ?? new NoOpScannerCache(), marketViewCache ?? new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
     private static PersistedMarketDataProvider Provider(FinancialIngestionDbContext db) =>
         new(db, Options.Create(new StockMarketDbProviderOptions()));
@@ -385,6 +408,34 @@ public sealed class StockMarketDbSyncServiceTests
         public Task InvalidateAsync(ScannerCacheInvalidation invalidation, CancellationToken cancellationToken)
         {
             Invalidations.Add(invalidation);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpMarketViewCache : IMarketViewCache
+    {
+        public Task<MarketSummary?> GetSummaryAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<MarketSummary?>(null);
+
+        public Task SetSummaryAsync(MarketSummary summary, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task InvalidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class TrackingMarketViewCache : IMarketViewCache
+    {
+        public int InvalidationCount { get; private set; }
+
+        public Task<MarketSummary?> GetSummaryAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<MarketSummary?>(null);
+
+        public Task SetSummaryAsync(MarketSummary summary, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task InvalidateAsync(CancellationToken cancellationToken)
+        {
+            InvalidationCount++;
             return Task.CompletedTask;
         }
     }

@@ -90,6 +90,14 @@ the optional server-only `FINANCIAL_COPILOT_API_BASE_URL` override. The Developm
 configuration explicitly permits both documented frontend origins with credentials so owned
 Identity refresh cookies work without routing API requests through the frontend SSR server.
 
+The hosted OpenAI adapter reads its API token from `OPENAI_API_KEY`. Set it in the shell before
+starting the API; do not store an active token in `appsettings.json`:
+
+```powershell
+$env:OPENAI_API_KEY = "<secret>"
+dotnet run --project src/backend/FinancialCopilot.API
+```
+
 In the Development environment, the initial foundation endpoints are:
 
 - `GET /health`

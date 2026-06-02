@@ -174,14 +174,18 @@ public sealed class AiQueryOrchestrationService(
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
-                clarificationMessage = "Your request needs clarification before I can screen stocks.";
+                clarificationMessage = ContainsPersianText(request.Message)
+                    ? "برای بررسی نمادها، لطفاً پرسش خود را با جزئیات بیشتری بیان کنید."
+                    : "Your request needs clarification before I can screen stocks.";
                 completionStatus = "ClarificationRequired";
             }
             else
             {
                 clarificationRequired = false;
                 clarificationMessage = null;
-                textAnswer = "I can help you screen and filter stocks by financial metrics. Please describe your screening criteria.";
+                textAnswer = ContainsPersianText(request.Message)
+                    ? "می‌توانم نمادها را بر اساس معیارهای مالی بررسی و فیلتر کنم. لطفاً معیارهای موردنظر خود را توضیح دهید."
+                    : "I can help you screen and filter stocks by financial metrics. Please describe your screening criteria.";
             }
 
             if (billingReservation is not null)
@@ -336,13 +340,25 @@ public sealed class AiQueryOrchestrationService(
             return explainableAnswer.ExplanationText;
 
         if (table is not null)
-            return $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
+            return IsPersianLanguage(plan?.Language)
+                ? $"اسکنر برای {plan!.Conditions.Count} شرط، {table.Rows.Count} نماد منطبق پیدا کرد."
+                : $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
 
         if (plan is not null)
-            return $"Scanner plan created with {plan.Conditions.Count} condition(s).";
+            return IsPersianLanguage(plan.Language)
+                ? $"برنامه اسکن با {plan.Conditions.Count} شرط ایجاد شد."
+                : $"Scanner plan created with {plan.Conditions.Count} condition(s).";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
     }
+
+    private static bool ContainsPersianText(string text) =>
+        text.Any(character =>
+            character is >= '\u0600' and <= '\u06FF' or
+            >= '\u0750' and <= '\u077F');
+
+    private static bool IsPersianLanguage(string? language) =>
+        language?.StartsWith("fa", StringComparison.OrdinalIgnoreCase) == true;
 }
 
 public sealed class NoOpBillingFacadeHook : IBillingFacadeHook

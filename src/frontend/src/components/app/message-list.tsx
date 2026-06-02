@@ -32,8 +32,11 @@ export function MessageList({ messages, loading, streaming, onSuggested }: Props
 
 function UserBubble({ text }: { text: string }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm">
+    <div className="flex justify-end" dir="ltr">
+      <div
+        className="max-w-[56ch] bg-surface ring-1 ring-hairline rounded-2xl px-5 py-3 text-foreground text-pretty text-sm"
+        dir="auto"
+      >
         {text}
       </div>
     </div>
@@ -48,12 +51,12 @@ function AssistantBlock({
   onSuggested: (q: string) => void;
 }) {
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-4" dir="ltr">
       <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
         AI
       </div>
-      <div className="flex-1 space-y-5 min-w-0">
-        <p className="text-foreground/90 leading-relaxed text-pretty text-[15px] max-w-[64ch]">
+      <div className="flex-1 space-y-5 min-w-0" dir="auto">
+        <p className="text-foreground/90 leading-relaxed text-pretty text-[15px] max-w-[64ch]" dir="auto">
           {block.message}
         </p>
 
@@ -110,15 +113,22 @@ function AssistantBlock({
 }
 
 function ScannerResultTable({ table }: { table: ScannerTable }) {
+  const isPersianTable = table.columns.some((column) => containsPersianText(column.displayName));
+
   return (
-    <div className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40">
-      <table className="w-full text-right text-sm">
+    <div
+      className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40"
+      dir={isPersianTable ? "rtl" : "ltr"}
+    >
+      <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
         <thead className="bg-white/5">
           <tr>
             {table.columns.map((column) => (
               <th
                 key={column.identifier}
-                className="px-4 py-2.5 font-medium text-muted-foreground text-xs"
+                className={`px-4 py-2.5 font-medium text-muted-foreground text-xs ${
+                  isPersianTable ? "text-right" : "text-left"
+                }`}
               >
                 {column.displayName}
               </th>
@@ -131,7 +141,12 @@ function ScannerResultTable({ table }: { table: ScannerTable }) {
               {table.columns.map((column) => {
                 const cell = row.cells[column.identifier];
                 return (
-                  <td key={column.identifier} className="px-4 py-2.5 text-foreground/80 mono">
+                  <td
+                    key={column.identifier}
+                    className={`px-4 py-2.5 text-foreground/80 mono ${
+                      isPersianTable ? "text-right" : "text-left"
+                    }`}
+                  >
                     {cell?.formattedValue ?? cell?.value ?? "—"}
                     {cell?.freshnessStatus && (
                       <span className="block text-[9px] text-muted-foreground">
@@ -147,6 +162,10 @@ function ScannerResultTable({ table }: { table: ScannerTable }) {
       </table>
     </div>
   );
+}
+
+function containsPersianText(text: string) {
+  return /[\u0600-\u06ff\u0750-\u077f]/u.test(text);
 }
 
 function StreamingPlaceholder() {

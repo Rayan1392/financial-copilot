@@ -20,6 +20,7 @@ public sealed class LlmScannerExplanationGenerator(
         "- Do not make buy/sell recommendations.\n" +
         "- Do not invent metrics, definitions, or data not in the provided context.\n" +
         "- Explanation must describe results factually without altering or estimating numeric values.\n" +
+        "- Respond in the same language as the user's original query.\n" +
         "- Keep follow-up questions within supported screening capabilities (metric filters only).\n" +
         "Schema: {\"explanationText\":\"...\",\"suggestedFollowUpQuestions\":[\"...\",\"...\",\"...\"]}";
 

@@ -77,8 +77,26 @@ public sealed class ScannerResultColumnPolicyTests
         Assert.Contains(columns, c => c.Identifier == "NET_PROFIT");
     }
 
-    private static ScannerQueryPlan MakePlan(IReadOnlyCollection<ScannerCondition> conditions) =>
-        new(Guid.NewGuid(), "test", "en", conditions, [], false, null, [], [], DateTimeOffset.UtcNow, "v1");
+    [Fact]
+    public void BuildColumns_PersianPlan_LocalizesDefaultAndMetricLabels()
+    {
+        var policy = new ScannerResultColumnPolicy();
+        var plan = MakePlan([MakeCondition("PE_TTM")], language: "fa");
+
+        var columns = policy.BuildColumns(plan);
+
+        Assert.Contains(columns, c => c.Identifier == "SYMBOL" && c.DisplayName == "نماد");
+        Assert.Contains(columns, c => c.Identifier == "COMPANY" && c.DisplayName == "شرکت");
+        Assert.Contains(columns, c => c.Identifier == "LATEST_PRICE" && c.DisplayName == "آخرین قیمت");
+        Assert.Contains(columns, c => c.Identifier == "DAILY_CHANGE_PCT" && c.DisplayName == "تغییر روزانه %");
+        Assert.Contains(columns, c => c.Identifier == "MARKET_CAP" && c.DisplayName == "ارزش بازار");
+        Assert.Contains(columns, c => c.Identifier == "PE_TTM" && c.DisplayName == "P/E دوازده‌ماهه");
+    }
+
+    private static ScannerQueryPlan MakePlan(
+        IReadOnlyCollection<ScannerCondition> conditions,
+        string language = "en") =>
+        new(Guid.NewGuid(), "test", language, conditions, [], false, null, [], [], DateTimeOffset.UtcNow, "v1");
 
     private static ScannerQueryPlan MakePlanWithRequested(
         IReadOnlyCollection<ScannerCondition> conditions,

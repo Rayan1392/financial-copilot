@@ -207,6 +207,7 @@ public sealed class MessageRepository(ConversationDbContext dbContext) : IMessag
             .AsNoTracking()
             .Where(m => m.ConversationId == conversationId)
             .OrderBy(m => m.CreatedAt)
+            .ThenBy(m => m.Role == nameof(MessageRole.User) ? 0 : 1)
             .ToListAsync(cancellationToken);
 
         return rows.Select(MapRecord).ToList();

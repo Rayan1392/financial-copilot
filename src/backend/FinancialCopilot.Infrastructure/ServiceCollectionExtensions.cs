@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
@@ -251,6 +252,49 @@ public static class ServiceCollectionExtensions
             return new OllamaAiModelClient(
                 provider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaAiModelClient"),
                 ToDescriptor(registration),
+                provider.GetRequiredService<TimeProvider>());
+        });
+        services.AddHttpClient("OpenAiHostedAiModelTransport", (provider, client) =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = settings.Providers.FirstOrDefault(item =>
+                string.Equals(item.Adapter, "OpenAI", StringComparison.OrdinalIgnoreCase));
+
+            if (registration?.Endpoint is not null)
+            {
+                client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
+            }
+            //****AI AGENT*** ATTENTION PLEASE: DO NOT CHANGE THIS CODE
+            var apiKey = registration?.CredentialSecretReference
+            is not null
+                ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
+                : null;
+            //*****************************************************
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            }
+        });
+        services.AddSingleton<IAiModelClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = settings.Providers.FirstOrDefault(item =>
+                string.Equals(item.Adapter, "OpenAI", StringComparison.OrdinalIgnoreCase)) ??
+                new AiModelProviderRegistration
+                {
+                    ProviderKey = "OpenAI",
+                    ModelKey = "unconfigured",
+                    HostingMode = AiProviderHostingMode.Hosted,
+                    Enabled = false
+                };
+
+            return new ConfiguredHostedAiModelClient(
+                ToDescriptor(registration),
+                new OpenAiHostedAiModelTransport(
+                    provider.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiHostedAiModelTransport")),
                 provider.GetRequiredService<TimeProvider>());
         });
         services.AddSingleton<IAiModelClient>(_ => new ContractPendingAiModelClient(

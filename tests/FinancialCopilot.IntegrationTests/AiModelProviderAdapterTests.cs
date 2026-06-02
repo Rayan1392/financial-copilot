@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
@@ -126,6 +127,126 @@ public sealed class AiModelProviderAdapterTests
     }
 
     [Fact]
+    public async Task OpenAiAdapter_MapsStructuredChatToolsUsageAndHealth()
+    {
+        string? requestBody = null;
+        using var httpClient = new HttpClient(new RouteHandler(request =>
+        {
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("test-key", request.Headers.Authorization?.Parameter);
+
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/v1/responses" => Json(
+                    """{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"{\"intent\":\"Scanner\",\"confidence\":0.9}"}]},{"id":"function-1","type":"function_call","call_id":"tool-1","name":"screen","arguments":"{\"limit\":5}"}],"usage":{"input_tokens":14,"output_tokens":6}}""",
+                    requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult()),
+                "/v1/models/gpt-5.5" => Json("""{"id":"gpt-5.5"}"""),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+        var request = new AiModelRequest(
+            "openai-1",
+            TenantId,
+            AiWorkloadKind.ScannerParsing,
+            [new AiConversationMessage(AiMessageRole.User, "scan")],
+            new AiStructuredOutputContract("IntentDetectionOutput", ["intent", "confidence"]),
+            [new AiToolDefinition("screen", "Screen stocks.", """{"type":"object"}""")]);
+
+        var completion = await transport.CompleteAsync("gpt-5.5", request, CancellationToken.None);
+        var available = await transport.CheckAvailabilityAsync("gpt-5.5", CancellationToken.None);
+
+        Assert.Equal("""{"intent":"Scanner","confidence":0.9}""", completion.StructuredJson);
+        Assert.Equal(14, completion.InputTokens);
+        Assert.Equal(6, completion.OutputTokens);
+        Assert.Equal("screen", Assert.Single(completion.ToolCalls).Name);
+        Assert.True(available);
+        Assert.Contains("\"text\":{\"format\":{\"type\":\"json_object\"}}", requestBody);
+        Assert.Contains("\"tools\":[{\"type\":\"function\",\"name\":\"screen\"", requestBody);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_ReportsMissingCredentialExplicitly()
+    {
+        using var httpClient = new HttpClient(new RouteHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.InternalServerError)))
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync(
+                "gpt-5.5",
+                new AiModelRequest(
+                    "openai-missing-credential",
+                    TenantId,
+                    AiWorkloadKind.Summarization,
+                    [new AiConversationMessage(AiMessageRole.User, "summary")]),
+                CancellationToken.None));
+
+        Assert.Equal(AiExecutionStatus.RuntimeUnavailable, exception.Status);
+        Assert.Equal("hosted_provider_credentials_missing", exception.Code);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_ReportsQuotaExceededWithoutRetry()
+    {
+        var requestCount = 0;
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
+        {
+            requestCount++;
+            return Error(
+                HttpStatusCode.TooManyRequests,
+                """{"error":{"message":"You exceeded your current quota.","type":"insufficient_quota","code":"insufficient_quota"}}""");
+        }));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync(
+                "gpt-5.5",
+                CompletionRequest("openai-quota"),
+                CancellationToken.None));
+
+        Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
+        Assert.Contains("You exceeded your current quota.", exception.Message);
+        Assert.Equal(1, requestCount);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_RetriesTemporaryRateLimit()
+    {
+        var requestCount = 0;
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
+        {
+            requestCount++;
+            if (requestCount < 3)
+            {
+                var response = Error(
+                    HttpStatusCode.TooManyRequests,
+                    """{"error":{"message":"Rate limit reached.","type":"rate_limit_error","code":"rate_limit_exceeded"}}""");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+                return response;
+            }
+
+            return Json("""{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"done"}]}] }""");
+        }));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var result = await transport.CompleteAsync(
+            "gpt-5.5",
+            CompletionRequest("openai-rate-limit"),
+            CancellationToken.None);
+
+        Assert.Equal("done", result.Text);
+        Assert.Equal(3, requestCount);
+    }
+
+    [Fact]
     public async Task HostedAdapter_MapsContractedTransportUsageWithoutLeakingTransportResult()
     {
         var client = new ConfiguredHostedAiModelClient(
@@ -160,8 +281,28 @@ public sealed class AiModelProviderAdapterTests
         AiModelCapability capabilities) =>
         new(providerKey, "model-v1", mode, capabilities, Enabled: true, Priority: 1);
 
-    private static HttpResponseMessage Json(string content) =>
+    private static HttpResponseMessage Json(string content, string? _ = null) =>
         new(HttpStatusCode.OK) { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+
+    private static HttpResponseMessage Error(HttpStatusCode statusCode, string content) =>
+        new(statusCode) { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+
+    private static HttpClient AuthenticatedOpenAiClient(HttpMessageHandler handler)
+    {
+        var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
+        return client;
+    }
+
+    private static AiModelRequest CompletionRequest(string correlationId) =>
+        new(
+            correlationId,
+            TenantId,
+            AiWorkloadKind.Summarization,
+            [new AiConversationMessage(AiMessageRole.User, "summary")]);
 
     private sealed class RouteHandler(
         Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler

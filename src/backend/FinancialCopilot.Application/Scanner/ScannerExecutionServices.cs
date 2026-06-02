@@ -13,7 +13,10 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
 
     public IReadOnlyCollection<ScannerTableColumn> BuildColumns(ScannerQueryPlan plan)
     {
-        var columns = new List<ScannerTableColumn>(DefaultColumns);
+        var usePersianLabels = IsPersianLanguage(plan.Language);
+        var columns = DefaultColumns
+            .Select(column => LocalizeDefaultColumn(column, usePersianLabels))
+            .ToList();
         var seen = new HashSet<string>(
             DefaultColumns.Select(c => c.Identifier),
             StringComparer.OrdinalIgnoreCase);
@@ -25,7 +28,7 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             {
                 columns.Add(new ScannerTableColumn(
                     code,
-                    FormatMetricDisplayName(code),
+                    FormatMetricDisplayName(code, usePersianLabels),
                     ScannerColumnType.Metric,
                     code));
             }
@@ -37,7 +40,7 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             {
                 columns.Add(new ScannerTableColumn(
                     col.Identifier,
-                    FormatMetricDisplayName(col.Identifier),
+                    FormatMetricDisplayName(col.Identifier, usePersianLabels),
                     ScannerColumnType.Metric,
                     col.Identifier));
             }
@@ -46,7 +49,30 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
         return columns;
     }
 
-    private static string FormatMetricDisplayName(string metricCode) =>
+    private static ScannerTableColumn LocalizeDefaultColumn(
+        ScannerTableColumn column,
+        bool usePersianLabels) =>
+        usePersianLabels
+            ? column with
+            {
+                DisplayName = column.Identifier switch
+                {
+                    "SYMBOL" => "نماد",
+                    "COMPANY" => "شرکت",
+                    "LATEST_PRICE" => "آخرین قیمت",
+                    "DAILY_CHANGE_PCT" => "تغییر روزانه %",
+                    "MARKET_CAP" => "ارزش بازار",
+                    _ => column.DisplayName
+                }
+            }
+            : column;
+
+    private static string FormatMetricDisplayName(string metricCode, bool usePersianLabels) =>
+        usePersianLabels
+            ? FormatPersianMetricDisplayName(metricCode)
+            : FormatEnglishMetricDisplayName(metricCode);
+
+    private static string FormatEnglishMetricDisplayName(string metricCode) =>
         metricCode.Replace("_", " ").ToUpperInvariant() switch
         {
             "PE TTM" => "P/E (TTM)",
@@ -63,6 +89,27 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             "NET PROFIT" => "Net Profit",
             _ => metricCode
         };
+
+    private static string FormatPersianMetricDisplayName(string metricCode) =>
+        metricCode.Replace("_", " ").ToUpperInvariant() switch
+        {
+            "PE TTM" => "P/E دوازده‌ماهه",
+            "PS TTM" => "P/S دوازده‌ماهه",
+            "NET PROFIT GROWTH YOY" => "رشد سالانه سود خالص",
+            "NET PROFIT GROWTH QOQ" => "رشد فصلی سود خالص",
+            "MONTHLY SALES GROWTH YOY" => "رشد سالانه فروش",
+            "MONTHLY SALES GROWTH MOM" => "رشد ماهانه فروش",
+            "TTM EARNINGS" => "سود دوازده‌ماهه",
+            "TTM SALES" => "فروش دوازده‌ماهه",
+            "TTM EPS" => "EPS دوازده‌ماهه",
+            "MARKET CAP" => "ارزش بازار",
+            "LATEST PRICE" => "آخرین قیمت",
+            "NET PROFIT" => "سود خالص",
+            _ => metricCode
+        };
+
+    private static bool IsPersianLanguage(string language) =>
+        language.StartsWith("fa", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class ScannerResultRanker : IScannerResultRanker

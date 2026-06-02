@@ -83,6 +83,9 @@ so implementation can proceed incrementally without presenting unsupported featu
    context-panel mocks with normalized backend projections.
 4. `034-frontend-assisted-query-metadata` - populate optional assisted filter controls from
    governed metadata while still submitting prompts only through the AI facade.
+5. `036-frontend-local-api-connectivity` - align browser/server API base URL configuration,
+   local credentialed CORS origins, and auth smoke verification so frontend requests do not
+   fall back to the frontend SSR origin.
 
 ## Administration Specs
 
@@ -118,6 +121,8 @@ contracts without moving domain rules into controllers:
 - `033` exposes read models for UI widgets; it must return unavailable values honestly instead
   of fabricating unsupported market analytics.
 - `034` may add discovery controls, but it never exposes scanner execution as a frontend API.
+- `036` keeps local browser and server API routing aligned without changing Identity domain
+  behavior or weakening credentialed CORS origin restrictions.
 - `035` exposes controlled admin APIs over `031` Identity and `013` Billing boundaries. It does
   not duplicate entitlement logic, mutate wallet projections directly, or authorize by
   hardcoded role or plan names.

@@ -1,3 +1,5 @@
+import { buildFinancialCopilotApiUrl } from "./api-url";
+
 const ACCESS_TOKEN_KEY = "financial_copilot_access_token";
 const AUTH_CHANGED_EVENT = "financial-copilot-auth-changed";
 
@@ -131,6 +133,5 @@ function isExpiring(token: string) {
 }
 
 export function apiUrl(path: string) {
-  const baseUrl = import.meta.env.VITE_FINANCIAL_COPILOT_API_BASE_URL ?? "";
-  return `${baseUrl.replace(/\/$/, "")}${path}`;
+  return buildFinancialCopilotApiUrl(path, import.meta.env.VITE_FINANCIAL_COPILOT_API_BASE_URL);
 }

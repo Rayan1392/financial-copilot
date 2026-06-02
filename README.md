@@ -69,6 +69,27 @@ Run the API locally:
 dotnet run --project src/backend/FinancialCopilot.API
 ```
 
+Run the frontend locally in a second terminal:
+
+```powershell
+cd src/frontend
+npm run dev
+```
+
+The local API listens on `http://localhost:5074`. The frontend development server is commonly
+available at `http://localhost:8080` in the Lovable sandbox and may also use
+`http://localhost:5173` in a standard Vite session. Set the browser-visible API origin in
+`src/frontend/.env`:
+
+```text
+VITE_FINANCIAL_COPILOT_API_BASE_URL="http://localhost:5074"
+```
+
+Use `src/frontend/.env.example` as the non-secret template. TanStack server functions may use
+the optional server-only `FINANCIAL_COPILOT_API_BASE_URL` override. The Development API CORS
+configuration explicitly permits both documented frontend origins with credentials so owned
+Identity refresh cookies work without routing API requests through the frontend SSR server.
+
 In the Development environment, the initial foundation endpoints are:
 
 - `GET /health`

@@ -37,11 +37,37 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
         Assert.Contains(
             response.Headers.GetValues("Set-Cookie"),
             cookie => cookie.Contains("financial_copilot_refresh=", StringComparison.Ordinal) &&
-                cookie.Contains("httponly", StringComparison.OrdinalIgnoreCase));
+                cookie.Contains("httponly", StringComparison.OrdinalIgnoreCase) &&
+                cookie.Contains("path=/api/auth/v1", StringComparison.OrdinalIgnoreCase) &&
+                cookie.Contains("samesite=strict", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(
             "ai.query",
             json.RootElement.GetProperty("user").GetProperty("permissions")
                 .EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
+    public async Task AuthPreflight_FromLocalFrontendOrigin_AllowsCredentials()
+    {
+        using var client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/auth/v1/register");
+        request.Headers.Add("Origin", "http://localhost:8080");
+        request.Headers.Add("Access-Control-Request-Method", "POST");
+        request.Headers.Add("Access-Control-Request-Headers", "content-type");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(
+            "http://localhost:8080",
+            response.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Equal(
+            "true",
+            response.Headers.GetValues("Access-Control-Allow-Credentials").Single());
+        Assert.Contains(
+            "POST",
+            response.Headers.GetValues("Access-Control-Allow-Methods").Single(),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -66,6 +92,23 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
         Assert.Contains(
             "User",
             profile.RootElement.GetProperty("roles").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
+    public async Task Logout_ClearsScopedRefreshCookie()
+    {
+        using var client = _factory.CreateClient();
+        await RegisterAsync(client, $"logout-{Guid.NewGuid():N}@example.test");
+
+        using var logout = await client.PostAsync("/api/auth/v1/logout", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+        Assert.Contains(
+            logout.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.Contains("financial_copilot_refresh=", StringComparison.Ordinal) &&
+                cookie.Contains("expires=", StringComparison.OrdinalIgnoreCase) &&
+                cookie.Contains("path=/api/auth/v1", StringComparison.OrdinalIgnoreCase) &&
+                cookie.Contains("samesite=strict", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

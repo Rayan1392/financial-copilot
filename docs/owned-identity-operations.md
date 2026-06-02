@@ -20,6 +20,24 @@ PostgreSQL and returned only as `HttpOnly`, `SameSite=Strict` cookies scoped to
 `/api/auth/v1`. Passwords, raw refresh tokens, wallet balances, plan limits, and credit amounts
 must not be stored in JWT claims.
 
+## Local Frontend Connectivity
+
+The local .NET API launch profile listens on `http://localhost:5074`. Browser-side frontend
+requests require the Vite-exposed API origin:
+
+```text
+VITE_FINANCIAL_COPILOT_API_BASE_URL="http://localhost:5074"
+```
+
+Copy the non-secret values from `src/frontend/.env.example` into `src/frontend/.env` when
+setting up a local environment. Browser code can read only the `VITE_` variable. TanStack
+server functions use `FINANCIAL_COPILOT_API_BASE_URL` when it is defined, then fall back to the
+Vite-exposed value and finally to `http://localhost:5074`.
+
+Development API CORS configuration explicitly allows `http://localhost:8080` and
+`http://localhost:5173` with credentials. Keep these as explicit origins; wildcard origins
+must not be combined with credentialed cookies.
+
 ## Migration Commands
 
 From the repository root:

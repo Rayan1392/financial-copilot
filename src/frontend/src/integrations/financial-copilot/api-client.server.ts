@@ -1,5 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
+import { buildFinancialCopilotApiUrl } from "./api-url";
 
 type FinancialCopilotServerContext = {
   authorization: string;
@@ -48,8 +49,6 @@ export async function financialCopilotServerApi<T>(
 
 function apiUrl(path: string) {
   const baseUrl =
-    process.env.FINANCIAL_COPILOT_API_BASE_URL ??
-    process.env.VITE_FINANCIAL_COPILOT_API_BASE_URL ??
-    "http://localhost:5074";
-  return `${baseUrl.replace(/\/$/, "")}${path}`;
+    process.env.FINANCIAL_COPILOT_API_BASE_URL ?? process.env.VITE_FINANCIAL_COPILOT_API_BASE_URL;
+  return buildFinancialCopilotApiUrl(path, baseUrl);
 }

@@ -16,6 +16,7 @@ public sealed class OwnedIdentityService(
     UserManager<FinancialCopilotUser> users,
     RoleManager<FinancialCopilotRole> roles,
     AuthDbContext dbContext,
+    OwnedIdentityBillingProvisioner billingProvisioner,
     IOptions<OwnedIdentityOptions> ownedIdentityOptions,
     IConfiguration configuration,
     TimeProvider timeProvider) : IOwnedIdentityService
@@ -169,6 +170,8 @@ public sealed class OwnedIdentityService(
         Guid tenantId,
         CancellationToken cancellationToken)
     {
+        await billingProvisioner.EnsureProvisionedAsync(tenantId, user.Id, cancellationToken);
+
         var settings = ownedIdentityOptions.Value;
         var now = timeProvider.GetUtcNow();
         var accessExpiresAt = now.AddMinutes(settings.AccessTokenMinutes);

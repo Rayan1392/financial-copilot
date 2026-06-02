@@ -87,6 +87,7 @@ public static class ServiceCollectionExtensions
                 "Owned Identity tenant and token lifetime settings must be valid.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
+        services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 
         services.AddOptions<ScannerCacheOptions>()

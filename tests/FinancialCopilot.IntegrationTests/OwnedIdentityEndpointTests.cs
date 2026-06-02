@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -47,6 +48,29 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
     }
 
     [Fact]
+    public async Task Register_ProvisionsFreeBillingAccountForUsage()
+    {
+        using var client = _factory.CreateClient();
+
+        using var register = await client.PostAsJsonAsync(
+            "/api/auth/v1/register",
+            new { email = $"usage-{Guid.NewGuid():N}@example.test", password = "StrongPassword!123" });
+        using var session = await ReadJsonAsync(register);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            session.RootElement.GetProperty("accessToken").GetString());
+
+        using var usage = await client.GetAsync("/api/v1/usage/me");
+        using var summary = await ReadJsonAsync(usage);
+
+        Assert.Equal(HttpStatusCode.OK, usage.StatusCode);
+        Assert.Equal("Individual", summary.RootElement.GetProperty("customerType").GetString());
+        Assert.Equal("Prepaid", summary.RootElement.GetProperty("billingMode").GetString());
+        Assert.Equal(10m, summary.RootElement.GetProperty("balance").GetDecimal());
+        Assert.Equal(10m, summary.RootElement.GetProperty("availableSpendingCapacity").GetDecimal());
+    }
+
+    [Fact]
     public async Task AuthPreflight_FromLocalFrontendOrigin_AllowsCredentials()
     {
         using var client = _factory.CreateClient();
@@ -68,6 +92,30 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
             "POST",
             response.Headers.GetValues("Access-Control-Allow-Methods").Single(),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Login_RepairsMissingBillingAccountForExistingUser()
+    {
+        using var client = _factory.CreateClient();
+        var email = $"repair-{Guid.NewGuid():N}@example.test";
+        using var registered = await RegisterAsync(client, email);
+        using var registeredJson = await ReadJsonAsync(registered);
+        var userId = Guid.Parse(
+            registeredJson.RootElement.GetProperty("user").GetProperty("userId").GetString()!);
+        await _factory.RemoveBillingAccountAsync(userId);
+
+        using var login = await client.PostAsJsonAsync(
+            "/api/auth/v1/login",
+            new { email, password = "StrongPassword!123" });
+        using var session = await ReadJsonAsync(login);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            session.RootElement.GetProperty("accessToken").GetString());
+        using var usage = await client.GetAsync("/api/v1/usage/me");
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, usage.StatusCode);
     }
 
     [Fact]
@@ -156,6 +204,14 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
 public sealed class OwnedIdentityApiFactory : AuthenticationApiFactory
 {
     private readonly string _authDatabaseName = $"owned-identity-{Guid.NewGuid():N}";
+    private readonly string _billingDatabaseName = $"owned-identity-billing-{Guid.NewGuid():N}";
+
+    public OwnedIdentityApiFactory()
+    {
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        dbContext.Database.EnsureCreated();
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -166,6 +222,24 @@ public sealed class OwnedIdentityApiFactory : AuthenticationApiFactory
             services.RemoveAll<DbContextOptions<AuthDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();
             services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase(_authDatabaseName));
+
+            services.RemoveAll<BillingDbContext>();
+            services.RemoveAll<DbContextOptions<BillingDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<BillingDbContext>>();
+            services.AddDbContext<BillingDbContext>(options =>
+                options.UseInMemoryDatabase(_billingDatabaseName));
         });
+    }
+
+    public async Task RemoveBillingAccountAsync(Guid userId)
+    {
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await dbContext.CustomerAccounts.SingleAsync(row => row.UserId == userId);
+        var wallet = await dbContext.WalletProjections
+            .SingleAsync(row => row.CustomerAccountId == account.Id);
+        dbContext.WalletProjections.Remove(wallet);
+        dbContext.CustomerAccounts.Remove(account);
+        await dbContext.SaveChangesAsync();
     }
 }

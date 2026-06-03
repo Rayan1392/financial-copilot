@@ -73,6 +73,9 @@ delivery checklist (they are added as data sources become available).
      normalization.
   6. `043-nadpco-api-sync-orchestration` - bounded full/incremental orchestration, per-dataset
      progress, overlap reconciliation, DataAdmin operations, and cache invalidation.
+  7. `044-nadpco-api-scheduled-sync-worker` - automatic scheduled incremental synchronization
+     through the existing bounded orchestration pipeline, with configurable cadence, locking,
+     run history, retry diagnostics, and cache invalidation.
 
 ## Trading Statistics Implementation Specs
 
@@ -149,9 +152,12 @@ contracts without moving domain rules into controllers:
 - `037` consumes `035` through the existing `031` frontend auth bridge. Frontend permission
   checks control navigation and actions for usability only; backend policies remain
   authoritative.
-- `038`-`043` add `NadpcoApi` as a separate HTTP provider that coexists with `CodalDb`. Remote
+- `038`-`044` add `NadpcoApi` as a separate HTTP provider that coexists with `CodalDb`. Remote
   payload DTOs remain Infrastructure concerns; normalized PostgreSQL rows, governed metric
   semantics, deterministic recalculation, and scanner reads remain provider-neutral.
+- `044` schedules automatic NADPCO incremental synchronization only by invoking the bounded
+  orchestration from `043`; it must not introduce a second ingestion, normalization,
+  recalculation, or scanner-cache invalidation path.
 
 ## Recommended Delivery Dependencies
 

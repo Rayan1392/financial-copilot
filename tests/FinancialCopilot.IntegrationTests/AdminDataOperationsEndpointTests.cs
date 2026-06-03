@@ -212,6 +212,59 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NadpcoApi_FullSync_AsDataAdmin_ReturnsRunSummary()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync("/api/v1/admin/nadpcoapi/full-sync", content: null, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("fullReload").GetBoolean());
+        Assert.Equal(4, document.RootElement.GetProperty("companiesConsidered").GetInt32());
+        Assert.Equal(13, document.RootElement.GetProperty("requestsEnqueued").GetInt32());
+        Assert.Equal([true], _factory.NadpcoApiSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task NadpcoApi_IncrementalSync_AsDataAdmin_InvokesIncrementalMode()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync("/api/v1/admin/nadpcoapi/incremental-sync", content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([false], _factory.NadpcoApiSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task NadpcoApi_SyncState_AsDataAdmin_ReturnsOperationalState()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync("/api/v1/admin/nadpcoapi/sync-state", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var state = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("FinancialStatements", state.GetProperty("dataset").GetString());
+        Assert.Equal(4, state.GetProperty("lastCompaniesConsidered").GetInt32());
+    }
+
+    [Fact]
+    public async Task NadpcoApi_FullSync_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsync("/api/v1/admin/nadpcoapi/full-sync", content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.NadpcoApiSync.InvocationModes);
+    }
+
+    [Fact]
     public async Task StockMarketDb_IntradayTradesSync_AsDataAdmin_InvokesDataset()
     {
         using var client = CreateDataAdminClient();
@@ -362,6 +415,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubDataSyncRunReader _runReader = new();
     private readonly StubProviderHealthService _providerHealth = new();
     private readonly StubCodalDbScheduledSyncService _codalDbSync = new();
+    private readonly StubNadpcoApiScheduledSyncService _nadpcoApiSync = new();
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
@@ -369,6 +423,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
+    public StubNadpcoApiScheduledSyncService NadpcoApiSync => _nadpcoApiSync;
     public StubStockMarketDbSyncService StockMarketDbSync => _stockMarketDbSync;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -380,6 +435,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDataSyncRunReader>();
             services.RemoveAll<IFinancialDataProviderHealthService>();
             services.RemoveAll<ICodalDbScheduledSyncService>();
+            services.RemoveAll<INadpcoApiScheduledSyncService>();
+            services.RemoveAll<INadpcoApiSyncStateReader>();
             services.RemoveAll<IStockMarketDbSyncService>();
             services.RemoveAll<IStockMarketDbSyncStateReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
@@ -387,6 +444,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IDataSyncRunReader>(_runReader);
             services.AddSingleton<IFinancialDataProviderHealthService>(_providerHealth);
             services.AddSingleton<ICodalDbScheduledSyncService>(_codalDbSync);
+            services.AddSingleton<INadpcoApiScheduledSyncService>(_nadpcoApiSync);
+            services.AddSingleton<INadpcoApiSyncStateReader>(_nadpcoApiSync);
             services.AddSingleton<IStockMarketDbSyncService>(_stockMarketDbSync);
             services.AddSingleton<IStockMarketDbSyncStateReader>(_stockMarketDbSync);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
@@ -397,6 +456,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     {
         _publisher.Requests.Clear();
         _codalDbSync.Reset();
+        _nadpcoApiSync.Reset();
         _stockMarketDbSync.Reset();
         _missingAnswerFeedback.Reset();
     }
@@ -474,6 +534,41 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
 
         public Task<IReadOnlyCollection<StockMarketSyncState>> QueryAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<StockMarketSyncState>>([]);
+    }
+
+    public sealed class StubNadpcoApiScheduledSyncService : INadpcoApiScheduledSyncService, INadpcoApiSyncStateReader
+    {
+        public List<bool> InvocationModes { get; } = [];
+
+        public Task<NadpcoApiSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
+        {
+            InvocationModes.Add(fullReload);
+            return Task.FromResult(new NadpcoApiSyncResult(
+                fullReload,
+                CompaniesConsidered: 4,
+                CompaniesEnqueued: 4,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                RequestsEnqueued: 13,
+                OverlapFrom: fullReload ? null : DateTimeOffset.Parse("2026-05-27T10:00:00Z"),
+                AdvancedWatermark: DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
+                Duration: TimeSpan.FromSeconds(2)));
+        }
+
+        public Task<IReadOnlyCollection<NadpcoApiSyncState>> QueryAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<NadpcoApiSyncState>>(
+                [new NadpcoApiSyncState(
+                    "FinancialStatements",
+                    DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
+                    DateTimeOffset.Parse("2026-05-27T10:00:00Z"),
+                    DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
+                    DateTimeOffset.Parse("2026-06-03T10:00:02Z"),
+                    LastCompaniesConsidered: 4,
+                    LastCompaniesEnqueued: 4,
+                    LastFailedCompanies: 0,
+                    LastError: null)]);
+
+        public void Reset() => InvocationModes.Clear();
     }
 
     private sealed class CapturingDataSyncPublisher : IDataSyncRequestPublisher

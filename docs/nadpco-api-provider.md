@@ -34,6 +34,7 @@ $env:NadpcoApi__FundamentalIndexIsComposing = ""
 $env:NadpcoApi__MonthlyActivityFromDate = "1400/01/01"
 $env:NadpcoApi__MonthlyActivityToDate = ""
 $env:NadpcoApi__MonthlyActivityOutputType = ""
+$env:NadpcoApi__OrchestrationOverlapDays = "7"
 ```
 
 ## Authentication Contract
@@ -168,6 +169,49 @@ explicitly marked in evidence as not being a fabricated vendor id.
 Successful ingestion publishes the existing `MonthlyProductionSales` recalculation request, so
 `MONTHLY_SALES`, `MONTHLY_SALES_GROWTH_YOY`, `MONTHLY_SALES_GROWTH_MOM`, and `TTM_SALES` continue
 to use the deterministic metric engine without query-time remote calls.
+
+## Orchestration And Operations
+
+DataAdmin users can run bounded NADPCO refreshes through:
+
+- `POST /api/v1/admin/nadpcoapi/full-sync`
+- `POST /api/v1/admin/nadpcoapi/incremental-sync`
+- `GET /api/v1/admin/nadpcoapi/sync-state`
+- `GET /api/v1/admin/provider-health`
+
+The orchestrator is provider-specific, but it only publishes normal `DataSyncRequest`s with
+`ProviderName = "NadpcoApi"`. Raw payload storage, normalization, derived-metric recalculation,
+scanner-cache invalidation, and sync-run telemetry remain in the existing provider-neutral data
+sync processor.
+
+Activation order:
+
+1. Configure credentials through secrets or environment variables.
+2. Apply the `FinancialIngestionDbContext` migrations, including `NadpcoApiSyncStates`.
+3. Verify `GET /api/v1/admin/provider-health`.
+4. Run `POST /api/v1/admin/data-sync/symbols` with `providerName = "NadpcoApi"` or
+   `POST /api/v1/admin/nadpcoapi/full-sync` to refresh the company catalog.
+5. After companies exist locally, run full sync again to enqueue bounded per-company statements,
+   fundamental indexes, and monthly activity.
+6. Enable a scheduler to call incremental sync only after a successful full backfill.
+
+NADPCO currently does not expose a reliable modified-since cursor for the covered endpoints.
+Incremental orchestration therefore records `LastSuccessfulSyncAt` and `LastOverlapFrom`, then
+re-enqueues bounded company-scoped requests over the configured overlap window
+(`NadpcoApi:OrchestrationOverlapDays`, default `7`). The actual historical range sent to remote
+statement/index/monthly endpoints remains controlled by the provider options (`StatementFromYear`,
+`FundamentalIndexFromYear`, `MonthlyActivityFromDate`, etc.) so the service never sends an
+unbounded history request.
+
+Failure recovery:
+
+- Per-company enqueue failures are isolated and reported in the sync response.
+- Progress advances only when all requested company batches are enqueued successfully.
+- Failed batches can be retried with `POST /api/v1/admin/data-sync/financial-statements`,
+  `.../fundamental-indexes`, or `.../monthly-reports` using the failed company id as
+  `externalReference` and `providerName = "NadpcoApi"` where the endpoint does not already force it.
+- Provider credentials are never logged; diagnostics contain dataset/company ids and bounded error
+  messages only.
 
 ## Company Catalog Normalization
 

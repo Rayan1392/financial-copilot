@@ -165,6 +165,17 @@ public sealed class CodalDbSyncStateRowConfiguration : IEntityTypeConfiguration<
     }
 }
 
+public sealed class NadpcoApiSyncStateRowConfiguration : IEntityTypeConfiguration<NadpcoApiSyncStateRow>
+{
+    public void Configure(EntityTypeBuilder<NadpcoApiSyncStateRow> builder)
+    {
+        builder.ToTable("NadpcoApiSyncStates");
+        builder.HasKey(row => row.Dataset);
+        builder.Property(row => row.Dataset).HasMaxLength(64);
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+    }
+}
+
 public sealed class TradingInstrumentRowConfiguration : IEntityTypeConfiguration<TradingInstrumentRow>
 {
     public void Configure(EntityTypeBuilder<TradingInstrumentRow> builder)

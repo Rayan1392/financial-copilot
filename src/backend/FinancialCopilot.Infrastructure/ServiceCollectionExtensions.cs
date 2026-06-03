@@ -577,6 +577,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAssistedQueryMetadataService, EfCoreAssistedQueryMetadataService>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
         services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
+        services.AddScoped<INadpcoApiSyncStateStore, EfCoreNadpcoApiSyncStateStore>();
+        services.AddScoped<NadpcoApiScheduledSyncService>();
+        services.AddScoped<INadpcoApiScheduledSyncService>(provider =>
+            provider.GetRequiredService<NadpcoApiScheduledSyncService>());
+        services.AddScoped<INadpcoApiSyncStateReader>(provider =>
+            provider.GetRequiredService<NadpcoApiScheduledSyncService>());
         services
             .AddOptions<StockMarketDbProviderOptions>()
             .BindConfiguration(StockMarketDbProviderOptions.SectionName);

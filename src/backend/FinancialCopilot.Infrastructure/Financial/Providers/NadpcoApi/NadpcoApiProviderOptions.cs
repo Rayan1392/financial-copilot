@@ -59,4 +59,6 @@ public sealed class NadpcoApiProviderOptions
     public string? MonthlyActivityToDate { get; init; }
 
     public int? MonthlyActivityOutputType { get; init; }
+
+    public int OrchestrationOverlapDays { get; init; } = 7;
 }

@@ -21,6 +21,8 @@ public sealed class AdminDataOperationsController(
     IFinancialDataProviderHealthService providerHealth,
     ICyclicalWavesFullSyncService cyclicalWavesFullSync,
     ICodalDbScheduledSyncService codalDbScheduledSync,
+    INadpcoApiScheduledSyncService nadpcoApiScheduledSync,
+    INadpcoApiSyncStateReader nadpcoApiSyncStateReader,
     IStockMarketDbSyncService stockMarketDbSync,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
@@ -118,6 +120,48 @@ public sealed class AdminDataOperationsController(
             result.FailedCompanyIds,
             result.AdvancedWatermark,
             result.Duration.ToString("g")));
+    }
+
+    [HttpPost("nadpcoapi/full-sync")]
+    public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiFullSync(CancellationToken cancellationToken) =>
+        RunNadpcoApiSyncAsync(fullReload: true, cancellationToken);
+
+    [HttpPost("nadpcoapi/incremental-sync")]
+    public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiIncrementalSync(CancellationToken cancellationToken) =>
+        RunNadpcoApiSyncAsync(fullReload: false, cancellationToken);
+
+    private async Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiSyncAsync(
+        bool fullReload,
+        CancellationToken cancellationToken)
+    {
+        var result = await nadpcoApiScheduledSync.ExecuteAsync(fullReload, cancellationToken);
+        return Ok(new AdminNadpcoApiSyncResponse(
+            result.FullReload,
+            result.CompaniesConsidered,
+            result.CompaniesEnqueued,
+            result.FailedCompanies,
+            result.FailedCompanyIds,
+            result.RequestsEnqueued,
+            result.OverlapFrom,
+            result.AdvancedWatermark,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpGet("nadpcoapi/sync-state")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminNadpcoApiSyncStateResponse>>> GetNadpcoApiSyncState(
+        CancellationToken cancellationToken)
+    {
+        var states = await nadpcoApiSyncStateReader.QueryAsync(cancellationToken);
+        return Ok(states.Select(state => new AdminNadpcoApiSyncStateResponse(
+            state.Dataset,
+            state.LastSuccessfulSyncAt,
+            state.LastOverlapFrom,
+            state.LastRunStartedAt,
+            state.LastRunCompletedAt,
+            state.LastCompaniesConsidered,
+            state.LastCompaniesEnqueued,
+            state.LastFailedCompanies,
+            state.LastError)).ToArray());
     }
 
     [HttpPost("stockmarketdb/{dataset}/sync")]

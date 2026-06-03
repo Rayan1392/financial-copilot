@@ -17,5 +17,15 @@
 
 ## Implementation Status
 
-Not implemented.
+Completed on 2026-06-03.
+
+- Added `NadpcoApiSyncStates` persistence and per-logical-dataset progress for company
+  catalog, statements, fundamental indexes, product sales, and service sales.
+- Documented the no-modified-since limitation and overlap-window reconciliation strategy.
+- Added `NadpcoApiScheduledSyncService` with bounded concurrency, full/incremental modes,
+  per-company failure isolation, and provider-specific `DataSyncRequest` publishing through the
+  existing raw-payload/normalization/recalculation/cache-invalidation path.
+- Added protected DataAdmin full-sync, incremental-sync, and sync-state endpoints.
+- Added unit and integration tests for batching, overlap progress, failure isolation, state reads,
+  and authorization.
 

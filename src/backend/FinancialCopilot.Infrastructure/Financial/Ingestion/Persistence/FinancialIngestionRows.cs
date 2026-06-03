@@ -268,6 +268,32 @@ public sealed class CodalDbSyncStateRow
     public DateTimeOffset? LastRunCompletedAt { get; set; }
 }
 
+/// <summary>
+/// Per logical NADPCO endpoint sync progress. NADPCO HTTP endpoints currently lack a reliable
+/// modified-since cursor, so incremental orchestration records the overlap window used for
+/// reconciliation rather than pretending the vendor has source watermarks.
+/// </summary>
+public sealed class NadpcoApiSyncStateRow
+{
+    public string Dataset { get; set; } = string.Empty;
+
+    public DateTimeOffset? LastSuccessfulSyncAt { get; set; }
+
+    public DateTimeOffset? LastOverlapFrom { get; set; }
+
+    public DateTimeOffset? LastRunStartedAt { get; set; }
+
+    public DateTimeOffset? LastRunCompletedAt { get; set; }
+
+    public int LastCompaniesConsidered { get; set; }
+
+    public int LastCompaniesEnqueued { get; set; }
+
+    public int LastFailedCompanies { get; set; }
+
+    public string? LastError { get; set; }
+}
+
 public sealed class TradingInstrumentRow
 {
     public Guid Id { get; set; }

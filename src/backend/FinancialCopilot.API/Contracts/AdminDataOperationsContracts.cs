@@ -48,6 +48,28 @@ public sealed record AdminCodalDbSyncResponse(
     DateTimeOffset? AdvancedWatermark,
     string Duration);
 
+public sealed record AdminNadpcoApiSyncResponse(
+    bool FullReload,
+    int CompaniesConsidered,
+    int CompaniesEnqueued,
+    int FailedCompanies,
+    IReadOnlyCollection<int> FailedCompanyIds,
+    int RequestsEnqueued,
+    DateTimeOffset? OverlapFrom,
+    DateTimeOffset? AdvancedWatermark,
+    string Duration);
+
+public sealed record AdminNadpcoApiSyncStateResponse(
+    string Dataset,
+    DateTimeOffset? LastSuccessfulSyncAt,
+    DateTimeOffset? LastOverlapFrom,
+    DateTimeOffset? LastRunStartedAt,
+    DateTimeOffset? LastRunCompletedAt,
+    int LastCompaniesConsidered,
+    int LastCompaniesEnqueued,
+    int LastFailedCompanies,
+    string? LastError);
+
 public sealed record AdminStockMarketSyncResponse(
     string Dataset,
     int RowsRead,

@@ -69,6 +69,12 @@ public sealed class NadpcoApiTokenResponse
 
 public sealed record NadpcoCompanyScopedRequest(string CompanyId);
 
+public sealed record NadpcoApiMonthlyActivityRequest(
+    [property: JsonPropertyName("companyIds")] IReadOnlyCollection<int> CompanyIds,
+    [property: JsonPropertyName("fromDate")] string? FromDate,
+    [property: JsonPropertyName("toDate")] string? ToDate,
+    [property: JsonPropertyName("outputType")] int? OutputType);
+
 public sealed record NadpcoApiStatementRequest(
     [property: JsonPropertyName("companyIds")] IReadOnlyCollection<int> CompanyIds,
     [property: JsonPropertyName("items")] IReadOnlyCollection<int> Items);
@@ -129,6 +135,293 @@ public sealed record NadpcoApiFundamentalIndexItem(
 public sealed record NadpcoMonthlyActivityEnvelope(
     string ProductSales,
     string ServiceSales);
+
+public sealed class NadpcoApiProductSalesRecord
+{
+    [JsonPropertyName("activityID")]
+    public long? ActivityID { get; init; }
+
+    [JsonPropertyName("monthlyActivityID")]
+    public long? MonthlyActivityID { get; init; }
+
+    [JsonPropertyName("id")]
+    public long? Id { get; init; }
+
+    [JsonPropertyName("com_ID")]
+    public int? ComIDUnderscore { get; init; }
+
+    [JsonPropertyName("comId")]
+    public int? ComIdCamel { get; init; }
+
+    [JsonPropertyName("companyId")]
+    public int? CompanyId { get; init; }
+
+    [JsonPropertyName("bourseSymbol")]
+    public string? BourseSymbol { get; init; }
+
+    [JsonPropertyName("comTitle")]
+    public string? ComTitle { get; init; }
+
+    [JsonPropertyName("industryID")]
+    public int? IndustryID { get; init; }
+
+    [JsonPropertyName("industryTitle")]
+    public string? IndustryTitle { get; init; }
+
+    [JsonPropertyName("tseCode")]
+    public string? TseCode { get; init; }
+
+    [JsonPropertyName("year")]
+    public int? Year { get; init; }
+
+    [JsonPropertyName("month")]
+    public byte? Month { get; init; }
+
+    [JsonPropertyName("fiscalYearEnd")]
+    public string? FiscalYearEnd { get; init; }
+
+    [JsonPropertyName("jalaliFiscalYearEnd")]
+    public string? JalaliFiscalYearEnd { get; init; }
+
+    [JsonPropertyName("publishDate")]
+    public string? PublishDate { get; init; }
+
+    [JsonPropertyName("jalaliPublishDate")]
+    public string? JalaliPublishDate { get; init; }
+
+    [JsonPropertyName("outputType")]
+    public int? OutputType { get; init; }
+
+    [JsonPropertyName("outputTypeTitle")]
+    public string? OutputTypeTitle { get; init; }
+
+    [JsonPropertyName("categoryID")]
+    public int? CategoryID { get; init; }
+
+    [JsonPropertyName("categoryTitle")]
+    public string? CategoryTitle { get; init; }
+
+    [JsonPropertyName("productId")]
+    public long? ProductId { get; init; }
+
+    [JsonPropertyName("productCode")]
+    public string? ProductCode { get; init; }
+
+    [JsonPropertyName("productTitle")]
+    public string? ProductTitle { get; init; }
+
+    [JsonPropertyName("productUnit")]
+    public string? ProductUnit { get; init; }
+
+    [JsonPropertyName("productionQuantity")]
+    public decimal? ProductionQuantity { get; init; }
+
+    [JsonPropertyName("productProduceAmount")]
+    public decimal? ProductProduceAmount { get; init; }
+
+    [JsonPropertyName("salesQuantity")]
+    public decimal? SalesQuantity { get; init; }
+
+    [JsonPropertyName("productSaleAmount")]
+    public decimal? ProductSaleAmount { get; init; }
+
+    [JsonPropertyName("salesRate")]
+    public decimal? SalesRate { get; init; }
+
+    [JsonPropertyName("productSaleRate")]
+    public decimal? ProductSaleRate { get; init; }
+
+    [JsonPropertyName("salesValue")]
+    public decimal? SalesValue { get; init; }
+
+    [JsonPropertyName("productSaleValue")]
+    public decimal? ProductSaleValue { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> ExtensionData { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public long? GetActivityId() => ActivityID ?? MonthlyActivityID ?? Id ?? TryGetInt64("monthlyActivityId");
+
+    public int? GetCompanyId() => ComIDUnderscore ?? ComIdCamel ?? CompanyId ?? TryGetInt32("coID");
+
+    public long? GetProductId() => ProductId ?? TryGetInt64("goodsID") ?? TryGetInt64("product_Id");
+
+    public string? GetProductTitle() => FirstNonEmpty(ProductTitle, TryGetString("goodsTitle"), TryGetString("title"));
+
+    public string? GetProductUnit() => FirstNonEmpty(ProductUnit, TryGetString("unit"), TryGetString("measureUnit"));
+
+    public decimal? GetProductionQuantity() =>
+        ProductionQuantity ?? ProductProduceAmount ?? TryGetDecimal("produceAmount") ?? TryGetDecimal("productionAmount");
+
+    public decimal? GetSalesQuantity() =>
+        SalesQuantity ?? ProductSaleAmount ?? TryGetDecimal("saleAmount") ?? TryGetDecimal("quantity");
+
+    public decimal? GetSalesRate() => SalesRate ?? ProductSaleRate ?? TryGetDecimal("rate") ?? TryGetDecimal("saleRate");
+
+    public decimal? GetSalesValue() =>
+        SalesValue ?? ProductSaleValue ?? TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
+
+    public string? GetProductCode() => FirstNonEmpty(ProductCode, GetProductId()?.ToString());
+
+    private string? TryGetString(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private int? TryGetInt32(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt32(out var result)
+            ? result
+            : null;
+
+    private long? TryGetInt64(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt64(out var result)
+            ? result
+            : null;
+
+    private decimal? TryGetDecimal(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetDecimal(out var result)
+            ? result
+            : null;
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}
+
+public sealed class NadpcoApiServiceSalesRecord
+{
+    [JsonPropertyName("activityID")]
+    public long? ActivityID { get; init; }
+
+    [JsonPropertyName("monthlyActivityID")]
+    public long? MonthlyActivityID { get; init; }
+
+    [JsonPropertyName("id")]
+    public long? Id { get; init; }
+
+    [JsonPropertyName("com_ID")]
+    public int? ComIDUnderscore { get; init; }
+
+    [JsonPropertyName("comId")]
+    public int? ComIdCamel { get; init; }
+
+    [JsonPropertyName("companyId")]
+    public int? CompanyId { get; init; }
+
+    [JsonPropertyName("bourseSymbol")]
+    public string? BourseSymbol { get; init; }
+
+    [JsonPropertyName("comTitle")]
+    public string? ComTitle { get; init; }
+
+    [JsonPropertyName("industryID")]
+    public int? IndustryID { get; init; }
+
+    [JsonPropertyName("industryTitle")]
+    public string? IndustryTitle { get; init; }
+
+    [JsonPropertyName("tseCode")]
+    public string? TseCode { get; init; }
+
+    [JsonPropertyName("year")]
+    public int? Year { get; init; }
+
+    [JsonPropertyName("month")]
+    public byte? Month { get; init; }
+
+    [JsonPropertyName("fiscalYearEnd")]
+    public string? FiscalYearEnd { get; init; }
+
+    [JsonPropertyName("jalaliFiscalYearEnd")]
+    public string? JalaliFiscalYearEnd { get; init; }
+
+    [JsonPropertyName("publishDate")]
+    public string? PublishDate { get; init; }
+
+    [JsonPropertyName("jalaliPublishDate")]
+    public string? JalaliPublishDate { get; init; }
+
+    [JsonPropertyName("categoryID")]
+    public int? CategoryID { get; init; }
+
+    [JsonPropertyName("categoryTitle")]
+    public string? CategoryTitle { get; init; }
+
+    [JsonPropertyName("serviceId")]
+    public long? ServiceId { get; init; }
+
+    [JsonPropertyName("serviceCode")]
+    public string? ServiceCode { get; init; }
+
+    [JsonPropertyName("serviceTitle")]
+    public string? ServiceTitle { get; init; }
+
+    [JsonPropertyName("serviceUnit")]
+    public string? ServiceUnit { get; init; }
+
+    [JsonPropertyName("salesQuantity")]
+    public decimal? SalesQuantity { get; init; }
+
+    [JsonPropertyName("serviceSaleAmount")]
+    public decimal? ServiceSaleAmount { get; init; }
+
+    [JsonPropertyName("salesRate")]
+    public decimal? SalesRate { get; init; }
+
+    [JsonPropertyName("serviceSaleRate")]
+    public decimal? ServiceSaleRate { get; init; }
+
+    [JsonPropertyName("salesValue")]
+    public decimal? SalesValue { get; init; }
+
+    [JsonPropertyName("serviceSaleValue")]
+    public decimal? ServiceSaleValue { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> ExtensionData { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public long? GetActivityId() => ActivityID ?? MonthlyActivityID ?? Id ?? TryGetInt64("monthlyActivityId");
+
+    public int? GetCompanyId() => ComIDUnderscore ?? ComIdCamel ?? CompanyId ?? TryGetInt32("coID");
+
+    public long? GetServiceId() => ServiceId ?? TryGetInt64("activityServiceID") ?? TryGetInt64("service_Id");
+
+    public string? GetServiceTitle() => FirstNonEmpty(ServiceTitle, TryGetString("title"));
+
+    public string? GetServiceUnit() => FirstNonEmpty(ServiceUnit, TryGetString("unit"), TryGetString("measureUnit"));
+
+    public decimal? GetSalesQuantity() =>
+        SalesQuantity ?? ServiceSaleAmount ?? TryGetDecimal("saleAmount") ?? TryGetDecimal("quantity");
+
+    public decimal? GetSalesRate() => SalesRate ?? ServiceSaleRate ?? TryGetDecimal("rate") ?? TryGetDecimal("saleRate");
+
+    public decimal? GetSalesValue() =>
+        SalesValue ?? ServiceSaleValue ?? TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
+
+    public string? GetServiceCode() => FirstNonEmpty(ServiceCode, GetServiceId()?.ToString());
+
+    private string? TryGetString(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private int? TryGetInt32(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt32(out var result)
+            ? result
+            : null;
+
+    private long? TryGetInt64(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt64(out var result)
+            ? result
+            : null;
+
+    private decimal? TryGetDecimal(string propertyName) =>
+        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetDecimal(out var result)
+            ? result
+            : null;
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}
 
 public sealed record NadpcoApiCompanyRecord(
     [property: JsonPropertyName("coID")] int CoID,

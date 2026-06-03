@@ -544,6 +544,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiCompanyNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.

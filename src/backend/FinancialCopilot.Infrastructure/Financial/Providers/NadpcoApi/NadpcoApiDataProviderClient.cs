@@ -75,7 +75,11 @@ public sealed class NadpcoApiDataProviderClient(
         CancellationToken cancellationToken)
     {
         var companyId = RequireReference(externalCompanyId);
-        var body = new NadpcoCompanyScopedRequest(companyId);
+        var body = new NadpcoApiMonthlyActivityRequest(
+            new[] { ParseCompanyId(companyId) },
+            _settings.MonthlyActivityFromDate,
+            _settings.MonthlyActivityToDate,
+            _settings.MonthlyActivityOutputType);
         var envelope = new NadpcoMonthlyActivityEnvelope(
             await PostJsonForPayloadAsync("api/v2/MonthlyActivity/ProductSales", body, cancellationToken),
             await PostJsonForPayloadAsync("api/v3/MonthlyActivity/ServiceSales", body, cancellationToken));

@@ -53,4 +53,10 @@ public sealed class NadpcoApiProviderOptions
     public bool? FundamentalIndexIsRepresented { get; init; }
 
     public bool? FundamentalIndexIsComposing { get; init; }
+
+    public string? MonthlyActivityFromDate { get; init; } = "1400/01/01";
+
+    public string? MonthlyActivityToDate { get; init; }
+
+    public int? MonthlyActivityOutputType { get; init; }
 }

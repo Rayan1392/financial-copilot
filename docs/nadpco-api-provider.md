@@ -31,6 +31,9 @@ $env:NadpcoApi__FundamentalIndexPeriodTypeId = ""
 $env:NadpcoApi__FundamentalIndexIsAudited = ""
 $env:NadpcoApi__FundamentalIndexIsRepresented = ""
 $env:NadpcoApi__FundamentalIndexIsComposing = ""
+$env:NadpcoApi__MonthlyActivityFromDate = "1400/01/01"
+$env:NadpcoApi__MonthlyActivityToDate = ""
+$env:NadpcoApi__MonthlyActivityOutputType = ""
 ```
 
 ## Authentication Contract
@@ -141,6 +144,30 @@ ties.
 Percentage-like vendor indexes, including ROE/ROA/margins/growth-style values, remain deferred
 until sampled NADPCO values prove whether the API stores percent-scale or fraction-scale values.
 They must be added to `NadpcoApiFundamentalIndexMap` only after that review.
+
+## Monthly Activity Normalization
+
+`NadpcoApi` monthly sync posts bounded company/date requests to both
+`/api/v2/MonthlyActivity/ProductSales` and `/api/v3/MonthlyActivity/ServiceSales`. The request
+body contains a numeric `companyIds` list plus optional Jalali date bounds
+(`MonthlyActivityFromDate`, `MonthlyActivityToDate`) and optional `MonthlyActivityOutputType`.
+
+The normalizer writes product and service activity to the existing `MonthlyReports` and
+`MonthlyReportLineItems` tables with `ProviderName = "NadpcoApi"`; no schema migration is required
+for the current contract. Product rows map production quantity, sales quantity, and sales value.
+Service rows map sales quantity and sales value with `ProductionQuantity = null`. Zero-activity
+periods are retained.
+
+Jalali `(year, month)` values are converted to Gregorian period windows through the shared
+`JalaliDateResolver`, which uses .NET `PersianCalendar`. Product/service title, unit, rate, output
+type/title, category, publication dates, industry context, instrument code, and any natural-key
+fallback notes are preserved in `WarningsJson` evidence. When the vendor omits a product/service
+id, the line-item `ProductCode` is a deterministic natural key derived from source fields; it is
+explicitly marked in evidence as not being a fabricated vendor id.
+
+Successful ingestion publishes the existing `MonthlyProductionSales` recalculation request, so
+`MONTHLY_SALES`, `MONTHLY_SALES_GROWTH_YOY`, `MONTHLY_SALES_GROWTH_MOM`, and `TTM_SALES` continue
+to use the deterministic metric engine without query-time remote calls.
 
 ## Company Catalog Normalization
 

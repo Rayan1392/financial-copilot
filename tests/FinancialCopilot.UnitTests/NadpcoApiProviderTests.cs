@@ -268,12 +268,56 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
+    public async Task DataProvider_FetchMonthlyReports_PostsBoundedCompanyDateAndOutputTypeRequests()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((
+                request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            new SequenceTokenProvider("token"),
+            Options.Create(new NadpcoApiProviderOptions
+            {
+                MonthlyActivityFromDate = "1401/01/01",
+                MonthlyActivityToDate = "1401/12/29",
+                MonthlyActivityOutputType = 2
+            }),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+
+        Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
+        Assert.Equal(2, requests.Count);
+        Assert.Contains(requests, r => r.Uri.Contains("ProductSales"));
+        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales"));
+        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1401/01/01\"", r.Body));
+        Assert.All(requests, r => Assert.Contains("\"toDate\":\"1401/12/29\"", r.Body));
+        Assert.All(requests, r => Assert.Contains("\"outputType\":2", r.Body));
+    }
+
+    [Fact]
     public void Router_ResolvesNadpcoApiAlongsideCodalDbByProviderName()
     {
         var codal = new StubSymbolProvider();
         var nadpco = new StubSymbolProvider();
         var codalRatios = new StubRatioProvider();
         var nadpcoRatios = new StubRatioProvider();
+        var nadpcoMonthly = new StubMonthlyProvider();
         var router = new FinancialDataProviderRouter(
             new Dictionary<string, ISymbolDataProvider>
             {
@@ -281,7 +325,10 @@ public sealed class NadpcoApiProviderTests
                 ["NadpcoApi"] = nadpco
             },
             new Dictionary<string, IFinancialStatementProvider>(),
-            new Dictionary<string, IMonthlyProductionSalesProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider>
+            {
+                ["NadpcoApi"] = nadpcoMonthly
+            },
             new Dictionary<string, IFinancialRatioProvider>
             {
                 ["CodalDb"] = codalRatios,
@@ -292,6 +339,7 @@ public sealed class NadpcoApiProviderTests
         Assert.Same(nadpco, router.ResolveSymbolProvider("NADPCOAPI"));
         Assert.Same(codalRatios, router.ResolveRatioProvider("codaldb"));
         Assert.Same(nadpcoRatios, router.ResolveRatioProvider("NADPCOAPI"));
+        Assert.Same(nadpcoMonthly, router.ResolveMonthlyProvider("NADPCOAPI"));
     }
 
     private static NadpcoApiTokenProvider CreateTokenProvider(
@@ -379,6 +427,14 @@ public sealed class NadpcoApiProviderTests
     private sealed class StubRatioProvider : IFinancialRatioProvider
     {
         public Task<ProviderRawPayload> FetchFinancialRatiosAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class StubMonthlyProvider : IMonthlyProductionSalesProvider
+    {
+        public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
             string externalCompanyId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

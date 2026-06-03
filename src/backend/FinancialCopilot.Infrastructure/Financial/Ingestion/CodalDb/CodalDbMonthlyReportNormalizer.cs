@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public sealed class CodalDbMonthlyReportNormalizer(
 
         foreach (var activity in rows)
         {
-            var (periodStart, periodEnd) = ResolveJalaliMonth(activity.Year, activity.Month);
+            var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(activity.Year, activity.Month);
             var externalCompanyId = activity.CompanyId.ToString(CultureInfo.InvariantCulture);
             var externalReportId = activity.Id.ToString(CultureInfo.InvariantCulture);
 
@@ -104,18 +105,6 @@ public sealed class CodalDbMonthlyReportNormalizer(
         return count;
     }
 
-    /// <summary>
-    /// Converts Jalali (year, month) to the Gregorian first and last day of that month using
-    /// <see cref="PersianCalendar"/>. No custom Jalali arithmetic — the .NET calendar handles it.
-    /// </summary>
-    private static (DateOnly PeriodStart, DateOnly PeriodEnd) ResolveJalaliMonth(int jalaliYear, byte jalaliMonth)
-    {
-        var firstDay = Calendar.ToDateTime(jalaliYear, jalaliMonth, 1, 0, 0, 0, 0);
-        var daysInMonth = Calendar.GetDaysInMonth(jalaliYear, jalaliMonth);
-        var lastDay = Calendar.ToDateTime(jalaliYear, jalaliMonth, daysInMonth, 0, 0, 0, 0);
-        return (DateOnly.FromDateTime(firstDay), DateOnly.FromDateTime(lastDay));
-    }
-
     private static string BuildEvidenceJson(
         CodalMonthlyActivityRow activity,
         DateOnly periodStart,
@@ -137,6 +126,5 @@ public sealed class CodalDbMonthlyReportNormalizer(
             }
         }, JsonOptions);
 
-    private static readonly PersianCalendar Calendar = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

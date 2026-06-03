@@ -14,5 +14,15 @@
 
 ## Implementation Status
 
-Not implemented.
+Completed on 2026-06-03.
+
+- Added bounded NADPCO product-sales and service-sales fetch requests with company id,
+  Jalali date bounds, and optional output type.
+- Added shared Jalali month resolution and reused it from CodalDB and NADPCO monthly
+  normalizers.
+- Audited the monthly schema: no migration is required because service-sales facts fit
+  `SalesQuantity`/`SalesAmount`; unsupported vendor fields are retained in evidence JSON.
+- Added `NadpcoApiMonthlyActivityNormalizer` with idempotent report/line-item upserts,
+  zero-period retention, natural-key fallback for missing product/service ids, and existing
+  recalculation publication through the data-sync processor.
 

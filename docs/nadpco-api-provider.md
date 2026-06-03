@@ -177,12 +177,56 @@ DataAdmin users can run bounded NADPCO refreshes through:
 - `POST /api/v1/admin/nadpcoapi/full-sync`
 - `POST /api/v1/admin/nadpcoapi/incremental-sync`
 - `GET /api/v1/admin/nadpcoapi/sync-state`
+- `POST /api/v1/admin/nadpcoapi/scheduled-sync/run`
+- `GET /api/v1/admin/nadpcoapi/scheduled-sync/status`
+- `GET /api/v1/admin/nadpcoapi/scheduled-sync/runs`
 - `GET /api/v1/admin/provider-health`
 
 The orchestrator is provider-specific, but it only publishes normal `DataSyncRequest`s with
 `ProviderName = "NadpcoApi"`. Raw payload storage, normalization, derived-metric recalculation,
 scanner-cache invalidation, and sync-run telemetry remain in the existing provider-neutral data
 sync processor.
+
+Automatic scheduled sync is controlled by the `NadpcoScheduledSync` section and is disabled by
+default:
+
+```json
+{
+  "NadpcoScheduledSync": {
+    "Enabled": false,
+    "CadenceSeconds": 86400,
+    "ExecutionTimeUtc": null,
+    "DatasetSelection": [ "Symbols", "FinancialStatements", "FundamentalIndexes", "MonthlyProductionSales" ],
+    "BatchSize": 100,
+    "MaxConcurrency": 4,
+    "RetryCount": 1,
+    "RetryDelaySeconds": 30,
+    "MissedScheduleRecoveryPolicy": "RunOnceImmediately",
+    "MaxMissedExecutionsToCatchUp": 1,
+    "MaxRunDurationSeconds": 3600,
+    "LockLeaseSeconds": 7200,
+    "AlertingEnabled": true,
+    "AlertSeverity": "Error"
+  }
+}
+```
+
+The Worker host runs `NadpcoScheduledSyncWorker`, which calls the same coordinator used by the
+manual scheduled-sync trigger. The coordinator persists one row per scheduled workflow attempt in
+`NadpcoScheduledSyncRuns`, including trigger source, schedule snapshot, dataset selection, timing,
+status, batch counts, retry diagnostics, lock owner/lease expiry, manual metadata, and alert
+emission status.
+
+Manual scheduled runs are for operator-triggered incremental refreshes and use the same lock,
+retry, maximum-duration, run-history, alerting, and orchestration path as automatic runs. The older
+full/incremental endpoints remain available for explicit backfill and direct orchestration
+operations.
+
+Overlap prevention uses persisted `Running` rows with a lease expiry. A later coordinator call
+marks expired leases as `HungRecovered`, releases the lock metadata, and can proceed with a new
+run. Failed, partially successful, timed-out, overlap-skipped, and hung-recovered runs are routed
+through `INadpcoScheduledSyncAlertSink`; the default implementation logs a bounded non-secret alert
+and can be replaced by production notification infrastructure.
 
 Activation order:
 
@@ -193,7 +237,7 @@ Activation order:
    `POST /api/v1/admin/nadpcoapi/full-sync` to refresh the company catalog.
 5. After companies exist locally, run full sync again to enqueue bounded per-company statements,
    fundamental indexes, and monthly activity.
-6. Enable a scheduler to call incremental sync only after a successful full backfill.
+6. Enable `NadpcoScheduledSync:Enabled=true` in the Worker only after a successful full backfill.
 
 NADPCO currently does not expose a reliable modified-since cursor for the covered endpoints.
 Incremental orchestration therefore records `LastSuccessfulSyncAt` and `LastOverlapFrom`, then

@@ -252,6 +252,60 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NadpcoApiScheduledSync_ManualRun_AsDataAdmin_InvokesCoordinator()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/nadpcoapi/scheduled-sync/run",
+            new { reason = "operator-triggered" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Manual", document.RootElement.GetProperty("triggerSource").GetString());
+        Assert.Equal("Succeeded", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal(["operator-triggered"], _factory.NadpcoScheduledSync.ManualReasons);
+    }
+
+    [Fact]
+    public async Task NadpcoApiScheduledSync_Status_AsDataAdmin_ReturnsHealthView()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync(
+            "/api/v1/admin/nadpcoapi/scheduled-sync/status?recentRunLimit=1",
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.True(document.RootElement.GetProperty("ready").GetBoolean());
+        Assert.Equal("Succeeded", document.RootElement
+            .GetProperty("recentRuns")
+            .EnumerateArray()
+            .Single()
+            .GetProperty("status")
+            .GetString());
+    }
+
+    [Fact]
+    public async Task NadpcoApiScheduledSync_Runs_AsDataAdmin_ReturnsHistory()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync(
+            "/api/v1/admin/nadpcoapi/scheduled-sync/runs?limit=1",
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var run = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("Succeeded", run.GetProperty("status").GetString());
+        Assert.Equal(4, run.GetProperty("processedBatches").GetInt32());
+    }
+
+    [Fact]
     public async Task NadpcoApi_FullSync_AsNormalUser_ReturnsForbidden()
     {
         using var client = _factory.CreateClient();
@@ -416,6 +470,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubProviderHealthService _providerHealth = new();
     private readonly StubCodalDbScheduledSyncService _codalDbSync = new();
     private readonly StubNadpcoApiScheduledSyncService _nadpcoApiSync = new();
+    private readonly StubNadpcoScheduledSyncCoordinator _nadpcoScheduledSync = new();
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
@@ -424,6 +479,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
     public StubNadpcoApiScheduledSyncService NadpcoApiSync => _nadpcoApiSync;
+    public StubNadpcoScheduledSyncCoordinator NadpcoScheduledSync => _nadpcoScheduledSync;
     public StubStockMarketDbSyncService StockMarketDbSync => _stockMarketDbSync;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -437,6 +493,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<ICodalDbScheduledSyncService>();
             services.RemoveAll<INadpcoApiScheduledSyncService>();
             services.RemoveAll<INadpcoApiSyncStateReader>();
+            services.RemoveAll<INadpcoScheduledSyncCoordinator>();
+            services.RemoveAll<INadpcoScheduledSyncRunReader>();
             services.RemoveAll<IStockMarketDbSyncService>();
             services.RemoveAll<IStockMarketDbSyncStateReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
@@ -446,6 +504,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<ICodalDbScheduledSyncService>(_codalDbSync);
             services.AddSingleton<INadpcoApiScheduledSyncService>(_nadpcoApiSync);
             services.AddSingleton<INadpcoApiSyncStateReader>(_nadpcoApiSync);
+            services.AddSingleton<INadpcoScheduledSyncCoordinator>(_nadpcoScheduledSync);
+            services.AddSingleton<INadpcoScheduledSyncRunReader>(_nadpcoScheduledSync);
             services.AddSingleton<IStockMarketDbSyncService>(_stockMarketDbSync);
             services.AddSingleton<IStockMarketDbSyncStateReader>(_stockMarketDbSync);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
@@ -457,6 +517,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _publisher.Requests.Clear();
         _codalDbSync.Reset();
         _nadpcoApiSync.Reset();
+        _nadpcoScheduledSync.Reset();
         _stockMarketDbSync.Reset();
         _missingAnswerFeedback.Reset();
     }
@@ -569,6 +630,61 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                     LastError: null)]);
 
         public void Reset() => InvocationModes.Clear();
+    }
+
+    public sealed class StubNadpcoScheduledSyncCoordinator :
+        INadpcoScheduledSyncCoordinator,
+        INadpcoScheduledSyncRunReader
+    {
+        public List<string?> ManualReasons { get; } = [];
+
+        public Task<NadpcoScheduledSyncRun> RunAsync(
+            NadpcoScheduledSyncRunRequest request,
+            CancellationToken cancellationToken)
+        {
+            ManualReasons.Add(request.ManualReason);
+            return Task.FromResult(SampleRun(request.TriggerSource, request.ManualReason));
+        }
+
+        public Task<NadpcoScheduledSyncStatus> GetStatusAsync(
+            int recentRunLimit,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new NadpcoScheduledSyncStatus(
+                Enabled: true,
+                Ready: true,
+                NextDueAt: DateTimeOffset.Parse("2026-06-04T10:00:00Z"),
+                LastSuccessfulExecutionAt: DateTimeOffset.Parse("2026-06-03T10:00:02Z"),
+                ActiveRun: null,
+                RecentRuns: [SampleRun(NadpcoScheduledSyncTriggerSource.Automatic, null)]));
+
+        public Task<IReadOnlyCollection<NadpcoScheduledSyncRun>> QueryRecentAsync(
+            int maximumCount,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<NadpcoScheduledSyncRun>>(
+                [SampleRun(NadpcoScheduledSyncTriggerSource.Automatic, null)]);
+
+        public void Reset() => ManualReasons.Clear();
+
+        private static NadpcoScheduledSyncRun SampleRun(
+            NadpcoScheduledSyncTriggerSource triggerSource,
+            string? manualReason) =>
+            new(
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                triggerSource,
+                NadpcoScheduledSyncRunStatus.Succeeded,
+                DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
+                DateTimeOffset.Parse("2026-06-03T10:00:02Z"),
+                DateTimeOffset.Parse("2026-06-03T10:00:02Z"),
+                ProcessedBatches: 4,
+                FailedBatches: 0,
+                RetryAttempts: 0,
+                Diagnostics: null,
+                ScheduleSnapshotJson: "{}",
+                DatasetSelectionJson: "[\"Symbols\"]",
+                LockOwner: null,
+                LockLeaseExpiresAt: null,
+                AlertEmitted: false,
+                ManualReason: manualReason);
     }
 
     private sealed class CapturingDataSyncPublisher : IDataSyncRequestPublisher

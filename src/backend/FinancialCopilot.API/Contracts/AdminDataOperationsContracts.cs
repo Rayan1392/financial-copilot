@@ -70,6 +70,35 @@ public sealed record AdminNadpcoApiSyncStateResponse(
     int LastFailedCompanies,
     string? LastError);
 
+public sealed record AdminNadpcoScheduledSyncManualRunRequest(
+    string? Reason = null);
+
+public sealed record AdminNadpcoScheduledSyncRunResponse(
+    Guid RunId,
+    string TriggerSource,
+    string Status,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? LastSuccessfulExecutionAt,
+    int ProcessedBatches,
+    int FailedBatches,
+    int RetryAttempts,
+    string? Diagnostics,
+    string ScheduleSnapshotJson,
+    string DatasetSelectionJson,
+    string? LockOwner,
+    DateTimeOffset? LockLeaseExpiresAt,
+    bool AlertEmitted,
+    string? ManualReason);
+
+public sealed record AdminNadpcoScheduledSyncStatusResponse(
+    bool Enabled,
+    bool Ready,
+    DateTimeOffset? NextDueAt,
+    DateTimeOffset? LastSuccessfulExecutionAt,
+    AdminNadpcoScheduledSyncRunResponse? ActiveRun,
+    IReadOnlyCollection<AdminNadpcoScheduledSyncRunResponse> RecentRuns);
+
 public sealed record AdminStockMarketSyncResponse(
     string Dataset,
     int RowsRead,

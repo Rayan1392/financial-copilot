@@ -294,6 +294,41 @@ public sealed class NadpcoApiSyncStateRow
     public string? LastError { get; set; }
 }
 
+public sealed class NadpcoScheduledSyncRunRow
+{
+    public Guid Id { get; set; }
+
+    public string TriggerSource { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTimeOffset StartedAt { get; set; }
+
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    public DateTimeOffset? LastSuccessfulExecutionAt { get; set; }
+
+    public int ProcessedBatches { get; set; }
+
+    public int FailedBatches { get; set; }
+
+    public int RetryAttempts { get; set; }
+
+    public string? Diagnostics { get; set; }
+
+    public string ScheduleSnapshotJson { get; set; } = "{}";
+
+    public string DatasetSelectionJson { get; set; } = "[]";
+
+    public string? LockOwner { get; set; }
+
+    public DateTimeOffset? LockLeaseExpiresAt { get; set; }
+
+    public bool AlertEmitted { get; set; }
+
+    public string? ManualReason { get; set; }
+}
+
 public sealed class TradingInstrumentRow
 {
     public Guid Id { get; set; }

@@ -173,6 +173,10 @@ Bearer authentication on data requests. Keep scheduled NADPCO reads disabled unt
 successful token response shape and lifetime are confirmed. Details are documented in
 [docs/nadpco-api-provider.md](docs/nadpco-api-provider.md).
 
+Automatic NADPCO incremental synchronization is controlled by `NadpcoScheduledSync` and is disabled
+by default. DataAdmin operators can inspect scheduler health/history and trigger an on-demand
+scheduled workflow through the protected `nadpcoapi/scheduled-sync/*` admin endpoints.
+
 ## Market View Configuration
 
 Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMarketDB

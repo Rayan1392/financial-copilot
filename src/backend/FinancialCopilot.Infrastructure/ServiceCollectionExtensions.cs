@@ -584,6 +584,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INadpcoApiSyncStateReader>(provider =>
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());
         services
+            .AddOptions<NadpcoScheduledSyncOptions>()
+            .BindConfiguration(NadpcoScheduledSyncOptions.SectionName);
+        services.AddScoped<EfCoreNadpcoScheduledSyncRunRepository>();
+        services.AddScoped<INadpcoScheduledSyncRunReader>(provider =>
+            provider.GetRequiredService<EfCoreNadpcoScheduledSyncRunRepository>());
+        services.AddScoped<INadpcoScheduledSyncCoordinator, NadpcoScheduledSyncCoordinator>();
+        services.AddSingleton<INadpcoScheduledSyncAlertSink, LoggingNadpcoScheduledSyncAlertSink>();
+        services
             .AddOptions<StockMarketDbProviderOptions>()
             .BindConfiguration(StockMarketDbProviderOptions.SectionName);
         services.AddSingleton<StockMarketDbConnectionFactory>();

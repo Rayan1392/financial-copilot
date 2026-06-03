@@ -23,6 +23,8 @@ public sealed class AdminDataOperationsController(
     ICodalDbScheduledSyncService codalDbScheduledSync,
     INadpcoApiScheduledSyncService nadpcoApiScheduledSync,
     INadpcoApiSyncStateReader nadpcoApiSyncStateReader,
+    INadpcoScheduledSyncCoordinator nadpcoScheduledSyncCoordinator,
+    INadpcoScheduledSyncRunReader nadpcoScheduledSyncRunReader,
     IStockMarketDbSyncService stockMarketDbSync,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
@@ -162,6 +164,56 @@ public sealed class AdminDataOperationsController(
             state.LastCompaniesEnqueued,
             state.LastFailedCompanies,
             state.LastError)).ToArray());
+    }
+
+    [HttpPost("nadpcoapi/scheduled-sync/run")]
+    public async Task<ActionResult<AdminNadpcoScheduledSyncRunResponse>> RunNadpcoScheduledSync(
+        [FromBody] AdminNadpcoScheduledSyncManualRunRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var run = await nadpcoScheduledSyncCoordinator.RunAsync(
+            new NadpcoScheduledSyncRunRequest(
+                NadpcoScheduledSyncTriggerSource.Manual,
+                request?.Reason,
+                Force: true),
+            cancellationToken);
+        return Ok(ToScheduledSyncRunResponse(run));
+    }
+
+    [HttpGet("nadpcoapi/scheduled-sync/status")]
+    public async Task<ActionResult<AdminNadpcoScheduledSyncStatusResponse>> GetNadpcoScheduledSyncStatus(
+        [FromQuery] int recentRunLimit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (recentRunLimit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(recentRunLimit), "Recent run limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var status = await nadpcoScheduledSyncCoordinator.GetStatusAsync(recentRunLimit, cancellationToken);
+        return Ok(new AdminNadpcoScheduledSyncStatusResponse(
+            status.Enabled,
+            status.Ready,
+            status.NextDueAt,
+            status.LastSuccessfulExecutionAt,
+            status.ActiveRun is null ? null : ToScheduledSyncRunResponse(status.ActiveRun),
+            status.RecentRuns.Select(ToScheduledSyncRunResponse).ToArray()));
+    }
+
+    [HttpGet("nadpcoapi/scheduled-sync/runs")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminNadpcoScheduledSyncRunResponse>>> GetNadpcoScheduledSyncRuns(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var runs = await nadpcoScheduledSyncRunReader.QueryRecentAsync(limit, cancellationToken);
+        return Ok(runs.Select(ToScheduledSyncRunResponse).ToArray());
     }
 
     [HttpPost("stockmarketdb/{dataset}/sync")]
@@ -322,4 +374,24 @@ public sealed class AdminDataOperationsController(
             message.IdempotencyKey,
             DataSyncRunStatus.Queued.ToString()));
     }
+
+    private static AdminNadpcoScheduledSyncRunResponse ToScheduledSyncRunResponse(
+        NadpcoScheduledSyncRun run) =>
+        new(
+            run.RunId,
+            run.TriggerSource.ToString(),
+            run.Status.ToString(),
+            run.StartedAt,
+            run.CompletedAt,
+            run.LastSuccessfulExecutionAt,
+            run.ProcessedBatches,
+            run.FailedBatches,
+            run.RetryAttempts,
+            run.Diagnostics,
+            run.ScheduleSnapshotJson,
+            run.DatasetSelectionJson,
+            run.LockOwner,
+            run.LockLeaseExpiresAt,
+            run.AlertEmitted,
+            run.ManualReason);
 }

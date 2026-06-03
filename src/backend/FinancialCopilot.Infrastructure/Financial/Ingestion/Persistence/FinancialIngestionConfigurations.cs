@@ -176,6 +176,26 @@ public sealed class NadpcoApiSyncStateRowConfiguration : IEntityTypeConfiguratio
     }
 }
 
+public sealed class NadpcoScheduledSyncRunRowConfiguration : IEntityTypeConfiguration<NadpcoScheduledSyncRunRow>
+{
+    public void Configure(EntityTypeBuilder<NadpcoScheduledSyncRunRow> builder)
+    {
+        builder.ToTable("NadpcoScheduledSyncRuns");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.TriggerSource).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Diagnostics).HasMaxLength(2000);
+        builder.Property(row => row.ScheduleSnapshotJson).HasMaxLength(4000).IsRequired();
+        builder.Property(row => row.DatasetSelectionJson).HasMaxLength(1000).IsRequired();
+        builder.Property(row => row.LockOwner).HasMaxLength(256);
+        builder.Property(row => row.ManualReason).HasMaxLength(500);
+        builder.HasIndex(row => row.StartedAt);
+        builder.HasIndex(row => row.CompletedAt);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => row.LockLeaseExpiresAt);
+    }
+}
+
 public sealed class TradingInstrumentRowConfiguration : IEntityTypeConfiguration<TradingInstrumentRow>
 {
     public void Configure(EntityTypeBuilder<TradingInstrumentRow> builder)

@@ -33,6 +33,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<NadpcoApiSyncStateRow> NadpcoApiSyncStates => Set<NadpcoApiSyncStateRow>();
 
+    public DbSet<NadpcoScheduledSyncRunRow> NadpcoScheduledSyncRuns => Set<NadpcoScheduledSyncRunRow>();
+
     public DbSet<TradingInstrumentRow> TradingInstruments => Set<TradingInstrumentRow>();
     public DbSet<IntradayTradeSnapshotRow> IntradayTradeSnapshots => Set<IntradayTradeSnapshotRow>();
     public DbSet<DailyInstrumentTradeRow> DailyInstrumentTrades => Set<DailyInstrumentTradeRow>();

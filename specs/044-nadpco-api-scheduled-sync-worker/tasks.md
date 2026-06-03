@@ -117,4 +117,27 @@
 
 ## Implementation Status
 
-Not implemented. This spec defines future work only.
+Implemented in order 43.
+
+Evidence highlights:
+
+- `NadpcoScheduledSyncOptions` defines disabled-by-default cadence, dataset selection, batch,
+  concurrency, retry, missed-schedule, max-duration, lease, and alert settings.
+- `NadpcoScheduledSyncCoordinator` wraps the existing NADPCO bounded orchestration with persisted
+  run history, retry, timeout, manual trigger metadata, overlap prevention, stale-lease recovery,
+  and alert emission.
+- `NadpcoScheduledSyncWorker` runs automatic incremental synchronization from the Worker host.
+- DataAdmin endpoints expose manual trigger, status/health, active lock state, and run history.
+- `NadpcoScheduledSyncRuns` persists run status, schedule snapshot, datasets, timings, batch
+  counts, retry diagnostics, last success, lock metadata, manual metadata, and alert status.
+- The implementation reuses the existing `INadpcoApiScheduledSyncService` orchestration, so raw
+  payload capture, normalization, derived-metric recalculation, and scanner-cache invalidation stay
+  on the same data-sync path as manual NADPCO operations.
+
+Deferred implementation details:
+
+- `ExecutionTimeUtc`, `BatchSize`, `MaxConcurrency`, and `DatasetSelection` are persisted and
+  exposed as scheduler configuration snapshots; the existing NADPCO orchestration still owns the
+  concrete bounded fan-out and provider read options.
+- Missed-schedule bounded catch-up is represented by configuration and trigger source; deeper
+  multi-run catch-up queueing remains a future enhancement.

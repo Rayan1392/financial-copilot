@@ -1,4 +1,5 @@
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Worker;
 using Serilog;
 
@@ -24,11 +25,26 @@ builder.Services
 builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
+builder.Services
+    .AddOptions<NadpcoScheduledSyncOptions>()
+    .BindConfiguration(NadpcoScheduledSyncOptions.SectionName)
+    .Validate(
+        options =>
+            options.CadenceSeconds > 0 &&
+            options.BatchSize > 0 &&
+            options.MaxConcurrency > 0 &&
+            options.RetryCount >= 0 &&
+            options.RetryDelaySeconds >= 0 &&
+            options.MaxRunDurationSeconds > 0 &&
+            options.LockLeaseSeconds > 0,
+        "NADPCO scheduled sync settings must be positive.")
+    .ValidateOnStart();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
+builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 
 var host = builder.Build();
 host.Run();

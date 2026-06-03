@@ -13,4 +13,6 @@ public interface IFinancialDataProviderRouter
     IFinancialStatementProvider? ResolveStatementProvider(string providerName);
 
     IMonthlyProductionSalesProvider? ResolveMonthlyProvider(string providerName);
+
+    IFinancialRatioProvider? ResolveRatioProvider(string providerName);
 }

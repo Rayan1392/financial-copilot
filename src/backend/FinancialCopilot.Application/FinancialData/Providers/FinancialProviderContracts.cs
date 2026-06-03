@@ -10,6 +10,7 @@ public enum ProviderDataset
     FinancialStatements,
     MonthlyProductionSales,
     FinancialRatios,
+    FundamentalIndexes,
     TradingInstruments,
     IntradayTrades,
     DailyTrades,

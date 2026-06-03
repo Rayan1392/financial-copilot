@@ -58,6 +58,22 @@ delivery checklist (they are added as data sources become available).
      `ModifiedDateTime`) sync orchestrator + the missing derived-metric recalculation outbox
      processor, so growth metrics are precomputed and the scanner reads them at query time.
 
+- **NADPCO HTTP API** (`https://data3.nadpco.com`, vendor: Noavaran Amin Data Processing
+  Company) - a separate authenticated HTTP source that coexists with the completed CodalDB SQL
+  adapter:
+  1. `038-nadpco-api-provider-foundation` - token authentication, secrets, resilience, health,
+     raw payload capture, and provider routing.
+  2. `039-nadpco-api-company-catalog-sync` - `/api/v3/BaseInfo/Companies` normalization and
+     cross-provider canonical symbol linkage.
+  3. `040-nadpco-api-financial-statement-sync` - balance sheet, income statement, and cash flow
+     API ingestion with curated item mappings.
+  4. `041-nadpco-api-fundamental-index-sync` - curated vendor-precomputed fundamental indexes
+     persisted as source-marked scannable metrics.
+  5. `042-nadpco-api-monthly-activity-sync` - product-sales and service-sales monthly activity
+     normalization.
+  6. `043-nadpco-api-sync-orchestration` - bounded full/incremental orchestration, per-dataset
+     progress, overlap reconciliation, DataAdmin operations, and cache invalidation.
+
 ## Trading Statistics Implementation Specs
 
 These specs add a separate read-only SQL Server trading-statistics source. The source database
@@ -86,6 +102,8 @@ so implementation can proceed incrementally without presenting unsupported featu
 5. `036-frontend-local-api-connectivity` - align browser/server API base URL configuration,
    local credentialed CORS origins, and auth smoke verification so frontend requests do not
    fall back to the frontend SSR origin.
+6. `037-frontend-admin-panel` - add the permission-aware React administration panel over the
+   implemented Admin Management API.
 
 ## Administration Specs
 
@@ -96,6 +114,8 @@ contracts without moving domain rules into controllers:
 1. `035-admin-identity-and-entitlement-management` - manage users, roles, permission mappings,
    tenant memberships, plans, plan capabilities, subscriptions, credit adjustments, immutable
    usage-ledger reads, and security/Billing audit visibility with granular permission policies.
+2. `037-frontend-admin-panel` - expose the implemented admin contracts through a protected,
+   permission-aware React administration experience without moving domain rules into the UI.
 
 ## Coherence Rules
 
@@ -126,6 +146,12 @@ contracts without moving domain rules into controllers:
 - `035` exposes controlled admin APIs over `031` Identity and `013` Billing boundaries. It does
   not duplicate entitlement logic, mutate wallet projections directly, or authorize by
   hardcoded role or plan names.
+- `037` consumes `035` through the existing `031` frontend auth bridge. Frontend permission
+  checks control navigation and actions for usability only; backend policies remain
+  authoritative.
+- `038`-`043` add `NadpcoApi` as a separate HTTP provider that coexists with `CodalDb`. Remote
+  payload DTOs remain Infrastructure concerns; normalized PostgreSQL rows, governed metric
+  semantics, deterministic recalculation, and scanner reads remain provider-neutral.
 
 ## Recommended Delivery Dependencies
 

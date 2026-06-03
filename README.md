@@ -158,6 +158,21 @@ After initial instruments and trade synchronization, set
 five minutes for indices, hourly for daily summaries, and daily for instruments. Intraday
 snapshots are retained for 30 days by default.
 
+## NADPCO API Provider
+
+The `NadpcoApi` HTTP provider is configured through the `NadpcoApi` section and reads credentials
+from secrets or environment variables:
+
+```powershell
+$env:NadpcoApi__UserName = "<vendor-user>"
+$env:NadpcoApi__Password = "<vendor-password>"
+```
+
+The provider obtains `/api/v2/Token` with Basic authentication, caches the returned token, and sends
+Bearer authentication on data requests. Keep scheduled NADPCO reads disabled until the vendor's
+successful token response shape and lifetime are confirmed. Details are documented in
+[docs/nadpco-api-provider.md](docs/nadpco-api-provider.md).
+
 ## Market View Configuration
 
 Actor-scoped watchlists and `GET /api/v1/market/summary` read normalized StockMarketDB

@@ -24,6 +24,24 @@ public sealed class CanonicalSymbolLinkageResolverTests
     }
 
     [Fact]
+    public void Resolve_WhenConfigured_PrefersInstrumentCodeBeforeIsin()
+    {
+        var identifiers = new CompanyIdentifiers(
+            companySymbol: "فولاد",
+            tseSymbol: "فولاد",
+            instrumentCode: "46348559193224090",
+            companyIsin: "IRO1FOLD0006",
+            symbolIsin: "IRO1FOLD0001");
+
+        var result = _resolver.Resolve(
+            identifiers,
+            CanonicalSymbolLinkagePriority.InstrumentCodeFirst);
+
+        Assert.Equal(SymbolLinkageBasis.InstrumentCode, result.Basis);
+        Assert.Equal("46348559193224090", result.SymbolCode!.Value);
+    }
+
+    [Fact]
     public void Resolve_FallsBackToCompanyIsin_WhenSymbolIsinMissing()
     {
         var identifiers = new CompanyIdentifiers(companyIsin: "IRO1FOLD0006", instrumentCode: "123");

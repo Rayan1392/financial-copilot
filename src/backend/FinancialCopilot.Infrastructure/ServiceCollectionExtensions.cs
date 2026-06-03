@@ -27,8 +27,10 @@ using FinancialCopilot.Infrastructure.Memory;
 using FinancialCopilot.Infrastructure.Memory.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
+using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
@@ -455,6 +457,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
 
+        // NADPCO HTTP API provider foundation. Registered by name for coexisting ingestion routes;
+        // it does not replace the default CyclicalWaves provider and is not a market-data source.
+        services
+            .AddOptions<NadpcoApiProviderOptions>()
+            .BindConfiguration(NadpcoApiProviderOptions.SectionName);
+        services.AddSingleton<NadpcoApiTokenCache>();
+        services.AddTransient<NadpcoApiAuthHandler>();
+        services.AddTransient<NadpcoApiResilienceHandler>();
+        services
+            .AddHttpClient<INadpcoApiTokenProvider, NadpcoApiTokenProvider>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<IOptions<NadpcoApiProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+            })
+            .AddHttpMessageHandler<NadpcoApiResilienceHandler>();
+        services
+            .AddHttpClient<NadpcoApiDataProviderClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<IOptions<NadpcoApiProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+            })
+            .AddHttpMessageHandler<NadpcoApiAuthHandler>()
+            .AddHttpMessageHandler<NadpcoApiResilienceHandler>();
+
         // CodalDb data provider (read-only SQL Server; coexists with CyclicalWaves). It is NOT
         // registered as the default ISymbolDataProvider/etc. nor as IMarketDataProvider; it is
         // selected for ingestion by name through IFinancialDataProviderRouter.
@@ -470,26 +496,37 @@ public static class ServiceCollectionExtensions
         {
             var cyclicalWaves = provider.GetRequiredService<CyclicalWavesDataProviderClient>();
             var codalDb = provider.GetRequiredService<CodalDbDataProviderClient>();
+            var nadpcoApi = provider.GetRequiredService<NadpcoApiDataProviderClient>();
             var cyclicalWavesName = provider
                 .GetRequiredService<IOptions<CyclicalWavesProviderOptions>>().Value.ProviderName;
             var codalDbName = provider
                 .GetRequiredService<IOptions<CodalDbProviderOptions>>().Value.ProviderName;
+            var nadpcoApiName = provider
+                .GetRequiredService<IOptions<NadpcoApiProviderOptions>>().Value.ProviderName;
 
             return new FinancialDataProviderRouter(
                 new Dictionary<string, ISymbolDataProvider>
                 {
                     [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb
+                    [codalDbName] = codalDb,
+                    [nadpcoApiName] = nadpcoApi
                 },
                 new Dictionary<string, IFinancialStatementProvider>
                 {
                     [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb
+                    [codalDbName] = codalDb,
+                    [nadpcoApiName] = nadpcoApi
                 },
                 new Dictionary<string, IMonthlyProductionSalesProvider>
                 {
                     [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb
+                    [codalDbName] = codalDb,
+                    [nadpcoApiName] = nadpcoApi
+                },
+                new Dictionary<string, IFinancialRatioProvider>
+                {
+                    [codalDbName] = codalDb,
+                    [nadpcoApiName] = nadpcoApi
                 });
         });
 
@@ -504,11 +541,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbMonthlyReportNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CodalDbRatioNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiCompanyNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
+        services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
         foreach (var code in new[] { "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
-                                     "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX" })
+                                     "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
+                                     "OPERATING_CASH_FLOW" })
         {
             var captured = new MetricCode(code);
             services.AddScoped<INormalizedMetricInputSource>(sp =>

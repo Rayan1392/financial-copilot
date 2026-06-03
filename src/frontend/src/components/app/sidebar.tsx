@@ -1,10 +1,16 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Trash2, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Trash2, LogOut, Settings } from "lucide-react";
 import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
 import { getUsage, getWatchlist } from "@/lib/market-view.functions";
-import { logout } from "@/integrations/financial-copilot/auth";
+import {
+  getStoredAuthenticatedUser,
+  logout,
+  subscribeToAuthChanges,
+} from "@/integrations/financial-copilot/auth";
+import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
 import { formatPercent, toPersianDigits } from "@/lib/format/persian";
 
 export function ConversationSidebar() {
@@ -62,6 +68,11 @@ export function ConversationSidebar() {
           100,
       )
     : 0;
+  const [showAdmin, setShowAdmin] = useState(() => canAccessAdmin(getStoredAuthenticatedUser()));
+  useEffect(
+    () => subscribeToAuthChanges(() => setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser()))),
+    [],
+  );
 
   async function signOut() {
     await logout();
@@ -175,6 +186,15 @@ export function ConversationSidebar() {
         )}
         <div className="flex items-center justify-between px-1">
           <span className="text-xs font-medium text-foreground">حساب کاربری</span>
+          {showAdmin && (
+            <Link
+              to="/admin"
+              className="p-1.5 text-muted-foreground hover:text-foreground transition"
+              aria-label="پنل مدیریت"
+            >
+              <Settings className="size-4" />
+            </Link>
+          )}
           <button
             onClick={signOut}
             className="p-1.5 text-muted-foreground hover:text-foreground transition"

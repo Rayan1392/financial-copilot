@@ -51,6 +51,13 @@ public sealed class AdminDataOperationsController(
         QueueAsync(ProviderDataset.FinancialRatios, request, requiresReference: true, cancellationToken,
             providerName: "CodalDb");
 
+    [HttpPost("data-sync/fundamental-indexes")]
+    public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueFundamentalIndexesSync(
+        [FromBody] AdminDataSyncRequest? request,
+        CancellationToken cancellationToken) =>
+        QueueAsync(ProviderDataset.FundamentalIndexes, request, requiresReference: true, cancellationToken,
+            providerName: "NadpcoApi");
+
     [HttpGet("data-sync/runs")]
     public async Task<ActionResult<IReadOnlyCollection<AdminDataSyncRunResponse>>> GetRuns(
         [FromQuery] int limit = 20,

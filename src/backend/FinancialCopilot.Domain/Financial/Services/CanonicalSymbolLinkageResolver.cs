@@ -5,6 +5,12 @@ namespace FinancialCopilot.Domain.Financial.Services;
 /// <summary>Outcome of canonical-symbol linkage: the resolved code (if any) and its basis.</summary>
 public sealed record CanonicalSymbolResolution(SymbolCode? SymbolCode, SymbolLinkageBasis Basis);
 
+public enum CanonicalSymbolLinkagePriority
+{
+    IsinFirst,
+    InstrumentCodeFirst
+}
+
 /// <summary>
 /// Domain policy that resolves a single canonical <see cref="SymbolCode"/> for an issuer from its
 /// available identifiers, in a documented priority order, and records which identifier was used.
@@ -17,9 +23,19 @@ public sealed record CanonicalSymbolResolution(SymbolCode? SymbolCode, SymbolLin
 /// </remarks>
 public sealed class CanonicalSymbolLinkageResolver
 {
-    public CanonicalSymbolResolution Resolve(CompanyIdentifiers identifiers)
+    public CanonicalSymbolResolution Resolve(
+        CompanyIdentifiers identifiers,
+        CanonicalSymbolLinkagePriority priority = CanonicalSymbolLinkagePriority.IsinFirst)
     {
         ArgumentNullException.ThrowIfNull(identifiers);
+
+        if (priority == CanonicalSymbolLinkagePriority.InstrumentCodeFirst &&
+            identifiers.InstrumentCode is { } preferredInstrumentCode)
+        {
+            return new CanonicalSymbolResolution(
+                new SymbolCode(preferredInstrumentCode),
+                SymbolLinkageBasis.InstrumentCode);
+        }
 
         if (identifiers.SymbolIsin is { } symbolIsin)
         {

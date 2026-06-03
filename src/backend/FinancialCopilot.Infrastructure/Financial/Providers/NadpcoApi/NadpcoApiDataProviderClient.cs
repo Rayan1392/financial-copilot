@@ -1,0 +1,289 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
+
+public sealed class NadpcoApiDataProviderClient(
+    HttpClient httpClient,
+    IProviderRawPayloadStore rawPayloads,
+    INadpcoApiTokenProvider tokenProvider,
+    IOptions<NadpcoApiProviderOptions> options,
+    TimeProvider timeProvider,
+    ILogger<NadpcoApiDataProviderClient> logger) :
+    ISymbolDataProvider,
+    IFinancialStatementProvider,
+    IMonthlyProductionSalesProvider,
+    IFinancialRatioProvider,
+    IFinancialDataProviderHealthService
+{
+    private readonly NadpcoApiProviderOptions _settings = options.Value;
+    private readonly SemaphoreSlim _throttle = new(Math.Max(1, options.Value.MaxReadParallelism));
+
+    public string ProviderName => _settings.ProviderName;
+
+    public Task<ProviderRawPayload> FetchSymbolsAsync(CancellationToken cancellationToken) =>
+        FetchGetRawAsync(
+            ProviderDataset.Symbols,
+            "api/v3/BaseInfo/Companies",
+            "all",
+            cancellationToken);
+
+    public async Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var envelope = new NadpcoFinancialStatementEnvelope(
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/BalanceSheet/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    NadpcoApiStatementItemMaps.BalanceSheetItemIdToMetricCode.Keys.ToArray()),
+                cancellationToken),
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/IncomeStatement/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    NadpcoApiStatementItemMaps.IncomeItemIdToMetricCode.Keys.ToArray()),
+                cancellationToken),
+            await PostJsonForPayloadAsync(
+                BuildStatementEndpoint("api/v2/FS/CashFlow/Values"),
+                new NadpcoApiStatementRequest(
+                    companyIds,
+                    NadpcoApiStatementItemMaps.CashFlowItemIdToMetricCode.Keys.ToArray()),
+                cancellationToken));
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FinancialStatements,
+            "api/v2/FS/*/Values",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var body = new NadpcoCompanyScopedRequest(companyId);
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            await PostJsonForPayloadAsync("api/v2/MonthlyActivity/ProductSales", body, cancellationToken),
+            await PostJsonForPayloadAsync("api/v3/MonthlyActivity/ServiceSales", body, cancellationToken));
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+
+        return await StorePayloadAsync(
+            ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchFinancialRatiosAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var json = await PostJsonForPayloadAsync(
+            BuildFundamentalIndexEndpoint("api/v2/CompanyFundamentalIndex/Values"),
+            new NadpcoApiFundamentalIndexRequest(
+                companyIds,
+                NadpcoApiFundamentalIndexMap.MappedIndexIds.ToArray()),
+            cancellationToken);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FundamentalIndexes,
+            "api/v2/CompanyFundamentalIndex/Values",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await tokenProvider.GetTokenAsync(forceRefresh: true, cancellationToken);
+            return new ProviderHealthResult(
+                ProviderName,
+                ProviderHealthStatus.Healthy,
+                timeProvider.GetUtcNow(),
+                "Authenticated token request succeeded.");
+        }
+        catch (FinancialProviderException exception)
+        {
+            logger.LogWarning(
+                "NADPCO API health check failed with provider error {ProviderErrorCode}.",
+                exception.Code);
+            var status = exception.Code == FinancialProviderErrorCode.InvalidResponse
+                ? ProviderHealthStatus.Degraded
+                : ProviderHealthStatus.Unavailable;
+            return new ProviderHealthResult(ProviderName, status, timeProvider.GetUtcNow(), exception.Code.ToString());
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "NADPCO API health check failed.");
+            return new ProviderHealthResult(
+                ProviderName,
+                ProviderHealthStatus.Unavailable,
+                timeProvider.GetUtcNow(),
+                "TransportFailure");
+        }
+    }
+
+    private async Task<ProviderRawPayload> FetchGetRawAsync(
+        ProviderDataset dataset,
+        string endpoint,
+        string externalReference,
+        CancellationToken cancellationToken)
+    {
+        await _throttle.WaitAsync(cancellationToken);
+        try
+        {
+            using var response = await httpClient.GetAsync(endpoint, cancellationToken);
+            var payloadText = await ReadSuccessfulPayloadAsync(response, endpoint, cancellationToken);
+            return await StorePayloadAsync(dataset, endpoint, externalReference, payloadText, cancellationToken);
+        }
+        finally
+        {
+            _throttle.Release();
+        }
+    }
+
+    private async Task<string> PostJsonForPayloadAsync<TPayload>(
+        string endpoint,
+        TPayload payload,
+        CancellationToken cancellationToken)
+    {
+        await _throttle.WaitAsync(cancellationToken);
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync(endpoint, payload, JsonOptions, cancellationToken);
+            return await ReadSuccessfulPayloadAsync(response, endpoint, cancellationToken);
+        }
+        finally
+        {
+            _throttle.Release();
+        }
+    }
+
+    private async Task<string> ReadSuccessfulPayloadAsync(
+        HttpResponseMessage response,
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+
+        var code = response.StatusCode == HttpStatusCode.Unauthorized
+            ? FinancialProviderErrorCode.Unauthorized
+            : FinancialProviderErrorCode.RemoteUnavailable;
+        logger.LogWarning("NADPCO API returned {StatusCode} for {Endpoint}.", response.StatusCode, endpoint);
+        throw new FinancialProviderException(code, $"NADPCO API request failed for '{endpoint}'.");
+    }
+
+    private async Task<ProviderRawPayload> StorePayloadAsync(
+        ProviderDataset dataset,
+        string endpoint,
+        string externalReference,
+        string payloadText,
+        CancellationToken cancellationToken)
+    {
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(),
+            ProviderName,
+            dataset,
+            endpoint,
+            externalReference,
+            payloadText,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payloadText))),
+            timeProvider.GetUtcNow());
+        await rawPayloads.StoreAsync(payload, cancellationToken);
+        return payload;
+    }
+
+    private static string RequireReference(string externalCompanyId) =>
+        string.IsNullOrWhiteSpace(externalCompanyId)
+            ? throw new ArgumentException("External company id is required.", nameof(externalCompanyId))
+            : externalCompanyId.Trim();
+
+    private string BuildStatementEndpoint(string path)
+    {
+        var query = new List<string>();
+        AddInt("fromYear", _settings.StatementFromYear);
+        AddInt("toYear", _settings.StatementToYear);
+        AddInt("perTId", _settings.StatementPeriodTypeId);
+        AddBool("isAudited", _settings.StatementIsAudited);
+        AddBool("isRepresented", _settings.StatementIsRepresented);
+        AddBool("isComposing", _settings.StatementIsComposing);
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+
+        void AddInt(string name, int? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value}");
+            }
+        }
+
+        void AddBool(string name, bool? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value.ToString().ToLowerInvariant()}");
+            }
+        }
+    }
+
+    private string BuildFundamentalIndexEndpoint(string path)
+    {
+        var query = new List<string>();
+        AddInt("fromYear", _settings.FundamentalIndexFromYear);
+        AddInt("toYear", _settings.FundamentalIndexToYear);
+        AddInt("perTId", _settings.FundamentalIndexPeriodTypeId);
+        AddBool("isAudited", _settings.FundamentalIndexIsAudited);
+        AddBool("isRepresented", _settings.FundamentalIndexIsRepresented);
+        AddBool("isComposing", _settings.FundamentalIndexIsComposing);
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+
+        void AddInt(string name, int? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value}");
+            }
+        }
+
+        void AddBool(string name, bool? value)
+        {
+            if (value is not null)
+            {
+                query.Add($"{name}={value.Value.ToString().ToLowerInvariant()}");
+            }
+        }
+    }
+
+    private static int ParseCompanyId(string externalCompanyId) =>
+        int.TryParse(externalCompanyId, out var companyId)
+            ? companyId
+            : throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO external company id '{externalCompanyId}' is not a valid numeric coID.");
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+}

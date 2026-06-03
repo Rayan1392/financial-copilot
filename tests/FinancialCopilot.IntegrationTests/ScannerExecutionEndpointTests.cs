@@ -688,3 +688,117 @@ internal sealed class CodalDbRatioFakeAiModelClient : IAiModelClient
         Task.FromResult(new AiProviderHealthResult(
             Descriptor.ProviderKey, Descriptor.ModelKey, Available: true, DateTimeOffset.UtcNow, "OK"));
 }
+
+public sealed class NadpcoFundamentalIndexScannerTests : IClassFixture<NadpcoFundamentalIndexScannerApiFactory>
+{
+    private readonly NadpcoFundamentalIndexScannerApiFactory _factory;
+
+    public NadpcoFundamentalIndexScannerTests(NadpcoFundamentalIndexScannerApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task AiQuery_CurrentRatioAboveOne_ReturnsNadpcoSourceMetric()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "current ratio above 1" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var rows = document.RootElement.GetProperty("scannerTable")
+            .GetProperty("rows").EnumerateArray().ToList();
+        Assert.Single(rows);
+        Assert.Equal("NADPCO1", rows[0].GetProperty("symbolCode").GetString());
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class NadpcoFundamentalIndexScannerApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"nadpco-fundamental-index-scanner-{Guid.NewGuid():N}";
+    private readonly object _lock = new();
+    private bool _seeded;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => new CodalDbRatioFakeAiModelClient());
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_lock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTestData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTestData(FinancialIngestionDbContext db)
+    {
+        var companyId = Guid.Parse("30000000-0000-0000-0000-000000000041");
+        var symbolId = Guid.Parse("40000000-0000-0000-0000-000000000041");
+        var now = DateTimeOffset.UtcNow;
+        var periodStart = new DateOnly(2021, 3, 21);
+        var periodEnd = new DateOnly(2021, 9, 22);
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = "NADPCO Company One",
+            ProviderName = "NadpcoApi",
+            ExternalCompanyId = "4",
+            LastSynchronizedAt = now
+        });
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = symbolId,
+            CompanyId = companyId,
+            ProviderName = "NadpcoApi",
+            ExternalSymbolId = "4",
+            SymbolCode = "NADPCO1",
+            LastSynchronizedAt = now
+        });
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbolId,
+            MetricCode = "CURRENT_RATIO",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "nadpco-api-fundamental-index-source-v1",
+            PeriodType = "SixMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 1.03m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"NadpcoApi\",\"vendorPrecomputed\":true}]",
+            DependencyEvidenceJson = "[]"
+        });
+    }
+}

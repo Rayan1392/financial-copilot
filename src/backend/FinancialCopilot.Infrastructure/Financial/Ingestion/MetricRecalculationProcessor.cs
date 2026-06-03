@@ -26,14 +26,15 @@ public sealed class MetricRecalculationProcessor(
     ILogger<MetricRecalculationProcessor> logger) : IMetricRecalculationProcessor
 {
     // Which source metric codes are persisted by each provider dataset. Data-driven, not branched.
-    // FinancialRatios writes DerivedMetrics directly (vendor-precomputed) and needs no recompute.
+    // FinancialRatios/FundamentalIndexes write DerivedMetrics directly (vendor-precomputed) and need no recompute.
     private static readonly IReadOnlyDictionary<ProviderDataset, IReadOnlySet<string>> SourceMetricsByDataset =
         new Dictionary<ProviderDataset, IReadOnlySet<string>>
         {
             [ProviderDataset.FinancialStatements] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
-                "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX"
+                "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
+                "OPERATING_CASH_FLOW"
             },
             [ProviderDataset.MonthlyProductionSales] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -115,7 +116,7 @@ public sealed class MetricRecalculationProcessor(
     {
         if (!SourceMetricsByDataset.TryGetValue(dataset, out var sourceCodes) || sourceCodes.Count == 0)
         {
-            // Datasets without engine-derived dependents (Symbols, FinancialRatios, MarketQuotes).
+            // Datasets without engine-derived dependents (Symbols, FinancialRatios, FundamentalIndexes, MarketQuotes).
             return 0;
         }
 

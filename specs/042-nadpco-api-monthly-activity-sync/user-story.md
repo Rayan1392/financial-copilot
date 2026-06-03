@@ -1,0 +1,41 @@
+# NADPCO API Monthly Activity Synchronization
+
+## User Story
+
+As a scanner user, I want NADPCO product-sales and service-sales activity synchronized into
+normalized PostgreSQL monthly data so monthly revenue and growth analysis covers both
+manufacturing and service companies.
+
+## Source Endpoints
+
+```http
+POST /api/v2/MonthlyActivity/ProductSales
+POST /api/v3/MonthlyActivity/ServiceSales
+```
+
+Product-sales requests accept bounded company IDs, Jalali date bounds, and output type.
+Service-sales requests accept bounded company IDs and Jalali date bounds. Payloads include
+company identity, industry context, instrument code, month/year, fiscal date, and product or
+service activity details.
+
+## Acceptance Criteria
+
+1. Fetch product and service activity in bounded company/date batches and store raw responses
+   before normalization.
+2. Normalize Jalali activity months to Gregorian period windows with the shared calendar
+   resolver.
+3. Reuse normalized monthly reports where the existing model is sufficient. Extend the model
+   only when service-sales facts cannot be represented without data loss.
+4. Preserve product/service title, unit, quantity, rate, value, output type, category, and
+   publication metadata as normalized fields or provenance evidence.
+5. Retain valid zero-activity periods.
+6. Aggregate monthly sales provider-agnostically and publish recalculation requests so existing
+   monthly growth metrics continue to work.
+7. Keep upserts idempotent and ensure `NadpcoApi` rows coexist with `CodalDb` monthly rows.
+
+## Out Of Scope
+
+- Query-time remote calls.
+- Fabricating product IDs where the vendor omits them.
+- Replacing the deterministic monthly-growth engine.
+

@@ -128,9 +128,9 @@ public sealed class FinancialDataSyncProcessor(
                 .FetchFinancialStatementsAsync(RequireExternalReference(request), cancellationToken),
             ProviderDataset.MonthlyProductionSales => ResolveMonthlyProvider(request.ProviderName)
                 .FetchMonthlyReportsAsync(RequireExternalReference(request), cancellationToken),
-            ProviderDataset.FinancialRatios =>
-                (ratioProvider ?? throw new InvalidOperationException(
-                    "No IFinancialRatioProvider is registered for the FinancialRatios dataset."))
+            ProviderDataset.FinancialRatios => ResolveRatioProvider(request.ProviderName)
+                .FetchFinancialRatiosAsync(RequireExternalReference(request), cancellationToken),
+            ProviderDataset.FundamentalIndexes => ResolveRatioProvider(request.ProviderName)
                 .FetchFinancialRatiosAsync(RequireExternalReference(request), cancellationToken),
             _ => throw new InvalidOperationException(
                 $"Dataset '{request.Dataset}' is not supported for normalized ingestion.")
@@ -155,6 +155,13 @@ public sealed class FinancialDataSyncProcessor(
             ? monthlyProvider
             : providerRouter?.ResolveMonthlyProvider(providerName) ??
               throw UnknownProvider(providerName, ProviderDataset.MonthlyProductionSales);
+
+    private IFinancialRatioProvider ResolveRatioProvider(string? providerName) =>
+        string.IsNullOrWhiteSpace(providerName)
+            ? ratioProvider ?? throw new InvalidOperationException(
+                "No IFinancialRatioProvider is registered for the FinancialRatios/FundamentalIndexes dataset.")
+            : providerRouter?.ResolveRatioProvider(providerName) ??
+              throw UnknownProvider(providerName, ProviderDataset.FinancialRatios);
 
     private static InvalidOperationException UnknownProvider(
         string providerName,

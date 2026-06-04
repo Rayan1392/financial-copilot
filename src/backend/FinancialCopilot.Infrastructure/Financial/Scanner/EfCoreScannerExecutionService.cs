@@ -133,7 +133,20 @@ public sealed class EfCoreScannerExecutionService(
         }
 
         var ranked = ranker.Rank(rows, plan);
-        var limited = ranked.Take(request.MaxRows).ToList();
+
+        // Hard cap to avoid excessive memory use; pagination slices within this window.
+        const int HardCap = 500;
+        var allRanked = ranked.Take(HardCap).ToList();
+
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Max(1, Math.Min(request.PageSize, 100));
+        var totalPages = allRanked.Count == 0 ? 1 : (int)Math.Ceiling(allRanked.Count / (double)pageSize);
+        page = Math.Min(page, totalPages);
+
+        var paginated = allRanked
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         await TryCollectMissingAnswerFeedbackAsync(
             request,
@@ -146,8 +159,9 @@ public sealed class EfCoreScannerExecutionService(
         return new ScannerTableResult(
             plan.PlanId,
             columns,
-            limited,
-            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbolCount, matchingSymbols.Count, FromCache: false),
+            paginated,
+            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbolCount, matchingSymbols.Count,
+                FromCache: false, Page: page, PageSize: pageSize, TotalPages: totalPages),
             warnings);
     }
 
@@ -361,7 +375,8 @@ public sealed class EfCoreScannerExecutionService(
             plan.PlanId,
             columns,
             [],
-            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbols, 0, FromCache: false),
+            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbols, 0,
+                FromCache: false, Page: 1, PageSize: 20, TotalPages: 1),
             []);
 }
 

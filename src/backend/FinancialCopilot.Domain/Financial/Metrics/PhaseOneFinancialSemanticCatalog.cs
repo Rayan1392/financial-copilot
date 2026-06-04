@@ -75,6 +75,10 @@ public static class PhaseOneFinancialSemanticCatalog
         DefineSource("LATEST_PRICE", "Latest Observed Price", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
         DefineSource("MARKET_CAP", "Market Capitalization", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
         DefineSource("SHARES_OUTSTANDING", "Shares Outstanding", MetricCategory.FinancialHealth, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        // PE_RATIO and PS_RATIO are intentionally NOT in Definitions — they are internal pipeline
+        // source metrics fed by CyclicalWaves FinancialStatementLineItems and consumed only by
+        // SourceLineItemPassthroughMetricCalculator for PE_TTM / PS_TTM.  Keeping them out of the
+        // public catalog prevents the LLM from seeing them and avoids alias ambiguity with PE_TTM.
         Define(
             "TTM_SALES",
             "TTM Sales",
@@ -150,17 +154,29 @@ public static class PhaseOneFinancialSemanticCatalog
             "P/E (TTM)",
             MetricCategory.Valuation,
             Ratio,
-            [FiscalPeriodType.TrailingTwelveMonths],
-            [Alias("p/e", "en-US", "PE_TTM"), Alias("نسبت پی به ای", "fa-IR", "PE_TTM")],
-            [Dependency("LATEST_PRICE"), Dependency("TTM_EPS")]),
+            [FiscalPeriodType.ThreeMonths],
+            [
+                Alias("p/e", "en-US", "PE_TTM"),
+                // Persian queries often use Latin-script "P/E" — register for fa-IR so the resolver
+                // finds it regardless of which language tag the LLM attaches to the term.
+                Alias("p/e", "fa-IR", "PE_TTM"),
+                Alias("نسبت پی به ای", "fa-IR", "PE_TTM"),
+                Alias("پی به ای", "fa-IR", "PE_TTM"),
+            ],
+            [Dependency("PE_RATIO")]),
         Define(
             "PS_TTM",
             "P/S (TTM)",
             MetricCategory.Valuation,
             Ratio,
-            [FiscalPeriodType.TrailingTwelveMonths],
-            [Alias("p/s", "en-US", "PS_TTM"), Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM")],
-            [Dependency("MARKET_CAP"), Dependency("TTM_SALES")]),
+            [FiscalPeriodType.ThreeMonths],
+            [
+                Alias("p/s", "en-US", "PS_TTM"),
+                Alias("p/s", "fa-IR", "PS_TTM"),
+                Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM"),
+                Alias("پی به اس", "fa-IR", "PS_TTM"),
+            ],
+            [Dependency("PS_RATIO")]),
 
         // EBIT (engine-derived composite: NET_PROFIT + FINANCE_COSTS + INCOME_TAX).
         Define("EBIT", "EBIT", MetricCategory.Profitability, Amount,
@@ -346,29 +362,27 @@ public static class PhaseOneFinancialSemanticCatalog
 
         new MetricCalculationPolicy(
             new MetricCode("PE_TTM"),
-            new CalculationPolicyVersion("ttm-valuation-v1"),
+            new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"),
             MetricValueUnit.Ratio,
             null,
             MissingDataPolicy.ReturnMissingValue,
             [
-                new MetricDataRequirement(new MetricCode("LATEST_PRICE"), FiscalPeriodType.TrailingTwelveMonths, true),
-                new MetricDataRequirement(new MetricCode("TTM_EPS"), FiscalPeriodType.TrailingTwelveMonths, true)
+                new MetricDataRequirement(new MetricCode("PE_RATIO"), FiscalPeriodType.ThreeMonths, true)
             ],
             new MetricVersion("v1"),
-            new MetricFormula("price-divided-by-ttm-eps", "Latest observed price divided by TTM EPS."),
+            new MetricFormula("vendor-pe-ratio-passthrough", "Vendor-supplied P/E ratio from CyclicalWaves quarterly income statement snapshot."),
             EffectiveFrom),
         new MetricCalculationPolicy(
             new MetricCode("PS_TTM"),
-            new CalculationPolicyVersion("ttm-sales-valuation-v1"),
+            new CalculationPolicyVersion("vendor-ps-ratio-passthrough-v1"),
             MetricValueUnit.Ratio,
             null,
             MissingDataPolicy.ReturnMissingValue,
             [
-                new MetricDataRequirement(new MetricCode("MARKET_CAP"), FiscalPeriodType.TrailingTwelveMonths, true),
-                new MetricDataRequirement(new MetricCode("TTM_SALES"), FiscalPeriodType.TrailingTwelveMonths, true)
+                new MetricDataRequirement(new MetricCode("PS_RATIO"), FiscalPeriodType.ThreeMonths, true)
             ],
             new MetricVersion("v1"),
-            new MetricFormula("market-cap-divided-by-ttm-sales", "Market capitalization divided by TTM sales."),
+            new MetricFormula("vendor-ps-ratio-passthrough", "Vendor-supplied P/S ratio from CyclicalWaves quarterly income statement snapshot."),
             EffectiveFrom)
     ];
 

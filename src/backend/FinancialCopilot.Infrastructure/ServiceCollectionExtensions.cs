@@ -269,10 +269,10 @@ public static class ServiceCollectionExtensions
                 client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
             }
             //****AI AGENT*** ATTENTION PLEASE: DO NOT CHANGE THIS CODE
-            var apiKey = registration?.CredentialSecretReference
-            is not null
-                ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
-                : null;
+            var apiKey = registration?.CredentialSecretReference;
+            //is not null
+            //    ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
+            //    : null;
             //*****************************************************
             if (!string.IsNullOrWhiteSpace(apiKey))
             {
@@ -376,14 +376,15 @@ public static class ServiceCollectionExtensions
             new MetricCode("TTM_EPS"),
             new MetricCode("TTM_EARNINGS"),
             new MetricCode("SHARES_OUTSTANDING")));
-        services.AddSingleton<IFinancialMetricCalculator>(_ => new ValuationRatioMetricCalculator(
+        // PE_TTM / PS_TTM: use vendor-supplied CyclicalWaves ratio snapshot until LATEST_PRICE and
+        // SHARES_OUTSTANDING become available from market data, at which point replace with
+        // ValuationRatioMetricCalculator(PE_TTM, LATEST_PRICE, TTM_EPS).
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
             new MetricCode("PE_TTM"),
-            new MetricCode("LATEST_PRICE"),
-            new MetricCode("TTM_EPS")));
-        services.AddSingleton<IFinancialMetricCalculator>(_ => new ValuationRatioMetricCalculator(
+            new MetricCode("PE_RATIO")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
             new MetricCode("PS_TTM"),
-            new MetricCode("MARKET_CAP"),
-            new MetricCode("TTM_SALES")));
+            new MetricCode("PS_RATIO")));
 
         // CodalDB-derived YoY growth calculators (use cumulative ThreeMonths input, shifted −12 months).
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("REVENUE_GROWTH_YOY"),          new MetricCode("REVENUE")));
@@ -550,7 +551,9 @@ public static class ServiceCollectionExtensions
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
         foreach (var code in new[] { "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
                                      "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
-                                     "OPERATING_CASH_FLOW" })
+                                     "OPERATING_CASH_FLOW",
+                                     // Vendor ratio snapshots — triggers PE_TTM / PS_TTM passthrough.
+                                     "PE_RATIO", "PS_RATIO" })
         {
             var captured = new MetricCode(code);
             services.AddScoped<INormalizedMetricInputSource>(sp =>

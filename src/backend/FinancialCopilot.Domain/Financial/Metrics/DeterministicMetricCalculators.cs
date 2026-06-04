@@ -122,6 +122,35 @@ public sealed class AdditiveCompositeMetricCalculator(
     }
 }
 
+/// <summary>
+/// Passes a vendor-supplied line-item metric through to a (possibly different) output MetricCode in
+/// DerivedMetrics without any arithmetic transformation.  Use when the provider already computes the
+/// ratio (e.g. CyclicalWaves PE_RATIO → PE_TTM, PS_RATIO → PS_TTM) and the engine just needs to
+/// persist it so the scanner can read it.  Returns null when no matching input is found.
+/// </summary>
+public sealed class SourceLineItemPassthroughMetricCalculator(
+    MetricCode metricCode,
+    MetricCode sourceMetricCode) : IFinancialMetricCalculator
+{
+    public MetricCode MetricCode { get; } = metricCode;
+
+    public Task<MetricCalculationResult> CalculateAsync(
+        MetricCalculationContext context,
+        CancellationToken cancellationToken)
+    {
+        var input = context.Inputs
+            .Where(i => i.Code == sourceMetricCode && i.Value is not null)
+            .OrderByDescending(i => i.Period.EndDate)
+            .FirstOrDefault();
+
+        return Task.FromResult(
+            MetricCalculationResultFactory.Create(
+                context,
+                input?.Value,
+                input is not null ? [input] : []));
+    }
+}
+
 internal static class MetricCalculationResultFactory
 {
     public static MetricCalculationResult Create(

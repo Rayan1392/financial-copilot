@@ -141,7 +141,8 @@ public sealed class DistributedScannerCache(
         $"scanner:result:{ScopeKey(scope)}:{dataVersion}:{Hash(new
         {
             request.AsOf,
-            request.MaxRows,
+            request.Page,
+            request.PageSize,
             request.Plan
         })}";
 

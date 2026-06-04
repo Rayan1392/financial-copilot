@@ -45,7 +45,10 @@ public sealed record ScannerExecutionFacts(
     TimeSpan Duration,
     int TotalSymbolsEvaluated,
     int MatchingSymbolCount,
-    bool FromCache);
+    bool FromCache,
+    int Page = 1,
+    int PageSize = 20,
+    int TotalPages = 1);
 
 public sealed record ScannerTableResult(
     Guid PlanId,
@@ -57,7 +60,8 @@ public sealed record ScannerTableResult(
 public sealed record ScannerExecutionRequest(
     ScannerQueryPlan Plan,
     DateOnly AsOf,
-    int MaxRows = 50,
+    int Page = 1,
+    int PageSize = 20,
     // Optional execution-time context used only for missing-answer feedback collection (spec 028).
     // Null values disable feedback for this call; supplied by the AI facade orchestrator.
     string? ActorId = null,

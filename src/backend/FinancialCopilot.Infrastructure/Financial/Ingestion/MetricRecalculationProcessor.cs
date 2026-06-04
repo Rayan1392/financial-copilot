@@ -34,7 +34,9 @@ public sealed class MetricRecalculationProcessor(
             {
                 "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
                 "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
-                "OPERATING_CASH_FLOW"
+                "OPERATING_CASH_FLOW",
+                // Vendor-supplied ratio snapshots (CyclicalWaves) that trigger PE_TTM / PS_TTM passthrough.
+                "PE_RATIO", "PS_RATIO"
             },
             [ProviderDataset.MonthlyProductionSales] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {

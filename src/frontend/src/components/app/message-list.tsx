@@ -1,4 +1,4 @@
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
 
@@ -7,9 +7,10 @@ interface Props {
   loading: boolean;
   streaming: boolean;
   onSuggested: (q: string) => void;
+  onPageChange?: (page: number) => void;
 }
 
-export function MessageList({ messages, loading, streaming, onSuggested }: Props) {
+export function MessageList({ messages, loading, streaming, onSuggested, onPageChange }: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   return (
     <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
@@ -21,6 +22,7 @@ export function MessageList({ messages, loading, streaming, onSuggested }: Props
             <AssistantBlock
               block={message.content as AssistantChatBlock}
               onSuggested={onSuggested}
+              onPageChange={onPageChange}
             />
           )}
         </div>
@@ -46,9 +48,11 @@ function UserBubble({ text }: { text: string }) {
 function AssistantBlock({
   block,
   onSuggested,
+  onPageChange,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string) => void;
+  onPageChange?: (page: number) => void;
 }) {
   return (
     <div className="flex gap-4" dir="ltr">
@@ -73,9 +77,12 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.table && <ScannerResultTable table={block.table} />}
+        {block.table && <ScannerResultTable table={block.table} onPageChange={onPageChange} />}
 
-        {block.citations.length > 0 && (
+        {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).
+            When a scanner table is present the table's freshness indicators already
+            show data provenance per cell — a separate citation list would duplicate every row. */}
+        {!block.table && block.citations.length > 0 && (
           <div className="text-[11px] text-muted-foreground space-y-1">
             {block.citations.map((citation, index) => (
               <div key={`${citation.symbolCode}:${citation.metricCode}:${index}`}>
@@ -112,54 +119,94 @@ function AssistantBlock({
   );
 }
 
-function ScannerResultTable({ table }: { table: ScannerTable }) {
+function ScannerResultTable({
+  table,
+  onPageChange,
+}: {
+  table: ScannerTable;
+  onPageChange?: (page: number) => void;
+}) {
   const isPersianTable = table.columns.some((column) => containsPersianText(column.displayName));
+  const { page, pageSize, totalPages, matchingSymbolCount } = table.executionFacts;
+  const hasPagination = totalPages > 1;
 
   return (
-    <div
-      className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40"
-      dir={isPersianTable ? "rtl" : "ltr"}
-    >
-      <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
-        <thead className="bg-white/5">
-          <tr>
-            {table.columns.map((column) => (
-              <th
-                key={column.identifier}
-                className={`px-4 py-2.5 font-medium text-muted-foreground text-xs ${
-                  isPersianTable ? "text-right" : "text-left"
-                }`}
-              >
-                {column.displayName}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-hairline">
-          {table.rows.map((row) => (
-            <tr key={row.symbolCode}>
-              {table.columns.map((column) => {
-                const cell = row.cells[column.identifier];
-                return (
-                  <td
-                    key={column.identifier}
-                    className={`px-4 py-2.5 text-foreground/80 mono ${
-                      isPersianTable ? "text-right" : "text-left"
-                    }`}
-                  >
-                    {cell?.formattedValue ?? cell?.value ?? "—"}
-                    {cell?.freshnessStatus && (
-                      <span className="block text-[9px] text-muted-foreground">
-                        {cell.freshnessStatus}
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
+    <div className="space-y-2">
+      <div
+        className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40"
+        dir={isPersianTable ? "rtl" : "ltr"}
+      >
+        <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
+          <thead className="bg-white/5">
+            <tr>
+              {table.columns.map((column) => (
+                <th
+                  key={column.identifier}
+                  className={`px-4 py-2.5 font-medium text-muted-foreground text-xs ${
+                    isPersianTable ? "text-right" : "text-left"
+                  }`}
+                >
+                  {column.displayName}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-hairline">
+            {table.rows.map((row) => (
+              <tr key={row.symbolCode}>
+                {table.columns.map((column) => {
+                  const cell = row.cells[column.identifier];
+                  return (
+                    <td
+                      key={column.identifier}
+                      className={`px-4 py-2.5 text-foreground/80 mono ${
+                        isPersianTable ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {cell?.formattedValue ?? cell?.value ?? "—"}
+                      {cell?.freshnessStatus && (
+                        <span className="block text-[9px] text-muted-foreground">
+                          {cell.freshnessStatus}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {hasPagination && (
+        <div
+          className="flex items-center justify-between px-1 text-xs text-muted-foreground"
+          dir="rtl"
+        >
+          <span>
+            {toPersianDigits(matchingSymbolCount)} نتیجه · صفحه{" "}
+            {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              disabled={page <= 1 || !onPageChange}
+              onClick={() => onPageChange?.(page - 1)}
+              className="p-1 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              aria-label="صفحه قبل"
+            >
+              <ChevronRight className="size-3.5" />
+            </button>
+            <button
+              disabled={page >= totalPages || !onPageChange}
+              onClick={() => onPageChange?.(page + 1)}
+              className="p-1 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              aria-label="صفحه بعد"
+            >
+              <ChevronLeft className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

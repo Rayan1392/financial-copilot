@@ -30,7 +30,7 @@ function NewChatPage() {
 
   const startChat = useMutation({
     mutationFn: async (message: string) => {
-      const result = await send({ data: { message } });
+      const result = await send({ data: { message, scannerPage: 1 } });
       return result.threadId;
     },
     onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),

@@ -76,41 +76,39 @@ public sealed class DerivedMetricPersistenceTests
     }
 
     [Fact]
-    public async Task PersistedValuationMetric_RetainsQuoteObservationMetadata()
+    public async Task PersistedValuationMetric_RetainsVendorSourceObservationMetadata()
     {
         await using var ingestionDb = CreateIngestionDbContext();
         var registry = new FinancialMetricRegistry(
             PhaseOneFinancialSemanticCatalog.Definitions,
-            [new ValuationRatioMetricCalculator(
+            [new SourceLineItemPassthroughMetricCalculator(
                 new MetricCode("PE_TTM"),
-                new MetricCode("LATEST_PRICE"),
-                new MetricCode("TTM_EPS"))]);
+                new MetricCode("PE_RATIO"))]);
         var service = new DerivedMetricCalculationService(
             registry,
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies),
             new PersistedDerivedMetricResultStore(ingestionDb));
-        var quoteAt = DateTimeOffset.Parse("2026-05-26T08:00:00Z");
-        var ttm = FiscalPeriod.Closed(
-            FiscalPeriodType.TrailingTwelveMonths,
-            new DateOnly(2025, 4, 1),
+        var vendorAt = DateTimeOffset.Parse("2026-03-20T00:00:00Z");
+        var q1 = FiscalPeriod.Closed(
+            FiscalPeriodType.ThreeMonths,
+            new DateOnly(2026, 1, 1),
             new DateOnly(2026, 3, 31));
 
         await service.CalculateAsync(
             new CalculateDerivedMetricCommand(
                 Guid.NewGuid(),
                 new MetricCode("PE_TTM"),
-                new CalculationPolicyVersion("ttm-valuation-v1"),
-                ttm,
+                new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"),
+                q1,
                 [
-                    Input("LATEST_PRICE", ttm, 25m, new FinancialSourceEvidence("QuoteProvider", quoteAt, Now)),
-                    Input("TTM_EPS", ttm, 5m, new FinancialSourceEvidence("MetricsEngine", Now, Now))
+                    Input("PE_RATIO", q1, 18.5m, new FinancialSourceEvidence("CyclicalWaves", vendorAt, Now))
                 ]),
             CancellationToken.None);
         var row = await ingestionDb.DerivedMetrics.SingleAsync();
 
-        Assert.Equal(5m, row.Value);
-        Assert.Contains("QuoteProvider", row.SourceEvidenceJson);
-        Assert.Contains("2026-05-26T08:00:00", row.SourceEvidenceJson);
+        Assert.Equal(18.5m, row.Value);
+        Assert.Contains("CyclicalWaves", row.SourceEvidenceJson);
+        Assert.Contains("2026-03-20T00:00:00", row.SourceEvidenceJson);
     }
 
     private static DataSyncRequest Request(string externalReference, string key) =>

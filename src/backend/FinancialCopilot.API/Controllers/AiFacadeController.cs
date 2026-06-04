@@ -47,7 +47,9 @@ public sealed class AiFacadeController(
                     correlationId,
                     httpRequest.ConversationId,
                     actor.UserId,
-                    actor.ApiClientId),
+                    actor.ApiClientId,
+                    ScannerPage: Math.Max(1, httpRequest.ScannerPage),
+                    ScannerPageSize: Math.Clamp(httpRequest.ScannerPageSize, 1, 100)),
                 cancellationToken);
         }
         catch (ConversationNotFoundException)
@@ -216,7 +218,10 @@ public sealed class AiFacadeController(
                 table.ExecutionFacts.Duration,
                 table.ExecutionFacts.TotalSymbolsEvaluated,
                 table.ExecutionFacts.MatchingSymbolCount,
-                table.ExecutionFacts.FromCache),
+                table.ExecutionFacts.FromCache,
+                table.ExecutionFacts.Page,
+                table.ExecutionFacts.PageSize,
+                table.ExecutionFacts.TotalPages),
             table.MissingDataWarnings);
     }
 

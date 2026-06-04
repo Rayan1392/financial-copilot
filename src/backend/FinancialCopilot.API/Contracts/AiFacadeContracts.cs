@@ -4,7 +4,9 @@ namespace FinancialCopilot.API.Contracts;
 
 public sealed record AiQueryHttpRequest(
     string Message,
-    Guid? ConversationId = null);
+    Guid? ConversationId = null,
+    int ScannerPage = 1,
+    int ScannerPageSize = 20);
 
 public sealed record AiQueryHttpResponse(
     Guid ConversationId,
@@ -59,7 +61,10 @@ public sealed record ScannerExecutionFactsResponse(
     TimeSpan Duration,
     int TotalSymbolsEvaluated,
     int MatchingSymbolCount,
-    bool FromCache);
+    bool FromCache,
+    int Page,
+    int PageSize,
+    int TotalPages);
 
 public sealed record ScannerTableResponse(
     Guid PlanId,

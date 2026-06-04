@@ -115,64 +115,41 @@ public sealed class DerivedMetricCalculatorTests
     }
 
     [Fact]
-    public async Task EpsAndValuationCalculators_HandleValidAndInvalidDenominatorsWithQuoteEvidence()
+    public async Task ValuationRatioPassthroughCalculators_PassVendorRatioAndReturnNullWhenMissing()
     {
-        var ttm = Ttm();
-        var eps = await new EarningsPerShareMetricCalculator(
-                new MetricCode("TTM_EPS"),
-                new MetricCode("TTM_EARNINGS"),
-                new MetricCode("SHARES_OUTSTANDING"))
-            .CalculateAsync(
-                Context(
-                    "TTM_EPS",
-                    "ttm-eps-v1",
-                    ttm,
-                    [Input("TTM_EARNINGS", ttm, 1_000m), Input("SHARES_OUTSTANDING", ttm, 100m)]),
-                CancellationToken.None);
-        var quoteEvidence = new FinancialSourceEvidence("QuoteProvider", ObservedAt, ObservedAt);
-        var pe = await new ValuationRatioMetricCalculator(
+        // PE_TTM and PS_TTM now use SourceLineItemPassthroughMetricCalculator feeding from
+        // CyclicalWaves PE_RATIO / PS_RATIO line items (ThreeMonths period).
+        var q = Quarter(2026, 1);
+        var sourceEvidence = new FinancialSourceEvidence("CyclicalWaves", ObservedAt, ObservedAt);
+
+        var pe = await new SourceLineItemPassthroughMetricCalculator(
                 new MetricCode("PE_TTM"),
-                new MetricCode("LATEST_PRICE"),
-                new MetricCode("TTM_EPS"))
+                new MetricCode("PE_RATIO"))
             .CalculateAsync(
-                Context(
-                    "PE_TTM",
-                    "ttm-valuation-v1",
-                    ttm,
-                    [
-                        Input("LATEST_PRICE", ttm, 50m, quoteEvidence),
-                        Input("TTM_EPS", ttm, eps.Value)
-                    ]),
-                CancellationToken.None);
-        var ps = await new ValuationRatioMetricCalculator(
-                new MetricCode("PS_TTM"),
-                new MetricCode("MARKET_CAP"),
-                new MetricCode("TTM_SALES"))
-            .CalculateAsync(
-                Context(
-                    "PS_TTM",
-                    "ttm-sales-valuation-v1",
-                    ttm,
-                    [Input("MARKET_CAP", ttm, 500m, quoteEvidence), Input("TTM_SALES", ttm, 250m)]),
-                CancellationToken.None);
-        var invalid = await new ValuationRatioMetricCalculator(
-                new MetricCode("PE_TTM"),
-                new MetricCode("LATEST_PRICE"),
-                new MetricCode("TTM_EPS"))
-            .CalculateAsync(
-                Context(
-                    "PE_TTM",
-                    "ttm-valuation-v1",
-                    ttm,
-                    [Input("LATEST_PRICE", ttm, 50m), Input("TTM_EPS", ttm, 0m)]),
+                Context("PE_TTM", "vendor-pe-ratio-passthrough-v1", q,
+                    [Input("PE_RATIO", q, 18.5m, sourceEvidence)]),
                 CancellationToken.None);
 
-        Assert.Equal(10m, eps.Value);
-        Assert.Equal(5m, pe.Value);
-        Assert.Equal(2m, ps.Value);
-        Assert.Contains(pe.SourceEvidence, evidence => evidence.SourceProvider == "QuoteProvider");
-        Assert.Null(invalid.Value);
-        Assert.True(invalid.Quality.HasMissingData);
+        var ps = await new SourceLineItemPassthroughMetricCalculator(
+                new MetricCode("PS_TTM"),
+                new MetricCode("PS_RATIO"))
+            .CalculateAsync(
+                Context("PS_TTM", "vendor-ps-ratio-passthrough-v1", q,
+                    [Input("PS_RATIO", q, 4.2m, sourceEvidence)]),
+                CancellationToken.None);
+
+        var missing = await new SourceLineItemPassthroughMetricCalculator(
+                new MetricCode("PE_TTM"),
+                new MetricCode("PE_RATIO"))
+            .CalculateAsync(
+                Context("PE_TTM", "vendor-pe-ratio-passthrough-v1", q, []),
+                CancellationToken.None);
+
+        Assert.Equal(18.5m, pe.Value);
+        Assert.Equal(4.2m, ps.Value);
+        Assert.Contains(pe.SourceEvidence, e => e.SourceProvider == "CyclicalWaves");
+        Assert.Null(missing.Value);
+        Assert.True(missing.Quality.HasMissingData);
     }
 
     [Fact]

@@ -23,6 +23,7 @@ function ChatThreadPage() {
   const send = useServerFn(sendChatMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  const lastMessageRef = useRef<string>("");
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["messages", threadId],
@@ -33,7 +34,8 @@ function ChatThreadPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (message: string) => send({ data: { threadId, message } }),
+    mutationFn: ({ message, scannerPage = 1 }: { message: string; scannerPage?: number }) =>
+      send({ data: { threadId, message, scannerPage } }),
     onSuccess: () => {
       setQueryError(null);
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
@@ -42,6 +44,18 @@ function ChatThreadPage() {
     },
     onError: (error: Error) => setQueryError(chatErrorMessage(error)),
   });
+
+  const submit = (text: string) => {
+    lastMessageRef.current = text;
+    setQueryError(null);
+    sendMutation.mutate({ message: text });
+  };
+
+  const handlePageChange = (page: number) => {
+    if (!lastMessageRef.current) return;
+    setQueryError(null);
+    sendMutation.mutate({ message: lastMessageRef.current, scannerPage: page });
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -54,7 +68,8 @@ function ChatThreadPage() {
           messages={messages}
           loading={isLoading}
           streaming={sendMutation.isPending}
-          onSuggested={(q) => { setQueryError(null); sendMutation.mutate(q); }}
+          onSuggested={submit}
+          onPageChange={handlePageChange}
         />
       </div>
       {queryError && (
@@ -63,7 +78,7 @@ function ChatThreadPage() {
         </div>
       )}
       <PromptInput
-        onSubmit={(text) => { setQueryError(null); sendMutation.mutate(text); }}
+        onSubmit={submit}
         loading={sendMutation.isPending}
       />
     </>

@@ -56,6 +56,33 @@ public sealed class AuthController(
         return NoContent();
     }
 
+    /// <summary>
+    /// One-time bootstrap: assigns the SuperAdmin role to the calling authenticated user.
+    /// Returns 409 if a SuperAdmin already exists. Use this endpoint once to grant the first
+    /// operator admin access, then use the Admin Management API for all subsequent role changes.
+    /// </summary>
+    [Authorize]
+    [HttpPost("bootstrap-superadmin")]
+    public async Task<IActionResult> BootstrapSuperAdmin(CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue("sub"), out var userId))
+            return Forbid();
+
+        try
+        {
+            await identityService.BootstrapSuperAdminAsync(userId, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return Problem(
+                type: $"https://financialcopilot/errors/{exception.ErrorCode}",
+                title: exception.Message,
+                statusCode: exception.StatusCode,
+                extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+        }
+    }
+
     [Authorize]
     [HttpGet("me")]
     public ActionResult<OwnedIdentityProfileResponse> Me()

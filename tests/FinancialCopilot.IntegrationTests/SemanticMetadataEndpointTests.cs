@@ -47,7 +47,7 @@ public sealed class SemanticMetadataEndpointTests : IClassFixture<AssistedMetada
             alias => alias.GetProperty("language").GetString() == "fa-IR");
         Assert.Contains(
             pe.GetProperty("calculationPolicyVersions").EnumerateArray(),
-            policy => policy.GetString() == "ttm-valuation-v1");
+            policy => policy.GetString() == "vendor-pe-ratio-passthrough-v1");
     }
 
     [Fact]

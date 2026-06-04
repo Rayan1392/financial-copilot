@@ -11,7 +11,7 @@ The existing React + TypeScript frontend prototype built with Lovable should be 
 
 ## Communication Rule
 
-Codex must always respond in English, even when a request is written in Persian. Persian end-user prompts or localized UI examples may be retained where they are part of product requirements.
+AGENTS (codex, claude, copilot, and other AI Agents) must always respond in English, even when a request is written in Persian. Persian end-user prompts or localized UI examples may be retained where they are part of product requirements.
 
 ## Phase 1 Scope — Scanner MVP
 

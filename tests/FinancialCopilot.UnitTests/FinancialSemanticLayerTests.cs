@@ -81,12 +81,12 @@ public sealed class FinancialSemanticLayerTests
         var policies = new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies);
 
         var dependencies = registry.ResolveDependencies(new MetricCode("PE_TTM"), ActiveDate);
-        var policy = policies.GetPolicy(new MetricCode("PE_TTM"), new CalculationPolicyVersion("ttm-valuation-v1"));
+        var policy = policies.GetPolicy(new MetricCode("PE_TTM"), new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"));
 
         Assert.Equal(
-            ["LATEST_PRICE", "TTM_EPS"],
+            ["PE_RATIO"],
             dependencies.Select(dependency => dependency.MetricCode.Value).Order().ToArray());
-        Assert.Equal("price-divided-by-ttm-eps", policy.Formula!.Identifier);
+        Assert.Equal("vendor-pe-ratio-passthrough", policy.Formula!.Identifier);
         Assert.Equal("v1", policy.DefinitionVersion!.Value);
     }
 
@@ -100,10 +100,10 @@ public sealed class FinancialSemanticLayerTests
             Guid.NewGuid(),
             definition,
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies)
-                .GetPolicy(calculator.MetricCode, new CalculationPolicyVersion("ttm-valuation-v1")),
+                .GetPolicy(calculator.MetricCode, new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1")),
             FiscalPeriod.Closed(
-                FiscalPeriodType.TrailingTwelveMonths,
-                new DateOnly(2025, 4, 1),
+                FiscalPeriodType.ThreeMonths,
+                new DateOnly(2026, 1, 1),
                 new DateOnly(2026, 3, 31)),
             []);
 
@@ -112,7 +112,7 @@ public sealed class FinancialSemanticLayerTests
 
         Assert.Same(calculator, registry.ResolveCalculator(calculator.MetricCode));
         Assert.Equal(4.2m, result.Value);
-        Assert.Equal("ttm-valuation-v1", result.CalculationPolicyVersion.Value);
+        Assert.Equal("vendor-pe-ratio-passthrough-v1", result.CalculationPolicyVersion.Value);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class FinancialSemanticLayerTests
             Guid.NewGuid(),
             new MetricCode("PE_TTM"),
             new MetricVersion("v1"),
-            new CalculationPolicyVersion("ttm-valuation-v1"),
+            new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"),
             FiscalPeriod.Closed(
                 FiscalPeriodType.TrailingTwelveMonths,
                 new DateOnly(2025, 1, 1),
@@ -138,7 +138,7 @@ public sealed class FinancialSemanticLayerTests
                 new CalculationPolicyVersion("ttm-eps-v1"))]);
 
         Assert.Equal("v1", historical.MetricVersion.Value);
-        Assert.Equal("ttm-valuation-v1", historical.CalculationPolicyVersion.Value);
+        Assert.Equal("vendor-pe-ratio-passthrough-v1", historical.CalculationPolicyVersion.Value);
         Assert.Equal("ttm-eps-v1", historical.DependencyEvidence.Single().CalculationPolicyVersion.Value);
     }
 

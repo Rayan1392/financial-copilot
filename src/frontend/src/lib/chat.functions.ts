@@ -50,6 +50,9 @@ export interface ScannerTable {
     matchingSymbolCount: number;
     totalSymbolsEvaluated: number;
     fromCache: boolean;
+    page: number;
+    pageSize: number;
+    totalPages: number;
   };
   missingDataWarnings: string[];
 }
@@ -147,13 +150,20 @@ export const sendChatMessage = createServerFn({ method: "POST" })
       .object({
         threadId: z.string().uuid().optional(),
         message: z.string().trim().min(1).max(2000),
+        scannerPage: z.number().int().min(1).default(1),
+        scannerPageSize: z.number().int().min(1).max(100).default(20),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
     const result = await financialCopilotServerApi<QueryResponse>(context, "/api/ai/v1/query", {
       method: "POST",
-      body: JSON.stringify({ conversationId: data.threadId, message: data.message }),
+      body: JSON.stringify({
+        conversationId: data.threadId,
+        message: data.message,
+        scannerPage: data.scannerPage,
+        scannerPageSize: data.scannerPageSize,
+      }),
     });
     const createdAt = new Date().toISOString();
     return {

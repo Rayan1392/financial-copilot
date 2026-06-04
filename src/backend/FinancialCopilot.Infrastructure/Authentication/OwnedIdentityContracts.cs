@@ -20,6 +20,13 @@ public interface IOwnedIdentityService
     Task<OwnedIdentitySession> LoginAsync(string email, string password, CancellationToken cancellationToken);
     Task<OwnedIdentitySession> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
     Task RevokeAsync(string refreshToken, string reason, CancellationToken cancellationToken);
+    /// <summary>
+    /// Assigns the SuperAdmin role to the calling user.
+    /// Throws <see cref="OwnedIdentityException"/> with status 409 if a SuperAdmin already exists.
+    /// This endpoint is intentionally available to any authenticated user so the first operator
+    /// can bootstrap admin access without a separate out-of-band step.
+    /// </summary>
+    Task BootstrapSuperAdminAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 public sealed class OwnedIdentityException(

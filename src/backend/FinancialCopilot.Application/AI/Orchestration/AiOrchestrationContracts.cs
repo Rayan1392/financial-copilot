@@ -35,7 +35,9 @@ public sealed record AiQueryRequest(
     Guid? ConversationId = null,
     Guid? UserId = null,
     Guid? ApiClientId = null,
-    string? ExternalUserId = null);
+    string? ExternalUserId = null,
+    int ScannerPage = 1,
+    int ScannerPageSize = 20);
 
 public sealed record AiQueryResponse(
     Guid ConversationId,

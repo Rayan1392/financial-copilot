@@ -128,6 +128,8 @@ public sealed class AiQueryOrchestrationService(
                     var executionRequest = new ScannerExecutionRequest(
                         parseResult.Plan,
                         DateOnly.FromDateTime(now.DateTime),
+                        Page: request.ScannerPage,
+                        PageSize: request.ScannerPageSize,
                         ActorId: request.ActorId.ToString(),
                         QueryText: request.Message);
                     var cachedTable = await scannerCache.GetResultAsync(

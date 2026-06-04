@@ -331,6 +331,33 @@ public sealed class OwnedIdentityService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task BootstrapSuperAdminAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var superAdminRole = await roles.FindByNameAsync(SuperAdminRole)
+            ?? throw new InvalidOperationException("SuperAdmin role has not been seeded.");
+
+        var existingSuperAdmins = await dbContext.UserRoles
+            .AnyAsync(ur => ur.RoleId == superAdminRole.Id, cancellationToken);
+
+        if (existingSuperAdmins)
+        {
+            throw new OwnedIdentityException(
+                "superadmin-already-exists",
+                "A SuperAdmin already exists. Bootstrap is only permitted when no SuperAdmin has been assigned.",
+                409);
+        }
+
+        var user = await users.FindByIdAsync(userId.ToString())
+            ?? throw new OwnedIdentityException("user-not-found", "User not found.", 404);
+
+        var result = await users.AddToRoleAsync(user, SuperAdminRole);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not assign SuperAdmin role: {string.Join(" ", result.Errors.Select(e => e.Description))}");
+        }
+    }
+
     private async Task RevokeTokenFamilyAsync(Guid userId, string reason, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();

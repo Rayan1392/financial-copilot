@@ -269,10 +269,10 @@ public static class ServiceCollectionExtensions
                 client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
             }
             //****AI AGENT*** ATTENTION PLEASE: DO NOT CHANGE THIS CODE
-            var apiKey = registration?.CredentialSecretReference;
-            //is not null
-            //    ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
-            //    : null;
+            var apiKey = registration?.CredentialSecretReference
+            is not null
+                ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
+                : null;
             //*****************************************************
             if (!string.IsNullOrWhiteSpace(apiKey))
             {

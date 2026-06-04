@@ -120,6 +120,16 @@ contracts without moving domain rules into controllers:
 2. `037-frontend-admin-panel` - expose the implemented admin contracts through a protected,
    permission-aware React administration experience without moving domain rules into the UI.
 
+## Scanner Enhancement Specs
+
+These specs extend the Phase 1 Scanner MVP with new query modes beyond threshold-based
+screening. They share the existing single AI facade endpoint and billing pipeline.
+
+- `045-symbol-metric-point-lookup` — answer direct questions about a specific symbol's metric
+  value ("PE حفاری چقدر است؟") using a new `SymbolLookup` intent, `ISymbolLookupParser`,
+  `ISymbolNameResolver`, and `ISymbolMetricLookupService`. Re-uses the scanner table contract
+  so the frontend renders lookup results without a new component.
+
 ## Coherence Rules
 
 - The React UI submits user Messages only through `POST /api/ai/v1/query`; scanner parser/execution operations are internal Application capabilities.
@@ -158,6 +168,9 @@ contracts without moving domain rules into controllers:
 - `044` schedules automatic NADPCO incremental synchronization only by invoking the bounded
   orchestration from `043`; it must not introduce a second ingestion, normalization,
   recalculation, or scanner-cache invalidation path.
+- `045` adds a `SymbolLookup` intent branch to the existing AI facade; it must not add a new
+  public endpoint, duplicate billing accounting logic, or introduce a separate conversation
+  persistence path. The scanner screener path (`007`/`008`) remains unaffected.
 
 ## Recommended Delivery Dependencies
 

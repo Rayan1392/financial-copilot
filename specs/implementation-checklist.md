@@ -214,6 +214,15 @@ normalized PostgreSQL and scanner read models.
 | [x] | 42 | [043](./043-nadpco-api-sync-orchestration/user-story.md) / [tasks](./043-nadpco-api-sync-orchestration/tasks.md) | NADPCO API Synchronization Orchestration | Depends on `038`-`042`, `012`, `018`; add bounded full/incremental orchestration, endpoint-appropriate progress, overlap reconciliation where modified-since is unavailable, failure isolation, DataAdmin operations, telemetry, and cache invalidation. |
 | [x] | 43 | [044](./044-nadpco-api-scheduled-sync-worker/user-story.md) / [tasks](./044-nadpco-api-scheduled-sync-worker/tasks.md) | NADPCO API Scheduled Synchronization Worker | Depends on `043`, `011`, `012`, `018`; add automatic scheduled incremental NADPCO synchronization through the existing bounded orchestration pipeline with configurable cadence/datasets/batching/concurrency/retry policy, overlap prevention, persisted scheduled-run history, diagnostics, and scanner-cache invalidation through the existing data-sync path. |
 
+### Stage 15 - Scanner Enhancements
+
+These stories extend the Phase 1 Scanner MVP with new query modes. They share the existing
+single AI facade endpoint, billing pipeline, and frontend scanner table component.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 44 | [045](./045-symbol-metric-point-lookup/user-story.md) / [tasks](./045-symbol-metric-point-lookup/tasks.md) | Symbol Metric Point Lookup | **Priority: High.** Depends on `007` (AI facade and intent routing), `008`/`009` (scanner table contract and explainability), `015` (metric alias resolver), `005` (DerivedMetrics and LatestMarketQuotes reads). Add `SymbolLookup` intent type, `ISymbolLookupParser` (LLM structured output), `ISymbolNameResolver` (match raw names against Symbols/Companies), and `ISymbolMetricLookupService` (query DerivedMetrics + LatestMarketQuotes for resolved pairs). Extend `AiQueryOrchestrationService` with the new intent branch; billing and feedback collection follow the scanner pattern. Re-use `ScannerTableResult` shape so the frontend renders lookup results without a new component. |
+
 ## Deferred and Open Items
 
 These items are explicitly deferred from their originating spec. They are not new user stories but are tracked here so future sessions have a single place to review outstanding work. Each item records the originating spec, the deferral reason, and the condition required to unblock it.
@@ -243,6 +252,7 @@ These items are explicitly deferred from their originating spec. They are not ne
 | Query intelligence & platform learning | `028` | Every unanswered/partial query (metric gap, data gap, parser limitation) is captured, classified, and logged as structured feedback that drives catalog expansion, data ingestion prioritization, and AI model improvements. |
 | Owned web app connected | `031`, `032`, `033`, `036` | TanStack users authenticate through backend-owned Identity and reach tenant-scoped .NET APIs; chat, history, credits, watchlist quotes, and market context no longer rely on Supabase or canned financial mocks. |
 | Admin operations ready | `035` | Authorized administrators can operate Identity, tenancy, plans, subscriptions, credit adjustments, and audit reads through granular tenant-scoped backend APIs without direct database changes. |
+| Symbol point lookup ready | `045` | Users can ask "PE حفاری چقدر است؟" and receive the latest metric value for named symbols through the same AI facade, with freshness status, billing, and conversation persistence. |
 
 ## Completion Log
 

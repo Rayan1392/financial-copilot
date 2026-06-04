@@ -1,3 +1,4 @@
+using FinancialCopilot.Billing;
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Usage;
@@ -58,7 +59,7 @@ public sealed class UsageReservationAuthorizationService(
 
         if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
         {
-            throw new InvalidOperationException("Available spending capacity is insufficient.");
+            throw new InsufficientCreditException();
         }
 
         var now = timeProvider.GetUtcNow();

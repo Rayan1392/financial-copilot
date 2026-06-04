@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
@@ -16,15 +17,24 @@ const SUGGESTIONS = [
   "تحلیل پرتفوی من",
 ];
 
+function chatErrorMessage(error: Error): string {
+  if (error.message.toLowerCase().includes("insufficient"))
+    return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
+  return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
+}
+
 function NewChatPage() {
   const navigate = useNavigate();
   const send = useServerFn(sendChatMessage);
+  const [queryError, setQueryError] = useState<string | null>(null);
+
   const startChat = useMutation({
     mutationFn: async (message: string) => {
       const result = await send({ data: { message } });
       return result.threadId;
     },
     onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),
+    onError: (error: Error) => setQueryError(chatErrorMessage(error)),
   });
 
   return (
@@ -55,7 +65,15 @@ function NewChatPage() {
           </div>
         </div>
       </div>
-      <PromptInput onSubmit={(text) => startChat.mutate(text)} loading={startChat.isPending} />
+      {queryError && (
+        <div className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive text-right">
+          {queryError}
+        </div>
+      )}
+      <PromptInput
+        onSubmit={(text) => { setQueryError(null); startChat.mutate(text); }}
+        loading={startChat.isPending}
+      />
     </>
   );
 }

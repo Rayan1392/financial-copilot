@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Billing;
 
 namespace FinancialCopilot.API.Middleware;
 
@@ -34,6 +35,13 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 Title = admin.ErrorCode,
                 Status = admin.StatusCode,
                 Detail = admin.Message
+            },
+            InsufficientCreditException => new ProblemDetails
+            {
+                Type = "https://financialcopilot/errors/insufficient-credit",
+                Title = "insufficient-credit",
+                Status = StatusCodes.Status402PaymentRequired,
+                Detail = "Available spending capacity is insufficient."
             },
             Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => new ProblemDetails
             {

@@ -48,7 +48,7 @@ public sealed class WalletEntitlementService : IEntitlementService
 
         if (!_creditLinePolicy.CanReserve(account, wallet, maximumCredits))
         {
-            throw new InvalidOperationException("Available spending capacity is insufficient.");
+            throw new InsufficientCreditException();
         }
     }
 }

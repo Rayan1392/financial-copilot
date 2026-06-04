@@ -31,7 +31,7 @@ public sealed class CreditReservationService(
 
         if (!creditLinePolicy.CanReserve(account, wallet, maximumCredits))
         {
-            throw new InvalidOperationException("Available spending capacity is insufficient.");
+            throw new InsufficientCreditException();
         }
 
         var now = timeProvider.GetUtcNow();

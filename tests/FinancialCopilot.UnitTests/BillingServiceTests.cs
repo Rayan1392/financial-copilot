@@ -1,3 +1,4 @@
+using FinancialCopilot.Billing;
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
@@ -300,7 +301,7 @@ public sealed class BillingServiceTests
             new CreditLinePolicyService(),
             "v1");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateCanExecuteAsync(
+        await Assert.ThrowsAsync<InsufficientCreditException>(() => service.ValidateCanExecuteAsync(
             account,
             "AiQuery.Scanner",
             CancellationToken.None));

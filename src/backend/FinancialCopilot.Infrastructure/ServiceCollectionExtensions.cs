@@ -323,6 +323,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMemoryContextProvider, EfCoreMemoryContextProvider>();
         services.AddSingleton<IMemoryProtectionPolicy, ConsentAwareMemoryProtectionPolicy>();
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
+        services.AddScoped<ISymbolLookupParser, LlmSymbolLookupParser>();
+        services.AddScoped<ISymbolNameResolver, EfCoreSymbolNameResolver>();
+        services.AddScoped<ISymbolMetricLookupService, EfCoreSymbolMetricLookupService>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
         services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();
         services.AddScoped<IScannerResultColumnPolicy, ScannerResultColumnPolicy>();

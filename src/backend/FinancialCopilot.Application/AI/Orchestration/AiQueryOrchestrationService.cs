@@ -3,6 +3,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Domain.Financial.MissingAnswer;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
@@ -16,6 +17,9 @@ public sealed class AiQueryOrchestrationService(
     IBillingFacadeHook billingHook,
     IMemoryContextProvider memoryContextProvider,
     IMemoryAuditService memoryAuditService,
+    ISymbolLookupParser symbolLookupParser,
+    ISymbolMetricLookupService symbolMetricLookupService,
+    IMissingAnswerFeedbackCollector feedbackCollector,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -62,6 +66,7 @@ public sealed class AiQueryOrchestrationService(
 
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
+        SymbolLookupTableResult? symbolLookupTable = null;
         ExplainableAnswer? explainableAnswer = null;
         string? textAnswer = null;
         bool clarificationRequired;
@@ -173,6 +178,55 @@ public sealed class AiQueryOrchestrationService(
                     completionStatus = "ClarificationRequired";
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.SymbolLookup)
+            {
+                var parseRequest = new SymbolLookupParseRequest(
+                    enrichedMessage,
+                    "fa",
+                    request.CorrelationId,
+                    request.TenantId,
+                    DateOnly.FromDateTime(now.DateTime));
+
+                var parseResult = await symbolLookupParser.ParseAsync(parseRequest, cancellationToken);
+
+                if (parseResult.Status == LookupParseStatus.ClarificationRequired)
+                {
+                    clarificationRequired = true;
+                    clarificationMessage = parseResult.ClarificationMessage ??
+                        (ContainsPersianText(request.Message)
+                            ? "لطفاً نام نماد و معیار مالی موردنظر را مشخص کنید."
+                            : "Please specify the symbol name and the metric you want to look up.");
+                    completionStatus = "ClarificationRequired";
+                }
+                else
+                {
+                    // Build request from resolved pairs (symbol name + metric code).
+                    var lookupPairs = parseResult.Pairs
+                        .Where(p => p.ResolvedMetricCode is not null)
+                        .Select(p => (p.RawSymbolName, p.ResolvedMetricCode!))
+                        .ToList();
+
+                    var lookupRequest = new SymbolLookupRequest(
+                        lookupPairs,
+                        DateOnly.FromDateTime(now.DateTime),
+                        ActorId: request.ActorId.ToString(),
+                        QueryText: request.Message);
+
+                    symbolLookupTable = await symbolMetricLookupService.LookupAsync(
+                        lookupRequest,
+                        cancellationToken);
+
+                    // Collect feedback for unresolved symbols and missing data.
+                    await TryCollectLookupFeedbackAsync(
+                        request,
+                        symbolLookupTable,
+                        now,
+                        cancellationToken);
+
+                    clarificationRequired = false;
+                    clarificationMessage = null;
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
@@ -241,7 +295,8 @@ public sealed class AiQueryOrchestrationService(
             : null;
 
         var assistantContent = BuildAssistantContent(
-            detectedIntent, scannerPlan, scannerTable, explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
+            detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
+            explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -261,6 +316,7 @@ public sealed class AiQueryOrchestrationService(
                     textAnswer,
                     scannerPlan,
                     scannerTable,
+                    symbolLookupTable,
                     explainableAnswer,
                     usage,
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null)),
@@ -274,12 +330,49 @@ public sealed class AiQueryOrchestrationService(
             detectedIntent,
             scannerPlan,
             scannerTable,
+            symbolLookupTable,
             explainableAnswer,
             textAnswer,
             clarificationRequired,
             clarificationMessage,
             usage,
             memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null);
+    }
+
+    private async Task TryCollectLookupFeedbackAsync(
+        AiQueryRequest request,
+        SymbolLookupTableResult result,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (result.UnresolvedSymbols.Count == 0 &&
+                !result.Rows.Any(r => r.Cells.Values.Any(c => c.FreshnessStatus == CellFreshnessStatus.Missing)))
+            {
+                return;
+            }
+
+            foreach (var unresolved in result.UnresolvedSymbols)
+            {
+                await feedbackCollector.CollectAsync(
+                    new MissingAnswerFeedbackRequest(
+                        ActorId: request.ActorId.ToString(),
+                        QueryText: request.Message,
+                        Classification: MissingAnswerFeedbackClassification.DataCoverageGap,
+                        RequestedMetricCode: null,
+                        AffectedDataCodeOrName: unresolved,
+                        SymbolCountTotal: result.ExecutionFacts.TotalSymbolsEvaluated,
+                        SymbolCountMatched: result.ExecutionFacts.MatchingSymbolCount,
+                        SubmittedAt: now,
+                        Context: $"SymbolLookup: symbol '{unresolved}' could not be resolved"),
+                    cancellationToken);
+            }
+        }
+        catch
+        {
+            // Collection must never disturb the lookup response.
+        }
     }
 
     private static string BuildConversationTitle(string message)
@@ -330,6 +423,7 @@ public sealed class AiQueryOrchestrationService(
         DetectedIntent intent,
         ScannerQueryPlan? plan,
         ScannerTableResult? table,
+        SymbolLookupTableResult? lookupTable,
         ExplainableAnswer? explainableAnswer,
         string? textAnswer,
         bool clarificationRequired,
@@ -337,6 +431,14 @@ public sealed class AiQueryOrchestrationService(
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
+
+        if (lookupTable is not null)
+        {
+            var count = lookupTable.ExecutionFacts.MatchingSymbolCount;
+            return ContainsPersianTable(lookupTable)
+                ? $"مقادیر مستقیم برای {count} نماد یافت شد."
+                : $"Found direct metric values for {count} symbol(s).";
+        }
 
         if (explainableAnswer?.ExplanationText is not null)
             return explainableAnswer.ExplanationText;
@@ -354,10 +456,13 @@ public sealed class AiQueryOrchestrationService(
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
     }
 
+    private static bool ContainsPersianTable(SymbolLookupTableResult table) =>
+        table.Rows.Any(r => ContainsPersianText(r.SymbolCode));
+
     private static bool ContainsPersianText(string text) =>
         text.Any(character =>
-            character is >= '\u0600' and <= '\u06FF' or
-            >= '\u0750' and <= '\u077F');
+            character is >= '؀' and <= 'ۿ' or
+            >= 'ݐ' and <= 'ݿ');
 
     private static bool IsPersianLanguage(string? language) =>
         language?.StartsWith("fa", StringComparison.OrdinalIgnoreCase) == true;

@@ -18,6 +18,7 @@ public sealed record AiQueryHttpResponse(
     string? TextAnswer,
     ScannerPlanResponse? ScannerPlan,
     ScannerTableResponse? ScannerTable = null,
+    ScannerTableResponse? SymbolLookupTable = null,
     ExplainableAnswerResponse? ExplainableAnswer = null,
     UsageAccountingResponse? Usage = null,
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures = null);
@@ -149,6 +150,7 @@ public sealed record AssistantMessageContentResponse(
     string? TextAnswer,
     ScannerPlanResponse? ScannerPlan,
     ScannerTableResponse? ScannerTable,
+    ScannerTableResponse? SymbolLookupTable,
     ExplainableAnswerResponse? ExplainableAnswer,
     UsageAccountingResponse? Usage,
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures);

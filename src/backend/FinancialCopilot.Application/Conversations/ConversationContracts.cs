@@ -40,6 +40,7 @@ public sealed record AssistantMessagePayload(
     string? TextAnswer,
     ScannerQueryPlan? ScannerPlan,
     ScannerTableResult? ScannerTable,
+    SymbolLookupTableResult? SymbolLookupTable,
     ExplainableAnswer? ExplainableAnswer,
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures);

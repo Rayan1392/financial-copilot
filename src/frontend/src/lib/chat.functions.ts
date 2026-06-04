@@ -86,6 +86,7 @@ interface AssistantContentResponse {
   clarificationMessage?: string;
   textAnswer?: string;
   scannerTable?: ScannerTable;
+  symbolLookupTable?: ScannerTable;
   explainableAnswer?: {
     filterChips: Array<{
       metricDisplayName: string;
@@ -211,6 +212,8 @@ function mapAssistantBlock(
   fallbackMessage: string,
 ): AssistantChatBlock {
   const explanation = content?.explainableAnswer;
+  // Prefer symbolLookupTable over scannerTable; both render via ScannerResultTable.
+  const table = content?.symbolLookupTable ?? content?.scannerTable;
   return {
     message:
       explanation?.explanationText ??
@@ -226,7 +229,7 @@ function mapAssistantBlock(
         label: chip.metricDisplayName,
         value: `${chip.operatorSymbol} ${chip.thresholdFormatted}`,
       })) ?? [],
-    table: content?.scannerTable,
+    table,
     citations: explanation?.dataCitations ?? [],
   };
 }

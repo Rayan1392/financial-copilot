@@ -182,6 +182,7 @@ public sealed class AiFacadeController(
                 result.ScannerPlan.ClarificationMessage,
                 result.ScannerPlan.ColumnOverflowWarnings),
             MapScannerTable(result.ScannerTable),
+            MapSymbolLookupTable(result.SymbolLookupTable),
             MapExplainableAnswer(result.ExplainableAnswer),
             result.Usage is null ? null : new UsageAccountingResponse(
                 result.Usage.OperationCode,
@@ -192,6 +193,39 @@ public sealed class AiFacadeController(
                 result.Usage.Cached),
             result.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                 d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
+
+    private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
+    {
+        if (table is null) return null;
+
+        return new ScannerTableResponse(
+            table.LookupId,
+            table.Columns.Select(c => new ScannerTableColumnResponse(
+                c.Identifier, c.DisplayName, c.ColumnType.ToString(), c.MetricCode)).ToList(),
+            table.Rows.Select(r => new ScannerTableRowResponse(
+                r.SymbolCode,
+                r.CompanyName,
+                r.Cells.ToDictionary(
+                    kv => kv.Key,
+                    kv => new ScannerTableCellResponse(
+                        kv.Value.Value,
+                        kv.Value.FormattedValue,
+                        kv.Value.FreshnessStatus.ToString(),
+                        kv.Value.SourceTimestamp)),
+                r.Score,
+                r.MatchedConditionMetrics)).ToList(),
+            new ScannerExecutionFactsResponse(
+                table.ExecutionFacts.ExecutedAt,
+                table.ExecutionFacts.Duration,
+                table.ExecutionFacts.TotalSymbolsEvaluated,
+                table.ExecutionFacts.MatchingSymbolCount,
+                table.ExecutionFacts.FromCache,
+                table.ExecutionFacts.Page,
+                table.ExecutionFacts.PageSize,
+                table.ExecutionFacts.TotalPages),
+            table.MissingDataWarnings.Concat(
+                table.UnresolvedSymbols.Select(s => $"Symbol '{s}' could not be resolved.")).ToList());
+    }
 
     private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
     {
@@ -295,6 +329,7 @@ public sealed class AiFacadeController(
                     payload.ScannerPlan.ClarificationMessage,
                     payload.ScannerPlan.ColumnOverflowWarnings),
                 MapScannerTable(payload.ScannerTable),
+                MapSymbolLookupTable(payload.SymbolLookupTable),
                 MapExplainableAnswer(payload.ExplainableAnswer),
                 payload.Usage is null ? null : new UsageAccountingResponse(
                     payload.Usage.OperationCode,

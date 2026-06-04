@@ -13,12 +13,17 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
     private const string SystemPrompt =
         "You are an AI intent classifier for a financial platform. " +
         "Classify the user message into one of these intents:\n" +
-        "- Scanner: the user wants to screen or filter stocks by financial metrics, " +
-        "ratios, growth figures, or fundamental criteria.\n" +
-        "- Unknown: the intent is not related to stock screening.\n" +
+        "- Scanner: the user wants to screen or filter stocks by financial metrics with a condition or threshold " +
+        "(e.g. 'find companies where P/E < 10', 'سهام با رشد بالا').\n" +
+        "- SymbolLookup: the user names one or more specific symbols or companies AND asks for the value of a " +
+        "metric — with no threshold or filter (e.g. 'PE حفاری چقدر است؟', 'نسبت بدهی فملی را نشان بده', " +
+        "'what is the ROE of AAPL?').\n" +
+        "- Unknown: the intent is not related to stock screening or metric lookup.\n" +
         "- Clarification: the message is too vague to classify.\n" +
+        "Key distinction: Scanner requires an operator+threshold (filter many); " +
+        "SymbolLookup asks for a value for named symbol(s) with no threshold.\n" +
         "Respond ONLY with JSON matching this schema: " +
-        "{\"intent\":\"Scanner|Unknown|Clarification\",\"confidence\":0.0}";
+        "{\"intent\":\"Scanner|SymbolLookup|Unknown|Clarification\",\"confidence\":0.0}";
 
     public async Task<IntentDetectionResult> DetectAsync(
         IntentDetectionInput input,
@@ -71,6 +76,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
             var intent = intentStr.Trim() switch
             {
                 "Scanner" => DetectedIntent.Scanner,
+                "SymbolLookup" => DetectedIntent.SymbolLookup,
                 "Clarification" => DetectedIntent.Clarification,
                 _ => DetectedIntent.Unknown
             };

@@ -6,6 +6,7 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 public enum DetectedIntent
 {
     Scanner,
+    SymbolLookup,
     Clarification,
     Unknown
 }
@@ -46,6 +47,7 @@ public sealed record AiQueryResponse(
     DetectedIntent Intent,
     ScannerQueryPlan? ScannerPlan,
     ScannerTableResult? ScannerTable,
+    SymbolLookupTableResult? SymbolLookupTable,
     ExplainableAnswer? ExplainableAnswer,
     string? TextAnswer,
     bool ClarificationRequired,

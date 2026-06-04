@@ -66,8 +66,8 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
         Assert.Equal(HttpStatusCode.OK, usage.StatusCode);
         Assert.Equal("Individual", summary.RootElement.GetProperty("customerType").GetString());
         Assert.Equal("Prepaid", summary.RootElement.GetProperty("billingMode").GetString());
-        Assert.Equal(10m, summary.RootElement.GetProperty("balance").GetDecimal());
-        Assert.Equal(10m, summary.RootElement.GetProperty("availableSpendingCapacity").GetDecimal());
+        Assert.Equal(10000m, summary.RootElement.GetProperty("balance").GetDecimal());
+        Assert.Equal(10000m, summary.RootElement.GetProperty("availableSpendingCapacity").GetDecimal());
     }
 
     [Fact]

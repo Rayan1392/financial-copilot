@@ -52,8 +52,15 @@
 - Define `ISymbolMetricLookupService` interface:
   `Task<SymbolLookupTableResult> LookupAsync(SymbolLookupRequest, CancellationToken)`.
 - Implement `EfCoreSymbolMetricLookupService`:
-  - Resolve each `SymbolCode` to `SymbolId` via `Symbols` table.
-  - Query `DerivedMetrics` for the latest row per `(SymbolId, MetricCode)` by `PeriodEnd`.
+  - Resolve each raw symbol name to a company-backed symbol context: resolved `SymbolId`,
+    `CompanyId`, display symbol, and company name.
+  - Use `Companies.TseSymbol` as the response `symbolCode` whenever it exists; use
+    `Companies.Name` as the response `companyName`. Fall back to `Companies.CompanySymbol` and
+    only then `Symbols.SymbolCode` if a legacy/test row has no `TseSymbol`.
+  - Query `DerivedMetrics` for the latest row per `(CompanyId, MetricCode)` by collecting all
+    `Symbols` rows linked to the resolved company and selecting the newest non-null metric across
+    those rows. Do not limit metric lookup to the exact provider symbol row used for name
+    resolution.
   - Supplement price-class metrics (`LATEST_PRICE`, `MARKET_CAP`) from `LatestMarketQuotes`
     using the same `IMarketQuoteResolver` used by the scanner.
   - Build `ScannerTableColumn` list from the resolved metric codes (one column per metric,
@@ -63,7 +70,9 @@
   - Populate `UnresolvedSymbols` with raw names whose `SymbolCode` could not be found.
   - Set `ExecutionFacts.MatchingSymbolCount` = number of symbols with at least one non-Missing cell.
 - Add integration tests: single symbol + single metric found, symbol not found, metric not found,
-  multiple symbols + multiple metrics, price-class metric uses `LatestMarketQuotes`.
+  multiple symbols + multiple metrics, price-class metric uses `LatestMarketQuotes`, display symbol
+  comes from `Companies.TseSymbol`, company name comes from `Companies.Name`, and a metric stored on
+  another symbol row for the same company is still returned.
 
 ## Application — Orchestration
 

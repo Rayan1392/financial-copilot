@@ -40,7 +40,12 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
 
         var rows = table.GetProperty("rows").EnumerateArray().ToList();
         Assert.Single(rows);
-        Assert.Equal("HAFARI", rows[0].GetProperty("symbolCode").GetString());
+        Assert.Equal("HAF_TSE", rows[0].GetProperty("symbolCode").GetString());
+        Assert.NotEqual("HAFARI", rows[0].GetProperty("symbolCode").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(rows[0].GetProperty("companyName").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(
+            rows[0].GetProperty("cells").GetProperty("COMPANY_NAME").GetProperty("formattedValue").GetString()));
+        Assert.Equal(5.2m, rows[0].GetProperty("cells").GetProperty("PE_TTM").GetProperty("value").GetDecimal());
     }
 
     [Fact]
@@ -100,8 +105,8 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         var rows = table.GetProperty("rows").EnumerateArray().ToList();
         Assert.Equal(2, rows.Count);
         var symbols = rows.Select(r => r.GetProperty("symbolCode").GetString()!).ToHashSet();
-        Assert.Contains("HAFARI", symbols);
-        Assert.Contains("FMLCO", symbols);
+        Assert.Contains("HAF_TSE", symbols);
+        Assert.Contains("FML_TSE", symbols);
     }
 
     [Fact]
@@ -256,6 +261,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
         var companyFmlcoId = Guid.Parse("50000000-0000-0000-0000-000000000002");
         var symbolHafariId = Guid.Parse("60000000-0000-0000-0000-000000000001");
         var symbolFmlcoId = Guid.Parse("60000000-0000-0000-0000-000000000002");
+        var symbolHafariMetricsId = Guid.Parse("60000000-0000-0000-0000-000000000101");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -267,6 +273,8 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
                 Name = "حفاری شمال",
                 ProviderName = "test",
                 ExternalCompanyId = "hafari-001",
+                TseSymbol = "HAF_TSE",
+                CompanySymbol = "HAFARI",
                 LastSynchronizedAt = now
             },
             new NormalizedCompanyRow
@@ -275,6 +283,8 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
                 Name = "فولاد مبارکه اصفهان",
                 ProviderName = "test",
                 ExternalCompanyId = "fmlco-001",
+                TseSymbol = "FML_TSE",
+                CompanySymbol = "FMLCO",
                 LastSynchronizedAt = now
             });
 
@@ -290,6 +300,15 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             },
             new NormalizedSymbolRow
             {
+                Id = symbolHafariMetricsId,
+                CompanyId = companyHafariId,
+                ProviderName = "metrics-provider",
+                ExternalSymbolId = "hafari-metrics-001",
+                SymbolCode = "HAFARI_CW",
+                LastSynchronizedAt = now
+            },
+            new NormalizedSymbolRow
+            {
                 Id = symbolFmlcoId,
                 CompanyId = companyFmlcoId,
                 ProviderName = "test",
@@ -299,8 +318,8 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             });
 
         db.DerivedMetrics.AddRange(
-            MakeDerivedMetric(symbolHafariId, "PE_TTM", 5.2m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolHafariId, "RETURN_ON_EQUITY", 12.0m, periodStart, periodEnd, now),
+            MakeDerivedMetric(symbolHafariMetricsId, "PE_TTM", 5.2m, periodStart, periodEnd, now),
+            MakeDerivedMetric(symbolHafariMetricsId, "RETURN_ON_EQUITY", 12.0m, periodStart, periodEnd, now),
             MakeDerivedMetric(symbolFmlcoId, "PE_TTM", 8.4m, periodStart, periodEnd, now),
             MakeDerivedMetric(symbolFmlcoId, "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
     }

@@ -100,11 +100,42 @@ public sealed class NadpcoApiProviderTests
             BaseAddress = new Uri("https://data3.nadpco.com/")
         };
 
-        using var response = await client.GetAsync("api/v3/BaseInfo/Companies");
+        using var response = await client.PostAsync(
+            "api/v2/CompanyFundamentalIndex/Values",
+            new StringContent("{}", Encoding.UTF8, "application/json"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(["expired-token", "fresh-token"], capturedTokens);
         Assert.Equal(1, tokenProvider.Invalidations);
+    }
+
+    [Fact]
+    public async Task AuthHandler_SkipsBearerTokenForCompanyCatalogEndpoint()
+    {
+        var tokenProvider = new SequenceTokenProvider("should-not-be-used");
+        var requestCount = 0;
+        var inner = new StubHttpMessageHandler(request =>
+        {
+            requestCount++;
+            Assert.Null(request.Headers.Authorization);
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.EndsWith(
+                "/api/v3/BaseInfo/Companies",
+                request.RequestUri!.AbsolutePath,
+                StringComparison.OrdinalIgnoreCase);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        using var client = new HttpClient(new NadpcoApiAuthHandler(tokenProvider) { InnerHandler = inner })
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+
+        using var response = await client.GetAsync("api/v3/BaseInfo/Companies");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, requestCount);
+        Assert.Equal(0, tokenProvider.RequestCount);
+        Assert.Equal(0, tokenProvider.Invalidations);
     }
 
     [Fact]
@@ -401,10 +432,15 @@ public sealed class NadpcoApiProviderTests
     {
         private readonly Queue<string> _tokens = new(tokens);
 
+        public int RequestCount { get; private set; }
+
         public int Invalidations { get; private set; }
 
-        public Task<string> GetTokenAsync(bool forceRefresh, CancellationToken cancellationToken) =>
-            Task.FromResult(_tokens.Count > 1 ? _tokens.Dequeue() : _tokens.Peek());
+        public Task<string> GetTokenAsync(bool forceRefresh, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(_tokens.Count > 1 ? _tokens.Dequeue() : _tokens.Peek());
+        }
 
         public void Invalidate() => Invalidations++;
     }

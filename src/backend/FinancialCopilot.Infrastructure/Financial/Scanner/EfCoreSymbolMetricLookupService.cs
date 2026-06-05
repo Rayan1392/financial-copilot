@@ -19,7 +19,6 @@ public sealed class EfCoreSymbolMetricLookupService(
         var startTime = timeProvider.GetUtcNow();
         var lookupId = Guid.NewGuid();
 
-        // Deduplicate symbol names and metric codes from the request pairs.
         var uniqueSymbolNames = request.Pairs
             .Select(p => p.SymbolName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -35,7 +34,6 @@ public sealed class EfCoreSymbolMetricLookupService(
             return BuildEmptyResult(lookupId, uniqueMetricCodes, startTime, [], uniqueSymbolNames);
         }
 
-        // Resolve each raw symbol name to a SymbolCode.
         var unresolvedSymbols = new List<string>();
         var symbolCodeByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -53,64 +51,69 @@ public sealed class EfCoreSymbolMetricLookupService(
             return BuildEmptyResult(lookupId, uniqueMetricCodes, startTime, unresolvedSymbols, uniqueSymbolNames);
         }
 
-        // Load symbol rows for resolved codes.
         var resolvedCodes = symbolCodeByName.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var symbolRows = await dbContext.Symbols.AsNoTracking()
+        var resolvedSymbolRows = await dbContext.Symbols.AsNoTracking()
             .Where(s => resolvedCodes.Contains(s.SymbolCode))
             .ToListAsync(cancellationToken);
 
-        // Load company names.
-        var companyIds = symbolRows.Select(s => s.CompanyId).Distinct().ToList();
-        var companyNameById = await dbContext.Companies.AsNoTracking()
+        var companyIds = resolvedSymbolRows.Select(s => s.CompanyId).Distinct().ToList();
+        var companiesById = await dbContext.Companies.AsNoTracking()
             .Where(c => companyIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
 
-        // Load DerivedMetrics for resolved symbols and requested metric codes.
-        var symbolIds = symbolRows.Select(s => s.Id).ToList();
+        var allCompanySymbolRows = await dbContext.Symbols.AsNoTracking()
+            .Where(s => companyIds.Contains(s.CompanyId))
+            .ToListAsync(cancellationToken);
+
+        var symbolIds = allCompanySymbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
             .Where(dm => symbolIds.Contains(dm.SymbolId) && uniqueMetricCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
 
-        // Latest row per (SymbolId, MetricCode) — highest PeriodEnd wins.
-        var latestBySymbolMetric = derivedRows
-            .GroupBy(dm => (dm.SymbolId, dm.MetricCode))
+        var companyIdBySymbolId = allCompanySymbolRows.ToDictionary(s => s.Id, s => s.CompanyId);
+        var latestByCompanyMetric = derivedRows
+            .Where(dm => companyIdBySymbolId.ContainsKey(dm.SymbolId))
+            .GroupBy(dm => (CompanyId: companyIdBySymbolId[dm.SymbolId], dm.MetricCode))
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderByDescending(dm => dm.PeriodEnd).First());
 
-        // Resolve market quotes for LATEST_PRICE if requested.
         var needsQuotes = uniqueMetricCodes.Any(m =>
             string.Equals(m, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase));
 
         var quoteBySymbol = new Dictionary<string, MarketQuoteObservation>(StringComparer.OrdinalIgnoreCase);
-        if (needsQuotes && symbolRows.Count > 0)
+        if (needsQuotes && allCompanySymbolRows.Count > 0)
         {
-            var symbolCodes = symbolRows.Select(s => new SymbolCode(s.SymbolCode)).ToList();
+            var symbolCodes = allCompanySymbolRows.Select(s => new SymbolCode(s.SymbolCode)).ToList();
             var quoteResult = await quoteResolver.ResolveAsync(symbolCodes, cancellationToken);
             foreach (var obs in quoteResult.Observations)
                 quoteBySymbol[obs.SymbolCode.Value] = obs;
         }
 
-        // Build columns: SYMBOL, COMPANY_NAME, then one column per metric.
         var columns = BuildLookupColumns(uniqueMetricCodes);
-
-        // Build rows — one per resolved symbol, in order of the original request.
         var rows = new List<ScannerTableRow>();
         foreach (var name in uniqueSymbolNames)
         {
             if (!symbolCodeByName.TryGetValue(name, out var symbolCode)) continue;
 
-            var symbolRow = symbolRows.FirstOrDefault(s =>
+            var symbolRow = resolvedSymbolRows.FirstOrDefault(s =>
                 string.Equals(s.SymbolCode, symbolCode, StringComparison.OrdinalIgnoreCase));
             if (symbolRow is null) continue;
 
-            quoteBySymbol.TryGetValue(symbolCode, out var quote);
-            var cells = BuildCells(columns, symbolRow, quote, latestBySymbolMetric);
-            var companyName = companyNameById.GetValueOrDefault(symbolRow.CompanyId);
+            var quote = ResolveQuoteForCompany(symbolRow.CompanyId, allCompanySymbolRows, quoteBySymbol);
+            var company = companiesById.GetValueOrDefault(symbolRow.CompanyId);
+            var displaySymbol = GetDisplaySymbol(company, symbolRow);
+            var cells = BuildCells(
+                columns,
+                symbolRow.CompanyId,
+                displaySymbol,
+                company?.Name,
+                quote,
+                latestByCompanyMetric);
 
             rows.Add(new ScannerTableRow(
-                symbolRow.SymbolCode,
-                companyName,
+                displaySymbol,
+                company?.Name,
                 cells,
                 Score: 1.0,
                 []));
@@ -161,9 +164,11 @@ public sealed class EfCoreSymbolMetricLookupService(
 
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(
         IReadOnlyCollection<ScannerTableColumn> columns,
-        NormalizedSymbolRow symbol,
+        Guid companyId,
+        string displaySymbol,
+        string? companyName,
         MarketQuoteObservation? quote,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric)
+        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         var cells = new Dictionary<string, ScannerTableCell>(StringComparer.OrdinalIgnoreCase);
 
@@ -172,19 +177,19 @@ public sealed class EfCoreSymbolMetricLookupService(
             cells[column.Identifier] = column.ColumnType switch
             {
                 ScannerColumnType.Symbol =>
-                    new ScannerTableCell(null, symbol.SymbolCode, CellFreshnessStatus.Persisted, null),
+                    new ScannerTableCell(null, displaySymbol, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.CompanyName =>
-                    new ScannerTableCell(null, null, CellFreshnessStatus.Persisted, null),
+                    new ScannerTableCell(null, companyName, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.LatestPrice =>
-                    BuildPriceCell(symbol, quote, latestBySymbolMetric),
+                    BuildPriceCell(companyId, quote, latestByCompanyMetric),
 
                 ScannerColumnType.MarketCap =>
-                    BuildPersistedMetricCell(symbol, "MARKET_CAP", latestBySymbolMetric, FormatLargeNumber),
+                    BuildPersistedMetricCell(companyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
 
                 ScannerColumnType.Metric when column.MetricCode is not null =>
-                    BuildPersistedMetricCell(symbol, column.MetricCode, latestBySymbolMetric, v => v.ToString("N2")),
+                    BuildPersistedMetricCell(companyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
 
                 _ => new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null)
             };
@@ -194,9 +199,9 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static ScannerTableCell BuildPriceCell(
-        NormalizedSymbolRow symbol,
+        Guid companyId,
         MarketQuoteObservation? quote,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric)
+        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         if (quote is not null)
         {
@@ -210,7 +215,7 @@ public sealed class EfCoreSymbolMetricLookupService(
                 quote.AsOf);
         }
 
-        if (latestBySymbolMetric.TryGetValue((symbol.Id, "LATEST_PRICE"), out var row) && row.Value is not null)
+        if (latestByCompanyMetric.TryGetValue((companyId, "LATEST_PRICE"), out var row) && row.Value is not null)
         {
             return new ScannerTableCell(
                 row.Value,
@@ -223,12 +228,12 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static ScannerTableCell BuildPersistedMetricCell(
-        NormalizedSymbolRow symbol,
+        Guid companyId,
         string metricCode,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric,
+        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
         Func<decimal, string> formatter)
     {
-        if (!latestBySymbolMetric.TryGetValue((symbol.Id, metricCode), out var row) || row.Value is null)
+        if (!latestByCompanyMetric.TryGetValue((companyId, metricCode), out var row) || row.Value is null)
             return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
 
         return new ScannerTableCell(
@@ -262,6 +267,28 @@ public sealed class EfCoreSymbolMetricLookupService(
             [],
             unresolvedSymbols);
     }
+
+    private static MarketQuoteObservation? ResolveQuoteForCompany(
+        Guid companyId,
+        IReadOnlyCollection<NormalizedSymbolRow> symbols,
+        IReadOnlyDictionary<string, MarketQuoteObservation> quoteBySymbol)
+    {
+        foreach (var symbol in symbols.Where(s => s.CompanyId == companyId))
+        {
+            if (quoteBySymbol.TryGetValue(symbol.SymbolCode, out var quote))
+                return quote;
+        }
+
+        return null;
+    }
+
+    private static string GetDisplaySymbol(
+        NormalizedCompanyRow? company,
+        NormalizedSymbolRow symbol) =>
+        FirstNonBlank(company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
+
+    private static string? FirstNonBlank(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string FormatLargeNumber(decimal value) =>
         value switch

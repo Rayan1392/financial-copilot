@@ -46,6 +46,12 @@ public sealed class ScannerExecutionEndpointTests : IClassFixture<ScannerExecuti
         var symbols = rows.Select(r => r.GetProperty("symbolCode").GetString()!).ToHashSet();
         Assert.Contains("LIVE", symbols);
         Assert.Contains("FALLBACK", symbols);
+        Assert.All(rows, row =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(row.GetProperty("companyName").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(
+                row.GetProperty("cells").GetProperty("COMPANY").GetProperty("formattedValue").GetString()));
+        });
     }
 
     [Fact]

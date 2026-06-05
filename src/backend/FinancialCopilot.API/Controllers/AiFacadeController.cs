@@ -205,13 +205,7 @@ public sealed class AiFacadeController(
             table.Rows.Select(r => new ScannerTableRowResponse(
                 r.SymbolCode,
                 r.CompanyName,
-                r.Cells.ToDictionary(
-                    kv => kv.Key,
-                    kv => new ScannerTableCellResponse(
-                        kv.Value.Value,
-                        kv.Value.FormattedValue,
-                        kv.Value.FreshnessStatus.ToString(),
-                        kv.Value.SourceTimestamp)),
+                MapCells(table.Columns, r),
                 r.Score,
                 r.MatchedConditionMetrics)).ToList(),
             new ScannerExecutionFactsResponse(
@@ -238,13 +232,7 @@ public sealed class AiFacadeController(
             table.Rows.Select(r => new ScannerTableRowResponse(
                 r.SymbolCode,
                 r.CompanyName,
-                r.Cells.ToDictionary(
-                    kv => kv.Key,
-                    kv => new ScannerTableCellResponse(
-                        kv.Value.Value,
-                        kv.Value.FormattedValue,
-                        kv.Value.FreshnessStatus.ToString(),
-                        kv.Value.SourceTimestamp)),
+                MapCells(table.Columns, r),
                 r.Score,
                 r.MatchedConditionMetrics)).ToList(),
             new ScannerExecutionFactsResponse(
@@ -257,6 +245,40 @@ public sealed class AiFacadeController(
                 table.ExecutionFacts.PageSize,
                 table.ExecutionFacts.TotalPages),
             table.MissingDataWarnings);
+    }
+
+    private static IReadOnlyDictionary<string, ScannerTableCellResponse> MapCells(
+        IReadOnlyCollection<ScannerTableColumn> columns,
+        ScannerTableRow row) =>
+        columns.ToDictionary(
+            column => column.Identifier,
+            column =>
+            {
+                row.Cells.TryGetValue(column.Identifier, out var cell);
+                cell = NormalizeDisplayCell(column, row, cell);
+                return new ScannerTableCellResponse(
+                    cell.Value,
+                    cell.FormattedValue,
+                    cell.FreshnessStatus.ToString(),
+                    cell.SourceTimestamp);
+            });
+
+    private static ScannerTableCell NormalizeDisplayCell(
+        ScannerTableColumn column,
+        ScannerTableRow row,
+        ScannerTableCell? cell)
+    {
+        var existing = cell ?? new ScannerTableCell(null, null, CellFreshnessStatus.Persisted, null);
+        return column.ColumnType switch
+        {
+            ScannerColumnType.Symbol when string.IsNullOrWhiteSpace(existing.FormattedValue) =>
+                existing with { FormattedValue = row.SymbolCode },
+
+            ScannerColumnType.CompanyName when string.IsNullOrWhiteSpace(existing.FormattedValue) =>
+                existing with { FormattedValue = row.CompanyName },
+
+            _ => existing
+        };
     }
 
     private static ExplainableAnswerResponse? MapExplainableAnswer(ExplainableAnswer? answer)

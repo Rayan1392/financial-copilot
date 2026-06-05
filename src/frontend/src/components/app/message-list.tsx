@@ -155,7 +155,7 @@ function ScannerResultTable({
             {table.rows.map((row) => (
               <tr key={row.symbolCode}>
                 {table.columns.map((column) => {
-                  const cell = row.cells[column.identifier];
+                  const cell = getRenderableCell(row, column.identifier);
                   return (
                     <td
                       key={column.identifier}
@@ -217,6 +217,27 @@ function containsPersianText(text: string) {
 
 function shouldShowFreshnessStatus(status?: string) {
   return Boolean(status && status !== "Persisted");
+}
+
+function getRenderableCell(row: ScannerTable["rows"][number], columnIdentifier: string) {
+  const key = columnIdentifier.toUpperCase();
+  if (key === "SYMBOL") {
+    return {
+      ...row.cells[columnIdentifier],
+      formattedValue: row.symbolCode || row.cells[columnIdentifier]?.formattedValue,
+      freshnessStatus: row.cells[columnIdentifier]?.freshnessStatus ?? "Persisted",
+    };
+  }
+
+  if (key === "COMPANY_NAME" || key === "COMPANY") {
+    return {
+      ...row.cells[columnIdentifier],
+      formattedValue: row.companyName || row.cells[columnIdentifier]?.formattedValue,
+      freshnessStatus: row.cells[columnIdentifier]?.freshnessStatus ?? "Persisted",
+    };
+  }
+
+  return row.cells[columnIdentifier];
 }
 
 function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {

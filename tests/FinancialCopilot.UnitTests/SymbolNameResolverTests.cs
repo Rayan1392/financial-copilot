@@ -88,6 +88,49 @@ public sealed class SymbolNameResolverTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task ResolveAsync_CompanyWithMultipleProviderSymbols_ReturnsPreferredCompanySymbol()
+    {
+        await using var db = CreateDb();
+        var companyId = Guid.NewGuid();
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = "Chadormalu Mining",
+            ProviderName = "test",
+            ExternalCompanyId = "EXT-CHML",
+            TseSymbol = "KCHAD",
+            CompanySymbol = "CHML",
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.Symbols.AddRange(
+            new NormalizedSymbolRow
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = companyId,
+                ProviderName = "CodalDb",
+                ExternalSymbolId = "codal-chml",
+                SymbolCode = "IRO1CHML0001",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            },
+            new NormalizedSymbolRow
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = companyId,
+                ProviderName = "CyclicalWaves",
+                ExternalSymbolId = "cw-chml",
+                SymbolCode = "CHML",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+        db.SaveChanges();
+
+        var resolver = BuildResolver(db);
+        var result = await resolver.ResolveAsync("Chadormalu", CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("CHML", result.Value);
+    }
+
     private static void SeedSymbol(
         FinancialIngestionDbContext db,
         string symbolCode,

@@ -7,7 +7,6 @@ using FinancialCopilot.Domain.Financial.MissingAnswer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.API.Controllers;
 

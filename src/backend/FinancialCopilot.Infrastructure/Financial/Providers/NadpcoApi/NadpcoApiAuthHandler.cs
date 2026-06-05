@@ -10,6 +10,11 @@ public sealed class NadpcoApiAuthHandler(INadpcoApiTokenProvider tokenProvider) 
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        if (IsAnonymousCompanyCatalogRequest(request))
+        {
+            return await base.SendAsync(request, cancellationToken);
+        }
+
         var retryRequest = await CloneAsync(request, cancellationToken);
         var token = await tokenProvider.GetTokenAsync(forceRefresh: false, cancellationToken);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -37,6 +42,23 @@ public sealed class NadpcoApiAuthHandler(INadpcoApiTokenProvider tokenProvider) 
         }
 
         return retryResponse;
+    }
+
+    private static bool IsAnonymousCompanyCatalogRequest(HttpRequestMessage request)
+    {
+        if (request.Method != HttpMethod.Get)
+        {
+            return false;
+        }
+
+        var path = request.RequestUri?.IsAbsoluteUri == true
+            ? request.RequestUri.AbsolutePath
+            : request.RequestUri?.OriginalString;
+
+        return path is not null &&
+            path.TrimStart('/').Equals(
+                "api/v3/BaseInfo/Companies",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<HttpRequestMessage> CloneAsync(

@@ -17,7 +17,6 @@ public sealed class EfCoreSymbolNameResolver(
         var normalized = rawName.Trim();
         var lower = normalized.ToLowerInvariant();
 
-        // 1. Case-insensitive exact match on Symbols.SymbolCode
         var byCode = await dbContext.Symbols.AsNoTracking()
             .Where(s => s.SymbolCode.ToLower() == lower)
             .Select(s => s.SymbolCode)
@@ -34,45 +33,57 @@ public sealed class EfCoreSymbolNameResolver(
             return null;
         }
 
-        // 2. Case-insensitive match on Companies.ExternalCompanyId
-        var byExternalId = await dbContext.Companies.AsNoTracking()
-            .Where(c => c.ExternalCompanyId.ToLower() == lower)
-            .Join(dbContext.Symbols.AsNoTracking(),
-                c => c.Id,
-                s => s.CompanyId,
-                (c, s) => s.SymbolCode)
-            .Distinct()
+        var exactCompanies = await dbContext.Companies.AsNoTracking()
+            .Where(c =>
+                c.ExternalCompanyId.ToLower() == lower ||
+                (c.TseSymbol != null && c.TseSymbol.ToLower() == lower) ||
+                (c.CompanySymbol != null && c.CompanySymbol.ToLower() == lower) ||
+                (c.SymbolIsin != null && c.SymbolIsin.ToLower() == lower) ||
+                (c.CompanyIsin != null && c.CompanyIsin.ToLower() == lower) ||
+                (c.CompanySymbolEnglish != null && c.CompanySymbolEnglish.ToLower() == lower) ||
+                c.Name.ToLower() == lower)
             .ToListAsync(cancellationToken);
 
-        if (byExternalId.Count == 1) return new SymbolCode(byExternalId[0]);
-        if (byExternalId.Count > 1)
-        {
-            logger.LogWarning(
-                "Symbol name '{RawName}' matched multiple companies by ExternalCompanyId.",
-                rawName);
-            return null;
-        }
+        var exact = await ResolveSingleCompanyAsync(rawName, exactCompanies, "exact company identifier", cancellationToken);
+        if (exact is not null) return exact;
+        if (exactCompanies.Count > 1) return null;
 
-        // 3. Case-insensitive substring/trim match on Companies.Name
         var byName = await dbContext.Companies.AsNoTracking()
-            .Where(c => c.Name.ToLower().Contains(lower) || c.Name.ToLower() == lower)
-            .Join(dbContext.Symbols.AsNoTracking(),
-                c => c.Id,
-                s => s.CompanyId,
-                (c, s) => s.SymbolCode)
-            .Distinct()
+            .Where(c => c.Name.ToLower().Contains(lower))
             .ToListAsync(cancellationToken);
 
-        if (byName.Count == 1) return new SymbolCode(byName[0]);
-        if (byName.Count > 1)
+        return await ResolveSingleCompanyAsync(rawName, byName, "company name", cancellationToken);
+    }
+
+    private async Task<SymbolCode?> ResolveSingleCompanyAsync(
+        string rawName,
+        IReadOnlyCollection<NormalizedCompanyRow> companies,
+        string basis,
+        CancellationToken cancellationToken)
+    {
+        if (companies.Count == 0) return null;
+        if (companies.Count > 1)
         {
             logger.LogWarning(
-                "Symbol name '{RawName}' matched multiple companies by Name (ambiguous): {Matches}",
+                "Symbol name '{RawName}' matched multiple companies by {Basis}: {Matches}",
                 rawName,
-                string.Join(", ", byName.Take(5)));
+                basis,
+                string.Join(", ", companies.Take(5).Select(c => c.Name)));
             return null;
         }
 
-        return null;
+        var company = companies.Single();
+        var symbols = await dbContext.Symbols.AsNoTracking()
+            .Where(s => s.CompanyId == company.Id)
+            .ToListAsync(cancellationToken);
+
+        var preferred = symbols
+            .OrderByDescending(s => string.Equals(s.SymbolCode, company.TseSymbol, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(s => string.Equals(s.SymbolCode, company.CompanySymbol, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(s => s.ProviderName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(s => s.SymbolCode, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        return preferred is null ? null : new SymbolCode(preferred.SymbolCode);
     }
 }

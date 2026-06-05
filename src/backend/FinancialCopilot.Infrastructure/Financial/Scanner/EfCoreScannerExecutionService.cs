@@ -57,10 +57,9 @@ public sealed class EfCoreScannerExecutionService(
         }
 
         var companyIds = symbolRows.Select(s => s.CompanyId).Distinct().ToList();
-        var companyNameById = await dbContext.Companies.AsNoTracking()
+        var companiesById = await dbContext.Companies.AsNoTracking()
             .Where(c => companyIds.Contains(c.Id))
-            .Select(c => new { c.Id, c.Name })
-            .ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
 
         var symbolIds = symbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
@@ -118,10 +117,12 @@ public sealed class EfCoreScannerExecutionService(
         var rows = matchingSymbols.Select(symbol =>
         {
             quoteBySymbol.TryGetValue(symbol.SymbolCode, out var quote);
-            var cells = BuildCells(columns, symbol, quote, latestBySymbolMetric);
+            var company = companiesById.GetValueOrDefault(symbol.CompanyId);
+            var displaySymbol = GetDisplaySymbol(company, symbol);
+            var cells = BuildCells(columns, symbol, displaySymbol, company?.Name, quote, latestBySymbolMetric);
             return new ScannerTableRow(
-                symbol.SymbolCode,
-                companyNameById.GetValueOrDefault(symbol.CompanyId),
+                displaySymbol,
+                company?.Name,
                 cells,
                 Score: 0.0,
                 conditionMetricCodes);
@@ -250,6 +251,8 @@ public sealed class EfCoreScannerExecutionService(
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(
         IReadOnlyCollection<ScannerTableColumn> columns,
         NormalizedSymbolRow symbol,
+        string displaySymbol,
+        string? companyName,
         MarketQuoteObservation? quote,
         Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric)
     {
@@ -260,10 +263,10 @@ public sealed class EfCoreScannerExecutionService(
             cells[column.Identifier] = column.ColumnType switch
             {
                 ScannerColumnType.Symbol =>
-                    new ScannerTableCell(null, symbol.SymbolCode, CellFreshnessStatus.Persisted, null),
+                    new ScannerTableCell(null, displaySymbol, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.CompanyName =>
-                    new ScannerTableCell(null, null, CellFreshnessStatus.Persisted, null),
+                    new ScannerTableCell(null, companyName, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.LatestPrice =>
                     BuildPriceCell(symbol, quote, latestBySymbolMetric),
@@ -365,6 +368,14 @@ public sealed class EfCoreScannerExecutionService(
             >= 1_000_000m => $"{value / 1_000_000m:N1}M",
             _ => value.ToString("N0")
         };
+
+    private static string GetDisplaySymbol(
+        NormalizedCompanyRow? company,
+        NormalizedSymbolRow symbol) =>
+        FirstNonBlank(company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
+
+    private static string? FirstNonBlank(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static ScannerTableResult BuildEmptyResult(
         ScannerQueryPlan plan,

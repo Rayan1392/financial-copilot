@@ -26,8 +26,17 @@ intent type and lookup execution path to the single AI facade endpoint.
 - Symbol names are resolved to `SymbolCode` values in the normalized `Symbols` table using a
   case-insensitive match against `SymbolCode` and `Companies.Name`/`Companies.ExternalCompanyId`.
   Unresolved symbols are listed in the response as missing; the lookup proceeds for resolved ones.
+- Display rows must be company-backed, not provider-symbol-backed. The table's symbol value must
+  use `public."Companies"."TseSymbol"` whenever the resolved symbol has a company row, and the
+  company column must use `public."Companies"."Name"`. Provider identifiers such as ISIN,
+  instrument codes, or `Symbols.SymbolCode` are linkage keys and must not be shown as the primary
+  symbol when a company display symbol exists.
 - Resolved (symbol, metric) pairs are looked up in `DerivedMetrics` (latest `PeriodEnd`) and
   supplemented by `LatestMarketQuotes` for price-class metrics (`LATEST_PRICE`, `MARKET_CAP`).
+- Metric lookup must evaluate all `Symbols` rows linked to the resolved company, because different
+  vendors may populate different symbol rows for the same listed company. A metric stored on a
+  CyclicalWaves-linked symbol must still answer a lookup resolved through a NADPCO/CodalDB symbol
+  row for the same `Companies.Id`.
 - The response includes a structured `SymbolLookupTable` (same column/cell/freshness contract as
   the scanner table) inside the existing `AiQueryResponse`.
 - When a requested metric has no data for a symbol the cell shows `Missing` freshness — no error.

@@ -338,6 +338,7 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
         var companyLiveId = Guid.Parse("10000000-0000-0000-0000-000000000001");
         var companyFallbackId = Guid.Parse("10000000-0000-0000-0000-000000000002");
         var companyHighPeId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+        var staleFallbackCompanyId = Guid.Parse("10000000-0000-0000-0000-000000000102");
 
         var symbolLiveId = Guid.Parse("20000000-0000-0000-0000-000000000001");
         var symbolFallbackId = Guid.Parse("20000000-0000-0000-0000-000000000002");
@@ -354,6 +355,7 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
             {
                 Id = companyFallbackId, Name = "Fallback Corp",
                 ProviderName = "test", ExternalCompanyId = "company-fallback",
+                CompanySymbol = "FALLBACK",
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             },
             new NormalizedCompanyRow
@@ -372,7 +374,7 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
             },
             new NormalizedSymbolRow
             {
-                Id = symbolFallbackId, CompanyId = companyFallbackId,
+                Id = symbolFallbackId, CompanyId = staleFallbackCompanyId,
                 ProviderName = "test", ExternalSymbolId = "sym-fallback",
                 SymbolCode = "FALLBACK", LastSynchronizedAt = DateTimeOffset.UtcNow
             },

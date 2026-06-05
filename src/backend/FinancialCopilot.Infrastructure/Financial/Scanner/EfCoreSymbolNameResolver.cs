@@ -84,6 +84,37 @@ public sealed class EfCoreSymbolNameResolver(
             .ThenBy(s => s.SymbolCode, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
 
+        if (preferred is not null)
+            return new SymbolCode(preferred.SymbolCode);
+
+        var identifiers = new[]
+            {
+                company.TseSymbol,
+                company.CompanySymbol,
+                company.CompanySymbolEnglish,
+                company.CompanySymbolPinglish,
+                company.SymbolIsin,
+                company.CompanyIsin,
+                company.InstrumentCode,
+                company.ExternalCompanyId
+            }
+            .Select(value => value?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var upperIdentifiers = identifiers.Select(value => value!.ToUpperInvariant()).ToList();
+
+        var fallbackSymbols = await dbContext.Symbols.AsNoTracking()
+            .Where(s => upperIdentifiers.Contains(s.SymbolCode.ToUpper()))
+            .ToListAsync(cancellationToken);
+
+        preferred = fallbackSymbols
+            .OrderByDescending(s => string.Equals(s.SymbolCode, company.TseSymbol, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(s => string.Equals(s.SymbolCode, company.CompanySymbol, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(s => s.ProviderName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(s => s.SymbolCode, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
         return preferred is null ? null : new SymbolCode(preferred.SymbolCode);
     }
 }

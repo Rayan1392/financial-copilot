@@ -214,26 +214,7 @@ normalized PostgreSQL and scanner read models.
 | [x] | 42 | [043](./043-nadpco-api-sync-orchestration/user-story.md) / [tasks](./043-nadpco-api-sync-orchestration/tasks.md) | NADPCO API Synchronization Orchestration | Depends on `038`-`042`, `012`, `018`; add bounded full/incremental orchestration, endpoint-appropriate progress, overlap reconciliation where modified-since is unavailable, failure isolation, DataAdmin operations, telemetry, and cache invalidation. |
 | [x] | 43 | [044](./044-nadpco-api-scheduled-sync-worker/user-story.md) / [tasks](./044-nadpco-api-scheduled-sync-worker/tasks.md) | NADPCO API Scheduled Synchronization Worker | Depends on `043`, `011`, `012`, `018`; add automatic scheduled incremental NADPCO synchronization through the existing bounded orchestration pipeline with configurable cadence/datasets/batching/concurrency/retry policy, overlap prevention, persisted scheduled-run history, diagnostics, and scanner-cache invalidation through the existing data-sync path. |
 
-### Stage 15 - Scanner Enhancements
-
-These stories extend the Phase 1 Scanner MVP with new query modes. They share the existing
-single AI facade endpoint, billing pipeline, and frontend scanner table component.
-
-| Done | Order | Spec | User story | Dependency / implementation intent |
-|---|---:|---|---|---|
-| [x] | 44 | [045](./045-symbol-metric-point-lookup/user-story.md) / [tasks](./045-symbol-metric-point-lookup/tasks.md) | Symbol Metric Point Lookup | **Priority: High.** Depends on `007` (AI facade and intent routing), `008`/`009` (scanner table contract and explainability), `015` (metric alias resolver), `005` (DerivedMetrics and LatestMarketQuotes reads). Add `SymbolLookup` intent type, `ISymbolLookupParser` (LLM structured output), `ISymbolNameResolver` (match raw names against Symbols/Companies), and `ISymbolMetricLookupService` (query DerivedMetrics + LatestMarketQuotes for resolved pairs). Extend `AiQueryOrchestrationService` with the new intent branch; billing and feedback collection follow the scanner pattern. Re-use `ScannerTableResult` shape so the frontend renders lookup results without a new component. |
-| [ ] | 50 | [046](./046-dynamic-metric-alias-learning/user-story.md) / [tasks](./046-dynamic-metric-alias-learning/tasks.md) | Dynamic Metric Alias Learning | Depends on `015`, `007`, `045`, and `028`. Replace code-only operational alias expansion with a PostgreSQL-backed dynamic alias layer and learning loop: unresolved user metric terms are logged, grouped into candidates, validated against existing governed metrics, and promoted automatically or by DataAdmin review. The learning loop may add aliases only; it must never create metric definitions, formulas, calculators, SQL, billing behavior, or deterministic financial logic from user prompts or LLM output. |
-
-### Stage 16 - AI Orchestration V2
-
-This stage migrates the existing manual AI query orchestration to Microsoft Agent Framework while preserving the public AI facade, Billing ledger semantics, deterministic scanner/symbol lookup behavior, conversation persistence, explainability, provider-neutral model execution, and rollback compatibility. It is intentionally placed before dynamic alias learning so future parser/learning behavior can target the V2 orchestration path.
-
-| Done | Order | Spec | User story | Dependency / implementation intent |
-|---|---:|---|---|---|
-| [ ] | 49 | [047](./047-microsoft-agent-framework-orchestration-v2/user-story.md) / [tasks](./047-microsoft-agent-framework-orchestration-v2/tasks.md) | Microsoft Agent Framework Orchestration V2 | Depends on `007`, `008`, `009`, `010`, `014`, `017`, `018`, `019`, and `045`; introduce a backward-compatible V2 AI orchestration path using Microsoft Agent Framework Agents, Workflows, tool/function adapters, and middleware. Preserve `POST /api/ai/v1/query`, existing response DTOs, Billing reservation/finalization, deterministic scanner/symbol lookup execution, provider-neutral AI model resolution, memory disclosures, telemetry, evaluation metadata, and V1 rollback by configuration. |
-
-
-### Stage 17 - NADPCO Company Catalog Authority Remediation
+### Stage 15 - NADPCO Company Catalog Authority Remediation
 
 These items implement the 2026-06-05 change requests added to specs `020`, `039`, `043`, and
 `044`. The prior NADPCO stories remain completed historically, but the change requests are not
@@ -248,6 +229,24 @@ CyclicalWaves from writing company catalog rows.
 | [x] | 46 | [043](./043-nadpco-api-sync-orchestration/user-story.md#change-request---2026-06-05) / [tasks](./043-nadpco-api-sync-orchestration/tasks.md#change-request-tasks---2026-06-05) | NADPCO Company-Catalog-Only Orchestration | Depends on order `45`, `012`, and existing `043`. Add a DataAdmin/company-catalog-only orchestration mode with two run modes: destructive `CompanyCatalogCleanSlate` for explicit maintenance/backfill and non-destructive `CompanyCatalogRefresh` for ordinary refreshes. Record run mode in telemetry, isolate failures, trigger scanner-cache invalidation/linkage follow-up on metadata changes, and verify authorization, clean-slate behavior, idempotency, telemetry, and recovery. |
 | [x] | 47 | [044](./044-nadpco-api-scheduled-sync-worker/user-story.md#change-request---2026-06-05) / [tasks](./044-nadpco-api-scheduled-sync-worker/tasks.md#change-request-tasks---2026-06-05) | Scheduled NADPCO Company Catalog Refresh | Depends on order `46` and existing `044`. Include `CompanyCatalog` in scheduled NADPCO dataset selection with daily refresh as the production recommendation after credentials and initial backfill are verified. Scheduled runs must insert/update only, must never call the clean-slate delete path, must expose company-catalog run counts/status/history, and must prove newly listed NADPCO companies are inserted on a later daily run. |
 | [x] | 48 | [020](./020-cyclicalwaves-data-provider/user-story.md#change-request---2026-06-05) / [tasks](./020-cyclicalwaves-data-provider/tasks.md#change-request-tasks---2026-06-05) | Stop CyclicalWaves Company Catalog Writes | Depends on orders `45` and `46`. Disable or remove CyclicalWaves `Companies` upserts. CyclicalWaves may continue to provide financial statements, monthly observations, and valuation ratios, but it must resolve linkage through existing NADPCO-backed company/symbol metadata, emit data-quality warnings when linkage fails, and never overwrite NADPCO names, symbols, industry, market, ISIN, registration, or listing metadata. Add regression tests for non-overwrite and successful financial observation persistence when NADPCO linkage exists. |
+
+### Stage 16 - Scanner Enhancements
+
+These stories extend the Phase 1 Scanner MVP with new query modes. They share the existing
+single AI facade endpoint, billing pipeline, and frontend scanner table component.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [x] | 44 | [045](./045-symbol-metric-point-lookup/user-story.md) / [tasks](./045-symbol-metric-point-lookup/tasks.md) | Symbol Metric Point Lookup | **Priority: High.** Depends on `007` (AI facade and intent routing), `008`/`009` (scanner table contract and explainability), `015` (metric alias resolver), `005` (DerivedMetrics and LatestMarketQuotes reads). Add `SymbolLookup` intent type, `ISymbolLookupParser` (LLM structured output), `ISymbolNameResolver` (match raw names against Symbols/Companies), and `ISymbolMetricLookupService` (query DerivedMetrics + LatestMarketQuotes for resolved pairs). Extend `AiQueryOrchestrationService` with the new intent branch; billing and feedback collection follow the scanner pattern. Re-use `ScannerTableResult` shape so the frontend renders lookup results without a new component. |
+| [ ] | 50 | [046](./046-dynamic-metric-alias-learning/user-story.md) / [tasks](./046-dynamic-metric-alias-learning/tasks.md) | Dynamic Metric Alias Learning | Depends on `015`, `007`, `045`, and `028`. Replace code-only operational alias expansion with a PostgreSQL-backed dynamic alias layer and learning loop: unresolved user metric terms are logged, grouped into candidates, validated against existing governed metrics, and promoted automatically or by DataAdmin review. The learning loop may add aliases only; it must never create metric definitions, formulas, calculators, SQL, billing behavior, or deterministic financial logic from user prompts or LLM output. |
+
+### Stage 17 - AI Orchestration V2
+
+This stage migrates the existing manual AI query orchestration to Microsoft Agent Framework while preserving the public AI facade, Billing ledger semantics, deterministic scanner/symbol lookup behavior, conversation persistence, explainability, provider-neutral model execution, and rollback compatibility. Order 49 precedes order 50 (Dynamic Metric Alias Learning, Stage 16) so future parser/learning behavior can target the established V2 orchestration path.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 49 | [047](./047-microsoft-agent-framework-orchestration-v2/user-story.md) / [tasks](./047-microsoft-agent-framework-orchestration-v2/tasks.md) | Microsoft Agent Framework Orchestration V2 | Depends on `007`, `008`, `009`, `010`, `014`, `017`, `018`, `019`, and `045`; introduce a backward-compatible V2 AI orchestration path using Microsoft Agent Framework Agents, Workflows, tool/function adapters, and middleware. Preserve `POST /api/ai/v1/query`, existing response DTOs, Billing reservation/finalization, deterministic scanner/symbol lookup execution, provider-neutral AI model resolution, memory disclosures, telemetry, evaluation metadata, and V1 rollback by configuration. |
 
 ## Deferred and Open Items
 

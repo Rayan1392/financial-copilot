@@ -57,13 +57,15 @@ public sealed class EfCoreSymbolMetricLookupService(
             .ToListAsync(cancellationToken);
 
         var companyIds = resolvedSymbolRows.Select(s => s.CompanyId).Distinct().ToList();
-        var companiesById = await dbContext.Companies.AsNoTracking()
-            .Where(c => companyIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, cancellationToken);
 
         var allCompanySymbolRows = await dbContext.Symbols.AsNoTracking()
             .Where(s => companyIds.Contains(s.CompanyId))
             .ToListAsync(cancellationToken);
+
+        var companyLookup = await CompanyDisplayResolver.BuildLookupAsync(
+            dbContext,
+            allCompanySymbolRows.Count == 0 ? resolvedSymbolRows : allCompanySymbolRows,
+            cancellationToken);
 
         var symbolIds = allCompanySymbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
@@ -101,8 +103,8 @@ public sealed class EfCoreSymbolMetricLookupService(
             if (symbolRow is null) continue;
 
             var quote = ResolveQuoteForCompany(symbolRow.CompanyId, allCompanySymbolRows, quoteBySymbol);
-            var company = companiesById.GetValueOrDefault(symbolRow.CompanyId);
-            var displaySymbol = GetDisplaySymbol(company, symbolRow);
+            var company = CompanyDisplayResolver.ResolveCompany(symbolRow, companyLookup);
+            var displaySymbol = CompanyDisplayResolver.GetDisplaySymbol(company, symbolRow);
             var cells = BuildCells(
                 columns,
                 symbolRow.CompanyId,
@@ -281,14 +283,6 @@ public sealed class EfCoreSymbolMetricLookupService(
 
         return null;
     }
-
-    private static string GetDisplaySymbol(
-        NormalizedCompanyRow? company,
-        NormalizedSymbolRow symbol) =>
-        FirstNonBlank(company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
-
-    private static string? FirstNonBlank(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string FormatLargeNumber(decimal value) =>
         value switch

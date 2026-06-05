@@ -259,6 +259,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
     {
         var companyHafariId = Guid.Parse("50000000-0000-0000-0000-000000000001");
         var companyFmlcoId = Guid.Parse("50000000-0000-0000-0000-000000000002");
+        var staleHafariCompanyId = Guid.Parse("50000000-0000-0000-0000-000000000101");
         var symbolHafariId = Guid.Parse("60000000-0000-0000-0000-000000000001");
         var symbolFmlcoId = Guid.Parse("60000000-0000-0000-0000-000000000002");
         var symbolHafariMetricsId = Guid.Parse("60000000-0000-0000-0000-000000000101");
@@ -292,7 +293,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             new NormalizedSymbolRow
             {
                 Id = symbolHafariId,
-                CompanyId = companyHafariId,
+                CompanyId = staleHafariCompanyId,
                 ProviderName = "test",
                 ExternalSymbolId = "hafari-001",
                 SymbolCode = "HAFARI",
@@ -301,7 +302,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             new NormalizedSymbolRow
             {
                 Id = symbolHafariMetricsId,
-                CompanyId = companyHafariId,
+                CompanyId = staleHafariCompanyId,
                 ProviderName = "metrics-provider",
                 ExternalSymbolId = "hafari-metrics-001",
                 SymbolCode = "HAFARI_CW",

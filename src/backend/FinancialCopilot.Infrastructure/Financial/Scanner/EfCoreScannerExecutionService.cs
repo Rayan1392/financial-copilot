@@ -56,10 +56,10 @@ public sealed class EfCoreScannerExecutionService(
             return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), totalSymbolCount);
         }
 
-        var companyIds = symbolRows.Select(s => s.CompanyId).Distinct().ToList();
-        var companiesById = await dbContext.Companies.AsNoTracking()
-            .Where(c => companyIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, cancellationToken);
+        var companyLookup = await CompanyDisplayResolver.BuildLookupAsync(
+            dbContext,
+            symbolRows,
+            cancellationToken);
 
         var symbolIds = symbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
@@ -117,8 +117,8 @@ public sealed class EfCoreScannerExecutionService(
         var rows = matchingSymbols.Select(symbol =>
         {
             quoteBySymbol.TryGetValue(symbol.SymbolCode, out var quote);
-            var company = companiesById.GetValueOrDefault(symbol.CompanyId);
-            var displaySymbol = GetDisplaySymbol(company, symbol);
+            var company = CompanyDisplayResolver.ResolveCompany(symbol, companyLookup);
+            var displaySymbol = CompanyDisplayResolver.GetDisplaySymbol(company, symbol);
             var cells = BuildCells(columns, symbol, displaySymbol, company?.Name, quote, latestBySymbolMetric);
             return new ScannerTableRow(
                 displaySymbol,
@@ -368,14 +368,6 @@ public sealed class EfCoreScannerExecutionService(
             >= 1_000_000m => $"{value / 1_000_000m:N1}M",
             _ => value.ToString("N0")
         };
-
-    private static string GetDisplaySymbol(
-        NormalizedCompanyRow? company,
-        NormalizedSymbolRow symbol) =>
-        FirstNonBlank(company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
-
-    private static string? FirstNonBlank(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static ScannerTableResult BuildEmptyResult(
         ScannerQueryPlan plan,

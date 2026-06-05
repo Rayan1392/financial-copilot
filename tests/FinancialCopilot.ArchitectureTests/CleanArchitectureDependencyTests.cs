@@ -61,6 +61,39 @@ public sealed class CleanArchitectureDependencyTests
     }
 
     [Fact]
+    public void MicrosoftAgentFrameworkPackages_OnlyReferencedFromInfrastructure()
+    {
+        // MAF packages must not appear as NuGet PackageReferences in Domain, Application, Billing, or API.
+        // Their presence outside Infrastructure would couple business policy to a volatile vendor framework.
+        var root = FindSolutionRoot();
+        var mafPackagePrefixes = new[] { "Microsoft.Agents.", "Microsoft.Agents.AI" };
+        var protectedProjects = new[]
+        {
+            "FinancialCopilot.Domain",
+            "FinancialCopilot.Application",
+            "FinancialCopilot.Billing",
+            "FinancialCopilot.API"
+        };
+
+        var failures = protectedProjects
+            .Select(name => Path.Combine(root, name, $"{name}.csproj"))
+            .Where(File.Exists)
+            .SelectMany(path =>
+            {
+                var doc = XDocument.Load(path);
+                return doc.Descendants("PackageReference")
+                    .Select(r => r.Attribute("Include")?.Value)
+                    .Where(pkg => pkg is not null &&
+                        mafPackagePrefixes.Any(prefix =>
+                            pkg!.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                    .Select(pkg => $"{Path.GetFileNameWithoutExtension(path)} must not directly reference MAF package '{pkg}'.");
+            })
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
     public void BusinessAndPublicContractAssemblies_DoNotReferenceVendorModelProviders()
     {
         var root = FindSolutionRoot();

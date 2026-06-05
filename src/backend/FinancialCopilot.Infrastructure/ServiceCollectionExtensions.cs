@@ -47,9 +47,14 @@ using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
 using FinancialCopilot.Infrastructure.Administration;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Config;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure;
@@ -336,7 +341,33 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IScannerExplanationGenerator, LlmScannerExplanationGenerator>();
         services.AddScoped<IExplainableAnswerBuilder, ExplainableAnswerBuilder>();
         services.AddScoped<IBillingFacadeHook, AiFacadeBillingHook>();
-        services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
+
+        services.Configure<AiOrchestrationOptions>(
+            configuration.GetSection(AiOrchestrationOptions.SectionName));
+
+        var orchestrationMode = configuration
+            .GetSection(AiOrchestrationOptions.SectionName)
+            .GetValue<AiOrchestrationMode>("Mode", AiOrchestrationMode.V1);
+
+        if (orchestrationMode == AiOrchestrationMode.MicrosoftAgentFrameworkV2)
+        {
+            services.AddScoped<ScannerToolAdapter>();
+            services.AddScoped<SymbolLookupToolAdapter>();
+            services.AddScoped<ExplainableAnswerAdapter>();
+            services.AddScoped<MemoryContextAdapter>();
+            services.AddScoped<BillingFunctions>();
+            services.AddScoped<MessagePersistenceFunction>();
+            services.AddScoped<MissingAnswerFeedbackFunction>();
+            services.AddSingleton<FinancialCopilotAgentFactory>(sp =>
+                new FinancialCopilotAgentFactory(sp.GetService<ILoggerFactory>()));
+            services.AddScoped<FinancialCopilotAgentWorkflowRunner>();
+            services.AddScoped<IAiQueryOrchestrationService,
+                MicrosoftAgentFrameworkAiQueryOrchestrationService>();
+        }
+        else
+        {
+            services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
+        }
 
         // Evaluation framework — internal quality infrastructure, no public API surface.
         services.AddSingleton<IEvaluationDatasetRepository, SeedEvaluationDatasetRepository>();

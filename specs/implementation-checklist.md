@@ -246,7 +246,9 @@ This stage migrates the existing manual AI query orchestration to Microsoft Agen
 
 | Done | Order | Spec | User story | Dependency / implementation intent |
 |---|---:|---|---|---|
-| [ ] | 49 | [047](./047-microsoft-agent-framework-orchestration-v2/user-story.md) / [tasks](./047-microsoft-agent-framework-orchestration-v2/tasks.md) | Microsoft Agent Framework Orchestration V2 | Depends on `007`, `008`, `009`, `010`, `014`, `017`, `018`, `019`, and `045`; introduce a backward-compatible V2 AI orchestration path using Microsoft Agent Framework Agents, Workflows, tool/function adapters, and middleware. Preserve `POST /api/ai/v1/query`, existing response DTOs, Billing reservation/finalization, deterministic scanner/symbol lookup execution, provider-neutral AI model resolution, memory disclosures, telemetry, evaluation metadata, and V1 rollback by configuration. |
+| [x] | 49 | [047](./047-microsoft-agent-framework-orchestration-v2/user-story.md) / [tasks](./047-microsoft-agent-framework-orchestration-v2/tasks.md) | Microsoft Agent Framework Orchestration V2 | Depends on `007`, `008`, `009`, `010`, `014`, `017`, `018`, `019`, and `045`; introduce a backward-compatible V2 AI orchestration path using Microsoft Agent Framework Agents, Workflows, tool/function adapters, and middleware. Preserve `POST /api/ai/v1/query`, existing response DTOs, Billing reservation/finalization, deterministic scanner/symbol lookup execution, provider-neutral AI model resolution, memory disclosures, telemetry, evaluation metadata, and V1 rollback by configuration. |
+
+| [ ] | 48 | [048](./048-frontend-ai-orchestration-v2-awareness/user-story.md) / [tasks](./048-frontend-ai-orchestration-v2-awareness/tasks.md) | Frontend AI Orchestration V2 Awareness | Depends on `047`, `032`, and `037`; adds orchestration metadata awareness, diagnostics, rollout support, and V1/V2 evaluation capabilities while preserving the existing chat experience. |
 
 ## Deferred and Open Items
 

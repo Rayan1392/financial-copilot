@@ -17,25 +17,53 @@ public sealed class DeterministicFakeAiModelClient(
             throw NotSupported(AiModelCapability.ChatCompletion);
         }
 
-        var result = resultFactory?.Invoke(request) ?? new AiModelResult(
-            Text: "Deterministic fake AI response.",
+        if (resultFactory is not null)
+            return Task.FromResult(resultFactory.Invoke(request));
+
+        // V2 tool-call simulation: if tools are present and no tool result is in history yet,
+        // return a tool call to the first tool so FunctionInvokingChatClient can execute it.
+        // On the second turn (Tool-role message in history), return final text.
+        var hasTools = request.Tools is { Count: > 0 };
+        var hasToolResult = request.Messages.Any(m => m.Role == AiMessageRole.Tool);
+
+        if (hasTools && !hasToolResult)
+        {
+            var firstTool = request.Tools!.First();
+            var lastUserContent = request.Messages
+                .LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? "query";
+            return Task.FromResult(new AiModelResult(
+                Text: null,
+                StructuredJson: null,
+                ToolCalls: [new AiToolCall(
+                    "fake-call-id-1",
+                    firstTool.Name,
+                    $"{{\"query\":\"{EscapeJsonString(lastUserContent)}\"}}") ],
+                Usage: MakeUsage(request, usedTools: true)));
+        }
+
+        var responseText = hasToolResult ? "Fake V2 agent response." : "Deterministic fake AI response.";
+        return Task.FromResult(new AiModelResult(
+            Text: responseText,
             StructuredJson: request.StructuredOutput is null
                 ? null
                 : CreateStructuredOutput(request.StructuredOutput),
             ToolCalls: [],
-            Usage: new AiExecutionUsageFacts(
-                request.CorrelationId,
-                Descriptor.ProviderKey,
-                Descriptor.ModelKey,
-                AiExecutionStatus.Completed,
-                TimeSpan.Zero,
-                AttemptNumber: 0,
-                InputTokens: request.Messages.Sum(message => message.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length),
-                OutputTokens: 4,
-                UsedTools: request.Tools?.Count > 0));
-
-        return Task.FromResult(result);
+            Usage: MakeUsage(request, usedTools: hasTools)));
     }
+
+    private AiExecutionUsageFacts MakeUsage(AiModelRequest request, bool usedTools = false) =>
+        new(request.CorrelationId,
+            Descriptor.ProviderKey,
+            Descriptor.ModelKey,
+            AiExecutionStatus.Completed,
+            TimeSpan.Zero,
+            AttemptNumber: 0,
+            InputTokens: request.Messages.Sum(m => m.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length),
+            OutputTokens: 4,
+            UsedTools: usedTools);
+
+    private static string EscapeJsonString(string value) =>
+        value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
 
     public async IAsyncEnumerable<AiStreamingChunk> StreamAsync(
         AiModelRequest request,

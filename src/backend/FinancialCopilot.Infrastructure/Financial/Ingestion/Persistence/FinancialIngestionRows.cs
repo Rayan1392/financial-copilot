@@ -342,6 +342,8 @@ public sealed class NadpcoApiSyncStateRow
 
     public int LastFailedCompanies { get; set; }
 
+    public string? LastRunMode { get; set; }
+
     public string? LastError { get; set; }
 }
 

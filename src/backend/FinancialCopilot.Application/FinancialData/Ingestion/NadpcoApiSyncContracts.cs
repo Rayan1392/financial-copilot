@@ -1,5 +1,13 @@
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
+public enum NadpcoApiSyncRunMode
+{
+    FullSync = 0,
+    IncrementalSync = 1,
+    CompanyCatalogCleanSlate = 2,
+    CompanyCatalogRefresh = 3
+}
+
 public sealed record NadpcoApiSyncResult(
     bool FullReload,
     int CompaniesConsidered,
@@ -9,7 +17,9 @@ public sealed record NadpcoApiSyncResult(
     int RequestsEnqueued,
     DateTimeOffset? OverlapFrom,
     DateTimeOffset? AdvancedWatermark,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    NadpcoApiSyncRunMode RunMode = NadpcoApiSyncRunMode.FullSync,
+    NadpcoCompanyCatalogCleanSlateResult? CleanSlate = null);
 
 public sealed record NadpcoApiSyncState(
     string Dataset,
@@ -20,12 +30,17 @@ public sealed record NadpcoApiSyncState(
     int LastCompaniesConsidered,
     int LastCompaniesEnqueued,
     int LastFailedCompanies,
+    string? LastRunMode,
     string? LastError);
 
 public interface INadpcoApiScheduledSyncService
 {
     Task<NadpcoApiSyncResult> ExecuteAsync(
         bool fullReload,
+        CancellationToken cancellationToken);
+
+    Task<NadpcoApiSyncResult> ExecuteCompanyCatalogAsync(
+        bool cleanSlate,
         CancellationToken cancellationToken);
 }
 

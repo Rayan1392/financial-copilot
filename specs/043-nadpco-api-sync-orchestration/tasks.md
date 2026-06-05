@@ -31,16 +31,31 @@ Completed on 2026-06-03.
 
 ## Change Request Tasks - 2026-06-05
 
-- [ ] Add or update DataAdmin orchestration so operators can run NADPCO company-catalog-only
+- [x] Add or update DataAdmin orchestration so operators can run NADPCO company-catalog-only
       refreshes.
-- [ ] Add an explicit clean-slate company refresh mode that deletes existing PostgreSQL
+- [x] Add an explicit clean-slate company refresh mode that deletes existing PostgreSQL
       `Companies` rows and then imports NADPCO `/api/v3/BaseInfo/Companies`.
-- [ ] Ensure ordinary daily company refresh mode is idempotent: insert new `coID` rows, update
+- [x] Ensure ordinary daily company refresh mode is idempotent: insert new `coID` rows, update
       changed metadata, and avoid duplicate symbols.
-- [ ] Record run mode in sync-run telemetry: `CompanyCatalogCleanSlate`,
+- [x] Record run mode in sync-run telemetry: `CompanyCatalogCleanSlate`,
       `CompanyCatalogRefresh`, `FullSync`, or `IncrementalSync`.
-- [ ] Ensure scanner cache invalidation and metric/linkage follow-up behavior is triggered when
+- [x] Ensure scanner cache invalidation and metric/linkage follow-up behavior is triggered when
       company or symbol metadata changes.
-- [ ] Add authorization, telemetry, idempotency, clean-slate, and failure-recovery tests for the
+- [x] Add authorization, telemetry, idempotency, clean-slate, and failure-recovery tests for the
       company-catalog-only orchestration path.
+
+Order `46` implementation notes:
+
+- Added `NadpcoApiSyncRunMode` with `FullSync`, `IncrementalSync`,
+  `CompanyCatalogCleanSlate`, and `CompanyCatalogRefresh`.
+- Added `POST /api/v1/admin/nadpcoapi/company-catalog/clean-slate` and
+  `POST /api/v1/admin/nadpcoapi/company-catalog/refresh`.
+- The clean-slate route runs the order `45` cleanup service, invalidates scanner cache
+  immediately after destructive metadata cleanup, and then enqueues the NADPCO Symbols/company
+  catalog request through the existing raw-payload/normalizer path.
+- The refresh route only enqueues the NADPCO Symbols/company catalog request. Idempotent insert,
+  update, and duplicate-symbol behavior is owned by `NadpcoApiCompanyNormalizer`, already covered
+  by the spec `039` tests.
+- `NadpcoApiSyncStates.LastRunMode` records the most recent mode for DataAdmin telemetry.
+  Scheduled daily invocation is still owned by order `47`.
 

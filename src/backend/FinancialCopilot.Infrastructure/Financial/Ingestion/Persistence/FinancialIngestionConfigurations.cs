@@ -172,6 +172,7 @@ public sealed class NadpcoApiSyncStateRowConfiguration : IEntityTypeConfiguratio
         builder.ToTable("NadpcoApiSyncStates");
         builder.HasKey(row => row.Dataset);
         builder.Property(row => row.Dataset).HasMaxLength(64);
+        builder.Property(row => row.LastRunMode).HasMaxLength(64);
         builder.Property(row => row.LastError).HasMaxLength(1000);
     }
 }

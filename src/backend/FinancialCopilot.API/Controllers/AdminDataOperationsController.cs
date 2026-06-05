@@ -132,12 +132,36 @@ public sealed class AdminDataOperationsController(
     public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiIncrementalSync(CancellationToken cancellationToken) =>
         RunNadpcoApiSyncAsync(fullReload: false, cancellationToken);
 
+    [HttpPost("nadpcoapi/company-catalog/clean-slate")]
+    public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiCompanyCatalogCleanSlate(
+        CancellationToken cancellationToken) =>
+        RunNadpcoApiCompanyCatalogAsync(cleanSlate: true, cancellationToken);
+
+    [HttpPost("nadpcoapi/company-catalog/refresh")]
+    public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiCompanyCatalogRefresh(
+        CancellationToken cancellationToken) =>
+        RunNadpcoApiCompanyCatalogAsync(cleanSlate: false, cancellationToken);
+
     private async Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiSyncAsync(
         bool fullReload,
         CancellationToken cancellationToken)
     {
         var result = await nadpcoApiScheduledSync.ExecuteAsync(fullReload, cancellationToken);
+        return ToNadpcoApiSyncResponse(result);
+    }
+
+    private async Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiCompanyCatalogAsync(
+        bool cleanSlate,
+        CancellationToken cancellationToken)
+    {
+        var result = await nadpcoApiScheduledSync.ExecuteCompanyCatalogAsync(cleanSlate, cancellationToken);
+        return ToNadpcoApiSyncResponse(result);
+    }
+
+    private ActionResult<AdminNadpcoApiSyncResponse> ToNadpcoApiSyncResponse(NadpcoApiSyncResult result)
+    {
         return Ok(new AdminNadpcoApiSyncResponse(
+            result.RunMode.ToString(),
             result.FullReload,
             result.CompaniesConsidered,
             result.CompaniesEnqueued,
@@ -146,7 +170,17 @@ public sealed class AdminDataOperationsController(
             result.RequestsEnqueued,
             result.OverlapFrom,
             result.AdvancedWatermark,
-            result.Duration.ToString("g")));
+            result.Duration.ToString("g"),
+            result.CleanSlate is null
+                ? null
+                : new AdminNadpcoCompanyCatalogCleanSlateResponse(
+                    result.CleanSlate.MetricRecalculationRequestsDeleted,
+                    result.CleanSlate.FeatureComputationJobsDeleted,
+                    result.CleanSlate.FeatureSnapshotsDeleted,
+                    result.CleanSlate.DerivedMetricsDeleted,
+                    result.CleanSlate.SymbolsDeleted,
+                    result.CleanSlate.TradingInstrumentLinksCleared,
+                    result.CleanSlate.CompaniesDeleted)));
     }
 
     [HttpGet("nadpcoapi/sync-state")]
@@ -163,6 +197,7 @@ public sealed class AdminDataOperationsController(
             state.LastCompaniesConsidered,
             state.LastCompaniesEnqueued,
             state.LastFailedCompanies,
+            state.LastRunMode,
             state.LastError)).ToArray());
     }
 

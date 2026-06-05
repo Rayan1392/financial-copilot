@@ -49,6 +49,7 @@ public sealed record AdminCodalDbSyncResponse(
     string Duration);
 
 public sealed record AdminNadpcoApiSyncResponse(
+    string RunMode,
     bool FullReload,
     int CompaniesConsidered,
     int CompaniesEnqueued,
@@ -57,7 +58,17 @@ public sealed record AdminNadpcoApiSyncResponse(
     int RequestsEnqueued,
     DateTimeOffset? OverlapFrom,
     DateTimeOffset? AdvancedWatermark,
-    string Duration);
+    string Duration,
+    AdminNadpcoCompanyCatalogCleanSlateResponse? CleanSlate);
+
+public sealed record AdminNadpcoCompanyCatalogCleanSlateResponse(
+    int MetricRecalculationRequestsDeleted,
+    int FeatureComputationJobsDeleted,
+    int FeatureSnapshotsDeleted,
+    int DerivedMetricsDeleted,
+    int SymbolsDeleted,
+    int TradingInstrumentLinksCleared,
+    int CompaniesDeleted);
 
 public sealed record AdminNadpcoApiSyncStateResponse(
     string Dataset,
@@ -68,6 +79,7 @@ public sealed record AdminNadpcoApiSyncStateResponse(
     int LastCompaniesConsidered,
     int LastCompaniesEnqueued,
     int LastFailedCompanies,
+    string? LastRunMode,
     string? LastError);
 
 public sealed record AdminNadpcoScheduledSyncManualRunRequest(

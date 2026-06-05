@@ -12,6 +12,7 @@ public interface INadpcoApiSyncStateStore : INadpcoApiSyncStateReader
         IReadOnlyCollection<string> datasets,
         DateTimeOffset startedAt,
         DateTimeOffset? overlapFrom,
+        NadpcoApiSyncRunMode runMode,
         CancellationToken cancellationToken);
 
     Task RecordRunCompletionAsync(
@@ -21,6 +22,7 @@ public interface INadpcoApiSyncStateStore : INadpcoApiSyncStateReader
         int companiesConsidered,
         int companiesEnqueued,
         int failedCompanies,
+        NadpcoApiSyncRunMode runMode,
         string? error,
         CancellationToken cancellationToken);
 }
@@ -41,6 +43,7 @@ public sealed class EfCoreNadpcoApiSyncStateStore(
         IReadOnlyCollection<string> datasets,
         DateTimeOffset startedAt,
         DateTimeOffset? overlapFrom,
+        NadpcoApiSyncRunMode runMode,
         CancellationToken cancellationToken)
     {
         foreach (var dataset in datasets)
@@ -48,6 +51,7 @@ public sealed class EfCoreNadpcoApiSyncStateStore(
             var row = await FindOrCreateAsync(dataset, cancellationToken);
             row.LastRunStartedAt = startedAt;
             row.LastOverlapFrom = overlapFrom;
+            row.LastRunMode = runMode.ToString();
             row.LastError = null;
         }
 
@@ -61,6 +65,7 @@ public sealed class EfCoreNadpcoApiSyncStateStore(
         int companiesConsidered,
         int companiesEnqueued,
         int failedCompanies,
+        NadpcoApiSyncRunMode runMode,
         string? error,
         CancellationToken cancellationToken)
     {
@@ -71,6 +76,7 @@ public sealed class EfCoreNadpcoApiSyncStateStore(
             row.LastCompaniesConsidered = companiesConsidered;
             row.LastCompaniesEnqueued = companiesEnqueued;
             row.LastFailedCompanies = failedCompanies;
+            row.LastRunMode = runMode.ToString();
             row.LastError = error is null ? null : Limit(error);
 
             if (error is null && (row.LastSuccessfulSyncAt is null || successfulSyncAt > row.LastSuccessfulSyncAt))
@@ -94,6 +100,7 @@ public sealed class EfCoreNadpcoApiSyncStateStore(
                 row.LastCompaniesConsidered,
                 row.LastCompaniesEnqueued,
                 row.LastFailedCompanies,
+                row.LastRunMode,
                 row.LastError))
             .ToArrayAsync(cancellationToken);
 

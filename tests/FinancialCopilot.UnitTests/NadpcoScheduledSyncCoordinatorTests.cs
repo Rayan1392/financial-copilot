@@ -198,6 +198,11 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
                 AdvancedWatermark: Now,
                 Duration: TimeSpan.FromSeconds(2)));
         }
+
+        public Task<NadpcoApiSyncResult> ExecuteCompanyCatalogAsync(
+            bool cleanSlate,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Scheduled sync does not use company-catalog-only mode.");
     }
 
     private sealed class CapturingAlertSink : INadpcoScheduledSyncAlertSink

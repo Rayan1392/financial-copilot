@@ -220,6 +220,7 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("FullSync", document.RootElement.GetProperty("runMode").GetString());
         Assert.True(document.RootElement.GetProperty("fullReload").GetBoolean());
         Assert.Equal(4, document.RootElement.GetProperty("companiesConsidered").GetInt32());
         Assert.Equal(13, document.RootElement.GetProperty("requestsEnqueued").GetInt32());
@@ -238,6 +239,43 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NadpcoApi_CompanyCatalogCleanSlate_AsDataAdmin_ReturnsRunModeAndCleanupCounts()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/nadpcoapi/company-catalog/clean-slate",
+            content: null,
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("CompanyCatalogCleanSlate", document.RootElement.GetProperty("runMode").GetString());
+        Assert.True(document.RootElement.GetProperty("fullReload").GetBoolean());
+        Assert.Equal([true], _factory.NadpcoApiSync.CompanyCatalogModes);
+        var cleanSlate = document.RootElement.GetProperty("cleanSlate");
+        Assert.Equal(2, cleanSlate.GetProperty("companiesDeleted").GetInt32());
+        Assert.Equal(5, cleanSlate.GetProperty("symbolsDeleted").GetInt32());
+    }
+
+    [Fact]
+    public async Task NadpcoApi_CompanyCatalogRefresh_AsDataAdmin_InvokesRefreshMode()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/nadpcoapi/company-catalog/refresh",
+            content: null,
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("CompanyCatalogRefresh", document.RootElement.GetProperty("runMode").GetString());
+        Assert.False(document.RootElement.GetProperty("fullReload").GetBoolean());
+        Assert.Equal([false], _factory.NadpcoApiSync.CompanyCatalogModes);
+    }
+
+    [Fact]
     public async Task NadpcoApi_SyncState_AsDataAdmin_ReturnsOperationalState()
     {
         using var client = CreateDataAdminClient();
@@ -249,6 +287,7 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         var state = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal("FinancialStatements", state.GetProperty("dataset").GetString());
         Assert.Equal(4, state.GetProperty("lastCompaniesConsidered").GetInt32());
+        Assert.Equal("IncrementalSync", state.GetProperty("lastRunMode").GetString());
     }
 
     [Fact]
@@ -316,6 +355,22 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Empty(_factory.NadpcoApiSync.InvocationModes);
+    }
+
+    [Fact]
+    public async Task NadpcoApi_CompanyCatalogCleanSlate_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/nadpcoapi/company-catalog/clean-slate",
+            content: null,
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.NadpcoApiSync.CompanyCatalogModes);
     }
 
     [Fact]
@@ -600,6 +655,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public sealed class StubNadpcoApiScheduledSyncService : INadpcoApiScheduledSyncService, INadpcoApiSyncStateReader
     {
         public List<bool> InvocationModes { get; } = [];
+        public List<bool> CompanyCatalogModes { get; } = [];
 
         public Task<NadpcoApiSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
         {
@@ -613,7 +669,39 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 RequestsEnqueued: 13,
                 OverlapFrom: fullReload ? null : DateTimeOffset.Parse("2026-05-27T10:00:00Z"),
                 AdvancedWatermark: DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
-                Duration: TimeSpan.FromSeconds(2)));
+                Duration: TimeSpan.FromSeconds(2),
+                RunMode: fullReload ? NadpcoApiSyncRunMode.FullSync : NadpcoApiSyncRunMode.IncrementalSync));
+        }
+
+        public Task<NadpcoApiSyncResult> ExecuteCompanyCatalogAsync(
+            bool cleanSlate,
+            CancellationToken cancellationToken)
+        {
+            CompanyCatalogModes.Add(cleanSlate);
+            var runMode = cleanSlate
+                ? NadpcoApiSyncRunMode.CompanyCatalogCleanSlate
+                : NadpcoApiSyncRunMode.CompanyCatalogRefresh;
+            return Task.FromResult(new NadpcoApiSyncResult(
+                FullReload: cleanSlate,
+                CompaniesConsidered: cleanSlate ? 2 : 4,
+                CompaniesEnqueued: 0,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                RequestsEnqueued: 1,
+                OverlapFrom: null,
+                AdvancedWatermark: DateTimeOffset.Parse("2026-06-03T10:00:00Z"),
+                Duration: TimeSpan.FromSeconds(1),
+                RunMode: runMode,
+                CleanSlate: cleanSlate
+                    ? new NadpcoCompanyCatalogCleanSlateResult(
+                        MetricRecalculationRequestsDeleted: 1,
+                        FeatureComputationJobsDeleted: 2,
+                        FeatureSnapshotsDeleted: 3,
+                        DerivedMetricsDeleted: 4,
+                        SymbolsDeleted: 5,
+                        TradingInstrumentLinksCleared: 6,
+                        CompaniesDeleted: 2)
+                    : null));
         }
 
         public Task<IReadOnlyCollection<NadpcoApiSyncState>> QueryAsync(CancellationToken cancellationToken) =>
@@ -627,9 +715,14 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                     LastCompaniesConsidered: 4,
                     LastCompaniesEnqueued: 4,
                     LastFailedCompanies: 0,
+                    LastRunMode: NadpcoApiSyncRunMode.IncrementalSync.ToString(),
                     LastError: null)]);
 
-        public void Reset() => InvocationModes.Clear();
+        public void Reset()
+        {
+            InvocationModes.Clear();
+            CompanyCatalogModes.Clear();
+        }
     }
 
     public sealed class StubNadpcoScheduledSyncCoordinator :

@@ -164,7 +164,7 @@ function ScannerResultTable({
                       }`}
                     >
                       {cell?.formattedValue ?? cell?.value ?? "—"}
-                      {cell?.freshnessStatus && (
+                      {shouldShowFreshnessStatus(cell?.freshnessStatus) && (
                         <span className="block text-[9px] text-muted-foreground">
                           {cell.freshnessStatus}
                         </span>
@@ -215,9 +215,16 @@ function containsPersianText(text: string) {
   return /[\u0600-\u06ff\u0750-\u077f]/u.test(text);
 }
 
+function shouldShowFreshnessStatus(status?: string) {
+  return Boolean(status && status !== "Persisted");
+}
+
 function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {
   const key = column.identifier.toUpperCase();
   const displayName = column.displayName.toUpperCase();
+  if (key === "PE_TTM" || displayName === "PE_TTM") return "PE_TTM";
+  if (key === "PS_TTM" || displayName === "PS_TTM") return "PS_TTM";
+
   const localizedLabels: Record<string, string> = {
     SYMBOL: "نماد",
     COMPANY: "شرکت",

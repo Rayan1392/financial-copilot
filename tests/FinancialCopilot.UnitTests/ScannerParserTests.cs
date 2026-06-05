@@ -89,6 +89,38 @@ public sealed class ScannerParserTests
     }
 
     [Fact]
+    public async Task Parser_ResolvesBarePeTerm_ToCanonicalMetricCode()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJson("PE", "LessThan", 6.0m);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("PE below 6", "en", "corr-pe", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Single(result.Plan.Conditions);
+        Assert.Equal("PE_TTM", result.Plan.Conditions.First().MetricReference.MetricCode.Value);
+    }
+
+    [Fact]
+    public async Task Parser_ResolvesBarePsTerm_ToCanonicalMetricCode()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJson("PS", "LessThan", 1.5m);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("PS below 1.5", "en", "corr-ps", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Single(result.Plan.Conditions);
+        Assert.Equal("PS_TTM", result.Plan.Conditions.First().MetricReference.MetricCode.Value);
+    }
+
+    [Fact]
     public async Task Parser_ResolvesPersianPeRatio_ToCanonicalMetricCode()
     {
         var resolver = BuildAliasResolver();

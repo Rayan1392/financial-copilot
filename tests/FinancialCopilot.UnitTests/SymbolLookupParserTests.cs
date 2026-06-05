@@ -44,6 +44,26 @@ public sealed class SymbolLookupParserTests
         Assert.Equal("PE_TTM", result.Pairs.First().ResolvedMetricCode?.Value);
     }
 
+    [Theory]
+    [InlineData("PE", "PE_TTM")]
+    [InlineData("PS", "PS_TTM")]
+    public async Task Parser_BarePeAndPsMetricTerms_ReturnResolvedPairs(
+        string metricTerm,
+        string expectedMetricCode)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildPairsJson([("AAPL", metricTerm)], language: "en");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest($"{metricTerm} AAPL?", "en", $"corr-{metricTerm}", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        Assert.Single(result.Pairs);
+        Assert.Equal(expectedMetricCode, result.Pairs.First().ResolvedMetricCode?.Value);
+    }
+
     [Fact]
     public async Task Parser_MultipleSymbolsOnePair_ReturnsBothPairs()
     {

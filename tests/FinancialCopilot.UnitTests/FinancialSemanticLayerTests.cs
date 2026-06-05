@@ -44,6 +44,29 @@ public sealed class FinancialSemanticLayerTests
         Assert.Equal(english.ResolvedDefinition.Code, persian.ResolvedDefinition!.Code);
     }
 
+    [Theory]
+    [InlineData("PE", "en-US", "PE_TTM")]
+    [InlineData("pe", "fa-IR", "PE_TTM")]
+    [InlineData("PS", "en-US", "PS_TTM")]
+    [InlineData("ps", "fa-IR", "PS_TTM")]
+    public void AliasResolver_MapsBarePeAndPsTermsToTtmValuationMetrics(
+        string expression,
+        string language,
+        string expectedMetricCode)
+    {
+        var registry = new FinancialMetricRegistry(PhaseOneFinancialSemanticCatalog.Definitions, []);
+        var resolver = new MetricAliasResolver(registry);
+
+        var result = resolver.ResolveAlias(
+            expression,
+            language,
+            new MetricResolutionContext(FiscalPeriodType.ThreeMonths),
+            ActiveDate);
+
+        Assert.Equal(MetricResolutionStatus.Resolved, result.Status);
+        Assert.Equal(expectedMetricCode, result.ResolvedDefinition!.Code.Value);
+    }
+
     [Fact]
     public void AliasResolver_RequiresClarificationForPersianLatestQuarterNetProfitGrowth()
     {

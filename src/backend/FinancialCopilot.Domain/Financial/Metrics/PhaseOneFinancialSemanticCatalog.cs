@@ -157,9 +157,11 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.ThreeMonths],
             [
                 Alias("p/e", "en-US", "PE_TTM"),
+                Alias("pe", "en-US", "PE_TTM"),
                 // Persian queries often use Latin-script "P/E" — register for fa-IR so the resolver
                 // finds it regardless of which language tag the LLM attaches to the term.
                 Alias("p/e", "fa-IR", "PE_TTM"),
+                Alias("pe", "fa-IR", "PE_TTM"),
                 Alias("نسبت پی به ای", "fa-IR", "PE_TTM"),
                 Alias("پی به ای", "fa-IR", "PE_TTM"),
             ],
@@ -172,7 +174,9 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.ThreeMonths],
             [
                 Alias("p/s", "en-US", "PS_TTM"),
+                Alias("ps", "en-US", "PS_TTM"),
                 Alias("p/s", "fa-IR", "PS_TTM"),
+                Alias("ps", "fa-IR", "PS_TTM"),
                 Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM"),
                 Alias("پی به اس", "fa-IR", "PS_TTM"),
             ],

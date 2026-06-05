@@ -171,6 +171,39 @@ public sealed class NadpcoApiCompanyNormalizerTests
     }
 
     [Fact]
+    public async Task Normalize_LaterCatalogRefreshWithNewCompany_InsertsNewCompanyWithoutDeletingExisting()
+    {
+        const string secondCompanyJson = """
+            [
+              {
+                "coID": 13226,
+                "coTitle": "کشت و صنعت آبشیرین",
+                "coSymbol": "آبین",
+                "coSymbolEnglish": "ABYP",
+                "tseCode": "9987529074833218"
+              },
+              {
+                "coID": 99999,
+                "coTitle": "New Listed Company",
+                "coSymbol": "نیو",
+                "coSymbolEnglish": "NEWC",
+                "tseCode": "123456789"
+              }
+            ]
+            """;
+        await using var db = CreateIngestionDbContext();
+        var normalizer = CreateNormalizer(db);
+
+        await normalizer.NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
+        await normalizer.NormalizeAsync(MakePayload(secondCompanyJson), CancellationToken.None);
+
+        Assert.Equal(2, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
+        Assert.Equal(2, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
+        Assert.NotNull(await db.Companies.SingleOrDefaultAsync(c => c.ExternalCompanyId == "13226"));
+        Assert.NotNull(await db.Companies.SingleOrDefaultAsync(c => c.ExternalCompanyId == "99999"));
+    }
+
+    [Fact]
     public async Task Normalize_DuplicateCompanyWithConflictingIdentifiers_LastRowWinsAndLogsWarning()
     {
         const string json = """

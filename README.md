@@ -174,8 +174,11 @@ successful token response shape and lifetime are confirmed. Details are document
 [docs/nadpco-api-provider.md](docs/nadpco-api-provider.md).
 
 Automatic NADPCO incremental synchronization is controlled by `NadpcoScheduledSync` and is disabled
-by default. DataAdmin operators can inspect scheduler health/history and trigger an on-demand
-scheduled workflow through the protected `nadpcoapi/scheduled-sync/*` admin endpoints.
+by default. The scheduled plan includes a non-destructive `CompanyCatalog` refresh so newly listed
+NADPCO companies are inserted and changed metadata is updated after the initial backfill. The
+destructive company-catalog clean-slate path is maintenance-only through DataAdmin and is never run
+by the scheduled worker. DataAdmin operators can inspect scheduler health/history and trigger an
+on-demand scheduled workflow through the protected `nadpcoapi/scheduled-sync/*` admin endpoints.
 
 ## Market View Configuration
 

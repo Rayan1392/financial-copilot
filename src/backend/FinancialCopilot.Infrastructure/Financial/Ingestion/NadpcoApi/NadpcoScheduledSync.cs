@@ -19,6 +19,7 @@ public sealed class NadpcoScheduledSyncOptions
 
     public string[] DatasetSelection { get; init; } =
     [
+        "CompanyCatalog",
         "Symbols",
         "FinancialStatements",
         "FundamentalIndexes",
@@ -336,7 +337,7 @@ public sealed class NadpcoScheduledSyncCoordinator(
         {
             try
             {
-                result = await orchestration.ExecuteAsync(fullReload: false, timeout.Token);
+                result = await ExecuteSelectedDatasetsAsync(settings, timeout.Token);
                 lastException = null;
                 break;
             }
@@ -404,6 +405,73 @@ public sealed class NadpcoScheduledSyncCoordinator(
         return await repository.SetAlertEmittedAsync(run.RunId, alertEmitted, cancellationToken);
     }
 
+    private async Task<NadpcoApiSyncResult> ExecuteSelectedDatasetsAsync(
+        NadpcoScheduledSyncOptions settings,
+        CancellationToken cancellationToken)
+    {
+        var selected = settings.DatasetSelection
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var includeCompanyCatalog = selected.Contains("CompanyCatalog");
+        var includeIncremental = selected.Count == 0 || selected.Any(dataset => !dataset.Equals("CompanyCatalog", StringComparison.OrdinalIgnoreCase));
+
+        NadpcoApiSyncResult? catalogResult = null;
+        NadpcoApiSyncResult? incrementalResult = null;
+
+        if (includeCompanyCatalog)
+        {
+            catalogResult = await orchestration.ExecuteCompanyCatalogAsync(cleanSlate: false, cancellationToken);
+        }
+
+        if (includeIncremental)
+        {
+            incrementalResult = await orchestration.ExecuteAsync(fullReload: false, cancellationToken);
+        }
+
+        return CombineScheduledResults(catalogResult, incrementalResult);
+    }
+
+    private static NadpcoApiSyncResult CombineScheduledResults(
+        NadpcoApiSyncResult? catalogResult,
+        NadpcoApiSyncResult? incrementalResult)
+    {
+        if (catalogResult is null && incrementalResult is null)
+        {
+            return new NadpcoApiSyncResult(
+                FullReload: false,
+                CompaniesConsidered: 0,
+                CompaniesEnqueued: 0,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                RequestsEnqueued: 0,
+                OverlapFrom: null,
+                AdvancedWatermark: null,
+                Duration: TimeSpan.Zero,
+                RunMode: NadpcoApiSyncRunMode.CompanyCatalogRefresh);
+        }
+
+        if (incrementalResult is null)
+        {
+            return catalogResult!;
+        }
+
+        if (catalogResult is null)
+        {
+            return incrementalResult;
+        }
+
+        return incrementalResult with
+        {
+            CompaniesConsidered = incrementalResult.CompaniesConsidered + catalogResult.CompaniesConsidered,
+            CompaniesEnqueued = incrementalResult.CompaniesEnqueued + catalogResult.RequestsEnqueued,
+            FailedCompanies = incrementalResult.FailedCompanies + catalogResult.FailedCompanies,
+            FailedCompanyIds = incrementalResult.FailedCompanyIds.Concat(catalogResult.FailedCompanyIds).ToArray(),
+            RequestsEnqueued = incrementalResult.RequestsEnqueued + catalogResult.RequestsEnqueued,
+            Duration = incrementalResult.Duration + catalogResult.Duration
+        };
+    }
+
     private static (
         NadpcoScheduledSyncRunStatus Status,
         int Processed,
@@ -445,7 +513,13 @@ public sealed class NadpcoScheduledSyncCoordinator(
                 $"Failed company batches: {string.Join(",", result.FailedCompanyIds)}");
         }
 
-        return (NadpcoScheduledSyncRunStatus.Succeeded, result.CompaniesEnqueued, 0, null);
+        var processed = result.RunMode is NadpcoApiSyncRunMode.CompanyCatalogRefresh
+            ? result.RequestsEnqueued
+            : result.CompaniesEnqueued;
+        var diagnostics = result.RunMode is NadpcoApiSyncRunMode.CompanyCatalogRefresh
+            ? $"CompanyCatalogRefresh succeeded; requests={result.RequestsEnqueued}; companiesConsidered={result.CompaniesConsidered}; cleanSlate=false."
+            : null;
+        return (NadpcoScheduledSyncRunStatus.Succeeded, processed, 0, diagnostics);
     }
 
     private async Task<bool> EmitAlertIfNeededAsync(

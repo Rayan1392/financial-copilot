@@ -144,16 +144,35 @@ Deferred implementation details:
 
 ## Change Request Tasks - 2026-06-05
 
-- [ ] Include `CompanyCatalog` in the scheduled NADPCO dataset selection, with daily refresh as
+- [x] Include `CompanyCatalog` in the scheduled NADPCO dataset selection, with daily refresh as
       the default production recommendation once NADPCO credentials and initial backfill are
       verified.
-- [ ] Ensure scheduled `CompanyCatalog` refresh performs idempotent insert/update only and never
+- [x] Ensure scheduled `CompanyCatalog` refresh performs idempotent insert/update only and never
       executes the clean-slate delete path.
-- [ ] Add scheduler run-history fields or diagnostics that expose company-catalog processed row
+- [x] Add scheduler run-history fields or diagnostics that expose company-catalog processed row
       count, inserted row count, updated row count, failed row/batch count, and last successful
       company-catalog refresh timestamp where supported.
-- [ ] Add tests proving the scheduled worker inserts newly discovered NADPCO companies on a later
+- [x] Add tests proving the scheduled worker inserts newly discovered NADPCO companies on a later
       daily run.
-- [ ] Add tests proving scheduled runs do not invoke CyclicalWaves for company catalog updates.
-- [ ] Update operational documentation to distinguish initial clean-slate NADPCO company import
+- [x] Add tests proving scheduled runs do not invoke CyclicalWaves for company catalog updates.
+- [x] Update operational documentation to distinguish initial clean-slate NADPCO company import
       from recurring scheduled company refresh.
+
+Order `47` implementation notes:
+
+- Added `CompanyCatalog` to `NadpcoScheduledSyncOptions.DatasetSelection` and API/Worker
+  appsettings defaults. The recommended cadence remains daily via `CadenceSeconds = 86400`.
+- `NadpcoScheduledSyncCoordinator` now invokes
+  `INadpcoApiScheduledSyncService.ExecuteCompanyCatalogAsync(cleanSlate: false)` when
+  `CompanyCatalog` is selected. The coordinator never passes `cleanSlate: true`; destructive
+  catalog cleanup remains exclusive to explicit DataAdmin maintenance endpoints.
+- Company-catalog-only schedules can run without invoking the broader incremental orchestration.
+  Mixed schedules run the non-destructive catalog refresh and then the normal incremental
+  orchestration for other selected datasets.
+- Run history records `CompanyCatalog` in `DatasetSelectionJson`; company-catalog-only success
+  diagnostics include the `CompanyCatalogRefresh` mode, request count, companies considered, and
+  `cleanSlate=false`.
+- New tests cover scheduled non-destructive catalog refresh, company-catalog-only scheduling,
+  no clean-slate invocation, and later catalog refresh insertion of a newly listed NADPCO `coID`.
+  Because scheduled refresh uses the `NadpcoApi` company catalog request and existing NADPCO
+  normalizer, CyclicalWaves is not invoked for scheduled company catalog metadata updates.

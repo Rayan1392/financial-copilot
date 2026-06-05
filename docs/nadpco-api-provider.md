@@ -196,7 +196,7 @@ default:
     "Enabled": false,
     "CadenceSeconds": 86400,
     "ExecutionTimeUtc": null,
-    "DatasetSelection": [ "Symbols", "FinancialStatements", "FundamentalIndexes", "MonthlyProductionSales" ],
+    "DatasetSelection": [ "CompanyCatalog", "Symbols", "FinancialStatements", "FundamentalIndexes", "MonthlyProductionSales" ],
     "BatchSize": 100,
     "MaxConcurrency": 4,
     "RetryCount": 1,
@@ -217,6 +217,13 @@ manual scheduled-sync trigger. The coordinator persists one row per scheduled wo
 status, batch counts, retry diagnostics, lock owner/lease expiry, manual metadata, and alert
 emission status.
 
+`CompanyCatalog` is the recurring, non-destructive daily catalog refresh. It calls the NADPCO
+company catalog endpoint through `CompanyCatalogRefresh`, inserts newly listed `coID` rows, updates
+changed metadata through the idempotent normalizer, and never calls the clean-slate delete path.
+The destructive `CompanyCatalogCleanSlate` mode is only exposed through explicit DataAdmin
+maintenance/backfill operations and should be used before the first authoritative NADPCO import,
+not as a scheduled job.
+
 Manual scheduled runs are for operator-triggered incremental refreshes and use the same lock,
 retry, maximum-duration, run-history, alerting, and orchestration path as automatic runs. The older
 full/incremental endpoints remain available for explicit backfill and direct orchestration
@@ -233,11 +240,14 @@ Activation order:
 1. Configure credentials through secrets or environment variables.
 2. Apply the `FinancialIngestionDbContext` migrations, including `NadpcoApiSyncStates`.
 3. Verify `GET /api/v1/admin/provider-health`.
-4. Run `POST /api/v1/admin/data-sync/symbols` with `providerName = "NadpcoApi"` or
-   `POST /api/v1/admin/nadpcoapi/full-sync` to refresh the company catalog.
+4. For the first authoritative catalog load, run
+   `POST /api/v1/admin/nadpcoapi/company-catalog/clean-slate`, then allow the queued NADPCO
+   company-catalog request to complete.
 5. After companies exist locally, run full sync again to enqueue bounded per-company statements,
    fundamental indexes, and monthly activity.
 6. Enable `NadpcoScheduledSync:Enabled=true` in the Worker only after a successful full backfill.
+   Keep `CompanyCatalog` in `DatasetSelection` for the recommended daily non-destructive company
+   refresh.
 
 NADPCO currently does not expose a reliable modified-since cursor for the covered endpoints.
 Incremental orchestration therefore records `LastSuccessfulSyncAt` and `LastOverlapFrom`, then

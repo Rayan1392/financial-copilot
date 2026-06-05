@@ -40,10 +40,55 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
 
         Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
         Assert.Equal(1, orchestration.InvocationCount);
+        Assert.Equal([false], orchestration.CompanyCatalogModes);
         Assert.False(orchestration.FullReloadModes.Single());
-        Assert.Equal(4, run.ProcessedBatches);
+        Assert.Equal(5, run.ProcessedBatches);
         Assert.Equal("operator", run.ManualReason);
         Assert.NotNull(run.LastSuccessfulExecutionAt);
+    }
+
+    [Fact]
+    public async Task AutomaticRun_WhenCompanyCatalogSelected_InvokesNonDestructiveCatalogRefresh()
+    {
+        await using var db = CreateDb();
+        var orchestration = new StubNadpcoApiSyncService();
+        var coordinator = NewCoordinator(db, orchestration, options: new NadpcoScheduledSyncOptions
+        {
+            Enabled = true,
+            DatasetSelection = ["CompanyCatalog", "FinancialStatements"]
+        });
+
+        var run = await coordinator.RunAsync(
+            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
+            CancellationToken.None);
+
+        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
+        Assert.Equal([false], orchestration.CompanyCatalogModes);
+        Assert.Equal(1, orchestration.InvocationCount);
+        Assert.Contains("CompanyCatalog", run.DatasetSelectionJson);
+        Assert.DoesNotContain(true, orchestration.CompanyCatalogModes);
+    }
+
+    [Fact]
+    public async Task AutomaticRun_WhenOnlyCompanyCatalogSelected_DoesNotInvokeFullIncrementalSync()
+    {
+        await using var db = CreateDb();
+        var orchestration = new StubNadpcoApiSyncService();
+        var coordinator = NewCoordinator(db, orchestration, options: new NadpcoScheduledSyncOptions
+        {
+            Enabled = true,
+            DatasetSelection = ["CompanyCatalog"]
+        });
+
+        var run = await coordinator.RunAsync(
+            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
+            CancellationToken.None);
+
+        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
+        Assert.Equal(0, orchestration.InvocationCount);
+        Assert.Equal([false], orchestration.CompanyCatalogModes);
+        Assert.Equal(1, run.ProcessedBatches);
+        Assert.Contains("CompanyCatalogRefresh", run.Diagnostics);
     }
 
     [Fact]
@@ -176,6 +221,7 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
     {
         public int InvocationCount { get; private set; }
         public List<bool> FullReloadModes { get; } = [];
+        public List<bool> CompanyCatalogModes { get; } = [];
         public Exception? ExceptionToThrow { get; set; }
 
         public Task<NadpcoApiSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
@@ -201,8 +247,21 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
 
         public Task<NadpcoApiSyncResult> ExecuteCompanyCatalogAsync(
             bool cleanSlate,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException("Scheduled sync does not use company-catalog-only mode.");
+            CancellationToken cancellationToken)
+        {
+            CompanyCatalogModes.Add(cleanSlate);
+            return Task.FromResult(new NadpcoApiSyncResult(
+                FullReload: cleanSlate,
+                CompaniesConsidered: 2,
+                CompaniesEnqueued: 0,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                RequestsEnqueued: 1,
+                OverlapFrom: null,
+                AdvancedWatermark: Now,
+                Duration: TimeSpan.FromMilliseconds(100),
+                RunMode: NadpcoApiSyncRunMode.CompanyCatalogRefresh));
+        }
     }
 
     private sealed class CapturingAlertSink : INadpcoScheduledSyncAlertSink

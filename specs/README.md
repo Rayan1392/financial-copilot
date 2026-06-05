@@ -1,4 +1,4 @@
-# Specs Index
+﻿# Specs Index
 
 Each subfolder contains one user story and its implementation tasks. The numbered folders identify capabilities, not a strict implementation sequence; the dependency map below governs sequencing where capabilities overlap.
 

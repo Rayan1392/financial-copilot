@@ -176,39 +176,114 @@ When a routed answer is a list of stocks, `IScannerResultColumnPolicy` creates a
 
 ## Microsoft Agent Framework Orchestration
 
-Implement backend AI orchestration using Microsoft Agent Framework concepts:
+Microsoft Agent Framework is the required orchestration technology for AI orchestration V2.
 
-- Use an Agent for conversational interpretation and permitted tool use.
-- Use a Workflow for mandatory ordered processing where the backend must guarantee validation, calculation, accounting, and persistence.
-- Wrap Application-layer operations for agent/workflow invocation through narrow adapters, for example `AIFunctionFactory` tool adapters or workflow executors. Core services remain independent from the framework and AI provider.
-- Use function invocation middleware for telemetry, authorization/correlation propagation, and auditing of tool calls, not as the business source of truth.
+The current V1 orchestration may remain available during migration for rollback and backward compatibility, but all new orchestration work must target the Microsoft Agent Framework V2 path unless a later spec explicitly says otherwise.
 
-The scanner response path must be explicit:
+### Required V2 Orchestration Principles
+
+- Use an Agent for conversational interpretation, intent/tool-selection suggestions, clarification wording, explanation prose, and follow-up suggestions.
+- Use a Workflow for mandatory ordered backend processing where the system must guarantee validation, deterministic execution, accounting, audit, and persistence.
+- Keep `IAiQueryOrchestrationService` as the stable Application-facing contract.
+- Select the orchestration implementation by configuration, for example `AiOrchestration:Mode = V1 | MicrosoftAgentFrameworkV2`.
+- Preserve `POST /api/ai/v1/query` as the only public chat-query endpoint.
+- Wrap Application-layer operations through narrow tool/function adapters. Core services remain independent from Microsoft Agent Framework and AI providers.
+- Use function invocation middleware for telemetry, authorization/correlation propagation, privacy policy enforcement, and tool-call auditing.
+- Do not use middleware, prompts, or agent reasoning as the business source of truth.
+
+### Dependency Boundary
+
+Microsoft Agent Framework packages may be referenced only from the orchestration infrastructure/composition boundary that constructs agents, workflows, tools, middleware, and model-client bridges.
+
+Microsoft Agent Framework types must not leak into:
+
+- `FinancialCopilot.Domain`
+- `FinancialCopilot.Billing`
+- deterministic scanner execution services
+- semantic metric catalog/calculator services
+- public API request/response DTOs
+- provider-neutral AI model contracts from `014`
+
+Architecture tests must enforce this boundary.
+
+### Required V2 Workflow
+
+The scanner and symbol lookup response path must be explicit:
 
 ```text
 AI Facade Request
-  -> Entitlement / Usage Reservation Function
-  -> Agent Intent Detection and Scanner Tool Selection
-  -> Scanner Plan Parse and Validation Function
-  -> Scanner Execution Function
-  -> Result Table Projection and Quote Resolution Function
-  -> Confidence Score Calculation Function
-  -> Explainable Answer Assembly
-  -> Usage Finalization Function
-  -> Message Persistence
+  -> Resolve actor, tenant, authorization, conversation context
+  -> Retrieve permitted memory context
+  -> Billing: Validate entitlement and reserve usage
+  -> Microsoft Agent Framework Agent: intent/tool-selection suggestion
+  -> Workflow branch: Scanner | SymbolLookup | Clarification | Unknown
+  -> Parse and validate structured plan/function input
+  -> Execute deterministic Application service
+  -> Resolve data citations and freshness
+  -> Calculate deterministic confidence score
+  -> Build explainable answer
+  -> Collect missing-answer feedback where applicable
+  -> Billing: finalize or release reservation exactly once
+  -> Persist user/assistant messages and workflow evidence
   -> Facade Response
 ```
 
-`IConfidenceScoreCalculator` calculates the displayed confidence from deterministic evidence and versioned policy. `IUsageChargeCalculator` and `IUsageAccountingService` calculate and persist displayed credit consumption from versioned charging policy. These functions are required workflow steps and cannot be skipped, modified, or numerically decided by the LLM.
+`IConfidenceScoreCalculator` calculates the displayed confidence from deterministic evidence and versioned policy. `IUsageChargeCalculator` and `IUsageAccountingService` calculate and persist displayed credit consumption from versioned charging policy. These workflow steps are mandatory and cannot be skipped, modified, or numerically decided by the LLM.
 
-Billing follows the dedicated rules in `docs/billing-and-credits-domain.md`: the immutable ledger is authoritative, wallet balance is a projection, charging is operation-based, organization overdraft requires an explicit credit line, and direct individuals do not receive overdraft by default.
+### Required Tool/Function Adapters
 
-This approach follows Microsoft Agent Framework guidance: agents support tool-using conversation, while workflows provide explicit coordination for required functions. Relevant Microsoft documentation:
+The V2 workflow should expose only narrow validated adapters over existing Application services, such as:
+
+```text
+ScannerPlanToolAdapter
+ScannerExecutionToolAdapter
+SymbolLookupToolAdapter
+ExplainableAnswerToolAdapter
+MemoryContextToolAdapter
+BillingReservationFunction
+BillingFinalizationFunction
+MessagePersistenceFunction
+MissingAnswerFeedbackFunction
+```
+
+These adapters may call existing Application services. They must not expose raw `DbContext`, arbitrary SQL, dynamic LINQ, billing ledger mutation, wallet mutation, tenant selection, actor selection, or unvalidated provider calls to the LLM.
+
+### Provider-Neutral Model Execution
+
+Microsoft Agent Framework orchestration must use the provider-neutral AI model execution boundary from `014`.
+
+```text
+Microsoft Agent Framework Agent/Workflow Step
+  -> Requested capabilities
+  -> IAiModelProviderResolver
+  -> Compatible IAiModelClient
+  -> Normalized AI result and usage facts
+  -> Workflow telemetry, billing, evaluation, and audit
+```
+
+The workflow must not hardcode OpenAI, Claude, Ollama, Abravran, or any vendor SDK. Provider routing, fallback, tenant allow-lists, local-runtime restrictions, data residency, structured-output capability, and normalized usage facts remain owned by the provider-neutral AI abstraction.
+
+### Backward Compatibility and Rollback
+
+During migration:
+
+- V1 orchestration remains available behind configuration.
+- V2 must return the same public response contract shape as V1.
+- New response fields must be nullable/additive.
+- Existing frontend chat, conversation reload, scanner table, symbol lookup table, usage metadata, memory disclosures, citations, warnings, confidence, and billing behavior must continue to work.
+- Operators must be able to switch back to V1 without changing frontend code or public API routes.
+
+### Microsoft Agent Framework References
+
+This approach follows Microsoft Agent Framework guidance: agents support tool-using conversation and model interaction, while workflows provide graph-based, type-safe coordination for multi-step tasks. Middleware can intercept and extend agent behavior for logging, safety, compliance, and custom policy without putting business rules into prompts.
+
+Relevant Microsoft documentation:
 
 - <https://learn.microsoft.com/en-us/agent-framework/overview/>
 - <https://learn.microsoft.com/en-us/agent-framework/workflows/workflows>
 - <https://learn.microsoft.com/en-us/agent-framework/agents/middleware/>
 - <https://learn.microsoft.com/en-us/dotnet/ai/how-to/access-data-in-functions>
+
 
 ## AI Model Provider Abstraction
 

@@ -79,7 +79,7 @@ public sealed class NadpcoApiCompanyNormalizer(
             company.CompanySymbol = Trim(record.CoSymbol);
             company.CompanySymbolEnglish = Trim(record.CoSymbolEnglish);
             company.CompanySymbolPinglish = Trim(record.CoSymbolPinglish);
-            company.TseSymbol = Trim(record.CoSymbolEnglish) ?? Trim(record.CoSymbol);
+            company.TseSymbol = Trim(record.CoSymbol) ?? Trim(record.CoSymbolEnglish);
             company.InstrumentCode = Trim(record.TseCode);
             company.CompanyIsin = Trim(record.TseCIsinCode);
             company.SymbolIsin = Trim(record.TseSIsinCode);

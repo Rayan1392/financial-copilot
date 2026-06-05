@@ -34,3 +34,18 @@ persist progress, isolate failures, and avoid a single unrestricted vendor call.
 - Query-time synchronization.
 - Assuming a modified-since cursor where the vendor contract does not provide one.
 
+## Change Request - 2026-06-05
+
+The NADPCO orchestration must explicitly support a company-catalog refresh mode that can be used
+for both the initial clean-slate backfill and future daily refreshes:
+
+1. DataAdmin can trigger a NADPCO company-catalog refresh independently from statements,
+   fundamental indexes, product sales, and service sales.
+2. The initial clean-slate refresh deletes existing PostgreSQL `Companies` rows before importing
+   NADPCO `/api/v3/BaseInfo/Companies`.
+3. Daily refreshes must be idempotent and must insert newly discovered NADPCO companies while
+   updating changed metadata for existing `coID` rows.
+4. The orchestration must not call CyclicalWaves for company catalog updates.
+5. Sync-run telemetry must identify whether the run was a clean-slate company refresh,
+   ordinary company refresh, full NADPCO sync, or incremental NADPCO sync.
+

@@ -29,3 +29,18 @@ Completed on 2026-06-03.
 - Added unit and integration tests for batching, overlap progress, failure isolation, state reads,
   and authorization.
 
+## Change Request Tasks - 2026-06-05
+
+- [ ] Add or update DataAdmin orchestration so operators can run NADPCO company-catalog-only
+      refreshes.
+- [ ] Add an explicit clean-slate company refresh mode that deletes existing PostgreSQL
+      `Companies` rows and then imports NADPCO `/api/v3/BaseInfo/Companies`.
+- [ ] Ensure ordinary daily company refresh mode is idempotent: insert new `coID` rows, update
+      changed metadata, and avoid duplicate symbols.
+- [ ] Record run mode in sync-run telemetry: `CompanyCatalogCleanSlate`,
+      `CompanyCatalogRefresh`, `FullSync`, or `IncrementalSync`.
+- [ ] Ensure scanner cache invalidation and metric/linkage follow-up behavior is triggered when
+      company or symbol metadata changes.
+- [ ] Add authorization, telemetry, idempotency, clean-slate, and failure-recovery tests for the
+      company-catalog-only orchestration path.
+

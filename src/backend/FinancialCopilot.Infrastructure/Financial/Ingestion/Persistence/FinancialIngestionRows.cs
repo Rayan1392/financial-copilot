@@ -18,8 +18,17 @@ public sealed class NormalizedCompanyRow
     /// <summary>English company name (CodalDB <c>CoNameEnglish</c>).</summary>
     public string? NameEnglish { get; set; }
 
+    /// <summary>Provider-local company code (NADPCO <c>coCode</c>).</summary>
+    public string? CompanyCode { get; set; }
+
     /// <summary>Trading symbol (CodalDB <c>CompanySymbol</c>).</summary>
     public string? CompanySymbol { get; set; }
+
+    /// <summary>English trading symbol (NADPCO <c>coSymbolEnglish</c>).</summary>
+    public string? CompanySymbolEnglish { get; set; }
+
+    /// <summary>Pinglish trading symbol (NADPCO <c>coSymbolPinglish</c>).</summary>
+    public string? CompanySymbolPinglish { get; set; }
 
     /// <summary>TSE symbol (CodalDB <c>CoTSESymbol</c>).</summary>
     public string? TseSymbol { get; set; }
@@ -48,6 +57,48 @@ public sealed class NormalizedCompanyRow
 
     /// <summary>FK to <see cref="NormalizedMarketRow"/> (nullable).</summary>
     public Guid? MarketId { get; set; }
+
+    public int? PrecedencyRight { get; set; }
+
+    public string? AcceptionDateJalali { get; set; }
+
+    public string? AcceptionDateGregorian { get; set; }
+
+    public string? EnlistedDateJalali { get; set; }
+
+    public string? EnlistedDateGregorian { get; set; }
+
+    public string? IpoDateJalali { get; set; }
+
+    public string? IpoDateGregorian { get; set; }
+
+    public int? FundTypeId { get; set; }
+
+    public string? FundTypeTitle { get; set; }
+
+    public string? NationalId { get; set; }
+
+    public int? InExchange { get; set; }
+
+    public string? EstablishmentDateJalali { get; set; }
+
+    public string? EstablishmentDateGregorian { get; set; }
+
+    public string? BusinessStartDateJalali { get; set; }
+
+    public string? BusinessStartDateGregorian { get; set; }
+
+    public string? RegistrationDateJalali { get; set; }
+
+    public string? RegistrationDateGregorian { get; set; }
+
+    public string? RegistrationNumber { get; set; }
+
+    public string? RegistrationProvince { get; set; }
+
+    public string? RegistrationCity { get; set; }
+
+    public string? MarketBoard { get; set; }
 
     /// <summary>
     /// Source row last-modified timestamp (CodalDB <c>ModifiedDateTime</c>), used as the

@@ -84,11 +84,35 @@ public sealed class NadpcoApiCompanyNormalizerTests
         var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "13226");
         Assert.Equal("کشت و صنعت آبشیرین", company.Name);
         Assert.Equal("Ab Shirin Agroindustrial Co.", company.NameEnglish);
+        Assert.Equal("0113601", company.CompanyCode);
+        Assert.Equal("ABYP", company.CompanySymbolEnglish);
+        Assert.Equal("ABIN", company.CompanySymbolPinglish);
         Assert.Equal("آبین", company.CompanySymbol);
         Assert.Equal("ABYP", company.TseSymbol);
         Assert.Equal("9987529074833218", company.InstrumentCode);
         Assert.Equal("IRO7ABYP0004", company.CompanyIsin);
         Assert.Equal("IRO7ABYP0001", company.SymbolIsin);
+        Assert.Equal(0, company.PrecedencyRight);
+        Assert.Equal("1395/04/19", company.AcceptionDateJalali);
+        Assert.Equal("2016-07-09T00:00:00", company.AcceptionDateGregorian);
+        Assert.Equal("1395/04/19", company.EnlistedDateJalali);
+        Assert.Equal("2016-07-09T00:00:00", company.EnlistedDateGregorian);
+        Assert.Equal("1395/11/26", company.IpoDateJalali);
+        Assert.Equal("2017-02-14T00:00:00", company.IpoDateGregorian);
+        Assert.Null(company.FundTypeId);
+        Assert.Null(company.FundTypeTitle);
+        Assert.Equal("10260200698", company.NationalId);
+        Assert.Equal(1, company.InExchange);
+        Assert.Equal("1373/09/20", company.EstablishmentDateJalali);
+        Assert.Equal("1994-12-11T00:00:00", company.EstablishmentDateGregorian);
+        Assert.Null(company.BusinessStartDateJalali);
+        Assert.Null(company.BusinessStartDateGregorian);
+        Assert.Equal("1373/09/20", company.RegistrationDateJalali);
+        Assert.Equal("1994-12-11T00:00:00", company.RegistrationDateGregorian);
+        Assert.Equal("1831", company.RegistrationNumber);
+        Assert.Equal("تهران", company.RegistrationProvince);
+        Assert.Equal("تهران", company.RegistrationCity);
+        Assert.Equal("بازار پایه زرد", company.MarketBoard);
         Assert.NotNull(company.IndustryId);
         Assert.NotNull(company.GroupId);
         Assert.NotNull(company.MarketId);
@@ -218,6 +242,102 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Single(await providerDb.ProviderRawPayloads.ToListAsync());
         Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == ProviderName));
         Assert.Equal(1, await ingestionDb.Symbols.CountAsync(s => s.ProviderName == ProviderName));
+    }
+
+    [Fact]
+    public async Task CleanSlate_RemovesCompaniesAndDependentStaleRows()
+    {
+        await using var db = CreateIngestionDbContext();
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
+        var company = await db.Companies.SingleAsync();
+        var symbol = await db.Symbols.SingleAsync();
+        var periodStart = new DateOnly(2026, 1, 1);
+        var periodEnd = new DateOnly(2026, 3, 31);
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbol.Id,
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "v1",
+            PeriodType = "TTM",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Unit = "ratio",
+            ObservedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db.FeatureSnapshots.Add(new FeatureSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbol.Id,
+            FeatureCode = "value",
+            FeatureVersion = "v1",
+            PolicyVersion = "v1",
+            PeriodType = "TTM",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Unit = "ratio",
+            ObservedAt = Now,
+            LastSynchronizedAt = Now,
+            InputFingerprint = "fingerprint"
+        });
+        db.FeatureComputationJobs.Add(new FeatureComputationJobRow
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbol.Id,
+            FeatureCode = "value",
+            FeatureVersion = "v1",
+            PeriodType = "TTM",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            IdempotencyKey = "feature-job",
+            Status = "Pending",
+            RequestedAt = Now
+        });
+        db.MetricRecalculationRequests.Add(new MetricRecalculationRequestRow
+        {
+            Id = Guid.NewGuid(),
+            SourceDataset = "Symbols",
+            ExternalReference = "13226",
+            SourcePayloadChecksum = "checksum",
+            RequestedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "CyclicalWaves",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 9987529074833218,
+            InstrumentIsin = "IRO7ABYP0001",
+            Symbol = "ABYP",
+            Name = "Ab Shirin",
+            MarketCode = "TSE",
+            InstrumentKind = "Equity",
+            NormalizedCompanyId = company.Id,
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new NadpcoCompanyCatalogCleanSlateService(db).ClearAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.MetricRecalculationRequestsDeleted);
+        Assert.Equal(1, result.FeatureComputationJobsDeleted);
+        Assert.Equal(1, result.FeatureSnapshotsDeleted);
+        Assert.Equal(1, result.DerivedMetricsDeleted);
+        Assert.Equal(1, result.SymbolsDeleted);
+        Assert.Equal(1, result.TradingInstrumentLinksCleared);
+        Assert.Equal(1, result.CompaniesDeleted);
+        Assert.Empty(await db.Companies.ToListAsync());
+        Assert.Empty(await db.Symbols.ToListAsync());
+        Assert.Empty(await db.DerivedMetrics.ToListAsync());
+        Assert.Empty(await db.FeatureSnapshots.ToListAsync());
+        Assert.Empty(await db.FeatureComputationJobs.ToListAsync());
+        Assert.Empty(await db.MetricRecalculationRequests.ToListAsync());
+        Assert.Null((await db.TradingInstruments.SingleAsync()).NormalizedCompanyId);
     }
 
     private static FinancialIngestionDbContext CreateIngestionDbContext() =>

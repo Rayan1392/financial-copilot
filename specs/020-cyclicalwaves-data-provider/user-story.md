@@ -82,3 +82,18 @@ valuation ratios without depending on a specific vendor.
   with the value `"ConfiguredFinancialProvider"` — no behavioral change.
 - This spec does not cover a scheduling/trigger mechanism for daily sync; that is the
   responsibility of `012-admin-data-operations` admin endpoints or a future cron spec.
+
+## Change Request - 2026-06-05
+
+CyclicalWaves must no longer be used to create or update PostgreSQL `Companies` catalog rows.
+NADPCO `/api/v3/BaseInfo/Companies` is the authoritative company catalog source.
+
+Updated acceptance constraints:
+
+1. CyclicalWaves may continue to provide financial snapshots, monthly values, and valuation
+   ratio observations where still needed.
+2. CyclicalWaves symbol/ticker reads must not insert, update, or overwrite `Companies` rows.
+3. Any CyclicalWaves data that requires company linkage must resolve against existing
+   NADPCO-backed company/symbol metadata or emit a data-quality/linkage warning.
+4. CyclicalWaves must never overwrite NADPCO company names, symbols, industry, market, ISIN,
+   registration, or listing metadata.

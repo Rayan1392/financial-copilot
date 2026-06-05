@@ -584,6 +584,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();
         services.AddScoped<ICodalDbScheduledSyncService, CodalDbScheduledSyncService>();
         services.AddScoped<INadpcoApiSyncStateStore, EfCoreNadpcoApiSyncStateStore>();
+        services.AddScoped<INadpcoCompanyCatalogCleanSlateService, NadpcoCompanyCatalogCleanSlateService>();
         services.AddScoped<NadpcoApiScheduledSyncService>();
         services.AddScoped<INadpcoApiScheduledSyncService>(provider =>
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());

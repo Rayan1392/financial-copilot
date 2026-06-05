@@ -63,3 +63,18 @@ services.
 - Assuming NADPCO has a reliable modified-since cursor where the vendor contract does not provide
   one.
 - Removing or changing CodalDB synchronization.
+
+## Change Request - 2026-06-05
+
+The scheduled worker must include the NADPCO company catalog in the daily refresh plan so newly
+listed companies are added without manual intervention:
+
+1. A configurable daily scheduled job refreshes NADPCO `/api/v3/BaseInfo/Companies`.
+2. The daily job inserts new company records and updates changed company metadata without deleting
+   the catalog.
+3. The destructive clean-slate company refresh is never run automatically by the scheduled worker;
+   it is only available as an explicit DataAdmin/maintenance operation.
+4. Scheduled company refreshes use NADPCO only and never use CyclicalWaves to update
+   `Companies`.
+5. Scheduler status/history shows company-catalog refresh success, skipped, partial failure, or
+   failure separately enough for operators to diagnose stale catalog data.

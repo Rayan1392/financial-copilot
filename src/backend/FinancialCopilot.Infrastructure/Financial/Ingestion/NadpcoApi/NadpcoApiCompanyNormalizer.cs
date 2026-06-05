@@ -75,7 +75,10 @@ public sealed class NadpcoApiCompanyNormalizer(
 
             company.Name = Trim(record.CoTitle) ?? Trim(record.CoSymbol) ?? externalCompanyId;
             company.NameEnglish = Trim(record.CoTitleEnglish);
+            company.CompanyCode = Trim(record.CoCode);
             company.CompanySymbol = Trim(record.CoSymbol);
+            company.CompanySymbolEnglish = Trim(record.CoSymbolEnglish);
+            company.CompanySymbolPinglish = Trim(record.CoSymbolPinglish);
             company.TseSymbol = Trim(record.CoSymbolEnglish) ?? Trim(record.CoSymbol);
             company.InstrumentCode = Trim(record.TseCode);
             company.CompanyIsin = Trim(record.TseCIsinCode);
@@ -84,10 +87,29 @@ public sealed class NadpcoApiCompanyNormalizer(
             company.IndustryId = industryId;
             company.GroupId = groupId;
             company.MarketId = marketId;
+            company.PrecedencyRight = record.PrecedencyRight;
+            company.AcceptionDateJalali = Trim(record.AcceptionDate);
+            company.AcceptionDateGregorian = Trim(record.AcceptionDateGre);
+            company.EnlistedDateJalali = Trim(record.EnlistedDate);
+            company.EnlistedDateGregorian = Trim(record.EnlistedDateGre);
+            company.IpoDateJalali = Trim(record.IpoDate);
+            company.IpoDateGregorian = Trim(record.IpoDateGre);
+            company.FundTypeId = record.FundTypeID;
+            company.FundTypeTitle = Trim(record.FundTypeTitle);
+            company.NationalId = Trim(record.NationalID);
+            company.InExchange = record.InExchange;
+            company.EstablishmentDateJalali = Trim(record.EstablishmentDate);
+            company.EstablishmentDateGregorian = Trim(record.EstablishmentDateGre);
+            company.BusinessStartDateJalali = Trim(record.BusinessStartDate);
+            company.BusinessStartDateGregorian = Trim(record.BusinessStartDateGre);
+            company.RegistrationDateJalali = Trim(record.RegistrationDate);
+            company.RegistrationDateGregorian = Trim(record.RegistrationDateGre);
+            company.RegistrationNumber = Trim(record.RegistrationNumber);
+            company.RegistrationProvince = Trim(record.RegistrationProvince);
+            company.RegistrationCity = Trim(record.RegistrationCity);
+            company.MarketBoard = Trim(record.MarketBoard);
             company.SourceModifiedAt = null;
             company.LastSynchronizedAt = payload.ReceivedAt;
-
-            LogDeferredFields(record);
 
             var resolution = linkageResolver.Resolve(
                 new CompanyIdentifiers(
@@ -153,24 +175,6 @@ public sealed class NadpcoApiCompanyNormalizer(
             logger.LogWarning(
                 "NADPCO company {CompanyId} appeared multiple times with conflicting identifiers; last row wins.",
                 group.Key);
-        }
-    }
-
-    private void LogDeferredFields(NadpcoApiCompanyRecord record)
-    {
-        if (!string.IsNullOrWhiteSpace(record.AcceptionDate) ||
-            !string.IsNullOrWhiteSpace(record.EnlistedDate) ||
-            !string.IsNullOrWhiteSpace(record.IpoDate) ||
-            !string.IsNullOrWhiteSpace(record.NationalID) ||
-            !string.IsNullOrWhiteSpace(record.RegistrationNumber) ||
-            !string.IsNullOrWhiteSpace(record.MarketBoard) ||
-            record.FundTypeID is not null ||
-            record.PrecedencyRight is not null ||
-            record.InExchange is not null)
-        {
-            logger.LogInformation(
-                "NADPCO company {CompanyId} contains catalog attributes without normalized columns; retained in raw payload evidence.",
-                record.CoID);
         }
     }
 

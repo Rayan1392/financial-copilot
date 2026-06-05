@@ -141,3 +141,19 @@ Deferred implementation details:
   concrete bounded fan-out and provider read options.
 - Missed-schedule bounded catch-up is represented by configuration and trigger source; deeper
   multi-run catch-up queueing remains a future enhancement.
+
+## Change Request Tasks - 2026-06-05
+
+- [ ] Include `CompanyCatalog` in the scheduled NADPCO dataset selection, with daily refresh as
+      the default production recommendation once NADPCO credentials and initial backfill are
+      verified.
+- [ ] Ensure scheduled `CompanyCatalog` refresh performs idempotent insert/update only and never
+      executes the clean-slate delete path.
+- [ ] Add scheduler run-history fields or diagnostics that expose company-catalog processed row
+      count, inserted row count, updated row count, failed row/batch count, and last successful
+      company-catalog refresh timestamp where supported.
+- [ ] Add tests proving the scheduled worker inserts newly discovered NADPCO companies on a later
+      daily run.
+- [ ] Add tests proving scheduled runs do not invoke CyclicalWaves for company catalog updates.
+- [ ] Update operational documentation to distinguish initial clean-slate NADPCO company import
+      from recurring scheduled company refresh.

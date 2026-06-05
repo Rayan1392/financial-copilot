@@ -100,3 +100,15 @@
       - Last-quarter resolves correctly for each of the four Iranian fiscal quarters.
       - Penultimate quarter crosses fiscal-year boundary correctly.
       - Monthly resolution matches expected calendar month.
+
+## Change Request Tasks - 2026-06-05
+
+- [ ] Disable or remove CyclicalWaves company-row upserts from the symbol/ticker sync path.
+- [ ] Update CyclicalWaves financial-statement and monthly normalizers so they resolve company
+      linkage from existing NADPCO-backed company/symbol metadata instead of creating company
+      rows.
+- [ ] Add data-quality warnings when a CyclicalWaves ticker cannot be linked to an existing
+      NADPCO-backed company/symbol row.
+- [ ] Add regression tests proving CyclicalWaves cannot overwrite NADPCO company catalog fields.
+- [ ] Add regression tests proving CyclicalWaves financial observations can still be persisted
+      when linkage succeeds through NADPCO metadata.

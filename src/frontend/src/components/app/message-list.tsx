@@ -126,7 +126,7 @@ function ScannerResultTable({
   table: ScannerTable;
   onPageChange?: (page: number) => void;
 }) {
-  const isPersianTable = table.columns.some((column) => containsPersianText(column.displayName));
+  const isPersianTable = isRtlFinancialTable(table);
   const { page, pageSize, totalPages, matchingSymbolCount } = table.executionFacts;
   const hasPagination = totalPages > 1;
 
@@ -146,7 +146,7 @@ function ScannerResultTable({
                     isPersianTable ? "text-right" : "text-left"
                   }`}
                 >
-                  {column.displayName}
+                  {isPersianTable ? localizeColumnDisplayName(column) : column.displayName}
                 </th>
               ))}
             </tr>
@@ -213,6 +213,36 @@ function ScannerResultTable({
 
 function containsPersianText(text: string) {
   return /[\u0600-\u06ff\u0750-\u077f]/u.test(text);
+}
+
+function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {
+  const key = column.identifier.toUpperCase();
+  const displayName = column.displayName.toUpperCase();
+  const localizedLabels: Record<string, string> = {
+    SYMBOL: "نماد",
+    COMPANY: "شرکت",
+    PE_TTM: "نسبت قیمت به درآمد دوازده‌ماهه",
+    PS_TTM: "نسبت قیمت به فروش دوازده‌ماهه",
+    LATEST_PRICE: "آخرین قیمت",
+    DAILY_CHANGE_PERCENT: "تغییر روزانه %",
+    MARKET_CAP: "ارزش بازار",
+  };
+
+  return localizedLabels[key] ?? localizedLabels[displayName] ?? column.displayName;
+}
+
+function isRtlFinancialTable(table: ScannerTable) {
+  if (table.columns.some((column) => containsPersianText(column.displayName))) return true;
+
+  return table.rows.some((row) => {
+    if (containsPersianText(row.symbolCode) || containsPersianText(row.companyName ?? "")) {
+      return true;
+    }
+
+    return Object.values(row.cells).some((cell) =>
+      containsPersianText(String(cell?.formattedValue ?? cell?.value ?? "")),
+    );
+  });
 }
 
 function StreamingPlaceholder() {

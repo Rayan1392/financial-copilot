@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
@@ -10,15 +9,22 @@ namespace FinancialCopilot.UnitTests;
 public sealed class CyclicalWavesNormalizerTests
 {
     private const string ProviderName = "CyclicalWaves";
+    private const string NadpcoProviderName = "NadpcoApi";
+    private const string NadpcoCompanyId = "13226";
+    private const string MainTicker = "\u0634\u0644\u0631\u062f";
+    private const string SecondTicker = "\u062a\u0627\u067e\u06cc\u06a9\u0648";
+    private const string ThirdTicker = "\u0641\u0648\u0644\u0627\u062f";
 
-    private const string TickerListJson = """["شلرد","تاپیکو","فولاد"]""";
+    private static string TickerListJson =>
+        $$"""["{{MainTicker}}","{{SecondTicker}}","{{ThirdTicker}}"]""";
 
-    private const string TickerDetailJson = """
+    private static string TickerDetailJson =>
+        $$"""
         {
           "success": true,
           "data": {
             "_id": "6a144b2e5fad5d3fae081f92",
-            "ticker": "شلرد",
+            "ticker": "{{MainTicker}}",
             "enticker": "IRO7SHLP0001",
             "last_quarter_sale": 53244165000000,
             "penultimate_quarter_sale": 48760460000000,
@@ -64,55 +70,101 @@ public sealed class CyclicalWavesNormalizerTests
             ProviderName,
             dataset,
             "test-endpoint",
-            "شلرد",
+            MainTicker,
             json,
             "checksum-" + Guid.NewGuid(),
             DateTimeOffset.UtcNow);
 
-    // ── Symbol normalizer ──────────────────────────────────────────────────────
+    private static NormalizedCompanyRow SeedNadpcoCompany(
+        FinancialIngestionDbContext db,
+        string externalCompanyId = NadpcoCompanyId,
+        string ticker = MainTicker,
+        string? symbolIsin = "IRO7SHLP0001")
+    {
+        var company = new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoProviderName,
+            ExternalCompanyId = externalCompanyId,
+            Name = "NADPCO authoritative name",
+            NameEnglish = "NADPCO English",
+            CompanySymbol = ticker,
+            CompanySymbolEnglish = "NADP",
+            SymbolIsin = symbolIsin,
+            MarketBoard = "NADPCO board",
+            RegistrationNumber = "NADPCO registration",
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        };
+        db.Companies.Add(company);
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = company.Id,
+            ProviderName = NadpcoProviderName,
+            ExternalSymbolId = externalCompanyId,
+            SymbolCode = symbolIsin ?? ticker,
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.SaveChanges();
+        return company;
+    }
+
+    private static void SeedTickerListCompanies(FinancialIngestionDbContext db)
+    {
+        SeedNadpcoCompany(db, "13226", MainTicker, "IRO7SHLP0001");
+        SeedNadpcoCompany(db, "13227", SecondTicker, "IRO7TAPC0001");
+        SeedNadpcoCompany(db, "13228", ThirdTicker, "IRO7FOOL0001");
+    }
 
     [Fact]
-    public async Task SymbolNormalizer_ParsesTickerArrayAndCreatesCompanyAndSymbolRows()
+    public async Task SymbolNormalizer_ParsesTickerArrayAndCreatesSymbolsWithoutCreatingCompanies()
     {
         await using var db = CreateDbContext();
+        SeedTickerListCompanies(db);
         var normalizer = new CyclicalWavesSymbolNormalizer(db);
         var payload = MakePayload(ProviderDataset.Symbols, TickerListJson);
 
         var count = await normalizer.NormalizeAsync(payload, default);
 
         Assert.Equal(3, count);
-        Assert.Equal(3, await db.Companies.CountAsync());
-        Assert.Equal(3, await db.Symbols.CountAsync());
+        Assert.Equal(3, await db.Companies.CountAsync(c => c.ProviderName == NadpcoProviderName));
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
+        Assert.Equal(3, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
     }
 
     [Fact]
-    public async Task SymbolNormalizer_SetsCompanyNameToPersisnTicker()
+    public async Task SymbolNormalizer_DoesNotOverwriteNadpcoCompanyMetadata()
     {
         await using var db = CreateDbContext();
+        var seeded = SeedNadpcoCompany(db);
         var normalizer = new CyclicalWavesSymbolNormalizer(db);
-        var payload = MakePayload(ProviderDataset.Symbols, TickerListJson);
+        var payload = MakePayload(ProviderDataset.Symbols, $$"""["{{MainTicker}}"]""");
 
         await normalizer.NormalizeAsync(payload, default);
 
-        var company = await db.Companies.FirstAsync(c => c.ExternalCompanyId == "شلرد");
-        Assert.Equal("شلرد", company.Name);
+        var company = await db.Companies.SingleAsync(c => c.Id == seeded.Id);
+        Assert.Equal("NADPCO authoritative name", company.Name);
+        Assert.Equal("NADPCO English", company.NameEnglish);
+        Assert.Equal("NADPCO board", company.MarketBoard);
+        Assert.Equal("NADPCO registration", company.RegistrationNumber);
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
     }
 
     [Fact]
     public async Task SymbolNormalizer_IsIdempotent_NoDuplicateRowsOnSecondCall()
     {
         await using var db = CreateDbContext();
+        SeedTickerListCompanies(db);
         var normalizer = new CyclicalWavesSymbolNormalizer(db);
         var payload = MakePayload(ProviderDataset.Symbols, TickerListJson);
 
         await normalizer.NormalizeAsync(payload, default);
         await normalizer.NormalizeAsync(payload, default);
 
-        Assert.Equal(3, await db.Companies.CountAsync());
-        Assert.Equal(3, await db.Symbols.CountAsync());
+        Assert.Equal(3, await db.Companies.CountAsync(c => c.ProviderName == NadpcoProviderName));
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
+        Assert.Equal(3, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
     }
-
-    // ── Financial statement normalizer ────────────────────────────────────────
 
     [Fact]
     public async Task FinancialStatementNormalizer_ProducesThreeStatementRows()
@@ -130,8 +182,6 @@ public sealed class CyclicalWavesNormalizerTests
     [Fact]
     public async Task FinancialStatementNormalizer_WritesIncomeStatementTypeAndThreeMonthsPeriodType()
     {
-        // Spec 029 regression guard: CyclicalWaves writes only quarterly income data, so every row
-        // must have StatementType=IncomeStatement and PeriodType=ThreeMonths.
         await using var db = CreateDbContext();
         var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
@@ -152,8 +202,7 @@ public sealed class CyclicalWavesNormalizerTests
 
         await normalizer.NormalizeAsync(payload, default);
 
-        var q0 = await db.FinancialStatements
-            .FirstAsync(s => s.ExternalStatementId.EndsWith(":Q0"));
+        var q0 = await db.FinancialStatements.FirstAsync(s => s.ExternalStatementId.EndsWith(":Q0"));
         var items = await db.FinancialStatementLineItems
             .Where(i => i.FinancialStatementId == q0.Id)
             .ToListAsync();
@@ -199,8 +248,16 @@ public sealed class CyclicalWavesNormalizerTests
             .Select(i => i.MetricCode)
             .ToListAsync();
 
-        foreach (var code in new[] { "REVENUE", "NET_PROFIT", "GROSS_PROFIT", "OPERATING_PROFIT",
-            "NET_PROFIT_MARGIN", "GROSS_PROFIT_MARGIN", "OPERATING_PROFIT_MARGIN" })
+        foreach (var code in new[]
+        {
+            "REVENUE",
+            "NET_PROFIT",
+            "GROSS_PROFIT",
+            "OPERATING_PROFIT",
+            "NET_PROFIT_MARGIN",
+            "GROSS_PROFIT_MARGIN",
+            "OPERATING_PROFIT_MARGIN"
+        })
         {
             Assert.Contains(code, items);
         }
@@ -220,24 +277,52 @@ public sealed class CyclicalWavesNormalizerTests
     }
 
     [Fact]
-    public async Task FinancialStatementNormalizer_EntickerOverwritesProvisionalSymbolCode()
+    public async Task FinancialStatementNormalizer_WhenNadpcoLinkExists_UsesNadpcoCompanyAndDoesNotOverwriteMetadata()
     {
         await using var db = CreateDbContext();
-        var symbolNormalizer = new CyclicalWavesSymbolNormalizer(db);
-        await symbolNormalizer.NormalizeAsync(
-            MakePayload(ProviderDataset.Symbols, """["شلرد"]"""),
-            default);
+        var seeded = SeedNadpcoCompany(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
 
-        var statementNormalizer = new CyclicalWavesFinancialStatementNormalizer(db);
-        await statementNormalizer.NormalizeAsync(
+        await normalizer.NormalizeAsync(
             MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson),
             default);
 
-        var symbol = await db.Symbols.FirstAsync(s => s.ProviderName == ProviderName);
+        var statements = await db.FinancialStatements.ToListAsync();
+        Assert.All(statements, statement =>
+        {
+            Assert.Equal(NadpcoCompanyId, statement.ExternalCompanyId);
+            Assert.DoesNotContain("MissingData", statement.WarningsJson);
+        });
+
+        var symbol = await db.Symbols.SingleAsync(s => s.ProviderName == ProviderName);
+        Assert.Equal(seeded.Id, symbol.CompanyId);
         Assert.Equal("IRO7SHLP0001", symbol.SymbolCode);
+
+        var company = await db.Companies.SingleAsync(c => c.Id == seeded.Id);
+        Assert.Equal("NADPCO authoritative name", company.Name);
+        Assert.Equal("NADPCO English", company.NameEnglish);
+        Assert.Equal("NADPCO board", company.MarketBoard);
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
     }
 
-    // ── Monthly report normalizer ─────────────────────────────────────────────
+    [Fact]
+    public async Task FinancialStatementNormalizer_WhenNadpcoLinkMissing_AttachesMissingDataWarning()
+    {
+        await using var db = CreateDbContext();
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+
+        await normalizer.NormalizeAsync(
+            MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson),
+            default);
+
+        var statements = await db.FinancialStatements.ToListAsync();
+        Assert.All(statements, statement =>
+        {
+            Assert.Contains("MissingData", statement.WarningsJson);
+            Assert.Equal("6a144b2e5fad5d3fae081f92", statement.ExternalCompanyId);
+        });
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
+    }
 
     [Fact]
     public async Task MonthlyReportNormalizer_ProducesThreeReportRowsWithRevenueLineItem()
@@ -267,6 +352,26 @@ public sealed class CyclicalWavesNormalizerTests
         await normalizer.NormalizeAsync(payload, default);
 
         Assert.Equal(3, await db.MonthlyReports.CountAsync());
+    }
+
+    [Fact]
+    public async Task MonthlyReportNormalizer_WhenNadpcoLinkExists_UsesNadpcoExternalCompanyId()
+    {
+        await using var db = CreateDbContext();
+        SeedNadpcoCompany(db);
+        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db);
+
+        await normalizer.NormalizeAsync(
+            MakePayload(ProviderDataset.MonthlyProductionSales, TickerDetailJson),
+            default);
+
+        var reports = await db.MonthlyReports.ToListAsync();
+        Assert.All(reports, report =>
+        {
+            Assert.Equal(NadpcoCompanyId, report.ExternalCompanyId);
+            Assert.DoesNotContain("MissingData", report.WarningsJson);
+        });
+        Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
     }
 
     [Fact]

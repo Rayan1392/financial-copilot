@@ -1,12 +1,11 @@
-using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.DataQuality;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Domain.Financial.Periods;
-using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
@@ -32,10 +31,10 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         }
 
         var data = response.Data;
-        await EnrichSymbolAsync(data, payload.ReceivedAt, cancellationToken);
+        var linkage = await EnrichSymbolAsync(data, payload.ReceivedAt, cancellationToken);
 
         var asOf = payload.ReceivedAt;
-        var staleWarnings = StaleDataWarnings();
+        var warnings = Warnings(linkage is null, data.Ticker);
 
         var periods = new[]
         {
@@ -102,14 +101,14 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
                 dbContext.FinancialStatements.Add(statement);
             }
 
-            statement.ExternalCompanyId = data.Id;
+            statement.ExternalCompanyId = linkage?.ExternalCompanyId ?? data.Id;
             statement.StatementType = incomeStatementType;
             statement.PeriodType = threeMonthsPeriodType;
             statement.PeriodStart = p.Period.Start;
             statement.PeriodEnd = p.Period.End;
             statement.SourcePayloadChecksum = payload.Checksum;
             statement.LastSynchronizedAt = payload.ReceivedAt;
-            statement.WarningsJson = staleWarnings;
+            statement.WarningsJson = warnings;
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -132,32 +131,40 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         return periods.Length;
     }
 
-    private async Task EnrichSymbolAsync(
+    private async Task<CyclicalWavesCompanyLinkage?> EnrichSymbolAsync(
         CyclicalWavesTickerData data,
         DateTimeOffset receivedAt,
         CancellationToken cancellationToken)
     {
+        var linkage = await CyclicalWavesCompanyLinkageResolver.ResolveAsync(
+            dbContext,
+            data.Ticker,
+            data.Enticker,
+            cancellationToken);
+        if (linkage is null)
+        {
+            return null;
+        }
+
         var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
             row => row.ProviderName == ProviderName && row.ExternalSymbolId == data.Ticker,
             cancellationToken);
 
         if (symbol is null)
         {
-            return;
+            symbol = new NormalizedSymbolRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = ProviderName,
+                ExternalSymbolId = data.Ticker
+            };
+            dbContext.Symbols.Add(symbol);
         }
 
+        symbol.CompanyId = linkage.CompanyId;
         symbol.SymbolCode = data.Enticker;
         symbol.LastSynchronizedAt = receivedAt;
-
-        var company = await dbContext.Companies.SingleOrDefaultAsync(
-            row => row.Id == symbol.CompanyId,
-            cancellationToken);
-
-        if (company is not null)
-        {
-            company.Name = data.Ticker;
-            company.LastSynchronizedAt = receivedAt;
-        }
+        return linkage;
     }
 
     private async Task UpsertLineItemAsync(
@@ -184,10 +191,33 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         item.Value = value;
     }
 
-    private static string StaleDataWarnings() =>
-        JsonSerializer.Serialize(
-            new[] { new { Code = nameof(FinancialDataWarningCode.StaleData), Message = "Fiscal period dates are estimated from the request timestamp using Iranian fiscal-year calendar approximations." } },
-            JsonOptions);
+    private static string Warnings(bool missingLinkage, string? ticker)
+    {
+        object[] warnings = missingLinkage
+            ?
+            [
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.StaleData),
+                    Message = "Fiscal period dates are estimated from the request timestamp using Iranian fiscal-year calendar approximations."
+                },
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.MissingData),
+                    Message = $"CyclicalWaves ticker '{ticker}' could not be linked to an existing NADPCO company catalog row."
+                }
+            ]
+            :
+            [
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.StaleData),
+                    Message = "Fiscal period dates are estimated from the request timestamp using Iranian fiscal-year calendar approximations."
+                }
+            ];
+
+        return JsonSerializer.Serialize(warnings, JsonOptions);
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

@@ -1,5 +1,6 @@
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
+using FinancialCopilot.API;
 using FinancialCopilot.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -69,6 +70,11 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+{
+    await app.ApplyPendingDatabaseMigrationsAsync();
+}
 
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();

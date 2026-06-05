@@ -25,37 +25,28 @@ public sealed class CyclicalWavesSymbolNormalizer(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var existingCompanies = await dbContext.Companies
-            .Where(c => c.ProviderName == ProviderName)
-            .ToDictionaryAsync(c => c.ExternalCompanyId, StringComparer.OrdinalIgnoreCase, cancellationToken);
-
         var existingSymbols = await dbContext.Symbols
             .Where(s => s.ProviderName == ProviderName)
             .ToDictionaryAsync(s => s.ExternalSymbolId, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
+        var linked = 0;
         foreach (var ticker in uniqueTickers)
         {
-            if (!existingCompanies.TryGetValue(ticker, out var company))
+            var linkage = await CyclicalWavesCompanyLinkageResolver.ResolveAsync(
+                dbContext,
+                ticker,
+                enticker: null,
+                cancellationToken);
+            if (linkage is null)
             {
-                company = new NormalizedCompanyRow
-                {
-                    Id = Guid.NewGuid(),
-                    ProviderName = ProviderName,
-                    ExternalCompanyId = ticker
-                };
-                dbContext.Companies.Add(company);
-                existingCompanies[ticker] = company;
+                continue;
             }
-
-            company.Name = ticker;
-            company.LastSynchronizedAt = payload.ReceivedAt;
 
             if (!existingSymbols.TryGetValue(ticker, out var symbol))
             {
                 symbol = new NormalizedSymbolRow
                 {
                     Id = Guid.NewGuid(),
-                    CompanyId = company.Id,
                     ProviderName = ProviderName,
                     ExternalSymbolId = ticker
                 };
@@ -63,17 +54,19 @@ public sealed class CyclicalWavesSymbolNormalizer(
                 existingSymbols[ticker] = symbol;
             }
 
+            symbol.CompanyId = linkage.CompanyId;
             symbol.SymbolCode = ticker;
             symbol.LastSynchronizedAt = payload.ReceivedAt;
+            linked++;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return uniqueTickers.Count;
+        return linked;
     }
 
-    // Persian/Arabic Unicode block: U+0600–U+06FF
+    // Persian/Arabic Unicode block: U+0600-U+06FF.
     private static bool ContainsPersianCharacter(string ticker) =>
-        ticker.Any(c => c is >= '؀' and <= 'ۿ');
+        ticker.Any(c => c is >= '\u0600' and <= '\u06FF');
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

@@ -87,6 +87,8 @@ valuation ratios without depending on a specific vendor.
 
 CyclicalWaves must no longer be used to create or update PostgreSQL `Companies` catalog rows.
 NADPCO `/api/v3/BaseInfo/Companies` is the authoritative company catalog source.
+This change request supersedes the original CyclicalWaves company-creation acceptance criteria
+above wherever they conflict.
 
 Updated acceptance constraints:
 

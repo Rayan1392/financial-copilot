@@ -207,7 +207,8 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
                 ["Authentication:ApiKeys:Clients:0:TenantId"] = TenantId.ToString(),
                 ["Authentication:ApiKeys:Clients:0:Name"] = "Integration Client",
                 ["Authentication:ApiKeys:Clients:0:KeySha256"] = keyHash,
-                ["Authentication:ApiKeys:Clients:0:IsActive"] = "true"
+                ["Authentication:ApiKeys:Clients:0:IsActive"] = "true",
+                ["Database:ApplyMigrationsOnStartup"] = "false"
             });
         });
     }

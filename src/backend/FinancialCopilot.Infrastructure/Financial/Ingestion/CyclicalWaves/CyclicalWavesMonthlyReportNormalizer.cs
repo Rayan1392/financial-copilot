@@ -29,8 +29,13 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
         }
 
         var data = response.Data;
+        var linkage = await CyclicalWavesCompanyLinkageResolver.ResolveAsync(
+            dbContext,
+            data.Ticker,
+            data.Enticker,
+            cancellationToken);
         var asOf = payload.ReceivedAt;
-        var staleWarnings = StaleDataWarnings();
+        var warnings = Warnings(linkage is null, data.Ticker);
 
         var months = new[]
         {
@@ -68,12 +73,12 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
                 dbContext.MonthlyReports.Add(report);
             }
 
-            report.ExternalCompanyId = data.Id;
+            report.ExternalCompanyId = linkage?.ExternalCompanyId ?? data.Id;
             report.PeriodStart = m.Period.Start;
             report.PeriodEnd = m.Period.End;
             report.SourcePayloadChecksum = payload.Checksum;
             report.LastSynchronizedAt = payload.ReceivedAt;
-            report.WarningsJson = staleWarnings;
+            report.WarningsJson = warnings;
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -99,10 +104,33 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
         return months.Length;
     }
 
-    private static string StaleDataWarnings() =>
-        JsonSerializer.Serialize(
-            new[] { new { Code = nameof(FinancialDataWarningCode.StaleData), Message = "Monthly period dates are estimated from the request timestamp using Gregorian calendar approximations." } },
-            JsonOptions);
+    private static string Warnings(bool missingLinkage, string? ticker)
+    {
+        object[] warnings = missingLinkage
+            ?
+            [
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.StaleData),
+                    Message = "Monthly period dates are estimated from the request timestamp using Gregorian calendar approximations."
+                },
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.MissingData),
+                    Message = $"CyclicalWaves ticker '{ticker}' could not be linked to an existing NADPCO company catalog row."
+                }
+            ]
+            :
+            [
+                new
+                {
+                    Code = nameof(FinancialDataWarningCode.StaleData),
+                    Message = "Monthly period dates are estimated from the request timestamp using Gregorian calendar approximations."
+                }
+            ];
+
+        return JsonSerializer.Serialize(warnings, JsonOptions);
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

@@ -59,6 +59,7 @@ public sealed class EfCoreScannerExecutionService(
         var companyIds = symbolRows.Select(s => s.CompanyId).Distinct().ToList();
         var companyNameById = await dbContext.Companies.AsNoTracking()
             .Where(c => companyIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.Name })
             .ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
 
         var symbolIds = symbolRows.Select(s => s.Id).ToList();

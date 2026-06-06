@@ -463,11 +463,11 @@ internal static class E
 
     public static AiQueryResponse Response(DetectedIntent intent, bool clarification) =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), intent,
-            null, null, null, null, null, clarification, null, null);
+            null, null, null, null, null, null, clarification, null, null);
 
     public static AiQueryResponse ResponseWithPlan(ScannerQueryPlan plan) =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Scanner,
-            plan, null, null, null, null, false, null, null);
+            plan, null, null, null, null, null, false, null, null);
 
     public static AiQueryResponse ResponseWithEvidence(
         IReadOnlyCollection<MetricEvidenceSummary> evidence)
@@ -476,7 +476,7 @@ internal static class E
             0.9, new ConfidenceFactors(1.0, 1.0, 1.0, 0.0), "v1");
         var answer = new ExplainableAnswer([], evidence, [], confidence, [], null);
         return new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Scanner,
-            null, null, null, answer, null, false, null, null);
+            null, null, null, answer, confidence, null, false, null, null);
     }
 
     public static AiQueryResponse ResponseWithConfidence(double score, string policyVersion)
@@ -485,7 +485,7 @@ internal static class E
             score, new ConfidenceFactors(1.0, 1.0, 1.0, 0.0), policyVersion);
         var answer = new ExplainableAnswer([], [], [], confidence, [], null);
         return new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Scanner,
-            null, null, null, answer, null, false, null, null);
+            null, null, null, answer, confidence, null, false, null, null);
     }
 
     public static ScannerQueryPlan Plan(IReadOnlyCollection<ScannerCondition> conditions) =>

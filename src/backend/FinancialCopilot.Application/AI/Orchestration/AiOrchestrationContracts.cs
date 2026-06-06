@@ -49,6 +49,7 @@ public sealed record AiQueryResponse(
     ScannerTableResult? ScannerTable,
     SymbolLookupTableResult? SymbolLookupTable,
     ExplainableAnswer? ExplainableAnswer,
+    ConfidenceScoreResult? ConfidenceScore,
     string? TextAnswer,
     bool ClarificationRequired,
     string? ClarificationMessage,

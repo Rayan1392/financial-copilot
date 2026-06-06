@@ -409,6 +409,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMarketQuoteResolver, ProviderMarketQuoteResolver>();
         services.AddScoped<IScannerExecutionService, EfCoreScannerExecutionService>();
         services.AddScoped<IConfidenceScoreCalculator, ConfidenceScoreCalculator>();
+        services.AddScoped<IConfidenceScoringService, ConfidenceScoringService>();
+        services.AddSingleton<IConfidenceScoringAuditSink, LoggingConfidenceScoringAuditSink>();
         services.AddScoped<IScannerExplanationGenerator, LlmScannerExplanationGenerator>();
         services.AddScoped<IExplainableAnswerBuilder, ExplainableAnswerBuilder>();
         services.AddScoped<IBillingFacadeHook, AiFacadeBillingHook>();

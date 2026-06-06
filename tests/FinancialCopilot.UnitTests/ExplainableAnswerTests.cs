@@ -102,6 +102,127 @@ public sealed class ConfidenceScoreCalculatorTests
             [], overflowWarnings ?? [], DateTimeOffset.UtcNow, "v1");
 }
 
+public sealed class ConfidenceScoringServiceTests
+{
+    private readonly ConfidenceScoringService _sut = new();
+
+    [Fact]
+    public void Calculate_PreCalculatedPeTtmAnswerMatchesTable_ReturnsAtLeastNinetyFivePercent()
+    {
+        var table = LookupTable("SHAPNA", "PE_TTM", 5.17m);
+
+        var score = _sut.Calculate(new ConfidenceScoringRequest(
+            "نسبت P/E نماد شپنا برابر است با 5.17",
+            null,
+            table,
+            ConfidenceSourceType.PreCalculatedMetric,
+            "corr"));
+
+        Assert.True(score.Score >= 0.95);
+        Assert.NotEqual(0.0, score.Score);
+    }
+
+    [Fact]
+    public void Calculate_DerivedMetricCalculatedSuccessfully_ReturnsAtLeastEightyFivePercent()
+    {
+        var table = LookupTable("FOLAD", "NET_PROFIT_GROWTH_QOQ", 42.25m);
+
+        var score = _sut.Calculate(new ConfidenceScoringRequest(
+            "Net profit growth is 42.25",
+            null,
+            table,
+            ConfidenceSourceType.DerivedMetric,
+            "corr"));
+
+        Assert.True(score.Score >= 0.85);
+    }
+
+    [Fact]
+    public void Calculate_PartialDataUsed_ReturnsBetweenFiftyAndEightyPercent()
+    {
+        var table = LookupTable(
+            [
+                Row("FOLAD", "PE_TTM", 5.17m),
+                RowMissing("SHAPNA", "PE_TTM")
+            ],
+            ["One requested symbol has no current PE_TTM value."]);
+
+        var score = _sut.Calculate(new ConfidenceScoringRequest(
+            "The available P/E value is 5.17",
+            null,
+            table,
+            ConfidenceSourceType.LlmInference,
+            "corr"));
+
+        Assert.InRange(score.Score, 0.50, 0.80);
+    }
+
+    [Fact]
+    public void Calculate_NoSupportingData_ReturnsAtMostThirtyPercent()
+    {
+        var table = LookupTable([RowMissing("FOLAD", "PE_TTM")], ["PE_TTM is unavailable."]);
+
+        var score = _sut.Calculate(new ConfidenceScoringRequest(
+            "No reliable P/E value is available.",
+            null,
+            table,
+            ConfidenceSourceType.MissingDataFallback,
+            "corr"));
+
+        Assert.True(score.Score <= 0.30);
+    }
+
+    private static SymbolLookupTableResult LookupTable(string symbol, string metricCode, decimal value) =>
+        LookupTable([Row(symbol, metricCode, value)], []);
+
+    private static SymbolLookupTableResult LookupTable(
+        IReadOnlyCollection<ScannerTableRow> rows,
+        IReadOnlyCollection<string> warnings)
+    {
+        var metricCode = rows
+            .SelectMany(r => r.Cells.Keys)
+            .First(k => k != "SYMBOL");
+
+        return new SymbolLookupTableResult(
+            Guid.NewGuid(),
+            [
+                new ScannerTableColumn("SYMBOL", "Symbol", ScannerColumnType.Symbol),
+                new ScannerTableColumn(metricCode, metricCode, ScannerColumnType.Metric, metricCode)
+            ],
+            rows,
+            new ScannerExecutionFacts(DateTimeOffset.UtcNow, TimeSpan.Zero, rows.Count, rows.Count, false),
+            warnings,
+            []);
+    }
+
+    private static ScannerTableRow Row(string symbol, string metricCode, decimal value)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new ScannerTableRow(
+            symbol,
+            null,
+            new Dictionary<string, ScannerTableCell>
+            {
+                ["SYMBOL"] = new(null, symbol, CellFreshnessStatus.Persisted, null),
+                [metricCode] = new(value, value.ToString("N2"), CellFreshnessStatus.Persisted, now)
+            },
+            1.0,
+            []);
+    }
+
+    private static ScannerTableRow RowMissing(string symbol, string metricCode) =>
+        new(
+            symbol,
+            null,
+            new Dictionary<string, ScannerTableCell>
+            {
+                ["SYMBOL"] = new(null, symbol, CellFreshnessStatus.Persisted, null),
+                [metricCode] = new(null, null, CellFreshnessStatus.Missing, null)
+            },
+            0.0,
+            []);
+}
+
 public sealed class ExplainableAnswerBuilderTests
 {
     [Fact]

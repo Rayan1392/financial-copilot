@@ -87,6 +87,7 @@ interface AssistantContentResponse {
   textAnswer?: string;
   scannerTable?: ScannerTable;
   symbolLookupTable?: ScannerTable;
+  confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
       metricDisplayName: string;
@@ -221,7 +222,7 @@ function mapAssistantBlock(
       content?.textAnswer ??
       fallbackMessage,
     intent: content?.intent ?? "Unknown",
-    confidence: explanation?.confidence.score ?? 0,
+    confidence: content?.confidenceScore?.score ?? explanation?.confidence.score ?? 0,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
     suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],
     filters:

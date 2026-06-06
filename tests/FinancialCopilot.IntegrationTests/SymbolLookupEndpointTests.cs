@@ -46,6 +46,10 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         Assert.False(string.IsNullOrWhiteSpace(
             rows[0].GetProperty("cells").GetProperty("COMPANY_NAME").GetProperty("formattedValue").GetString()));
         Assert.Equal(5.2m, rows[0].GetProperty("cells").GetProperty("PE_TTM").GetProperty("value").GetDecimal());
+
+        var confidence = document.RootElement.GetProperty("confidenceScore");
+        Assert.True(confidence.GetProperty("score").GetDouble() >= 0.95);
+        Assert.Equal("v1", confidence.GetProperty("policyVersion").GetString());
     }
 
     [Fact]
@@ -70,9 +74,11 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
             .First(m => m.GetProperty("role").GetString() == "Assistant");
         var content = assistant.GetProperty("content").GetString()!;
+        var confidence = assistant.GetProperty("assistantContent").GetProperty("confidenceScore");
 
         // Deterministic prose is grounded in the same table cell rendered in the table (5.20).
         Assert.Contains("5.20", content);
+        Assert.True(confidence.GetProperty("score").GetDouble() >= 0.95);
     }
 
     [Fact]

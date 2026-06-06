@@ -45,6 +45,30 @@ public sealed record ConfidenceScoreResult(
     ConfidenceFactors Factors,
     string PolicyVersion);
 
+public enum ConfidenceSourceType
+{
+    PreCalculatedMetric,
+    DerivedMetric,
+    LlmInference,
+    MissingDataFallback
+}
+
+public sealed record ConfidenceScoringRequest(
+    string? AnswerText,
+    ScannerTableResult? ScannerTable,
+    SymbolLookupTableResult? SymbolLookupTable,
+    ConfidenceSourceType SourceType,
+    string CorrelationId);
+
+public sealed record ConfidenceScoringAudit(
+    string CorrelationId,
+    ConfidenceSourceType SourceType,
+    int SupportedCells,
+    int ExpectedCells,
+    double NarrativeConsistency,
+    double WarningPenalty,
+    ConfidenceScoreResult Result);
+
 // Full explainable answer attached to a completed scanner result.
 public sealed record ExplainableAnswer(
     IReadOnlyCollection<ConditionFilterChip> FilterChips,
@@ -81,6 +105,16 @@ public interface IConfidenceScoreCalculator
     ConfidenceScoreResult Calculate(
         ScannerQueryPlan plan,
         ScannerTableResult? executionResult);
+}
+
+public interface IConfidenceScoringService
+{
+    ConfidenceScoreResult Calculate(ConfidenceScoringRequest request);
+}
+
+public interface IConfidenceScoringAuditSink
+{
+    void Record(ConfidenceScoringAudit audit);
 }
 
 // Builds a complete ExplainableAnswer from a validated scanner plan and execution result.

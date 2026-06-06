@@ -24,6 +24,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     MessagePersistenceFunction persistenceFunction,
     MissingAnswerFeedbackFunction feedbackFunction,
     IAnswerConsistencyValidator consistencyValidator,
+    IConfidenceScoringService confidenceScoringService,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -154,6 +155,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             request.CorrelationId, conversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2);
         var groundedAnswer = GroundAgentProse(
             detectedIntent, state, agentResponse.Text, consistencyContext);
+        var confidenceScore = CalculateConfidenceScore(
+            request.CorrelationId,
+            groundedAnswer,
+            state.LookupResult?.Table,
+            explainableAnswer);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -164,7 +170,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             textAnswer,
             state.ScannerResult?.Plan, state.ScannerResult?.Table,
             state.LookupResult?.Table,
-            explainableAnswer, usage,
+            explainableAnswer, confidenceScore, usage,
             memoryContext, groundedAnswer,
             createConversation, cancellationToken);
 
@@ -177,11 +183,57 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             state.ScannerResult?.Table,
             state.LookupResult?.Table,
             explainableAnswer,
+            confidenceScore,
             textAnswer,
             clarificationRequired,
             clarificationMessage,
             usage,
             disclosures);
+    }
+
+    private ConfidenceScoreResult? CalculateConfidenceScore(
+        string correlationId,
+        string? answerText,
+        SymbolLookupTableResult? symbolLookupTable,
+        ExplainableAnswer? explainableAnswer)
+    {
+        if (explainableAnswer is not null)
+            return explainableAnswer.Confidence;
+
+        if (symbolLookupTable is null)
+            return null;
+
+        return confidenceScoringService.Calculate(new ConfidenceScoringRequest(
+            answerText,
+            null,
+            symbolLookupTable,
+            DetermineLookupSourceType(symbolLookupTable),
+            correlationId));
+    }
+
+    private static ConfidenceSourceType DetermineLookupSourceType(SymbolLookupTableResult table)
+    {
+        var financialColumns = table.Columns
+            .Where(c => c.ColumnType is ScannerColumnType.Metric
+                or ScannerColumnType.LatestPrice
+                or ScannerColumnType.DailyChangePercent
+                or ScannerColumnType.MarketCap)
+            .ToList();
+
+        var hasSupportedValue = table.Rows.Any(row =>
+            financialColumns.Any(column =>
+                row.Cells.TryGetValue(column.Identifier, out var cell) &&
+                cell.Value is not null &&
+                cell.FreshnessStatus != CellFreshnessStatus.Missing));
+
+        if (!hasSupportedValue)
+            return ConfidenceSourceType.MissingDataFallback;
+
+        return financialColumns.All(c =>
+            string.Equals(c.MetricCode ?? c.Identifier, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "PS_TTM", StringComparison.OrdinalIgnoreCase))
+            ? ConfidenceSourceType.PreCalculatedMetric
+            : ConfidenceSourceType.DerivedMetric;
     }
 
     private AIFunction CreateScannerTool(

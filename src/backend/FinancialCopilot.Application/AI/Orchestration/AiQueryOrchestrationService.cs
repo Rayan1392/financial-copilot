@@ -22,6 +22,7 @@ public sealed class AiQueryOrchestrationService(
     IMissingAnswerFeedbackCollector feedbackCollector,
     IAnswerConsistencyValidator consistencyValidator,
     ISymbolLookupProseBuilder symbolLookupProseBuilder,
+    IConfidenceScoringService confidenceScoringService,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -70,6 +71,7 @@ public sealed class AiQueryOrchestrationService(
         ScannerTableResult? scannerTable = null;
         SymbolLookupTableResult? symbolLookupTable = null;
         ExplainableAnswer? explainableAnswer = null;
+        ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
         bool clarificationRequired;
         string? clarificationMessage;
@@ -302,6 +304,12 @@ public sealed class AiQueryOrchestrationService(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
             consistencyContext);
+        confidenceScore = CalculateConfidenceScore(
+            request.CorrelationId,
+            assistantContent,
+            scannerTable,
+            symbolLookupTable,
+            explainableAnswer);
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -323,6 +331,7 @@ public sealed class AiQueryOrchestrationService(
                     scannerTable,
                     symbolLookupTable,
                     explainableAnswer,
+                    confidenceScore,
                     usage,
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null)),
             createConversation,
@@ -337,11 +346,58 @@ public sealed class AiQueryOrchestrationService(
             scannerTable,
             symbolLookupTable,
             explainableAnswer,
+            confidenceScore,
             textAnswer,
             clarificationRequired,
             clarificationMessage,
             usage,
             memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null);
+    }
+
+    private ConfidenceScoreResult? CalculateConfidenceScore(
+        string correlationId,
+        string? answerText,
+        ScannerTableResult? scannerTable,
+        SymbolLookupTableResult? symbolLookupTable,
+        ExplainableAnswer? explainableAnswer)
+    {
+        if (explainableAnswer is not null)
+            return explainableAnswer.Confidence;
+
+        if (symbolLookupTable is null)
+            return null;
+
+        return confidenceScoringService.Calculate(new ConfidenceScoringRequest(
+            answerText,
+            null,
+            symbolLookupTable,
+            DetermineLookupSourceType(symbolLookupTable),
+            correlationId));
+    }
+
+    private static ConfidenceSourceType DetermineLookupSourceType(SymbolLookupTableResult table)
+    {
+        var financialColumns = table.Columns
+            .Where(c => c.ColumnType is ScannerColumnType.Metric
+                or ScannerColumnType.LatestPrice
+                or ScannerColumnType.DailyChangePercent
+                or ScannerColumnType.MarketCap)
+            .ToList();
+
+        var hasSupportedValue = table.Rows.Any(row =>
+            financialColumns.Any(column =>
+                row.Cells.TryGetValue(column.Identifier, out var cell) &&
+                cell.Value is not null &&
+                cell.FreshnessStatus != CellFreshnessStatus.Missing));
+
+        if (!hasSupportedValue)
+            return ConfidenceSourceType.MissingDataFallback;
+
+        return financialColumns.All(c =>
+            string.Equals(c.MetricCode ?? c.Identifier, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "PS_TTM", StringComparison.OrdinalIgnoreCase))
+            ? ConfidenceSourceType.PreCalculatedMetric
+            : ConfidenceSourceType.DerivedMetric;
     }
 
     private async Task TryCollectLookupFeedbackAsync(

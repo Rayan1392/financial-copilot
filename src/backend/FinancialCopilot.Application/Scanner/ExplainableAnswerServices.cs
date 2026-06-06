@@ -227,3 +227,242 @@ public sealed class ExplainableAnswerBuilder(
             ? ((long)threshold).ToString()
             : threshold.ToString("N2");
 }
+
+public sealed class ConfidenceScoringService(
+    IConfidenceScoringAuditSink? auditSink = null) : IConfidenceScoringService
+{
+    private const string PolicyVersion = "v1";
+    private const double SourceWeight = 0.45;
+    private const double CompletenessWeight = 0.20;
+    private const double SupportingSourcesWeight = 0.15;
+    private const double FreshnessWeight = 0.10;
+    private const double ConsistencyWeight = 0.10;
+    private const double WarningPenaltyPerWarning = 0.10;
+    private const double MaxWarningPenalty = 0.30;
+
+    public ConfidenceScoreResult Calculate(ConfidenceScoringRequest request)
+    {
+        var tableCells = GetFinancialCells(request).ToList();
+        var expectedCellCount = CountExpectedFinancialCells(request);
+        var supportedCells = tableCells
+            .Where(cell => cell.Value is not null && cell.FreshnessStatus != CellFreshnessStatus.Missing)
+            .ToList();
+
+        var sourceReliability = GetSourceReliability(request.SourceType);
+        var completeness = expectedCellCount == 0 ? 0.0 : (double)supportedCells.Count / expectedCellCount;
+        var supportingSources = CalculateSupportingSources(supportedCells.Count);
+        var freshness = CalculateFreshness(supportedCells);
+        var warningPenalty = CalculateWarningPenalty(request);
+        var narrativeConsistency = CalculateNarrativeConsistency(request.AnswerText, supportedCells);
+
+        var rawScore =
+            sourceReliability * SourceWeight +
+            completeness * CompletenessWeight +
+            supportingSources * SupportingSourcesWeight +
+            freshness * FreshnessWeight +
+            narrativeConsistency * ConsistencyWeight;
+
+        var finalScore = Math.Clamp(Math.Round(rawScore * (1.0 - warningPenalty), 2), 0.0, 1.0);
+
+        if (request.SourceType == ConfidenceSourceType.PreCalculatedMetric &&
+            supportedCells.Count > 0)
+        {
+            finalScore = Math.Max(finalScore, 0.95);
+        }
+
+        var result = new ConfidenceScoreResult(
+            finalScore,
+            new ConfidenceFactors(
+                sourceReliability,
+                completeness,
+                freshness,
+                warningPenalty),
+            PolicyVersion);
+
+        auditSink?.Record(new ConfidenceScoringAudit(
+            request.CorrelationId,
+            request.SourceType,
+            supportedCells.Count,
+            expectedCellCount,
+            narrativeConsistency,
+            warningPenalty,
+            result));
+
+        return result;
+    }
+
+    private static double GetSourceReliability(ConfidenceSourceType sourceType) =>
+        sourceType switch
+        {
+            ConfidenceSourceType.PreCalculatedMetric => 0.97,
+            ConfidenceSourceType.DerivedMetric => 0.88,
+            ConfidenceSourceType.LlmInference => 0.65,
+            ConfidenceSourceType.MissingDataFallback => 0.25,
+            _ => 0.25
+        };
+
+    private static double CalculateSupportingSources(int supportedCellCount) =>
+        supportedCellCount switch
+        {
+            <= 0 => 0.0,
+            1 => 0.9,
+            _ => 1.0
+        };
+
+    private static double CalculateFreshness(IReadOnlyCollection<ScannerTableCell> supportedCells)
+    {
+        if (supportedCells.Count == 0) return 0.0;
+
+        return supportedCells.Average(cell => cell.FreshnessStatus switch
+        {
+            CellFreshnessStatus.Live => 1.0,
+            CellFreshnessStatus.PreviousTradingDay => 1.0,
+            CellFreshnessStatus.Persisted => 0.9,
+            CellFreshnessStatus.Missing => 0.0,
+            _ => 0.0
+        });
+    }
+
+    private static double CalculateWarningPenalty(ConfidenceScoringRequest request)
+    {
+        var warnings =
+            (request.ScannerTable?.MissingDataWarnings.Count ?? 0) +
+            (request.SymbolLookupTable?.MissingDataWarnings.Count ?? 0) +
+            (request.SymbolLookupTable?.UnresolvedSymbols.Count ?? 0);
+        return Math.Min(MaxWarningPenalty, warnings * WarningPenaltyPerWarning);
+    }
+
+    private static double CalculateNarrativeConsistency(
+        string? answerText,
+        IReadOnlyCollection<ScannerTableCell> supportedCells)
+    {
+        if (supportedCells.Count == 0) return 0.0;
+        if (string.IsNullOrWhiteSpace(answerText)) return 0.75;
+
+        var narrativeNumbers = ExtractNumbers(answerText).ToList();
+        if (narrativeNumbers.Count == 0) return 0.75;
+
+        var supportedValues = supportedCells
+            .Select(cell => cell.Value!.Value)
+            .Concat(supportedCells.SelectMany(cell => ExtractNumbers(cell.FormattedValue)))
+            .Distinct()
+            .ToList();
+
+        return narrativeNumbers.Any(n =>
+            supportedValues.Any(v => ValuesMatch(n, v)))
+            ? 1.0
+            : 0.5;
+    }
+
+    private static bool ValuesMatch(decimal left, decimal right) =>
+        Math.Abs(left - right) <= 0.005m;
+
+    private static IEnumerable<decimal> ExtractNumbers(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) yield break;
+
+        var normalized = NormalizeDigits(text);
+        var chars = new List<char>();
+
+        foreach (var ch in normalized)
+        {
+            if (char.IsDigit(ch) || ch is '.' or '-' or '+')
+            {
+                chars.Add(ch);
+                continue;
+            }
+
+            if (chars.Count > 0)
+            {
+                if (TryParse(chars, out var value)) yield return value;
+                chars.Clear();
+            }
+        }
+
+        if (chars.Count > 0 && TryParse(chars, out var finalValue))
+            yield return finalValue;
+    }
+
+    private static string NormalizeDigits(string text)
+    {
+        var chars = text.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            chars[i] = chars[i] switch
+            {
+                >= '۰' and <= '۹' => (char)('0' + chars[i] - '۰'),
+                >= '٠' and <= '٩' => (char)('0' + chars[i] - '٠'),
+                '٫' => '.',
+                '٬' or ',' => '\0',
+                _ => chars[i]
+            };
+        }
+
+        return new string(chars.Where(c => c != '\0').ToArray());
+    }
+
+    private static bool TryParse(IReadOnlyCollection<char> chars, out decimal value)
+    {
+        var token = new string(chars.ToArray()).Trim('.', '+', '-');
+        return decimal.TryParse(
+            token,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out value);
+    }
+
+    private static IEnumerable<ScannerTableCell> GetFinancialCells(ConfidenceScoringRequest request)
+    {
+        if (request.ScannerTable is not null)
+        {
+            foreach (var cell in GetFinancialCells(request.ScannerTable.Columns, request.ScannerTable.Rows))
+                yield return cell;
+        }
+
+        if (request.SymbolLookupTable is not null)
+        {
+            foreach (var cell in GetFinancialCells(request.SymbolLookupTable.Columns, request.SymbolLookupTable.Rows))
+                yield return cell;
+        }
+    }
+
+    private static IEnumerable<ScannerTableCell> GetFinancialCells(
+        IReadOnlyCollection<ScannerTableColumn> columns,
+        IReadOnlyCollection<ScannerTableRow> rows)
+    {
+        var financialColumnIds = columns
+            .Where(IsFinancialColumn)
+            .Select(c => c.Identifier)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            foreach (var columnId in financialColumnIds)
+            {
+                if (row.Cells.TryGetValue(columnId, out var cell))
+                    yield return cell;
+            }
+        }
+    }
+
+    private static int CountExpectedFinancialCells(ConfidenceScoringRequest request)
+    {
+        var count = 0;
+        if (request.ScannerTable is not null)
+            count += CountExpectedFinancialCells(request.ScannerTable.Columns, request.ScannerTable.Rows);
+        if (request.SymbolLookupTable is not null)
+            count += CountExpectedFinancialCells(request.SymbolLookupTable.Columns, request.SymbolLookupTable.Rows);
+        return count;
+    }
+
+    private static int CountExpectedFinancialCells(
+        IReadOnlyCollection<ScannerTableColumn> columns,
+        IReadOnlyCollection<ScannerTableRow> rows) =>
+        columns.Count(IsFinancialColumn) * rows.Count;
+
+    private static bool IsFinancialColumn(ScannerTableColumn column) =>
+        column.ColumnType is ScannerColumnType.Metric
+            or ScannerColumnType.LatestPrice
+            or ScannerColumnType.DailyChangePercent
+            or ScannerColumnType.MarketCap;
+}

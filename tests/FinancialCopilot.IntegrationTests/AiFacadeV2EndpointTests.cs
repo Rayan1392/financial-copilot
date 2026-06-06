@@ -108,6 +108,10 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         var rows = table.GetProperty("rows").EnumerateArray().ToList();
         Assert.Single(rows);
         Assert.Equal("HAF_TSE", rows[0].GetProperty("symbolCode").GetString());
+
+        var confidence = document.RootElement.GetProperty("confidenceScore");
+        Assert.True(confidence.GetProperty("score").GetDouble() >= 0.95);
+        Assert.Equal("v1", confidence.GetProperty("policyVersion").GetString());
     }
 
     [Fact]
@@ -181,10 +185,12 @@ public sealed class V2AnswerConsistencyEndpointTests : IClassFixture<V2Inconsist
 
         Assert.DoesNotContain("7.88", content);
         Assert.Contains("5.06", content);
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
 
         // Persisted structured table also keeps the authoritative value (consistency preserved).
-        var persistedCell = assistant.GetProperty("assistantContent")
-            .GetProperty("symbolLookupTable").GetProperty("rows")[0]
+        var assistantContent = assistant.GetProperty("assistantContent");
+        Assert.True(assistantContent.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+        var persistedCell = assistantContent.GetProperty("symbolLookupTable").GetProperty("rows")[0]
             .GetProperty("cells").GetProperty("PE_TTM");
         Assert.Equal("5.06", persistedCell.GetProperty("formattedValue").GetString());
     }

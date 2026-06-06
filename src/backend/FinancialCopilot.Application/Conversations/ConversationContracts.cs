@@ -42,6 +42,7 @@ public sealed record AssistantMessagePayload(
     ScannerTableResult? ScannerTable,
     SymbolLookupTableResult? SymbolLookupTable,
     ExplainableAnswer? ExplainableAnswer,
+    ConfidenceScoreResult? ConfidenceScore,
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures);
 

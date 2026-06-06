@@ -184,6 +184,7 @@ public sealed class AiFacadeController(
             MapScannerTable(result.ScannerTable),
             MapSymbolLookupTable(result.SymbolLookupTable),
             MapExplainableAnswer(result.ExplainableAnswer),
+            MapConfidenceScore(result.ConfidenceScore),
             result.Usage is null ? null : new UsageAccountingResponse(
                 result.Usage.OperationCode,
                 result.Usage.CompletionStatus,
@@ -359,6 +360,7 @@ public sealed class AiFacadeController(
                 MapScannerTable(payload.ScannerTable),
                 MapSymbolLookupTable(payload.SymbolLookupTable),
                 MapExplainableAnswer(payload.ExplainableAnswer),
+                MapConfidenceScore(payload.ConfidenceScore),
                 payload.Usage is null ? null : new UsageAccountingResponse(
                     payload.Usage.OperationCode,
                     payload.Usage.CompletionStatus,
@@ -368,4 +370,18 @@ public sealed class AiFacadeController(
                     payload.Usage.Cached),
                 payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                     d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
+
+    private static ConfidenceScoreResponse? MapConfidenceScore(ConfidenceScoreResult? confidence)
+    {
+        if (confidence is null) return null;
+
+        return new ConfidenceScoreResponse(
+            confidence.Score,
+            new ConfidenceFactorsResponse(
+                confidence.Factors.InterpretationCertainty,
+                confidence.Factors.EvidenceCompleteness,
+                confidence.Factors.SourceFreshness,
+                confidence.Factors.WarningPenalty),
+            confidence.PolicyVersion);
+    }
 }

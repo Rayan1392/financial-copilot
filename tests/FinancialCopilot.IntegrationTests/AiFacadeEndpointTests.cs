@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
@@ -343,11 +344,23 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
     private bool _billingSeeded;
     private readonly object _billingSeedLock = new();
 
+    // V2 test factories override this to false so the production V2 orchestration registration
+    // is not clobbered. V1 test factories keep the default (true) to force V1 regardless of
+    // whatever the production appsettings.json says.
+    protected virtual bool ForceV1Orchestration => true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
+            // Production appsettings may have V2 mode. Force V1 for all V1 tests.
+            if (ForceV1Orchestration)
+            {
+                services.RemoveAll<IAiQueryOrchestrationService>();
+                services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
+            }
+
             services.RemoveAll<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>();
             services.RemoveAll<DbContextOptions<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>>();

@@ -38,7 +38,8 @@ public sealed class DeterministicFakeAiModelClient(
                     "fake-call-id-1",
                     firstTool.Name,
                     $"{{\"query\":\"{EscapeJsonString(lastUserContent)}\"}}") ],
-                Usage: MakeUsage(request, usedTools: true)));
+                Usage: MakeUsage(request, usedTools: true),
+                ResponseId: $"fake-resp-{request.CorrelationId}"));
         }
 
         var responseText = hasToolResult ? "Fake V2 agent response." : "Deterministic fake AI response.";

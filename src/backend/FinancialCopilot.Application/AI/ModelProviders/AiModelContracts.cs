@@ -64,9 +64,10 @@ public sealed record AiModelRequest(
     IReadOnlyCollection<AiConversationMessage> Messages,
     AiStructuredOutputContract? StructuredOutput = null,
     IReadOnlyCollection<AiToolDefinition>? Tools = null,
-    bool Stream = false);
+    bool Stream = false,
+    string? PreviousResponseId = null);
 
-public sealed record AiToolCall(string Id, string Name, string ArgumentsJson);
+public sealed record AiToolCall(string Id, string Name, string ArgumentsJson, string? ItemId = null);
 
 public sealed record AiExecutionUsageFacts(
     string CorrelationId,
@@ -88,7 +89,8 @@ public sealed record AiModelResult(
     string? Text,
     string? StructuredJson,
     IReadOnlyCollection<AiToolCall> ToolCalls,
-    AiExecutionUsageFacts Usage);
+    AiExecutionUsageFacts Usage,
+    string? ResponseId = null);
 
 public sealed record AiStreamingChunk(
     string? TextDelta,

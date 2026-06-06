@@ -14,7 +14,7 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 
 internal sealed class FinancialCopilotAgentWorkflowRunner(
     IConversationRepository conversationRepository,
-    IAiModelClient modelClient,
+    IAiModelProviderResolver providerResolver,
     ScannerToolAdapter scannerAdapter,
     SymbolLookupToolAdapter lookupAdapter,
     ExplainableAnswerAdapter explainableAnswerAdapter,
@@ -63,6 +63,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var scannerTool = CreateScannerTool(state, request, cancellationToken);
         var lookupTool = CreateLookupTool(state, request, cancellationToken);
 
+        var modelClient = ResolveModelClient(request);
         var chatClientAdapter = new FinancialCopilotChatClientAdapter(
             modelClient, request.CorrelationId, request.TenantId, AiWorkloadKind.ResearchTool);
 
@@ -223,6 +224,21 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         Always respond in the same language as the user's message (Persian/Farsi or English).
         If the request does not fit either tool, briefly explain what you can help with.
         """;
+
+    private IAiModelClient ResolveModelClient(AiQueryRequest request)
+    {
+        var selectionRequest = new AiModelSelectionRequest(
+            request.TenantId,
+            AiWorkloadKind.ResearchTool,
+            AiWorkloadCapabilities.RequiredFor(AiWorkloadKind.ResearchTool),
+            request.CorrelationId);
+
+        return providerResolver.ResolveCandidates(selectionRequest).FirstOrDefault()
+            ?? throw new AiModelProviderException(
+                AiExecutionStatus.CapabilityUnavailable,
+                "compatible_provider_not_configured",
+                "No AI model provider is configured for V2 ResearchTool workload (ChatCompletion + ToolCalling required).");
+    }
 
     private static string BuildEnrichedMessage(string originalMessage, AuthorizedMemoryContext memoryContext)
     {

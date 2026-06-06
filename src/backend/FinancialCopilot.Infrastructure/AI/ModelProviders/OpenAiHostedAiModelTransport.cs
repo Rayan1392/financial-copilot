@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using FinancialCopilot.Application.AI.ModelProviders;
 
@@ -17,36 +18,39 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         CancellationToken cancellationToken)
     {
         EnsureCredential();
-        var payload = new
+
+        // Responses API supports stateful continuation via previous_response_id.
+        // When set, the server already has the full conversation context — only send
+        // the new input items (tool outputs) and skip replaying prior history.
+        var toolsPayload = request.Tools?.Select(tool => new
         {
-            model = modelKey,
-            input = request.Messages.Select(message => new
+            type = "function",
+            name = tool.Name,
+            description = tool.Description,
+            parameters = JsonDocument.Parse(tool.ParametersJsonSchema).RootElement.Clone()
+        });
+
+        object payload = request.PreviousResponseId is not null
+            ? new
             {
-                role = message.Role.ToString().ToLowerInvariant(),
-                content = message.Content,
-            }),
-            tools = request.Tools?.Select(tool => new
+                model = modelKey,
+                previous_response_id = request.PreviousResponseId,
+                input = request.Messages.SelectMany(MapToResponsesApiInputItems).ToArray(),
+                tools = toolsPayload,
+                text = request.StructuredOutput is null ? null : new { format = new { type = "json_object" } }
+            }
+            : (object)new
             {
-                type = "function",
-                name = tool.Name,
-                description = tool.Description,
-                parameters = JsonDocument.Parse(tool.ParametersJsonSchema).RootElement.Clone()
-            }),
-            text = request.StructuredOutput is null
-                ? null
-                : new
-                {
-                    format = new
-                    {
-                        type = "json_object"
-                    }
-                }
-        };
+                model = modelKey,
+                input = request.Messages.SelectMany(MapToResponsesApiInputItems).ToArray(),
+                tools = toolsPayload,
+                text = request.StructuredOutput is null ? null : new { format = new { type = "json_object" } }
+            };
 
         for (var attempt = 1; attempt <= MaxRateLimitAttempts; attempt++)
         {
             using var response = await httpClient.PostAsJsonAsync("responses", payload, cancellationToken);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadFromJsonAsync<OpenAiResponse>(
@@ -58,7 +62,8 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                     request.StructuredOutput is null ? null : GetOutputText(body.Output),
                     MapToolCalls(body.Output),
                     body.Usage?.InputTokens,
-                    body.Usage?.OutputTokens);
+                    body.Usage?.OutputTokens,
+                    ResponseId: body.Id);
             }
 
             var failure = await ReadFailureAsync(response, cancellationToken);
@@ -135,6 +140,73 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         }
     }
 
+    private static IEnumerable<JsonNode> MapToResponsesApiInputItems(AiConversationMessage message)
+    {
+        // Tool results → function_call_output (Responses API format)
+        if (message.Role == AiMessageRole.Tool)
+        {
+            yield return new JsonObject
+            {
+                ["type"] = "function_call_output",
+                ["call_id"] = message.ToolCallId ?? string.Empty,
+                ["output"] = message.Content
+            };
+            yield break;
+        }
+
+        // Assistant messages that serialized function calls → function_call items
+        if (message.Role == AiMessageRole.Assistant)
+        {
+            var functionCallItems = TryParseFunctionCallItems(message.Content);
+            if (functionCallItems is { Count: > 0 })
+            {
+                foreach (var item in functionCallItems) yield return item;
+                yield break;
+            }
+        }
+
+        var role = message.Role switch
+        {
+            AiMessageRole.System => "system",
+            AiMessageRole.Assistant => "assistant",
+            _ => "user"
+        };
+        yield return new JsonObject { ["role"] = role, ["content"] = message.Content };
+    }
+
+    private static List<JsonObject>? TryParseFunctionCallItems(string content)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(content);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+
+            var result = new List<JsonObject>();
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (!element.TryGetProperty("id", out var idEl) ||
+                    !element.TryGetProperty("function", out var fnEl))
+                    return null;
+
+                var callId = idEl.GetString() ?? string.Empty;
+                var itemId = element.TryGetProperty("item_id", out var itemIdEl) ? itemIdEl.GetString() : null;
+                var name = fnEl.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? string.Empty : string.Empty;
+                var args = fnEl.TryGetProperty("arguments", out var argsEl) ? argsEl.GetString() ?? "{}" : "{}";
+
+                result.Add(new JsonObject
+                {
+                    ["type"] = "function_call",
+                    ["id"] = itemId ?? callId,
+                    ["call_id"] = callId,
+                    ["name"] = name,
+                    ["arguments"] = args
+                });
+            }
+            return result.Count > 0 ? result : null;
+        }
+        catch { return null; }
+    }
+
     private static string? GetOutputText(OpenAiOutputItem[]? output) =>
         output?
             .Where(item => string.Equals(item.Type, "message", StringComparison.Ordinal))
@@ -148,7 +220,8 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
             .Select(item => new AiToolCall(
                 item.CallId ?? item.Id,
                 item.Name ?? string.Empty,
-                item.Arguments ?? "{}"))
+                item.Arguments ?? "{}",
+                ItemId: item.Id))
             .ToArray() ?? [];
 
     private static AiModelProviderException Failure(string message) =>
@@ -208,6 +281,7 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
     }
 
     private sealed record OpenAiResponse(
+        string? Id,
         OpenAiOutputItem[]? Output,
         OpenAiUsage? Usage);
 

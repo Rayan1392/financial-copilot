@@ -519,7 +519,13 @@ public sealed class BillingPersistenceTests
             ExternalUserId: "partner-user-1",
             ReservationIdempotencyKey: "reservation-commit",
             LedgerIdempotencyKey: "ledger-commit",
-            ActualCharge: new UsageChargeResult(1.5m, "v1", Cached: false));
+            ActualCharge: new UsageChargeResult(1.5m, "v1", Cached: false),
+            ProviderName: "DeepSeek",
+            ModelName: "deepseek-chat",
+            PromptTokens: 42,
+            CompletionTokens: 18,
+            TotalTokens: 60,
+            EstimatedCost: 0.0012m);
 
         var committed = await service.CommitAsync(command, CancellationToken.None);
         var replayed = await service.CommitAsync(command, CancellationToken.None);
@@ -532,10 +538,18 @@ public sealed class BillingPersistenceTests
         Assert.Equal(2, replayed.Wallet.Revision);
         Assert.Single(dbContext.UsageLedgerEntries);
         Assert.Equal("partner-user-1", replayed.LedgerEntry!.ExternalUserId);
+        Assert.Equal("DeepSeek", replayed.LedgerEntry.ProviderName);
+        Assert.Equal("deepseek-chat", replayed.LedgerEntry.ModelName);
+        Assert.Equal(42, replayed.LedgerEntry.PromptTokens);
+        Assert.Equal(18, replayed.LedgerEntry.CompletionTokens);
+        Assert.Equal(60, replayed.LedgerEntry.TotalTokens);
+        Assert.Equal(0.0012m, replayed.LedgerEntry.EstimatedCost);
         var outbox = Assert.Single(dbContext.OutboxMessages);
         Assert.Equal("Billing.UsageCommitted", outbox.EventType);
-        Assert.Equal("partner-user-1", JsonDocument.Parse(outbox.Payload).RootElement
-            .GetProperty("ExternalUserId").GetString());
+        var payload = JsonDocument.Parse(outbox.Payload).RootElement;
+        Assert.Equal("partner-user-1", payload.GetProperty("ExternalUserId").GetString());
+        Assert.Equal("DeepSeek", payload.GetProperty("ProviderName").GetString());
+        Assert.Equal("deepseek-chat", payload.GetProperty("ModelName").GetString());
     }
 
     [Fact]

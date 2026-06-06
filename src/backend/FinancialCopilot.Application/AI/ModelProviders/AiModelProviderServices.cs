@@ -3,12 +3,17 @@ using System.Text.Json;
 namespace FinancialCopilot.Application.AI.ModelProviders;
 
 public sealed class CapabilityBasedAiModelProviderResolver(
-    IEnumerable<IAiModelClient> clients) : IAiModelProviderResolver, IAiProviderCapabilityRegistry
+    IEnumerable<IAiModelClient> clients,
+    IAiModelProviderRoutingPolicy? routingPolicy = null) :
+    IAiModelProviderResolver,
+    IAiProviderCapabilityRegistry,
+    IAiModelProviderDiagnostics
 {
     private readonly IReadOnlyCollection<IAiModelClient> _clients = clients.ToArray();
 
     public IReadOnlyCollection<IAiModelClient> ResolveCandidates(AiModelSelectionRequest request) =>
         _clients
+            .Where(IsSelectedProvider)
             .Where(client => IsAllowed(client.Descriptor, request))
             .OrderBy(client => client.Descriptor.Priority)
             .ToArray();
@@ -16,11 +21,33 @@ public sealed class CapabilityBasedAiModelProviderResolver(
     public IReadOnlyCollection<AiModelProviderDescriptor> GetAvailableProviders(Guid tenantId) =>
         _clients
             .Select(client => client.Descriptor)
+            .Where(IsSelectedProvider)
             .Where(descriptor =>
                 descriptor.Enabled &&
                 (descriptor.AllowedTenantIds is null || descriptor.AllowedTenantIds.Contains(tenantId)))
             .OrderBy(descriptor => descriptor.Priority)
             .ToArray();
+
+    public ActiveAiModelProviderDescriptor GetActiveProvider(Guid tenantId)
+    {
+        var providerKey = Normalize(routingPolicy?.DefaultProviderKey);
+        var descriptor = GetAvailableProviders(tenantId).FirstOrDefault();
+        return new ActiveAiModelProviderDescriptor(
+            providerKey,
+            descriptor?.ProviderKey,
+            descriptor?.ModelKey,
+            descriptor?.Capabilities ?? AiModelCapability.None,
+            descriptor is not null);
+    }
+
+    private bool IsSelectedProvider(IAiModelClient client) => IsSelectedProvider(client.Descriptor);
+
+    private bool IsSelectedProvider(AiModelProviderDescriptor descriptor)
+    {
+        var providerKey = Normalize(routingPolicy?.DefaultProviderKey);
+        return providerKey is null ||
+            string.Equals(descriptor.ProviderKey, providerKey, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool IsAllowed(
         AiModelProviderDescriptor descriptor,
@@ -31,6 +58,9 @@ public sealed class CapabilityBasedAiModelProviderResolver(
         (descriptor.AllowedTenantIds is null || descriptor.AllowedTenantIds.Contains(request.TenantId)) &&
         (request.RequiredDataResidency is null ||
             string.Equals(descriptor.DataResidency, request.RequiredDataResidency, StringComparison.OrdinalIgnoreCase));
+
+    private static string? Normalize(string? providerKey) =>
+        string.IsNullOrWhiteSpace(providerKey) ? null : providerKey.Trim();
 }
 
 public sealed class JsonStructuredOutputValidator : IAiStructuredOutputValidator
@@ -85,7 +115,8 @@ public sealed class AiModelExecutionService(
     IAiModelProviderResolver resolver,
     IAiStructuredOutputValidator structuredOutputValidator,
     IAiExecutionTelemetrySink telemetrySink,
-    TimeProvider timeProvider) : IAiModelExecutionService
+    TimeProvider timeProvider,
+    IAiExecutionUsageAccumulator? usageAccumulator = null) : IAiModelExecutionService
 {
     public async Task<AiModelResult> ExecuteAsync(
         AiModelSelectionRequest selection,
@@ -139,6 +170,7 @@ public sealed class AiModelExecutionService(
                     Status = AiExecutionStatus.Completed
                 };
                 await telemetrySink.RecordAttemptAsync(facts, cancellationToken);
+                usageAccumulator?.Record(facts);
                 return result with { Usage = facts };
             }
             catch (AiModelProviderException exception)

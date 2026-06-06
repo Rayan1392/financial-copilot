@@ -230,7 +230,13 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             ExternalUserId = entry.ExternalUserId,
             AuditDescription = entry.AuditDescription,
             RelatedEntryId = entry.RelatedEntryId,
-            CompletionStatus = entry.CompletionStatus
+            CompletionStatus = entry.CompletionStatus,
+            ProviderName = entry.ProviderName,
+            ModelName = entry.ModelName,
+            PromptTokens = entry.PromptTokens,
+            CompletionTokens = entry.CompletionTokens,
+            TotalTokens = entry.TotalTokens,
+            EstimatedCost = entry.EstimatedCost
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -329,7 +335,13 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             row.ExternalUserId,
             row.AuditDescription,
             row.RelatedEntryId,
-            row.CompletionStatus);
+            row.CompletionStatus,
+            row.ProviderName,
+            row.ModelName,
+            row.PromptTokens,
+            row.CompletionTokens,
+            row.TotalTokens,
+            row.EstimatedCost);
 
     private static FinancialTransaction Map(FinancialTransactionRow row) =>
         new(

@@ -119,6 +119,12 @@ public sealed class UsageController(
                     entry.PricingPolicyVersion,
                     entry.OccurredAt,
                     entry.ExternalUserId,
-                    entry.CompletionStatus))
+                    entry.CompletionStatus,
+                    entry.ProviderName,
+                    entry.ModelName,
+                    entry.PromptTokens,
+                    entry.CompletionTokens,
+                    entry.TotalTokens,
+                    entry.EstimatedCost))
                 .ToArray());
 }

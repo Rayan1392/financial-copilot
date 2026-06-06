@@ -589,6 +589,9 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("CreditsCharged")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -605,6 +608,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
+                    b.Property<decimal?>("EstimatedCost")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)");
+
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -612,6 +619,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ModelName")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
 
                     b.Property<string>("OperationCode")
                         .IsRequired()
@@ -623,11 +634,21 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProviderName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<Guid?>("RelatedEntryId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("TotalTokens")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

@@ -61,7 +61,13 @@ public sealed record UsageAccountingResult(
     decimal CreditsCharged,
     decimal RemainingSpendingCapacity,
     string PricingPolicyVersion,
-    bool Cached);
+    bool Cached,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
 
 // Integration point for mandatory Billing reservation/finalization.
 // Story 007 defines this boundary; Story 010 provides the real implementation.
@@ -88,7 +94,13 @@ public sealed record BillingReservationHandle(
 
 public sealed record BillingFinalizationRequest(
     string CompletionStatus,
-    bool Cached = false);
+    bool Cached = false,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
 
 public interface IBillingFacadeHook
 {

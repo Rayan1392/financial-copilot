@@ -15,7 +15,13 @@ public sealed record UsageLedgerEntry(
     string? ExternalUserId = null,
     string? AuditDescription = null,
     Guid? RelatedEntryId = null,
-    string? CompletionStatus = null)
+    string? CompletionStatus = null,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

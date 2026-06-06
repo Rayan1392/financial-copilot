@@ -190,7 +190,13 @@ public sealed class AiFacadeController(
                 result.Usage.CreditsCharged,
                 result.Usage.RemainingSpendingCapacity,
                 result.Usage.PricingPolicyVersion,
-                result.Usage.Cached),
+                result.Usage.Cached,
+                result.Usage.ProviderName,
+                result.Usage.ModelName,
+                result.Usage.PromptTokens,
+                result.Usage.CompletionTokens,
+                result.Usage.TotalTokens,
+                result.Usage.EstimatedCost),
             result.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                 d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
 

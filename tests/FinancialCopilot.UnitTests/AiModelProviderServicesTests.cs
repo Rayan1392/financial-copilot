@@ -149,6 +149,29 @@ public sealed class AiModelProviderServicesTests
         Assert.Equal("enabled", visible.Single().ProviderKey);
     }
 
+    [Fact]
+    public void Resolver_FiltersCandidatesToConfiguredDefaultProvider()
+    {
+        var resolver = new CapabilityBasedAiModelProviderResolver(
+            [
+                Client("OpenAI", AiProviderHostingMode.Hosted, AiModelCapability.ChatCompletion),
+                Client("DeepSeek", AiProviderHostingMode.Hosted, AiModelCapability.ChatCompletion)
+            ],
+            new StubRoutingPolicy("DeepSeek"));
+
+        var candidates = resolver.ResolveCandidates(new AiModelSelectionRequest(
+            TenantId,
+            AiWorkloadKind.Summarization,
+            AiModelCapability.ChatCompletion,
+            "provider-switch-1"));
+        var active = resolver.GetActiveProvider(TenantId);
+
+        Assert.Equal("DeepSeek", Assert.Single(candidates).Descriptor.ProviderKey);
+        Assert.Equal("DeepSeek", active.ConfiguredProviderKey);
+        Assert.Equal("DeepSeek", active.ProviderKey);
+        Assert.True(active.Available);
+    }
+
     private static StubAiModelClient Client(
         string providerKey,
         AiProviderHostingMode mode,
@@ -206,6 +229,11 @@ public sealed class AiModelProviderServicesTests
             Facts.Add(facts);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class StubRoutingPolicy(string? defaultProviderKey) : IAiModelProviderRoutingPolicy
+    {
+        public string? DefaultProviderKey { get; } = defaultProviderKey;
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

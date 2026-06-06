@@ -15,6 +15,7 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 internal sealed class FinancialCopilotAgentWorkflowRunner(
     IConversationRepository conversationRepository,
     IAiModelProviderResolver providerResolver,
+    IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
     SymbolLookupToolAdapter lookupAdapter,
     ExplainableAnswerAdapter explainableAnswerAdapter,
@@ -66,7 +67,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
 
         var modelClient = ResolveModelClient(request);
         var chatClientAdapter = new FinancialCopilotChatClientAdapter(
-            modelClient, request.CorrelationId, request.TenantId, AiWorkloadKind.ResearchTool);
+            modelClient,
+            usageAccumulator,
+            request.CorrelationId,
+            request.TenantId,
+            AiWorkloadKind.ResearchTool);
 
         var agent = agentFactory.Create(
             chatClientAdapter,

@@ -29,7 +29,13 @@ public sealed record UsageAccountingResponse(
     decimal CreditsCharged,
     decimal RemainingSpendingCapacity,
     string PricingPolicyVersion,
-    bool Cached);
+    bool Cached,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
 
 public sealed record ScannerPlanResponse(
     Guid PlanId,

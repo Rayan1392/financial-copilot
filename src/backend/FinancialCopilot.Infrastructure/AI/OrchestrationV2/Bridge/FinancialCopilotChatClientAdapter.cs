@@ -15,6 +15,7 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 // support reliably without the exact item IDs from the prior response.
 internal sealed class FinancialCopilotChatClientAdapter(
     IAiModelClient modelClient,
+    IAiExecutionUsageAccumulator usageAccumulator,
     string correlationId,
     Guid tenantId,
     AiWorkloadKind workload) : IChatClient
@@ -57,6 +58,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
                 PreviousResponseId: _lastResponseId);
 
             var continuationResult = await modelClient.CompleteAsync(continuationRequest, cancellationToken);
+            usageAccumulator.Record(continuationResult.Usage);
             _lastResponseId = continuationResult.ResponseId;
             _pendingToolCallIds = continuationResult.ToolCalls.Count > 0
                 ? continuationResult.ToolCalls.Select(tc => tc.Id).ToHashSet()
@@ -75,6 +77,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
             Tools: tools is { Count: > 0 } ? tools : null);
 
         var result = await modelClient.CompleteAsync(request, cancellationToken);
+        usageAccumulator.Record(result.Usage);
         _lastResponseId = result.ResponseId;
         _pendingToolCallIds = result.ToolCalls.Count > 0
             ? result.ToolCalls.Select(tc => tc.Id).ToHashSet()

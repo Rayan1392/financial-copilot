@@ -206,7 +206,13 @@ public sealed record UsageCommitCommand(
     string ReservationIdempotencyKey,
     string LedgerIdempotencyKey,
     UsageChargeResult ActualCharge,
-    string CompletionStatus = "Completed");
+    string CompletionStatus = "Completed",
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
 
 public sealed record UsageReleaseCommand(
     Guid CustomerAccountId,

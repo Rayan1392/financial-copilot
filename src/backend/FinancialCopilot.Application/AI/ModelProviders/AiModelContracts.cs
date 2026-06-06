@@ -85,6 +85,19 @@ public sealed record AiExecutionUsageFacts(
     string? ProviderReportedCurrency = null,
     string? FailureCode = null);
 
+public sealed record AiExecutionUsageSummary(
+    string ProviderKey,
+    string ModelKey,
+    int? InputTokens,
+    int? OutputTokens,
+    decimal? ProviderReportedCost = null,
+    string? ProviderReportedCurrency = null)
+{
+    public int? TotalTokens => InputTokens is null && OutputTokens is null
+        ? null
+        : (InputTokens ?? 0) + (OutputTokens ?? 0);
+}
+
 public sealed record AiModelResult(
     string? Text,
     string? StructuredJson,
@@ -180,9 +193,33 @@ public interface IAiModelProviderResolver
     IReadOnlyCollection<IAiModelClient> ResolveCandidates(AiModelSelectionRequest request);
 }
 
+public interface IAiModelProviderRoutingPolicy
+{
+    string? DefaultProviderKey { get; }
+}
+
 public interface IAiProviderCapabilityRegistry
 {
     IReadOnlyCollection<AiModelProviderDescriptor> GetAvailableProviders(Guid tenantId);
+}
+
+public sealed record ActiveAiModelProviderDescriptor(
+    string? ConfiguredProviderKey,
+    string? ProviderKey,
+    string? ModelKey,
+    AiModelCapability Capabilities,
+    bool Available);
+
+public interface IAiModelProviderDiagnostics
+{
+    ActiveAiModelProviderDescriptor GetActiveProvider(Guid tenantId);
+}
+
+public interface IAiExecutionUsageAccumulator
+{
+    void Record(AiExecutionUsageFacts facts);
+
+    AiExecutionUsageSummary? GetSummary(string correlationId);
 }
 
 public interface IAiExecutionTelemetrySink

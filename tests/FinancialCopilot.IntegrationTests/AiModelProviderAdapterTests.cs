@@ -58,6 +58,39 @@ public sealed class AiModelProviderAdapterTests
     }
 
     [Fact]
+    public async Task AiProviderDefaultProvider_SelectsDeepSeekRegistrationFromConfiguration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:FinancialCopilot"] = "Host=localhost;Database=fake",
+                ["AiProvider:DefaultProvider"] = "DeepSeek",
+                ["AiProvider:DeepSeek:Model"] = "deepseek-chat",
+                ["AiProvider:DeepSeek:BaseUrl"] = "https://api.deepseek.com"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddFinancialCopilotInfrastructure(configuration);
+        await using var provider = services.BuildServiceProvider();
+        var resolver = provider.GetRequiredService<IAiModelProviderResolver>();
+        var diagnostics = provider.GetRequiredService<IAiModelProviderDiagnostics>();
+
+        var candidates = resolver.ResolveCandidates(new AiModelSelectionRequest(
+            TenantId,
+            AiWorkloadKind.ScannerParsing,
+            AiModelCapability.StructuredOutput,
+            "deepseek-config-1"));
+        var active = diagnostics.GetActiveProvider(TenantId);
+
+        Assert.Equal("DeepSeek", Assert.Single(candidates).Descriptor.ProviderKey);
+        Assert.Equal("deepseek-chat", candidates.Single().Descriptor.ModelKey);
+        Assert.Equal("DeepSeek", active.ConfiguredProviderKey);
+        Assert.Equal("DeepSeek", active.ProviderKey);
+        Assert.Equal("deepseek-chat", active.ModelKey);
+    }
+
+    [Fact]
     public async Task OllamaAdapter_MapsChatEmbeddingUsageAndHealthIntoNormalizedModels()
     {
         using var httpClient = new HttpClient(new RouteHandler(request =>
@@ -184,6 +217,80 @@ public sealed class AiModelProviderAdapterTests
                 "gpt-5.5",
                 new AiModelRequest(
                     "openai-missing-credential",
+                    TenantId,
+                    AiWorkloadKind.Summarization,
+                    [new AiConversationMessage(AiMessageRole.User, "summary")]),
+                CancellationToken.None));
+
+        Assert.Equal(AiExecutionStatus.RuntimeUnavailable, exception.Status);
+        Assert.Equal("hosted_provider_credentials_missing", exception.Code);
+    }
+
+    [Fact]
+    public async Task DeepSeekAdapter_MapsStructuredChatToolsUsageAndHealth()
+    {
+        string? requestBody = null;
+        using var httpClient = new HttpClient(new RouteHandler(request =>
+        {
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("deepseek-key", request.Headers.Authorization?.Parameter);
+
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/chat/completions" => Json(
+                    """{"id":"ds-1","choices":[{"index":0,"message":{"content":"{\"intent\":\"Scanner\",\"confidence\":0.8}","tool_calls":[{"id":"call-1","type":"function","function":{"name":"screen","arguments":"{\"limit\":5}"}}]}}],"usage":{"prompt_tokens":11,"completion_tokens":7,"total_tokens":18}}""",
+                    requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult()),
+                "/models/deepseek-chat" => Json("""{"id":"deepseek-chat"}"""),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://api.deepseek.com/")
+        };
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "deepseek-key");
+        var transport = new DeepSeekHostedAiModelTransport(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(new AiProviderOptions
+            {
+                DeepSeek = new DeepSeekProviderOptions { Model = "deepseek-chat" }
+            }));
+        var request = new AiModelRequest(
+            "deepseek-1",
+            TenantId,
+            AiWorkloadKind.ScannerParsing,
+            [new AiConversationMessage(AiMessageRole.User, "scan")],
+            new AiStructuredOutputContract("IntentDetectionOutput", ["intent", "confidence"]),
+            [new AiToolDefinition("screen", "Screen stocks.", """{"type":"object"}""")]);
+
+        var completion = await transport.CompleteAsync("deepseek-chat", request, CancellationToken.None);
+        var available = await transport.CheckAvailabilityAsync("deepseek-chat", CancellationToken.None);
+
+        Assert.Equal("""{"intent":"Scanner","confidence":0.8}""", completion.StructuredJson);
+        Assert.Equal(11, completion.InputTokens);
+        Assert.Equal(7, completion.OutputTokens);
+        Assert.Equal("screen", Assert.Single(completion.ToolCalls).Name);
+        Assert.True(available);
+        Assert.Contains("\"response_format\":{\"type\":\"json_object\"}", requestBody);
+        Assert.Contains("\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"screen\"", requestBody);
+    }
+
+    [Fact]
+    public async Task DeepSeekAdapter_ReportsMissingCredentialExplicitly()
+    {
+        using var httpClient = new HttpClient(new RouteHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.InternalServerError)))
+        {
+            BaseAddress = new Uri("https://api.deepseek.com/")
+        };
+        var transport = new DeepSeekHostedAiModelTransport(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(new AiProviderOptions()));
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync(
+                "deepseek-chat",
+                new AiModelRequest(
+                    "deepseek-missing-credential",
                     TenantId,
                     AiWorkloadKind.Summarization,
                     [new AiConversationMessage(AiMessageRole.User, "summary")]),

@@ -9,6 +9,43 @@ public sealed class AiModelProviderOptions
     public List<AiModelProviderRegistration> Providers { get; init; } = [];
 }
 
+public sealed class AiProviderOptions
+{
+    public const string SectionName = "AiProvider";
+
+    public string? DefaultProvider { get; init; }
+
+    public OpenAiProviderOptions OpenAI { get; init; } = new();
+
+    public DeepSeekProviderOptions DeepSeek { get; init; } = new();
+}
+
+public sealed class OpenAiProviderOptions
+{
+    public string ApiKey { get; init; } = string.Empty;
+
+    public string Model { get; init; } = "gpt-5";
+}
+
+public sealed class DeepSeekProviderOptions
+{
+    public string ApiKey { get; init; } = string.Empty;
+
+    public string Model { get; init; } = "deepseek-chat";
+
+    public string BaseUrl { get; init; } = "https://api.deepseek.com";
+
+    public bool ThinkingEnabled { get; init; }
+
+    public string? ReasoningEffort { get; init; }
+}
+
+public sealed class ConfiguredAiProviderRoutingPolicy(
+    Microsoft.Extensions.Options.IOptions<AiProviderOptions> options) : IAiModelProviderRoutingPolicy
+{
+    public string? DefaultProviderKey => options.Value.DefaultProvider;
+}
+
 public sealed class AiModelProviderRegistration
 {
     public string ProviderKey { get; init; } = string.Empty;

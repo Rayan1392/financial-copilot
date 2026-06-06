@@ -64,6 +64,9 @@ public sealed class UsageLedgerEntryRowConfiguration : IEntityTypeConfiguration<
         builder.Property(row => row.ExternalUserId).HasMaxLength(160);
         builder.Property(row => row.AuditDescription).HasMaxLength(500);
         builder.Property(row => row.CompletionStatus).HasMaxLength(64);
+        builder.Property(row => row.ProviderName).HasMaxLength(80);
+        builder.Property(row => row.ModelName).HasMaxLength(160);
+        builder.Property(row => row.EstimatedCost).HasPrecision(18, 8);
     }
 }
 

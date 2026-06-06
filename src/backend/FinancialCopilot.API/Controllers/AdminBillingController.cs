@@ -83,7 +83,13 @@ public sealed class AdminBillingController(
                 entry.PricingPolicyVersion,
                 entry.OccurredAt,
                 entry.ExternalUserId,
-                entry.CompletionStatus)).ToArray()));
+                entry.CompletionStatus,
+                entry.ProviderName,
+                entry.ModelName,
+                entry.PromptTokens,
+                entry.CompletionTokens,
+                entry.TotalTokens,
+                entry.EstimatedCost)).ToArray()));
     }
 
     [HttpGet("invoices")]

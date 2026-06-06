@@ -10,7 +10,8 @@ public sealed class AiFacadeBillingHook(
     IWalletService wallets,
     ICreditReservationService reservationService,
     IUsageChargeCalculator chargeCalculator,
-    IUsageFinalizationService finalizationService) : IBillingFacadeHook
+    IUsageFinalizationService finalizationService,
+    FinancialCopilot.Application.AI.ModelProviders.IAiExecutionUsageAccumulator usageAccumulator) : IBillingFacadeHook
 {
     private const string PricingPolicyVersion = "v1";
 
@@ -54,6 +55,7 @@ public sealed class AiFacadeBillingHook(
         BillingFinalizationRequest request,
         CancellationToken cancellationToken)
     {
+        var usage = usageAccumulator.GetSummary(handle.CorrelationId);
         var charge = chargeCalculator.Calculate(
             CreateChargeRequest(handle.OperationCode, request.CompletionStatus, request.Cached));
         var finalized = await finalizationService.CommitAsync(
@@ -66,7 +68,13 @@ public sealed class AiFacadeBillingHook(
                 handle.ReservationId,
                 $"{handle.CorrelationId}:charge",
                 charge,
-                request.CompletionStatus),
+                request.CompletionStatus,
+                request.ProviderName ?? usage?.ProviderKey,
+                request.ModelName ?? usage?.ModelKey,
+                request.PromptTokens ?? usage?.InputTokens,
+                request.CompletionTokens ?? usage?.OutputTokens,
+                request.TotalTokens ?? usage?.TotalTokens,
+                request.EstimatedCost ?? usage?.ProviderReportedCost),
             cancellationToken);
         var account = await accounts.FindAsync(handle.CustomerAccountId, cancellationToken) ??
             throw new KeyNotFoundException("Billing account is not configured.");
@@ -77,7 +85,13 @@ public sealed class AiFacadeBillingHook(
             charge.CreditsCharged,
             account.GetAvailableSpendingCapacity(finalized.Wallet),
             charge.PricingPolicyVersion,
-            charge.Cached);
+            charge.Cached,
+            usage?.ProviderKey,
+            usage?.ModelKey,
+            usage?.InputTokens,
+            usage?.OutputTokens,
+            usage?.TotalTokens,
+            usage?.ProviderReportedCost);
     }
 
     public async Task ReleaseAsync(

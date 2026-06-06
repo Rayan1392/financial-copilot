@@ -192,6 +192,18 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
 
         services
+            .AddOptions<AiProviderOptions>()
+            .Bind(configuration.GetSection(AiProviderOptions.SectionName))
+            .Validate(
+                options => string.IsNullOrWhiteSpace(options.DefaultProvider) ||
+                    string.Equals(options.DefaultProvider, "OpenAI", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(options.DefaultProvider, "DeepSeek", StringComparison.OrdinalIgnoreCase),
+                "AiProvider:DefaultProvider must be OpenAI or DeepSeek when configured.")
+            .ValidateOnStart();
+        services.AddSingleton<IAiModelProviderRoutingPolicy, ConfiguredAiProviderRoutingPolicy>();
+        services.AddSingleton<IAiExecutionUsageAccumulator, InMemoryAiExecutionUsageAccumulator>();
+
+        services
             .AddOptions<AiModelProviderOptions>()
             .Bind(configuration.GetSection(AiModelProviderOptions.SectionName))
             .Validate(
@@ -266,8 +278,9 @@ public static class ServiceCollectionExtensions
         {
             var settings = provider.GetRequiredService<
                 Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
-            var registration = settings.Providers.FirstOrDefault(item =>
-                string.Equals(item.Adapter, "OpenAI", StringComparison.OrdinalIgnoreCase));
+            var providerSettings = provider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "OpenAI") ??
+                CreateOpenAiRegistration(providerSettings);
 
             if (registration?.Endpoint is not null)
             {
@@ -284,13 +297,19 @@ public static class ServiceCollectionExtensions
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
             }
+            else if (!string.IsNullOrWhiteSpace(providerSettings.OpenAI.ApiKey))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", providerSettings.OpenAI.ApiKey);
+            }
         });
         services.AddSingleton<IAiModelClient>(provider =>
         {
             var settings = provider.GetRequiredService<
                 Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
-            var registration = settings.Providers.FirstOrDefault(item =>
-                string.Equals(item.Adapter, "OpenAI", StringComparison.OrdinalIgnoreCase)) ??
+            var providerSettings = provider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "OpenAI") ??
+                CreateOpenAiRegistration(providerSettings) ??
                 new AiModelProviderRegistration
                 {
                     ProviderKey = "OpenAI",
@@ -305,6 +324,55 @@ public static class ServiceCollectionExtensions
                     provider.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiHostedAiModelTransport")),
                 provider.GetRequiredService<TimeProvider>());
         });
+        services.AddHttpClient("DeepSeekHostedAiModelTransport", (provider, client) =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var providerSettings = provider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "DeepSeek") ??
+                CreateDeepSeekRegistration(providerSettings);
+
+            if (registration?.Endpoint is not null)
+            {
+                client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
+            }
+
+            var apiKey = registration?.CredentialSecretReference is not null
+                ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
+                : null;
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = providerSettings.DeepSeek.ApiKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            }
+        });
+        services.AddSingleton<IAiModelClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var providerSettings = provider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "DeepSeek") ??
+                CreateDeepSeekRegistration(providerSettings) ??
+                new AiModelProviderRegistration
+                {
+                    ProviderKey = "DeepSeek",
+                    ModelKey = "unconfigured",
+                    HostingMode = AiProviderHostingMode.Hosted,
+                    Enabled = false
+                };
+
+            return new ConfiguredHostedAiModelClient(
+                ToDescriptor(registration),
+                new DeepSeekHostedAiModelTransport(
+                    provider.GetRequiredService<IHttpClientFactory>().CreateClient("DeepSeekHostedAiModelTransport"),
+                    provider.GetRequiredService<IOptions<AiProviderOptions>>()),
+                provider.GetRequiredService<TimeProvider>());
+        });
         services.AddSingleton<IAiModelClient>(_ => new ContractPendingAiModelClient(
             new AiModelProviderDescriptor(
                 "Abravran",
@@ -317,6 +385,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAiModelProviderResolver>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
         services.AddSingleton<IAiProviderCapabilityRegistry>(provider =>
+            provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
+        services.AddSingleton<IAiModelProviderDiagnostics>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
@@ -712,4 +782,56 @@ public static class ServiceCollectionExtensions
                 : registration.AllowedTenantIds.ToHashSet(),
             registration.DataResidency,
             registration.AllowSensitivePrompts);
+
+    private static AiModelProviderRegistration? GetRegistration(
+        AiModelProviderOptions options,
+        string adapter) =>
+        options.Providers.FirstOrDefault(item =>
+            string.Equals(item.Adapter, adapter, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ProviderKey, adapter, StringComparison.OrdinalIgnoreCase));
+
+    private static AiModelProviderRegistration? CreateOpenAiRegistration(AiProviderOptions options) =>
+        HasProviderConfiguration(options, "OpenAI")
+            ? new AiModelProviderRegistration
+            {
+                ProviderKey = "OpenAI",
+                ModelKey = options.OpenAI.Model,
+                HostingMode = AiProviderHostingMode.Hosted,
+                Adapter = "OpenAI",
+                Endpoint = "https://api.openai.com/v1/",
+                Enabled = true,
+                Priority = 10,
+                Capabilities = AiModelCapability.ChatCompletion |
+                    AiModelCapability.StructuredOutput |
+                    AiModelCapability.ToolCalling |
+                    AiModelCapability.Streaming |
+                    AiModelCapability.UsageReporting |
+                    AiModelCapability.HealthCheck,
+                TimeoutSeconds = 120
+            }
+            : null;
+
+    private static AiModelProviderRegistration? CreateDeepSeekRegistration(AiProviderOptions options) =>
+        HasProviderConfiguration(options, "DeepSeek")
+            ? new AiModelProviderRegistration
+            {
+                ProviderKey = "DeepSeek",
+                ModelKey = options.DeepSeek.Model,
+                HostingMode = AiProviderHostingMode.Hosted,
+                Adapter = "DeepSeek",
+                Endpoint = options.DeepSeek.BaseUrl,
+                Enabled = true,
+                Priority = 10,
+                Capabilities = AiModelCapability.ChatCompletion |
+                    AiModelCapability.StructuredOutput |
+                    AiModelCapability.ToolCalling |
+                    AiModelCapability.Streaming |
+                    AiModelCapability.UsageReporting |
+                    AiModelCapability.HealthCheck,
+                TimeoutSeconds = 120
+            }
+            : null;
+
+    private static bool HasProviderConfiguration(AiProviderOptions options, string providerKey) =>
+        string.Equals(options.DefaultProvider, providerKey, StringComparison.OrdinalIgnoreCase);
 }

@@ -72,7 +72,13 @@ public sealed class UsageFinalizationService(
             command.LedgerIdempotencyKey.Trim(),
             now,
             command.ExternalUserId,
-            CompletionStatus: command.CompletionStatus);
+            CompletionStatus: command.CompletionStatus,
+            ProviderName: command.ProviderName,
+            ModelName: command.ModelName,
+            PromptTokens: command.PromptTokens,
+            CompletionTokens: command.CompletionTokens,
+            TotalTokens: command.TotalTokens,
+            EstimatedCost: command.EstimatedCost);
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.CommittedCredits = reservation.CommittedCredits;
@@ -95,7 +101,13 @@ public sealed class UsageFinalizationService(
                 entry.CreditsCharged,
                 entry.PricingPolicyVersion,
                 entry.CompletionStatus,
-                entry.ExternalUserId
+                entry.ExternalUserId,
+                entry.ProviderName,
+                entry.ModelName,
+                entry.PromptTokens,
+                entry.CompletionTokens,
+                entry.TotalTokens,
+                entry.EstimatedCost
             },
             now);
 
@@ -246,7 +258,13 @@ public sealed class UsageFinalizationService(
             ledger.PricingPolicyVersion != command.ActualCharge.PricingPolicyVersion ||
             (ledger.CompletionStatus is not null &&
                 ledger.CompletionStatus != command.CompletionStatus) ||
-            ledger.ExternalUserId != command.ExternalUserId)
+            ledger.ExternalUserId != command.ExternalUserId ||
+            ledger.ProviderName != command.ProviderName ||
+            ledger.ModelName != command.ModelName ||
+            ledger.PromptTokens != command.PromptTokens ||
+            ledger.CompletionTokens != command.CompletionTokens ||
+            ledger.TotalTokens != command.TotalTokens ||
+            ledger.EstimatedCost != command.EstimatedCost)
         {
             throw new InvalidOperationException(
                 "A finalized usage reservation cannot be replayed with different charge data.");
@@ -285,7 +303,13 @@ public sealed class UsageFinalizationService(
             row.ExternalUserId,
             row.AuditDescription,
             row.RelatedEntryId,
-            row.CompletionStatus);
+            row.CompletionStatus,
+            row.ProviderName,
+            row.ModelName,
+            row.PromptTokens,
+            row.CompletionTokens,
+            row.TotalTokens,
+            row.EstimatedCost);
 
     private static UsageLedgerEntryRow MapLedgerRow(UsageLedgerEntry entry) =>
         new()
@@ -304,6 +328,12 @@ public sealed class UsageFinalizationService(
             ExternalUserId = entry.ExternalUserId,
             AuditDescription = entry.AuditDescription,
             RelatedEntryId = entry.RelatedEntryId,
-            CompletionStatus = entry.CompletionStatus
+            CompletionStatus = entry.CompletionStatus,
+            ProviderName = entry.ProviderName,
+            ModelName = entry.ModelName,
+            PromptTokens = entry.PromptTokens,
+            CompletionTokens = entry.CompletionTokens,
+            TotalTokens = entry.TotalTokens,
+            EstimatedCost = entry.EstimatedCost
         };
 }

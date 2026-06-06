@@ -18,4 +18,10 @@ public sealed record UsageEntryResponse(
     string PricingPolicyVersion,
     DateTimeOffset OccurredAt,
     string? ExternalUserId,
-    string? CompletionStatus);
+    string? CompletionStatus,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);

@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
+import { MarkdownMessage } from "@/components/app/markdown-message";
 
 interface Props {
   messages: ChatMessage[];
@@ -60,9 +61,7 @@ function AssistantBlock({
         AI
       </div>
       <div className="flex-1 space-y-5 min-w-0" dir="auto">
-        <p className="text-foreground/90 leading-relaxed text-pretty text-[15px] max-w-[64ch]" dir="auto">
-          {block.message}
-        </p>
+        <MarkdownMessage content={block.message} />
 
         {block.filters.length > 0 && (
           <div className="flex flex-wrap gap-2">

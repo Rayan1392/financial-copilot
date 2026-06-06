@@ -22,6 +22,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     BillingFunctions billingFunctions,
     MessagePersistenceFunction persistenceFunction,
     MissingAnswerFeedbackFunction feedbackFunction,
+    IAnswerConsistencyValidator consistencyValidator,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -140,6 +141,15 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         // textAnswer only for non-tool responses (Unknown intent)
         var textAnswer = detectedIntent == DetectedIntent.Unknown ? agentResponse.Text : null;
 
+        // Step 8b: Consistency guardrail. The LLM-authored prose (agentResponse.Text) becomes the
+        // persisted assistant content for tool intents, but the LLM never sees the deterministic
+        // table values — so it may invent or use a stale number. Ground the prose against the
+        // structured result before persistence so prose and table can never disagree.
+        var consistencyContext = new AnswerConsistencyContext(
+            request.CorrelationId, conversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2);
+        var groundedAnswer = GroundAgentProse(
+            detectedIntent, state, agentResponse.Text, consistencyContext);
+
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
         // Step 9: Persist conversation exchange
@@ -150,7 +160,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             state.ScannerResult?.Plan, state.ScannerResult?.Table,
             state.LookupResult?.Table,
             explainableAnswer, usage,
-            memoryContext, agentResponse.Text,
+            memoryContext, groundedAnswer,
             createConversation, cancellationToken);
 
         return new AiQueryResponse(
@@ -207,6 +217,30 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             name: "lookup_symbol_metrics",
             description: "Look up specific financial metric values for named stock symbols. " +
                          "Use when the user asks for a metric of a specific stock by name or ticker (e.g., P/E of فولاد).");
+
+    // Replaces LLM-authored prose with deterministic, table-grounded prose when the prose states a
+    // numeric metric value that conflicts with (or is unsupported by) the deterministic structured
+    // result. Wording for clarifications and Unknown-intent answers is left untouched.
+    private string? GroundAgentProse(
+        DetectedIntent intent,
+        OrchestrationState state,
+        string? candidateProse,
+        AnswerConsistencyContext context)
+    {
+        if (intent == DetectedIntent.SymbolLookup && state.LookupResult?.Table is not null)
+            return consistencyValidator
+                .ValidateSymbolLookup(state.LookupResult.Table, candidateProse, context)
+                .Answer;
+
+        if (intent == DetectedIntent.Scanner
+            && state.ScannerResult?.Table is not null
+            && state.ScannerResult.Plan is not null)
+            return consistencyValidator
+                .ValidateScanner(state.ScannerResult.Table, state.ScannerResult.Plan, candidateProse, context)
+                .Answer;
+
+        return candidateProse;
+    }
 
     private static DetectedIntent DetermineIntent(OrchestrationState state)
     {

@@ -133,6 +133,69 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     }
 }
 
+// ─── V2 numeric-consistency guardrail tests ───────────────────────────────────
+// Reproduces the reported bug: the V2 agent authors prose with a hallucinated/stale P/E ("7.88")
+// while the deterministic table reports PE_TTM = 5.06. The persisted assistant prose must be
+// corrected to the table value, and the table must keep the authoritative value.
+public sealed class V2AnswerConsistencyEndpointTests : IClassFixture<V2InconsistentLookupApiFactory>
+{
+    private readonly V2InconsistentLookupApiFactory _factory;
+
+    public V2AnswerConsistencyEndpointTests(V2InconsistentLookupApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task V2AiQuery_LookupProseConflictsWithTable_PersistedProseCorrected()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "pe شبندر چقدر است؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+
+        // Table keeps the authoritative deterministic value.
+        var table = root.GetProperty("symbolLookupTable");
+        var cell = table.GetProperty("rows")[0].GetProperty("cells").GetProperty("PE_TTM");
+        Assert.Equal("5.06", cell.GetProperty("formattedValue").GetString());
+
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+
+        // Reload the conversation: the persisted assistant prose must show the corrected value.
+        using var reload = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var reloadDoc = await ReadJsonAsync(reload);
+
+        var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
+            .First(m => m.GetProperty("role").GetString() == "Assistant");
+        var content = assistant.GetProperty("content").GetString()!;
+
+        Assert.DoesNotContain("7.88", content);
+        Assert.Contains("5.06", content);
+
+        // Persisted structured table also keeps the authoritative value (consistency preserved).
+        var persistedCell = assistant.GetProperty("assistantContent")
+            .GetProperty("symbolLookupTable").GetProperty("rows")[0]
+            .GetProperty("cells").GetProperty("PE_TTM");
+        Assert.Equal("5.06", persistedCell.GetProperty("formattedValue").GetString());
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
 // ─── V2 Scanner factory ───────────────────────────────────────────────────────
 
 public sealed class V2ScannerApiFactory : ScannerExecutionApiFactory
@@ -269,6 +332,173 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             DependencyEvidenceJson = "[]"
         });
     }
+}
+
+// ─── V2 inconsistent-lookup factory (consistency guardrail) ───────────────────
+
+public sealed class V2InconsistentLookupApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-inconsistent-lookup-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => new V2InconsistentLookupFakeAiModelClient());
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedLookupData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedLookupData(FinancialIngestionDbContext db)
+    {
+        var companyId = Guid.Parse("50000000-0000-0000-0000-200000000001");
+        var symbolMetricsId = Guid.Parse("60000000-0000-0000-0000-200000000101");
+        var now = DateTimeOffset.UtcNow;
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = "پتروشیمی بندرامام",
+            ProviderName = "test",
+            ExternalCompanyId = "shabandar-v2-001",
+            TseSymbol = "شبندر",
+            CompanySymbol = "شبندر",
+            LastSynchronizedAt = now
+        });
+
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = symbolMetricsId,
+            CompanyId = companyId,
+            ProviderName = "metrics-provider",
+            ExternalSymbolId = "shabandar-metrics-v2-001",
+            SymbolCode = "شبندر",
+            LastSynchronizedAt = now
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbolMetricsId,
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "PE_TTM_v1",
+            PeriodType = "ThreeMonths",
+            PeriodStart = new DateOnly(2025, 1, 1),
+            PeriodEnd = new DateOnly(2025, 3, 31),
+            Value = 5.06m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+    }
+}
+
+// Fake whose turn-2 prose contradicts the deterministic table (states "7.88" instead of 5.06).
+internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
+{
+    public AiModelProviderDescriptor Descriptor { get; } = new(
+        "V2InconsistentLookupFake",
+        "fake-v2",
+        AiProviderHostingMode.Fake,
+        AiModelCapability.ChatCompletion | AiModelCapability.ToolCalling |
+        AiModelCapability.StructuredOutput | AiModelCapability.UsageReporting |
+        AiModelCapability.HealthCheck,
+        Enabled: true,
+        Priority: 1);
+
+    public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
+    {
+        // Turn 2: continuation after tool execution — author CONFLICTING prose.
+        if (request.PreviousResponseId is not null)
+        {
+            return Task.FromResult(new AiModelResult(
+                Text: "نسبت P/E نماد شبندر برابر است با 7.88",
+                StructuredJson: null,
+                ToolCalls: [],
+                Usage: MakeUsage(request)));
+        }
+
+        // Turn 1: fire the lookup tool.
+        if (request.Tools is { Count: > 0 })
+        {
+            return Task.FromResult(new AiModelResult(
+                Text: null,
+                StructuredJson: null,
+                ToolCalls: [new AiToolCall(
+                    "v2-inconsistent-call-1",
+                    "lookup_symbol_metrics",
+                    "{\"query\":\"pe شبندر چقدر است؟\"}")],
+                Usage: MakeUsage(request, usedTools: true),
+                ResponseId: $"fake-v2-resp-{request.CorrelationId}"));
+        }
+
+        var json = request.StructuredOutput?.SchemaName switch
+        {
+            "SymbolLookupParseOutput" =>
+                """{"detectedLanguage":"fa","pairs":[{"symbolName":"شبندر","metricTerm":"pe"}],"clarificationRequired":false,"clarificationMessage":null}""",
+            _ => "{}"
+        };
+
+        return Task.FromResult(new AiModelResult(
+            Text: null,
+            StructuredJson: json,
+            ToolCalls: [],
+            Usage: MakeUsage(request)));
+    }
+
+    public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+        AiModelRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiEmbeddingResult> CreateEmbeddingsAsync(
+        AiEmbeddingRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new AiProviderHealthResult(
+            Descriptor.ProviderKey, Descriptor.ModelKey,
+            Available: true, DateTimeOffset.UtcNow, "OK"));
+
+    private AiExecutionUsageFacts MakeUsage(AiModelRequest request, bool usedTools = false) =>
+        new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
+            AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
+            InputTokens: 10, OutputTokens: 4, UsedTools: usedTools);
 }
 
 // ─── V2 composite fake for scanner ────────────────────────────────────────────

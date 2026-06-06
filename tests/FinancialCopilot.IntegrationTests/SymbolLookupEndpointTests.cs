@@ -49,6 +49,33 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
     }
 
     [Fact]
+    public async Task AiQuery_SymbolLookup_PersistedProseUsesDeterministicTableValue()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "PE حفاری چقدر است؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var conversationId = document.RootElement.GetProperty("conversationId").GetGuid();
+
+        using var reload = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var reloadDoc = await ReadJsonAsync(reload);
+
+        var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
+            .First(m => m.GetProperty("role").GetString() == "Assistant");
+        var content = assistant.GetProperty("content").GetString()!;
+
+        // Deterministic prose is grounded in the same table cell rendered in the table (5.20).
+        Assert.Contains("5.20", content);
+    }
+
+    [Fact]
     public async Task AiQuery_UnknownSymbol_ReturnsEmptyLookupTableRows()
     {
         using var client = _factory.CreateUnknownSymbolClient();

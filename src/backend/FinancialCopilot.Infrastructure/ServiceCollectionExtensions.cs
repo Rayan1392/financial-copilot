@@ -47,6 +47,7 @@ using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
 using FinancialCopilot.Infrastructure.Administration;
+using FinancialCopilot.Infrastructure.AI.Consistency;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Config;
@@ -341,6 +342,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IScannerExplanationGenerator, LlmScannerExplanationGenerator>();
         services.AddScoped<IExplainableAnswerBuilder, ExplainableAnswerBuilder>();
         services.AddScoped<IBillingFacadeHook, AiFacadeBillingHook>();
+
+        // Deterministic prose + numeric consistency protection. Shared by V1 and V2 so the LLM can
+        // never report a metric value that disagrees with the deterministic structured table.
+        services.AddSingleton<MetricDisplayNameResolver>();
+        services.AddSingleton<ISymbolLookupProseBuilder, SymbolLookupProseBuilder>();
+        services.AddSingleton<IAnswerConsistencyWarningSink, LoggingAnswerConsistencyWarningSink>();
+        services.AddSingleton<IAnswerConsistencyValidator, AnswerConsistencyValidator>();
 
         services.Configure<AiOrchestrationOptions>(
             configuration.GetSection(AiOrchestrationOptions.SectionName));

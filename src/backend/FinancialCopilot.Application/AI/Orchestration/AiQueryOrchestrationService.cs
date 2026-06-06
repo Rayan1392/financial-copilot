@@ -20,6 +20,8 @@ public sealed class AiQueryOrchestrationService(
     ISymbolLookupParser symbolLookupParser,
     ISymbolMetricLookupService symbolMetricLookupService,
     IMissingAnswerFeedbackCollector feedbackCollector,
+    IAnswerConsistencyValidator consistencyValidator,
+    ISymbolLookupProseBuilder symbolLookupProseBuilder,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -294,9 +296,12 @@ public sealed class AiQueryOrchestrationService(
             ? JsonSerializer.Serialize(scannerPlan)
             : null;
 
+        var consistencyContext = new AnswerConsistencyContext(
+            request.CorrelationId, conversationId, "V1", WorkflowVersion: 1);
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
-            explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
+            explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
+            consistencyContext);
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -419,7 +424,7 @@ public sealed class AiQueryOrchestrationService(
         return sb.ToString();
     }
 
-    private static string BuildAssistantContent(
+    private string BuildAssistantContent(
         DetectedIntent intent,
         ScannerQueryPlan? plan,
         ScannerTableResult? table,
@@ -427,26 +432,30 @@ public sealed class AiQueryOrchestrationService(
         ExplainableAnswer? explainableAnswer,
         string? textAnswer,
         bool clarificationRequired,
-        string? clarificationMessage)
+        string? clarificationMessage,
+        AnswerConsistencyContext consistencyContext)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
 
+        // Symbol-lookup prose is built deterministically from the structured table cell — never from
+        // LLM free text — so the prose value always equals the table value.
         if (lookupTable is not null)
-        {
-            var count = lookupTable.ExecutionFacts.MatchingSymbolCount;
-            return ContainsPersianTable(lookupTable)
-                ? $"مقادیر مستقیم برای {count} نماد یافت شد."
-                : $"Found direct metric values for {count} symbol(s).";
-        }
-
-        if (explainableAnswer?.ExplanationText is not null)
-            return explainableAnswer.ExplanationText;
+            return symbolLookupProseBuilder.Build(lookupTable);
 
         if (table is not null)
-            return IsPersianLanguage(plan?.Language)
+        {
+            // Scanner explanation prose is LLM-authored; ground it against the deterministic table so
+            // a hallucinated metric value can never survive into the persisted answer.
+            var deterministicSummary = IsPersianLanguage(plan?.Language)
                 ? $"اسکنر برای {plan!.Conditions.Count} شرط، {table.Rows.Count} نماد منطبق پیدا کرد."
                 : $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
+
+            var candidate = explainableAnswer?.ExplanationText ?? deterministicSummary;
+            return consistencyValidator
+                .ValidateScanner(table, plan!, candidate, consistencyContext)
+                .Answer;
+        }
 
         if (plan is not null)
             return IsPersianLanguage(plan.Language)
@@ -455,9 +464,6 @@ public sealed class AiQueryOrchestrationService(
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
     }
-
-    private static bool ContainsPersianTable(SymbolLookupTableResult table) =>
-        table.Rows.Any(r => ContainsPersianText(r.SymbolCode));
 
     private static bool ContainsPersianText(string text) =>
         text.Any(character =>

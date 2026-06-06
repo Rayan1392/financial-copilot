@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Features;
+using FinancialCopilot.Infrastructure.Financial.Messaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -28,6 +29,10 @@ public sealed class RabbitMqFeatureOptions
     public string CompletedQueue { get; init; } = "financialcopilot.features.recalculate.completed";
 
     public string FailedQueue { get; init; } = "financialcopilot.features.recalculate.failed";
+
+    public ushort PrefetchCount { get; init; } = 1;
+
+    public int? ConsumerTimeoutMilliseconds { get; init; }
 }
 
 public sealed class RabbitMqFeatureBus(
@@ -51,22 +56,51 @@ public sealed class RabbitMqFeatureBus(
         EnsureEnabled(settings);
         await using var connection = await CreateConnectionAsync(settings, cancellationToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-        await DeclareQueueAsync(channel, settings.RequestedQueue, cancellationToken);
+        await DeclareQueueAsync(channel, settings.RequestedQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
+        await channel.BasicQosAsync(
+            prefetchSize: 0,
+            prefetchCount: settings.PrefetchCount,
+            global: false,
+            cancellationToken);
         var consumer = new AsyncEventingBasicConsumer(channel);
 
         consumer.ReceivedAsync += async (_, args) =>
         {
+            FeatureRecalculationRequested request;
             try
             {
-                var request = JsonSerializer.Deserialize<FeatureRecalculationRequested>(args.Body.Span, JsonOptions) ??
+                request = JsonSerializer.Deserialize<FeatureRecalculationRequested>(args.Body.Span, JsonOptions) ??
                     throw new InvalidOperationException("Feature recalculation message was empty.");
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogError(exception, "Feature recalculation message was malformed.");
+                await RabbitMqConsumerAcknowledgement.TryNackAsync(
+                    channel,
+                    args.DeliveryTag,
+                    logger,
+                    "feature recalculation",
+                    cancellationToken);
+                return;
+            }
+
+            if (!await RabbitMqConsumerAcknowledgement.TryAckAsync(
+                    channel,
+                    args.DeliveryTag,
+                    logger,
+                    "feature recalculation",
+                    cancellationToken))
+            {
+                return;
+            }
+
+            try
+            {
                 await handler(request, cancellationToken);
-                await channel.BasicAckAsync(args.DeliveryTag, multiple: false, cancellationToken);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 logger.LogError(exception, "Feature recalculation message processing failed.");
-                await channel.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: false, cancellationToken);
             }
         };
 
@@ -84,7 +118,7 @@ public sealed class RabbitMqFeatureBus(
         EnsureEnabled(settings);
         await using var connection = await CreateConnectionAsync(settings, cancellationToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-        await DeclareQueueAsync(channel, queue, cancellationToken);
+        await DeclareQueueAsync(channel, queue, consumerTimeoutMilliseconds: null, cancellationToken);
         await channel.BasicPublishAsync(
             exchange: string.Empty,
             routingKey: queue,
@@ -120,14 +154,23 @@ public sealed class RabbitMqFeatureBus(
     private static Task<QueueDeclareOk> DeclareQueueAsync(
         IChannel channel,
         string queue,
+        int? consumerTimeoutMilliseconds,
         CancellationToken cancellationToken) =>
         channel.QueueDeclareAsync(
             queue,
             durable: true,
             exclusive: false,
             autoDelete: false,
-            arguments: null,
+            arguments: CreateQueueArguments(consumerTimeoutMilliseconds),
             cancellationToken: cancellationToken);
+
+    private static Dictionary<string, object?>? CreateQueueArguments(int? consumerTimeoutMilliseconds) =>
+        consumerTimeoutMilliseconds is null
+            ? null
+            : new Dictionary<string, object?>
+            {
+                ["x-consumer-timeout"] = consumerTimeoutMilliseconds.Value
+            };
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

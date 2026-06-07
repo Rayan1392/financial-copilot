@@ -36,10 +36,10 @@ public sealed class ScannerResultColumnPolicyTests
     }
 
     [Fact]
-    public void BuildColumns_NineConditions_CappsAtTenColumns()
+    public void BuildColumns_NineConditions_KeepsEveryConditionMetric()
     {
         var policy = new ScannerResultColumnPolicy();
-        // 5 default + 9 conditions = 14, but cap at 10
+        // Condition metrics are deterministic output columns and must not be dropped.
         var conditions = Enumerable.Range(0, 9)
             .Select(i => MakeCondition($"METRIC_{i}"))
             .ToList();
@@ -47,7 +47,11 @@ public sealed class ScannerResultColumnPolicyTests
 
         var columns = policy.BuildColumns(plan);
 
-        Assert.Equal(ScannerQueryPlan.MaxDisplayColumns, columns.Count);
+        Assert.Equal(14, columns.Count);
+        foreach (var condition in conditions)
+        {
+            Assert.Contains(columns, c => c.Identifier == condition.MetricReference.MetricCode.Value);
+        }
     }
 
     [Fact]
@@ -75,6 +79,49 @@ public sealed class ScannerResultColumnPolicyTests
         Assert.Equal(7, columns.Count);
         Assert.Contains(columns, c => c.Identifier == "PE_TTM");
         Assert.Contains(columns, c => c.Identifier == "NET_PROFIT");
+    }
+
+    [Fact]
+    public void BuildColumns_StandardColumnsRequestedByLlm_AreNotDuplicated()
+    {
+        var policy = new ScannerResultColumnPolicy();
+        var plan = MakePlanWithRequested(
+            [MakeCondition("PE_TTM")],
+            ["SYMBOL", "CompanyName", "latest price", "DAILY_CHANGE_PCT", "MARKET_CAP"]);
+
+        var columns = policy.BuildColumns(plan);
+
+        Assert.Single(columns, c => c.ColumnType == ScannerColumnType.Symbol);
+        Assert.Single(columns, c => c.ColumnType == ScannerColumnType.CompanyName);
+        Assert.Single(columns, c => c.ColumnType == ScannerColumnType.LatestPrice);
+        Assert.Single(columns, c => c.ColumnType == ScannerColumnType.DailyChangePercent);
+        Assert.Single(columns, c => c.ColumnType == ScannerColumnType.MarketCap);
+        Assert.Single(columns, c => c.Identifier == "PE_TTM");
+    }
+
+    [Fact]
+    public void BuildColumns_DuplicateConditionAndRequestedMetric_AppearsOnce()
+    {
+        var policy = new ScannerResultColumnPolicy();
+        var plan = MakePlanWithRequested([MakeCondition("PE_TTM")], ["pe_ttm"]);
+
+        var columns = policy.BuildColumns(plan);
+
+        Assert.Single(columns, c => c.Identifier.Equals("PE_TTM", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void BuildColumns_PersianStandardColumnSynonymsRequested_AreIgnored()
+    {
+        var policy = new ScannerResultColumnPolicy();
+        var plan = MakePlanWithRequested(
+            [MakeCondition("PE_TTM")],
+            ["نماد", "نام شرکت", "قیمت", "آخرین قیمت", "درصد تغییر", "ارزش بازار"]);
+
+        var columns = policy.BuildColumns(plan);
+
+        Assert.Equal(6, columns.Count);
+        Assert.Single(columns, c => c.Identifier == "PE_TTM");
     }
 
     [Fact]

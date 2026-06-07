@@ -11,6 +11,34 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
         new ScannerTableColumn("MARKET_CAP", "Market Cap", ScannerColumnType.MarketCap)
     ];
 
+    private static readonly HashSet<string> StandardColumnTerms = new(
+        [
+            "symbol",
+            "ticker",
+            "company",
+            "companyname",
+            "latestprice",
+            "price",
+            "latestpricechangepercent",
+            "dailychangepct",
+            "dailychangepercent",
+            "changepercent",
+            "percentchange",
+            "marketcap",
+            "marketcapitalization",
+            "نماد",
+            "نامنماد",
+            "شرکت",
+            "نامشرکت",
+            "قیمت",
+            "آخرینقیمت",
+            "درصدتغییر",
+            "تغییرقیمت",
+            "درصدتغییرآخرینقیمت",
+            "ارزشبازار"
+        ],
+        StringComparer.OrdinalIgnoreCase);
+
     public IReadOnlyCollection<ScannerTableColumn> BuildColumns(ScannerQueryPlan plan)
     {
         var usePersianLabels = IsPersianLanguage(plan.Language);
@@ -24,7 +52,7 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
         foreach (var condition in plan.Conditions)
         {
             var code = condition.MetricReference.MetricCode.Value;
-            if (seen.Add(code) && columns.Count < ScannerQueryPlan.MaxDisplayColumns)
+            if (seen.Add(code))
             {
                 columns.Add(new ScannerTableColumn(
                     code,
@@ -34,15 +62,22 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             }
         }
 
+        var requestedMetricCount = 0;
         foreach (var col in plan.RequestedColumns)
         {
-            if (seen.Add(col.Identifier) && columns.Count < ScannerQueryPlan.MaxDisplayColumns)
+            if (IsStandardColumnTerm(col.Identifier))
+            {
+                continue;
+            }
+
+            if (seen.Add(col.Identifier) && requestedMetricCount < ScannerQueryPlan.MaxDisplayColumns)
             {
                 columns.Add(new ScannerTableColumn(
                     col.Identifier,
                     FormatMetricDisplayName(col.Identifier, usePersianLabels),
                     ScannerColumnType.Metric,
                     col.Identifier));
+                requestedMetricCount++;
             }
         }
 
@@ -110,6 +145,17 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
 
     private static bool IsPersianLanguage(string language) =>
         language.StartsWith("fa", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsStandardColumnTerm(string column) =>
+        StandardColumnTerms.Contains(NormalizeColumnTerm(column));
+
+    private static string NormalizeColumnTerm(string term)
+    {
+        var chars = term.Trim().ToLowerInvariant()
+            .Where(ch => !char.IsWhiteSpace(ch) && ch is not '_' and not '-' and not '/' and not '%' and not '.')
+            .ToArray();
+        return new string(chars);
+    }
 }
 
 public sealed class ScannerResultRanker : IScannerResultRanker

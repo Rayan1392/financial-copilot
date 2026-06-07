@@ -198,6 +198,84 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
     }
 }
 
+public sealed class PeSymbolLookupRegressionTests : IClassFixture<PeSymbolLookupRegressionApiFactory>
+{
+    private readonly PeSymbolLookupRegressionApiFactory _factory;
+
+    public PeSymbolLookupRegressionTests(PeSymbolLookupRegressionApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("pe کگل چقدر است؟", "کگل", "4.12")]
+    [InlineData("P/E کگل", "کگل", "4.12")]
+    [InlineData("پی به ای کگل", "کگل", "4.12")]
+    [InlineData("نسبت قیمت به سود کگل", "کگل", "4.12")]
+    [InlineData("pe شپنا", "شپنا", "5.17")]
+    [InlineData("P/E شبندر", "شبندر", "5.06")]
+    public async Task AiQuery_PeLookup_ReturnsPersistedPeTtmWithHighConfidence(
+        string message,
+        string expectedSymbol,
+        string expectedFormattedValue)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+
+        var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray()
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("SYMBOL", columns);
+        Assert.Contains("COMPANY_NAME", columns);
+        Assert.Contains("LATEST_PRICE", columns);
+        Assert.Contains("DAILY_CHANGE_PCT", columns);
+        Assert.Contains("PE_TTM", columns);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
+        var cell = row.GetProperty("cells").GetProperty("PE_TTM");
+        Assert.Equal(expectedFormattedValue, cell.GetProperty("formattedValue").GetString());
+        Assert.NotEqual(JsonValueKind.Null, cell.GetProperty("value").ValueKind);
+        Assert.NotEqual("Missing", cell.GetProperty("freshnessStatus").GetString());
+
+        var warnings = table.GetProperty("missingDataWarnings").EnumerateArray()
+            .Select(w => w.GetString() ?? string.Empty)
+            .ToList();
+        Assert.DoesNotContain(warnings, warning => warning.Contains("PE_TTM", StringComparison.OrdinalIgnoreCase));
+
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        using var reload = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages",
+            CancellationToken.None);
+        using var reloadDoc = await ReadJsonAsync(reload);
+        var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
+            .First(m => m.GetProperty("role").GetString() == "Assistant");
+        var answerText = assistant.GetProperty("content").GetString()!;
+        Assert.Contains(expectedFormattedValue, answerText);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
 public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"symbol-lookup-ingestion-{Guid.NewGuid():N}";
@@ -383,6 +461,234 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             SourceEvidenceJson = "[]",
             DependencyEvidenceJson = "[]"
         };
+}
+
+public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"pe-lookup-regression-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => new PeLookupRegressionFakeAiModelClient());
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedPeLookupData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedPeLookupData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var periodStart = new DateOnly(2025, 1, 1);
+        var periodEnd = new DateOnly(2025, 12, 31);
+
+        SeedSymbol(db, "کگل", "معدنی و صنعتی گل گهر", 4.12m, 2110m, 1.25m, now, periodStart, periodEnd, 1);
+        SeedSymbol(db, "فملی", "ملی صنایع مس ایران", 6.40m, 10520m, -0.42m, now, periodStart, periodEnd, 2);
+        SeedSymbol(db, "شپنا", "پالایش نفت اصفهان", 5.17m, 8120m, 0.88m, now, periodStart, periodEnd, 3);
+        SeedSymbol(db, "شبندر", "پالایش نفت بندرعباس", 5.06m, 7340m, 0.35m, now, periodStart, periodEnd, 4);
+        SeedSymbol(db, "شتران", "پالایش نفت تهران", 5.89m, 6910m, -0.14m, now, periodStart, periodEnd, 5);
+        SeedSymbol(db, "فزرین", "زرین معدن آسیا", 7.21m, 1480m, 2.10m, now, periodStart, periodEnd, 6);
+    }
+
+    private static void SeedSymbol(
+        FinancialIngestionDbContext db,
+        string symbol,
+        string companyName,
+        decimal peTtm,
+        decimal latestPrice,
+        decimal changePercent,
+        DateTimeOffset now,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        int index)
+    {
+        var companyId = Guid.Parse($"70000000-0000-0000-0000-{index:000000000000}");
+        var symbolId = Guid.Parse($"71000000-0000-0000-0000-{index:000000000000}");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = companyName,
+            ProviderName = "CodalDb",
+            ExternalCompanyId = $"company-{index}",
+            TseSymbol = symbol,
+            CompanySymbol = symbol,
+            LastSynchronizedAt = now
+        });
+
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = symbolId,
+            CompanyId = companyId,
+            ProviderName = "CodalDb",
+            ExternalSymbolId = $"symbol-{index}",
+            SymbolCode = symbol,
+            LastSynchronizedAt = now
+        });
+
+        db.DerivedMetrics.AddRange(
+            new DerivedMetricRow
+            {
+                Id = Guid.NewGuid(),
+                SymbolId = symbolId,
+                MetricCode = "PE_TTM",
+                MetricVersion = "v1",
+                CalculationPolicyVersion = "PE_TTM_v1",
+                PeriodType = "TrailingTwelveMonths",
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                Value = peTtm,
+                Unit = "Ratio",
+                ObservedAt = now,
+                LastSynchronizedAt = now,
+                WarningsJson = "[]",
+                SourceEvidenceJson = "[]",
+                DependencyEvidenceJson = "[]"
+            },
+            new DerivedMetricRow
+            {
+                Id = Guid.NewGuid(),
+                SymbolId = symbolId,
+                MetricCode = "LATEST_PRICE",
+                MetricVersion = "v1",
+                CalculationPolicyVersion = "LATEST_PRICE_v1",
+                PeriodType = "TrailingTwelveMonths",
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                Value = latestPrice,
+                Unit = "Price",
+                ObservedAt = now,
+                LastSynchronizedAt = now,
+                WarningsJson = "[]",
+                SourceEvidenceJson = "[]",
+                DependencyEvidenceJson = "[]"
+            },
+            new DerivedMetricRow
+            {
+                Id = Guid.NewGuid(),
+                SymbolId = symbolId,
+                MetricCode = "DAILY_CHANGE_PCT",
+                MetricVersion = "v1",
+                CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
+                PeriodType = "TrailingTwelveMonths",
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                Value = changePercent,
+                Unit = "Percent",
+                ObservedAt = now,
+                LastSynchronizedAt = now,
+                WarningsJson = "[]",
+                SourceEvidenceJson = "[]",
+                DependencyEvidenceJson = "[]"
+            });
+    }
+}
+
+internal sealed class PeLookupRegressionFakeAiModelClient : IAiModelClient
+{
+    public AiModelProviderDescriptor Descriptor { get; } = new(
+        "PeLookupRegressionFake",
+        "fake-v1",
+        AiProviderHostingMode.Fake,
+        AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput |
+        AiModelCapability.UsageReporting | AiModelCapability.HealthCheck,
+        Enabled: true,
+        Priority: 1);
+
+    public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
+    {
+        var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
+        var json = request.StructuredOutput?.SchemaName switch
+        {
+            "IntentDetectionOutput" =>
+                "{\"intent\":\"Unknown\",\"confidence\":0.1}",
+
+            "SymbolLookupParseOutput" =>
+                BuildParseJson(userMessage),
+
+            _ => "{}"
+        };
+
+        return Task.FromResult(new AiModelResult(
+            Text: null,
+            StructuredJson: json,
+            ToolCalls: [],
+            Usage: new AiExecutionUsageFacts(
+                request.CorrelationId,
+                Descriptor.ProviderKey,
+                Descriptor.ModelKey,
+                AiExecutionStatus.Completed,
+                TimeSpan.Zero,
+                AttemptNumber: 0,
+                InputTokens: 12,
+                OutputTokens: 6)));
+    }
+
+    public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+        AiModelRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiEmbeddingResult> CreateEmbeddingsAsync(
+        AiEmbeddingRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new AiProviderHealthResult(
+            Descriptor.ProviderKey,
+            Descriptor.ModelKey,
+            Available: true,
+            DateTimeOffset.UtcNow,
+            "OK"));
+
+    private static string BuildParseJson(string userMessage)
+    {
+        var symbol = ResolveSymbol(userMessage);
+        var metric = ResolveMetricTerm(userMessage);
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"{{metric}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
+    }
+
+    private static string ResolveSymbol(string userMessage)
+    {
+        foreach (var symbol in new[] { "کگل", "فملی", "شپنا", "شبندر", "شتران", "فزرین" })
+        {
+            if (userMessage.Contains(symbol, StringComparison.OrdinalIgnoreCase))
+                return symbol;
+        }
+
+        return "کگل";
+    }
+
+    private static string ResolveMetricTerm(string userMessage)
+    {
+        if (userMessage.Contains("نسبت قیمت به سود", StringComparison.OrdinalIgnoreCase))
+            return "نسبت قیمت به سود";
+        if (userMessage.Contains("پی به ای", StringComparison.OrdinalIgnoreCase))
+            return "پی به ای";
+        if (userMessage.Contains("P/E", StringComparison.OrdinalIgnoreCase))
+            return "P/E";
+        return "pe";
+    }
 }
 
 internal sealed class SymbolLookupFakeAiModelClient(

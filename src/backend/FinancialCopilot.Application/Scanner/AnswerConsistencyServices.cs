@@ -47,7 +47,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
         var metricColumns = table.Columns
             .Where(c => c.ColumnType is ScannerColumnType.Metric
-                or ScannerColumnType.LatestPrice or ScannerColumnType.MarketCap)
+                or ScannerColumnType.MarketCap)
             .ToList();
 
         // Multiple symbols, or multiple metrics: prose must not state a single value. Defer to the table.

@@ -64,6 +64,28 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(expectedMetricCode, result.Pairs.First().ResolvedMetricCode?.Value);
     }
 
+    [Theory]
+    [InlineData("PE")]
+    [InlineData("P/E")]
+    [InlineData("پی به ای")]
+    [InlineData("پی‌ای")]
+    [InlineData("نسبت قیمت به سود")]
+    [InlineData("price-to-earnings")]
+    public async Task Parser_PeAliases_ReturnResolvedPeTtmPair(string metricTerm)
+    {
+        var resolver = BuildAliasResolver();
+        var language = metricTerm.Any(ch => ch is >= 'ا' and <= 'ی') ? "fa" : "en";
+        var json = BuildPairsJson([("کگل", metricTerm)], language);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest($"{metricTerm} کگل", language, $"corr-{metricTerm}", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        Assert.Equal("PE_TTM", result.Pairs.First().ResolvedMetricCode?.Value);
+    }
+
     [Fact]
     public async Task Parser_MultipleSymbolsOnePair_ReturnsBothPairs()
     {

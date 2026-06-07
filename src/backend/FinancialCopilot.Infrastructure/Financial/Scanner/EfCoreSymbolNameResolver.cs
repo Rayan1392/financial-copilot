@@ -15,10 +15,11 @@ public sealed class EfCoreSymbolNameResolver(
         if (string.IsNullOrWhiteSpace(rawName)) return null;
 
         var normalized = rawName.Trim();
-        var lower = normalized.ToLowerInvariant();
+        var variants = BuildLookupVariants(normalized);
+        var lowerVariants = variants.Select(v => v.ToLowerInvariant()).ToList();
 
         var byCode = await dbContext.Symbols.AsNoTracking()
-            .Where(s => s.SymbolCode.ToLower() == lower)
+            .Where(s => lowerVariants.Contains(s.SymbolCode.ToLower()))
             .Select(s => s.SymbolCode)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -35,24 +36,48 @@ public sealed class EfCoreSymbolNameResolver(
 
         var exactCompanies = await dbContext.Companies.AsNoTracking()
             .Where(c =>
-                c.ExternalCompanyId.ToLower() == lower ||
-                (c.TseSymbol != null && c.TseSymbol.ToLower() == lower) ||
-                (c.CompanySymbol != null && c.CompanySymbol.ToLower() == lower) ||
-                (c.SymbolIsin != null && c.SymbolIsin.ToLower() == lower) ||
-                (c.CompanyIsin != null && c.CompanyIsin.ToLower() == lower) ||
-                (c.CompanySymbolEnglish != null && c.CompanySymbolEnglish.ToLower() == lower) ||
-                c.Name.ToLower() == lower)
+                lowerVariants.Contains(c.ExternalCompanyId.ToLower()) ||
+                (c.TseSymbol != null && lowerVariants.Contains(c.TseSymbol.ToLower())) ||
+                (c.CompanySymbol != null && lowerVariants.Contains(c.CompanySymbol.ToLower())) ||
+                (c.CompanySymbolEnglish != null && lowerVariants.Contains(c.CompanySymbolEnglish.ToLower())) ||
+                (c.CompanySymbolPinglish != null && lowerVariants.Contains(c.CompanySymbolPinglish.ToLower())) ||
+                (c.CompanyCode != null && lowerVariants.Contains(c.CompanyCode.ToLower())) ||
+                (c.InstrumentCode != null && lowerVariants.Contains(c.InstrumentCode.ToLower())) ||
+                (c.SymbolIsin != null && lowerVariants.Contains(c.SymbolIsin.ToLower())) ||
+                (c.CompanyIsin != null && lowerVariants.Contains(c.CompanyIsin.ToLower())) ||
+                lowerVariants.Contains(c.Name.ToLower()))
             .ToListAsync(cancellationToken);
 
         var exact = await ResolveSingleCompanyAsync(rawName, exactCompanies, "exact company identifier", cancellationToken);
         if (exact is not null) return exact;
         if (exactCompanies.Count > 1) return null;
 
-        var byName = await dbContext.Companies.AsNoTracking()
-            .Where(c => c.Name.ToLower().Contains(lower))
+        var candidateCompanies = await dbContext.Companies.AsNoTracking()
             .ToListAsync(cancellationToken);
+        var byName = candidateCompanies
+            .Where(c =>
+                lowerVariants.Any(term =>
+                    c.Name.ToLowerInvariant().Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
         return await ResolveSingleCompanyAsync(rawName, byName, "company name", cancellationToken);
+    }
+
+    private static IReadOnlyCollection<string> BuildLookupVariants(string value)
+    {
+        var trimmed = value.Trim();
+        var persian = trimmed
+            .Replace('ك', 'ک')
+            .Replace('ي', 'ی');
+        var arabic = trimmed
+            .Replace('ک', 'ك')
+            .Replace('ی', 'ي');
+
+        return new[] { trimmed, persian, arabic }
+            .Select(v => v.Trim())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<SymbolCode?> ResolveSingleCompanyAsync(

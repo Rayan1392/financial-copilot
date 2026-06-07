@@ -14,6 +14,34 @@ public sealed class LlmScannerQueryParser(
     private const string PolicyVersion = "v1";
     private const string SchemaName = "ScannerParseOutput";
 
+    private static readonly HashSet<string> StandardColumnTerms = new(
+        [
+            "symbol",
+            "ticker",
+            "company",
+            "companyname",
+            "latestprice",
+            "price",
+            "latestpricechangepercent",
+            "dailychangepct",
+            "dailychangepercent",
+            "changepercent",
+            "percentchange",
+            "marketcap",
+            "marketcapitalization",
+            "نماد",
+            "نامنماد",
+            "شرکت",
+            "نامشرکت",
+            "قیمت",
+            "آخرینقیمت",
+            "درصدتغییر",
+            "تغییرقیمت",
+            "درصدتغییرآخرینقیمت",
+            "ارزشبازار"
+        ],
+        StringComparer.OrdinalIgnoreCase);
+
     private static readonly AiStructuredOutputContract ParseContract = new(
         SchemaName,
         ["detectedLanguage", "conditions", "clarificationRequired"]);
@@ -208,10 +236,32 @@ public sealed class LlmScannerQueryParser(
             clarificationMessage = $"The following metric terms could not be uniquely resolved: {unresolved}.";
         }
 
-        // Build requested column list; enforce max-10 limit on user-requested columns.
+        // Build requested column list. Standard columns and condition metrics are added
+        // deterministically by the backend, so LLM requestedColumns only carry extra metrics.
         var columnWarnings = new List<string>();
         var requestedColumns = new List<ScannerColumnRequest>();
-        var userColumns = llmOutput.RequestedColumns.ToList();
+        var seenColumnIdentifiers = conditions
+            .Select(condition => condition.MetricReference.MetricCode.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var userColumns = new List<string>();
+
+        foreach (var column in llmOutput.RequestedColumns)
+        {
+            if (string.IsNullOrWhiteSpace(column) || IsStandardColumnTerm(column))
+            {
+                continue;
+            }
+
+            var identifier = ResolveRequestedColumnIdentifier(
+                column,
+                NormalizeBcp47(llmOutput.DetectedLanguage),
+                request.AsOf);
+
+            if (seenColumnIdentifiers.Add(identifier))
+            {
+                userColumns.Add(identifier);
+            }
+        }
 
         if (userColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
         {
@@ -295,6 +345,54 @@ public sealed class LlmScannerQueryParser(
             "MonthOverMonth" => GrowthComparison.MonthOverMonth,
             _ => null
         };
+
+    private string ResolveRequestedColumnIdentifier(string column, string language, DateOnly asOf)
+    {
+        var trimmed = column.Trim();
+        var metric = aliasResolver.ResolveAlias(
+            trimmed,
+            language,
+            new MetricResolutionContext(),
+            asOf);
+
+        if (metric.Status == MetricResolutionStatus.Resolved)
+        {
+            return metric.Candidates.Single().Code.Value;
+        }
+
+        return TryResolveCatalogMetricCode(trimmed, language, asOf) ?? trimmed;
+    }
+
+    private static string? TryResolveCatalogMetricCode(string identifier, string language, DateOnly asOf)
+    {
+        var normalizedIdentifier = NormalizeColumnTerm(identifier);
+        foreach (var definition in PhaseOneFinancialSemanticCatalog.Definitions
+            .Where(definition =>
+                definition.EffectiveFrom <= asOf &&
+                (definition.EffectiveTo is null || definition.EffectiveTo >= asOf)))
+        {
+            if (string.Equals(NormalizeColumnTerm(definition.Code.Value), normalizedIdentifier, StringComparison.OrdinalIgnoreCase) ||
+                definition.Aliases.Any(alias =>
+                    string.Equals(alias.Language, language, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(NormalizeColumnTerm(alias.Expression), normalizedIdentifier, StringComparison.OrdinalIgnoreCase)))
+            {
+                return definition.Code.Value;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsStandardColumnTerm(string column) =>
+        StandardColumnTerms.Contains(NormalizeColumnTerm(column));
+
+    private static string NormalizeColumnTerm(string term)
+    {
+        var chars = term.Trim().ToLowerInvariant()
+            .Where(ch => !char.IsWhiteSpace(ch) && ch is not '_' and not '-' and not '/' and not '%' and not '.')
+            .ToArray();
+        return new string(chars);
+    }
 
     private static string? GetString(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String

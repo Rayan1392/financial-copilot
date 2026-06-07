@@ -170,6 +170,82 @@ public sealed class ScannerParserTests
     }
 
     [Fact]
+    public async Task Parser_ConditionMetricNotCopiedIntoRequestedColumns()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJsonWithColumns("P/E", "LessThan", 6.0m, ["P/E"]);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("P/E below 6", "en", "corr-condition-column", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("PE_TTM", result.Plan.Conditions.Single().MetricReference.MetricCode.Value);
+        Assert.Empty(result.Plan.RequestedColumns);
+    }
+
+    [Fact]
+    public async Task Parser_ExplicitExtraRequestedMetric_IsCanonicalized()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJsonWithColumns(
+            "P/E",
+            "LessThan",
+            6.0m,
+            ["NetProfitMargin"]);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("P/E below 6 and show net profit margin", "en", "corr-extra-column", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var column = Assert.Single(result.Plan.RequestedColumns);
+        Assert.Equal("NET_PROFIT_MARGIN", column.Identifier);
+    }
+
+    [Fact]
+    public async Task Parser_PersianStandardColumnSynonyms_AreIgnoredFromRequestedColumns()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJsonWithColumns(
+            "نسبت پی به ای",
+            "LessThan",
+            6.0m,
+            ["نماد", "نام نماد", "شرکت", "نام شرکت", "قیمت", "آخرین قیمت", "درصد تغییر", "تغییر قیمت", "درصد تغییر آخرین قیمت", "ارزش بازار"],
+            language: "fa");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("نسبت P/E زیر ۶", "fa", "corr-persian-standard-columns", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Empty(result.Plan.RequestedColumns);
+    }
+
+    [Fact]
+    public async Task Parser_DuplicateRequestedColumns_AppearOnlyOnce()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJsonWithColumns(
+            "P/E",
+            "LessThan",
+            6.0m,
+            ["net profit margin", "NET_PROFIT_MARGIN", "Net Profit Margin"]);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("P/E below 6 show net profit margin", "en", "corr-duplicate-columns", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var column = Assert.Single(result.Plan.RequestedColumns);
+        Assert.Equal("NET_PROFIT_MARGIN", column.Identifier);
+    }
+
+    [Fact]
     public async Task Parser_NeverAcceptsHardcodedPropertyGuess_ForUnknownTerm()
     {
         var resolver = BuildAliasResolver();
@@ -258,16 +334,17 @@ public sealed class ScannerParserTests
         string terminology,
         string @operator,
         decimal threshold,
-        IEnumerable<string> columns) =>
+        IEnumerable<string> columns,
+        string language = "en") =>
         JsonSerializer.Serialize(new
         {
-            detectedLanguage = "en",
+            detectedLanguage = language,
             conditions = new[]
             {
                 new
                 {
                     userTerminology = terminology,
-                    language = "en",
+                    language,
                     @operator,
                     threshold,
                     periodHint = (string?)null,

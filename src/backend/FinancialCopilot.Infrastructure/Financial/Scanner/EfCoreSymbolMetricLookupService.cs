@@ -3,6 +3,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Scanner;
 
@@ -10,7 +11,8 @@ public sealed class EfCoreSymbolMetricLookupService(
     FinancialIngestionDbContext dbContext,
     ISymbolNameResolver symbolNameResolver,
     IMarketQuoteResolver quoteResolver,
-    TimeProvider timeProvider) : ISymbolMetricLookupService
+    TimeProvider timeProvider,
+    ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService
 {
     public async Task<SymbolLookupTableResult> LookupAsync(
         SymbolLookupRequest request,
@@ -41,9 +43,23 @@ public sealed class EfCoreSymbolMetricLookupService(
         {
             var resolved = await symbolNameResolver.ResolveAsync(name, cancellationToken);
             if (resolved is not null)
+            {
                 symbolCodeByName[name] = resolved.Value;
+                LogPeLookupResolution(request.QueryText, name, resolved.Value, uniqueMetricCodes);
+            }
             else
+            {
                 unresolvedSymbols.Add(name);
+                LogPeLookupMissing(
+                    request.QueryText,
+                    name,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "SymbolResolutionFailed",
+                    uniqueMetricCodes);
+            }
         }
 
         if (symbolCodeByName.Count == 0)
@@ -67,10 +83,23 @@ public sealed class EfCoreSymbolMetricLookupService(
             allCompanySymbolRows.Count == 0 ? resolvedSymbolRows : allCompanySymbolRows,
             cancellationToken);
 
+        var lookupMetricCodes = uniqueMetricCodes
+            .Concat(["LATEST_PRICE", "DAILY_CHANGE_PCT"])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var symbolIds = allCompanySymbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
-            .Where(dm => symbolIds.Contains(dm.SymbolId) && uniqueMetricCodes.Contains(dm.MetricCode))
+            .Where(dm => symbolIds.Contains(dm.SymbolId) && lookupMetricCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
+
+        LogPeLookupQueryScope(
+            request.QueryText,
+            uniqueMetricCodes,
+            resolvedCodes,
+            companyIds,
+            symbolIds,
+            derivedRows);
 
         var companyIdBySymbolId = allCompanySymbolRows.ToDictionary(s => s.Id, s => s.CompanyId);
         var latestByCompanyMetric = derivedRows
@@ -80,16 +109,24 @@ public sealed class EfCoreSymbolMetricLookupService(
                 g => g.Key,
                 g => g.OrderByDescending(dm => dm.PeriodEnd).First());
 
-        var needsQuotes = uniqueMetricCodes.Any(m =>
-            string.Equals(m, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase));
-
         var quoteBySymbol = new Dictionary<string, MarketQuoteObservation>(StringComparer.OrdinalIgnoreCase);
-        if (needsQuotes && allCompanySymbolRows.Count > 0)
+        if (allCompanySymbolRows.Count > 0)
         {
-            var symbolCodes = allCompanySymbolRows.Select(s => new SymbolCode(s.SymbolCode)).ToList();
-            var quoteResult = await quoteResolver.ResolveAsync(symbolCodes, cancellationToken);
-            foreach (var obs in quoteResult.Observations)
-                quoteBySymbol[obs.SymbolCode.Value] = obs;
+            try
+            {
+                var symbolCodes = allCompanySymbolRows.Select(s => new SymbolCode(s.SymbolCode)).ToList();
+                var quoteResult = await quoteResolver.ResolveAsync(symbolCodes, cancellationToken);
+                foreach (var obs in quoteResult.Observations)
+                    quoteBySymbol[obs.SymbolCode.Value] = obs;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Symbol lookup quote resolution failed; continuing with persisted metric fallbacks. Query={OriginalUserQuery}; RequestedMetrics={RequestedMetrics}",
+                    request.QueryText,
+                    string.Join(",", uniqueMetricCodes));
+            }
         }
 
         var columns = BuildLookupColumns(uniqueMetricCodes);
@@ -112,6 +149,16 @@ public sealed class EfCoreSymbolMetricLookupService(
                 company?.Name,
                 quote,
                 latestByCompanyMetric);
+
+            LogPeLookupResult(
+                request.QueryText,
+                name,
+                symbolCode,
+                symbolRow.Id,
+                symbolRow.CompanyId,
+                allCompanySymbolRows,
+                latestByCompanyMetric,
+                cells);
 
             rows.Add(new ScannerTableRow(
                 displaySymbol,
@@ -138,7 +185,7 @@ public sealed class EfCoreSymbolMetricLookupService(
                 Page: 1,
                 PageSize: Math.Max(1, rows.Count),
                 TotalPages: 1),
-            [],
+            BuildMissingDataWarnings(rows, uniqueMetricCodes),
             unresolvedSymbols);
     }
 
@@ -148,14 +195,21 @@ public sealed class EfCoreSymbolMetricLookupService(
         var columns = new List<ScannerTableColumn>
         {
             new("SYMBOL", "Symbol", ScannerColumnType.Symbol),
-            new("COMPANY_NAME", "Company", ScannerColumnType.CompanyName)
+            new("COMPANY_NAME", "Company", ScannerColumnType.CompanyName),
+            new("LATEST_PRICE", "Latest Price", ScannerColumnType.LatestPrice),
+            new("DAILY_CHANGE_PCT", "Change %", ScannerColumnType.DailyChangePercent)
         };
+
+        var seen = columns
+            .Select(c => c.Identifier)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var code in metricCodes)
         {
-            if (string.Equals(code, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase))
-                columns.Add(new ScannerTableColumn("LATEST_PRICE", "Latest Price", ScannerColumnType.LatestPrice));
-            else if (string.Equals(code, "MARKET_CAP", StringComparison.OrdinalIgnoreCase))
+            if (!seen.Add(code))
+                continue;
+
+            if (string.Equals(code, "MARKET_CAP", StringComparison.OrdinalIgnoreCase))
                 columns.Add(new ScannerTableColumn("MARKET_CAP", "Market Cap", ScannerColumnType.MarketCap));
             else
                 columns.Add(new ScannerTableColumn(code, code, ScannerColumnType.Metric, code));
@@ -186,6 +240,9 @@ public sealed class EfCoreSymbolMetricLookupService(
 
                 ScannerColumnType.LatestPrice =>
                     BuildPriceCell(companyId, quote, latestByCompanyMetric),
+
+                ScannerColumnType.DailyChangePercent =>
+                    BuildChangeCell(companyId, quote, latestByCompanyMetric),
 
                 ScannerColumnType.MarketCap =>
                     BuildPersistedMetricCell(companyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
@@ -222,6 +279,36 @@ public sealed class EfCoreSymbolMetricLookupService(
             return new ScannerTableCell(
                 row.Value,
                 row.Value.Value.ToString("N2"),
+                CellFreshnessStatus.Persisted,
+                row.ObservedAt);
+        }
+
+        return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
+    }
+
+    private static ScannerTableCell BuildChangeCell(
+        Guid companyId,
+        MarketQuoteObservation? quote,
+        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
+    {
+        if (quote is not null)
+        {
+            var freshness = quote.Source == MarketQuoteSource.LiveQuote
+                ? CellFreshnessStatus.Live
+                : CellFreshnessStatus.PreviousTradingDay;
+
+            return new ScannerTableCell(
+                quote.PriceChangePercentage,
+                $"{quote.PriceChangePercentage:+0.00;-0.00;0.00}%",
+                freshness,
+                quote.AsOf);
+        }
+
+        if (latestByCompanyMetric.TryGetValue((companyId, "DAILY_CHANGE_PCT"), out var row) && row.Value is not null)
+        {
+            return new ScannerTableCell(
+                row.Value,
+                $"{row.Value:+0.00;-0.00;0.00}%",
                 CellFreshnessStatus.Persisted,
                 row.ObservedAt);
         }
@@ -292,4 +379,139 @@ public sealed class EfCoreSymbolMetricLookupService(
             >= 1_000_000m => $"{value / 1_000_000m:N1}M",
             _ => value.ToString("N0")
         };
+
+    private void LogPeLookupResolution(
+        string? queryText,
+        string detectedSymbol,
+        string resolvedSymbol,
+        IReadOnlyCollection<string> metricCodes)
+    {
+        if (!ContainsPeMetric(metricCodes)) return;
+
+        logger.LogInformation(
+            "PE lookup symbol resolved. Query={OriginalUserQuery}; DetectedSymbol={DetectedSymbol}; ResolvedSymbol={ResolvedSymbol}; RequestedMetric=PE_TTM",
+            queryText,
+            detectedSymbol,
+            resolvedSymbol);
+    }
+
+    private void LogPeLookupResult(
+        string? queryText,
+        string detectedSymbol,
+        string resolvedSymbol,
+        Guid resolvedSymbolId,
+        Guid companyId,
+        IReadOnlyCollection<NormalizedSymbolRow> candidateSymbols,
+        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
+        IReadOnlyDictionary<string, ScannerTableCell> cells)
+    {
+        if (!cells.TryGetValue("PE_TTM", out var cell))
+            return;
+
+        latestByCompanyMetric.TryGetValue((companyId, "PE_TTM"), out var rawRow);
+        var candidateSymbolIds = string.Join(
+            ",",
+            candidateSymbols
+                .Where(s => s.CompanyId == companyId)
+                .Select(s => s.Id)
+                .Distinct());
+
+        if (cell.Value is not null && cell.FreshnessStatus != CellFreshnessStatus.Missing)
+        {
+            logger.LogInformation(
+                "PE lookup value retrieved. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; NormalizedSymbol={ResolvedSymbol}; ResolvedSymbolId={ResolvedSymbolId}; ResolvedCompanyId={ResolvedCompanyId}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; RawPeTtmValue={RawPeTtmValue}; Freshness={Freshness}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
+                queryText,
+                detectedSymbol,
+                resolvedSymbol,
+                resolvedSymbolId,
+                companyId,
+                candidateSymbolIds,
+                "DerivedMetrics grouped by Symbols.CompanyId",
+                rawRow?.Value ?? cell.Value,
+                cell.FreshnessStatus,
+                "PreCalculatedMetric because PE_TTM has a persisted non-missing value.");
+            return;
+        }
+
+        var missingReason = rawRow is null
+            ? "NoDerivedMetricRowForResolvedCompanySymbols"
+            : "DerivedMetricValueNull";
+
+        LogPeLookupMissing(
+            queryText,
+            detectedSymbol,
+            resolvedSymbol,
+            resolvedSymbolId,
+            companyId,
+            candidateSymbolIds,
+            missingReason,
+            ["PE_TTM"]);
+    }
+
+    private void LogPeLookupMissing(
+        string? queryText,
+        string detectedSymbol,
+        string? resolvedSymbol,
+        Guid? resolvedSymbolId,
+        Guid? companyId,
+        string? candidateSymbolIds,
+        string reason,
+        IReadOnlyCollection<string> metricCodes)
+    {
+        if (!ContainsPeMetric(metricCodes)) return;
+
+        logger.LogWarning(
+            "PE lookup value missing. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; NormalizedSymbol={ResolvedSymbol}; ResolvedSymbolId={ResolvedSymbolId}; ResolvedCompanyId={ResolvedCompanyId}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; RawPeTtmValue={RawPeTtmValue}; MissingReason={MissingReason}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
+            queryText,
+            detectedSymbol,
+            resolvedSymbol,
+            resolvedSymbolId,
+            companyId,
+            candidateSymbolIds,
+            "DerivedMetrics grouped by Symbols.CompanyId",
+            null,
+            reason,
+            "MissingDataFallback because PE_TTM has no persisted non-missing value.");
+    }
+
+    private void LogPeLookupQueryScope(
+        string? queryText,
+        IReadOnlyCollection<string> metricCodes,
+        IReadOnlyCollection<string> resolvedCodes,
+        IReadOnlyCollection<Guid> companyIds,
+        IReadOnlyCollection<Guid> symbolIds,
+        IReadOnlyCollection<DerivedMetricRow> derivedRows)
+    {
+        if (!ContainsPeMetric(metricCodes)) return;
+
+        logger.LogInformation(
+            "PE lookup query scope. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; NormalizedSymbols={ResolvedSymbols}; ResolvedCompanyIds={ResolvedCompanyIds}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; DerivedMetricRowsRead={DerivedMetricRowsRead}; NonNullPeTtmRowsRead={NonNullPeTtmRowsRead}",
+            queryText,
+            string.Join(",", resolvedCodes),
+            string.Join(",", companyIds),
+            string.Join(",", symbolIds),
+            "DerivedMetrics joined by SymbolId from Symbols for matched company ids",
+            derivedRows.Count(row => string.Equals(row.MetricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase)),
+            derivedRows.Count(row =>
+                string.Equals(row.MetricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase) &&
+                row.Value is not null));
+    }
+
+    private static bool ContainsPeMetric(IReadOnlyCollection<string> metricCodes) =>
+        metricCodes.Any(code => string.Equals(code, "PE_TTM", StringComparison.OrdinalIgnoreCase));
+
+    private static IReadOnlyCollection<string> BuildMissingDataWarnings(
+        IReadOnlyCollection<ScannerTableRow> rows,
+        IReadOnlyCollection<string> metricCodes)
+    {
+        if (!ContainsPeMetric(metricCodes)) return [];
+
+        return rows
+            .Where(row =>
+                row.Cells.TryGetValue("PE_TTM", out var cell) &&
+                (cell.Value is null || cell.FreshnessStatus == CellFreshnessStatus.Missing))
+            .Select(row => $"PE_TTM is missing for symbol '{row.SymbolCode}'.")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

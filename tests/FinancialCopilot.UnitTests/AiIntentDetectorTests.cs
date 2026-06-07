@@ -1,0 +1,84 @@
+using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
+
+namespace FinancialCopilot.UnitTests;
+
+public sealed class AiIntentDetectorTests
+{
+    private static readonly Guid TenantId = Guid.Parse("9a1b2c3d-4e5f-6789-abcd-ef0123456789");
+
+    [Theory]
+    [InlineData("pe کگل چقدر است؟")]
+    [InlineData("P/E کگل")]
+    [InlineData("پی به ای کگل")]
+    [InlineData("نسبت قیمت به سود کگل")]
+    [InlineData("price-to-earnings FMLCO")]
+    public async Task Detect_PePointLookup_UsesDeterministicSymbolLookupRoute(string query)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.SymbolLookup, result.Intent);
+        Assert.True(result.Confidence >= 0.95);
+    }
+
+    [Theory]
+    [InlineData("P/E کمتر از ۴")]
+    [InlineData("P/E below 6")]
+    public async Task Detect_PeFilterQuery_StillUsesModelClassification(string query)
+    {
+        var detector = new LlmAiIntentDetector(new ScannerIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.Scanner, result.Intent);
+    }
+
+    private sealed class UnknownIntentExecutionService : IAiModelExecutionService
+    {
+        public Task<AiModelResult> ExecuteAsync(
+            AiModelSelectionRequest selection,
+            AiModelRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Result("""{"intent":"Unknown","confidence":0.1}""", request.CorrelationId));
+
+        public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+            AiModelSelectionRequest selection,
+            AiModelRequest request,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class ScannerIntentExecutionService : IAiModelExecutionService
+    {
+        public Task<AiModelResult> ExecuteAsync(
+            AiModelSelectionRequest selection,
+            AiModelRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Result("""{"intent":"Scanner","confidence":0.97}""", request.CorrelationId));
+
+        public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+            AiModelSelectionRequest selection,
+            AiModelRequest request,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private static AiModelResult Result(string json, string correlationId) =>
+        new(
+            Text: null,
+            StructuredJson: json,
+            ToolCalls: [],
+            Usage: new AiExecutionUsageFacts(
+                correlationId,
+                "StubProvider",
+                "stub-model",
+                AiExecutionStatus.Completed,
+                TimeSpan.Zero,
+                AttemptNumber: 0));
+}

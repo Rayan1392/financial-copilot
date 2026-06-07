@@ -29,6 +29,14 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         IntentDetectionInput input,
         CancellationToken cancellationToken)
     {
+        if (LooksLikePePointLookup(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.SymbolLookup,
+                0.98,
+                "Deterministic PE/P/E point lookup rule.");
+        }
+
         var selection = new AiModelSelectionRequest(
             input.TenantId,
             AiWorkloadKind.ScannerParsing,
@@ -48,6 +56,47 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         var result = await executionService.ExecuteAsync(selection, request, cancellationToken);
         return ParseIntentOutput(result.StructuredJson);
     }
+
+    private static bool LooksLikePePointLookup(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return false;
+
+        var normalized = NormalizeLookupText(query);
+        if (!ContainsPeTerm(normalized)) return false;
+        if (ContainsComparisonOrThreshold(normalized)) return false;
+
+        return true;
+    }
+
+    private static bool ContainsPeTerm(string normalized) =>
+        normalized.Contains("pe", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("p/e", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("price to earnings", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("price-to-earnings", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("پی به ای", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("پی ای", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("پی‌ای", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("نسبت قیمت به سود", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains("قیمت به سود", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsComparisonOrThreshold(string normalized) =>
+        normalized.Contains('<') ||
+        normalized.Contains('>') ||
+        normalized.Contains(" less ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" below ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" greater ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" above ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" کمتر ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" زیر ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" بالای ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Contains(" بیشتر ", StringComparison.OrdinalIgnoreCase) ||
+        normalized.Any(char.IsDigit);
+
+    private static string NormalizeLookupText(string text) =>
+        text.Trim()
+            .Replace('ك', 'ک')
+            .Replace('ي', 'ی')
+            .Replace('‌', ' ');
 
     private static IntentDetectionResult ParseIntentOutput(string? json)
     {

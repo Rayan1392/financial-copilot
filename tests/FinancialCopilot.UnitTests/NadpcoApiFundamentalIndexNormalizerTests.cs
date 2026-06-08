@@ -13,7 +13,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class NadpcoApiFundamentalIndexNormalizerTests
 {
-    private const string ProviderName = "NadpcoApi";
+    private const string ProviderName = ProviderSources.NoavaranCurrentApiName;
     private const string ExternalCompanyId = "4";
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-03T10:00:00Z", CultureInfo.InvariantCulture);
 
@@ -57,7 +57,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizerTests
         Assert.Equal("SixMonths", currentRatio.PeriodType);
         Assert.Equal(ConvertJalali(1401, 12, 29).AddYears(-1).AddDays(1), currentRatio.PeriodStart);
         Assert.Equal(ConvertJalali(1401, 6, 31), currentRatio.PeriodEnd);
-        Assert.Contains("NadpcoApi", currentRatio.SourceEvidenceJson);
+        Assert.Contains(ProviderSources.NoavaranCurrentApiName, currentRatio.SourceEvidenceJson);
         Assert.Contains("companyIndexGroupTitle", currentRatio.SourceEvidenceJson);
         Assert.Contains("companyIndexTitle", currentRatio.SourceEvidenceJson);
         Assert.Contains("vendorPrecomputed", currentRatio.SourceEvidenceJson);

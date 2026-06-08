@@ -18,6 +18,21 @@ Service-sales requests accept bounded company IDs and Jalali date bounds. Payloa
 company identity, industry context, instrument code, month/year, fiscal date, and product or
 service activity details.
 
+## Access Constraint (Monthly Activity)
+
+Our Noavaran current-API credentials are authorized for monthly product/service activity only from
+Shamsi **1404 onward**. Requesting Shamsi **1403 or earlier** is not permitted and the vendor
+endpoints respond with HTTP 500. Therefore:
+
+- The monthly-activity request start date must never be earlier than `1404/01/01`. The configured
+  `MonthlyActivityFromDate` default is `1404/01/01`, and the provider client clamps any
+  earlier-than-permitted value up to `1404/01/01` so a misconfiguration cannot reintroduce the
+  permission failure.
+- Monthly data for periods before Shamsi 1404 must come from the **archive** source
+  (`NoavaranArchiveSql`), not the current API. This is the archive-vs-current source boundary from
+  spec 051; the monthly start year is therefore later than the statement/fundamental-index start
+  years, which remain permitted further back.
+
 ## Acceptance Criteria
 
 1. Fetch product and service activity in bounded company/date batches and store raw responses

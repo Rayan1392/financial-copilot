@@ -105,6 +105,16 @@ public sealed class NormalizedCompanyRow
     /// incremental-sync watermark by the scheduled orchestrator (spec 027).
     /// </summary>
     public DateTimeOffset? SourceModifiedAt { get; set; }
+
+    // --- Source provenance (spec 051). ProviderName carries the physical source name; these record
+    //     the logical vendor and import mode so an issuer ingested from the archive can be told apart
+    //     from the current-API feed without re-deriving from ProviderName. Nullable for legacy rows. ---
+
+    /// <summary>Logical vendor name (<c>LogicalVendor</c>) that owns this record.</summary>
+    public string? LogicalVendor { get; set; }
+
+    /// <summary>Import mode (<c>SourceMode</c>) the record was ingested under.</summary>
+    public string? SourceMode { get; set; }
 }
 
 public sealed class NormalizedSymbolRow
@@ -201,6 +211,12 @@ public sealed class NormalizedFinancialStatementRow
     public DateTimeOffset LastSynchronizedAt { get; set; }
 
     public string WarningsJson { get; set; } = "[]";
+
+    /// <summary>Logical vendor name (<c>LogicalVendor</c>) that owns this statement (spec 051).</summary>
+    public string? LogicalVendor { get; set; }
+
+    /// <summary>Import mode (<c>SourceMode</c>) the statement was ingested under (spec 051).</summary>
+    public string? SourceMode { get; set; }
 }
 
 public sealed class NormalizedFinancialStatementLineItemRow
@@ -233,6 +249,12 @@ public sealed class NormalizedMonthlyReportRow
     public DateTimeOffset LastSynchronizedAt { get; set; }
 
     public string WarningsJson { get; set; } = "[]";
+
+    /// <summary>Logical vendor name (<c>LogicalVendor</c>) that owns this monthly report (spec 051).</summary>
+    public string? LogicalVendor { get; set; }
+
+    /// <summary>Import mode (<c>SourceMode</c>) the monthly report was ingested under (spec 051).</summary>
+    public string? SourceMode { get; set; }
 }
 
 public sealed class NormalizedMonthlyReportLineItemRow
@@ -278,6 +300,24 @@ public sealed class DataSyncRunRow
     public string? ErrorMessage { get; set; }
 
     public string? SourcePayloadChecksum { get; set; }
+
+    // --- Batch-level source provenance (spec 051 AC #7). Nullable for runs predating the model;
+    //     populated from the resolved ProviderSources descriptor and the request. ---
+
+    /// <summary>Logical vendor name (<c>LogicalVendor</c>), e.g. <c>NoavaranAmin</c>.</summary>
+    public string? LogicalVendor { get; set; }
+
+    /// <summary>Physical source name (<c>PhysicalSource</c>), e.g. <c>NoavaranArchiveSql</c>.</summary>
+    public string? PhysicalSource { get; set; }
+
+    /// <summary>Import mode (<c>SourceMode</c>), e.g. <c>ArchiveOneTime</c> / <c>CurrentIncremental</c>.</summary>
+    public string? SourceMode { get; set; }
+
+    /// <summary>Shamsi source date range covered by this run (inclusive start), if known.</summary>
+    public string? SourceDateRangeStartJalali { get; set; }
+
+    /// <summary>Shamsi source date range covered by this run (inclusive end), if known.</summary>
+    public string? SourceDateRangeEndJalali { get; set; }
 }
 
 public sealed class MetricRecalculationRequestRow

@@ -72,7 +72,8 @@ public sealed class NadpcoApiScheduledSyncService(
                     ExternalReference: null,
                     timeProvider.GetUtcNow(),
                     IdempotencyKey: BuildKey("symbols", null, started, overlapFrom),
-                    ProviderName: providerName),
+                    ProviderName: providerName,
+                    Mode: SourceMode.CurrentIncremental),
                 cancellationToken);
             requestsEnqueued++;
         }
@@ -211,7 +212,8 @@ public sealed class NadpcoApiScheduledSyncService(
                     ExternalReference: null,
                     timeProvider.GetUtcNow(),
                     IdempotencyKey: BuildKey("symbols", null, started, overlapFrom: null, runMode),
-                    ProviderName: providerName),
+                    ProviderName: providerName,
+                    Mode: SourceMode.CurrentIncremental),
                 cancellationToken);
 
             var completed = timeProvider.GetUtcNow();
@@ -327,7 +329,8 @@ public sealed class NadpcoApiScheduledSyncService(
                     companyId.ToString(CultureInfo.InvariantCulture),
                     timeProvider.GetUtcNow(),
                     IdempotencyKey: BuildKey(dataset.ToString(), companyId, started, overlapFrom),
-                    ProviderName: providerName),
+                    ProviderName: providerName,
+                    Mode: SourceMode.CurrentIncremental),
                 cancellationToken);
             count++;
         }

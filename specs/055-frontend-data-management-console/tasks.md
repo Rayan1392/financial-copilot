@@ -1,0 +1,30 @@
+# Tasks - Frontend Data Management Console
+
+- Add `/admin/data` route group.
+- Add provider/source dashboard cards.
+- Add archive import page:
+  - dry-run
+  - import
+  - validate
+  - freeze status
+  - controlled re-import request
+- Add current Noavaran API sync page:
+  - schedule state
+  - manual trigger
+  - current run
+  - run history
+  - watermarks
+  - failures
+- Add market data page:
+  - StockMarketDB bridge status
+  - TSETMC direct feed status when available
+  - shadow comparison results
+  - source priority/cutover state
+- Add reconciliation page:
+  - source coverage by dataset/year/company
+  - conflicts
+  - missing periods
+  - stale data
+- Add permission checks and audit event display.
+- Add loading, empty, error, and retry states.
+- Add frontend tests for route protection, actions, and table rendering.

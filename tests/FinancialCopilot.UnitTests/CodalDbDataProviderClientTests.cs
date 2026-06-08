@@ -16,7 +16,7 @@ public sealed class CodalDbDataProviderClientTests
 
         var payload = await client.FetchSymbolsAsync(default);
 
-        Assert.Equal("CodalDb", payload.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranArchiveSqlName, payload.ProviderName);
         Assert.Equal(ProviderDataset.Symbols, payload.Dataset);
         Assert.Equal("codaldb://companies", payload.Endpoint);
         Assert.Equal("all", payload.ExternalReference);
@@ -33,7 +33,7 @@ public sealed class CodalDbDataProviderClientTests
         Assert.Equal(ProviderDataset.FinancialStatements, payload.Dataset);
         Assert.Equal("codaldb://statements/1001", payload.Endpoint);
         Assert.Equal("1001", payload.ExternalReference);
-        Assert.Equal("CodalDb", payload.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranArchiveSqlName, payload.ProviderName);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class CodalDbDataProviderClientTests
         var result = await client.CheckAsync(default);
 
         Assert.Equal(ProviderHealthStatus.Healthy, result.Status);
-        Assert.Equal("CodalDb", result.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranArchiveSqlName, result.ProviderName);
     }
 
     [Fact]

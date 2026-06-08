@@ -29,7 +29,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         Assert.Equal(2, result.CompaniesConsidered);
         Assert.Equal(2, result.CompaniesEnqueued);
         Assert.Equal(1 + 2 * 3, result.RequestsEnqueued);
-        Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.Symbols && request.ProviderName == "NadpcoApi");
+        Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.Symbols && request.ProviderName == ProviderSources.NoavaranCurrentApiName);
         Assert.Equal(3, publisher.Requests.Count(request => request.ExternalReference == "3"));
         Assert.Equal(3, publisher.Requests.Count(request => request.ExternalReference == "4"));
         Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.FundamentalIndexes);
@@ -122,7 +122,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         var request = Assert.Single(publisher.Requests);
         Assert.Equal(ProviderDataset.Symbols, request.Dataset);
         Assert.Null(request.ExternalReference);
-        Assert.Equal("NadpcoApi", request.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranCurrentApiName, request.ProviderName);
         Assert.Contains("CompanyCatalogRefresh", request.IdempotencyKey);
         var state = Assert.Single(await service.QueryAsync(CancellationToken.None));
         Assert.Equal(ProviderDataset.Symbols.ToString(), state.Dataset);
@@ -183,7 +183,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = Guid.NewGuid(),
-            ProviderName = "CodalDb",
+            ProviderName = ProviderSources.NoavaranArchiveSqlName,
             ExternalCompanyId = "4",
             Name = "Codal",
             LastSynchronizedAt = Now
@@ -191,7 +191,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = Guid.NewGuid(),
-            ProviderName = "NadpcoApi",
+            ProviderName = ProviderSources.NoavaranCurrentApiName,
             ExternalCompanyId = "not-numeric",
             Name = "Bad",
             LastSynchronizedAt = Now
@@ -239,7 +239,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
             db.Companies.Add(new NormalizedCompanyRow
             {
                 Id = Guid.NewGuid(),
-                ProviderName = "NadpcoApi",
+                ProviderName = ProviderSources.NoavaranCurrentApiName,
                 ExternalCompanyId = companyId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 Name = $"Company {companyId}",
                 LastSynchronizedAt = Now

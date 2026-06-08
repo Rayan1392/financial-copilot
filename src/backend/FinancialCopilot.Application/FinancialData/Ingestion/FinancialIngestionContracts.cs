@@ -8,7 +8,14 @@ public sealed record DataSyncRequest(
     string? ExternalReference,
     DateTimeOffset RequestedAt,
     string IdempotencyKey,
-    string? ProviderName = null);
+    string? ProviderName = null,
+    /// <summary>
+    /// Explicit import mode for this run's provenance (spec 051). When null the mode is derived from
+    /// the resolved <see cref="ProviderSources"/> descriptor for <see cref="ProviderName"/>.
+    /// </summary>
+    SourceMode? Mode = null,
+    string? SourceDateRangeStartJalali = null,
+    string? SourceDateRangeEndJalali = null);
 
 public enum DataSyncRunStatus
 {
@@ -31,7 +38,12 @@ public sealed record DataSyncRun(
     int ErrorCount,
     string? ErrorMessage,
     string? SourcePayloadChecksum,
-    string? ProviderName = null);
+    string? ProviderName = null,
+    LogicalVendor? Vendor = null,
+    PhysicalSource? Source = null,
+    SourceMode? Mode = null,
+    string? SourceDateRangeStartJalali = null,
+    string? SourceDateRangeEndJalali = null);
 
 public sealed record DataSyncProcessingResult(
     DataSyncRun Run,

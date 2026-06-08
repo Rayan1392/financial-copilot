@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,9 @@ internal sealed record CyclicalWavesCompanyLinkage(
 
 internal static class CyclicalWavesCompanyLinkageResolver
 {
-    private const string NadpcoProviderName = "NadpcoApi";
+    // Spec 051: the authoritative Noavaran Amin company catalog now lands under the current API
+    // source name (was "NadpcoApi").
+    private const string NadpcoProviderName = ProviderSources.NoavaranCurrentApiName;
 
     public static async Task<CyclicalWavesCompanyLinkage?> ResolveAsync(
         FinancialIngestionDbContext dbContext,

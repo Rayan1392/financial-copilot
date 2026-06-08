@@ -619,31 +619,62 @@ public static class ServiceCollectionExtensions
             var nadpcoApiName = provider
                 .GetRequiredService<IOptions<NadpcoApiProviderOptions>>().Value.ProviderName;
 
+            // Legacy aliases (spec 051): keep pre-rename names ("CodalDb"/"NadpcoApi") resolvable so
+            // in-flight DataSyncRequest messages enqueued before the rename still route correctly.
+            var symbolProviders = new Dictionary<string, ISymbolDataProvider>
+            {
+                [cyclicalWavesName] = cyclicalWaves,
+                [codalDbName] = codalDb,
+                [nadpcoApiName] = nadpcoApi
+            };
+            var statementProviders = new Dictionary<string, IFinancialStatementProvider>
+            {
+                [cyclicalWavesName] = cyclicalWaves,
+                [codalDbName] = codalDb,
+                [nadpcoApiName] = nadpcoApi
+            };
+            var monthlyProviders = new Dictionary<string, IMonthlyProductionSalesProvider>
+            {
+                [cyclicalWavesName] = cyclicalWaves,
+                [codalDbName] = codalDb,
+                [nadpcoApiName] = nadpcoApi
+            };
+            var ratioProviders = new Dictionary<string, IFinancialRatioProvider>
+            {
+                [codalDbName] = codalDb,
+                [nadpcoApiName] = nadpcoApi
+            };
+
+            // CodalDb -> NoavaranArchiveSql, NadpcoApi -> NoavaranCurrentApi (provider already
+            // registered under the current name; add the legacy key pointing at the same instance).
+            static void AddLegacyAliases<T>(Dictionary<string, T> registry)
+            {
+                foreach (var (legacyName, currentName) in ProviderSources.LegacyNameAliases)
+                {
+                    if (!registry.ContainsKey(legacyName) && registry.TryGetValue(currentName, out var provider))
+                    {
+                        registry[legacyName] = provider;
+                    }
+                }
+            }
+
+            AddLegacyAliases(symbolProviders);
+            AddLegacyAliases(statementProviders);
+            AddLegacyAliases(monthlyProviders);
+            AddLegacyAliases(ratioProviders);
+
             return new FinancialDataProviderRouter(
-                new Dictionary<string, ISymbolDataProvider>
-                {
-                    [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb,
-                    [nadpcoApiName] = nadpcoApi
-                },
-                new Dictionary<string, IFinancialStatementProvider>
-                {
-                    [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb,
-                    [nadpcoApiName] = nadpcoApi
-                },
-                new Dictionary<string, IMonthlyProductionSalesProvider>
-                {
-                    [cyclicalWavesName] = cyclicalWaves,
-                    [codalDbName] = codalDb,
-                    [nadpcoApiName] = nadpcoApi
-                },
-                new Dictionary<string, IFinancialRatioProvider>
-                {
-                    [codalDbName] = codalDb,
-                    [nadpcoApiName] = nadpcoApi
-                });
+                symbolProviders, statementProviders, monthlyProviders, ratioProviders);
         });
+
+        // Spec 051 — logical-vendor/physical-source model support: dataset source-priority policy
+        // (pure config) and cross-source identity-conflict logging.
+        services
+            .AddOptions<SourcePriorityOptions>()
+            .BindConfiguration(SourcePriorityOptions.SectionName);
+        services.AddScoped<ISourcePriorityResolver, SourcePriorityResolver>();
+        services.AddSingleton<IIdentityConflictLog, LoggingIdentityConflictLog>();
+        services.AddScoped<ISourceFreshnessReader, SourceFreshnessReader>();
 
         services.AddScoped<IFinancialPayloadNormalizer, SymbolPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();

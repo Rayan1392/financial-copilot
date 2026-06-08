@@ -10,7 +10,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class CodalDbRatioNormalizerTests
 {
-    private const string ProviderName = "CodalDb";
+    private const string ProviderName = ProviderSources.NoavaranArchiveSqlName;
     private const string ExternalCompanyId = "3001";
 
     // ROE (ItemId=4138) + CURRENT_RATIO (ItemId=65) for company 3001,
@@ -94,7 +94,7 @@ public sealed class CodalDbRatioNormalizerTests
         await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoRatiosJson), default);
 
         var roe = await db.DerivedMetrics.SingleAsync(m => m.MetricCode == "RETURN_ON_EQUITY");
-        Assert.Contains("CodalDb", roe.SourceEvidenceJson);
+        Assert.Contains(ProviderSources.NoavaranArchiveSqlName, roe.SourceEvidenceJson);
         Assert.Contains("4138", roe.SourceEvidenceJson);         // RatioItemId
         Assert.Contains("vendorPrecomputed", roe.SourceEvidenceJson); // camelCase from Web defaults
     }

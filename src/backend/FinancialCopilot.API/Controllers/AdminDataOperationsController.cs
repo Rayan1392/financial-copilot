@@ -18,6 +18,7 @@ public sealed class AdminDataOperationsController(
     IDataSyncRequestPublisher publisher,
     IDataSyncRunReader runReader,
     IFinancialDataProviderHealthService providerHealth,
+    ISourceFreshnessReader sourceFreshnessReader,
     ICyclicalWavesFullSyncService cyclicalWavesFullSync,
     ICodalDbScheduledSyncService codalDbScheduledSync,
     INadpcoApiScheduledSyncService nadpcoApiScheduledSync,
@@ -52,14 +53,14 @@ public sealed class AdminDataOperationsController(
         [FromBody] AdminDataSyncRequest? request,
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.FinancialRatios, request, requiresReference: true, cancellationToken,
-            providerName: "CodalDb");
+            providerName: ProviderSources.NoavaranArchiveSqlName);
 
     [HttpPost("data-sync/fundamental-indexes")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueFundamentalIndexesSync(
         [FromBody] AdminDataSyncRequest? request,
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.FundamentalIndexes, request, requiresReference: true, cancellationToken,
-            providerName: "NadpcoApi");
+            providerName: ProviderSources.NoavaranCurrentApiName);
 
     [HttpGet("data-sync/runs")]
     public async Task<ActionResult<IReadOnlyCollection<AdminDataSyncRunResponse>>> GetRuns(
@@ -364,6 +365,30 @@ public sealed class AdminDataOperationsController(
             health.Status.ToString(),
             health.CheckedAt,
             health.Detail));
+    }
+
+    // Spec 051: per-source freshness, reporting frozen-archive sources distinctly from current sources.
+    [HttpGet("source-freshness")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminSourceFreshnessResponse>>> GetSourceFreshness(
+        [FromQuery] int recentRunSampleSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (recentRunSampleSize is < 1 or > 500)
+        {
+            ModelState.AddModelError(nameof(recentRunSampleSize), "Recent run sample size must be between 1 and 500.");
+            return ValidationProblem(ModelState);
+        }
+
+        var freshness = await sourceFreshnessReader.QueryAsync(recentRunSampleSize, cancellationToken);
+        return Ok(freshness.Select(source => new AdminSourceFreshnessResponse(
+            source.Vendor.ToString(),
+            source.Source.ToString(),
+            source.Mode.ToString(),
+            source.SourceName,
+            source.IsFrozenArchive,
+            source.LastSuccessfulRunAt,
+            source.RecentSuccessfulRuns,
+            source.RecentFailedRuns)).ToArray());
     }
 
     private async Task<ActionResult<AdminDataSyncQueuedResponse>> QueueAsync(

@@ -131,7 +131,7 @@ public sealed class FinancialDataIngestionTests
 
         var payload = new ProviderRawPayload(
             Guid.NewGuid(),
-            "CodalDb",
+            ProviderSources.NoavaranArchiveSqlName,
             ProviderDataset.Symbols,
             "codaldb://companies",
             "all",
@@ -140,7 +140,7 @@ public sealed class FinancialDataIngestionTests
             Now);
         var provider = new StubCodalDbSymbolProvider(payload);
         var router = new FinancialDataProviderRouter(
-            new Dictionary<string, ISymbolDataProvider> { ["CodalDb"] = provider },
+            new Dictionary<string, ISymbolDataProvider> { [ProviderSources.NoavaranArchiveSqlName] = provider },
             new Dictionary<string, IFinancialStatementProvider>(),
             new Dictionary<string, IMonthlyProductionSalesProvider>());
 
@@ -166,13 +166,13 @@ public sealed class FinancialDataIngestionTests
                 ExternalReference: null,
                 Now,
                 "codaldb-symbols-v1",
-                ProviderName: "CodalDb"),
+                ProviderName: ProviderSources.NoavaranArchiveSqlName),
             CancellationToken.None);
 
         Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
-        Assert.Equal("CodalDb", result.Run.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranArchiveSqlName, result.Run.ProviderName);
 
-        var company = await ingestionDb.Companies.SingleAsync(c => c.ProviderName == "CodalDb");
+        var company = await ingestionDb.Companies.SingleAsync(c => c.ProviderName == ProviderSources.NoavaranArchiveSqlName);
         Assert.Equal("Mobarakeh Steel", company.NameEnglish);
         Assert.Equal("IRO1FOLD0006", company.CompanyIsin);
         Assert.NotNull(company.IndustryId);
@@ -183,7 +183,7 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(1, await ingestionDb.IndustryGroups.CountAsync());
         Assert.Equal(1, await ingestionDb.Markets.CountAsync());
 
-        var symbol = await ingestionDb.Symbols.SingleAsync(s => s.ProviderName == "CodalDb");
+        var symbol = await ingestionDb.Symbols.SingleAsync(s => s.ProviderName == ProviderSources.NoavaranArchiveSqlName);
         Assert.Equal("IRO1FOLD0001", symbol.SymbolCode);
         Assert.Equal("SymbolIsin", symbol.LinkageBasis);
 
@@ -198,7 +198,7 @@ public sealed class FinancialDataIngestionTests
 
         var codalPayload = new ProviderRawPayload(
             Guid.NewGuid(),
-            "CodalDb",
+            ProviderSources.NoavaranArchiveSqlName,
             ProviderDataset.Symbols,
             "codaldb://companies",
             "all",
@@ -208,7 +208,7 @@ public sealed class FinancialDataIngestionTests
         var codalProvider = new StubCodalDbSymbolProvider(codalPayload);
         var defaultProvider = new ThrowingSymbolProvider();
         var router = new FinancialDataProviderRouter(
-            new Dictionary<string, ISymbolDataProvider> { ["CodalDb"] = codalProvider },
+            new Dictionary<string, ISymbolDataProvider> { [ProviderSources.NoavaranArchiveSqlName] = codalProvider },
             new Dictionary<string, IFinancialStatementProvider>(),
             new Dictionary<string, IMonthlyProductionSalesProvider>());
 
@@ -235,11 +235,11 @@ public sealed class FinancialDataIngestionTests
                 ExternalReference: null,
                 Now,
                 "codaldb-router-v1",
-                ProviderName: "CodalDb"),
+                ProviderName: ProviderSources.NoavaranArchiveSqlName),
             CancellationToken.None);
 
         Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
-        Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == "CodalDb"));
+        Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == ProviderSources.NoavaranArchiveSqlName));
     }
 
     [Fact]

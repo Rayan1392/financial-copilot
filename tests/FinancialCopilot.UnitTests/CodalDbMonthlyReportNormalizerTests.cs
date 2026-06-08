@@ -9,7 +9,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class CodalDbMonthlyReportNormalizerTests
 {
-    private const string ProviderName = "CodalDb";
+    private const string ProviderName = ProviderSources.NoavaranArchiveSqlName;
     private const string ExternalCompanyId = "2001";
 
     // Single activity row: Jalali 1402/01, one product.

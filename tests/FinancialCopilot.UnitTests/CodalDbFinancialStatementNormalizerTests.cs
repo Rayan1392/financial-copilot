@@ -9,7 +9,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class CodalDbFinancialStatementNormalizerTests
 {
-    private const string ProviderName = "CodalDb";
+    private const string ProviderName = ProviderSources.NoavaranArchiveSqlName;
     private const string CompanyId = "5001";
 
     // One Q1 statement (PeriodType=3), audited, consolidated.

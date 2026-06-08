@@ -170,6 +170,14 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("LogicalVendor")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PhysicalSource")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<int>("ProcessedRecords")
                         .HasColumnType("integer");
 
@@ -178,6 +186,18 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.Property<DateTimeOffset>("RequestedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceDateRangeEndJalali")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("SourceDateRangeStartJalali")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("SourceMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("SourcePayloadChecksum")
                         .HasColumnType("text");
@@ -193,6 +213,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
+
+                    b.HasIndex("LogicalVendor", "PhysicalSource");
 
                     b.ToTable("ProviderSyncRuns", (string)null);
                 });
@@ -915,6 +937,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<DateTimeOffset>("LastSynchronizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LogicalVendor")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("MarketBoard")
                         .HasColumnType("text");
 
@@ -953,6 +979,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("RegistrationProvince")
                         .HasColumnType("text");
 
+                    b.Property<string>("SourceMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTimeOffset?>("SourceModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -969,6 +999,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("IndustryId");
 
                     b.HasIndex("MarketId");
+
+                    b.HasIndex("LogicalVendor", "SourceMode");
 
                     b.HasIndex("ProviderName", "ExternalCompanyId")
                         .IsUnique();
@@ -1017,6 +1049,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<DateTimeOffset>("LastSynchronizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LogicalVendor")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date");
 
@@ -1030,6 +1066,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("ProviderName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("SourceMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("SourcePayloadChecksum")
                         .IsRequired()
@@ -1193,6 +1233,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<DateTimeOffset>("LastSynchronizedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LogicalVendor")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date");
 
@@ -1202,6 +1246,10 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("ProviderName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("SourceMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("SourcePayloadChecksum")
                         .IsRequired()

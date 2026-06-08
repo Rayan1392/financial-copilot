@@ -1,10 +1,17 @@
+using FinancialCopilot.Application.FinancialData.Providers;
+
 namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 
+/// <summary>
+/// Configuration for the Noavaran Amin current HTTP API source. Spec 051 renamed the physical source
+/// from <c>NadpcoApi</c> to <c>NoavaranCurrentApi</c> (it is a source mode of the Noavaran Amin vendor,
+/// not a standalone vendor).
+/// </summary>
 public sealed class NadpcoApiProviderOptions
 {
-    public const string SectionName = "NadpcoApi";
+    public const string SectionName = "NoavaranCurrentApi";
 
-    public string ProviderName { get; init; } = "NadpcoApi";
+    public string ProviderName { get; init; } = ProviderSources.NoavaranCurrentApiName;
 
     public string BaseAddress { get; init; } = "https://data3.nadpco.com/";
 
@@ -54,7 +61,13 @@ public sealed class NadpcoApiProviderOptions
 
     public bool? FundamentalIndexIsComposing { get; init; }
 
-    public string? MonthlyActivityFromDate { get; init; } = "1400/01/01";
+    /// <summary>
+    /// Earliest Jalali date for monthly product/service activity requests. Access to the Noavaran
+    /// current API monthly-activity endpoints is granted only from Shamsi <b>1404</b> onward; calling
+    /// 1403 and earlier returns HTTP 500 (no permission), so the default start is fixed at 1404/01/01.
+    /// Monthly data before 1404 must come from the archive source. See spec 042 / order 54 (spec 053).
+    /// </summary>
+    public string? MonthlyActivityFromDate { get; init; } = "1404/01/01";
 
     public string? MonthlyActivityToDate { get; init; }
 

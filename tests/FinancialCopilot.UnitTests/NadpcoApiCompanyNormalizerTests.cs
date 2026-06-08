@@ -14,7 +14,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class NadpcoApiCompanyNormalizerTests
 {
-    private const string ProviderName = "NadpcoApi";
+    private const string ProviderName = ProviderSources.NoavaranCurrentApiName;
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-03T10:00:00Z");
 
     private const string CompaniesJson = """

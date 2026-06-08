@@ -8,11 +8,13 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 
 /// <summary>
-/// Nightly CodalDB sync orchestrator. Computes the set of companies whose source
-/// <c>ModifiedDateTime</c> is newer than the persisted watermark and enqueues
-/// <see cref="DataSyncRequest"/>s (one Symbols + one per per-company dataset) with
-/// <c>ProviderName = "CodalDb"</c>. Watermark advances only after a successful run. Full-reload
-/// mode ignores the watermark.
+/// Noavaran Amin <b>archive</b> import orchestrator (legacy CodalDB SQL snapshot, source name
+/// <see cref="ProviderSources.NoavaranArchiveSqlName"/>). Spec 051 reclassifies this source as
+/// one-time archive: it is invoked explicitly (admin maintenance/backfill), <b>not</b> driven by a
+/// recurring worker. It enqueues <see cref="DataSyncRequest"/>s stamped with
+/// <see cref="SourceMode.ArchiveOneTime"/> provenance. The watermark is retained only so an explicit
+/// maintenance re-import can resume; ordinary recurring refresh belongs to the current API source.
+/// Full-reload mode ignores the watermark.
 /// </summary>
 public sealed class CodalDbScheduledSyncService(
     ICodalDbQueryExecutor queryExecutor,
@@ -22,6 +24,8 @@ public sealed class CodalDbScheduledSyncService(
     TimeProvider timeProvider,
     ILogger<CodalDbScheduledSyncService> logger) : ICodalDbScheduledSyncService
 {
+    // Internal state key for the archive watermark row in CodalDbSyncStates (not a persisted
+    // ProviderName); left unchanged to preserve any existing maintenance-resume state.
     private const string WatermarkKey = "CodalDb";
 
     public async Task<CodalDbScheduledSyncResult> ExecuteAsync(
@@ -64,7 +68,8 @@ public sealed class CodalDbScheduledSyncService(
                 null,
                 timeProvider.GetUtcNow(),
                 IdempotencyKey: $"codaldb-symbols:{started:yyyyMMddHHmmss}",
-                ProviderName: providerName),
+                ProviderName: providerName,
+                Mode: SourceMode.ArchiveOneTime),
             cancellationToken);
 
         var maxParallelism = Math.Max(1, providerOptions.Value.MaxReadParallelism);
@@ -148,7 +153,8 @@ public sealed class CodalDbScheduledSyncService(
                     externalReference,
                     timeProvider.GetUtcNow(),
                     IdempotencyKey: $"codaldb-{dataset}-{companyId}-{stamp}",
-                    ProviderName: providerName),
+                    ProviderName: providerName,
+                    Mode: SourceMode.ArchiveOneTime),
                 cancellationToken);
         }
     }

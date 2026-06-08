@@ -15,7 +15,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class NadpcoApiFinancialStatementNormalizerTests
 {
-    private const string ProviderName = "NadpcoApi";
+    private const string ProviderName = ProviderSources.NoavaranCurrentApiName;
     private const string CompanyId = "3";
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-03T10:00:00Z");
 
@@ -206,7 +206,7 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         db.FinancialStatements.Add(new NormalizedFinancialStatementRow
         {
             Id = Guid.NewGuid(),
-            ProviderName = "CodalDb",
+            ProviderName = ProviderSources.NoavaranArchiveSqlName,
             ExternalCompanyId = CompanyId,
             ExternalStatementId = "474148",
             StatementType = "IncomeStatement",

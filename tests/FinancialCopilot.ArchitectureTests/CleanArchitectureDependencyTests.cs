@@ -115,6 +115,31 @@ public sealed class CleanArchitectureDependencyTests
         Assert.Empty(failures);
     }
 
+    [Fact]
+    public void NoavaranArchiveSource_IsNotDrivenByARecurringHostedWorker()
+    {
+        // Spec 051 AC #4/#5: the Noavaran archive (CodalDB SQL) is a one-time import source. No
+        // recurring hosted worker may drive it; ordinary recurring refresh belongs to the current API
+        // source. The archive sync service must only be reachable through the explicit admin endpoint.
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+
+        var hostedServiceLines = workerProgram
+            .Split('\n')
+            .Where(line => line.Contains("AddHostedService", StringComparison.Ordinal))
+            .ToArray();
+
+        var failures = hostedServiceLines
+            .Where(line =>
+                line.Contains("CodalDb", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("NoavaranArchive", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("ArchiveScheduledSync", StringComparison.OrdinalIgnoreCase))
+            .Select(line => $"Worker registers a recurring hosted service for the archive source: {line.Trim()}")
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
     private static string FindSolutionRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

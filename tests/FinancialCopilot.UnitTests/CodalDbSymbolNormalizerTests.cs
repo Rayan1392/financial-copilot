@@ -9,7 +9,7 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class CodalDbSymbolNormalizerTests
 {
-    private const string ProviderName = "CodalDb";
+    private const string ProviderName = ProviderSources.NoavaranArchiveSqlName;
 
     // Two companies sharing IndustryID 270 (dimension dedup); the second has no ISIN.
     private const string CompaniesJson = """

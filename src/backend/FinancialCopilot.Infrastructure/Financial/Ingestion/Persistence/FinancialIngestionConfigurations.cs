@@ -11,6 +11,11 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId }).IsUnique();
 
+        // Source provenance (spec 051) — filter companies by logical vendor / import mode.
+        builder.Property(row => row.LogicalVendor).HasMaxLength(64);
+        builder.Property(row => row.SourceMode).HasMaxLength(32);
+        builder.HasIndex(row => new { row.LogicalVendor, row.SourceMode });
+
         // Classification FKs are optional dimension references; no cascade. Indexed for
         // scanner filtering/segmentation by industry, group, and market.
         builder.HasOne<NormalizedIndustryRow>()
@@ -85,6 +90,8 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
         builder.ToTable("FinancialStatements");
         builder.HasKey(row => row.Id);
         builder.Property(row => row.StatementType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.LogicalVendor).HasMaxLength(64);
+        builder.Property(row => row.SourceMode).HasMaxLength(32);
         // Spec 029: the natural key is now (Provider, ExternalStatementId, StatementType) so the
         // same CodalDB statement can keep its native id while income and balance share it.
         builder.HasIndex(row => new
@@ -117,6 +124,8 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         builder.ToTable("MonthlyReports");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId }).IsUnique();
+        builder.Property(row => row.LogicalVendor).HasMaxLength(64);
+        builder.Property(row => row.SourceMode).HasMaxLength(32);
     }
 }
 
@@ -139,6 +148,14 @@ public sealed class DataSyncRunRowConfiguration : IEntityTypeConfiguration<DataS
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => row.IdempotencyKey).IsUnique();
         builder.Property(row => row.ErrorMessage).HasMaxLength(1000);
+
+        // Batch-level source provenance (spec 051 AC #7).
+        builder.Property(row => row.LogicalVendor).HasMaxLength(64);
+        builder.Property(row => row.PhysicalSource).HasMaxLength(64);
+        builder.Property(row => row.SourceMode).HasMaxLength(32);
+        builder.Property(row => row.SourceDateRangeStartJalali).HasMaxLength(16);
+        builder.Property(row => row.SourceDateRangeEndJalali).HasMaxLength(16);
+        builder.HasIndex(row => new { row.LogicalVendor, row.PhysicalSource });
     }
 }
 

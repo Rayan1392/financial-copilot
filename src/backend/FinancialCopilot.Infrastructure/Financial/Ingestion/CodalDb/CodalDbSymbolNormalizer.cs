@@ -21,7 +21,8 @@ public sealed class CodalDbSymbolNormalizer(
     CanonicalSymbolLinkageResolver linkageResolver,
     ILogger<CodalDbSymbolNormalizer> logger) : IFinancialPayloadNormalizer
 {
-    public const string CodalDbProviderName = "CodalDb";
+    // Spec 051: the persisted source name is the Noavaran Amin archive source (was "CodalDb").
+    public const string CodalDbProviderName = ProviderSources.NoavaranArchiveSqlName;
 
     public string ProviderName => CodalDbProviderName;
 

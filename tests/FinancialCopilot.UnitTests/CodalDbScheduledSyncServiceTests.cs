@@ -30,7 +30,11 @@ public sealed class CodalDbScheduledSyncServiceTests
         Assert.Equal(2, result.CompaniesEnqueued);
         // 1 Symbols + 2 companies * 3 datasets each = 7
         Assert.Equal(7, publisher.Requests.Count);
-        Assert.Contains(publisher.Requests, r => r.Dataset == ProviderDataset.Symbols && r.ProviderName == "CodalDb");
+        Assert.Contains(publisher.Requests, r =>
+            r.Dataset == ProviderDataset.Symbols &&
+            r.ProviderName == ProviderSources.NoavaranArchiveSqlName);
+        // Spec 051: the archive orchestrator stamps one-time archive provenance on every request.
+        Assert.All(publisher.Requests, r => Assert.Equal(SourceMode.ArchiveOneTime, r.Mode));
         Assert.Equal(3, publisher.Requests.Count(r => r.ExternalReference == "101"));
         Assert.Equal(3, publisher.Requests.Count(r => r.ExternalReference == "102"));
     }

@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -92,11 +93,12 @@ internal static class CompanyDisplayResolver
             companiesByIdentifier.TryAdd(normalized, company);
     }
 
+    // Prefer the Noavaran current API catalog over the frozen archive for display (spec 051).
     private static int ProviderPreference(NormalizedCompanyRow company) =>
         company.ProviderName switch
         {
-            "NadpcoApi" => 0,
-            "CodalDb" => 1,
+            ProviderSources.NoavaranCurrentApiName => 0,
+            ProviderSources.NoavaranArchiveSqlName => 1,
             _ => 2
         };
 }

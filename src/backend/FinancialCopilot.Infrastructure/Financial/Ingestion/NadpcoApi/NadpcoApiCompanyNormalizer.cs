@@ -15,7 +15,8 @@ public sealed class NadpcoApiCompanyNormalizer(
     CanonicalSymbolLinkageResolver linkageResolver,
     ILogger<NadpcoApiCompanyNormalizer> logger) : IFinancialPayloadNormalizer
 {
-    public const string NadpcoApiProviderName = "NadpcoApi";
+    // Spec 051: the persisted source name is the Noavaran Amin current API source (was "NadpcoApi").
+    public const string NadpcoApiProviderName = ProviderSources.NoavaranCurrentApiName;
 
     public string ProviderName => NadpcoApiProviderName;
 

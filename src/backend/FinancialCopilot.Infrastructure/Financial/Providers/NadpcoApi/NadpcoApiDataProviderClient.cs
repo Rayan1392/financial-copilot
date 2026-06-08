@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,12 @@ public sealed class NadpcoApiDataProviderClient(
 {
     private readonly NadpcoApiProviderOptions _settings = options.Value;
     private readonly SemaphoreSlim _throttle = new(Math.Max(1, options.Value.MaxReadParallelism));
+
+    // Access to the current-API monthly-activity endpoints is granted only from Shamsi 1404 onward;
+    // requesting 1403 or earlier returns HTTP 500. Enforced in code so a misconfigured earlier
+    // start date cannot reintroduce the permission failure (spec 042 access note).
+    private const int MonthlyActivityMinimumShamsiYear = 1404;
+    private const string MonthlyActivityMinimumFromDate = "1404/01/01";
 
     public string ProviderName => _settings.ProviderName;
 
@@ -77,12 +84,13 @@ public sealed class NadpcoApiDataProviderClient(
         var companyId = RequireReference(externalCompanyId);
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
-            _settings.MonthlyActivityFromDate,
+            ClampMonthlyActivityFromDate(_settings.MonthlyActivityFromDate),
             _settings.MonthlyActivityToDate,
             _settings.MonthlyActivityOutputType);
+        var serviceSalesBody = body with { OutputType = null };
         var envelope = new NadpcoMonthlyActivityEnvelope(
             await PostJsonForPayloadAsync("api/v2/MonthlyActivity/ProductSales", body, cancellationToken),
-            await PostJsonForPayloadAsync("api/v3/MonthlyActivity/ServiceSales", body, cancellationToken));
+            await PostJsonForPayloadAsync("api/v3/MonthlyActivity/ServiceSales", serviceSalesBody, cancellationToken));
         var json = JsonSerializer.Serialize(envelope, JsonOptions);
 
         return await StorePayloadAsync(
@@ -192,11 +200,19 @@ public sealed class NadpcoApiDataProviderClient(
             return await response.Content.ReadAsStringAsync(cancellationToken);
         }
 
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         var code = response.StatusCode == HttpStatusCode.Unauthorized
             ? FinancialProviderErrorCode.Unauthorized
             : FinancialProviderErrorCode.RemoteUnavailable;
-        logger.LogWarning("NADPCO API returned {StatusCode} for {Endpoint}.", response.StatusCode, endpoint);
-        throw new FinancialProviderException(code, $"NADPCO API request failed for '{endpoint}'.");
+        logger.LogWarning(
+            "NADPCO API returned {StatusCode} for {Endpoint}. Reason={ReasonPhrase} Body={ResponseBody}",
+            response.StatusCode,
+            endpoint,
+            response.ReasonPhrase,
+            Limit(responseBody));
+        throw new FinancialProviderException(
+            code,
+            $"NADPCO API request failed for '{endpoint}' with status {(int)response.StatusCode} ({response.StatusCode}).");
     }
 
     private async Task<ProviderRawPayload> StorePayloadAsync(
@@ -289,5 +305,38 @@ public sealed class NadpcoApiDataProviderClient(
                 FinancialProviderErrorCode.InvalidResponse,
                 $"NADPCO external company id '{externalCompanyId}' is not a valid numeric coID.");
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    // Never request monthly activity earlier than the permitted Shamsi 1404 boundary. A null/blank or
+    // earlier-than-permitted configured date is raised to 1404/01/01; the leading Jalali year token
+    // (yyyy/...) is compared numerically. Unparseable input is left as-is for the vendor to validate.
+    private static string? ClampMonthlyActivityFromDate(string? configuredFromDate)
+    {
+        if (string.IsNullOrWhiteSpace(configuredFromDate))
+        {
+            return MonthlyActivityMinimumFromDate;
+        }
+
+        var yearToken = configuredFromDate.Split('/', 2)[0];
+        return int.TryParse(yearToken, out var year) && year < MonthlyActivityMinimumShamsiYear
+            ? MonthlyActivityMinimumFromDate
+            : configuredFromDate;
+    }
+
+    private static string Limit(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        const int maximumLength = 1_000;
+        var normalized = value.ReplaceLineEndings(" ").Trim();
+        return normalized.Length <= maximumLength
+            ? normalized
+            : normalized[..maximumLength] + "...";
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 }

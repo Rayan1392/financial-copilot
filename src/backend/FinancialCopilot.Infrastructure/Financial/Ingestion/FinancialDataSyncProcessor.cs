@@ -37,6 +37,7 @@ public sealed class FinancialDataSyncProcessor(
             return new DataSyncProcessingResult(Map(existing), AlreadyProcessed: true);
         }
 
+        var provenance = ResolveProvenance(request);
         var run = existing ?? new DataSyncRunRow
         {
             Id = request.RequestId,
@@ -44,7 +45,12 @@ public sealed class FinancialDataSyncProcessor(
             Dataset = request.Dataset.ToString(),
             ProviderName = request.ProviderName,
             ExternalReference = request.ExternalReference,
-            RequestedAt = request.RequestedAt
+            RequestedAt = request.RequestedAt,
+            LogicalVendor = provenance?.Vendor.ToString(),
+            PhysicalSource = provenance?.Source.ToString(),
+            SourceMode = (request.Mode ?? provenance?.DefaultMode)?.ToString(),
+            SourceDateRangeStartJalali = request.SourceDateRangeStartJalali,
+            SourceDateRangeEndJalali = request.SourceDateRangeEndJalali
         };
 
         if (existing is null)
@@ -163,6 +169,12 @@ public sealed class FinancialDataSyncProcessor(
             : providerRouter?.ResolveRatioProvider(providerName) ??
               throw UnknownProvider(providerName, ProviderDataset.FinancialRatios);
 
+    // Recover the catalogued source descriptor for this run's provider so provenance (logical vendor,
+    // physical source, default mode) can be persisted at batch level. A null/unknown provider (the
+    // configured primary, or a foreign name) yields null and leaves provenance columns null.
+    private static ProviderSourceDescriptor? ResolveProvenance(DataSyncRequest request) =>
+        ProviderSources.TryResolve(request.ProviderName);
+
     private static InvalidOperationException UnknownProvider(
         string providerName,
         ProviderDataset dataset) =>
@@ -187,7 +199,15 @@ public sealed class FinancialDataSyncProcessor(
             row.ErrorCount,
             row.ErrorMessage,
             row.SourcePayloadChecksum,
-            row.ProviderName);
+            row.ProviderName,
+            ParseEnum<LogicalVendor>(row.LogicalVendor),
+            ParseEnum<PhysicalSource>(row.PhysicalSource),
+            ParseEnum<SourceMode>(row.SourceMode),
+            row.SourceDateRangeStartJalali,
+            row.SourceDateRangeEndJalali);
+
+    private static TEnum? ParseEnum<TEnum>(string? value) where TEnum : struct, Enum =>
+        Enum.TryParse<TEnum>(value, out var parsed) ? parsed : null;
 
     private static string Limit(string message) => message.Length <= 1000 ? message : message[..1000];
 }

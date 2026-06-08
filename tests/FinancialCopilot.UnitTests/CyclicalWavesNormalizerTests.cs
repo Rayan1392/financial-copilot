@@ -9,7 +9,7 @@ namespace FinancialCopilot.UnitTests;
 public sealed class CyclicalWavesNormalizerTests
 {
     private const string ProviderName = "CyclicalWaves";
-    private const string NadpcoProviderName = "NadpcoApi";
+    private const string NadpcoProviderName = ProviderSources.NoavaranCurrentApiName;
     private const string NadpcoCompanyId = "13226";
     private const string MainTicker = "\u0634\u0644\u0631\u062f";
     private const string SecondTicker = "\u062a\u0627\u067e\u06cc\u06a9\u0648";

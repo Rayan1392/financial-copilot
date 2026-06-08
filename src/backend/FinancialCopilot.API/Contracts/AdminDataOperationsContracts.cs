@@ -32,6 +32,21 @@ public sealed record AdminProviderHealthResponse(
     DateTimeOffset CheckedAt,
     string? Detail);
 
+/// <summary>
+/// Per-source ingestion freshness (spec 051). Archive sources report <c>IsFrozenArchive=true</c> once
+/// their one-time import completes and are not flagged stale by absence of recent runs; current
+/// sources report freshness against their last successful run.
+/// </summary>
+public sealed record AdminSourceFreshnessResponse(
+    string LogicalVendor,
+    string PhysicalSource,
+    string SourceMode,
+    string SourceName,
+    bool IsFrozenArchive,
+    DateTimeOffset? LastSuccessfulRunAt,
+    int RecentSuccessfulRuns,
+    int RecentFailedRuns);
+
 public sealed record AdminCyclicalWavesFullSyncResponse(
     int SymbolsSynced,
     int TickersSynced,

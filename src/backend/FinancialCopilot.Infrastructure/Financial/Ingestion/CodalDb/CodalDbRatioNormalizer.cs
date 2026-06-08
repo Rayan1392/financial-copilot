@@ -162,7 +162,7 @@ public sealed class CodalDbRatioNormalizer(
         {
             new
             {
-                Source = "CodalDb",
+                Source = CodalDbSymbolNormalizer.CodalDbProviderName,
                 RatioItemId = row.ItemId,
                 VendorPrecomputed = true,
                 IsAudited = row.IsAudited,

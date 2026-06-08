@@ -204,7 +204,7 @@ public sealed class NadpcoApiProviderTests
         var first = await client.FetchSymbolsAsync(CancellationToken.None);
         var second = await client.FetchSymbolsAsync(CancellationToken.None);
 
-        Assert.Equal("NadpcoApi", first.ProviderName);
+        Assert.Equal(ProviderSources.NoavaranCurrentApiName, first.ProviderName);
         Assert.Equal(ProviderDataset.Symbols, first.Dataset);
         Assert.Equal(first.Checksum, second.Checksum);
         Assert.Single(dbContext.ProviderRawPayloads);
@@ -322,8 +322,9 @@ public sealed class NadpcoApiProviderTests
             new SequenceTokenProvider("token"),
             Options.Create(new NadpcoApiProviderOptions
             {
-                MonthlyActivityFromDate = "1401/01/01",
-                MonthlyActivityToDate = "1401/12/29",
+                // Permitted range (Shamsi 1404+); flows through unchanged.
+                MonthlyActivityFromDate = "1404/01/01",
+                MonthlyActivityToDate = "1404/12/29",
                 MonthlyActivityOutputType = 2
             }),
             TimeProvider.System,
@@ -336,9 +337,53 @@ public sealed class NadpcoApiProviderTests
         Assert.Contains(requests, r => r.Uri.Contains("ProductSales"));
         Assert.Contains(requests, r => r.Uri.Contains("ServiceSales"));
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
-        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1401/01/01\"", r.Body));
-        Assert.All(requests, r => Assert.Contains("\"toDate\":\"1401/12/29\"", r.Body));
-        Assert.All(requests, r => Assert.Contains("\"outputType\":2", r.Body));
+        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1404/01/01\"", r.Body));
+        Assert.All(requests, r => Assert.Contains("\"toDate\":\"1404/12/29\"", r.Body));
+        Assert.Contains(requests, r => r.Uri.Contains("ProductSales") && r.Body.Contains("\"outputType\":2"));
+        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Body.Contains("\"outputType\""));
+    }
+
+    [Fact]
+    public async Task DataProvider_FetchMonthlyReports_OmitsNullMonthlyActivityFields()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((
+                request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            new SequenceTokenProvider("token"),
+            Options.Create(new NadpcoApiProviderOptions
+            {
+                // Earlier than the permitted Shamsi 1404 boundary — must be clamped up to 1404/01/01.
+                MonthlyActivityFromDate = "1401/01/01",
+                MonthlyActivityToDate = null,
+                MonthlyActivityOutputType = null
+            }),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+
+        Assert.Equal(2, requests.Count);
+        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary.
+        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1404/01/01\"", r.Body));
+        Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\":\"1401/01/01\"", r.Body));
+        Assert.All(requests, r => Assert.DoesNotContain("\"toDate\"", r.Body));
+        Assert.All(requests, r => Assert.DoesNotContain("\"outputType\"", r.Body));
     }
 
     [Fact]

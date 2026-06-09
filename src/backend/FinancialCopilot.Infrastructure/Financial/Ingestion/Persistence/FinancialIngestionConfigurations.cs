@@ -214,6 +214,36 @@ public sealed class NadpcoScheduledSyncRunRowConfiguration : IEntityTypeConfigur
     }
 }
 
+public sealed class ArchiveImportRunRowConfiguration : IEntityTypeConfiguration<ArchiveImportRunRow>
+{
+    public void Configure(EntityTypeBuilder<ArchiveImportRunRow> builder)
+    {
+        builder.ToTable("ArchiveImportRuns");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Action).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.RequestedBy).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.DatasetSelectionJson).HasMaxLength(512).IsRequired();
+        builder.Property(row => row.Reason).HasMaxLength(1000);
+        builder.Property(row => row.Diagnostics).HasMaxLength(2000);
+        builder.Property(row => row.LockOwner).HasMaxLength(256);
+        builder.HasIndex(row => row.StartedAt);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => row.LockLeaseExpiresAt);
+    }
+}
+
+public sealed class ArchiveFreezeStateRowConfiguration : IEntityTypeConfiguration<ArchiveFreezeStateRow>
+{
+    public void Configure(EntityTypeBuilder<ArchiveFreezeStateRow> builder)
+    {
+        builder.ToTable("ArchiveFreezeStates");
+        builder.HasKey(row => row.SourceName);
+        builder.Property(row => row.SourceName).HasMaxLength(64);
+        builder.Property(row => row.Reason).HasMaxLength(1000);
+    }
+}
+
 public sealed class TradingInstrumentRowConfiguration : IEntityTypeConfiguration<TradingInstrumentRow>
 {
     public void Configure(EntityTypeBuilder<TradingInstrumentRow> builder)

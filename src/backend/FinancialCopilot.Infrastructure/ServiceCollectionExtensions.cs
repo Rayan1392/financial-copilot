@@ -740,6 +740,14 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<EfCoreNadpcoScheduledSyncRunRepository>());
         services.AddScoped<INadpcoScheduledSyncCoordinator, NadpcoScheduledSyncCoordinator>();
         services.AddSingleton<INadpcoScheduledSyncAlertSink, LoggingNadpcoScheduledSyncAlertSink>();
+
+        // Spec 052 — one-time Noavaran archive import (DataAdmin-triggered; no recurring worker).
+        services.AddScoped<EfCoreArchiveImportRunRepository>();
+        services.AddScoped<IArchiveImportRunReader>(provider =>
+            provider.GetRequiredService<EfCoreArchiveImportRunRepository>());
+        services.AddScoped<IArchiveFreezeStateStore, EfCoreArchiveFreezeStateStore>();
+        services.AddScoped<IArchiveCoverageReader, EfCoreArchiveCoverageReader>();
+        services.AddScoped<IArchiveImportCoordinator, ArchiveImportCoordinator>();
         services
             .AddOptions<StockMarketDbProviderOptions>()
             .BindConfiguration(StockMarketDbProviderOptions.SectionName);

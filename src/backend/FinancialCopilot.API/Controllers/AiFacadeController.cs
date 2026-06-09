@@ -317,7 +317,8 @@ public sealed class AiFacadeController(
                 c.SymbolCode,
                 c.MetricCode,
                 c.ObservedAt,
-                c.FreshnessStatus)).ToList(),
+                c.FreshnessStatus,
+                c.SourceProvider)).ToList(),
             new ConfidenceScoreResponse(
                 answer.Confidence.Score,
                 new ConfidenceFactorsResponse(

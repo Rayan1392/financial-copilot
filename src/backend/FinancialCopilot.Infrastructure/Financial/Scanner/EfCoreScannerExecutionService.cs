@@ -125,7 +125,10 @@ public sealed class EfCoreScannerExecutionService(
                 company?.Name,
                 cells,
                 Score: 0.0,
-                conditionMetricCodes);
+                conditionMetricCodes,
+                // Archive provenance for explainable answers (spec 052 AC #10): the company's physical
+                // source name (e.g. NoavaranArchiveSql) when resolved, else the symbol's provider.
+                SourceProvider: company?.ProviderName ?? symbol.ProviderName);
         }).ToList();
 
         foreach (var unavailable in quoteResult.UnavailableSymbols)

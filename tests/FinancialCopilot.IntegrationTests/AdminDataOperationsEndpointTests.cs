@@ -212,6 +212,69 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NoavaranArchive_DryRun_AsDataAdmin_ReturnsRunWithoutEnqueuing()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-archive/dry-run", new { }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("DryRun", document.RootElement.GetProperty("action").GetString());
+        Assert.Equal("Succeeded", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal(0, document.RootElement.GetProperty("requestsEnqueued").GetInt32());
+        var request = Assert.Single(_factory.ArchiveImport.Requests);
+        Assert.Equal(ArchiveImportAction.DryRun, request.Action);
+        Assert.StartsWith("User:", request.RequestedBy);
+    }
+
+    [Fact]
+    public async Task NoavaranArchive_Freeze_ThenImport_IsRejected()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var freeze = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-archive/freeze",
+            new { reason = "Archive verified complete." },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, freeze.StatusCode);
+
+        using var import = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-archive/import", new { }, CancellationToken.None);
+        using var document = await ReadJsonAsync(import);
+        Assert.Equal(HttpStatusCode.OK, import.StatusCode);
+        Assert.Equal("RejectedFrozen", document.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task NoavaranArchive_Coverage_AsDataAdmin_ReturnsSummary()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync("/api/v1/admin/noavaran-archive/coverage", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(document.RootElement.GetProperty("companyMappingValid").GetBoolean());
+        Assert.Equal("NoavaranArchiveSql", document.RootElement.GetProperty("coverage").GetProperty("sourceName").GetString());
+    }
+
+    [Fact]
+    public async Task NoavaranArchive_Import_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-archive/import", new { }, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.ArchiveImport.Requests);
+    }
+
+    [Fact]
     public async Task NadpcoApi_FullSync_AsDataAdmin_ReturnsRunSummary()
     {
         using var client = CreateDataAdminClient();
@@ -527,9 +590,11 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubNadpcoApiScheduledSyncService _nadpcoApiSync = new();
     private readonly StubNadpcoScheduledSyncCoordinator _nadpcoScheduledSync = new();
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
+    private readonly StubArchiveImportCoordinator _archiveImport = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
+    public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
@@ -552,6 +617,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<INadpcoScheduledSyncRunReader>();
             services.RemoveAll<IStockMarketDbSyncService>();
             services.RemoveAll<IStockMarketDbSyncStateReader>();
+            services.RemoveAll<IArchiveImportCoordinator>();
+            services.RemoveAll<IArchiveImportRunReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
@@ -563,6 +630,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<INadpcoScheduledSyncRunReader>(_nadpcoScheduledSync);
             services.AddSingleton<IStockMarketDbSyncService>(_stockMarketDbSync);
             services.AddSingleton<IStockMarketDbSyncStateReader>(_stockMarketDbSync);
+            services.AddSingleton<IArchiveImportCoordinator>(_archiveImport);
+            services.AddSingleton<IArchiveImportRunReader>(_archiveImport);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
         });
     }
@@ -574,6 +643,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _nadpcoApiSync.Reset();
         _nadpcoScheduledSync.Reset();
         _stockMarketDbSync.Reset();
+        _archiveImport.Reset();
         _missingAnswerFeedback.Reset();
     }
 
@@ -613,21 +683,87 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public sealed class StubCodalDbScheduledSyncService : ICodalDbScheduledSyncService
     {
         public List<bool> InvocationModes { get; } = [];
+        public List<bool> DryRunModes { get; } = [];
 
-        public Task<CodalDbScheduledSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
+        public Task<CodalDbScheduledSyncResult> ExecuteAsync(
+            bool fullReload, CancellationToken cancellationToken, bool dryRun = false)
         {
             InvocationModes.Add(fullReload);
+            DryRunModes.Add(dryRun);
             return Task.FromResult(new CodalDbScheduledSyncResult(
                 fullReload,
                 CompaniesConsidered: 5,
-                CompaniesEnqueued: 5,
+                CompaniesEnqueued: dryRun ? 0 : 5,
                 FailedCompanies: 0,
                 FailedCompanyIds: [],
                 AdvancedWatermark: DateTimeOffset.Parse("2026-05-31T08:00:00Z"),
                 Duration: TimeSpan.FromSeconds(1.25)));
         }
 
-        public void Reset() => InvocationModes.Clear();
+        public void Reset()
+        {
+            InvocationModes.Clear();
+            DryRunModes.Clear();
+        }
+    }
+
+    public sealed class StubArchiveImportCoordinator : IArchiveImportCoordinator, IArchiveImportRunReader
+    {
+        public List<ArchiveImportRequest> Requests { get; } = [];
+        public bool Frozen { get; set; }
+
+        public Task<ArchiveImportRun> RunAsync(ArchiveImportRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            var status = request.Action == ArchiveImportAction.Import && Frozen
+                ? ArchiveImportRunStatus.RejectedFrozen
+                : ArchiveImportRunStatus.Succeeded;
+            if (request.Action == ArchiveImportAction.Freeze)
+            {
+                Frozen = true;
+            }
+
+            return Task.FromResult(new ArchiveImportRun(
+                Guid.NewGuid(),
+                request.Action,
+                status,
+                request.RequestedBy,
+                request.Datasets,
+                request.Reason,
+                StartedAt: DateTimeOffset.Parse("2026-06-09T09:00:00Z"),
+                FinishedAt: DateTimeOffset.Parse("2026-06-09T09:00:01Z"),
+                CompaniesConsidered: request.Action == ArchiveImportAction.DryRun ? 7 : 5,
+                RequestsEnqueued: request.Action is ArchiveImportAction.DryRun or ArchiveImportAction.Freeze ? 0 : 5,
+                SkippedCount: 0,
+                ConflictCount: 0,
+                FailedCount: 0,
+                Frozen: request.Action == ArchiveImportAction.Freeze,
+                Diagnostics: null));
+        }
+
+        public Task<ArchiveImportValidationResult> ValidateAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new ArchiveImportValidationResult(
+                CompanyMappingValid: true,
+                CompaniesWithoutCanonicalSymbol: 0,
+                UnmappedExternalCompanyIds: [],
+                Coverage: new ArchiveCoverageSummary(
+                    "NoavaranArchiveSql",
+                    CompanyCount: 5,
+                    RowCountByDataset: new Dictionary<string, int> { ["FinancialStatements"] = 10 },
+                    RowCountByFiscalYear: new Dictionary<int, int> { [2023] = 10 },
+                    Rows: [])));
+
+        public Task<ArchiveFreezeState> GetFreezeStateAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new ArchiveFreezeState(Frozen, Frozen ? DateTimeOffset.Parse("2026-06-09T09:00:00Z") : null, null, null));
+
+        public Task<IReadOnlyCollection<ArchiveImportRun>> QueryRecentAsync(int maximumCount, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<ArchiveImportRun>>([]);
+
+        public void Reset()
+        {
+            Requests.Clear();
+            Frozen = false;
+        }
     }
 
     public sealed class StubStockMarketDbSyncService : IStockMarketDbSyncService, IStockMarketDbSyncStateReader

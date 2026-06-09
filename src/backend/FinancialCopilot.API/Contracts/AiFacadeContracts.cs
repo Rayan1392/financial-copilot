@@ -107,7 +107,8 @@ public sealed record DataCitationResponse(
     string SymbolCode,
     string MetricCode,
     DateTimeOffset? ObservedAt,
-    string FreshnessStatus);
+    string FreshnessStatus,
+    string? SourceProvider = null);
 
 public sealed record ConfidenceFactorsResponse(
     double InterpretationCertainty,

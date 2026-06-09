@@ -194,7 +194,8 @@ public sealed class ExplainableAnswerBuilder(
                     row.SymbolCode,
                     kv.Key,
                     kv.Value.SourceTimestamp,
-                    kv.Value.FreshnessStatus.ToString())))
+                    kv.Value.FreshnessStatus.ToString(),
+                    row.SourceProvider)))
             .ToList();
     }
 

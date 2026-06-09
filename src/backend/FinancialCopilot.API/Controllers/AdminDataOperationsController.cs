@@ -1,5 +1,6 @@
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Security;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
@@ -27,6 +28,9 @@ public sealed class AdminDataOperationsController(
     INadpcoScheduledSyncRunReader nadpcoScheduledSyncRunReader,
     IStockMarketDbSyncService stockMarketDbSync,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
+    IArchiveImportCoordinator archiveImportCoordinator,
+    IArchiveImportRunReader archiveImportRunReader,
+    ICurrentActorContext currentActor,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
     TimeProvider timeProvider) : ControllerBase
 {
@@ -123,6 +127,147 @@ public sealed class AdminDataOperationsController(
             result.AdvancedWatermark,
             result.Duration.ToString("g")));
     }
+
+    // --- Spec 052: one-time Noavaran archive import (DataAdmin only) ---
+
+    [HttpPost("noavaran-archive/dry-run")]
+    public Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveDryRun(
+        [FromBody] AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken) =>
+        RunArchiveActionAsync(ArchiveImportAction.DryRun, request, cancellationToken);
+
+    [HttpPost("noavaran-archive/import")]
+    public Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveImport(
+        [FromBody] AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken) =>
+        RunArchiveActionAsync(ArchiveImportAction.Import, request, cancellationToken);
+
+    [HttpPost("noavaran-archive/re-import")]
+    public Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveReImport(
+        [FromBody] AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken) =>
+        RunArchiveActionAsync(ArchiveImportAction.ReImport, request, cancellationToken);
+
+    [HttpPost("noavaran-archive/validate")]
+    public Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveValidate(
+        [FromBody] AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken) =>
+        RunArchiveActionAsync(ArchiveImportAction.Validate, request, cancellationToken);
+
+    [HttpPost("noavaran-archive/freeze")]
+    public Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveFreeze(
+        [FromBody] AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken) =>
+        RunArchiveActionAsync(ArchiveImportAction.Freeze, request, cancellationToken);
+
+    [HttpGet("noavaran-archive/freeze-state")]
+    public async Task<ActionResult<AdminArchiveFreezeStateResponse>> GetArchiveFreezeState(
+        CancellationToken cancellationToken)
+    {
+        var state = await archiveImportCoordinator.GetFreezeStateAsync(cancellationToken);
+        return Ok(new AdminArchiveFreezeStateResponse(
+            state.IsFrozen, state.FrozenAt, state.FrozenByRunId, state.Reason));
+    }
+
+    [HttpGet("noavaran-archive/runs")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminArchiveImportRunResponse>>> GetArchiveRuns(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var runs = await archiveImportRunReader.QueryRecentAsync(limit, cancellationToken);
+        return Ok(runs.Select(ToArchiveRunResponse).ToArray());
+    }
+
+    [HttpGet("noavaran-archive/coverage")]
+    public async Task<ActionResult<AdminArchiveImportValidationResponse>> GetArchiveCoverage(
+        CancellationToken cancellationToken)
+    {
+        var validation = await archiveImportCoordinator.ValidateAsync(cancellationToken);
+        return Ok(new AdminArchiveImportValidationResponse(
+            validation.CompanyMappingValid,
+            validation.CompaniesWithoutCanonicalSymbol,
+            validation.UnmappedExternalCompanyIds,
+            ToCoverageResponse(validation.Coverage)));
+    }
+
+    private async Task<ActionResult<AdminArchiveImportRunResponse>> RunArchiveActionAsync(
+        ArchiveImportAction action,
+        AdminArchiveImportRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseArchiveDatasets(request?.Datasets, out var datasets, out var invalidDataset))
+        {
+            ModelState.AddModelError(nameof(request.Datasets), $"Unknown dataset '{invalidDataset}'.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var requestedBy = $"{actor.ActorType}:{actor.ActorId}";
+        var run = await archiveImportCoordinator.RunAsync(
+            new ArchiveImportRequest(action, requestedBy, datasets, request?.Reason),
+            cancellationToken);
+        return Ok(ToArchiveRunResponse(run));
+    }
+
+    private static bool TryParseArchiveDatasets(
+        string[]? requested,
+        out IReadOnlyCollection<ArchiveImportDataset> datasets,
+        out string? invalidDataset)
+    {
+        invalidDataset = null;
+        if (requested is null || requested.Length == 0)
+        {
+            datasets = [];
+            return true;
+        }
+
+        var parsed = new List<ArchiveImportDataset>(requested.Length);
+        foreach (var name in requested)
+        {
+            if (!Enum.TryParse<ArchiveImportDataset>(name, ignoreCase: true, out var dataset))
+            {
+                invalidDataset = name;
+                datasets = [];
+                return false;
+            }
+
+            parsed.Add(dataset);
+        }
+
+        datasets = parsed;
+        return true;
+    }
+
+    private static AdminArchiveImportRunResponse ToArchiveRunResponse(ArchiveImportRun run) =>
+        new(
+            run.RunId,
+            run.Action.ToString(),
+            run.Status.ToString(),
+            run.RequestedBy,
+            run.Datasets.Select(d => d.ToString()).ToArray(),
+            run.Reason,
+            run.StartedAt,
+            run.FinishedAt,
+            run.CompaniesConsidered,
+            run.RequestsEnqueued,
+            run.SkippedCount,
+            run.ConflictCount,
+            run.FailedCount,
+            run.Frozen,
+            run.Diagnostics);
+
+    private static AdminArchiveCoverageResponse ToCoverageResponse(ArchiveCoverageSummary coverage) =>
+        new(
+            coverage.SourceName,
+            coverage.CompanyCount,
+            coverage.RowCountByDataset,
+            coverage.RowCountByFiscalYear);
 
     [HttpPost("nadpcoapi/full-sync")]
     public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiFullSync(CancellationToken cancellationToken) =>

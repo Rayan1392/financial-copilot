@@ -38,7 +38,12 @@ public sealed record ScannerTableRow(
     string? CompanyName,
     IReadOnlyDictionary<string, ScannerTableCell> Cells,
     double Score,
-    IReadOnlyCollection<string> MatchedConditionMetrics);
+    IReadOnlyCollection<string> MatchedConditionMetrics,
+    /// <summary>
+    /// Physical source that owns this symbol's company row (e.g. <c>NoavaranArchiveSql</c>). Optional;
+    /// surfaced so explainable answers can cite archive provenance for historical rows (spec 052 AC #10).
+    /// </summary>
+    string? SourceProvider = null);
 
 public sealed record ScannerExecutionFacts(
     DateTimeOffset ExecutedAt,

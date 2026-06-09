@@ -29,7 +29,9 @@ public sealed record DataCitation(
     string SymbolCode,
     string MetricCode,
     DateTimeOffset? ObservedAt,
-    string FreshnessStatus);
+    string FreshnessStatus,
+    /// <summary>Physical source for this symbol's data (e.g. <c>NoavaranArchiveSql</c>); null when unknown (spec 052 AC #10).</summary>
+    string? SourceProvider = null);
 
 // Factor inputs used to calculate the confidence score — preserved for audit.
 public sealed record ConfidenceFactors(

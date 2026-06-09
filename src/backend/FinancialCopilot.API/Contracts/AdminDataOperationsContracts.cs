@@ -47,6 +47,47 @@ public sealed record AdminSourceFreshnessResponse(
     int RecentSuccessfulRuns,
     int RecentFailedRuns);
 
+// --- Spec 052: one-time Noavaran archive import ---
+
+public sealed record AdminArchiveImportRequest(
+    string[]? Datasets = null,
+    string? Reason = null);
+
+public sealed record AdminArchiveImportRunResponse(
+    Guid RunId,
+    string Action,
+    string Status,
+    string RequestedBy,
+    IReadOnlyCollection<string> Datasets,
+    string? Reason,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? FinishedAt,
+    int CompaniesConsidered,
+    int RequestsEnqueued,
+    int SkippedCount,
+    int ConflictCount,
+    int FailedCount,
+    bool Frozen,
+    string? Diagnostics);
+
+public sealed record AdminArchiveFreezeStateResponse(
+    bool IsFrozen,
+    DateTimeOffset? FrozenAt,
+    Guid? FrozenByRunId,
+    string? Reason);
+
+public sealed record AdminArchiveCoverageResponse(
+    string SourceName,
+    int CompanyCount,
+    IReadOnlyDictionary<string, int> RowCountByDataset,
+    IReadOnlyDictionary<int, int> RowCountByFiscalYear);
+
+public sealed record AdminArchiveImportValidationResponse(
+    bool CompanyMappingValid,
+    int CompaniesWithoutCanonicalSymbol,
+    IReadOnlyCollection<string> UnmappedExternalCompanyIds,
+    AdminArchiveCoverageResponse Coverage);
+
 public sealed record AdminCyclicalWavesFullSyncResponse(
     int SymbolsSynced,
     int TickersSynced,

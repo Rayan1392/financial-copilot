@@ -422,6 +422,70 @@ public sealed class NadpcoScheduledSyncRunRow
     public string? ManualReason { get; set; }
 }
 
+/// <summary>
+/// One-time Noavaran archive import run history (spec 052). Records each DataAdmin archive action
+/// (dry-run/import/validate/freeze/re-import) with counts, conflicts, failures, the reason, and a
+/// running lease so a second concurrent import is rejected.
+/// </summary>
+public sealed class ArchiveImportRunRow
+{
+    public Guid Id { get; set; }
+
+    /// <summary>Stringified <c>ArchiveImportAction</c>.</summary>
+    public string Action { get; set; } = string.Empty;
+
+    /// <summary>Stringified <c>ArchiveImportRunStatus</c>.</summary>
+    public string Status { get; set; } = string.Empty;
+
+    public string RequestedBy { get; set; } = string.Empty;
+
+    /// <summary>JSON array of selected <c>ArchiveImportDataset</c> names (empty array = all datasets).</summary>
+    public string DatasetSelectionJson { get; set; } = "[]";
+
+    public string? Reason { get; set; }
+
+    public DateTimeOffset StartedAt { get; set; }
+
+    public DateTimeOffset? FinishedAt { get; set; }
+
+    public int CompaniesConsidered { get; set; }
+
+    public int RequestsEnqueued { get; set; }
+
+    public int SkippedCount { get; set; }
+
+    public int ConflictCount { get; set; }
+
+    public int FailedCount { get; set; }
+
+    /// <summary>Whether this run left the archive source frozen.</summary>
+    public bool Frozen { get; set; }
+
+    public string? Diagnostics { get; set; }
+
+    /// <summary>Running-lease owner; null when the run is finished.</summary>
+    public string? LockOwner { get; set; }
+
+    public DateTimeOffset? LockLeaseExpiresAt { get; set; }
+}
+
+/// <summary>
+/// Single-row authoritative freeze marker for the Noavaran archive source (spec 052 AC #3/#5).
+/// Keyed by the source name so it is unambiguous and never duplicated.
+/// </summary>
+public sealed class ArchiveFreezeStateRow
+{
+    public string SourceName { get; set; } = string.Empty;
+
+    public bool IsFrozen { get; set; }
+
+    public DateTimeOffset? FrozenAt { get; set; }
+
+    public Guid? FrozenByRunId { get; set; }
+
+    public string? Reason { get; set; }
+}
+
 public sealed class TradingInstrumentRow
 {
     public Guid Id { get; set; }

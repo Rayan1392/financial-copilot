@@ -30,19 +30,24 @@ public sealed class CodalDbScheduledSyncService(
 
     public async Task<CodalDbScheduledSyncResult> ExecuteAsync(
         bool fullReload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool dryRun = false)
     {
         var providerName = providerOptions.Value.ProviderName;
         var started = timeProvider.GetUtcNow();
-        await stateStore.RecordRunStartAsync(WatermarkKey, started, cancellationToken);
+        if (!dryRun)
+        {
+            await stateStore.RecordRunStartAsync(WatermarkKey, started, cancellationToken);
+        }
 
         var watermark = fullReload
             ? null
             : await stateStore.GetWatermarkAsync(WatermarkKey, cancellationToken);
 
         logger.LogInformation(
-            "CodalDB scheduled sync starting — mode={Mode} watermark={Watermark}.",
+            "CodalDB scheduled sync starting — mode={Mode} dryRun={DryRun} watermark={Watermark}.",
             fullReload ? "full" : "incremental",
+            dryRun,
             watermark);
 
         var changedIds = await queryExecutor.QueryChangedCompanyIdsAsync(watermark, cancellationToken);
@@ -54,6 +59,20 @@ public sealed class CodalDbScheduledSyncService(
                 fullReload,
                 CompaniesConsidered: 0,
                 CompaniesEnqueued: 0,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                AdvancedWatermark: watermark,
+                Duration: timeProvider.GetUtcNow() - started);
+        }
+
+        if (dryRun)
+        {
+            // Report what would be enqueued (Symbols once + per-company datasets) without publishing
+            // any request or advancing the watermark.
+            return new CodalDbScheduledSyncResult(
+                fullReload,
+                CompaniesConsidered: changedIds.Count,
+                CompaniesEnqueued: changedIds.Count,
                 FailedCompanies: 0,
                 FailedCompanyIds: [],
                 AdvancedWatermark: watermark,

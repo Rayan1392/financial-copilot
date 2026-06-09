@@ -15,7 +15,13 @@ public sealed record DataSyncRequest(
     /// </summary>
     SourceMode? Mode = null,
     string? SourceDateRangeStartJalali = null,
-    string? SourceDateRangeEndJalali = null);
+    string? SourceDateRangeEndJalali = null,
+    /// <summary>
+    /// One-off Shamsi start-year override for a current-API backfill (spec 053 AC #3). Travels with
+    /// the request so the override reaches the worker scope that performs the fetch; null means use
+    /// the configured boundary. Ignored by providers that have no Shamsi-year boundary.
+    /// </summary>
+    int? FromShamsiYearOverride = null);
 
 public enum DataSyncRunStatus
 {

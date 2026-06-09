@@ -275,6 +275,75 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NoavaranCurrent_Health_AsDataAdmin_ReportsSeparatelyFromArchive()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync("/api/v1/admin/noavaran-current/health", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("NoavaranCurrentApi", document.RootElement.GetProperty("sourceName").GetString());
+        Assert.Equal("Healthy", document.RootElement.GetProperty("providerHealthStatus").GetString());
+        Assert.True(document.RootElement.GetProperty("scheduledSyncEnabled").GetBoolean());
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_Gaps_AsDataAdmin_ReturnsBoundaryAndGaps()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.GetAsync("/api/v1/admin/noavaran-current/gaps", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1403, document.RootElement.GetProperty("currentApiBoundaryShamsiYear").GetInt32());
+        Assert.Equal(3, document.RootElement.GetProperty("totalGapRows").GetInt32());
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_Backfill_AsDataAdmin_PassesShamsiYearOverride()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/backfill", new { fromShamsiYear = 1401 }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1401, document.RootElement.GetProperty("appliedFromShamsiYear").GetInt32());
+        var request = Assert.Single(_factory.CurrentApi.BackfillRequests);
+        Assert.Equal(1401, request.FromShamsiYearOverride);
+        Assert.StartsWith("User:", request.RequestedBy);
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_Backfill_RejectsImplausibleShamsiYear()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/backfill", new { fromShamsiYear = 3000 }, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(_factory.CurrentApi.BackfillRequests);
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_Backfill_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/backfill", new { }, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.CurrentApi.BackfillRequests);
+    }
+
+    [Fact]
     public async Task NadpcoApi_FullSync_AsDataAdmin_ReturnsRunSummary()
     {
         using var client = CreateDataAdminClient();
@@ -591,10 +660,12 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubNadpcoScheduledSyncCoordinator _nadpcoScheduledSync = new();
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubArchiveImportCoordinator _archiveImport = new();
+    private readonly StubCurrentApiIngestion _currentApi = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
+    public StubCurrentApiIngestion CurrentApi => _currentApi;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
@@ -619,6 +690,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IStockMarketDbSyncStateReader>();
             services.RemoveAll<IArchiveImportCoordinator>();
             services.RemoveAll<IArchiveImportRunReader>();
+            services.RemoveAll<ICurrentApiBackfillCoordinator>();
+            services.RemoveAll<ICurrentApiGapReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
@@ -632,6 +705,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IStockMarketDbSyncStateReader>(_stockMarketDbSync);
             services.AddSingleton<IArchiveImportCoordinator>(_archiveImport);
             services.AddSingleton<IArchiveImportRunReader>(_archiveImport);
+            services.AddSingleton<ICurrentApiBackfillCoordinator>(_currentApi);
+            services.AddSingleton<ICurrentApiGapReader>(_currentApi);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
         });
     }
@@ -644,6 +719,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _nadpcoScheduledSync.Reset();
         _stockMarketDbSync.Reset();
         _archiveImport.Reset();
+        _currentApi.Reset();
         _missingAnswerFeedback.Reset();
     }
 
@@ -766,6 +842,45 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         }
     }
 
+    public sealed class StubCurrentApiIngestion : ICurrentApiBackfillCoordinator, ICurrentApiGapReader
+    {
+        public List<CurrentApiBackfillRequest> BackfillRequests { get; } = [];
+
+        public Task<CurrentApiBackfillResult> BackfillAsync(
+            CurrentApiBackfillRequest request, CancellationToken cancellationToken)
+        {
+            BackfillRequests.Add(request);
+            return Task.FromResult(new CurrentApiBackfillResult(
+                FullReload: true,
+                AppliedFromShamsiYear: request.FromShamsiYearOverride,
+                CompaniesConsidered: 4,
+                RequestsEnqueued: 12,
+                FailedCompanies: 0,
+                Duration: "0:00:02"));
+        }
+
+        public Task<CurrentApiHealthStatus> GetHealthAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new CurrentApiHealthStatus(
+                "NoavaranCurrentApi",
+                "Healthy",
+                "Authenticated token request succeeded.",
+                ScheduledSyncEnabled: true,
+                LastSuccessfulSyncAt: DateTimeOffset.Parse("2026-06-09T03:00:00Z"),
+                NextDueAt: DateTimeOffset.Parse("2026-06-10T03:00:00Z"),
+                CheckedAt: DateTimeOffset.Parse("2026-06-09T09:00:00Z")));
+
+        public Task<CurrentApiGapReport> ReportAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new CurrentApiGapReport(
+                CurrentApiBoundaryShamsiYear: 1403,
+                TotalGapRows: 3,
+                Gaps:
+                [
+                    new CurrentApiCoverageGap("FinancialStatements", "1001", 2024, CurrentApiRowCount: 3, ArchiveRowCount: 0)
+                ]));
+
+        public void Reset() => BackfillRequests.Clear();
+    }
+
     public sealed class StubStockMarketDbSyncService : IStockMarketDbSyncService, IStockMarketDbSyncStateReader
     {
         public List<(StockMarketDataset Dataset, bool FullReload)> Invocations { get; } = [];
@@ -791,11 +906,14 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public sealed class StubNadpcoApiScheduledSyncService : INadpcoApiScheduledSyncService, INadpcoApiSyncStateReader
     {
         public List<bool> InvocationModes { get; } = [];
+        public List<int?> FromShamsiYearOverrides { get; } = [];
         public List<bool> CompanyCatalogModes { get; } = [];
 
-        public Task<NadpcoApiSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
+        public Task<NadpcoApiSyncResult> ExecuteAsync(
+            bool fullReload, CancellationToken cancellationToken, int? fromShamsiYearOverride = null)
         {
             InvocationModes.Add(fullReload);
+            FromShamsiYearOverrides.Add(fromShamsiYearOverride);
             return Task.FromResult(new NadpcoApiSyncResult(
                 fullReload,
                 CompaniesConsidered: 4,

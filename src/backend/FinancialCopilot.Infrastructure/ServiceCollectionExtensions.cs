@@ -577,6 +577,11 @@ public static class ServiceCollectionExtensions
         services
             .AddOptions<NadpcoApiProviderOptions>()
             .BindConfiguration(NadpcoApiProviderOptions.SectionName);
+        // Spec 053 — per-run Shamsi start boundary override for current-API backfill (scoped; the
+        // provider client and the backfill coordinator share the same scope instance).
+        services.AddScoped<NoavaranCurrentApiBoundaryOverride>();
+        services.AddScoped<INoavaranCurrentApiBoundaryOverride>(provider =>
+            provider.GetRequiredService<NoavaranCurrentApiBoundaryOverride>());
         services.AddSingleton<NadpcoApiTokenCache>();
         services.AddTransient<NadpcoApiAuthHandler>();
         services.AddTransient<NadpcoApiResilienceHandler>();
@@ -748,6 +753,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IArchiveFreezeStateStore, EfCoreArchiveFreezeStateStore>();
         services.AddScoped<IArchiveCoverageReader, EfCoreArchiveCoverageReader>();
         services.AddScoped<IArchiveImportCoordinator, ArchiveImportCoordinator>();
+
+        // Spec 053 — Noavaran current-API ingestion: archive-vs-current gap report + DataAdmin
+        // backfill (one-off Shamsi boundary override) + separate current-API health. Reuses the
+        // existing current-API scheduled-sync orchestration (single ingestion path).
+        services.AddScoped<ICurrentApiGapReader, EfCoreCurrentApiGapReader>();
+        services.AddScoped<ICurrentApiBackfillCoordinator, CurrentApiBackfillCoordinator>();
         services
             .AddOptions<StockMarketDbProviderOptions>()
             .BindConfiguration(StockMarketDbProviderOptions.SectionName);

@@ -17,7 +17,8 @@ public sealed class NadpcoApiDataProviderClient(
     INadpcoApiTokenProvider tokenProvider,
     IOptions<NadpcoApiProviderOptions> options,
     TimeProvider timeProvider,
-    ILogger<NadpcoApiDataProviderClient> logger) :
+    ILogger<NadpcoApiDataProviderClient> logger,
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) :
     ISymbolDataProvider,
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
@@ -82,9 +83,14 @@ public sealed class NadpcoApiDataProviderClient(
         CancellationToken cancellationToken)
     {
         var companyId = RequireReference(externalCompanyId);
+        // A backfill override lowers the requested start; the clamp still keeps it at/above the
+        // vendor-permitted 1404 monthly boundary (spec 042/053).
+        var requestedFromDate = boundaryOverride?.FromShamsiYear is { } overrideYear
+            ? $"{overrideYear}/01/01"
+            : _settings.MonthlyActivityFromDate;
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
-            ClampMonthlyActivityFromDate(_settings.MonthlyActivityFromDate),
+            ClampMonthlyActivityFromDate(requestedFromDate),
             _settings.MonthlyActivityToDate,
             _settings.MonthlyActivityOutputType);
         var serviceSalesBody = body with { OutputType = null };
@@ -240,10 +246,15 @@ public sealed class NadpcoApiDataProviderClient(
             ? throw new ArgumentException("External company id is required.", nameof(externalCompanyId))
             : externalCompanyId.Trim();
 
+    // Effective Shamsi start year for the current run: a DataAdmin backfill override when set
+    // (spec 053 AC #3), else the configured per-dataset value.
+    private int? EffectiveFromYear(int? configured) =>
+        boundaryOverride?.FromShamsiYear ?? configured;
+
     private string BuildStatementEndpoint(string path)
     {
         var query = new List<string>();
-        AddInt("fromYear", _settings.StatementFromYear);
+        AddInt("fromYear", EffectiveFromYear(_settings.StatementFromYear));
         AddInt("toYear", _settings.StatementToYear);
         AddInt("perTId", _settings.StatementPeriodTypeId);
         AddBool("isAudited", _settings.StatementIsAudited);
@@ -272,7 +283,7 @@ public sealed class NadpcoApiDataProviderClient(
     private string BuildFundamentalIndexEndpoint(string path)
     {
         var query = new List<string>();
-        AddInt("fromYear", _settings.FundamentalIndexFromYear);
+        AddInt("fromYear", EffectiveFromYear(_settings.FundamentalIndexFromYear));
         AddInt("toYear", _settings.FundamentalIndexToYear);
         AddInt("perTId", _settings.FundamentalIndexPeriodTypeId);
         AddBool("isAudited", _settings.FundamentalIndexIsAudited);

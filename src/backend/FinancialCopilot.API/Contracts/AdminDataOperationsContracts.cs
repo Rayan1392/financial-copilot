@@ -88,6 +88,40 @@ public sealed record AdminArchiveImportValidationResponse(
     IReadOnlyCollection<string> UnmappedExternalCompanyIds,
     AdminArchiveCoverageResponse Coverage);
 
+// --- Spec 053: Noavaran current-API ingestion ---
+
+public sealed record AdminCurrentApiBackfillRequest(
+    int? FromShamsiYear = null);
+
+public sealed record AdminCurrentApiBackfillResponse(
+    bool FullReload,
+    int? AppliedFromShamsiYear,
+    int CompaniesConsidered,
+    int RequestsEnqueued,
+    int FailedCompanies,
+    string Duration);
+
+public sealed record AdminCurrentApiHealthResponse(
+    string SourceName,
+    string ProviderHealthStatus,
+    string? ProviderHealthDetail,
+    bool ScheduledSyncEnabled,
+    DateTimeOffset? LastSuccessfulSyncAt,
+    DateTimeOffset? NextDueAt,
+    DateTimeOffset CheckedAt);
+
+public sealed record AdminCurrentApiGapResponse(
+    int CurrentApiBoundaryShamsiYear,
+    int TotalGapRows,
+    IReadOnlyCollection<AdminCurrentApiGapItem> Gaps);
+
+public sealed record AdminCurrentApiGapItem(
+    string Dataset,
+    string ExternalCompanyId,
+    int FiscalYear,
+    int CurrentApiRowCount,
+    int ArchiveRowCount);
+
 public sealed record AdminCyclicalWavesFullSyncResponse(
     int SymbolsSynced,
     int TickersSynced,

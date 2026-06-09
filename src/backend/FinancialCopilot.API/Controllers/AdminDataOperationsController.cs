@@ -30,6 +30,8 @@ public sealed class AdminDataOperationsController(
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
     IArchiveImportCoordinator archiveImportCoordinator,
     IArchiveImportRunReader archiveImportRunReader,
+    ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
+    ICurrentApiGapReader currentApiGapReader,
     ICurrentActorContext currentActor,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
     TimeProvider timeProvider) : ControllerBase
@@ -268,6 +270,65 @@ public sealed class AdminDataOperationsController(
             coverage.CompanyCount,
             coverage.RowCountByDataset,
             coverage.RowCountByFiscalYear);
+
+    // --- Spec 053: Noavaran current-API ingestion (DataAdmin only) ---
+
+    [HttpGet("noavaran-current/health")]
+    public async Task<ActionResult<AdminCurrentApiHealthResponse>> GetCurrentApiHealth(
+        CancellationToken cancellationToken)
+    {
+        var health = await currentApiBackfillCoordinator.GetHealthAsync(cancellationToken);
+        return Ok(new AdminCurrentApiHealthResponse(
+            health.SourceName,
+            health.ProviderHealthStatus,
+            health.ProviderHealthDetail,
+            health.ScheduledSyncEnabled,
+            health.LastSuccessfulSyncAt,
+            health.NextDueAt,
+            health.CheckedAt));
+    }
+
+    [HttpGet("noavaran-current/gaps")]
+    public async Task<ActionResult<AdminCurrentApiGapResponse>> GetCurrentApiGaps(
+        CancellationToken cancellationToken)
+    {
+        var report = await currentApiGapReader.ReportAsync(cancellationToken);
+        return Ok(new AdminCurrentApiGapResponse(
+            report.CurrentApiBoundaryShamsiYear,
+            report.TotalGapRows,
+            report.Gaps.Select(gap => new AdminCurrentApiGapItem(
+                gap.Dataset,
+                gap.ExternalCompanyId,
+                gap.FiscalYear,
+                gap.CurrentApiRowCount,
+                gap.ArchiveRowCount)).ToArray()));
+    }
+
+    // Backfill / gap-fill: a full current-API sync, optionally lowering the Shamsi start boundary for
+    // this run only (monthly activity stays clamped to the vendor-permitted 1404 boundary).
+    [HttpPost("noavaran-current/backfill")]
+    public async Task<ActionResult<AdminCurrentApiBackfillResponse>> RunCurrentApiBackfill(
+        [FromBody] AdminCurrentApiBackfillRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request?.FromShamsiYear is { } year && year is < 1380 or > 1500)
+        {
+            ModelState.AddModelError(nameof(request.FromShamsiYear), "FromShamsiYear must be a plausible Shamsi year (1380-1500).");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await currentApiBackfillCoordinator.BackfillAsync(
+            new CurrentApiBackfillRequest($"{actor.ActorType}:{actor.ActorId}", request?.FromShamsiYear),
+            cancellationToken);
+        return Ok(new AdminCurrentApiBackfillResponse(
+            result.FullReload,
+            result.AppliedFromShamsiYear,
+            result.CompaniesConsidered,
+            result.RequestsEnqueued,
+            result.FailedCompanies,
+            result.Duration));
+    }
 
     [HttpPost("nadpcoapi/full-sync")]
     public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiFullSync(CancellationToken cancellationToken) =>

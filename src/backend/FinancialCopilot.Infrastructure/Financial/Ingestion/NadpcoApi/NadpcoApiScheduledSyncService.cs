@@ -42,7 +42,8 @@ public sealed class NadpcoApiScheduledSyncService(
 
     public async Task<NadpcoApiSyncResult> ExecuteAsync(
         bool fullReload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? fromShamsiYearOverride = null)
     {
         var settings = providerOptions.Value;
         var providerName = settings.ProviderName;
@@ -119,6 +120,7 @@ public sealed class NadpcoApiScheduledSyncService(
                     companyId,
                     started,
                     overlapFrom,
+                    fromShamsiYearOverride,
                     cancellationToken);
                 Interlocked.Add(ref requestCounter, requestCount);
                 Interlocked.Increment(ref enqueuedCompanies);
@@ -312,9 +314,13 @@ public sealed class NadpcoApiScheduledSyncService(
         int companyId,
         DateTimeOffset started,
         DateTimeOffset? overlapFrom,
+        int? fromShamsiYearOverride,
         CancellationToken cancellationToken)
     {
         var count = 0;
+        // A backfill override widens coverage, so it must produce distinct idempotency keys from an
+        // ordinary run for the same company/period; the override year is folded into the key.
+        var keySuffix = fromShamsiYearOverride is { } year ? $"-bf{year}" : string.Empty;
         foreach (var dataset in new[]
         {
             ProviderDataset.FinancialStatements,
@@ -328,9 +334,10 @@ public sealed class NadpcoApiScheduledSyncService(
                     dataset,
                     companyId.ToString(CultureInfo.InvariantCulture),
                     timeProvider.GetUtcNow(),
-                    IdempotencyKey: BuildKey(dataset.ToString(), companyId, started, overlapFrom),
+                    IdempotencyKey: BuildKey(dataset.ToString(), companyId, started, overlapFrom) + keySuffix,
                     ProviderName: providerName,
-                    Mode: SourceMode.CurrentIncremental),
+                    Mode: SourceMode.CurrentIncremental,
+                    FromShamsiYearOverride: fromShamsiYearOverride),
                 cancellationToken);
             count++;
         }

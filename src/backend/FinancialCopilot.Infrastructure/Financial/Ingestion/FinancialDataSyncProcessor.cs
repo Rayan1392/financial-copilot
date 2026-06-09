@@ -2,6 +2,7 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -19,7 +20,8 @@ public sealed class FinancialDataSyncProcessor(
     ILogger<FinancialDataSyncProcessor> logger,
     IScannerCache? scannerCache = null,
     IFinancialDataProviderRouter? providerRouter = null,
-    IFinancialRatioProvider? ratioProvider = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    IFinancialRatioProvider? ratioProvider = null,
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -64,6 +66,10 @@ public sealed class FinancialDataSyncProcessor(
 
         try
         {
+            // Apply a per-run current-API Shamsi boundary override (spec 053) so it reaches this
+            // worker scope's provider client; no-op for providers without a Shamsi boundary.
+            boundaryOverride?.Set(request.FromShamsiYearOverride);
+
             var payload = await FetchPayloadAsync(request, cancellationToken);
             await rawPayloads.StoreAsync(payload, cancellationToken);
             var processedRecords = await _normalizers[(payload.ProviderName, payload.Dataset)]

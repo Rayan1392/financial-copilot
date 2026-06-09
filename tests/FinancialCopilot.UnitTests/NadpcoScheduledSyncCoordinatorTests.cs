@@ -224,7 +224,8 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
         public List<bool> CompanyCatalogModes { get; } = [];
         public Exception? ExceptionToThrow { get; set; }
 
-        public Task<NadpcoApiSyncResult> ExecuteAsync(bool fullReload, CancellationToken cancellationToken)
+        public Task<NadpcoApiSyncResult> ExecuteAsync(
+            bool fullReload, CancellationToken cancellationToken, int? fromShamsiYearOverride = null)
         {
             InvocationCount++;
             FullReloadModes.Add(fullReload);

@@ -35,9 +35,13 @@ public sealed record NadpcoApiSyncState(
 
 public interface INadpcoApiScheduledSyncService
 {
+    /// <param name="fromShamsiYearOverride">When set, stamped on every enqueued company-scoped
+    /// <c>DataSyncRequest</c> so the worker lowers the current-API Shamsi start boundary for this run
+    /// only (spec 053 backfill). Null = use the configured boundary.</param>
     Task<NadpcoApiSyncResult> ExecuteAsync(
         bool fullReload,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        int? fromShamsiYearOverride = null);
 
     Task<NadpcoApiSyncResult> ExecuteCompanyCatalogAsync(
         bool cleanSlate,

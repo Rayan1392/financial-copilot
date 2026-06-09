@@ -21,7 +21,8 @@ public sealed class FinancialDataSyncProcessor(
     IScannerCache? scannerCache = null,
     IFinancialDataProviderRouter? providerRouter = null,
     IFinancialRatioProvider? ratioProvider = null,
-    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null,
+    IFundamentalIndexCoverageProvider? coverageProvider = null) : IFinancialDataSyncProcessor, IDataSyncRunReader
 {
     private readonly IReadOnlyDictionary<(string ProviderName, ProviderDataset Dataset), IFinancialPayloadNormalizer> _normalizers =
         normalizers.ToDictionary(normalizer => (normalizer.ProviderName, normalizer.Dataset));
@@ -144,9 +145,22 @@ public sealed class FinancialDataSyncProcessor(
                 .FetchFinancialRatiosAsync(RequireExternalReference(request), cancellationToken),
             ProviderDataset.FundamentalIndexes => ResolveRatioProvider(request.ProviderName)
                 .FetchFinancialRatiosAsync(RequireExternalReference(request), cancellationToken),
+            ProviderDataset.FundamentalIndexCoverage => ResolveCoverageProvider()
+                .FetchAllFundamentalIndexesAsync(
+                    RequireExternalReference(request),
+                    ParseShamsiYear(request.SourceDateRangeStartJalali, 1403),
+                    ParseShamsiYear(request.SourceDateRangeEndJalali, 1405),
+                    cancellationToken),
             _ => throw new InvalidOperationException(
                 $"Dataset '{request.Dataset}' is not supported for normalized ingestion.")
         };
+
+    private IFundamentalIndexCoverageProvider ResolveCoverageProvider() =>
+        coverageProvider ?? throw new InvalidOperationException(
+            "No IFundamentalIndexCoverageProvider is registered for the FundamentalIndexCoverage dataset.");
+
+    private static int ParseShamsiYear(string? value, int fallback) =>
+        int.TryParse(value, out var year) ? year : fallback;
 
     // Route to a named coexisting provider when requested; otherwise use the configured primary
     // (the directly-injected default provider), preserving existing single-provider behavior.

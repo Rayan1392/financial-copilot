@@ -696,6 +696,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
+        // Spec 050 — all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
+        // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
+        services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>
+            sp.GetRequiredService<NadpcoApiDataProviderClient>());
+        services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexCoverageNormalizer>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
@@ -759,6 +764,12 @@ public static class ServiceCollectionExtensions
         // existing current-API scheduled-sync orchestration (single ingestion path).
         services.AddScoped<ICurrentApiGapReader, EfCoreCurrentApiGapReader>();
         services.AddScoped<ICurrentApiBackfillCoordinator, CurrentApiBackfillCoordinator>();
+
+        // Spec 050 — all-index fundamental-index catch-up coverage (DataAdmin-only; no recurring worker).
+        services.AddScoped<EfCoreFundamentalIndexCatchUpRunRepository>();
+        services.AddScoped<IFundamentalIndexCatchUpRunReader>(provider =>
+            provider.GetRequiredService<EfCoreFundamentalIndexCatchUpRunRepository>());
+        services.AddScoped<IFundamentalIndexCatchUpCoordinator, FundamentalIndexCatchUpCoordinator>();
         services
             .AddOptions<StockMarketDbProviderOptions>()
             .BindConfiguration(StockMarketDbProviderOptions.SectionName);

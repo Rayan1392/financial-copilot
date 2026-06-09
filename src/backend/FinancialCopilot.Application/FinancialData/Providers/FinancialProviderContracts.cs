@@ -11,6 +11,12 @@ public enum ProviderDataset
     MonthlyProductionSales,
     FinancialRatios,
     FundamentalIndexes,
+    /// <summary>
+    /// All-index coverage staging (spec 050): every vendor fundamental index for a company/period,
+    /// persisted to a non-scannable coverage table — distinct from the curated <see cref="FundamentalIndexes"/>
+    /// promotion path that writes governed DerivedMetrics.
+    /// </summary>
+    FundamentalIndexCoverage,
     TradingInstruments,
     IntradayTrades,
     DailyTrades,
@@ -66,6 +72,20 @@ public interface IFinancialRatioProvider
 {
     Task<ProviderRawPayload> FetchFinancialRatiosAsync(
         string externalCompanyId,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Fetches the complete set of vendor fundamental indexes for a company over a Shamsi year range,
+/// with no curated index allowlist (spec 050 all-index catch-up). Distinct from
+/// <see cref="IFinancialRatioProvider"/>, whose fundamental-index fetch is the curated subset.
+/// </summary>
+public interface IFundamentalIndexCoverageProvider
+{
+    Task<ProviderRawPayload> FetchAllFundamentalIndexesAsync(
+        string externalCompanyId,
+        int fromShamsiYear,
+        int toShamsiYear,
         CancellationToken cancellationToken);
 }
 

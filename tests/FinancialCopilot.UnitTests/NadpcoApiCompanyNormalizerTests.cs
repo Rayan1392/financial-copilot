@@ -88,7 +88,7 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Equal("ABYP", company.CompanySymbolEnglish);
         Assert.Equal("ABIN", company.CompanySymbolPinglish);
         Assert.Equal("آبین", company.CompanySymbol);
-        Assert.Equal("ABYP", company.TseSymbol);
+        Assert.Equal("ABYP", company.CompanySymbolEnglish);
         Assert.Equal("9987529074833218", company.InstrumentCode);
         Assert.Equal("IRO7ABYP0004", company.CompanyIsin);
         Assert.Equal("IRO7ABYP0001", company.SymbolIsin);

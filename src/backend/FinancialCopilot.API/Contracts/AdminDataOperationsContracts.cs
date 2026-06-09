@@ -88,6 +88,26 @@ public sealed record AdminArchiveImportValidationResponse(
     IReadOnlyCollection<string> UnmappedExternalCompanyIds,
     AdminArchiveCoverageResponse Coverage);
 
+// --- Spec 050: NADPCO all-index fundamental-index catch-up coverage ---
+
+public sealed record AdminFundamentalIndexCatchUpRequest(
+    int FromShamsiYear = 1403,
+    int ToShamsiYear = 1405);
+
+public sealed record AdminFundamentalIndexCatchUpRunResponse(
+    Guid RunId,
+    string Status,
+    string RequestedBy,
+    int FromShamsiYear,
+    int ToShamsiYear,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? FinishedAt,
+    int CompaniesConsidered,
+    int RequestsEnqueued,
+    int FailedCompanies,
+    IReadOnlyCollection<int> FailedCompanyIds,
+    string? Diagnostics);
+
 // --- Spec 053: Noavaran current-API ingestion ---
 
 public sealed record AdminCurrentApiBackfillRequest(

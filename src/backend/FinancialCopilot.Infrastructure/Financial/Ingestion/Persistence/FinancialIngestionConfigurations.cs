@@ -244,6 +244,54 @@ public sealed class ArchiveFreezeStateRowConfiguration : IEntityTypeConfiguratio
     }
 }
 
+public sealed class NadpcoFundamentalIndexObservationRowConfiguration :
+    IEntityTypeConfiguration<NadpcoFundamentalIndexObservationRow>
+{
+    public void Configure(EntityTypeBuilder<NadpcoFundamentalIndexObservationRow> builder)
+    {
+        builder.ToTable("NadpcoFundamentalIndexObservations");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ProviderName).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.ExternalCompanyId).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.CompanyTitle).HasMaxLength(256);
+        builder.Property(row => row.CompanyIndexTitle).HasMaxLength(256);
+        builder.Property(row => row.CompanyIndexGroupTitle).HasMaxLength(256);
+        builder.Property(row => row.CompanyIndexUnit).HasMaxLength(64);
+        builder.Property(row => row.JalaliFiscalYearEnd).HasMaxLength(16);
+        builder.Property(row => row.JalaliPeriodEnd).HasMaxLength(16);
+        builder.Property(row => row.JalaliAnnouncementDate).HasMaxLength(16);
+        builder.Property(row => row.SourcePayloadChecksum).HasMaxLength(64).IsRequired();
+        // Canonical observation key: one row per (provider, company, index, period type, period end).
+        builder.HasIndex(row => new
+        {
+            row.ProviderName,
+            row.ExternalCompanyId,
+            row.CompanyIndexId,
+            row.PeriodType,
+            row.PeriodEnd
+        }).IsUnique();
+        builder.HasIndex(row => new { row.CompanyIndexId, row.IsGovernedCandidate });
+    }
+}
+
+public sealed class FundamentalIndexCatchUpRunRowConfiguration :
+    IEntityTypeConfiguration<FundamentalIndexCatchUpRunRow>
+{
+    public void Configure(EntityTypeBuilder<FundamentalIndexCatchUpRunRow> builder)
+    {
+        builder.ToTable("FundamentalIndexCatchUpRuns");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.RequestedBy).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.FailedCompanyIdsJson).HasMaxLength(4000).IsRequired();
+        builder.Property(row => row.Diagnostics).HasMaxLength(2000);
+        builder.Property(row => row.LockOwner).HasMaxLength(256);
+        builder.HasIndex(row => row.StartedAt);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => row.LockLeaseExpiresAt);
+    }
+}
+
 public sealed class TradingInstrumentRowConfiguration : IEntityTypeConfiguration<TradingInstrumentRow>
 {
     public void Configure(EntityTypeBuilder<TradingInstrumentRow> builder)

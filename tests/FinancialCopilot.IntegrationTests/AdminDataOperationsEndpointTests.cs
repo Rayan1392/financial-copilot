@@ -344,6 +344,51 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task FundamentalIndexCatchUp_AsDataAdmin_DefaultsTo1403Through1405()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/nadpcoapi/fundamental-index-catch-up", new { }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Succeeded", document.RootElement.GetProperty("status").GetString());
+        var request = Assert.Single(_factory.FundamentalIndexCatchUp.Requests);
+        Assert.Equal(1403, request.FromShamsiYear);
+        Assert.Equal(1405, request.ToShamsiYear);
+        Assert.StartsWith("User:", request.RequestedBy);
+    }
+
+    [Fact]
+    public async Task FundamentalIndexCatchUp_RejectsInvalidYearRange()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/nadpcoapi/fundamental-index-catch-up",
+            new { fromShamsiYear = 1405, toShamsiYear = 1403 },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(_factory.FundamentalIndexCatchUp.Requests);
+    }
+
+    [Fact]
+    public async Task FundamentalIndexCatchUp_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/nadpcoapi/fundamental-index-catch-up", new { }, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.FundamentalIndexCatchUp.Requests);
+    }
+
+    [Fact]
     public async Task NadpcoApi_FullSync_AsDataAdmin_ReturnsRunSummary()
     {
         using var client = CreateDataAdminClient();
@@ -661,11 +706,13 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubArchiveImportCoordinator _archiveImport = new();
     private readonly StubCurrentApiIngestion _currentApi = new();
+    private readonly StubFundamentalIndexCatchUp _fundamentalIndexCatchUp = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
     public StubCurrentApiIngestion CurrentApi => _currentApi;
+    public StubFundamentalIndexCatchUp FundamentalIndexCatchUp => _fundamentalIndexCatchUp;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
@@ -692,6 +739,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IArchiveImportRunReader>();
             services.RemoveAll<ICurrentApiBackfillCoordinator>();
             services.RemoveAll<ICurrentApiGapReader>();
+            services.RemoveAll<IFundamentalIndexCatchUpCoordinator>();
+            services.RemoveAll<IFundamentalIndexCatchUpRunReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
@@ -707,6 +756,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IArchiveImportRunReader>(_archiveImport);
             services.AddSingleton<ICurrentApiBackfillCoordinator>(_currentApi);
             services.AddSingleton<ICurrentApiGapReader>(_currentApi);
+            services.AddSingleton<IFundamentalIndexCatchUpCoordinator>(_fundamentalIndexCatchUp);
+            services.AddSingleton<IFundamentalIndexCatchUpRunReader>(_fundamentalIndexCatchUp);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
         });
     }
@@ -720,6 +771,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _stockMarketDbSync.Reset();
         _archiveImport.Reset();
         _currentApi.Reset();
+        _fundamentalIndexCatchUp.Reset();
         _missingAnswerFeedback.Reset();
     }
 
@@ -879,6 +931,37 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 ]));
 
         public void Reset() => BackfillRequests.Clear();
+    }
+
+    public sealed class StubFundamentalIndexCatchUp
+        : IFundamentalIndexCatchUpCoordinator, IFundamentalIndexCatchUpRunReader
+    {
+        public List<FundamentalIndexCatchUpRequest> Requests { get; } = [];
+
+        public Task<FundamentalIndexCatchUpRun> RunAsync(
+            FundamentalIndexCatchUpRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new FundamentalIndexCatchUpRun(
+                Guid.NewGuid(),
+                FundamentalIndexCatchUpRunStatus.Succeeded,
+                request.RequestedBy,
+                request.FromShamsiYear,
+                request.ToShamsiYear,
+                StartedAt: DateTimeOffset.Parse("2026-06-09T09:00:00Z"),
+                FinishedAt: DateTimeOffset.Parse("2026-06-09T09:00:05Z"),
+                CompaniesConsidered: 6,
+                RequestsEnqueued: 6,
+                FailedCompanies: 0,
+                FailedCompanyIds: [],
+                Diagnostics: null));
+        }
+
+        public Task<IReadOnlyCollection<FundamentalIndexCatchUpRun>> QueryRecentAsync(
+            int maximumCount, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<FundamentalIndexCatchUpRun>>([]);
+
+        public void Reset() => Requests.Clear();
     }
 
     public sealed class StubStockMarketDbSyncService : IStockMarketDbSyncService, IStockMarketDbSyncStateReader

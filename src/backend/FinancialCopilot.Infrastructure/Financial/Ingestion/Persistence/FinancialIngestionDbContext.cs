@@ -39,6 +39,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<ArchiveFreezeStateRow> ArchiveFreezeStates => Set<ArchiveFreezeStateRow>();
 
+    public DbSet<NadpcoFundamentalIndexObservationRow> NadpcoFundamentalIndexObservations =>
+        Set<NadpcoFundamentalIndexObservationRow>();
+
+    public DbSet<FundamentalIndexCatchUpRunRow> FundamentalIndexCatchUpRuns =>
+        Set<FundamentalIndexCatchUpRunRow>();
+
     public DbSet<TradingInstrumentRow> TradingInstruments => Set<TradingInstrumentRow>();
     public DbSet<IntradayTradeSnapshotRow> IntradayTradeSnapshots => Set<IntradayTradeSnapshotRow>();
     public DbSet<DailyInstrumentTradeRow> DailyInstrumentTrades => Set<DailyInstrumentTradeRow>();

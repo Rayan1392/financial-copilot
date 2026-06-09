@@ -486,6 +486,100 @@ public sealed class ArchiveFreezeStateRow
     public string? Reason { get; set; }
 }
 
+/// <summary>
+/// All-index fundamental-index coverage observation (spec 050). One row per canonical
+/// (provider, company, index, period type, period end) vendor index value. This is a NON-SCANNABLE
+/// staging/coverage model: the scanner never reads it, and only the curated 041 path promotes
+/// reviewed indexes into <see cref="DerivedMetricRow"/>. Idempotent upsert on the unique key.
+/// </summary>
+public sealed class NadpcoFundamentalIndexObservationRow
+{
+    public Guid Id { get; set; }
+
+    public string ProviderName { get; set; } = string.Empty;
+
+    public string ExternalCompanyId { get; set; } = string.Empty;
+
+    public string? CompanyTitle { get; set; }
+
+    public long ExternalStatementId { get; set; }
+
+    public int CompanyIndexId { get; set; }
+
+    public string? CompanyIndexTitle { get; set; }
+
+    public int? CompanyIndexGroupId { get; set; }
+
+    public string? CompanyIndexGroupTitle { get; set; }
+
+    public decimal? CompanyIndexValue { get; set; }
+
+    public string? CompanyIndexUnit { get; set; }
+
+    /// <summary>Vendor period type code (3/6/9/12 months).</summary>
+    public int PeriodType { get; set; }
+
+    public DateOnly PeriodStart { get; set; }
+
+    public DateOnly PeriodEnd { get; set; }
+
+    public string? JalaliFiscalYearEnd { get; set; }
+
+    public string? JalaliPeriodEnd { get; set; }
+
+    public string? JalaliAnnouncementDate { get; set; }
+
+    public bool IsAudited { get; set; }
+
+    public bool IsRepresented { get; set; }
+
+    public bool IsComposing { get; set; }
+
+    /// <summary>True when the curated 041 allowlist maps this index id to a governed metric.</summary>
+    public bool IsGovernedCandidate { get; set; }
+
+    /// <summary>SHA-256 of the source raw payload this observation came from (provenance).</summary>
+    public string SourcePayloadChecksum { get; set; } = string.Empty;
+
+    public DateTimeOffset LastSynchronizedAt { get; set; }
+}
+
+/// <summary>
+/// Run history for the DataAdmin all-index fundamental-index coverage catch-up (spec 050 AC #9).
+/// Mirrors the spec-052 archive-import run pattern (lease + hung recovery).
+/// </summary>
+public sealed class FundamentalIndexCatchUpRunRow
+{
+    public Guid Id { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string RequestedBy { get; set; } = string.Empty;
+
+    public int FromShamsiYear { get; set; }
+
+    public int ToShamsiYear { get; set; }
+
+    public DateTimeOffset StartedAt { get; set; }
+
+    public DateTimeOffset? FinishedAt { get; set; }
+
+    public int CompaniesConsidered { get; set; }
+
+    public int RequestsEnqueued { get; set; }
+
+    public int FailedCompanies { get; set; }
+
+    /// <summary>JSON array of failed company ids.</summary>
+    public string FailedCompanyIdsJson { get; set; } = "[]";
+
+    public string? Diagnostics { get; set; }
+
+    public string? LockOwner { get; set; }
+
+    public DateTimeOffset? LockLeaseExpiresAt { get; set; }
+}
+
 public sealed class TradingInstrumentRow
 {
     public Guid Id { get; set; }

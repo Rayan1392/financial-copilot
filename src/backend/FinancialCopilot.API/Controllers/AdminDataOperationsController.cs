@@ -32,6 +32,8 @@ public sealed class AdminDataOperationsController(
     IArchiveImportRunReader archiveImportRunReader,
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
     ICurrentApiGapReader currentApiGapReader,
+    IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
+    IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
     TimeProvider timeProvider) : ControllerBase
@@ -329,6 +331,62 @@ public sealed class AdminDataOperationsController(
             result.FailedCompanies,
             result.Duration));
     }
+
+    // --- Spec 050: NADPCO all-index fundamental-index catch-up coverage (DataAdmin only) ---
+    // Distinct from the curated 041 fundamental-index sync: this fetches EVERY vendor index
+    // (empty companyIndexIds) for all local companies into the non-scannable coverage table.
+
+    [HttpPost("nadpcoapi/fundamental-index-catch-up")]
+    public async Task<ActionResult<AdminFundamentalIndexCatchUpRunResponse>> RunFundamentalIndexCatchUp(
+        [FromBody] AdminFundamentalIndexCatchUpRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var fromYear = request?.FromShamsiYear ?? 1403;
+        var toYear = request?.ToShamsiYear ?? 1405;
+        if (fromYear is < 1380 or > 1500 || toYear is < 1380 or > 1500 || fromYear > toYear)
+        {
+            ModelState.AddModelError(
+                nameof(AdminFundamentalIndexCatchUpRequest.FromShamsiYear),
+                "FromShamsiYear/ToShamsiYear must be plausible Shamsi years (1380-1500) with From <= To.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var run = await fundamentalIndexCatchUpCoordinator.RunAsync(
+            new FundamentalIndexCatchUpRequest($"{actor.ActorType}:{actor.ActorId}", fromYear, toYear),
+            cancellationToken);
+        return Ok(ToCatchUpRunResponse(run));
+    }
+
+    [HttpGet("nadpcoapi/fundamental-index-catch-up/runs")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminFundamentalIndexCatchUpRunResponse>>> GetFundamentalIndexCatchUpRuns(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var runs = await fundamentalIndexCatchUpRunReader.QueryRecentAsync(limit, cancellationToken);
+        return Ok(runs.Select(ToCatchUpRunResponse).ToArray());
+    }
+
+    private static AdminFundamentalIndexCatchUpRunResponse ToCatchUpRunResponse(FundamentalIndexCatchUpRun run) =>
+        new(
+            run.RunId,
+            run.Status.ToString(),
+            run.RequestedBy,
+            run.FromShamsiYear,
+            run.ToShamsiYear,
+            run.StartedAt,
+            run.FinishedAt,
+            run.CompaniesConsidered,
+            run.RequestsEnqueued,
+            run.FailedCompanies,
+            run.FailedCompanyIds,
+            run.Diagnostics);
 
     [HttpPost("nadpcoapi/full-sync")]
     public Task<ActionResult<AdminNadpcoApiSyncResponse>> RunNadpcoApiFullSync(CancellationToken cancellationToken) =>

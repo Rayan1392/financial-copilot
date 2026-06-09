@@ -23,6 +23,7 @@ public sealed class NadpcoApiDataProviderClient(
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
     IFinancialRatioProvider,
+    IFundamentalIndexCoverageProvider,
     IFinancialDataProviderHealthService
 {
     private readonly NadpcoApiProviderOptions _settings = options.Value;
@@ -123,6 +124,30 @@ public sealed class NadpcoApiDataProviderClient(
         return await StorePayloadAsync(
             ProviderDataset.FundamentalIndexes,
             "api/v2/CompanyFundamentalIndex/Values",
+            companyId,
+            json,
+            cancellationToken);
+    }
+
+    // Spec 050: all-index coverage. Sends an EMPTY companyIndexIds so the vendor returns every index,
+    // and an explicit Shamsi year range — independent of the curated 041 allowlist and configured years.
+    public async Task<ProviderRawPayload> FetchAllFundamentalIndexesAsync(
+        string externalCompanyId,
+        int fromShamsiYear,
+        int toShamsiYear,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var endpoint = $"api/v2/CompanyFundamentalIndex/Values?fromYear={fromShamsiYear}&toYear={toShamsiYear}";
+        var json = await PostJsonForPayloadAsync(
+            endpoint,
+            new NadpcoApiFundamentalIndexRequest(companyIds, CompanyIndexIds: Array.Empty<int>()),
+            cancellationToken);
+
+        return await StorePayloadAsync(
+            ProviderDataset.FundamentalIndexCoverage,
+            endpoint,
             companyId,
             json,
             cancellationToken);

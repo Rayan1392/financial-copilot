@@ -72,7 +72,9 @@ public sealed class NetProfitMetricInputSource(
 
 /// <summary>
 /// Shared per-company-month aggregation over normalized monthly report line items (spec 057).
-/// One observation per monthly report; the aggregate policy is supplied by the concrete source.
+/// Each <c>MonthlyReport</c> row corresponds to exactly one vendor report type
+/// (<c>ProductSales</c> or <c>ServiceSales</c>) — a company publishes one type, not both.
+/// One observation is produced per report. The aggregate policy is supplied by the concrete source.
 /// </summary>
 public abstract class MonthlyReportAggregateInputSource(
     FinancialIngestionDbContext dbContext,
@@ -89,23 +91,30 @@ public abstract class MonthlyReportAggregateInputSource(
         var reports = await dbContext.MonthlyReports.AsNoTracking()
             .Where(report => report.ExternalCompanyId == externalCompanyId)
             .ToListAsync(cancellationToken);
-        var results = new List<MetricInputObservation>(reports.Count);
-
-        foreach (var report in reports)
+        if (reports.Count == 0)
         {
-            var lineItems = await dbContext.MonthlyReportLineItems.AsNoTracking()
-                .Where(item => item.MonthlyReportId == report.Id)
-                .ToListAsync(cancellationToken);
-            results.Add(NormalizedMetricInputFactory.Create(
-                MetricCode,
-                FiscalPeriod.Closed(FiscalPeriodType.Monthly, report.PeriodStart, report.PeriodEnd),
-                Aggregate(lineItems),
-                report.ProviderName,
-                report.ExternalReportId,
-                report.LastSynchronizedAt));
+            return [];
         }
 
-        return results;
+        var reportIds = reports.Select(report => report.Id).ToList();
+        var lineItemsByReport = (await dbContext.MonthlyReportLineItems.AsNoTracking()
+                .Where(item => reportIds.Contains(item.MonthlyReportId))
+                .ToListAsync(cancellationToken))
+            .ToLookup(item => item.MonthlyReportId);
+
+        return reports
+            .Select(report =>
+            {
+                var lineItems = lineItemsByReport[report.Id].ToArray();
+                return NormalizedMetricInputFactory.Create(
+                    MetricCode,
+                    FiscalPeriod.Closed(FiscalPeriodType.Monthly, report.PeriodStart, report.PeriodEnd),
+                    Aggregate(lineItems),
+                    report.ProviderName,
+                    report.ExternalReportId,
+                    report.LastSynchronizedAt);
+            })
+            .ToArray();
     }
 }
 

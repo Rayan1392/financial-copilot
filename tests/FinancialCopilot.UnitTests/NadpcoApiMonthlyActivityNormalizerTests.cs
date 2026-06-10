@@ -238,18 +238,33 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     }
 
     [Fact]
-    public async Task Normalize_MonthlySalesMetricSourceAggregatesProductAndServiceRows()
+    public async Task Normalize_MonthlySalesMetricSource_ProductSalesYieldsOneObservation()
     {
         await using var db = CreateDb();
 
-        await CreateNormalizer(db).NormalizeAsync(MakePayload(ProductSalesJson, ServiceSalesJson), CancellationToken.None);
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(ProductSalesJson, "[]"), CancellationToken.None);
 
         var source = new MonthlySalesMetricInputSource(db);
         var observations = await source.LoadAsync(CompanyId, CancellationToken.None);
 
-        Assert.Equal(2, observations.Count);
-        Assert.Contains(observations, observation => observation.Value == 105000000m + 25200000m);
-        Assert.Contains(observations, observation => observation.Value == 3000000m);
+        // ProductSales normalizes to one MonthlyReport → one observation with the summed line items.
+        var observation = Assert.Single(observations);
+        Assert.Equal(105000000m + 25200000m, observation.Value);
+    }
+
+    [Fact]
+    public async Task Normalize_MonthlySalesMetricSource_ServiceSalesYieldsOneObservation()
+    {
+        await using var db = CreateDb();
+
+        await CreateNormalizer(db).NormalizeAsync(MakePayload("[]", ServiceSalesJson), CancellationToken.None);
+
+        var source = new MonthlySalesMetricInputSource(db);
+        var observations = await source.LoadAsync(CompanyId, CancellationToken.None);
+
+        // ServiceSales normalizes to one MonthlyReport → one observation.
+        var observation = Assert.Single(observations);
+        Assert.Equal(3000000m, observation.Value);
     }
 
     [Fact]
@@ -290,6 +305,125 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         var request = await ingestionDb.MetricRecalculationRequests.SingleAsync();
         Assert.Equal(ProviderDataset.MonthlyProductionSales.ToString(), request.SourceDataset);
         Assert.Equal(CompanyId, request.ExternalReference);
+    }
+
+    // Exact live v2 ProductSales shape captured 2026-06-10: company parent + nested productSales
+    // items carrying month/year and per-product facts; productId 0 is a vendor placeholder.
+    private const string LiveNestedProductSalesJson = """
+        [
+          {
+            "companyTSESymbol": "کچاد",
+            "categoryId": 3,
+            "categoryTitle": "استخراج سنگ معدن های فلزی آهنی",
+            "companyId": 3,
+            "companyTitle": "معدنی و صنعتی چادرملو",
+            "industryId": 3,
+            "industryTitle": "استخراج کانه های فلزی",
+            "instCode": 18027801615184692,
+            "outputTypeId": 0,
+            "productSales": [
+              {
+                "month": 2,
+                "year": 1405,
+                "fiscalEndDate": "1405/09/30",
+                "productId": 0,
+                "productTitle": "آپاتیت",
+                "productProduceAmount": 120,
+                "productUnit": "تن",
+                "productSaleAmount": 100,
+                "productSaleRate": 25000,
+                "productSaleValue": 2500000,
+                "outputTypeTitle": "دوره یک ماهه"
+              },
+              {
+                "month": 2,
+                "year": 1405,
+                "fiscalEndDate": "1405/09/30",
+                "productId": 0,
+                "productTitle": "کنسانتره",
+                "productProduceAmount": 900,
+                "productUnit": "تن",
+                "productSaleAmount": 800,
+                "productSaleRate": 30000,
+                "productSaleValue": 24000000,
+                "outputTypeTitle": "دوره یک ماهه"
+              }
+            ]
+          }
+        ]
+        """;
+
+    // Exact live v3 ServiceSales shape captured 2026-06-10: flat records; the month's revenue is
+    // "revenueDuringThePeriod" and there is no quantity/unit/code.
+    private const string LiveServiceSalesJson = """
+        [
+          {
+            "companyTSESymbol": "کیسون",
+            "publishDateTime": "2026-05-25T17:40:44",
+            "categoryId": 10173,
+            "categoryTitle": "پیمانکاری املاک و مستغلات",
+            "companyId": 13201,
+            "companyTitle": "کیسون",
+            "industryId": 28,
+            "industryTitle": "انبوه سازی املاک و مستغلات",
+            "instCode": "38628771709301941",
+            "month": 2,
+            "year": 1405,
+            "fiscalEndDate": "1405/12/29",
+            "serviceTitle": "پروژه‌های مسکن و ساختمان",
+            "serviceContractDate": null,
+            "serviceContractTerm": 0,
+            "revenueDuringThePeriod": 227511.00,
+            "revenueFromTheBeginning": 279363.00,
+            "revenueEndOfLastPeriod": 7866204.00
+          }
+        ]
+        """;
+
+    [Fact]
+    public async Task Normalize_LiveNestedProductSalesShape_FlattensCompanyMonthLineItems()
+    {
+        await using var db = CreateDb();
+
+        var count = await CreateNormalizer(db).NormalizeAsync(
+            MakePayload(LiveNestedProductSalesJson, "[]"),
+            CancellationToken.None);
+
+        Assert.Equal(1, count);
+        var report = await db.MonthlyReports.SingleAsync();
+        Assert.Equal("3", report.ExternalCompanyId);
+        var cal = new PersianCalendar();
+        Assert.Equal(DateOnly.FromDateTime(cal.ToDateTime(1405, 2, 1, 0, 0, 0, 0)), report.PeriodStart);
+
+        var lineItems = await db.MonthlyReportLineItems.ToListAsync();
+        Assert.Equal(2, lineItems.Count);
+        // productId 0 is a placeholder → deterministic natural keys, not "PRODUCT:0" collisions.
+        Assert.Equal(2, lineItems.Select(item => item.ProductCode).Distinct().Count());
+        Assert.All(lineItems, item => Assert.StartsWith("PRODUCT:NATURAL:", item.ProductCode));
+        var apatite = Assert.Single(lineItems, item => item.Title == "آپاتیت");
+        Assert.Equal(120m, apatite.ProductionQuantity);
+        Assert.Equal(100m, apatite.SalesQuantity);
+        Assert.Equal(2500000m, apatite.SalesAmount);
+        Assert.Equal(25000m, apatite.SalesRate);
+        Assert.Equal("تن", apatite.Unit);
+    }
+
+    [Fact]
+    public async Task Normalize_LiveServiceSalesShape_MapsPeriodRevenueAsSalesAmount()
+    {
+        await using var db = CreateDb();
+
+        var count = await CreateNormalizer(db).NormalizeAsync(
+            MakePayload("[]", LiveServiceSalesJson),
+            CancellationToken.None);
+
+        Assert.Equal(1, count);
+        var report = await db.MonthlyReports.SingleAsync();
+        Assert.Equal("13201", report.ExternalCompanyId);
+        var item = await db.MonthlyReportLineItems.SingleAsync();
+        Assert.Equal(227511.00m, item.SalesAmount);
+        Assert.Null(item.ProductionQuantity);
+        Assert.Equal("پروژه‌های مسکن و ساختمان", item.Title);
     }
 
     private static ProviderRawPayload MakePayload(string productSalesJson, string serviceSalesJson)

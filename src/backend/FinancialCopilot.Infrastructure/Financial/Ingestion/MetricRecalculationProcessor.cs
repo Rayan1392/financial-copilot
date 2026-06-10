@@ -216,6 +216,17 @@ public sealed class MetricRecalculationProcessor(
                             definition.Code,
                             symbolId,
                             period);
+                        // Evict poisoned derived-metric entries from the shared scope: a failed
+                        // SaveChanges leaves them tracked as Added/Modified, and every later save
+                        // in this scope would replay the same failing insert (observed as
+                        // cascading PK_DerivedMetrics violations). The request-row tracking stays
+                        // intact.
+                        foreach (var entry in dbContext.ChangeTracker.Entries<DerivedMetricRow>()
+                            .Where(item => item.State is EntityState.Added or EntityState.Modified)
+                            .ToList())
+                        {
+                            entry.State = EntityState.Detached;
+                        }
                     }
                 }
             }

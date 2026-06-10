@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -93,24 +94,33 @@ public sealed class NadpcoApiDataProviderClient(
                 ? $"{overrideYear}/01/01"
                 : _settings.MonthlyActivityFromDate);
         var requestedToDate = boundaryOverride?.MonthlyActivityToDate ?? _settings.MonthlyActivityToDate;
+        // Live-verified vendor contract (spec 057 task 2, confirmed 2026-06-10 against
+        // data3.nadpco.com): both monthly-activity endpoints take the Shamsi bounds as
+        // query-string parameters in year+month form (fromDate=140502) — sending the dates in the
+        // JSON body makes v3 ServiceSales return HTTP 500. The body carries only companyIds.
+        var fromToken = ToShamsiYearMonthToken(ClampMonthlyActivityFromDate(requestedFromDate));
+        var toToken = ToShamsiYearMonthToken(requestedToDate);
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
-            ClampMonthlyActivityFromDate(requestedFromDate),
-            requestedToDate,
-            _settings.MonthlyActivityOutputType);
-        var serviceSalesBody = body with { OutputType = null };
+            FromDate: null,
+            ToDate: null,
+            OutputType: null);
         var productSales = await PostJsonForPayloadAsync(
-            "api/v2/MonthlyActivity/ProductSales", body, cancellationToken);
+            BuildMonthlyActivityEndpoint(
+                "api/v2/MonthlyActivity/ProductSales", fromToken, toToken, _settings.MonthlyActivityOutputType),
+            body,
+            cancellationToken);
         // ServiceSales failures are isolated so they cannot poison the product-sales data of the
-        // same company-month: the vendor's v3 ServiceSales endpoint has been returning HTTP 500
-        // for this credential since 2026-06-07 while ProductSales succeeds. Degrade to an empty
-        // service-sales payload with a visible warning; service rows resume automatically once the
-        // vendor/permission is fixed and the month is re-requested.
+        // same company-month. Degrade to an empty service-sales payload with a visible warning;
+        // service rows resume once the month is re-requested.
         string serviceSales;
         try
         {
             serviceSales = await PostJsonForPayloadAsync(
-                "api/v3/MonthlyActivity/ServiceSales", serviceSalesBody, cancellationToken);
+                BuildMonthlyActivityEndpoint(
+                    "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
+                body,
+                cancellationToken);
         }
         catch (FinancialProviderException exception)
         {
@@ -365,6 +375,47 @@ public sealed class NadpcoApiDataProviderClient(
             : throw new FinancialProviderException(
                 FinancialProviderErrorCode.InvalidResponse,
                 $"NADPCO external company id '{externalCompanyId}' is not a valid numeric coID.");
+
+    // Converts a Jalali date string ("1405/02/01" or already "140502") to the vendor's
+    // year+month query token ("140502"). Unparseable input is passed through for the vendor to
+    // validate.
+    private static string? ToShamsiYearMonthToken(string? jalaliDate)
+    {
+        if (string.IsNullOrWhiteSpace(jalaliDate))
+        {
+            return null;
+        }
+
+        var parts = jalaliDate.Split('/');
+        return parts.Length >= 2 && int.TryParse(parts[0], out var year) && int.TryParse(parts[1], out var month)
+            ? string.Create(CultureInfo.InvariantCulture, $"{year:D4}{month:D2}")
+            : jalaliDate.Trim();
+    }
+
+    private static string BuildMonthlyActivityEndpoint(
+        string path,
+        string? fromToken,
+        string? toToken,
+        int? outputType)
+    {
+        var query = new List<string>(3);
+        if (fromToken is not null)
+        {
+            query.Add($"fromDate={fromToken}");
+        }
+
+        if (toToken is not null)
+        {
+            query.Add($"toDate={toToken}");
+        }
+
+        if (outputType is not null)
+        {
+            query.Add($"outputTypeId={outputType.Value}");
+        }
+
+        return query.Count == 0 ? path : $"{path}?{string.Join("&", query)}";
+    }
 
     // Never request monthly activity earlier than the permitted Shamsi 1404 boundary. A null/blank or
     // earlier-than-permitted configured date is raised to 1404/01/01; the leading Jalali year token

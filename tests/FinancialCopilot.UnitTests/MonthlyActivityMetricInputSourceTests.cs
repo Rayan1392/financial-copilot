@@ -86,6 +86,20 @@ public sealed class MonthlyActivityMetricInputSourceTests
         Assert.Null(Assert.Single(observations).Value);
     }
 
+    [Fact]
+    public async Task TwoReportsForSameCompany_ProduceTwoSeparateObservations()
+    {
+        await using var db = CreateDb();
+        // A company may have historical reports across multiple months — each is a separate observation.
+        await SeedReportAsync(db, [Line(salesQuantity: 100m, salesAmount: 1_000m)], periodOffset: 0);
+        await SeedReportAsync(db, [Line(salesQuantity: 50m, salesAmount: 500m)], periodOffset: 1);
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        Assert.Equal(2, observations.Count);
+    }
+
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -99,16 +113,27 @@ public sealed class MonthlyActivityMetricInputSourceTests
         decimal? productionQuantity = null) =>
         new(salesQuantity, salesAmount, productionQuantity);
 
-    private static async Task<Guid> SeedReportAsync(FinancialIngestionDbContext db, params LineSpec[] lines)
+    private static async Task<Guid> SeedReportAsync(
+        FinancialIngestionDbContext db,
+        params LineSpec[] lines) =>
+        await SeedReportAsync(db, lines, periodOffset: 0);
+
+    private static async Task<Guid> SeedReportAsync(
+        FinancialIngestionDbContext db,
+        LineSpec[] lines,
+        int periodOffset)
     {
+        var periodStart = new DateOnly(2026, 4, 21).AddMonths(periodOffset);
+        var periodEnd = new DateOnly(2026, 5, 21).AddMonths(periodOffset);
         var report = new NormalizedMonthlyReportRow
         {
             Id = Guid.NewGuid(),
             ProviderName = "NoavaranCurrentApi",
             ExternalCompanyId = "13150",
             ExternalReportId = Guid.NewGuid().ToString(),
-            PeriodStart = new DateOnly(2026, 4, 21),
-            PeriodEnd = new DateOnly(2026, 5, 21),
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            ReportType = "ProductSales",
             SourcePayloadChecksum = "checksum",
             LastSynchronizedAt = Now
         };

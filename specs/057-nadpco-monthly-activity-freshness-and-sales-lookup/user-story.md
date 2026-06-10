@@ -75,6 +75,13 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
 5. The vendor date format actually accepted by `api/v2/MonthlyActivity/ProductSales` for
    month-granular bounds (`140502` year+month vs `1405/02/01`) is verified against the live
    API and documented; the client uses the verified format.
+   **VERIFIED 2026-06-10 (live credentialed calls):** both endpoints take Shamsi bounds as
+   year+month query-string tokens (`?fromDate=140502&toDate=140502`, plus `outputTypeId` on
+   ProductSales) with `companyIds` in the JSON body. Dates in the JSON body make v3
+   ServiceSales return HTTP 500. The live v2 response nests per-product facts under
+   `productSales[]` (with `productId: 0` as a placeholder), and the live v3 response carries
+   the month's service revenue as `revenueDuringThePeriod` — both shapes are encoded as
+   regression fixtures.
 
 ### Phase B — Steady-state previous-month refresh
 

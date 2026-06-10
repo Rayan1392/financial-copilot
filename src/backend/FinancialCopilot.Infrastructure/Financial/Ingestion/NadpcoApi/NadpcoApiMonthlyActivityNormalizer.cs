@@ -61,6 +61,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             report.ExternalCompanyId = first.ExternalCompanyId;
             report.PeriodStart = periodStart;
             report.PeriodEnd = periodEnd;
+            report.ReportType = first.SourceKind;
             report.SourcePayloadChecksum = payload.Checksum;
             report.LastSynchronizedAt = payload.ReceivedAt;
             report.WarningsJson = BuildEvidenceJson(group.ToArray(), periodStart, periodEnd);
@@ -113,54 +114,72 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 exception);
         }
 
-        return records.Select((record, index) =>
+        // Live v2 shape (verified 2026-06-10): one record per company with the per-product facts
+        // (month, year, quantities, rate, value) nested under "productSales". Legacy flat records
+        // (no nested list) are treated as a single item. Company identity fields are merged from
+        // the parent when the nested item does not carry them.
+        return records.SelectMany(record =>
         {
-            var companyId = RequireCompanyId(record.GetCompanyId(), "product-sales");
-            var year = RequireYear(record.Year, "product-sales");
-            var month = RequireMonth(record.Month, "product-sales");
-            var title = record.GetProductTitle();
-            var unit = record.GetProductUnit();
-            var category = record.CategoryTitle ?? record.CategoryID?.ToString(CultureInfo.InvariantCulture);
-            var vendorCode = record.GetProductCode();
-            var lineItemCode = BuildLineItemCode("PRODUCT", vendorCode, title, category, unit, index);
-            var externalReportId = BuildExternalReportId(
-                "ProductSales",
-                record.GetActivityId(),
-                companyId,
-                year,
-                month,
-                record.OutputType,
-                record.CategoryID);
-
-            return new NadpcoApiMonthlyActivityItem(
-                "ProductSales",
-                companyId.ToString(CultureInfo.InvariantCulture),
-                externalReportId,
-                year,
-                month,
-                lineItemCode,
-                title,
-                unit,
-                record.GetProductionQuantity(),
-                record.GetSalesQuantity(),
-                record.GetSalesRate(),
-                record.GetSalesValue(),
-                record.OutputType,
-                record.OutputTypeTitle,
-                record.CategoryID,
-                record.CategoryTitle,
-                record.BourseSymbol,
-                record.ComTitle,
-                record.IndustryID,
-                record.IndustryTitle,
-                record.TseCode,
-                record.FiscalYearEnd,
-                record.JalaliFiscalYearEnd,
-                record.PublishDate,
-                record.JalaliPublishDate,
-                VendorLineItemId: vendorCode,
-                MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode));
+            var items = record.ProductSales is { Count: > 0 }
+                ? record.ProductSales
+                : [record];
+            return items.Select((item, index) => BuildProductItem(record, item, index));
         }).ToArray();
+    }
+
+    private static NadpcoApiMonthlyActivityItem BuildProductItem(
+        NadpcoApiProductSalesRecord parent,
+        NadpcoApiProductSalesRecord item,
+        int index)
+    {
+        var companyId = RequireCompanyId(item.GetCompanyId() ?? parent.GetCompanyId(), "product-sales");
+        var year = RequireYear(item.Year ?? parent.Year, "product-sales");
+        var month = RequireMonth(item.Month ?? parent.Month, "product-sales");
+        var title = item.GetProductTitle() ?? parent.GetProductTitle();
+        var unit = item.GetProductUnit() ?? parent.GetProductUnit();
+        var categoryId = item.CategoryID ?? parent.CategoryID;
+        var category = item.CategoryTitle ?? parent.CategoryTitle ??
+            categoryId?.ToString(CultureInfo.InvariantCulture);
+        var outputType = item.GetOutputType() ?? parent.GetOutputType();
+        var vendorCode = item.GetProductCode();
+        var lineItemCode = BuildLineItemCode("PRODUCT", vendorCode, title, category, unit, index);
+        var externalReportId = BuildExternalReportId(
+            "ProductSales",
+            item.GetActivityId() ?? parent.GetActivityId(),
+            companyId,
+            year,
+            month,
+            outputType,
+            categoryId);
+
+        return new NadpcoApiMonthlyActivityItem(
+            "ProductSales",
+            companyId.ToString(CultureInfo.InvariantCulture),
+            externalReportId,
+            year,
+            month,
+            lineItemCode,
+            title,
+            unit,
+            item.GetProductionQuantity(),
+            item.GetSalesQuantity(),
+            item.GetSalesRate(),
+            item.GetSalesValue(),
+            outputType,
+            item.OutputTypeTitle ?? parent.OutputTypeTitle,
+            categoryId,
+            item.CategoryTitle ?? parent.CategoryTitle,
+            item.GetBourseSymbol() ?? parent.GetBourseSymbol(),
+            item.GetCompanyTitle() ?? parent.GetCompanyTitle(),
+            item.IndustryID ?? parent.IndustryID,
+            item.IndustryTitle ?? parent.IndustryTitle,
+            item.GetTseCode() ?? parent.GetTseCode(),
+            item.FiscalYearEnd ?? parent.FiscalYearEnd,
+            item.JalaliFiscalYearEnd ?? parent.JalaliFiscalYearEnd,
+            item.PublishDate ?? parent.PublishDate,
+            item.JalaliPublishDate ?? parent.JalaliPublishDate,
+            VendorLineItemId: vendorCode,
+            MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode));
     }
 
     private static IReadOnlyList<NadpcoApiMonthlyActivityItem> ReadServiceSales(string json)
@@ -215,11 +234,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 OutputTypeTitle: null,
                 record.CategoryID,
                 record.CategoryTitle,
-                record.BourseSymbol,
+                record.GetBourseSymbol(),
                 record.ComTitle,
                 record.IndustryID,
                 record.IndustryTitle,
-                record.TseCode,
+                record.GetTseCode(),
                 record.FiscalYearEnd,
                 record.JalaliFiscalYearEnd,
                 record.PublishDate,

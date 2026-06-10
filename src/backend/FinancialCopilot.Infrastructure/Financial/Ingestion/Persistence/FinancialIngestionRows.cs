@@ -255,6 +255,9 @@ public sealed class NormalizedMonthlyReportRow
 
     /// <summary>Import mode (<c>SourceMode</c>) the monthly report was ingested under (spec 051).</summary>
     public string? SourceMode { get; set; }
+
+    /// <summary>Report kind from the vendor: <c>ProductSales</c> or <c>ServiceSales</c>.</summary>
+    public string? ReportType { get; set; }
 }
 
 public sealed class NormalizedMonthlyReportLineItemRow

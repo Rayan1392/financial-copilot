@@ -337,10 +337,13 @@ public sealed class NadpcoApiProviderTests
         Assert.Contains(requests, r => r.Uri.Contains("ProductSales"));
         Assert.Contains(requests, r => r.Uri.Contains("ServiceSales"));
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
-        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1404/01/01\"", r.Body));
-        Assert.All(requests, r => Assert.Contains("\"toDate\":\"1404/12/29\"", r.Body));
-        Assert.Contains(requests, r => r.Uri.Contains("ProductSales") && r.Body.Contains("\"outputType\":2"));
-        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Body.Contains("\"outputType\""));
+        // Live-verified contract (spec 057): Shamsi bounds are year+month query-string tokens;
+        // the JSON body must not carry dates (v3 ServiceSales returns HTTP 500 otherwise).
+        Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
+        Assert.All(requests, r => Assert.Contains("toDate=140412", r.Uri));
+        Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\"", r.Body));
+        Assert.Contains(requests, r => r.Uri.Contains("ProductSales") && r.Uri.Contains("outputTypeId=2"));
+        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Uri.Contains("outputTypeId"));
     }
 
     [Fact]
@@ -379,10 +382,13 @@ public sealed class NadpcoApiProviderTests
 
         Assert.Equal(2, requests.Count);
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
-        // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary.
-        Assert.All(requests, r => Assert.Contains("\"fromDate\":\"1404/01/01\"", r.Body));
-        Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\":\"1401/01/01\"", r.Body));
-        Assert.All(requests, r => Assert.DoesNotContain("\"toDate\"", r.Body));
+        // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary
+        // and travels as a year+month query token (live-verified contract, spec 057).
+        Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
+        Assert.All(requests, r => Assert.DoesNotContain("fromDate=140101", r.Uri));
+        Assert.All(requests, r => Assert.DoesNotContain("toDate", r.Uri));
+        Assert.All(requests, r => Assert.DoesNotContain("outputTypeId", r.Uri));
+        Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\"", r.Body));
         Assert.All(requests, r => Assert.DoesNotContain("\"outputType\"", r.Body));
     }
 

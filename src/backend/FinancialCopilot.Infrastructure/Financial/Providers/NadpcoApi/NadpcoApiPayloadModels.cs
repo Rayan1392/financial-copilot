@@ -59,7 +59,8 @@ public sealed class NadpcoApiTokenResponse
             : null;
 
     private int? TryGetInt32(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt32(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
             ? result
             : null;
 
@@ -237,6 +238,19 @@ public sealed class NadpcoApiProductSalesRecord
     [JsonPropertyName("productSaleValue")]
     public decimal? ProductSaleValue { get; init; }
 
+    /// <summary>
+    /// Live v2 shape (verified 2026-06-10): one record per company carrying identity fields plus a
+    /// nested <c>productSales</c> array whose items hold month/year and the per-product facts.
+    /// Items reuse this record type; company identity is merged from the parent during
+    /// normalization. Null/empty for the legacy flat shape.
+    /// </summary>
+    [JsonPropertyName("productSales")]
+    public IReadOnlyList<NadpcoApiProductSalesRecord>? ProductSales { get; init; }
+
+    /// <summary>Live v2 field name for the company TSE ticker.</summary>
+    [JsonPropertyName("companyTSESymbol")]
+    public string? CompanyTSESymbol { get; init; }
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement> ExtensionData { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -244,7 +258,22 @@ public sealed class NadpcoApiProductSalesRecord
 
     public int? GetCompanyId() => ComIDUnderscore ?? ComIdCamel ?? CompanyId ?? TryGetInt32("coID");
 
-    public long? GetProductId() => ProductId ?? TryGetInt64("goodsID") ?? TryGetInt64("product_Id");
+    public string? GetBourseSymbol() => FirstNonEmpty(BourseSymbol, CompanyTSESymbol);
+
+    public string? GetCompanyTitle() => FirstNonEmpty(ComTitle, TryGetString("companyTitle"));
+
+    public int? GetOutputType() => OutputType ?? TryGetInt32("outputTypeId");
+
+    // Live v2 carries the instrument code as numeric "instCode"; legacy shapes use string "tseCode".
+    public string? GetTseCode() =>
+        FirstNonEmpty(TseCode, TryGetInt64("instCode")?.ToString(), TryGetString("instCode"));
+
+    // Vendor uses 0 as a "no product id" placeholder (live data); fall through to the natural key.
+    public long? GetProductId()
+    {
+        var id = ProductId ?? TryGetInt64("goodsID") ?? TryGetInt64("product_Id");
+        return id is > 0 ? id : null;
+    }
 
     public string? GetProductTitle() => FirstNonEmpty(ProductTitle, TryGetString("goodsTitle"), TryGetString("title"));
 
@@ -269,17 +298,20 @@ public sealed class NadpcoApiProductSalesRecord
             : null;
 
     private int? TryGetInt32(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt32(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
             ? result
             : null;
 
     private long? TryGetInt64(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt64(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var result)
             ? result
             : null;
 
     private decimal? TryGetDecimal(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetDecimal(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var result)
             ? result
             : null;
 
@@ -376,12 +408,25 @@ public sealed class NadpcoApiServiceSalesRecord
     [JsonPropertyName("serviceSaleValue")]
     public decimal? ServiceSaleValue { get; init; }
 
+    /// <summary>Live v3 field (verified 2026-06-10): the month's service revenue.</summary>
+    [JsonPropertyName("revenueDuringThePeriod")]
+    public decimal? RevenueDuringThePeriod { get; init; }
+
+    /// <summary>Live v3 field name for the company TSE ticker.</summary>
+    [JsonPropertyName("companyTSESymbol")]
+    public string? CompanyTSESymbol { get; init; }
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement> ExtensionData { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     public long? GetActivityId() => ActivityID ?? MonthlyActivityID ?? Id ?? TryGetInt64("monthlyActivityId");
 
     public int? GetCompanyId() => ComIDUnderscore ?? ComIdCamel ?? CompanyId ?? TryGetInt32("coID");
+
+    public string? GetBourseSymbol() => FirstNonEmpty(BourseSymbol, CompanyTSESymbol);
+
+    public string? GetTseCode() =>
+        FirstNonEmpty(TseCode, TryGetString("instCode"), TryGetInt64("instCode")?.ToString());
 
     public long? GetServiceId() => ServiceId ?? TryGetInt64("activityServiceID") ?? TryGetInt64("service_Id");
 
@@ -395,7 +440,8 @@ public sealed class NadpcoApiServiceSalesRecord
     public decimal? GetSalesRate() => SalesRate ?? ServiceSaleRate ?? TryGetDecimal("rate") ?? TryGetDecimal("saleRate");
 
     public decimal? GetSalesValue() =>
-        SalesValue ?? ServiceSaleValue ?? TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
+        SalesValue ?? ServiceSaleValue ?? RevenueDuringThePeriod ??
+        TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
 
     public string? GetServiceCode() => FirstNonEmpty(ServiceCode, GetServiceId()?.ToString());
 
@@ -405,17 +451,20 @@ public sealed class NadpcoApiServiceSalesRecord
             : null;
 
     private int? TryGetInt32(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt32(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
             ? result
             : null;
 
     private long? TryGetInt64(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetInt64(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var result)
             ? result
             : null;
 
     private decimal? TryGetDecimal(string propertyName) =>
-        ExtensionData.TryGetValue(propertyName, out var value) && value.TryGetDecimal(out var result)
+        ExtensionData.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var result)
             ? result
             : null;
 

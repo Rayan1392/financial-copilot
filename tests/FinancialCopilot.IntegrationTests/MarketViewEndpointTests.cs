@@ -134,7 +134,12 @@ public sealed class MarketViewApiFactory : AiFacadeApiFactory
             var gain = Instrument("GAIN", "Gain Co");
             var loss = Instrument("LOSS", "Loss Co");
             var noQuote = Instrument("NOQUOTE", "No Quote Co");
+            // The market summary only surfaces the governed named indices, matched by the
+            // source InstrumentRef (ExternalInstrumentId) — use the شاخص کل catalog entry.
             var index = Instrument("TEDPIX", "Total Index");
+            index.ExternalInstrumentId =
+                FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb
+                    .StockMarketNamedIndices.All[0].InstrumentRef;
             db.TradingInstruments.AddRange(gain, loss, noQuote, index);
             db.LatestMarketQuotes.AddRange(
                 Quote(gain.Id, 105m, 5m),

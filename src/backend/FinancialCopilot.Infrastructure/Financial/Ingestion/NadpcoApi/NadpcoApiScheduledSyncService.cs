@@ -24,10 +24,14 @@ public sealed class NadpcoApiScheduledSyncService(
     IOptions<NadpcoApiProviderOptions> providerOptions,
     TimeProvider timeProvider,
     ILogger<NadpcoApiScheduledSyncService> logger,
-    IScannerCache? scannerCache = null) :
+    IScannerCache? scannerCache = null,
+    IMonthlyActivityBackfillStateReader? monthlyBackfillState = null) :
     INadpcoApiScheduledSyncService,
     INadpcoApiSyncStateReader
 {
+    /// <summary>Per-run monthly-activity request scope (spec 057 Phase B).</summary>
+    private sealed record MonthlyActivityWindow(string FromDate, string ToDate, string KeySuffix);
+
     private static readonly string[] LogicalDatasets =
     [
         ProviderDataset.Symbols.ToString(),
@@ -60,6 +64,13 @@ public sealed class NadpcoApiScheduledSyncService(
             "NADPCO API sync starting mode={Mode} overlapFrom={OverlapFrom}.",
             runMode,
             overlapFrom);
+
+        // Spec 057 Phase B: incremental runs request monthly activity only for the previous Shamsi
+        // month, and only after the manual backfill has completed; the backfill operation owns
+        // history. Manual full-reload runs keep the configured full range (window = null).
+        var (includeMonthlyActivity, monthlyWindow) = fullReload
+            ? (true, (MonthlyActivityWindow?)null)
+            : await ResolveMonthlyActivityScopeAsync(started, cancellationToken);
 
         var companyIds = await QueryKnownNadpcoCompanyIdsAsync(providerName, cancellationToken);
         var requestsEnqueued = 0;
@@ -121,6 +132,8 @@ public sealed class NadpcoApiScheduledSyncService(
                     started,
                     overlapFrom,
                     fromShamsiYearOverride,
+                    includeMonthlyActivity,
+                    monthlyWindow,
                     cancellationToken);
                 Interlocked.Add(ref requestCounter, requestCount);
                 Interlocked.Increment(ref enqueuedCompanies);
@@ -283,25 +296,12 @@ public sealed class NadpcoApiScheduledSyncService(
         return last?.AddDays(-Math.Max(0, settings.OrchestrationOverlapDays));
     }
 
-    private async Task<IReadOnlyList<int>> QueryKnownNadpcoCompanyIdsAsync(
+    // Per-company vendor requests are limited to the Noavaran eligibility scope (equities on
+    // بورس/فرابورس/پایه); the unscoped company catalog itself is fetched by the Symbols dataset.
+    private Task<IReadOnlyList<int>> QueryKnownNadpcoCompanyIdsAsync(
         string providerName,
-        CancellationToken cancellationToken)
-    {
-        var ids = await dbContext.Companies.AsNoTracking()
-            .Where(row => row.ProviderName == providerName)
-            .Select(row => row.ExternalCompanyId)
-            .ToListAsync(cancellationToken);
-
-        return ids
-            .Select(id => int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : (int?)null)
-            .Where(id => id is not null)
-            .Select(id => id!.Value)
-            .Distinct()
-            .OrderBy(id => id)
-            .ToArray();
-    }
+        CancellationToken cancellationToken) =>
+        NoavaranCompanyScope.EligibleCompanyIdsAsync(dbContext, providerName, cancellationToken);
 
     private Task<int> CountKnownNadpcoCompaniesAsync(
         string providerName,
@@ -309,34 +309,66 @@ public sealed class NadpcoApiScheduledSyncService(
         dbContext.Companies.AsNoTracking()
             .CountAsync(row => row.ProviderName == providerName, cancellationToken);
 
+    // Resolves the incremental monthly-activity scope (spec 057 Phase B): previous Shamsi month
+    // once the manual backfill marker exists; excluded entirely while it does not.
+    private async Task<(bool Include, MonthlyActivityWindow? Window)> ResolveMonthlyActivityScopeAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var backfillCompleted = monthlyBackfillState is not null &&
+            await monthlyBackfillState.IsBackfillCompletedAsync(cancellationToken);
+        if (!backfillCompleted)
+        {
+            logger.LogWarning(
+                "NADPCO monthly-activity scheduled refresh skipped: the manual monthly backfill " +
+                "has not completed. Run the DataAdmin monthly-activity backfill first (spec 057).");
+            return (false, null);
+        }
+
+        var month = ShamsiMonthCalculator.LatestPublishedMonth(now);
+        return (true, new MonthlyActivityWindow(
+            month.FirstDayJalali,
+            ShamsiMonthCalculator.LastDayJalali(month),
+            $"-m{month.Year:D4}{month.Month:D2}"));
+    }
+
     private async Task<int> EnqueueCompanyAsync(
         string providerName,
         int companyId,
         DateTimeOffset started,
         DateTimeOffset? overlapFrom,
         int? fromShamsiYearOverride,
+        bool includeMonthlyActivity,
+        MonthlyActivityWindow? monthlyWindow,
         CancellationToken cancellationToken)
     {
         var count = 0;
         // A backfill override widens coverage, so it must produce distinct idempotency keys from an
         // ordinary run for the same company/period; the override year is folded into the key.
         var keySuffix = fromShamsiYearOverride is { } year ? $"-bf{year}" : string.Empty;
-        foreach (var dataset in new[]
+        ProviderDataset[] datasets = includeMonthlyActivity
+            ?
+            [
+                ProviderDataset.FinancialStatements,
+                ProviderDataset.FundamentalIndexes,
+                ProviderDataset.MonthlyProductionSales
+            ]
+            : [ProviderDataset.FinancialStatements, ProviderDataset.FundamentalIndexes];
+        foreach (var dataset in datasets)
         {
-            ProviderDataset.FinancialStatements,
-            ProviderDataset.FundamentalIndexes,
-            ProviderDataset.MonthlyProductionSales
-        })
-        {
+            var isWindowedMonthly = dataset == ProviderDataset.MonthlyProductionSales && monthlyWindow is not null;
             await publisher.PublishAsync(
                 new DataSyncRequest(
                     Guid.NewGuid(),
                     dataset,
                     companyId.ToString(CultureInfo.InvariantCulture),
                     timeProvider.GetUtcNow(),
-                    IdempotencyKey: BuildKey(dataset.ToString(), companyId, started, overlapFrom) + keySuffix,
+                    IdempotencyKey: BuildKey(dataset.ToString(), companyId, started, overlapFrom) + keySuffix +
+                        (isWindowedMonthly ? monthlyWindow!.KeySuffix : string.Empty),
                     ProviderName: providerName,
                     Mode: SourceMode.CurrentIncremental,
+                    SourceDateRangeStartJalali: isWindowedMonthly ? monthlyWindow!.FromDate : null,
+                    SourceDateRangeEndJalali: isWindowedMonthly ? monthlyWindow!.ToDate : null,
                     FromShamsiYearOverride: fromShamsiYearOverride),
                 cancellationToken);
             count++;

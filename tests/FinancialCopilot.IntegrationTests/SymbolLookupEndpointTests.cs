@@ -767,3 +767,169 @@ internal sealed class SymbolLookupFakeAiModelClient(
     private static string BuildClarificationJson(string metric) =>
         $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"حفاری","metricTerm":"{{metric}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
 }
+
+// ── Spec 057: «آخرین فروش» answers from Noavaran monthly-activity data ─────────────────────────
+
+/// <summary>
+/// Verifies that an explicit monthly sales question resolves through the MONTHLY_SALES alias to
+/// the latest persisted company-month in DerivedMetrics — never a quarterly REVENUE substitute.
+/// </summary>
+public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupApiFactory>
+{
+    private readonly MonthlySalesLookupApiFactory _factory;
+
+    public MonthlySalesLookupTests(MonthlySalesLookupApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task AiQuery_LatestMonthlySales_ReturnsLatestPersistedMonth()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "آخرین فروش غگلپا چقدر است؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+
+        var table = root.GetProperty("symbolLookupTable");
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.Equal("غگلپا", row.GetProperty("symbolCode").GetString());
+
+        // The latest month (Ordibehesht 1405 window) wins over the older month, and the value is
+        // the monthly-activity amount — not the quarterly REVENUE (which is deliberately seeded
+        // with a different value to catch silent substitution.)
+        var cell = row.GetProperty("cells").GetProperty("MONTHLY_SALES");
+        Assert.Equal(MonthlySalesLookupApiFactory.LatestMonthSales, cell.GetProperty("value").GetDecimal());
+        Assert.NotEqual("Missing", cell.GetProperty("freshnessStatus").GetString());
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
+{
+    public const decimal LatestMonthSales = 987_654_321m;
+
+    private readonly string _dbName = $"monthly-sales-lookup-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ =>
+                new SymbolLookupFakeAiModelClient(
+                    symbolLookupSymbol: "غگلپا",
+                    metricTerm: "آخرین فروش",
+                    clarificationMetricTerm: null,
+                    multiSymbol: false));
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTestData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTestData(FinancialIngestionDbContext db)
+    {
+        var companyId = Guid.Parse("80000000-0000-0000-0000-000000000001");
+        var symbolId = Guid.Parse("81000000-0000-0000-0000-000000000001");
+        var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = "شیر پاستوریزه پگاه گلپایگان",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "13150",
+            CompanySymbol = "غگلپا",
+            LastSynchronizedAt = now
+        });
+        db.Symbols.Add(new NormalizedSymbolRow
+        {
+            Id = symbolId,
+            CompanyId = companyId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalSymbolId = "13150",
+            SymbolCode = "غگلپا",
+            LastSynchronizedAt = now
+        });
+
+        // Farvardin 1405 (older) and Ordibehesht 1405 (latest) monthly observations, plus a
+        // quarterly REVENUE row that must NOT be substituted for the monthly ask.
+        db.DerivedMetrics.AddRange(
+            MonthlySales(symbolId, new DateOnly(2026, 3, 21), new DateOnly(2026, 4, 20), 555_000_000m, now),
+            MonthlySales(symbolId, new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), LatestMonthSales, now),
+            new DerivedMetricRow
+            {
+                Id = Guid.NewGuid(),
+                SymbolId = symbolId,
+                MetricCode = "REVENUE",
+                MetricVersion = "v1",
+                CalculationPolicyVersion = "normalized-source-v1",
+                PeriodType = "ThreeMonths",
+                PeriodStart = new DateOnly(2026, 1, 1),
+                PeriodEnd = new DateOnly(2026, 3, 31),
+                Value = 111m,
+                Unit = "Amount",
+                ObservedAt = now,
+                LastSynchronizedAt = now,
+                WarningsJson = "[]",
+                SourceEvidenceJson = "[]",
+                DependencyEvidenceJson = "[]"
+            });
+    }
+
+    private static DerivedMetricRow MonthlySales(
+        Guid symbolId,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        decimal value,
+        DateTimeOffset now) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            SymbolId = symbolId,
+            MetricCode = "MONTHLY_SALES",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "monthly-sales-source-v1",
+            PeriodType = "Monthly",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = value,
+            Unit = "Amount",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"NoavaranCurrentApi\"}]",
+            DependencyEvidenceJson = "[]"
+        };
+}

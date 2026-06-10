@@ -6,6 +6,31 @@ This document records the live, read-only SQL Server schema inspection completed
 `2026-06-01` for the local `StockMarketDB` database. It defines the recommended PostgreSQL
 normalization strategy for market instruments, intraday quotes, daily trades, and indices.
 
+> **Authoritative source-table update (`2026-06-09`).** A follow-up live inspection corrected
+> the daily-trade and daily-index sources the adapter reads. The implementation now reads daily
+> trades from `Tse.TradeRefined` (one refined price row per trading day per instrument,
+> "TradeOneDay" semantics) and daily indices from `Tse.IndexNew` scoped to the named-index
+> `InstrumentRef` values below. The earlier `Tse.InstTrade` and `Tse.IndexNew2` mappings are
+> retained in this document only as historical inspection notes. Where this callout and the
+> tables below disagree, this callout wins.
+>
+> Named daily indices read from `Tse.IndexNew` (each verified present with data through
+> `2026-06-08`):
+>
+> | `InstrumentRef` | Index |
+> |---|---|
+> | `36423CB8-D33B-47AD-89D4-06FA49592CBA` | شاخص کل |
+> | `1B32B991-F48A-4F7E-9C0C-328D0B093EA5` | شاخص کل فرابورس |
+> | `B27FA320-194F-4710-8D12-277E245D33C5` | شاخص بازده نقدی و قیمت |
+> | `47CE7543-C052-4C44-BF0D-29281818FCA5` | شاخص ۵۰ شرکت فعال‌تر |
+> | `42FCE63E-6CEB-405B-9179-78606C210D86` | شاخص قیمت (هم‌وزن) |
+> | `D01F9D84-A1C8-46F3-A959-800DEF9E112F` | شاخص کل (هم‌وزن) |
+>
+> `Tse.TradeRefined` keys on a `uniqueidentifier` `Id` and watermarks on `ChangeTime` (verified
+> ~2.78M rows, current through `2026-06-09`). The daily-trade keyset cursor therefore uses the
+> same GUID-id/timestamp shape as the other datasets. The single owner of the named-index GUIDs
+> in code is `StockMarketNamedIndices`.
+
 Credentials are operational secrets. Configure them outside source control under a dedicated
 `StockMarketDb` configuration section. Do not reuse or hardcode the supplied local `sa`
 password.
@@ -60,9 +85,9 @@ Add provider-scoped tables:
 |---|---|---|
 | `TradingInstruments` | `Tse.Instrument` | `(ProviderName, ExternalInstrumentId)` and `(ProviderName, InstrumentCode)` |
 | `IntradayTradeSnapshots` | `Tse.Trade` | `(ProviderName, ExternalSnapshotId)` |
-| `DailyInstrumentTrades` | `Tse.InstTrade` | `(ProviderName, ExternalTradeId)` |
+| `DailyInstrumentTrades` | `Tse.TradeRefined` (GUID `ExternalTradeId`) | `(ProviderName, ExternalTradeId)` |
 | `IntradayIndexSnapshots` | `Tse.IndexB1LastDay` | `(ProviderName, ExternalSnapshotId)` |
-| `DailyIndexSnapshots` | derived current close plus optional `Tse.IndexNew2` backfill | `(ProviderName, TradingInstrumentId, TradingDate)` |
+| `DailyIndexSnapshots` | `Tse.IndexNew` (named indices) plus derived intraday close | `(ProviderName, TradingInstrumentId, TradingDate)` |
 | `LatestMarketQuotes` | projection from latest intraday snapshot, daily fallback | `(ProviderName, TradingInstrumentId)` |
 
 `TradingInstruments.NormalizedCompanyId` is nullable. Company linkage uses `InstrumentCode`;
@@ -85,9 +110,9 @@ instead of row deletes.
 |---|---|---|
 | Instruments | `ChangeTime` plus `Id` overlap | Refresh changed instruments and retain source `Id` |
 | Intraday trades | `ReceiveDate` plus `Id` overlap | Re-read a short overlap window and upsert by source `Id` for late arrivals |
-| Daily trades | `Id` primary key plus bounded historical backfill | Retain `TradeDateTime`; source has one duplicate natural `(InstrumentRef, TradeDate)` key |
+| Daily trades | `ChangeTime` plus `Id` overlap (`Tse.TradeRefined`) | GUID `Id`; upsert by source `Id`; supports bounded full-sync backfill |
 | Intraday indices | `ChangeTime` plus `Id` overlap | Upsert by source `Id` |
-| Historical daily indices | bounded date-range paging from `IndexNew2` | One-time/backfill workflow |
+| Daily indices | `ChangeTime` plus `Id` overlap from `Tse.IndexNew` (named indices) | Full-sync backfill and incremental forward sync share the same upsert |
 
 The overlap strategy is required because source rows arrive late in some periods. While a
 bounded page is full, persist a timestamp plus source-id continuation cursor so dense timestamps

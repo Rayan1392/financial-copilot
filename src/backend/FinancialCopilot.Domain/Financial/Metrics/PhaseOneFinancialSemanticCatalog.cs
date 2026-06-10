@@ -10,11 +10,49 @@ public static class PhaseOneFinancialSemanticCatalog
     private static readonly MetricUnit Ratio = new("ratio", "Ratio");
     private static readonly MetricUnit PerShare = new("amount-per-share", "Amount per share");
     private static readonly MetricUnit Days = new("days", "Days");
+    private static readonly MetricUnit Quantity = new("quantity", "Quantity");
+    private static readonly MetricUnit AmountPerUnit = new("amount-per-unit", "Amount per unit");
 
     public static IReadOnlyCollection<FinancialMetricDefinition> Definitions { get; } =
     [
         DefineSource("NET_PROFIT", "Net Profit", MetricCategory.Profitability, Amount, FiscalPeriodType.ThreeMonths),
-        DefineSource("MONTHLY_SALES", "Monthly Sales", MetricCategory.SalesAndProduction, Amount, FiscalPeriodType.Monthly),
+        // Monthly-activity metrics (spec 057): sourced from normalized Noavaran monthly reports.
+        // Each is queryable (aliases) AND self-sourced — the self-dependency makes the
+        // recalculation processor persist one DerivedMetrics row per company-month so the symbol
+        // lookup can answer «آخرین فروش …» from the latest month. The bare ambiguous «فروش» stays
+        // on quarterly REVENUE by policy (statement sales); monthly asks use the explicit monthly
+        // terms below.
+        Define("MONTHLY_SALES", "Monthly Sales", MetricCategory.SalesAndProduction, Amount,
+            [FiscalPeriodType.Monthly],
+            [Alias("monthly sales", "en-US", "MONTHLY_SALES"),
+             Alias("latest monthly sales", "en-US", "MONTHLY_SALES"),
+             Alias("فروش ماهانه", "fa-IR", "MONTHLY_SALES"),
+             Alias("فروش ماهیانه", "fa-IR", "MONTHLY_SALES"),
+             Alias("آخرین فروش", "fa-IR", "MONTHLY_SALES"),
+             Alias("آخرین فروش ماهانه", "fa-IR", "MONTHLY_SALES")],
+            [Dependency("MONTHLY_SALES")]),
+        Define("MONTHLY_SALES_QUANTITY", "Monthly Sales Quantity", MetricCategory.SalesAndProduction, Quantity,
+            [FiscalPeriodType.Monthly],
+            [Alias("monthly sales quantity", "en-US", "MONTHLY_SALES_QUANTITY"),
+             Alias("sales quantity", "en-US", "MONTHLY_SALES_QUANTITY"),
+             Alias("مقدار فروش", "fa-IR", "MONTHLY_SALES_QUANTITY"),
+             Alias("مقدار فروش ماهانه", "fa-IR", "MONTHLY_SALES_QUANTITY")],
+            [Dependency("MONTHLY_SALES_QUANTITY")]),
+        Define("MONTHLY_PRODUCTION_QUANTITY", "Monthly Production Quantity", MetricCategory.SalesAndProduction, Quantity,
+            [FiscalPeriodType.Monthly],
+            [Alias("monthly production quantity", "en-US", "MONTHLY_PRODUCTION_QUANTITY"),
+             Alias("production quantity", "en-US", "MONTHLY_PRODUCTION_QUANTITY"),
+             Alias("تولید", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY"),
+             Alias("مقدار تولید", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY"),
+             Alias("تولید ماهانه", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY")],
+            [Dependency("MONTHLY_PRODUCTION_QUANTITY")]),
+        Define("MONTHLY_SALES_RATE", "Monthly Sales Rate", MetricCategory.SalesAndProduction, AmountPerUnit,
+            [FiscalPeriodType.Monthly],
+            [Alias("monthly sales rate", "en-US", "MONTHLY_SALES_RATE"),
+             Alias("sales rate", "en-US", "MONTHLY_SALES_RATE"),
+             Alias("نرخ فروش", "fa-IR", "MONTHLY_SALES_RATE"),
+             Alias("نرخ فروش ماهانه", "fa-IR", "MONTHLY_SALES_RATE")],
+            [Dependency("MONTHLY_SALES_RATE")]),
         // CodalDB income-statement source metrics (cumulative 3/6/9/12-month periods).
         Define("REVENUE", "Revenue", MetricCategory.Profitability, Amount,
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
@@ -322,6 +360,14 @@ public static class PhaseOneFinancialSemanticCatalog
         GrowthPolicy("NET_PROFIT_GROWTH_QOQ", "qoq-quarterly-v1", GrowthComparison.QuarterOverQuarter, "NET_PROFIT", FiscalPeriodType.ThreeMonths),
         GrowthPolicy("MONTHLY_SALES_GROWTH_YOY", "yoy-monthly-sales-v1", GrowthComparison.YearOverYear, "MONTHLY_SALES", FiscalPeriodType.Monthly),
         GrowthPolicy("MONTHLY_SALES_GROWTH_MOM", "mom-monthly-sales-v1", GrowthComparison.MonthOverMonth, "MONTHLY_SALES", FiscalPeriodType.Monthly),
+        // Spec 057: per-month identity persistence of the normalized monthly-activity aggregates so
+        // the symbol lookup reads them from DerivedMetrics. MONTHLY_SALES_RATE is the
+        // quantity-weighted average rate (Σ sales amount ÷ Σ sales quantity over the month's line
+        // items where both are present), computed in its normalized input source.
+        MonthlySourcePolicy("MONTHLY_SALES", "monthly-sales-source-v1"),
+        MonthlySourcePolicy("MONTHLY_SALES_QUANTITY", "monthly-sales-quantity-source-v1"),
+        MonthlySourcePolicy("MONTHLY_PRODUCTION_QUANTITY", "monthly-production-quantity-source-v1"),
+        MonthlySourcePolicy("MONTHLY_SALES_RATE", "monthly-sales-rate-source-v1"),
         SumPolicy("TTM_SALES", "ttm-sales-v1", "MONTHLY_SALES", FiscalPeriodType.Monthly),
         SumPolicy("TTM_EARNINGS", "ttm-earnings-v1", "NET_PROFIT", FiscalPeriodType.ThreeMonths),
         new MetricCalculationPolicy(
@@ -480,6 +526,23 @@ public static class PhaseOneFinancialSemanticCatalog
             [new MetricDataRequirement(new MetricCode(dependencyCode), periodType, true)],
             new MetricVersion("v1"),
             new MetricFormula("percent-change", "Percentage change between governed current and comparison observations."),
+            EffectiveFrom);
+
+    // Spec 057: identity persistence of a normalized monthly-activity source aggregate, one
+    // DerivedMetrics row per company-month (the calculator selects the observation matching the
+    // effective monthly period).
+    private static MetricCalculationPolicy MonthlySourcePolicy(string code, string policyVersion) =>
+        new(
+            new MetricCode(code),
+            new CalculationPolicyVersion(policyVersion),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode(code), FiscalPeriodType.Monthly, true)],
+            new MetricVersion("v1"),
+            new MetricFormula(
+                "monthly-source-identity",
+                "Normalized Noavaran monthly-activity aggregate for the Shamsi month, persisted per month."),
             EffectiveFrom);
 
     private static MetricCalculationPolicy SumPolicy(

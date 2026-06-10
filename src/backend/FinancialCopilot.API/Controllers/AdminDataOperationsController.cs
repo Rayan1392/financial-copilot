@@ -32,6 +32,7 @@ public sealed class AdminDataOperationsController(
     IArchiveImportRunReader archiveImportRunReader,
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
     ICurrentApiGapReader currentApiGapReader,
+    IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
     IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
@@ -331,6 +332,51 @@ public sealed class AdminDataOperationsController(
             result.FailedCompanies,
             result.Duration));
     }
+
+    // --- Spec 057: NADPCO monthly-activity reverse-chronological backfill (DataAdmin only) ---
+    // Walks Shamsi months newest-first (e.g. 1405/02 → … → 1404/01), one bounded company-month
+    // request per eligible company per month. Manual only — never scheduler-invoked. Re-invoking
+    // resumes: completed company-months are skipped, failed ones retried.
+
+    [HttpPost("noavaran-current/monthly-backfill")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillStartResponse>> StartMonthlyActivityBackfill(
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.Actor;
+        var result = await monthlyActivityBackfillCoordinator.StartAsync(
+            new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"),
+            cancellationToken);
+        return Ok(new AdminMonthlyActivityBackfillStartResponse(
+            result.Outcome,
+            result.MonthsPlanned,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued,
+            ToMonthlyBackfillProgressResponse(result.Progress)));
+    }
+
+    [HttpGet("noavaran-current/monthly-backfill")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillProgressResponse>> GetMonthlyActivityBackfillProgress(
+        CancellationToken cancellationToken)
+    {
+        var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
+        return Ok(ToMonthlyBackfillProgressResponse(progress));
+    }
+
+    private static AdminMonthlyActivityBackfillProgressResponse ToMonthlyBackfillProgressResponse(
+        MonthlyActivityBackfillProgress progress) =>
+        new(
+            progress.Started,
+            progress.IsCompleted,
+            progress.CompletedAt,
+            progress.LastStartedAt,
+            progress.RequestedBy,
+            progress.Months.Select(month => new AdminMonthlyActivityBackfillMonthResponse(
+                month.ShamsiYear,
+                month.ShamsiMonth,
+                month.CompaniesPlanned,
+                month.CompaniesCompleted,
+                month.CompaniesFailed,
+                month.Status)).ToArray());
 
     // --- Spec 050: NADPCO all-index fundamental-index catch-up coverage (DataAdmin only) ---
     // Distinct from the curated 041 fundamental-index sync: this fetches EVERY vendor index

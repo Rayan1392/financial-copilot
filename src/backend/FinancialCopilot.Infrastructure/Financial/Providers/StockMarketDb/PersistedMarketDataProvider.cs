@@ -9,7 +9,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 
 public sealed class PersistedMarketDataProvider(
     FinancialIngestionDbContext dbContext,
-    IOptions<StockMarketDbProviderOptions> options) : IMarketDataProvider
+    IOptions<StockMarketDbProviderOptions> options,
+    TimeProvider timeProvider) : IMarketDataProvider
 {
     private readonly string _providerName = options.Value.ProviderName;
 
@@ -18,7 +19,15 @@ public sealed class PersistedMarketDataProvider(
         CancellationToken cancellationToken)
     {
         var codes = symbols.Select(symbol => symbol.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var rows = await (
+
+        // Two resolution paths, unioned:
+        // 1. Company-linked: quote -> instrument -> normalized company -> symbol. This is the
+        //    canonical normalized route, but it depends on TradingInstruments.NormalizedCompanyId,
+        //    which is null for most non-company instruments and can transiently point at the
+        //    "other" provider-scoped duplicate of a company between instrument syncs.
+        // 2. Direct ticker: the instrument's own TSE symbol equals the requested code. This keeps
+        //    quotes reachable when the company linkage is absent or temporarily mismatched.
+        var companyLinked =
             from quote in dbContext.LatestMarketQuotes.AsNoTracking()
             join instrument in dbContext.TradingInstruments.AsNoTracking()
                 on quote.TradingInstrumentId equals instrument.Id
@@ -27,9 +36,23 @@ public sealed class PersistedMarketDataProvider(
             join symbol in dbContext.Symbols.AsNoTracking()
                 on company.Id equals symbol.CompanyId
             where quote.ProviderName == _providerName && codes.Contains(symbol.SymbolCode)
-            select new { quote, symbol.SymbolCode })
+            select new { quote, SymbolCode = symbol.SymbolCode };
+
+        var directTicker =
+            from quote in dbContext.LatestMarketQuotes.AsNoTracking()
+            join instrument in dbContext.TradingInstruments.AsNoTracking()
+                on quote.TradingInstrumentId equals instrument.Id
+            where quote.ProviderName == _providerName && codes.Contains(instrument.Symbol)
+            select new { quote, SymbolCode = instrument.Symbol };
+
+        var rows = await companyLinked
+            .Concat(directTicker)
             .ToListAsync(cancellationToken);
 
+        // A quote is "live" only when it is an intraday observation for the current trading day.
+        // An intraday snapshot left over from a previous session must surface as
+        // PreviousTradingDay so the answer never labels stale data as live.
+        var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
         var observations = rows
             .GroupBy(row => row.SymbolCode, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(item => item.quote.AsOf).First())
@@ -38,7 +61,9 @@ public sealed class PersistedMarketDataProvider(
                 item.quote.LatestPrice,
                 item.quote.PriceChangePercentage,
                 item.quote.AsOf,
-                item.quote.SourceKind == "Intraday" ? MarketQuoteSource.LiveQuote : MarketQuoteSource.PreviousTradingDay,
+                item.quote.SourceKind == "Intraday" && item.quote.TradingDate == today
+                    ? MarketQuoteSource.LiveQuote
+                    : MarketQuoteSource.PreviousTradingDay,
                 new FinancialSourceEvidence(_providerName, item.quote.AsOf, item.quote.AsOf)))
             .ToArray();
         var available = observations.Select(item => item.SymbolCode.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);

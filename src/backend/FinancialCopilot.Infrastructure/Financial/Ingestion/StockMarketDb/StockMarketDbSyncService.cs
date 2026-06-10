@@ -40,7 +40,7 @@ public sealed class StockMarketDbSyncService(
         state.LastRunStartedAt = started;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var cursor = BuildCursor(state, dataset, fullReload);
+        var cursor = BuildCursor(state, fullReload);
         var rowsRead = 0;
         var rowsPersisted = 0;
         DateTimeOffset? observedWatermark = state.Watermark;
@@ -75,8 +75,8 @@ public sealed class StockMarketDbSyncService(
                 rowsRead = rows.Count;
                 rowsPersisted = await PersistDailyTradesAsync(rows, cancellationToken);
                 EnsureAllReferencesResolved(dataset, rowsRead, rowsPersisted);
-                observedWatermark = Max(rows.Select(row => row.InsertDateTime), observedWatermark);
-                SetContinuation(state, rows.Count, rows.LastOrDefault()?.InsertDateTime, rows.LastOrDefault()?.Id.ToString());
+                observedWatermark = Max(rows.Select(row => row.ChangeTime), observedWatermark);
+                SetContinuation(state, rows.Count, rows.LastOrDefault()?.ChangeTime, rows.LastOrDefault()?.Id.ToString());
                 break;
             }
             case StockMarketDataset.IntradayIndices:
@@ -147,17 +147,30 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var codes = rows.Select(row => row.InsCode.ToString()).ToList();
-        var companies = await dbContext.Companies
-            .Where(row => row.InstrumentCode != null && codes.Contains(row.InstrumentCode))
-            .ToDictionaryAsync(row => row.InstrumentCode!, row => row.Id, cancellationToken);
+        // The same InstrumentCode can map to more than one normalized company row because
+        // companies are provider-scoped (e.g. NoavaranCurrentApi and NoavaranArchiveSql both carry
+        // the listing). Pick one deterministic canonical company per code — the most recently
+        // synchronized (current source beats archive), tie-broken by Id — so linkage is stable and
+        // the dictionary build cannot throw on duplicates.
+        var companies = (await dbContext.Companies
+                .Where(row => row.InstrumentCode != null && codes.Contains(row.InstrumentCode))
+                .ToListAsync(cancellationToken))
+            .GroupBy(row => row.InstrumentCode!)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(row => row.LastSynchronizedAt)
+                    .ThenBy(row => row.Id)
+                    .First().Id);
+        var sourceIds = rows.Select(row => row.Id).Distinct().ToList();
+        var existing = (await dbContext.TradingInstruments
+                .Where(row => row.ProviderName == _options.ProviderName && sourceIds.Contains(row.ExternalInstrumentId))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => row.ExternalInstrumentId);
 
         foreach (var source in rows)
         {
-            var row = await dbContext.TradingInstruments.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName &&
-                        item.ExternalInstrumentId == source.Id,
-                cancellationToken);
-            if (row is null)
+            if (!existing.TryGetValue(source.Id, out var row))
             {
                 row = new TradingInstrumentRow
                 {
@@ -166,6 +179,7 @@ public sealed class StockMarketDbSyncService(
                     ExternalInstrumentId = source.Id
                 };
                 dbContext.TradingInstruments.Add(row);
+                existing[source.Id] = row;
             }
 
             row.InstrumentCode = source.InsCode;
@@ -190,17 +204,24 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var instruments = await InstrumentMapAsync(rows.Select(row => row.InstrumentRef), cancellationToken);
+        var sourceIds = rows.Select(row => row.Id).Distinct().ToList();
+        var existing = (await dbContext.IntradayTradeSnapshots
+                .Where(row => row.ProviderName == _options.ProviderName && sourceIds.Contains(row.ExternalSnapshotId))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => row.ExternalSnapshotId);
+        var quotes = await LatestQuoteMapAsync(
+            rows.Where(row => instruments.ContainsKey(row.InstrumentRef))
+                .Select(row => instruments[row.InstrumentRef].Id),
+            cancellationToken);
         var persisted = 0;
         foreach (var source in rows)
         {
             if (!instruments.TryGetValue(source.InstrumentRef, out var instrument)) continue;
-            var row = await dbContext.IntradayTradeSnapshots.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName && item.ExternalSnapshotId == source.Id,
-                cancellationToken);
-            if (row is null)
+            if (!existing.TryGetValue(source.Id, out var row))
             {
                 row = new IntradayTradeSnapshotRow { Id = Guid.NewGuid(), ProviderName = _options.ProviderName, ExternalSnapshotId = source.Id };
                 dbContext.IntradayTradeSnapshots.Add(row);
+                existing[source.Id] = row;
             }
             row.TradingInstrumentId = instrument.Id;
             row.TradingDate = source.TradeDate;
@@ -213,7 +234,7 @@ public sealed class StockMarketDbSyncService(
             row.Volume = source.VolumeOfTradedShares;
             row.TotalCapital = source.TotalCapital;
             row.ReceivedAt = source.ReceiveDate;
-            await UpsertLatestQuoteAsync(instrument.Id, source.LastTradedPrice, source.PriceChange, source.PriceYesterday, "Intraday", source.ReceiveDate, cancellationToken);
+            UpsertLatestQuote(quotes, instrument.Id, source.LastTradedPrice, source.PriceChange, source.PriceYesterday, "Intraday", source.TradeDate, source.ReceiveDate);
             persisted++;
         }
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -225,17 +246,24 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var instruments = await InstrumentMapAsync(rows.Select(row => row.InstrumentRef), cancellationToken);
+        var sourceIds = rows.Select(row => row.Id).Distinct().ToList();
+        var existing = (await dbContext.DailyInstrumentTrades
+                .Where(row => row.ProviderName == _options.ProviderName && sourceIds.Contains(row.ExternalTradeId))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => row.ExternalTradeId);
+        var quotes = await LatestQuoteMapAsync(
+            rows.Where(row => instruments.ContainsKey(row.InstrumentRef))
+                .Select(row => instruments[row.InstrumentRef].Id),
+            cancellationToken);
         var persisted = 0;
         foreach (var source in rows)
         {
             if (!instruments.TryGetValue(source.InstrumentRef, out var instrument)) continue;
-            var row = await dbContext.DailyInstrumentTrades.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName && item.ExternalTradeId == source.Id,
-                cancellationToken);
-            if (row is null)
+            if (!existing.TryGetValue(source.Id, out var row))
             {
                 row = new DailyInstrumentTradeRow { Id = Guid.NewGuid(), ProviderName = _options.ProviderName, ExternalTradeId = source.Id };
                 dbContext.DailyInstrumentTrades.Add(row);
+                existing[source.Id] = row;
             }
             row.TradingInstrumentId = instrument.Id;
             row.TradingDate = source.TradeDate;
@@ -247,8 +275,8 @@ public sealed class StockMarketDbSyncService(
             row.Volume = source.VolumeOfTradedShares;
             row.TotalCapital = source.TotalCapital;
             row.MarketValue = source.MarketValue;
-            row.SourceInsertedAt = source.InsertDateTime;
-            await UpsertLatestQuoteAsync(instrument.Id, source.LastTradedPrice, source.PriceChange, source.PriceYesterday, "Daily", source.InsertDateTime, cancellationToken);
+            row.SourceInsertedAt = source.ChangeTime;
+            UpsertLatestQuote(quotes, instrument.Id, source.LastTradedPrice, source.PriceChange, source.PriceYesterday, "Daily", source.TradeDate, source.ChangeTime);
             persisted++;
         }
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -260,17 +288,24 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var instruments = await InstrumentMapAsync(rows.Select(row => row.InstrumentRef), cancellationToken);
+        var sourceIds = rows.Select(row => row.Id).Distinct().ToList();
+        var existing = (await dbContext.IntradayIndexSnapshots
+                .Where(row => row.ProviderName == _options.ProviderName && sourceIds.Contains(row.ExternalSnapshotId))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => row.ExternalSnapshotId);
+        var dailyIndices = await DailyIndexMapAsync(
+            rows.Where(row => instruments.ContainsKey(row.InstrumentRef))
+                .Select(row => (instruments[row.InstrumentRef].Id, row.IndexDate)),
+            cancellationToken);
         var persisted = 0;
         foreach (var source in rows)
         {
             if (!instruments.TryGetValue(source.InstrumentRef, out var instrument)) continue;
-            var row = await dbContext.IntradayIndexSnapshots.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName && item.ExternalSnapshotId == source.Id,
-                cancellationToken);
-            if (row is null)
+            if (!existing.TryGetValue(source.Id, out var row))
             {
                 row = new IntradayIndexSnapshotRow { Id = Guid.NewGuid(), ProviderName = _options.ProviderName, ExternalSnapshotId = source.Id };
                 dbContext.IntradayIndexSnapshots.Add(row);
+                existing[source.Id] = row;
             }
             row.TradingInstrumentId = instrument.Id;
             row.TradingDate = source.IndexDate;
@@ -278,7 +313,7 @@ public sealed class StockMarketDbSyncService(
             row.Value = source.Value;
             row.ChangePercent = source.ChangePercent;
             row.SourceChangedAt = source.ChangeTime;
-            await UpsertDailyIndexAsync(instrument.Id, source.IndexDate, source.Value, source.Value, source.Value, source.ChangePercent, "IntradayClose", source.ChangeTime, cancellationToken);
+            UpsertDailyIndex(dailyIndices, instrument.Id, source.IndexDate, source.Value, source.Value, source.Value, source.ChangePercent, "IntradayClose", source.ChangeTime);
             persisted++;
         }
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -290,11 +325,15 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var instruments = await InstrumentMapAsync(rows.Select(row => row.InstrumentRef), cancellationToken);
+        var dailyIndices = await DailyIndexMapAsync(
+            rows.Where(row => instruments.ContainsKey(row.InstrumentRef))
+                .Select(row => (instruments[row.InstrumentRef].Id, row.IndexDate)),
+            cancellationToken);
         var persisted = 0;
         foreach (var source in rows)
         {
             if (!instruments.TryGetValue(source.InstrumentRef, out var instrument)) continue;
-            await UpsertDailyIndexAsync(instrument.Id, source.IndexDate, source.Value, source.High, source.Low, source.ChangePercent, "HistoricalBackfill", source.ChangeTime ?? DateTimeOffset.MinValue, cancellationToken);
+            UpsertDailyIndex(dailyIndices, instrument.Id, source.IndexDate, source.Value, source.High, source.Low, source.ChangePercent, "HistoricalBackfill", source.ChangeTime ?? DateTimeOffset.MinValue);
             persisted++;
         }
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -311,45 +350,74 @@ public sealed class StockMarketDbSyncService(
             .ToDictionaryAsync(row => row.ExternalInstrumentId, cancellationToken);
     }
 
-    private async Task UpsertLatestQuoteAsync(
-        Guid instrumentId, decimal price, decimal change, decimal yesterday,
-        string sourceKind, DateTimeOffset asOf, CancellationToken cancellationToken)
+    private async Task<Dictionary<Guid, LatestMarketQuoteRow>> LatestQuoteMapAsync(
+        IEnumerable<Guid> instrumentIds, CancellationToken cancellationToken)
     {
-        var row = dbContext.LatestMarketQuotes.Local.SingleOrDefault(
-            item => item.ProviderName == _options.ProviderName && item.TradingInstrumentId == instrumentId)
-            ?? await dbContext.LatestMarketQuotes.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName && item.TradingInstrumentId == instrumentId,
-                cancellationToken);
-        if (row is not null && row.AsOf > asOf) return;
+        var ids = instrumentIds.Distinct().ToList();
+        var rows = await dbContext.LatestMarketQuotes
+            .Where(row => row.ProviderName == _options.ProviderName && ids.Contains(row.TradingInstrumentId))
+            .ToListAsync(cancellationToken);
+        return rows.ToDictionary(row => row.TradingInstrumentId);
+    }
+
+    private void UpsertLatestQuote(
+        Dictionary<Guid, LatestMarketQuoteRow> quotes,
+        Guid instrumentId, decimal price, decimal change, decimal yesterday,
+        string sourceKind, DateOnly tradingDate, DateTimeOffset asOf)
+    {
+        if (quotes.TryGetValue(instrumentId, out var row))
+        {
+            // Intraday data for a given trading day takes precedence over Daily data for the same
+            // day, regardless of which sync ran last. This ensures a live intraday quote is never
+            // silently replaced by the daily close record when both arrive on the same session day.
+            if (row.SourceKind == "Intraday" && sourceKind == "Daily" && row.TradingDate == tradingDate)
+                return;
+            if (row.AsOf > asOf && !(row.SourceKind == "Daily" && sourceKind == "Intraday" && row.TradingDate == tradingDate))
+                return;
+        }
         if (row is null)
         {
             row = new LatestMarketQuoteRow { Id = Guid.NewGuid(), ProviderName = _options.ProviderName, TradingInstrumentId = instrumentId };
             dbContext.LatestMarketQuotes.Add(row);
+            quotes[instrumentId] = row;
         }
         row.LatestPrice = price;
         row.PriceChangePercentage = yesterday == 0 ? 0 : change / yesterday * 100;
         row.SourceKind = sourceKind;
+        row.TradingDate = tradingDate;
         row.AsOf = asOf;
     }
 
-    private async Task UpsertDailyIndexAsync(
-        Guid instrumentId, DateOnly date, decimal? value, decimal? high, decimal? low,
-        decimal? changePercent, string sourceKind, DateTimeOffset observedAt, CancellationToken cancellationToken)
+    private async Task<Dictionary<(Guid, DateOnly), DailyIndexSnapshotRow>> DailyIndexMapAsync(
+        IEnumerable<(Guid InstrumentId, DateOnly Date)> keys, CancellationToken cancellationToken)
     {
-        var row = dbContext.DailyIndexSnapshots.Local.SingleOrDefault(
-            item => item.ProviderName == _options.ProviderName &&
-                    item.TradingInstrumentId == instrumentId &&
-                    item.TradingDate == date)
-            ?? await dbContext.DailyIndexSnapshots.SingleOrDefaultAsync(
-                item => item.ProviderName == _options.ProviderName &&
-                        item.TradingInstrumentId == instrumentId &&
-                        item.TradingDate == date,
-                cancellationToken);
-        if (row is not null && row.ObservedAt > observedAt) return;
+        var distinct = keys.Distinct().ToList();
+        var instrumentIds = distinct.Select(key => key.InstrumentId).Distinct().ToList();
+        var dates = distinct.Select(key => key.Date).Distinct().ToList();
+        // Over-fetch by the cross product of the page's instruments and dates, then filter to the
+        // exact pairs in memory. The page is bounded, so this stays a single small query.
+        var rows = await dbContext.DailyIndexSnapshots
+            .Where(row => row.ProviderName == _options.ProviderName &&
+                          instrumentIds.Contains(row.TradingInstrumentId) &&
+                          dates.Contains(row.TradingDate))
+            .ToListAsync(cancellationToken);
+        var wanted = distinct.ToHashSet();
+        return rows
+            .Where(row => wanted.Contains((row.TradingInstrumentId, row.TradingDate)))
+            .ToDictionary(row => (row.TradingInstrumentId, row.TradingDate));
+    }
+
+    private void UpsertDailyIndex(
+        Dictionary<(Guid, DateOnly), DailyIndexSnapshotRow> dailyIndices,
+        Guid instrumentId, DateOnly date, decimal? value, decimal? high, decimal? low,
+        decimal? changePercent, string sourceKind, DateTimeOffset observedAt)
+    {
+        if (dailyIndices.TryGetValue((instrumentId, date), out var row) && row.ObservedAt > observedAt) return;
         if (row is null)
         {
             row = new DailyIndexSnapshotRow { Id = Guid.NewGuid(), ProviderName = _options.ProviderName, TradingInstrumentId = instrumentId, TradingDate = date };
             dbContext.DailyIndexSnapshots.Add(row);
+            dailyIndices[(instrumentId, date)] = row;
         }
         row.Value = value;
         row.High = high;
@@ -367,19 +435,16 @@ public sealed class StockMarketDbSyncService(
 
     private StockMarketPageCursor BuildCursor(
         StockMarketSyncStateRow state,
-        StockMarketDataset dataset,
         bool fullReload)
     {
         if (fullReload) return new StockMarketPageCursor(null);
         if (state.ContinuationWatermark is not null)
         {
-            return dataset == StockMarketDataset.DailyTrades
-                ? new StockMarketPageCursor(
-                    state.ContinuationWatermark,
-                    LastLongId: long.Parse(state.ContinuationExternalId!))
-                : new StockMarketPageCursor(
-                    state.ContinuationWatermark,
-                    LastGuidId: Guid.Parse(state.ContinuationExternalId!));
+            // All datasets key on a uniqueidentifier source Id and watermark on a source timestamp,
+            // so the keyset continuation cursor is uniform across them.
+            return new StockMarketPageCursor(
+                state.ContinuationWatermark,
+                LastGuidId: Guid.Parse(state.ContinuationExternalId!));
         }
         return new StockMarketPageCursor(
             state.Watermark?.AddMinutes(-Math.Max(0, _options.OverlapMinutes)));
@@ -404,9 +469,7 @@ public sealed class StockMarketDbSyncService(
     private static void EnsureAllReferencesResolved(StockMarketDataset dataset, int rowsRead, int rowsPersisted)
     {
         if (rowsRead == rowsPersisted) return;
-        throw new InvalidOperationException(
-            $"{dataset} contained {rowsRead - rowsPersisted} unresolved instrument references. " +
-            "Synchronize the instrument dimension before retrying this page.");
+        throw new StockMarketUnresolvedInstrumentException(dataset, rowsRead - rowsPersisted);
     }
 
     private async Task StoreRawPageAsync<T>(

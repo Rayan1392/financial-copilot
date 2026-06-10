@@ -130,6 +130,31 @@ public sealed record AdminCurrentApiHealthResponse(
     DateTimeOffset? NextDueAt,
     DateTimeOffset CheckedAt);
 
+// --- Spec 057: NADPCO monthly-activity reverse-chronological backfill ---
+
+public sealed record AdminMonthlyActivityBackfillStartResponse(
+    string Outcome,
+    int MonthsPlanned,
+    int CompaniesPlanned,
+    int RequestsEnqueued,
+    AdminMonthlyActivityBackfillProgressResponse Progress);
+
+public sealed record AdminMonthlyActivityBackfillMonthResponse(
+    int ShamsiYear,
+    int ShamsiMonth,
+    int CompaniesPlanned,
+    int CompaniesCompleted,
+    int CompaniesFailed,
+    string Status);
+
+public sealed record AdminMonthlyActivityBackfillProgressResponse(
+    bool Started,
+    bool IsCompleted,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? LastStartedAt,
+    string? RequestedBy,
+    IReadOnlyCollection<AdminMonthlyActivityBackfillMonthResponse> Months);
+
 public sealed record AdminCurrentApiGapResponse(
     int CurrentApiBoundaryShamsiYear,
     int TotalGapRows,

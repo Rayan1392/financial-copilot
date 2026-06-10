@@ -70,6 +70,15 @@ public sealed class FinancialDataSyncProcessor(
             // Apply a per-run current-API Shamsi boundary override (spec 053) so it reaches this
             // worker scope's provider client; no-op for providers without a Shamsi boundary.
             boundaryOverride?.Set(request.FromShamsiYearOverride);
+            // Bound monthly-activity fetches to the request's Jalali window when one is set
+            // (spec 057: one Shamsi month per backfill/steady-state request).
+            if (request.Dataset == ProviderDataset.MonthlyProductionSales &&
+                request.SourceDateRangeStartJalali is not null)
+            {
+                boundaryOverride?.SetMonthlyActivityWindow(
+                    request.SourceDateRangeStartJalali,
+                    request.SourceDateRangeEndJalali);
+            }
 
             var payload = await FetchPayloadAsync(request, cancellationToken);
             await rawPayloads.StoreAsync(payload, cancellationToken);

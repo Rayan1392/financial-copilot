@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260609143955_ChangeDailyInstrumentTradeExternalIdToGuid")]
+    partial class ChangeDailyInstrumentTradeExternalIdToGuid
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -777,9 +780,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateOnly>("TradingDate")
-                        .HasColumnType("date");
-
                     b.Property<Guid>("TradingInstrumentId")
                         .HasColumnType("uuid");
 
@@ -908,34 +908,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsUnique();
 
                     b.ToTable("MissingAnswerFeedbacks", (string)null);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MonthlyActivityBackfillStateRow", b =>
-                {
-                    b.Property<string>("SourceName")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastStartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PlannedMonthsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RequestedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.HasKey("SourceName");
-
-                    b.ToTable("MonthlyActivityBackfillStates", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NadpcoApiSyncStateRow", b =>
@@ -1497,17 +1469,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.Property<decimal?>("SalesQuantity")
                         .HasColumnType("numeric");
-
-                    b.Property<decimal?>("SalesRate")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.HasKey("Id");
 

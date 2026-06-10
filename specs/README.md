@@ -76,6 +76,12 @@ delivery checklist (they are added as data sources become available).
   7. `044-nadpco-api-scheduled-sync-worker` - automatic scheduled incremental synchronization
      through the existing bounded orchestration pipeline, with configurable cadence, locking,
      run history, retry diagnostics, and cache invalidation.
+  8. `057-nadpco-monthly-activity-freshness-and-sales-lookup` - two-phase monthly-activity
+     acquisition: a DataAdmin-only manual backfill walking Shamsi months newest-first
+     (`140502 → … → 140401`) with durable per-month progress and a completion marker, then a
+     steady-state scheduled refresh that requests only the previous Shamsi month from the 1st
+     of each month; plus governed monthly sales/production/rate metrics and Persian aliases so
+     AI sales questions read the normalized Noavaran monthly tables.
 
 ## Trading Statistics Implementation Specs
 
@@ -165,6 +171,12 @@ screening. They share the existing single AI facade endpoint and billing pipelin
 - `038`-`044` add `NadpcoApi` as a separate HTTP provider that coexists with `CodalDb`. Remote
   payload DTOs remain Infrastructure concerns; normalized PostgreSQL rows, governed metric
   semantics, deterministic recalculation, and scanner reads remain provider-neutral.
+- All per-company Noavaran current-API requests (statements, fundamental indexes, monthly
+  activity, catch-ups, backfills — specs `040`-`043`, `050`, `053`, `057`) target only the
+  eligible company scope: `PrecedencyRight = 0` (equities, no حق تقدم) on the three primary
+  markets بورس/فرابورس/پایه. `NoavaranCompanyScope` owns the filter in code; the
+  `NoavaranEligibleCompanies` PostgreSQL view mirrors it for operators. The company-catalog
+  sync itself stays unscoped because it populates the catalog the scope selects from.
 - `044` schedules automatic NADPCO incremental synchronization only by invoking the bounded
   orchestration from `043`; it must not introduce a second ingestion, normalization,
   recalculation, or scanner-cache invalidation path.

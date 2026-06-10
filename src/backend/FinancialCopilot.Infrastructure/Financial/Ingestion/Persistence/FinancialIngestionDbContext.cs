@@ -39,6 +39,9 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<ArchiveFreezeStateRow> ArchiveFreezeStates => Set<ArchiveFreezeStateRow>();
 
+    public DbSet<MonthlyActivityBackfillStateRow> MonthlyActivityBackfillStates =>
+        Set<MonthlyActivityBackfillStateRow>();
+
     public DbSet<NadpcoFundamentalIndexObservationRow> NadpcoFundamentalIndexObservations =>
         Set<NadpcoFundamentalIndexObservationRow>();
 

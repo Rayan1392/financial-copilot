@@ -70,10 +70,17 @@ public sealed class NetProfitMetricInputSource(
         await new LineItemMetricInputSource(dbContext, MetricCode).LoadAsync(externalCompanyId, cancellationToken);
 }
 
-public sealed class MonthlySalesMetricInputSource(
-    FinancialIngestionDbContext dbContext) : INormalizedMetricInputSource
+/// <summary>
+/// Shared per-company-month aggregation over normalized monthly report line items (spec 057).
+/// One observation per monthly report; the aggregate policy is supplied by the concrete source.
+/// </summary>
+public abstract class MonthlyReportAggregateInputSource(
+    FinancialIngestionDbContext dbContext,
+    string metricCode) : INormalizedMetricInputSource
 {
-    public MetricCode MetricCode { get; } = new("MONTHLY_SALES");
+    public MetricCode MetricCode { get; } = new(metricCode);
+
+    protected abstract decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems);
 
     public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
@@ -86,23 +93,80 @@ public sealed class MonthlySalesMetricInputSource(
 
         foreach (var report in reports)
         {
-            var values = await dbContext.MonthlyReportLineItems.AsNoTracking()
+            var lineItems = await dbContext.MonthlyReportLineItems.AsNoTracking()
                 .Where(item => item.MonthlyReportId == report.Id)
-                .Select(item => item.SalesAmount)
                 .ToListAsync(cancellationToken);
-            decimal? value = values.Count > 0 && values.All(item => item is not null)
-                ? values.Sum(item => item!.Value)
-                : null;
             results.Add(NormalizedMetricInputFactory.Create(
                 MetricCode,
                 FiscalPeriod.Closed(FiscalPeriodType.Monthly, report.PeriodStart, report.PeriodEnd),
-                value,
+                Aggregate(lineItems),
                 report.ProviderName,
                 report.ExternalReportId,
                 report.LastSynchronizedAt));
         }
 
         return results;
+    }
+}
+
+public sealed class MonthlySalesMetricInputSource(
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES")
+{
+    // Pre-057 behavior preserved: the month's sales amount is reliable only when every line item
+    // carries a value; a partially-valued report yields null (MissingData) instead of an
+    // understated total.
+    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
+        lineItems.Count > 0 && lineItems.All(item => item.SalesAmount is not null)
+            ? lineItems.Sum(item => item.SalesAmount!.Value)
+            : null;
+}
+
+public sealed class MonthlySalesQuantityMetricInputSource(
+    FinancialIngestionDbContext dbContext) :
+    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES_QUANTITY")
+{
+    // Sum over lines that report a sales quantity; null when no line does. Lines without a
+    // quantity (rare aggregate rows) are excluded rather than nulling the whole month, because
+    // quantities are additive only across the lines that actually carry them.
+    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    {
+        var values = lineItems.Where(item => item.SalesQuantity is not null).ToArray();
+        return values.Length > 0 ? values.Sum(item => item.SalesQuantity!.Value) : null;
+    }
+}
+
+public sealed class MonthlyProductionQuantityMetricInputSource(
+    FinancialIngestionDbContext dbContext) :
+    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_PRODUCTION_QUANTITY")
+{
+    // Service-sales lines never carry production; sum the product lines that do, null when none.
+    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    {
+        var values = lineItems.Where(item => item.ProductionQuantity is not null).ToArray();
+        return values.Length > 0 ? values.Sum(item => item.ProductionQuantity!.Value) : null;
+    }
+}
+
+public sealed class MonthlySalesRateMetricInputSource(
+    FinancialIngestionDbContext dbContext) :
+    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES_RATE")
+{
+    // Quantity-weighted average rate: Σ sales amount ÷ Σ sales quantity over lines where both are
+    // present and quantity is positive (policy "monthly-sales-rate-source-v1"). Null when no
+    // eligible line exists — mixed-unit months degrade to a blended rate by design, documented in
+    // the calculation policy rather than silently picking one product line.
+    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    {
+        var eligible = lineItems
+            .Where(item => item.SalesAmount is not null && item.SalesQuantity is > 0)
+            .ToArray();
+        if (eligible.Length == 0)
+        {
+            return null;
+        }
+
+        var totalQuantity = eligible.Sum(item => item.SalesQuantity!.Value);
+        return totalQuantity > 0 ? eligible.Sum(item => item.SalesAmount!.Value) / totalQuantity : null;
     }
 }
 

@@ -2,6 +2,7 @@ using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -193,24 +194,32 @@ public sealed class MarketSummaryService(
             return cached;
         }
 
-        var indexRows = await (
-            from snapshot in dbContext.DailyIndexSnapshots.AsNoTracking()
-            join instrument in dbContext.TradingInstruments.AsNoTracking()
-                on snapshot.TradingInstrumentId equals instrument.Id
-            orderby snapshot.ObservedAt descending
-            select new { snapshot, instrument })
+        // The summary shows exactly the six governed named indices (شاخص کل, کل فرابورس, ...)
+        // owned by StockMarketNamedIndices, in catalog order — not whatever index instruments
+        // happen to exist in the dimension.
+        var namedRefs = StockMarketNamedIndices.InstrumentRefs.ToArray();
+        var indexInstruments = await dbContext.TradingInstruments.AsNoTracking()
+            .Where(instrument => namedRefs.Contains(instrument.ExternalInstrumentId))
             .ToListAsync(cancellationToken);
-        var indices = indexRows
-            .GroupBy(row => row.instrument.Id)
-            .Select(group => group.First())
-            .Select(row => new MarketIndexObservation(
-                row.instrument.Symbol,
-                row.instrument.Name,
-                row.snapshot.Value,
-                row.snapshot.ChangePercent,
-                row.snapshot.ObservedAt,
-                row.snapshot.SourceKind))
-            .ToArray();
+        var indices = new List<MarketIndexObservation>(StockMarketNamedIndices.All.Count);
+        foreach (var named in StockMarketNamedIndices.All)
+        {
+            var instrument = indexInstruments
+                .FirstOrDefault(row => row.ExternalInstrumentId == named.InstrumentRef);
+            if (instrument is null) continue;
+            var snapshot = await dbContext.DailyIndexSnapshots.AsNoTracking()
+                .Where(row => row.TradingInstrumentId == instrument.Id)
+                .OrderByDescending(row => row.ObservedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (snapshot is null) continue;
+            indices.Add(new MarketIndexObservation(
+                instrument.Symbol,
+                named.PersianName,
+                snapshot.Value,
+                snapshot.ChangePercent,
+                snapshot.ObservedAt,
+                snapshot.SourceKind));
+        }
         var quoteRows = await (
             from quote in dbContext.LatestMarketQuotes.AsNoTracking()
             join instrument in dbContext.TradingInstruments.AsNoTracking()

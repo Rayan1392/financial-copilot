@@ -482,6 +482,19 @@ public static class ServiceCollectionExtensions
             new MetricCode("TTM_SALES"),
             new MetricCode("MONTHLY_SALES"),
             requiredObservationCount: 12));
+        // Spec 057: identity persistence of monthly-activity aggregates — a single-component
+        // additive composite selects the source observation matching each monthly period, so one
+        // DerivedMetrics row exists per company-month and the symbol lookup can answer
+        // «آخرین فروش / مقدار فروش / نرخ فروش / مقدار تولید» from the latest month.
+        foreach (var monthlyCode in new[]
+        {
+            "MONTHLY_SALES", "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE"
+        })
+        {
+            var captured = new MetricCode(monthlyCode);
+            services.AddSingleton<IFinancialMetricCalculator>(_ =>
+                new AdditiveCompositeMetricCalculator(captured, [captured]));
+        }
         services.AddSingleton<IFinancialMetricCalculator>(_ => new TrailingTwelveMonthSumMetricCalculator(
             new MetricCode("TTM_EARNINGS"),
             new MetricCode("NET_PROFIT"),
@@ -716,6 +729,11 @@ public static class ServiceCollectionExtensions
                     sp.GetRequiredService<FinancialIngestionDbContext>(), captured));
         }
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
+        // Spec 057: monthly-activity aggregates (sales quantity, production quantity,
+        // quantity-weighted sales rate) backed by MonthlyReportLineItems.
+        services.AddScoped<INormalizedMetricInputSource, MonthlySalesQuantityMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputSource, MonthlyProductionQuantityMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputSource, MonthlySalesRateMetricInputSource>();
         services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
         services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();
@@ -742,6 +760,13 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());
         services.AddScoped<INadpcoApiSyncStateReader>(provider =>
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());
+        // Spec 057 — manual reverse-chronological monthly-activity backfill (DataAdmin-only) and
+        // the backfill-complete marker that gates the steady-state previous-month refresh.
+        services.AddScoped<MonthlyActivityBackfillCoordinator>();
+        services.AddScoped<IMonthlyActivityBackfillCoordinator>(provider =>
+            provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
+        services.AddScoped<IMonthlyActivityBackfillStateReader>(provider =>
+            provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
         services
             .AddOptions<NadpcoScheduledSyncOptions>()
             .BindConfiguration(NadpcoScheduledSyncOptions.SectionName);

@@ -272,23 +272,9 @@ public sealed class FundamentalIndexCatchUpCoordinator(
             cancellationToken);
     }
 
-    private async Task<IReadOnlyList<int>> QueryKnownCompanyIdsAsync(
+    // Catch-up targets the Noavaran eligibility scope only (equities on بورس/فرابورس/پایه).
+    private Task<IReadOnlyList<int>> QueryKnownCompanyIdsAsync(
         string providerName,
-        CancellationToken cancellationToken)
-    {
-        var ids = await dbContext.Companies.AsNoTracking()
-            .Where(row => row.ProviderName == providerName)
-            .Select(row => row.ExternalCompanyId)
-            .ToListAsync(cancellationToken);
-
-        return ids
-            .Select(id => int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : (int?)null)
-            .Where(id => id is not null)
-            .Select(id => id!.Value)
-            .Distinct()
-            .OrderBy(id => id)
-            .ToArray();
-    }
+        CancellationToken cancellationToken) =>
+        NoavaranCompanyScope.EligibleCompanyIdsAsync(dbContext, providerName, cancellationToken);
 }

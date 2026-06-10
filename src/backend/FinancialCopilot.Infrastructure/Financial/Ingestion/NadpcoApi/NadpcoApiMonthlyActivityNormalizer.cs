@@ -87,6 +87,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 lineItem.ProductionQuantity = item.ProductionQuantity;
                 lineItem.SalesQuantity = item.SalesQuantity;
                 lineItem.SalesAmount = item.SalesAmount;
+                lineItem.Title = item.Title;
+                lineItem.Unit = item.Unit;
+                lineItem.SalesRate = item.SalesRate;
             }
         }
 

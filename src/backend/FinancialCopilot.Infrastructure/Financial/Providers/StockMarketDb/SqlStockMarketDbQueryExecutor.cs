@@ -6,6 +6,12 @@ public sealed class SqlStockMarketDbQueryExecutor(
     StockMarketDbConnectionFactory connectionFactory,
     StockMarketDbSqlResilience resilience) : IStockMarketDbQueryExecutor
 {
+    // Comma-separated, single-quoted literal list of the named-index InstrumentRef GUIDs used to
+    // scope Tse.IndexNew. Built from the vetted constant array (not external input), so it is safe
+    // to inline into the query text without parameterization.
+    private static readonly string NamedIndexInstrumentRefList =
+        string.Join(", ", StockMarketNamedIndices.InstrumentRefs.Select(id => $"'{id:D}'"));
+
     public Task<IReadOnlyList<StockMarketInstrumentRecord>> QueryInstrumentsAsync(
         StockMarketPageCursor cursor, int take, CancellationToken cancellationToken) =>
         QueryAsync(
@@ -66,33 +72,35 @@ public sealed class SqlStockMarketDbQueryExecutor(
     public Task<IReadOnlyList<StockMarketDailyTradeRecord>> QueryDailyTradesAsync(
         StockMarketPageCursor cursor, int take, CancellationToken cancellationToken) =>
         QueryAsync(
+            // Daily trades (آمار معاملات روزانه): Tse.TradeRefined holds one refined price row per
+            // trading day per instrument (TradeOneDay semantics). Keyed by uniqueidentifier Id and
+            // watermarked on ChangeTime, matching the GUID-cursor datasets.
             """
-            SELECT TOP (@take) Id, InstrumentRef, InsCode, TradeDateTime, PClosing, PDrCotVal,
-                   ZTotTran, QTotTran5J, QTotCap, PriceChange, PriceMin, PriceMax, PriceYesterday,
-                   PriceFirst, MarketValue, InsertDateTime
-            FROM Tse.InstTrade
-            WHERE @after IS NULL OR InsertDateTime > @after OR (InsertDateTime = @after AND Id > @lastLongId)
-            ORDER BY InsertDateTime, Id;
+            SELECT TOP (@take) Id, InstrumentRef, TradeDate, ClosingPrice, LastTradedPrice,
+                   TotalTransactions, VolumeOfTradedShares, TotalCapital, PriceChange, PriceMin,
+                   PriceMax, PriceYesterday, PriceFirst, MarketValue, ChangeTime
+            FROM Tse.TradeRefined
+            WHERE @after IS NULL OR ChangeTime > @after OR (ChangeTime = @after AND Id > @lastGuidId)
+            ORDER BY ChangeTime, Id;
             """,
             cursor,
             take,
             reader => new StockMarketDailyTradeRecord(
-                Convert.ToInt64(reader["Id"]),
+                reader.GetGuid(reader.GetOrdinal("Id")),
                 reader.GetGuid(reader.GetOrdinal("InstrumentRef")),
-                Convert.ToInt64(reader["InsCode"]),
-                DateOnly.FromDateTime(Convert.ToDateTime(reader["TradeDateTime"])),
-                Decimal(reader["PClosing"]),
-                Decimal(reader["PDrCotVal"]),
-                Decimal(reader["ZTotTran"]),
-                Decimal(reader["QTotTran5J"]),
-                Decimal(reader["QTotCap"]),
-                Decimal(reader["PriceChange"]),
-                Decimal(reader["PriceMin"]),
-                Decimal(reader["PriceMax"]),
+                DateOnly.FromDateTime(Convert.ToDateTime(reader["TradeDate"])),
+                Decimal(reader["ClosingPrice"]),
+                Decimal(reader["LastTradedPrice"]),
+                Decimal(reader["TotalTransactions"]),
+                Decimal(reader["VolumeOfTradedShares"]),
+                Decimal(reader["TotalCapital"]),
+                NullableDecimal(reader["PriceChange"]) ?? 0m,
+                NullableDecimal(reader["PriceMin"]) ?? 0m,
+                NullableDecimal(reader["PriceMax"]) ?? 0m,
                 Decimal(reader["PriceYesterday"]),
-                Decimal(reader["PriceFirst"]),
-                Decimal(reader["MarketValue"]),
-                Date(reader["InsertDateTime"])),
+                NullableDecimal(reader["PriceFirst"]) ?? 0m,
+                NullableDecimal(reader["MarketValue"]) ?? 0m,
+                Date(reader["ChangeTime"])),
             cancellationToken);
 
     public Task<IReadOnlyList<StockMarketIntradayIndexRecord>> QueryIntradayIndicesAsync(
@@ -121,11 +129,16 @@ public sealed class SqlStockMarketDbQueryExecutor(
     public Task<IReadOnlyList<StockMarketHistoricalDailyIndexRecord>> QueryHistoricalDailyIndicesAsync(
         StockMarketPageCursor cursor, int take, CancellationToken cancellationToken) =>
         QueryAsync(
-            """
+            // Daily indices (شاخص روزانه): Tse.IndexNew, scoped to the named market indices
+            // (شاخص کل, کل فرابورس, بازده نقدی و قیمت, ۵۰ شرکت فعال‌تر, قیمت هم‌وزن, کل هم‌وزن).
+            // XNivInuClMresIbs is the close, XNivInuPhMresIbs the high, XNivInuPbMresIbs the low,
+            // and XVarIdxPhJClV the close-to-close change percentage.
+            $"""
             SELECT TOP (@take) Id, InstrumentRef, IndexDate, XNivInuClMresIbs, XNivInuPhMresIbs,
                    XNivInuPbMresIbs, XVarIdxPhJClV, ChangeTime
-            FROM Tse.IndexNew2
-            WHERE @after IS NULL OR ChangeTime > @after OR (ChangeTime = @after AND Id > @lastGuidId)
+            FROM Tse.IndexNew
+            WHERE InstrumentRef IN ({NamedIndexInstrumentRefList})
+              AND (@after IS NULL OR ChangeTime > @after OR (ChangeTime = @after AND Id > @lastGuidId))
             ORDER BY ChangeTime, Id;
             """,
             cursor,

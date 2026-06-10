@@ -40,7 +40,9 @@ public sealed class MetricRecalculationProcessor(
             },
             [ProviderDataset.MonthlyProductionSales] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "MONTHLY_SALES"
+                "MONTHLY_SALES",
+                // Spec 057: monthly-activity aggregates persisted per company-month for lookup.
+                "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE"
             }
         };
 

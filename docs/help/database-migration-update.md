@@ -177,3 +177,30 @@ The database may have schema objects created outside EF or from a partially appl
 ### Migration times out or locks
 
 Stop the API and Worker, verify no ingestion or scheduler job is running, then retry. For large data migrations, use a maintenance window.
+
+
+& "$env:USERPROFILE\.dotnet\tools\dotnet-ef.exe" migrations add AddArchiveImportRunsAndFreezeState `
+  --project src/backend/FinancialCopilot.Infrastructure `
+  --startup-project src/backend/FinancialCopilot.API `
+  --context FinancialIngestionDbContext `
+  --output-dir Financial/Ingestion/Persistence/Migrations
+
+
+$env:FINANCIAL_COPILOT_CONNECTION_STRING = "Server=localhost;Port=5432;Database=financial_copilot;User Id=maahfit;Password=Rayan1392!"
+& "$env:USERPROFILE\.dotnet\tools\dotnet-ef.exe" database update `
+  --project src/backend/FinancialCopilot.Infrastructure `
+  --startup-project src/backend/FinancialCopilot.API `
+  --context MemoryDbContext
+
+
+
+$project = "src/backend/FinancialCopilot.Infrastructure"
+$startup = "src/backend/FinancialCopilot.API"
+
+dotnet-ef database update --project $project --startup-project $startup --context AuthDbContext
+dotnet-ef database update --project $project --startup-project $startup --context BillingDbContext
+dotnet-ef database update --project $project --startup-project $startup --context SemanticCatalogDbContext
+dotnet-ef database update --project $project --startup-project $startup --context FinancialProviderDbContext
+dotnet-ef database update --project $project --startup-project $startup --context FinancialIngestionDbContext
+dotnet-ef database update --project $project --startup-project $startup --context ConversationDbContext
+dotnet-ef database update --project $project --startup-project $startup --context MemoryDbContext

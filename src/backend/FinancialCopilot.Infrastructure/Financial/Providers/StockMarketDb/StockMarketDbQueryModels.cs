@@ -31,9 +31,8 @@ public sealed record StockMarketIntradayTradeRecord(
     DateTimeOffset ReceiveDate);
 
 public sealed record StockMarketDailyTradeRecord(
-    long Id,
+    Guid Id,
     Guid InstrumentRef,
-    long InsCode,
     DateOnly TradeDate,
     decimal ClosingPrice,
     decimal LastTradedPrice,
@@ -46,7 +45,7 @@ public sealed record StockMarketDailyTradeRecord(
     decimal PriceYesterday,
     decimal PriceFirst,
     decimal MarketValue,
-    DateTimeOffset InsertDateTime);
+    DateTimeOffset ChangeTime);
 
 public sealed record StockMarketIntradayIndexRecord(
     Guid Id,

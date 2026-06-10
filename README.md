@@ -132,7 +132,14 @@ Content-Type: application/json
 ## StockMarketDB Trading Statistics
 
 Trading-statistics ingestion reads the separate SQL Server `StockMarketDB` source through a
-read-only adapter. Keep its connection string in secrets or environment configuration:
+read-only adapter. Authoritative source tables: instruments from `Tse.Instrument`, intraday
+trades from `Tse.Trade`, daily trades from `Tse.TradeRefined` (one refined price per trading day
+per instrument), intraday indices from `Tse.IndexB1LastDay`, and daily indices from
+`Tse.IndexNew` scoped to the named market indices (شاخص کل, کل فرابورس, بازده نقدی و قیمت,
+۵۰ شرکت فعال‌تر, قیمت هم‌وزن, کل هم‌وزن). Each dataset supports a bounded full-sync (historical
+backfill) and an overlap-watermark incremental sync that share the same idempotent normalizers.
+See [docs/stockmarketdb-trading-statistics-datasource.md](docs/stockmarketdb-trading-statistics-datasource.md)
+for the full mapping. Keep its connection string in secrets or environment configuration:
 
 ```powershell
 $env:StockMarketDb__ConnectionString = "Server=localhost;Database=StockMarketDB;User Id=sa;Password=<secret>;TrustServerCertificate=true"

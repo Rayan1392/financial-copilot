@@ -180,22 +180,10 @@ public sealed class NadpcoApiScheduledSyncServiceTests
     {
         await using var db = CreateDb();
         SeedCompanies(db, 3);
-        db.Companies.Add(new NormalizedCompanyRow
-        {
-            Id = Guid.NewGuid(),
-            ProviderName = ProviderSources.NoavaranArchiveSqlName,
-            ExternalCompanyId = "4",
-            Name = "Codal",
-            LastSynchronizedAt = Now
-        });
-        db.Companies.Add(new NormalizedCompanyRow
-        {
-            Id = Guid.NewGuid(),
-            ProviderName = ProviderSources.NoavaranCurrentApiName,
-            ExternalCompanyId = "not-numeric",
-            Name = "Bad",
-            LastSynchronizedAt = Now
-        });
+        var archive = EligibleCompany("4");
+        archive.ProviderName = ProviderSources.NoavaranArchiveSqlName;
+        db.Companies.Add(archive);
+        db.Companies.Add(EligibleCompany("not-numeric"));
         await db.SaveChangesAsync();
         var publisher = new RecordingPublisher();
         var service = NewService(db, publisher);
@@ -207,12 +195,92 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         Assert.DoesNotContain(publisher.Requests, request => request.ExternalReference == "4");
     }
 
+    [Fact]
+    public async Task Execute_ExcludesCompaniesOutsideTheNoavaranEligibilityScope()
+    {
+        await using var db = CreateDb();
+        SeedCompanies(db, 3);
+        // حق تقدم (rights) listing — excluded by PrecedencyRight.
+        var rights = EligibleCompany("5");
+        rights.PrecedencyRight = 1;
+        db.Companies.Add(rights);
+        // Off-market listing (e.g. fund market) — excluded by MarketId.
+        var offMarket = EligibleCompany("6");
+        offMarket.MarketId = Guid.NewGuid();
+        db.Companies.Add(offMarket);
+        // No market at all — excluded.
+        var noMarket = EligibleCompany("7");
+        noMarket.MarketId = null;
+        db.Companies.Add(noMarket);
+        await db.SaveChangesAsync();
+        var publisher = new RecordingPublisher();
+        var service = NewService(db, publisher);
+
+        var result = await service.ExecuteAsync(fullReload: true, CancellationToken.None);
+
+        Assert.Equal(1, result.CompaniesConsidered);
+        Assert.DoesNotContain(publisher.Requests, request => request.ExternalReference is "5" or "6" or "7");
+    }
+
+    [Fact]
+    public async Task IncrementalSync_WithoutBackfillMarker_SkipsMonthlyActivity()
+    {
+        await using var db = CreateDb();
+        SeedCompanies(db, 3);
+        var publisher = new RecordingPublisher();
+        var service = NewService(db, publisher, backfillState: new FakeBackfillState(completed: false));
+
+        await service.ExecuteAsync(fullReload: false, CancellationToken.None);
+
+        Assert.DoesNotContain(
+            publisher.Requests,
+            request => request.Dataset == ProviderDataset.MonthlyProductionSales);
+        Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.FinancialStatements);
+    }
+
+    [Fact]
+    public async Task IncrementalSync_WithBackfillMarker_RequestsOnlyPreviousShamsiMonth()
+    {
+        await using var db = CreateDb();
+        SeedCompanies(db, 3);
+        var publisher = new RecordingPublisher();
+        var service = NewService(db, publisher, backfillState: new FakeBackfillState(completed: true));
+
+        await service.ExecuteAsync(fullReload: false, CancellationToken.None);
+
+        var monthly = Assert.Single(
+            publisher.Requests,
+            request => request.Dataset == ProviderDataset.MonthlyProductionSales);
+        // 2026-06-03 = 13 Khordad 1405 → previous Shamsi month is Ordibehesht 1405 (1405/02).
+        Assert.Equal("1405/02/01", monthly.SourceDateRangeStartJalali);
+        Assert.Equal("1405/02/31", monthly.SourceDateRangeEndJalali);
+        Assert.Contains("-m140502", monthly.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task FullSync_KeepsUnboundedMonthlyActivityRegardlessOfMarker()
+    {
+        await using var db = CreateDb();
+        SeedCompanies(db, 3);
+        var publisher = new RecordingPublisher();
+        var service = NewService(db, publisher, backfillState: new FakeBackfillState(completed: false));
+
+        await service.ExecuteAsync(fullReload: true, CancellationToken.None);
+
+        var monthly = Assert.Single(
+            publisher.Requests,
+            request => request.Dataset == ProviderDataset.MonthlyProductionSales);
+        Assert.Null(monthly.SourceDateRangeStartJalali);
+        Assert.Null(monthly.SourceDateRangeEndJalali);
+    }
+
     private static NadpcoApiScheduledSyncService NewService(
         FinancialIngestionDbContext db,
         RecordingPublisher publisher,
         int overlapDays = 7,
         INadpcoCompanyCatalogCleanSlateService? cleanSlate = null,
-        IScannerCache? scannerCache = null) =>
+        IScannerCache? scannerCache = null,
+        IMonthlyActivityBackfillStateReader? backfillState = null) =>
         new(
             db,
             new EfCoreNadpcoApiSyncStateStore(db),
@@ -225,7 +293,14 @@ public sealed class NadpcoApiScheduledSyncServiceTests
             }),
             new FixedTimeProvider(Now),
             NullLogger<NadpcoApiScheduledSyncService>.Instance,
-            scannerCache);
+            scannerCache,
+            backfillState);
+
+    private sealed class FakeBackfillState(bool completed) : IMonthlyActivityBackfillStateReader
+    {
+        public Task<bool> IsBackfillCompletedAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(completed);
+    }
 
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
@@ -236,18 +311,24 @@ public sealed class NadpcoApiScheduledSyncServiceTests
     {
         foreach (var companyId in companyIds)
         {
-            db.Companies.Add(new NormalizedCompanyRow
-            {
-                Id = Guid.NewGuid(),
-                ProviderName = ProviderSources.NoavaranCurrentApiName,
-                ExternalCompanyId = companyId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                Name = $"Company {companyId}",
-                LastSynchronizedAt = Now
-            });
+            db.Companies.Add(EligibleCompany(companyId.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         db.SaveChanges();
     }
+
+    // Inside the Noavaran per-company request scope: equity (PrecedencyRight = 0) on a primary market.
+    private static NormalizedCompanyRow EligibleCompany(string externalCompanyId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = ProviderSources.NoavaranCurrentApiName,
+            ExternalCompanyId = externalCompanyId,
+            Name = $"Company {externalCompanyId}",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        };
 
     private sealed class RecordingPublisher : IDataSyncRequestPublisher
     {

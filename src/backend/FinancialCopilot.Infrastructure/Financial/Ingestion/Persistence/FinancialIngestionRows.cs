@@ -270,6 +270,15 @@ public sealed class NormalizedMonthlyReportLineItemRow
     public decimal? SalesQuantity { get; set; }
 
     public decimal? SalesAmount { get; set; }
+
+    /// <summary>Vendor product/service title (spec 057 model audit: normalized, not evidence-only).</summary>
+    public string? Title { get; set; }
+
+    /// <summary>Vendor measurement unit for the quantities (spec 057 model audit).</summary>
+    public string? Unit { get; set; }
+
+    /// <summary>Vendor per-line sales rate (price per unit) when supplied (spec 057 model audit).</summary>
+    public decimal? SalesRate { get; set; }
 }
 
 public sealed class DataSyncRunRow
@@ -487,6 +496,29 @@ public sealed class ArchiveFreezeStateRow
 }
 
 /// <summary>
+/// Single-row durable state for the manual Noavaran monthly-activity backfill (spec 057 Phase A).
+/// <see cref="IsCompleted"/> is the backfill-complete marker that switches the scheduled
+/// monthly-activity refresh to previous-Shamsi-month-only mode (Phase B). Per-company-month
+/// progress is owned by <c>ProviderSyncRuns</c> via deterministic idempotency keys; this row holds
+/// the planned scope and lifecycle facts.
+/// </summary>
+public sealed class MonthlyActivityBackfillStateRow
+{
+    public string SourceName { get; set; } = string.Empty;
+
+    public bool IsCompleted { get; set; }
+
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    public DateTimeOffset? LastStartedAt { get; set; }
+
+    public string? RequestedBy { get; set; }
+
+    /// <summary>JSON array of planned months: [{"y":1405,"m":2,"companies":700}, …] newest first.</summary>
+    public string PlannedMonthsJson { get; set; } = "[]";
+}
+
+/// <summary>
 /// All-index fundamental-index coverage observation (spec 050). One row per canonical
 /// (provider, company, index, period type, period end) vendor index value. This is a NON-SCANNABLE
 /// staging/coverage model: the scanner never reads it, and only the curated 041 path promotes
@@ -619,7 +651,7 @@ public sealed class DailyInstrumentTradeRow
 {
     public Guid Id { get; set; }
     public string ProviderName { get; set; } = string.Empty;
-    public long ExternalTradeId { get; set; }
+    public Guid ExternalTradeId { get; set; }
     public Guid TradingInstrumentId { get; set; }
     public DateOnly TradingDate { get; set; }
     public decimal ClosingPrice { get; set; }
@@ -668,6 +700,7 @@ public sealed class LatestMarketQuoteRow
     public decimal LatestPrice { get; set; }
     public decimal PriceChangePercentage { get; set; }
     public string SourceKind { get; set; } = string.Empty;
+    public DateOnly TradingDate { get; set; }
     public DateTimeOffset AsOf { get; set; }
 }
 

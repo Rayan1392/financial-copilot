@@ -42,6 +42,38 @@ public sealed class StockMarketDbSyncServiceTests
     }
 
     [Fact]
+    public async Task Instruments_LinkPrefersMostRecentlySyncedCompanyWhenInstrumentCodeIsShared()
+    {
+        await using var db = CreateDb();
+        var archiveId = Guid.NewGuid();
+        var currentId = Guid.NewGuid();
+        // Same InstrumentCode registered by two provider-scoped company rows (archive + current).
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = archiveId, ProviderName = "NoavaranArchiveSql", ExternalCompanyId = "A",
+            Name = "Archive", InstrumentCode = "123", LastSynchronizedAt = Now.AddYears(-1)
+        });
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = currentId, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "C",
+            Name = "Current", InstrumentCode = "123", LastSynchronizedAt = Now
+        });
+        await db.SaveChangesAsync();
+        var executor = new FakeExecutor
+        {
+            Instruments =
+            [
+                new(InstrumentRef, 123, "IRO1TEST0001", "TEST", "Test", "NO", "A", Now, true, false)
+            ]
+        };
+
+        await Service(db, executor).SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
+
+        var instrument = await db.TradingInstruments.SingleAsync();
+        Assert.Equal(currentId, instrument.NormalizedCompanyId);
+    }
+
+    [Fact]
     public async Task Instruments_PersistCanonicalRawPayloadChecksum()
     {
         await using var db = CreateDb();
@@ -128,6 +160,52 @@ public sealed class StockMarketDbSyncServiceTests
     }
 
     [Fact]
+    public async Task PersistedQuote_ReachableByInstrumentTickerWhenCompanyLinkageIsMissing()
+    {
+        await using var db = CreateDb();
+        // Instrument without a normalized company link (the common case for funds, rights, and
+        // listings whose company row comes from another provider): the quote must still resolve
+        // through the instrument's own TSE ticker.
+        await SeedInstrumentAsync(db, companyId: null);
+        var executor = new FakeExecutor
+        {
+            IntradayTrades =
+            [
+                new(Guid.NewGuid(), InstrumentRef, new DateOnly(2026, 6, 1), 5, 100, 1000,
+                    110, 10, 110, 10, 100, 110, 100, 100, new TimeOnly(12, 30), Now)
+            ]
+        };
+
+        await Service(db, executor).SynchronizeAsync(StockMarketDataset.IntradayTrades, true, CancellationToken.None);
+        var result = await Provider(db).GetLatestQuotesAsync([new SymbolCode("SYM")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(110, quote.LatestPrice);
+        Assert.Equal(MarketQuoteSource.LiveQuote, quote.Source);
+        Assert.Empty(result.UnavailableSymbols);
+    }
+
+    [Fact]
+    public async Task PersistedQuote_IntradayFromPreviousSessionIsNotReportedLive()
+    {
+        await using var db = CreateDb();
+        await SeedInstrumentAsync(db, companyId: null);
+        var instrumentId = await db.TradingInstruments.Select(row => row.Id).SingleAsync();
+        db.LatestMarketQuotes.Add(new LatestMarketQuoteRow
+        {
+            Id = Guid.NewGuid(), ProviderName = "StockMarketDb", TradingInstrumentId = instrumentId,
+            LatestPrice = 95, PriceChangePercentage = -1.5m, SourceKind = "Intraday",
+            TradingDate = DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-1), AsOf = Now.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Provider(db).GetLatestQuotesAsync([new SymbolCode("SYM")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
+    }
+
+    [Fact]
     public async Task IntradayTrade_MultipleSnapshotsInPageUpdateSingleLatestQuote()
     {
         await using var db = CreateDb();
@@ -150,6 +228,29 @@ public sealed class StockMarketDbSyncServiceTests
     }
 
     [Fact]
+    public async Task IntradayTrade_DuplicateSourceIdInSamePageUpsertsSingleRow()
+    {
+        await using var db = CreateDb();
+        await SeedLinkedInstrumentAsync(db);
+        var snapshotId = Guid.NewGuid();
+        var executor = new FakeExecutor
+        {
+            IntradayTrades =
+            [
+                new(snapshotId, InstrumentRef, new DateOnly(2026, 6, 1), 5, 100, 1000,
+                    110, 10, 110, 10, 100, 110, 100, 100, new TimeOnly(12, 30), Now.AddMinutes(-1)),
+                new(snapshotId, InstrumentRef, new DateOnly(2026, 6, 1), 6, 120, 1200,
+                    125, 25, 125, 25, 100, 125, 100, 100, new TimeOnly(12, 31), Now)
+            ]
+        };
+
+        await Service(db, executor).SynchronizeAsync(StockMarketDataset.IntradayTrades, true, CancellationToken.None);
+
+        var row = Assert.Single(await db.IntradayTradeSnapshots.ToListAsync());
+        Assert.Equal(125, row.LastTradedPrice);
+    }
+
+    [Fact]
     public async Task OlderDailyTrade_DoesNotOverwriteNewerIntradayQuote()
     {
         await using var db = CreateDb();
@@ -163,7 +264,7 @@ public sealed class StockMarketDbSyncServiceTests
             ],
             DailyTrades =
             [
-                new(1, InstrumentRef, 123, new DateOnly(2026, 5, 31), 90, 90, 5, 100, 1000,
+                new(Guid.NewGuid(), InstrumentRef, new DateOnly(2026, 5, 31), 90, 90, 5, 100, 1000,
                     -10, 90, 100, 100, 100, 5000, Now.AddDays(-1))
             ]
         };
@@ -193,6 +294,47 @@ public sealed class StockMarketDbSyncServiceTests
         var daily = await db.DailyIndexSnapshots.SingleAsync();
         Assert.Equal(2500, daily.Value);
         Assert.Equal("IntradayClose", daily.SourceKind);
+    }
+
+    [Fact]
+    public async Task HistoricalDailyIndex_PersistsNamedIndexCloseForTradingDay()
+    {
+        await using var db = CreateDb();
+        await SeedInstrumentAsync(db);
+        var executor = new FakeExecutor
+        {
+            HistoricalIndices =
+            [
+                new(Guid.NewGuid(), InstrumentRef, new DateOnly(2026, 6, 1),
+                    Value: 2_100_000, High: 2_150_000, Low: 2_050_000, ChangePercent: 0.75m, ChangeTime: Now)
+            ]
+        };
+
+        await Service(db, executor).SynchronizeAsync(
+            StockMarketDataset.HistoricalDailyIndices, true, CancellationToken.None);
+
+        var daily = await db.DailyIndexSnapshots.SingleAsync();
+        Assert.Equal(2_100_000, daily.Value);
+        Assert.Equal(new DateOnly(2026, 6, 1), daily.TradingDate);
+        Assert.Equal("HistoricalBackfill", daily.SourceKind);
+    }
+
+    [Fact]
+    public void NamedIndexCatalog_ExposesTheSixDailyIndexInstrumentRefs()
+    {
+        var expected = new[]
+        {
+            Guid.Parse("36423CB8-D33B-47AD-89D4-06FA49592CBA"), // شاخص کل
+            Guid.Parse("1B32B991-F48A-4F7E-9C0C-328D0B093EA5"), // شاخص کل فرابورس
+            Guid.Parse("B27FA320-194F-4710-8D12-277E245D33C5"), // شاخص بازده نقدی و قیمت
+            Guid.Parse("47CE7543-C052-4C44-BF0D-29281818FCA5"), // شاخص ۵۰ شرکت فعال‌تر
+            Guid.Parse("42FCE63E-6CEB-405B-9179-78606C210D86"), // شاخص قیمت (هم‌وزن)
+            Guid.Parse("D01F9D84-A1C8-46F3-A959-800DEF9E112F"), // شاخص کل (هم‌وزن)
+        };
+
+        Assert.Equal(expected, StockMarketNamedIndices.InstrumentRefs);
+        Assert.Equal(expected.Length, StockMarketNamedIndices.InstrumentRefs.Distinct().Count());
+        Assert.All(StockMarketNamedIndices.All, index => Assert.False(string.IsNullOrWhiteSpace(index.PersianName)));
     }
 
     [Fact]
@@ -256,10 +398,12 @@ public sealed class StockMarketDbSyncServiceTests
             ]
         };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<StockMarketUnresolvedInstrumentException>(
             () => Service(db, executor).SynchronizeAsync(
                 StockMarketDataset.IntradayTrades, false, CancellationToken.None));
 
+        Assert.Equal(StockMarketDataset.IntradayTrades, exception.Dataset);
+        Assert.Equal(1, exception.UnresolvedCount);
         Assert.Null((await db.StockMarketSyncStates.SingleAsync()).Watermark);
     }
 
@@ -302,7 +446,7 @@ public sealed class StockMarketDbSyncServiceTests
             cache ?? new NoOpScannerCache(), marketViewCache ?? new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
     private static PersistedMarketDataProvider Provider(FinancialIngestionDbContext db) =>
-        new(db, Options.Create(new StockMarketDbProviderOptions()));
+        new(db, Options.Create(new StockMarketDbProviderOptions()), new FixedTimeProvider(Now));
 
     private static async Task SeedLinkedInstrumentAsync(FinancialIngestionDbContext db)
     {
@@ -383,6 +527,8 @@ public sealed class StockMarketDbSyncServiceTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+        // Pin the local zone so "current trading day" derivation is deterministic on any machine.
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 
     private sealed class FakeRawPayloadStore : IProviderRawPayloadStore

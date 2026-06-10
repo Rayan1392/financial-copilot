@@ -84,20 +84,45 @@ public sealed class NadpcoApiDataProviderClient(
         CancellationToken cancellationToken)
     {
         var companyId = RequireReference(externalCompanyId);
-        // A backfill override lowers the requested start; the clamp still keeps it at/above the
-        // vendor-permitted 1404 monthly boundary (spec 042/053).
-        var requestedFromDate = boundaryOverride?.FromShamsiYear is { } overrideYear
-            ? $"{overrideYear}/01/01"
-            : _settings.MonthlyActivityFromDate;
+        // An explicit per-run month window (spec 057 backfill/steady-state) bounds the request to
+        // one Shamsi month and takes precedence; otherwise a backfill year override or the
+        // configured range applies. The clamp always keeps the start at/above the vendor-permitted
+        // 1404 monthly boundary (spec 042/053).
+        var requestedFromDate = boundaryOverride?.MonthlyActivityFromDate
+            ?? (boundaryOverride?.FromShamsiYear is { } overrideYear
+                ? $"{overrideYear}/01/01"
+                : _settings.MonthlyActivityFromDate);
+        var requestedToDate = boundaryOverride?.MonthlyActivityToDate ?? _settings.MonthlyActivityToDate;
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
             ClampMonthlyActivityFromDate(requestedFromDate),
-            _settings.MonthlyActivityToDate,
+            requestedToDate,
             _settings.MonthlyActivityOutputType);
         var serviceSalesBody = body with { OutputType = null };
-        var envelope = new NadpcoMonthlyActivityEnvelope(
-            await PostJsonForPayloadAsync("api/v2/MonthlyActivity/ProductSales", body, cancellationToken),
-            await PostJsonForPayloadAsync("api/v3/MonthlyActivity/ServiceSales", serviceSalesBody, cancellationToken));
+        var productSales = await PostJsonForPayloadAsync(
+            "api/v2/MonthlyActivity/ProductSales", body, cancellationToken);
+        // ServiceSales failures are isolated so they cannot poison the product-sales data of the
+        // same company-month: the vendor's v3 ServiceSales endpoint has been returning HTTP 500
+        // for this credential since 2026-06-07 while ProductSales succeeds. Degrade to an empty
+        // service-sales payload with a visible warning; service rows resume automatically once the
+        // vendor/permission is fixed and the month is re-requested.
+        string serviceSales;
+        try
+        {
+            serviceSales = await PostJsonForPayloadAsync(
+                "api/v3/MonthlyActivity/ServiceSales", serviceSalesBody, cancellationToken);
+        }
+        catch (FinancialProviderException exception)
+        {
+            logger.LogWarning(
+                "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
+                "persisting product sales only for this request.",
+                companyId,
+                exception.Code);
+            serviceSales = "[]";
+        }
+
+        var envelope = new NadpcoMonthlyActivityEnvelope(productSales, serviceSales);
         var json = JsonSerializer.Serialize(envelope, JsonOptions);
 
         return await StorePayloadAsync(

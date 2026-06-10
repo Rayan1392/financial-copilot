@@ -137,6 +137,20 @@ public sealed class NormalizedMonthlyReportLineItemRowConfiguration :
         builder.ToTable("MonthlyReportLineItems");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.MonthlyReportId, row.ProductCode }).IsUnique();
+        builder.Property(row => row.Title).HasMaxLength(512);
+        builder.Property(row => row.Unit).HasMaxLength(128);
+    }
+}
+
+public sealed class MonthlyActivityBackfillStateRowConfiguration :
+    IEntityTypeConfiguration<MonthlyActivityBackfillStateRow>
+{
+    public void Configure(EntityTypeBuilder<MonthlyActivityBackfillStateRow> builder)
+    {
+        builder.ToTable("MonthlyActivityBackfillStates");
+        builder.HasKey(row => row.SourceName);
+        builder.Property(row => row.SourceName).HasMaxLength(64);
+        builder.Property(row => row.RequestedBy).HasMaxLength(256);
     }
 }
 

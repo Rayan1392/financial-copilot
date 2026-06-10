@@ -360,6 +360,15 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
             },
             new NormalizedCompanyRow
             {
+                // staleFallbackCompanyId is the company that symbolFallbackId actually references —
+                // it is intentionally a different Id from companyFallbackId to exercise the
+                // stale-company-link path in the scanner.
+                Id = staleFallbackCompanyId, Name = "Stale Fallback Corp",
+                ProviderName = "test", ExternalCompanyId = "company-stale-fallback",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            },
+            new NormalizedCompanyRow
+            {
                 Id = companyHighPeId, Name = "High PE Corp",
                 ProviderName = "test", ExternalCompanyId = "company-highpe",
                 LastSynchronizedAt = DateTimeOffset.UtcNow
@@ -385,6 +394,31 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
                 SymbolCode = "HIGHPE", LastSynchronizedAt = DateTimeOffset.UtcNow
             });
 
+        // TradingInstruments + LatestMarketQuotes for PersistedMarketDataProvider.
+        // The join path is: LatestMarketQuotes → TradingInstruments.NormalizedCompanyId → Companies.Id
+        //                   ← Symbols.CompanyId — so instrument.NormalizedCompanyId must match the
+        //                   company that the symbol references.
+        var instrLive = SeedInstrument(db, companyLiveId, "LIVE");
+        var instrFallback = SeedInstrument(db, staleFallbackCompanyId, "FALLBACK");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        db.LatestMarketQuotes.AddRange(
+            new LatestMarketQuoteRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "StockMarketDb",
+                TradingInstrumentId = instrLive.Id,
+                LatestPrice = 15_000m, PriceChangePercentage = 1.5m,
+                SourceKind = "Intraday", TradingDate = today,
+                AsOf = DateTimeOffset.UtcNow
+            },
+            new LatestMarketQuoteRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "StockMarketDb",
+                TradingInstrumentId = instrFallback.Id,
+                LatestPrice = 8_000m, PriceChangePercentage = -0.5m,
+                SourceKind = "Daily", TradingDate = today.AddDays(-1),
+                AsOf = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -403,6 +437,28 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
             MakeDerivedMetric(symbolLiveId, "MARKET_CAP", 5_000_000_000m, periodStart, periodEnd, now),
             MakeDerivedMetric(symbolFallbackId, "MARKET_CAP", 2_000_000_000m, periodStart, periodEnd, now),
             MakeDerivedMetric(symbolHighPeId, "MARKET_CAP", 800_000_000m, periodStart, periodEnd, now));
+    }
+
+    private static TradingInstrumentRow SeedInstrument(FinancialIngestionDbContext db, Guid normalizedCompanyId, string symbol)
+    {
+        var row = new TradingInstrumentRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = Math.Abs((long)Guid.NewGuid().GetHashCode()),
+            InstrumentIsin = $"IRO1{symbol}0001",
+            Symbol = symbol,
+            Name = symbol,
+            MarketCode = "NO",
+            InstrumentKind = "A",
+            NormalizedCompanyId = normalizedCompanyId,
+            IsActive = true,
+            SourceChangedAt = DateTimeOffset.UtcNow,
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        };
+        db.TradingInstruments.Add(row);
+        return row;
     }
 
     private static DerivedMetricRow MakeDerivedMetric(

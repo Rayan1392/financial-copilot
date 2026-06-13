@@ -263,6 +263,18 @@ items are lower priority than the corrected data-source backlog above.
 
 | [ ] | 60 | [056](./056-native-microsoft-agent-framework-workflows/user-story.md) / [tasks](./056-native-microsoft-agent-framework-workflows/tasks.md) | Native Microsoft Agent Framework Workflows | **Priority: Medium-High.** Depends on `047`, `018`, `017`, and `019`; replace the current manual V2 orchestration chain with native Microsoft Agent Framework Workflow primitives, workflow state management, workflow telemetry, step-based execution, and future-ready orchestration patterns. Preserve `POST /api/ai/v1/query`, existing DTOs, Billing finalization, deterministic Scanner/Symbol Lookup execution, conversation memory, explainability, and V1 rollback compatibility. Prepare the architecture for future Deep Research, Multi-Agent workflows, Human-in-the-Loop approval, workflow branching, and parallel tool execution without requiring orchestration redesign. |
 
+### Stage 18 - Live Data Sync Monitor
+
+This story adds a live monitoring surface for all active and recent data synchronization runs.
+The backend aggregates existing run-state rows from all providers into a single snapshot
+endpoint and an SSE stream; the frontend admin page subscribes to the stream and shows live
+run cards, record counts, error counts, and duration — updating automatically without page
+refresh. No new persistent tables are introduced.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 62 | [058](./058-live-data-sync-monitor/user-story.md) / [tasks](./058-live-data-sync-monitor/tasks.md) | Live Data Sync Monitor | **Priority: High.** Depends on `012`, `031`, `037`, `055`, and the run-state persistence introduced by `030`, `043`, `044`, `052`, `053`, `057`. Add `IDataSyncActivityReader` (aggregates all existing provider run readers into a single snapshot DTO), `GET /api/v1/admin/data-sync/activity` (snapshot REST endpoint), `GET /api/v1/admin/data-sync/activity/stream` (SSE stream with poll-diff fan-out, connection cap, graceful shutdown), and a React admin page at `/admin/data/monitor` with live run cards, summary strip, filter bar, detail panel, history table, and SSE-to-polling fallback. No new EF migrations or persistent tables. |
+
 ## Supersession Notes
 
 - `044-nadpco-api-scheduled-sync-worker` should not be implemented as a recurring worker for an archive source.

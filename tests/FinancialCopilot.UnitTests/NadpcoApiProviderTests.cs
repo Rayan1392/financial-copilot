@@ -1,9 +1,5 @@
-using System.Net;
-using System.Text;
-using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers;
-using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +7,9 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Options;
+using System.Net;
+using System.Text;
+using System.Text.Json;
 
 namespace FinancialCopilot.UnitTests;
 

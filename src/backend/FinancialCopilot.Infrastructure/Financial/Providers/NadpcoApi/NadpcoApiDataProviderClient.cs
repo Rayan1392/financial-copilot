@@ -105,11 +105,31 @@ public sealed class NadpcoApiDataProviderClient(
             FromDate: null,
             ToDate: null,
             OutputType: null);
-        var productSales = await PostJsonForPayloadAsync(
-            BuildMonthlyActivityEndpoint(
-                "api/v2/MonthlyActivity/ProductSales", fromToken, toToken, _settings.MonthlyActivityOutputType),
-            body,
-            cancellationToken);
+
+        // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
+        // block the others. Null means the fetch failed; the normalizer skips null slots.
+        var productSalesByType = new string?[5];
+        for (var outputTypeId = 0; outputTypeId <= 4; outputTypeId++)
+        {
+            try
+            {
+                productSalesByType[outputTypeId] = await PostJsonForPayloadAsync(
+                    BuildMonthlyActivityEndpoint(
+                        "api/v2/MonthlyActivity/ProductSales", fromToken, toToken, outputTypeId),
+                    body,
+                    cancellationToken);
+            }
+            catch (FinancialProviderException exception)
+            {
+                logger.LogWarning(
+                    "NADPCO ProductSales outputTypeId={OutputTypeId} fetch failed for company {CompanyId} " +
+                    "({ProviderErrorCode}); skipping this output type.",
+                    outputTypeId,
+                    companyId,
+                    exception.Code);
+            }
+        }
+
         // ServiceSales failures are isolated so they cannot poison the product-sales data of the
         // same company-month. Degrade to an empty service-sales payload with a visible warning;
         // service rows resume once the month is re-requested.
@@ -132,7 +152,13 @@ public sealed class NadpcoApiDataProviderClient(
             serviceSales = "[]";
         }
 
-        var envelope = new NadpcoMonthlyActivityEnvelope(productSales, serviceSales);
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            productSalesByType[0],
+            productSalesByType[1],
+            productSalesByType[2],
+            productSalesByType[3],
+            productSalesByType[4],
+            serviceSales);
         var json = JsonSerializer.Serialize(envelope, JsonOptions);
 
         return await StorePayloadAsync(

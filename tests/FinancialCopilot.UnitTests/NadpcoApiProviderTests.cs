@@ -325,8 +325,7 @@ public sealed class NadpcoApiProviderTests
             {
                 // Permitted range (Shamsi 1404+); flows through unchanged.
                 MonthlyActivityFromDate = "1404/01/01",
-                MonthlyActivityToDate = "1404/12/29",
-                MonthlyActivityOutputType = 2
+                MonthlyActivityToDate = "1404/12/29"
             }),
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance);
@@ -334,16 +333,23 @@ public sealed class NadpcoApiProviderTests
         var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
 
         Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
-        Assert.Equal(2, requests.Count);
-        Assert.Contains(requests, r => r.Uri.Contains("ProductSales"));
-        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales"));
+        // 5 ProductSales requests (outputTypeId 0–4) + 1 ServiceSales request.
+        Assert.Equal(6, requests.Count);
+        Assert.Equal(5, requests.Count(r => r.Uri.Contains("ProductSales")));
+        Assert.Equal(1, requests.Count(r => r.Uri.Contains("ServiceSales")));
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
         // Live-verified contract (spec 057): Shamsi bounds are year+month query-string tokens;
         // the JSON body must not carry dates (v3 ServiceSales returns HTTP 500 otherwise).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
         Assert.All(requests, r => Assert.Contains("toDate=140412", r.Uri));
         Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\"", r.Body));
-        Assert.Contains(requests, r => r.Uri.Contains("ProductSales") && r.Uri.Contains("outputTypeId=2"));
+        for (var outputTypeId = 0; outputTypeId <= 4; outputTypeId++)
+        {
+            var id = outputTypeId;
+            Assert.Contains(requests,
+                r => r.Uri.Contains("ProductSales") && r.Uri.Contains($"outputTypeId={id}"));
+        }
+
         Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Uri.Contains("outputTypeId"));
     }
 
@@ -373,24 +379,25 @@ public sealed class NadpcoApiProviderTests
             {
                 // Earlier than the permitted Shamsi 1404 boundary — must be clamped up to 1404/01/01.
                 MonthlyActivityFromDate = "1401/01/01",
-                MonthlyActivityToDate = null,
-                MonthlyActivityOutputType = null
+                MonthlyActivityToDate = null
             }),
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance);
 
         await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
 
-        Assert.Equal(2, requests.Count);
+        // 5 ProductSales requests (outputTypeId 0–4) + 1 ServiceSales request.
+        Assert.Equal(6, requests.Count);
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
         // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary
         // and travels as a year+month query token (live-verified contract, spec 057).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
         Assert.All(requests, r => Assert.DoesNotContain("fromDate=140101", r.Uri));
         Assert.All(requests, r => Assert.DoesNotContain("toDate", r.Uri));
-        Assert.All(requests, r => Assert.DoesNotContain("outputTypeId", r.Uri));
         Assert.All(requests, r => Assert.DoesNotContain("\"fromDate\"", r.Body));
         Assert.All(requests, r => Assert.DoesNotContain("\"outputType\"", r.Body));
+        // ProductSales requests carry outputTypeId 0–4; ServiceSales request must not.
+        Assert.Contains(requests, r => r.Uri.Contains("ServiceSales") && !r.Uri.Contains("outputTypeId"));
     }
 
     [Fact]

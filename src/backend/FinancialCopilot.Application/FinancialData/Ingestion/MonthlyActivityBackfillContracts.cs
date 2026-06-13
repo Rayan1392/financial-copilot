@@ -58,4 +58,5 @@ public sealed record MonthlyActivityBackfillProgress(
     DateTimeOffset? CompletedAt,
     DateTimeOffset? LastStartedAt,
     string? RequestedBy,
-    IReadOnlyCollection<MonthlyActivityBackfillMonthProgress> Months);
+    IReadOnlyCollection<MonthlyActivityBackfillMonthProgress> Months,
+    IReadOnlyDictionary<int, int>? OutputTypeCounts = null);

@@ -166,13 +166,23 @@ public sealed class MonthlyActivityBackfillCoordinator(
                 months.Length);
         }
 
+        var outputTypeCounts = await dbContext.MonthlyReports.AsNoTracking()
+            .Where(row => row.ProviderName == providerName && row.OutputType != null)
+            .GroupBy(row => row.OutputType!.Value)
+            .Select(group => new { OutputType = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+        var outputTypeCountsDict = outputTypeCounts.Count > 0
+            ? (IReadOnlyDictionary<int, int>)outputTypeCounts.ToDictionary(x => x.OutputType, x => x.Count)
+            : null;
+
         return new MonthlyActivityBackfillProgress(
             Started: state.LastStartedAt is not null,
             state.IsCompleted,
             state.CompletedAt,
             state.LastStartedAt,
             state.RequestedBy,
-            months);
+            months,
+            outputTypeCountsDict);
     }
 
     public async Task<bool> IsBackfillCompletedAsync(CancellationToken cancellationToken) =>

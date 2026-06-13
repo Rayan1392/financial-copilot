@@ -133,9 +133,26 @@ public sealed record NadpcoApiFundamentalIndexItem(
     [property: JsonPropertyName("companyIndexValue")] decimal? CompanyIndexValue,
     [property: JsonPropertyName("companyIndexUnit")] string? CompanyIndexUnit);
 
+/// <summary>
+/// Current multi-output-type envelope (spec 059). Each <c>ProductSalesType{N}</c> field holds the
+/// raw JSON for outputTypeId N (0–4). <c>ServiceSales</c> has no output-type parameter.
+/// Null/missing fields mean the fetch for that output type was skipped or failed.
+/// </summary>
 public sealed record NadpcoMonthlyActivityEnvelope(
-    string ProductSales,
+    string? ProductSalesType0,
+    string? ProductSalesType1,
+    string? ProductSalesType2,
+    string? ProductSalesType3,
+    string? ProductSalesType4,
     string ServiceSales);
+
+/// <summary>
+/// Legacy 2-field envelope written before spec 059. Deserialized for backward compatibility so old
+/// stored payloads normalize without error. Treated as output-type 0 with <c>OutputType = null</c>.
+/// </summary>
+public sealed record NadpcoMonthlyActivityLegacyEnvelope(
+    string? ProductSales,
+    string? ServiceSales);
 
 public sealed class NadpcoApiProductSalesRecord
 {

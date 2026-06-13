@@ -263,6 +263,14 @@ items are lower priority than the corrected data-source backlog above.
 
 | [ ] | 60 | [056](./056-native-microsoft-agent-framework-workflows/user-story.md) / [tasks](./056-native-microsoft-agent-framework-workflows/tasks.md) | Native Microsoft Agent Framework Workflows | **Priority: Medium-High.** Depends on `047`, `018`, `017`, and `019`; replace the current manual V2 orchestration chain with native Microsoft Agent Framework Workflow primitives, workflow state management, workflow telemetry, step-based execution, and future-ready orchestration patterns. Preserve `POST /api/ai/v1/query`, existing DTOs, Billing finalization, deterministic Scanner/Symbol Lookup execution, conversation memory, explainability, and V1 rollback compatibility. Prepare the architecture for future Deep Research, Multi-Agent workflows, Human-in-the-Loop approval, workflow branching, and parallel tool execution without requiring orchestration redesign. |
 
+### Stage 17b - Monthly Activity Output Type Segmentation
+
+Fetch and store all 5 `outputTypeId` variants (0–4) of the Noavaran Amin product-sales endpoint per company-month, so the AI query layer can serve both single-month and year-to-date sales figures without additional API calls at query time.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [x] | 63 | [059](./059-monthly-activity-output-type-segmentation/user-story.md) / [tasks](./059-monthly-activity-output-type-segmentation/tasks.md) | Monthly Activity Output Type Segmentation | **Priority: High.** Depends on `042` and `057`; fetch all 5 `outputTypeId` variants (0–4) per company-month from `api/v2/MonthlyActivity/ProductSales`, persist each as a separate `MonthlyReports` row with new `OutputType` column, add backward-compat normalizer for old two-field envelope payloads, add `MonthlyActivityOutputTypeResolver` for AI query routing (Story C, separate milestone). EF migration required. |
+
 ### Stage 18 - Live Data Sync Monitor
 
 This story adds a live monitoring surface for all active and recent data synchronization runs.

@@ -18,14 +18,18 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
     public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
-        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(payload.Payload, JsonOptions) ??
-            throw new FinancialProviderException(
-                FinancialProviderErrorCode.InvalidResponse,
-                "NADPCO monthly-activity envelope is invalid.");
+        var (productSalesSlots, serviceSalesJson) = DeserializeEnvelope(payload.Payload);
 
         var items = new List<NadpcoApiMonthlyActivityItem>();
-        items.AddRange(ReadProductSales(envelope.ProductSales));
-        items.AddRange(ReadServiceSales(envelope.ServiceSales));
+        foreach (var (json, outputTypeHint) in productSalesSlots)
+        {
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                items.AddRange(ReadProductSales(json, outputTypeHint));
+            }
+        }
+
+        items.AddRange(ReadServiceSales(serviceSalesJson ?? "[]"));
 
         var groupedReports = items
             .GroupBy(item => new
@@ -59,6 +63,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             }
 
             report.ExternalCompanyId = first.ExternalCompanyId;
+            report.OutputType = first.OutputType;
             report.PeriodStart = periodStart;
             report.PeriodEnd = periodEnd;
             report.ReportType = first.SourceKind;
@@ -98,7 +103,42 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         return groupedReports.Length;
     }
 
-    private static IReadOnlyList<NadpcoApiMonthlyActivityItem> ReadProductSales(string json)
+    // Deserializes the envelope payload. Tries the new 6-field shape (spec 059) first; falls back to
+    // the legacy 2-field shape for payloads stored before the spec-059 migration. Legacy ProductSales
+    // content is returned as a single slot with a null output-type hint (backward compat: OutputType
+    // will be taken from the record itself, or remain null for truly old payloads).
+    private static (IReadOnlyList<(string? Json, int? OutputTypeHint)> ProductSlots, string? ServiceSalesJson)
+        DeserializeEnvelope(string rawPayload)
+    {
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(rawPayload, JsonOptions);
+        if (envelope is not null &&
+            (envelope.ProductSalesType0 ?? envelope.ProductSalesType1 ?? envelope.ProductSalesType2 ??
+             envelope.ProductSalesType3 ?? envelope.ProductSalesType4) is not null)
+        {
+            var slots = new (string?, int?)[]
+            {
+                (envelope.ProductSalesType0, 0),
+                (envelope.ProductSalesType1, 1),
+                (envelope.ProductSalesType2, 2),
+                (envelope.ProductSalesType3, 3),
+                (envelope.ProductSalesType4, 4),
+            };
+            return (slots, envelope.ServiceSales);
+        }
+
+        // Legacy envelope: fall back to the old 2-field shape.
+        var legacy = JsonSerializer.Deserialize<NadpcoMonthlyActivityLegacyEnvelope>(rawPayload, JsonOptions);
+        if (legacy is null)
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                "NADPCO monthly-activity envelope is invalid.");
+        }
+
+        return ([(legacy.ProductSales, null)], legacy.ServiceSales);
+    }
+
+    private static IReadOnlyList<NadpcoApiMonthlyActivityItem> ReadProductSales(string json, int? outputTypeHint)
     {
         IReadOnlyList<NadpcoApiProductSalesRecord> records;
         try
@@ -123,14 +163,15 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             var items = record.ProductSales is { Count: > 0 }
                 ? record.ProductSales
                 : [record];
-            return items.Select((item, index) => BuildProductItem(record, item, index));
+            return items.Select((item, index) => BuildProductItem(record, item, index, outputTypeHint));
         }).ToArray();
     }
 
     private static NadpcoApiMonthlyActivityItem BuildProductItem(
         NadpcoApiProductSalesRecord parent,
         NadpcoApiProductSalesRecord item,
-        int index)
+        int index,
+        int? outputTypeHint = null)
     {
         var companyId = RequireCompanyId(item.GetCompanyId() ?? parent.GetCompanyId(), "product-sales");
         var year = RequireYear(item.Year ?? parent.Year, "product-sales");
@@ -140,7 +181,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         var categoryId = item.CategoryID ?? parent.CategoryID;
         var category = item.CategoryTitle ?? parent.CategoryTitle ??
             categoryId?.ToString(CultureInfo.InvariantCulture);
-        var outputType = item.GetOutputType() ?? parent.GetOutputType();
+        // Record-level outputType takes precedence; fall back to the envelope-slot hint (which is
+        // authoritative for the new multi-type envelope) so legacy payloads still normalize.
+        var outputType = item.GetOutputType() ?? parent.GetOutputType() ?? outputTypeHint;
         var vendorCode = item.GetProductCode();
         var lineItemCode = BuildLineItemCode("PRODUCT", vendorCode, title, category, unit, index);
         var externalReportId = BuildExternalReportId(
@@ -257,12 +300,15 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         int? OutputType,
         int? categoryId)
     {
+        var outputPart = OutputType?.ToString(CultureInfo.InvariantCulture) ?? "none";
+
         if (activityId is not null)
         {
-            return $"{sourceKind}:{activityId.Value.ToString(CultureInfo.InvariantCulture)}";
+            return string.Create(
+                CultureInfo.InvariantCulture,
+                $"{sourceKind}:{activityId.Value}:output-{outputPart}");
         }
 
-        var outputPart = OutputType?.ToString(CultureInfo.InvariantCulture) ?? "none";
         var categoryPart = categoryId?.ToString(CultureInfo.InvariantCulture) ?? "none";
         return string.Create(
             CultureInfo.InvariantCulture,

@@ -126,6 +126,7 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId }).IsUnique();
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);
+        builder.Property(row => row.OutputType);
     }
 }
 

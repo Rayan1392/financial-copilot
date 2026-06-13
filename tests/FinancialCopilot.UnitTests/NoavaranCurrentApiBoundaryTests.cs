@@ -56,7 +56,7 @@ public sealed class NoavaranCurrentApiBoundaryTests
         await client.FetchMonthlyReportsAsync("13150", CancellationToken.None);
 
         var monthly = requests.Where(r => r.Uri.Contains("MonthlyActivity")).ToArray();
-        Assert.Equal(2, monthly.Length); // ProductSales (v2) + ServiceSales (v3)
+        Assert.Equal(6, monthly.Length); // 5 ProductSales (outputTypeId 0–4) + 1 ServiceSales
         Assert.All(monthly, r =>
         {
             Assert.Contains("fromDate=140502", r.Uri);
@@ -92,8 +92,8 @@ public sealed class NoavaranCurrentApiBoundaryTests
         var client = CreateClient(httpClient, new NoavaranCurrentApiBoundaryOverride());
         var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
 
-        // The envelope is stored with an empty service-sales part instead of failing the fetch.
-        Assert.Contains("\"productSales\":\"[]\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
+        // The envelope is stored with the new 6-field shape; service-sales degrades to "[]".
+        Assert.Contains("\"productSalesType0\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"serviceSales\":\"[]\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
     }
 

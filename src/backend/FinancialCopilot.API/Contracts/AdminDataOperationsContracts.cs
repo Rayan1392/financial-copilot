@@ -153,7 +153,8 @@ public sealed record AdminMonthlyActivityBackfillProgressResponse(
     DateTimeOffset? CompletedAt,
     DateTimeOffset? LastStartedAt,
     string? RequestedBy,
-    IReadOnlyCollection<AdminMonthlyActivityBackfillMonthResponse> Months);
+    IReadOnlyCollection<AdminMonthlyActivityBackfillMonthResponse> Months,
+    IReadOnlyDictionary<int, int>? OutputTypeCounts = null);
 
 public sealed record AdminCurrentApiGapResponse(
     int CurrentApiBoundaryShamsiYear,

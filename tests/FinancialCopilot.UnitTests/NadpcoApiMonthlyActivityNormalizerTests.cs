@@ -134,7 +134,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.Equal(1, count);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal(ProviderName, report.ProviderName);
-        Assert.Equal("ProductSales:1001", report.ExternalReportId);
+        Assert.Equal("ProductSales:1001:output-2", report.ExternalReportId);
         Assert.Equal(CompanyId, report.ExternalCompanyId);
         var lineItems = await db.MonthlyReportLineItems.ToListAsync();
         Assert.Equal(2, lineItems.Count);
@@ -153,7 +153,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         Assert.Equal(1, count);
         var report = await db.MonthlyReports.SingleAsync();
-        Assert.Equal("ServiceSales:2001", report.ExternalReportId);
+        Assert.Equal("ServiceSales:2001:output-none", report.ExternalReportId);
         var item = await db.MonthlyReportLineItems.SingleAsync();
         Assert.Equal("SERVICE:501", item.ProductCode);
         Assert.Null(item.ProductionQuantity);
@@ -224,7 +224,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             Id = Guid.NewGuid(),
             ProviderName = ProviderSources.NoavaranArchiveSqlName,
             ExternalCompanyId = CompanyId,
-            ExternalReportId = "ProductSales:1001",
+            ExternalReportId = "ProductSales:1001:output-2",
             PeriodStart = new DateOnly(2023, 3, 21),
             PeriodEnd = new DateOnly(2023, 4, 20),
             SourcePayloadChecksum = "codal",
@@ -234,7 +234,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         await CreateNormalizer(db).NormalizeAsync(MakePayload(ProductSalesJson, "[]"), CancellationToken.None);
 
-        Assert.Equal(2, await db.MonthlyReports.CountAsync(row => row.ExternalReportId == "ProductSales:1001"));
+        Assert.Equal(2, await db.MonthlyReports.CountAsync(row => row.ExternalReportId == "ProductSales:1001:output-2"));
     }
 
     [Fact]
@@ -426,9 +426,135 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.Equal("پروژه‌های مسکن و ساختمان", item.Title);
     }
 
+    [Fact]
+    public async Task Normalize_NewEnvelope_StoresAllFiveOutputTypes()
+    {
+        await using var db = CreateDb();
+
+        // Single product JSON with activityID=9001 in each slot; outputType in the record itself
+        // overrides the slot hint, so we use records without an embedded outputType to test the hint.
+        var productJson = """
+            [{"activityID": 9001, "com_ID": 3, "year": 1404, "month": 3,
+              "productTitle": "P", "productUnit": "ton", "salesQuantity": 1, "salesValue": 100}]
+            """;
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            ProductSalesType0: productJson,
+            ProductSalesType1: productJson,
+            ProductSalesType2: productJson,
+            ProductSalesType3: productJson,
+            ProductSalesType4: productJson,
+            ServiceSales: "[]");
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(), ProviderName, ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales", CompanyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            "checksum-multi", Now);
+
+        var count = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        Assert.Equal(5, count);
+        Assert.Equal(5, await db.MonthlyReports.CountAsync());
+        // Each report should have its slot output-type hint set (0–4).
+        var outputTypes = await db.MonthlyReports.Select(r => r.OutputType).OrderBy(t => t).ToListAsync();
+        Assert.Equal([0, 1, 2, 3, 4], outputTypes);
+        // ExternalReportIds must be distinct (include output type suffix).
+        var ids = await db.MonthlyReports.Select(r => r.ExternalReportId).ToListAsync();
+        Assert.Equal(5, ids.Distinct().Count());
+        Assert.All(ids, id => Assert.Contains(":output-", id));
+    }
+
+    [Fact]
+    public async Task Normalize_LegacyEnvelope_BackwardCompat_OutputTypeNull()
+    {
+        await using var db = CreateDb();
+
+        // MakeLegacyPayload uses the old 2-field envelope; outputType should be null (no slot hint,
+        // no outputType field in the record).
+        var legacyJson = """
+            [{"activityID": 8001, "com_ID": 3, "year": 1402, "month": 1,
+              "productTitle": "OldProduct", "productUnit": "kg",
+              "salesQuantity": 50, "salesValue": 5000}]
+            """;
+
+        var count = await CreateNormalizer(db).NormalizeAsync(
+            MakeLegacyPayload(legacyJson, "[]"), CancellationToken.None);
+
+        Assert.Equal(1, count);
+        var report = await db.MonthlyReports.SingleAsync();
+        Assert.Null(report.OutputType);
+        Assert.Equal("ProductSales:8001:output-none", report.ExternalReportId);
+    }
+
+    [Fact]
+    public async Task Normalize_NullEnvelopeSlots_NoRowCreated()
+    {
+        await using var db = CreateDb();
+
+        // All product-sales slots null, empty service sales → no reports.
+        var envelope = new NadpcoMonthlyActivityEnvelope(null, null, null, null, null, "[]");
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(), ProviderName, ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales", CompanyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            "checksum-empty", Now);
+
+        var count = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        Assert.Equal(0, count);
+        Assert.Equal(0, await db.MonthlyReports.CountAsync());
+    }
+
+    [Fact]
+    public async Task BuildExternalReportId_IncludesOutputType_WhenActivityIdPresent()
+    {
+        await using var db = CreateDb();
+
+        // Record has activityID=5555 and outputType=1 — ExternalReportId must include both.
+        var json = """
+            [{"activityID": 5555, "com_ID": 3, "year": 1404, "month": 5,
+              "outputType": 1,
+              "productTitle": "CheckProduct", "salesQuantity": 1, "salesValue": 10}]
+            """;
+        var envelope = new NadpcoMonthlyActivityEnvelope(null, json, null, null, null, "[]");
+        var payload = new ProviderRawPayload(
+            Guid.NewGuid(), ProviderName, ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales", CompanyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            "cs", Now);
+
+        await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        var report = await db.MonthlyReports.SingleAsync();
+        Assert.Equal("ProductSales:5555:output-1", report.ExternalReportId);
+        Assert.Equal(1, report.OutputType);
+    }
+
+    // Wraps product sales JSON in the new 6-field envelope; uses slot 2 to match the outputType
+    // embedded in the existing test JSON constants (outputType: 2). Pass null to leave a slot empty.
     private static ProviderRawPayload MakePayload(string productSalesJson, string serviceSalesJson)
     {
-        var envelope = new NadpcoMonthlyActivityEnvelope(productSalesJson, serviceSalesJson);
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            ProductSalesType0: null,
+            ProductSalesType1: null,
+            ProductSalesType2: productSalesJson == "[]" ? null : productSalesJson,
+            ProductSalesType3: null,
+            ProductSalesType4: null,
+            ServiceSales: serviceSalesJson);
+        return new ProviderRawPayload(
+            Guid.NewGuid(),
+            ProviderName,
+            ProviderDataset.MonthlyProductionSales,
+            "api/v*/MonthlyActivity/*Sales",
+            CompanyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            "checksum-" + Guid.NewGuid(),
+            Now);
+    }
+
+    // Wraps product sales JSON in the legacy 2-field envelope for backward-compatibility tests.
+    private static ProviderRawPayload MakeLegacyPayload(string productSalesJson, string serviceSalesJson)
+    {
+        var envelope = new NadpcoMonthlyActivityLegacyEnvelope(productSalesJson, serviceSalesJson);
         return new ProviderRawPayload(
             Guid.NewGuid(),
             ProviderName,

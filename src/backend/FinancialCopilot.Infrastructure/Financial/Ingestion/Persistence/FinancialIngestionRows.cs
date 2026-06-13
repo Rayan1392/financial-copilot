@@ -258,6 +258,13 @@ public sealed class NormalizedMonthlyReportRow
 
     /// <summary>Report kind from the vendor: <c>ProductSales</c> or <c>ServiceSales</c>.</summary>
     public string? ReportType { get; set; }
+
+    /// <summary>
+    /// NADPCO outputTypeId (0–4). See spec 059.
+    /// 0 = single month, 1 = YTD, 2 = adjustments, 3 = YTD prev adjusted, 4 = YTD prev.
+    /// Null for ServiceSales rows (endpoint has no outputTypeId parameter) and legacy rows.
+    /// </summary>
+    public int? OutputType { get; set; }
 }
 
 public sealed class NormalizedMonthlyReportLineItemRow

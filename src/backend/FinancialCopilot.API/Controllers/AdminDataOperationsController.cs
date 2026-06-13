@@ -381,7 +381,8 @@ public sealed class AdminDataOperationsController(
                 month.CompaniesPlanned,
                 month.CompaniesCompleted,
                 month.CompaniesFailed,
-                month.Status)).ToArray());
+                month.Status)).ToArray(),
+            progress.OutputTypeCounts);
 
     // --- Spec 050: NADPCO all-index fundamental-index catch-up coverage (DataAdmin only) ---
     // Distinct from the curated 041 fundamental-index sync: this fetches EVERY vendor index

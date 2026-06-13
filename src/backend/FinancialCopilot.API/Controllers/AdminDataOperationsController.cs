@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.Json;
+using System.Threading.Channels;
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.Authentication;
@@ -6,6 +9,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.MissingAnswer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -37,6 +41,7 @@ public sealed class AdminDataOperationsController(
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
+    IDataSyncActivityMonitor activityMonitor,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -700,6 +705,122 @@ public sealed class AdminDataOperationsController(
             source.RecentSuccessfulRuns,
             source.RecentFailedRuns)).ToArray());
     }
+
+    // --- Spec 058: live data sync monitor ---
+
+    [HttpGet("data-sync/activity")]
+    public async Task<ActionResult<AdminDataSyncActivitySnapshotResponse>> GetDataSyncActivity(
+        [FromQuery] int recentPerProvider = 5,
+        CancellationToken cancellationToken = default)
+    {
+        if (recentPerProvider is < 1 or > 20)
+        {
+            ModelState.AddModelError(nameof(recentPerProvider), "recentPerProvider must be between 1 and 20.");
+            return ValidationProblem(ModelState);
+        }
+
+        var snapshot = await activityMonitor.GetSnapshotAsync(recentPerProvider, cancellationToken);
+        return Ok(ToActivitySnapshotResponse(snapshot));
+    }
+
+    [HttpGet("data-sync/activity/stream")]
+    public async Task StreamDataSyncActivity(CancellationToken cancellationToken)
+    {
+        if (activityMonitor.ActiveConnections >= 10)
+        {
+            Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            return;
+        }
+
+        Response.Headers.ContentType = "text/event-stream; charset=utf-8";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        await Response.Body.FlushAsync(cancellationToken);
+
+        var channel = Channel.CreateBounded<DataSyncActivityEvent>(
+            new BoundedChannelOptions(32) { FullMode = BoundedChannelFullMode.DropOldest });
+
+        var subscribeTask = activityMonitor.SubscribeAsync(channel.Writer, cancellationToken);
+
+        try
+        {
+            await foreach (var @event in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                await WriteSseEventAsync(@event, cancellationToken);
+
+                if (@event.Kind == DataSyncActivityEventKind.Close)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Client disconnected — normal exit.
+        }
+        finally
+        {
+            channel.Writer.TryComplete();
+            await subscribeTask.ConfigureAwait(false);
+        }
+    }
+
+    private async Task WriteSseEventAsync(DataSyncActivityEvent @event, CancellationToken cancellationToken)
+    {
+        var eventName = @event.Kind switch
+        {
+            DataSyncActivityEventKind.Snapshot => "snapshot",
+            DataSyncActivityEventKind.Update => "update",
+            DataSyncActivityEventKind.Heartbeat => "heartbeat",
+            DataSyncActivityEventKind.Close => "close",
+            _ => "update"
+        };
+
+        object? payload = @event.Kind switch
+        {
+            DataSyncActivityEventKind.Snapshot when @event.Snapshot is not null =>
+                ToActivitySnapshotResponse(@event.Snapshot),
+            DataSyncActivityEventKind.Update when @event.UpdatedItems is not null =>
+                @event.UpdatedItems.Select(ToActivityItemResponse).ToArray(),
+            DataSyncActivityEventKind.Heartbeat =>
+                new { at = @event.HeartbeatAt?.ToString("O") },
+            DataSyncActivityEventKind.Close =>
+                new { reason = @event.CloseReason },
+            _ => null
+        };
+
+        var data = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        var line = $"event: {eventName}\ndata: {data}\n\n";
+        var bytes = Encoding.UTF8.GetBytes(line);
+        await Response.Body.WriteAsync(bytes, cancellationToken);
+        await Response.Body.FlushAsync(cancellationToken);
+    }
+
+    private static AdminDataSyncActivitySnapshotResponse ToActivitySnapshotResponse(
+        DataSyncActivitySnapshot snapshot) =>
+        new(
+            snapshot.ActiveRuns.Select(ToActivityItemResponse).ToArray(),
+            snapshot.RecentRuns.Select(ToActivityItemResponse).ToArray());
+
+    private static AdminDataSyncActivityItemResponse ToActivityItemResponse(DataSyncActivityItem item) =>
+        new(
+            item.RunId,
+            item.Provider,
+            item.Dataset,
+            item.Status,
+            item.StartedAt,
+            item.CompletedAt,
+            item.DurationMs,
+            item.ProcessedRecords,
+            item.ErrorCount,
+            item.ErrorMessage,
+            item.TriggerSource,
+            item.RequestedShamsiMonth,
+            item.LogicalVendor,
+            item.PhysicalSource,
+            item.SourceMode);
 
     private async Task<ActionResult<AdminDataSyncQueuedResponse>> QueueAsync(
         ProviderDataset dataset,

@@ -854,6 +854,18 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFeatureRecalculationConsumer>(provider =>
             provider.GetRequiredService<RabbitMqFeatureBus>());
 
+        // Spec 058 — live data sync monitor: scoped reader aggregates all provider run states;
+        // singleton polling monitor fan-outs SSE events to connected admin clients.
+        services.AddScoped<IDataSyncActivityReader, EfCoreDataSyncActivityReader>();
+        services
+            .AddOptions<DataSyncMonitorOptions>()
+            .BindConfiguration(DataSyncMonitorOptions.SectionName);
+        services.AddSingleton<PollingDataSyncActivityMonitor>();
+        services.AddSingleton<IDataSyncActivityMonitor>(provider =>
+            provider.GetRequiredService<PollingDataSyncActivityMonitor>());
+        services.AddHostedService(provider =>
+            provider.GetRequiredService<PollingDataSyncActivityMonitor>());
+
         return services;
     }
 

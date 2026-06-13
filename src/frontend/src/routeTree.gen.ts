@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monitor'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -40,6 +41,11 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminDataMonitorRoute = AdminDataMonitorRouteImport.update({
+  id: '/admin_/data/monitor',
+  path: '/admin/data/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppCThreadIdRoute = AppCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data/monitor': typeof AdminDataMonitorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data/monitor': typeof AdminDataMonitorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +76,25 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
+  '/admin_/data/monitor': typeof AdminDataMonitorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/auth' | '/chat' | '/c/$threadId'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/chat'
+    | '/c/$threadId'
+    | '/admin/data/monitor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/auth' | '/chat' | '/c/$threadId'
+  to:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/chat'
+    | '/c/$threadId'
+    | '/admin/data/monitor'
   id:
     | '__root__'
     | '/'
@@ -82,6 +103,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/chat'
     | '/_app/c/$threadId'
+    | '/admin_/data/monitor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,6 +111,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  AdminDataMonitorRoute: typeof AdminDataMonitorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -128,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin_/data/monitor': {
+      id: '/admin_/data/monitor'
+      path: '/admin/data/monitor'
+      fullPath: '/admin/data/monitor'
+      preLoaderRoute: typeof AdminDataMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/c/$threadId': {
       id: '/_app/c/$threadId'
       path: '/c/$threadId'
@@ -155,6 +185,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  AdminDataMonitorRoute: AdminDataMonitorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

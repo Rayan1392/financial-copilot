@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, RefreshCw, Shield } from "lucide-react";
+import { Activity, ArrowRight, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,11 +76,20 @@ export function AdminPage({ user }: { user: AuthUser }) {
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <Button asChild variant="outline">
-            <Link to="/chat">
-              <ArrowRight /> بازگشت به گفتگو
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {hasPermission(user, adminPermissions.dataSyncManage) && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/admin_/data/monitor">
+                  <Activity className="size-4 mr-1.5" /> Data Monitor
+                </Link>
+              </Button>
+            )}
+            <Button asChild variant="outline">
+              <Link to="/chat">
+                <ArrowRight /> بازگشت به گفتگو
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl p-6">

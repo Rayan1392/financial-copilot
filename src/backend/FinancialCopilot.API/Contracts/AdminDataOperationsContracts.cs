@@ -272,6 +272,29 @@ public sealed record AdminMissingAnswerFeedbackItem(
     int FrequencyCount,
     DateTimeOffset? ResolvedAt);
 
+// --- Spec 058: live data sync monitor ---
+
+public sealed record AdminDataSyncActivityItemResponse(
+    string RunId,
+    string Provider,
+    string Dataset,
+    string Status,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    long? DurationMs,
+    int ProcessedRecords,
+    int ErrorCount,
+    string? ErrorMessage,
+    string TriggerSource,
+    string? RequestedShamsiMonth,
+    string? LogicalVendor,
+    string? PhysicalSource,
+    string? SourceMode);
+
+public sealed record AdminDataSyncActivitySnapshotResponse(
+    IReadOnlyCollection<AdminDataSyncActivityItemResponse> ActiveRuns,
+    IReadOnlyCollection<AdminDataSyncActivityItemResponse> RecentRuns);
+
 public sealed record AdminMissingAnswerFeedbackSummary(
     DateTimeOffset? DateFrom,
     DateTimeOffset? DateTo,

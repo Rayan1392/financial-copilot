@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading.Channels;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
@@ -693,6 +694,85 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
     }
+
+    // -----------------------------------------------------------------------
+    // Spec 058 — GET /api/v1/admin/data-sync/activity
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task DataSyncActivity_WithoutAuth_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync(
+            "/api/v1/admin/data-sync/activity",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DataSyncActivity_WithNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.GetAsync(
+            "/api/v1/admin/data-sync/activity",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DataSyncActivity_WithDataAdmin_ReturnsActiveRunInSnapshot()
+    {
+        const string runId = "test-run-001";
+        _factory.ActivityMonitor.SetSnapshot(
+            AdminDataOperationsApiFactory.StubDataSyncActivityMonitor.WithRunningItem(runId));
+
+        using var client = CreateDataAdminClient();
+        using var response = await client.GetAsync(
+            "/api/v1/admin/data-sync/activity",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var doc = await ReadJsonAsync(response);
+        var activeRuns = doc.RootElement.GetProperty("activeRuns");
+        Assert.Equal(1, activeRuns.GetArrayLength());
+        Assert.Equal(runId, activeRuns[0].GetProperty("runId").GetString());
+        Assert.Equal("Running", activeRuns[0].GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task DataSyncActivity_EmptySnapshot_ReturnsEmptyArrays()
+    {
+        _factory.ActivityMonitor.Reset();
+
+        using var client = CreateDataAdminClient();
+        using var response = await client.GetAsync(
+            "/api/v1/admin/data-sync/activity",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var doc = await ReadJsonAsync(response);
+        Assert.Equal(0, doc.RootElement.GetProperty("activeRuns").GetArrayLength());
+        Assert.Equal(0, doc.RootElement.GetProperty("recentRuns").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task DataSyncActivity_RecentPerProviderOutOfRange_ReturnsBadRequest()
+    {
+        using var client = CreateDataAdminClient();
+        using var response = await client.GetAsync(
+            "/api/v1/admin/data-sync/activity?recentPerProvider=0",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
 
 public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
@@ -708,11 +788,13 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubCurrentApiIngestion _currentApi = new();
     private readonly StubFundamentalIndexCatchUp _fundamentalIndexCatchUp = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
+    private readonly StubDataSyncActivityMonitor _activityMonitor = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
     public StubCurrentApiIngestion CurrentApi => _currentApi;
     public StubFundamentalIndexCatchUp FundamentalIndexCatchUp => _fundamentalIndexCatchUp;
+    public StubDataSyncActivityMonitor ActivityMonitor => _activityMonitor;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
@@ -725,6 +807,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IDataSyncActivityMonitor>();
             services.RemoveAll<IDataSyncRequestPublisher>();
             services.RemoveAll<IDataSyncRunReader>();
             services.RemoveAll<IFinancialDataProviderHealthService>();
@@ -742,6 +825,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IFundamentalIndexCatchUpCoordinator>();
             services.RemoveAll<IFundamentalIndexCatchUpRunReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
+            services.AddSingleton<IDataSyncActivityMonitor>(_activityMonitor);
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
             services.AddSingleton<IDataSyncRunReader>(_runReader);
             services.AddSingleton<IFinancialDataProviderHealthService>(_providerHealth);
@@ -773,6 +857,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _currentApi.Reset();
         _fundamentalIndexCatchUp.Reset();
         _missingAnswerFeedback.Reset();
+        _activityMonitor.Reset();
     }
 
     public sealed class StubMissingAnswerFeedbackRepository : IMissingAnswerFeedbackRepository
@@ -1159,5 +1244,59 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 ProviderHealthStatus.Healthy,
                 DateTimeOffset.Parse("2026-05-27T08:00:00Z"),
                 "Available."));
+    }
+
+    // -----------------------------------------------------------------------
+    // Spec 058 stub
+    // -----------------------------------------------------------------------
+
+    public sealed class StubDataSyncActivityMonitor : IDataSyncActivityMonitor
+    {
+        private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-06-13T08:00:00Z");
+
+        public DataSyncActivitySnapshot Snapshot { get; private set; } = EmptySnapshot();
+        public int ActiveConnections => 0;
+
+        public static DataSyncActivitySnapshot EmptySnapshot() =>
+            new([], []);
+
+        public static DataSyncActivitySnapshot WithRunningItem(string runId, string provider = "TestProvider") =>
+            new(
+                ActiveRuns:
+                [
+                    new DataSyncActivityItem(
+                        RunId: runId,
+                        Provider: provider,
+                        Dataset: "TestDataset",
+                        Status: "Running",
+                        StartedAt: T0,
+                        CompletedAt: null,
+                        DurationMs: null,
+                        ProcessedRecords: 0,
+                        ErrorCount: 0,
+                        ErrorMessage: null,
+                        TriggerSource: "Manual",
+                        RequestedShamsiMonth: null,
+                        LogicalVendor: null,
+                        PhysicalSource: null,
+                        SourceMode: null)
+                ],
+                RecentRuns: []);
+
+        public Task<DataSyncActivitySnapshot> GetSnapshotAsync(
+            int recentPerProvider, CancellationToken cancellationToken) =>
+            Task.FromResult(Snapshot);
+
+        public Task SubscribeAsync(
+            ChannelWriter<DataSyncActivityEvent> writer, CancellationToken cancellationToken)
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            cancellationToken.Register(static s => ((TaskCompletionSource)s!).TrySetResult(), tcs);
+            return tcs.Task;
+        }
+
+        public void SetSnapshot(DataSyncActivitySnapshot snapshot) => Snapshot = snapshot;
+
+        public void Reset() => Snapshot = EmptySnapshot();
     }
 }

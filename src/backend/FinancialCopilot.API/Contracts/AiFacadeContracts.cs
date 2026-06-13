@@ -22,7 +22,12 @@ public sealed record AiQueryHttpResponse(
     ExplainableAnswerResponse? ExplainableAnswer = null,
     ConfidenceScoreResponse? ConfidenceScore = null,
     UsageAccountingResponse? Usage = null,
-    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures = null);
+    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures = null,
+    string? AiOrchestrationMode = null,
+    string? WorkflowVersion = null,
+    string? ProviderSelection = null,
+    bool? ProviderFallbackOccurred = null,
+    string? WorkflowCorrelationId = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,

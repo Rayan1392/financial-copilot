@@ -598,7 +598,10 @@ public sealed class AdminDataOperationsController(
             state.Dataset.ToString(),
             state.Watermark,
             state.LastRunStartedAt,
-            state.LastRunCompletedAt)).ToArray());
+            state.LastRunCompletedAt,
+            state.LogicalVendor,
+            state.PhysicalSource,
+            state.SourceMode)).ToArray());
     }
 
     [HttpGet("missing-answer-feedback")]

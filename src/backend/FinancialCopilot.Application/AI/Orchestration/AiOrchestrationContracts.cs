@@ -54,7 +54,12 @@ public sealed record AiQueryResponse(
     bool ClarificationRequired,
     string? ClarificationMessage,
     UsageAccountingResult? Usage,
-    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures = null);
+    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures = null,
+    string? AiOrchestrationMode = null,
+    string? WorkflowVersion = null,
+    string? ProviderSelection = null,
+    bool? ProviderFallbackOccurred = null,
+    string? WorkflowCorrelationId = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

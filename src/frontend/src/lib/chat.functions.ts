@@ -33,6 +33,13 @@ export interface AssistantChatBlock {
     observedAt?: string;
     freshnessStatus: string;
   }>;
+  orchestration?: {
+    mode?: string;
+    workflowVersion?: string;
+    providerSelection?: string;
+    providerFallbackOccurred?: boolean;
+    correlationId?: string;
+  };
 }
 
 export interface ScannerTable {
@@ -100,6 +107,11 @@ interface AssistantContentResponse {
     explanationText?: string;
   };
   usage?: { creditsCharged: number };
+  aiOrchestrationMode?: string;
+  workflowVersion?: string;
+  providerSelection?: string;
+  providerFallbackOccurred?: boolean;
+  workflowCorrelationId?: string;
 }
 
 export const listThreads = createServerFn({ method: "GET" })
@@ -232,5 +244,14 @@ function mapAssistantBlock(
       })) ?? [],
     table,
     citations: explanation?.dataCitations ?? [],
+    orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
+      ? {
+          mode: content?.aiOrchestrationMode,
+          workflowVersion: content?.workflowVersion,
+          providerSelection: content?.providerSelection,
+          providerFallbackOccurred: content?.providerFallbackOccurred,
+          correlationId: content?.workflowCorrelationId,
+        }
+      : undefined,
   };
 }

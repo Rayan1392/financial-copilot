@@ -199,7 +199,12 @@ public sealed class AiFacadeController(
                 result.Usage.TotalTokens,
                 result.Usage.EstimatedCost),
             result.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
-                d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
+                d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
+            result.AiOrchestrationMode,
+            result.WorkflowVersion,
+            result.ProviderSelection,
+            result.ProviderFallbackOccurred,
+            result.WorkflowCorrelationId);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {

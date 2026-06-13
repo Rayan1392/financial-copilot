@@ -257,7 +257,10 @@ public sealed record AdminStockMarketSyncStateResponse(
     string Dataset,
     DateTimeOffset? Watermark,
     DateTimeOffset? LastRunStartedAt,
-    DateTimeOffset? LastRunCompletedAt);
+    DateTimeOffset? LastRunCompletedAt,
+    string? LogicalVendor,
+    string? PhysicalSource,
+    string? SourceMode);
 
 public sealed record AdminMissingAnswerFeedbackItem(
     Guid Id,

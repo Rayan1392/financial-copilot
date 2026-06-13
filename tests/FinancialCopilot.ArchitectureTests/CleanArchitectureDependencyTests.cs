@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using FinancialCopilot.Application.FinancialData.Providers;
 
 namespace FinancialCopilot.ArchitectureTests;
 
@@ -137,6 +138,35 @@ public sealed class CleanArchitectureDependencyTests
                 line.Contains("ArchiveScheduledSync", StringComparison.OrdinalIgnoreCase) ||
                 line.Contains("ArchiveImport", StringComparison.OrdinalIgnoreCase))
             .Select(line => $"Worker registers a recurring hosted service for the archive source: {line.Trim()}")
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void StockMarketDb_IsModeledAsMigrationBridge()
+    {
+        // Spec 054 AC #2/#7: StockMarketDB must remain classified as MigrationBridge, not as
+        // an archive or current-incremental source. The ProviderSources catalog is the single owner
+        // of this classification; this test proves it has not drifted.
+        var descriptor = ProviderSources.StockMarketDb;
+
+        Assert.Equal(SourceMode.MigrationBridge, descriptor.DefaultMode);
+        Assert.Equal(LogicalVendor.Tsetmc, descriptor.Vendor);
+    }
+
+    [Fact]
+    public void ScannerCode_DoesNotReferenceStockMarketDbPhysicalSource()
+    {
+        // Spec 054 AC #10: the scanner must read canonical market projections (LatestMarketQuotes)
+        // and must not be coupled to the StockMarketDB physical source name. If the scanner
+        // contains a literal "StockMarketDb" it bypasses the abstraction layer.
+        var root = FindSolutionRoot();
+        var scannerRoot = Path.Combine(root, "FinancialCopilot.Application", "Scanner");
+        var failures = Directory
+            .EnumerateFiles(scannerRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("StockMarketDb", StringComparison.OrdinalIgnoreCase))
+            .Select(path => $"{Path.GetFileName(path)} must not reference the StockMarketDb physical source name directly.")
             .ToArray();
 
         Assert.Empty(failures);

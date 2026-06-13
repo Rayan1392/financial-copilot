@@ -35,7 +35,7 @@ public sealed class NadpcoApiProviderOptions
     /// Fallback token lifetime until the vendor confirms a definitive expiry field. The provider
     /// still honors explicit expiry fields when present in the token response.
     /// </summary>
-    public int DefaultTokenLifetimeMinutes { get; init; } = 20;
+    public int DefaultTokenLifetimeMinutes { get; init; } = 1380;
 
     public int? StatementFromYear { get; init; } = 1400;
 

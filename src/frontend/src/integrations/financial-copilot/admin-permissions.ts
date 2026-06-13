@@ -2,6 +2,7 @@ import type { AuthUser } from "./auth";
 
 export const adminPermissions = {
   dataSyncManage: "data.sync.manage",
+  orchestrationDiagnostics: "admin.orchestration.diagnostics",
   usersRead: "admin.users.read",
   usersManage: "admin.users.manage",
   rolesRead: "admin.roles.read",

@@ -37,6 +37,9 @@ public sealed class StockMarketDbSyncService(
             dbContext.StockMarketSyncStates.Add(state);
         }
 
+        state.LogicalVendor = ProviderSources.StockMarketDb.Vendor.ToString();
+        state.PhysicalSource = ProviderSources.StockMarketDb.Source.ToString();
+        state.SourceMode = ProviderSources.StockMarketDb.DefaultMode.ToString();
         state.LastRunStartedAt = started;
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -139,7 +142,10 @@ public sealed class StockMarketDbSyncService(
             Enum.Parse<StockMarketDataset>(row.Dataset),
             row.Watermark,
             row.LastRunStartedAt,
-            row.LastRunCompletedAt))
+            row.LastRunCompletedAt,
+            row.LogicalVendor,
+            row.PhysicalSource,
+            row.SourceMode))
         .ToArray();
 
     private async Task<int> PersistInstrumentsAsync(

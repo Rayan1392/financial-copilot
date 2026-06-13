@@ -43,11 +43,28 @@ public sealed record StockMarketSyncState(
     StockMarketDataset Dataset,
     DateTimeOffset? Watermark,
     DateTimeOffset? LastRunStartedAt,
-    DateTimeOffset? LastRunCompletedAt);
+    DateTimeOffset? LastRunCompletedAt,
+    string? LogicalVendor = null,
+    string? PhysicalSource = null,
+    string? SourceMode = null);
 
 public interface IStockMarketDbSyncStateReader
 {
     Task<IReadOnlyCollection<StockMarketSyncState>> QueryAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Placeholder contract for the future direct TSETMC web-service ingestion adapter (spec 054, Phase 2).
+/// The interface lives in Application so Infrastructure and tests can depend on the abstraction;
+/// the real implementation will be wired in once the TSETMC ASMX client is built.
+/// </summary>
+public interface ITsetmcDirectFeedSyncService
+{
+    /// <summary>
+    /// Returns false — the direct feed is not yet operational. Implementations must check
+    /// configuration or a feature flag before returning true.
+    /// </summary>
+    bool IsOperational { get; }
 }
 
 public sealed record StockMarketHistoryRetentionResult(
@@ -57,4 +74,29 @@ public sealed record StockMarketHistoryRetentionResult(
 public interface IStockMarketHistoryRetentionService
 {
     Task<StockMarketHistoryRetentionResult> DeleteExpiredAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Determines which physical source feeds the latest market quote projection (spec 054, AC #8).
+/// Phase 1 always returns <c>StockMarketDb</c>; Phase 4 cutover will flip this to
+/// <c>TsetmcWebService</c> once the direct feed is validated and stable.
+/// </summary>
+public interface IMarketQuoteSourcePriority
+{
+    /// <summary>
+    /// The physical source currently designated as the authoritative market-quote feed.
+    /// </summary>
+    string PrimarySourceName { get; }
+}
+
+/// <summary>Configuration options for <see cref="IMarketQuoteSourcePriority"/>.</summary>
+public sealed class MarketQuoteSourcePriorityOptions
+{
+    public const string SectionName = "MarketQuoteSourcePriority";
+
+    /// <summary>
+    /// Stable persisted source name. Defaults to <c>StockMarketDb</c> (bridge phase).
+    /// Set to <c>TsetmcWebService</c> for Phase 4 cutover.
+    /// </summary>
+    public string PrimarySourceName { get; set; } = "StockMarketDb";
 }

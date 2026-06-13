@@ -5,6 +5,8 @@ import { getThreadMessages, sendChatMessage } from "@/lib/chat.functions";
 import { MessageList } from "@/components/app/message-list";
 import { PromptInput } from "@/components/app/prompt-input";
 import { useEffect, useRef, useState } from "react";
+import { getAuthenticatedUser } from "@/integrations/financial-copilot/auth";
+import { adminPermissions, hasPermission } from "@/integrations/financial-copilot/admin-permissions";
 
 export const Route = createFileRoute("/_app/c/$threadId")({
   component: ChatThreadPage,
@@ -24,6 +26,13 @@ function ChatThreadPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const lastMessageRef = useRef<string>("");
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  useEffect(() => {
+    getAuthenticatedUser().then((user) => {
+      setShowDiagnostics(hasPermission(user, adminPermissions.orchestrationDiagnostics));
+    });
+  }, []);
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["messages", threadId],
@@ -70,6 +79,7 @@ function ChatThreadPage() {
           streaming={sendMutation.isPending}
           onSuggested={submit}
           onPageChange={handlePageChange}
+          showDiagnostics={showDiagnostics}
         />
       </div>
       {queryError && (

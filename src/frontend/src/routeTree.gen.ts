@@ -14,7 +14,12 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
+import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.stockmarket'
+import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.data.reconciliation'
+import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
 import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monitor'
+import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archive'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -41,9 +46,34 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
+  id: '/admin_/data/',
+  path: '/admin/data/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDataStockmarketRoute = AdminDataStockmarketRouteImport.update({
+  id: '/admin_/data/stockmarket',
+  path: '/admin/data/stockmarket',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDataReconciliationRoute = AdminDataReconciliationRouteImport.update({
+  id: '/admin_/data/reconciliation',
+  path: '/admin/data/reconciliation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDataNoavaranRoute = AdminDataNoavaranRouteImport.update({
+  id: '/admin_/data/noavaran',
+  path: '/admin/data/noavaran',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDataMonitorRoute = AdminDataMonitorRouteImport.update({
   id: '/admin_/data/monitor',
   path: '/admin/data/monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDataArchiveRoute = AdminDataArchiveRouteImport.update({
+  id: '/admin_/data/archive',
+  path: '/admin/data/archive',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppCThreadIdRoute = AppCThreadIdRouteImport.update({
@@ -58,7 +88,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
+  '/admin/data/noavaran': typeof AdminDataNoavaranRoute
+  '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
+  '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/admin/data/': typeof AdminDataIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -66,7 +101,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
+  '/admin/data/noavaran': typeof AdminDataNoavaranRoute
+  '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
+  '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/admin/data': typeof AdminDataIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,7 +116,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
+  '/admin_/data/archive': typeof AdminDataArchiveRoute
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
+  '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
+  '/admin_/data/reconciliation': typeof AdminDataReconciliationRoute
+  '/admin_/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/admin_/data/': typeof AdminDataIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -86,7 +131,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/c/$threadId'
+    | '/admin/data/archive'
     | '/admin/data/monitor'
+    | '/admin/data/noavaran'
+    | '/admin/data/reconciliation'
+    | '/admin/data/stockmarket'
+    | '/admin/data/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -94,7 +144,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/c/$threadId'
+    | '/admin/data/archive'
     | '/admin/data/monitor'
+    | '/admin/data/noavaran'
+    | '/admin/data/reconciliation'
+    | '/admin/data/stockmarket'
+    | '/admin/data'
   id:
     | '__root__'
     | '/'
@@ -103,7 +158,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/chat'
     | '/_app/c/$threadId'
+    | '/admin_/data/archive'
     | '/admin_/data/monitor'
+    | '/admin_/data/noavaran'
+    | '/admin_/data/reconciliation'
+    | '/admin_/data/stockmarket'
+    | '/admin_/data/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -111,7 +171,12 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  AdminDataArchiveRoute: typeof AdminDataArchiveRoute
   AdminDataMonitorRoute: typeof AdminDataMonitorRoute
+  AdminDataNoavaranRoute: typeof AdminDataNoavaranRoute
+  AdminDataReconciliationRoute: typeof AdminDataReconciliationRoute
+  AdminDataStockmarketRoute: typeof AdminDataStockmarketRoute
+  AdminDataIndexRoute: typeof AdminDataIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,11 +216,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin_/data/': {
+      id: '/admin_/data/'
+      path: '/admin/data'
+      fullPath: '/admin/data/'
+      preLoaderRoute: typeof AdminDataIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/data/stockmarket': {
+      id: '/admin_/data/stockmarket'
+      path: '/admin/data/stockmarket'
+      fullPath: '/admin/data/stockmarket'
+      preLoaderRoute: typeof AdminDataStockmarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/data/reconciliation': {
+      id: '/admin_/data/reconciliation'
+      path: '/admin/data/reconciliation'
+      fullPath: '/admin/data/reconciliation'
+      preLoaderRoute: typeof AdminDataReconciliationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/data/noavaran': {
+      id: '/admin_/data/noavaran'
+      path: '/admin/data/noavaran'
+      fullPath: '/admin/data/noavaran'
+      preLoaderRoute: typeof AdminDataNoavaranRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin_/data/monitor': {
       id: '/admin_/data/monitor'
       path: '/admin/data/monitor'
       fullPath: '/admin/data/monitor'
       preLoaderRoute: typeof AdminDataMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/data/archive': {
+      id: '/admin_/data/archive'
+      path: '/admin/data/archive'
+      fullPath: '/admin/data/archive'
+      preLoaderRoute: typeof AdminDataArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/c/$threadId': {
@@ -185,7 +285,12 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  AdminDataArchiveRoute: AdminDataArchiveRoute,
   AdminDataMonitorRoute: AdminDataMonitorRoute,
+  AdminDataNoavaranRoute: AdminDataNoavaranRoute,
+  AdminDataReconciliationRoute: AdminDataReconciliationRoute,
+  AdminDataStockmarketRoute: AdminDataStockmarketRoute,
+  AdminDataIndexRoute: AdminDataIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

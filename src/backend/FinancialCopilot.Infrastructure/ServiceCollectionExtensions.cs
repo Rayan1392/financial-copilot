@@ -39,6 +39,7 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Tsetmc;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
@@ -807,6 +808,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStockMarketDbSyncStateReader>(provider =>
             provider.GetRequiredService<StockMarketDbSyncService>());
         services.AddScoped<IStockMarketHistoryRetentionService, StockMarketHistoryRetentionService>();
+        services.AddSingleton<ITsetmcDirectFeedSyncService, NullTsetmcDirectFeedSyncService>();
+        services
+            .AddOptions<MarketQuoteSourcePriorityOptions>()
+            .BindConfiguration(MarketQuoteSourcePriorityOptions.SectionName);
+        services.AddSingleton<IMarketQuoteSourcePriority, ConfiguredMarketQuoteSourcePriority>();
         services
             .AddOptions<MarketViewOptions>()
             .BindConfiguration(MarketViewOptions.SectionName);

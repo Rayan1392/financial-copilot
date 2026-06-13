@@ -351,7 +351,10 @@ public sealed class AiQueryOrchestrationService(
             clarificationRequired,
             clarificationMessage,
             usage,
-            memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null);
+            memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
+            AiOrchestrationMode: "V1",
+            WorkflowVersion: "1",
+            WorkflowCorrelationId: request.CorrelationId);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(

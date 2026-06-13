@@ -174,6 +174,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             memoryContext, groundedAnswer,
             createConversation, cancellationToken);
 
+        var providerSelection = $"{modelClient.Descriptor.ProviderKey}/{modelClient.Descriptor.ModelKey}";
+
         return new AiQueryResponse(
             conversationId,
             persistedExchange.UserMessageId,
@@ -188,7 +190,12 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             clarificationRequired,
             clarificationMessage,
             usage,
-            disclosures);
+            disclosures,
+            AiOrchestrationMode: "MicrosoftAgentFrameworkV2",
+            WorkflowVersion: "2",
+            ProviderSelection: providerSelection,
+            ProviderFallbackOccurred: false,
+            WorkflowCorrelationId: request.CorrelationId);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(

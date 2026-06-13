@@ -715,6 +715,12 @@ public sealed class StockMarketSyncStateRow
     public string? ContinuationExternalId { get; set; }
     public DateTimeOffset? LastRunStartedAt { get; set; }
     public DateTimeOffset? LastRunCompletedAt { get; set; }
+    /// <summary>Logical vendor for this sync source (e.g. "Tsetmc"). Set on first run; null for rows created before spec 054.</summary>
+    public string? LogicalVendor { get; set; }
+    /// <summary>Physical source transport (e.g. "StockMarketDb", "TsetmcWebService"). Set on first run; null for rows created before spec 054.</summary>
+    public string? PhysicalSource { get; set; }
+    /// <summary>Source mode (e.g. "MigrationBridge", "CurrentIncremental"). Set on first run; null for rows created before spec 054.</summary>
+    public string? SourceMode { get; set; }
 }
 
 public sealed class WatchlistSymbolRow

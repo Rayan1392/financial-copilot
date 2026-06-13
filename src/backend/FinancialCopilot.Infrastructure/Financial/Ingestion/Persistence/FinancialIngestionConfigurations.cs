@@ -402,6 +402,9 @@ public sealed class StockMarketSyncStateRowConfiguration : IEntityTypeConfigurat
         builder.ToTable("StockMarketSyncStates");
         builder.HasKey(row => row.Dataset);
         builder.Property(row => row.Dataset).HasMaxLength(64);
+        builder.Property(row => row.LogicalVendor).HasMaxLength(64);
+        builder.Property(row => row.PhysicalSource).HasMaxLength(64);
+        builder.Property(row => row.SourceMode).HasMaxLength(32);
     }
 }
 

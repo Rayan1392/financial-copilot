@@ -2,6 +2,7 @@ import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
 import { MarkdownMessage } from "@/components/app/markdown-message";
+import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 
 interface Props {
   messages: ChatMessage[];
@@ -9,9 +10,10 @@ interface Props {
   streaming: boolean;
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
+  showDiagnostics?: boolean;
 }
 
-export function MessageList({ messages, loading, streaming, onSuggested, onPageChange }: Props) {
+export function MessageList({ messages, loading, streaming, onSuggested, onPageChange, showDiagnostics }: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   return (
     <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
@@ -24,6 +26,7 @@ export function MessageList({ messages, loading, streaming, onSuggested, onPageC
               block={message.content as AssistantChatBlock}
               onSuggested={onSuggested}
               onPageChange={onPageChange}
+              showDiagnostics={showDiagnostics}
             />
           )}
         </div>
@@ -50,10 +53,12 @@ function AssistantBlock({
   block,
   onSuggested,
   onPageChange,
+  showDiagnostics,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
+  showDiagnostics?: boolean;
 }) {
   return (
     <div className="flex gap-4" dir="ltr">
@@ -99,6 +104,10 @@ function AssistantBlock({
           <span>·</span>
           <span>{toPersianDigits(block.creditsUsed)} اعتبار مصرف شد</span>
         </div>
+
+        {showDiagnostics && block.orchestration && (
+          <OrchestrationDiagnosticsPanel orchestration={block.orchestration} />
+        )}
 
         {block.suggestedQuestions.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">

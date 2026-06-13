@@ -92,6 +92,9 @@ public static class ProviderSources
     /// <summary>StockMarketDB SQL bridge market-trading source.</summary>
     public const string StockMarketDbName = "StockMarketDb";
 
+    /// <summary>Future direct TSETMC web-service ingestion feed (spec 054, order 56).</summary>
+    public const string TsetmcWebServiceName = "TsetmcWebService";
+
     public static readonly ProviderSourceDescriptor NoavaranArchiveSql = new(
         LogicalVendor.NoavaranAmin, PhysicalSource.NoavaranArchiveSql, SourceMode.ArchiveOneTime, NoavaranArchiveSqlName);
 
@@ -104,12 +107,19 @@ public static class ProviderSources
     public static readonly ProviderSourceDescriptor StockMarketDb = new(
         LogicalVendor.Tsetmc, PhysicalSource.StockMarketDb, SourceMode.MigrationBridge, StockMarketDbName);
 
+    /// <summary>
+    /// Future direct TSETMC web-service feed — registered in the catalog so provenance can be stored
+    /// once Phase 2 of spec 054 is implemented; not yet backed by a live provider.
+    /// </summary>
+    public static readonly ProviderSourceDescriptor TsetmcWebService = new(
+        LogicalVendor.Tsetmc, PhysicalSource.TsetmcWebService, SourceMode.CurrentIncremental, TsetmcWebServiceName);
+
     private static readonly IReadOnlyDictionary<string, ProviderSourceDescriptor> ByName =
-        new[] { NoavaranArchiveSql, NoavaranCurrentApi, CyclicalWaves, StockMarketDb }
+        new[] { NoavaranArchiveSql, NoavaranCurrentApi, CyclicalWaves, StockMarketDb, TsetmcWebService }
             .ToDictionary(descriptor => descriptor.SourceName, StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlyCollection<ProviderSourceDescriptor> All { get; } =
-        new[] { NoavaranArchiveSql, NoavaranCurrentApi, CyclicalWaves, StockMarketDb };
+        new[] { NoavaranArchiveSql, NoavaranCurrentApi, CyclicalWaves, StockMarketDb, TsetmcWebService };
 
     /// <summary>
     /// Pre-spec-051 physical source names mapped to their current names. Used to keep in-flight

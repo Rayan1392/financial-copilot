@@ -7,7 +7,10 @@ using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests;
@@ -431,7 +434,7 @@ public sealed class NadpcoApiProviderTests
         NadpcoApiTokenCache? cache = null) =>
         new(
             httpClient,
-            cache ?? new NadpcoApiTokenCache(),
+            cache ?? new NadpcoApiTokenCache(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()))),
             Options.Create(options ?? new NadpcoApiProviderOptions
             {
                 UserName = "test-user",

@@ -32,7 +32,7 @@ $env:PGPASSWORD = "Rayan1392!"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
-& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" `
     --host localhost --port 5432 --username maahfit `
     --format custom --compress 9 `
     --file "$backupDir\financial_copilot_$(Get-Date -Format 'yyyyMMdd_HHmmss').dump" `

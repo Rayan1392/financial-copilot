@@ -530,3 +530,22 @@ public sealed class FeatureComputationJobRowConfiguration : IEntityTypeConfigura
         builder.Property(row => row.ErrorMessage).HasMaxLength(1000);
     }
 }
+
+public sealed class MarketQuoteMismatchRowConfiguration : IEntityTypeConfiguration<MarketQuoteMismatchRow>
+{
+    public void Configure(EntityTypeBuilder<MarketQuoteMismatchRow> builder)
+    {
+        builder.ToTable("MarketQuoteMismatches");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.TradingInstrumentId, row.ComparedAt });
+        builder.HasIndex(row => row.ComparedAt);
+        builder.Property(row => row.Symbol).HasMaxLength(32);
+        builder.Property(row => row.Field).HasMaxLength(64);
+        builder.Property(row => row.BridgeSourceKind).HasMaxLength(32);
+        builder.Property(row => row.DirectSourceKind).HasMaxLength(32);
+        builder.HasOne<TradingInstrumentRow>()
+            .WithMany()
+            .HasForeignKey(row => row.TradingInstrumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

@@ -315,3 +315,30 @@ public sealed record AdminTsetmcSyncResponse(
     int RowsFetched,
     int RowsPersisted,
     string Duration);
+
+// --- Spec 054 Phase 3: parallel validation ---
+
+public sealed record AdminTsetmcValidationResponse(
+    bool CanValidate,
+    int InstrumentsCompared,
+    int MismatchCount,
+    string Duration);
+
+public sealed record AdminTsetmcMismatchSummaryResponse(
+    int RecentDays,
+    IReadOnlyCollection<AdminTsetmcMismatchFieldSummary> ByField);
+
+public sealed record AdminTsetmcMismatchFieldSummary(
+    string Field,
+    int MismatchCount,
+    decimal AvgRelativeDiffPercent,
+    decimal MaxRelativeDiffPercent,
+    DateTimeOffset? LastComparedAt);
+
+// --- Spec 054 Phase 4: cutover status ---
+
+public sealed record AdminMarketQuoteSourceStatusResponse(
+    string PrimarySourceName,
+    bool BridgeEnabled,
+    bool DirectFeedOperational,
+    string Notes);

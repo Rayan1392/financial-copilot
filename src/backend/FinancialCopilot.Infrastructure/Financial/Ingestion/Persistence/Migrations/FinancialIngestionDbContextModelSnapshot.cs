@@ -754,6 +754,59 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("IntradayTradeSnapshots", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MarketQuoteMismatchRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AbsoluteDiff")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("BridgeSourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("BridgeValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTimeOffset>("ComparedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DirectValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("DirectSourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Field")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("RelativeDiffPercent")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComparedAt");
+
+                    b.HasIndex("TradingInstrumentId", "ComparedAt");
+
+                    b.ToTable("MarketQuoteMismatches", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.LatestMarketQuoteRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1785,6 +1838,15 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.LatestMarketQuoteRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
+                        .WithMany()
+                        .HasForeignKey("TradingInstrumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.MarketQuoteMismatchRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", null)
                         .WithMany()

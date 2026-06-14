@@ -46,6 +46,9 @@ builder.Services
         options => options.IntervalSeconds > 0 && options.BatchSize > 0,
         "MetricAliasLearning worker settings must be positive.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<TsetmcPollingOptions>()
+    .BindConfiguration(TsetmcPollingOptions.SectionName);
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
@@ -53,6 +56,7 @@ builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
+builder.Services.AddHostedService<TsetmcPollingWorker>();
 
 var host = builder.Build();
 host.Run();

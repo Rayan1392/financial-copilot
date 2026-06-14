@@ -760,7 +760,9 @@ public static class ServiceCollectionExtensions
             var captured = new MetricCode(code);
             services.AddScoped<INormalizedMetricInputSource>(sp =>
                 new LineItemMetricInputSource(
-                    sp.GetRequiredService<FinancialIngestionDbContext>(), captured));
+                    sp.GetRequiredService<FinancialIngestionDbContext>(),
+                    captured,
+                    sp.GetRequiredService<ILogger<LineItemMetricInputSource>>()));
         }
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
         // Spec 057: monthly-activity aggregates (sales quantity, production quantity,
@@ -863,6 +865,8 @@ public static class ServiceCollectionExtensions
                 ? provider.GetRequiredService<TsetmcDirectFeedSyncService>()
                 : new NullTsetmcDirectFeedSyncService();
         });
+        services.AddScoped<ITsetmcValidationService, TsetmcValidationService>();
+        services.AddScoped<IMarketQuoteMismatchReader, MarketQuoteMismatchReader>();
         services
             .AddOptions<MarketQuoteSourcePriorityOptions>()
             .BindConfiguration(MarketQuoteSourcePriorityOptions.SectionName);

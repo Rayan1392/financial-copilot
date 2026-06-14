@@ -131,3 +131,53 @@ public sealed class MarketQuoteSourcePriorityOptions
     /// </summary>
     public string PrimarySourceName { get; set; } = "StockMarketDb";
 }
+
+// ── Phase 3: Parallel Validation ─────────────────────────────────────────────
+
+/// <summary>Observed divergence between the bridge (StockMarketDb) and the direct (TsetmcWebService) feeds.</summary>
+public sealed record MarketQuoteMismatch(
+    string Symbol,
+    string Field,
+    decimal BridgeValue,
+    decimal DirectValue,
+    decimal AbsoluteDiff,
+    decimal RelativeDiffPercent,
+    string BridgeSourceKind,
+    string DirectSourceKind);
+
+/// <summary>Summary returned by a single validation run.</summary>
+public sealed record TsetmcValidationResult(
+    int InstrumentsCompared,
+    int MismatchCount,
+    int PersistCount,
+    TimeSpan Duration);
+
+/// <summary>
+/// Runs Phase 3 parallel validation: compares LatestMarketQuote rows between the
+/// StockMarketDb bridge and the TsetmcWebService direct feed, persisting divergent rows
+/// to <c>MarketQuoteMismatches</c>.
+/// </summary>
+public interface ITsetmcValidationService
+{
+    /// <summary>Returns true only when both the bridge and the direct feed are configured and have data.</summary>
+    bool CanValidate { get; }
+
+    /// <summary>Runs a full comparison and persists all mismatches above tolerance.</summary>
+    Task<TsetmcValidationResult> ValidateLatestQuotesAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Reads persisted mismatch reports for DataAdmin.</summary>
+public interface IMarketQuoteMismatchReader
+{
+    Task<IReadOnlyCollection<MarketQuoteMismatchSummary>> GetSummaryAsync(
+        int recentDays,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>Per-field aggregate used by DataAdmin summary endpoint.</summary>
+public sealed record MarketQuoteMismatchSummary(
+    string Field,
+    int MismatchCount,
+    decimal AvgRelativeDiffPercent,
+    decimal MaxRelativeDiffPercent,
+    DateTimeOffset? LastComparedAt);

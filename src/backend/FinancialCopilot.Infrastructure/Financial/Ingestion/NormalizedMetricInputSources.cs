@@ -5,6 +5,7 @@ using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
@@ -30,7 +31,8 @@ public sealed class NormalizedMetricInputReader(
 /// </summary>
 public sealed class LineItemMetricInputSource(
     FinancialIngestionDbContext dbContext,
-    MetricCode metricCode) : INormalizedMetricInputSource
+    MetricCode metricCode,
+    ILogger<LineItemMetricInputSource>? logger = null) : INormalizedMetricInputSource
 {
     public MetricCode MetricCode { get; } = metricCode;
 
@@ -46,16 +48,30 @@ public sealed class LineItemMetricInputSource(
                 select new { statement, item.Value })
             .ToListAsync(cancellationToken);
 
-        return observations.Select(observation => NormalizedMetricInputFactory.Create(
-            MetricCode,
-            FiscalPeriod.Closed(
-                Enum.Parse<FiscalPeriodType>(observation.statement.PeriodType),
-                observation.statement.PeriodStart,
-                observation.statement.PeriodEnd),
-            observation.Value,
-            observation.statement.ProviderName,
-            observation.statement.ExternalStatementId,
-            observation.statement.LastSynchronizedAt)).ToArray();
+        var results = new List<MetricInputObservation>(observations.Count);
+        foreach (var observation in observations)
+        {
+            if (observation.statement.PeriodEnd < observation.statement.PeriodStart)
+            {
+                logger?.LogWarning(
+                    "Skipping statement {StatementId} for company {CompanyId}: PeriodEnd {PeriodEnd} precedes PeriodStart {PeriodStart}",
+                    observation.statement.Id, externalCompanyId,
+                    observation.statement.PeriodEnd, observation.statement.PeriodStart);
+                continue;
+            }
+
+            results.Add(NormalizedMetricInputFactory.Create(
+                MetricCode,
+                FiscalPeriod.Closed(
+                    Enum.Parse<FiscalPeriodType>(observation.statement.PeriodType),
+                    observation.statement.PeriodStart,
+                    observation.statement.PeriodEnd),
+                observation.Value,
+                observation.statement.ProviderName,
+                observation.statement.ExternalStatementId,
+                observation.statement.LastSynchronizedAt));
+        }
+        return results;
     }
 }
 

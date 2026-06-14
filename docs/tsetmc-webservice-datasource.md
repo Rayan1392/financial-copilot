@@ -133,12 +133,54 @@ Returns today's intraday index snapshots.
 
 Set `Enabled: true` and provide credentials to activate the Phase 2 direct feed. Until then, the system falls back to StockMarketDB (bridge source).
 
+## Worker Polling Schedule
+
+The `TsetmcPollingWorker` hosted service drives all TSETMC data collection automatically on the Iranian equity market calendar. All times are **IRST (UTC+03:30)** — Iran does not observe DST.
+
+### Intraday data (trades + indices)
+
+| Days | Window | Cadence |
+|------|--------|---------|
+| Saturday – Wednesday | 09:00 – 12:30 | Every 60 seconds (configurable) |
+
+Calls `SynchronizeIntradayTradesAsync` and `SynchronizeIntradayIndicesAsync` (TSETMC methods: `TradeLastDay`, `IndexB1LastDayLastData`).
+
+### End-of-day data (instruments + daily trades + daily indices)
+
+| Days | Fire-once after |
+|------|----------------|
+| Saturday – Tuesday | 17:00 IRST |
+| Wednesday | 20:00 IRST |
+
+Wednesday has a later cut-off because the exchange session ends later that day. Calls `SynchronizeInstrumentsAsync`, `SynchronizeDailyTradesAsync`, and `SynchronizeDailyIndicesAsync` (TSETMC methods: `Instrument`, `TradeOneDay`, `IndexB2`). Thursday and Friday are market holidays; no calls are made.
+
+### Worker configuration (`TsetmcPolling` section)
+
+```json
+{
+  "TsetmcPolling": {
+    "Enabled": true,
+    "IntradayTickSeconds": 30,
+    "IntradayIntervalSeconds": 60
+  }
+}
+```
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `Enabled` | `false` | Master switch for the worker |
+| `IntradayTickSeconds` | `30` | How often the loop wakes to check the schedule window |
+| `IntradayIntervalSeconds` | `60` | Minimum gap between consecutive intraday sync calls |
+
 ## DataAdmin Endpoints
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/v1/admin/tsetmc/status` | Returns IsOperational + notes |
 | POST | `/api/v1/admin/tsetmc/{dataset}/sync` | Triggers sync for a dataset |
+| POST | `/api/v1/admin/tsetmc/validate` | Phase 3: runs bridge vs direct comparison, persists mismatches |
+| GET | `/api/v1/admin/tsetmc/mismatches?recentDays=7` | Phase 3: per-field mismatch summary |
+| GET | `/api/v1/admin/tsetmc/source-priority` | Phase 4: shows active quote source and cutover state |
 
 Valid `dataset` values: `instruments`, `intradaytrades`, `dailytrades`, `dailyindices`, `intradayindices`.
 
@@ -148,5 +190,14 @@ Valid `dataset` values: `instruments`, `intradaytrades`, `dailytrades`, `dailyin
 |-------|--------|-------------|
 | 1 — Bridge Stabilization | ✅ Complete | StockMarketDb = MigrationBridge, provenance columns, ITsetmcDirectFeedSyncService stub |
 | 2 — Direct TSETMC Provider | ✅ Complete | TsetmcWebServiceClient SOAP adapter, full normalizers, DataAdmin endpoints |
-| 3 — Parallel Validation | ⏳ Deferred | Shadow-mode comparison, mismatch reporting |
-| 4 — Cutover | ⏳ Deferred | Switch MarketQuoteSourcePriority to TsetmcWebService, disable StockMarketDB polling |
+| 2b — Scheduled Worker | ✅ Complete | TsetmcPollingWorker with IRST market-hours schedule |
+| 3 — Parallel Validation | ✅ Complete | MarketQuoteMismatches table, TsetmcValidationService, mismatch DataAdmin endpoints |
+| 4 — Cutover | ✅ Complete | PersistedMarketDataProvider uses IMarketQuoteSourcePriority; set `MarketQuoteSourcePriority:PrimarySourceName` = `TsetmcWebService` to cut over, `StockMarketDb` to roll back |
+
+### Phase 4 Cutover Runbook
+
+1. Verify Phase 3 mismatch rate is acceptable via `GET /api/v1/admin/tsetmc/mismatches`.
+2. Confirm `POST /api/v1/admin/tsetmc/status` shows `IsOperational=true`.
+3. Set `MarketQuoteSourcePriority:PrimarySourceName` = `"TsetmcWebService"` in config (already set in `appsettings.json`).
+4. Optionally set `StockMarketDbPolling:Enabled` = `false` to stop the bridge polling.
+5. To roll back: set `PrimarySourceName` = `"StockMarketDb"` and re-enable polling. No code change required.

@@ -1,18 +1,20 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 
 public sealed class PersistedMarketDataProvider(
     FinancialIngestionDbContext dbContext,
-    IOptions<StockMarketDbProviderOptions> options,
+    IMarketQuoteSourcePriority sourcePriority,
     TimeProvider timeProvider) : IMarketDataProvider
 {
-    private readonly string _providerName = options.Value.ProviderName;
+    // PrimarySourceName is evaluated per-request so a live config change (Phase 4 cutover)
+    // takes effect without restarting the process.
+    private string _providerName => sourcePriority.PrimarySourceName;
 
     public async Task<BatchMarketQuoteResult> GetLatestQuotesAsync(
         IReadOnlyCollection<SymbolCode> symbols,

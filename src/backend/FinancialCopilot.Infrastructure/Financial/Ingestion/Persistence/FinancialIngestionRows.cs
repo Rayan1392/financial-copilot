@@ -730,6 +730,27 @@ public sealed class StockMarketSyncStateRow
     public string? SourceMode { get; set; }
 }
 
+/// <summary>
+/// Persisted mismatch report produced by Phase 3 parallel validation (spec 054).
+/// One row per instrument+field pair where StockMarketDb and TsetmcWebService diverge
+/// beyond the configured tolerance.
+/// </summary>
+public sealed class MarketQuoteMismatchRow
+{
+    public Guid Id { get; set; }
+    public DateTimeOffset ComparedAt { get; set; }
+    public Guid TradingInstrumentId { get; set; }
+    public string Symbol { get; set; } = string.Empty;
+    /// <summary>e.g. "LatestPrice", "PriceChangePercentage", "Volume", "IndexValue".</summary>
+    public string Field { get; set; } = string.Empty;
+    public decimal BridgeValue { get; set; }
+    public decimal DirectValue { get; set; }
+    public decimal AbsoluteDiff { get; set; }
+    public decimal RelativeDiffPercent { get; set; }
+    public string BridgeSourceKind { get; set; } = string.Empty;
+    public string DirectSourceKind { get; set; } = string.Empty;
+}
+
 public sealed class WatchlistSymbolRow
 {
     public Guid Id { get; set; }

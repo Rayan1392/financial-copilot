@@ -33,6 +33,9 @@ public sealed class AdminDataOperationsController(
     IStockMarketDbSyncService stockMarketDbSync,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
     ITsetmcDirectFeedSyncService tsetmcDirectFeed,
+    ITsetmcValidationService tsetmcValidation,
+    IMarketQuoteMismatchReader mismatchReader,
+    IMarketQuoteSourcePriority marketQuoteSourcePriority,
     IArchiveImportCoordinator archiveImportCoordinator,
     IArchiveImportRunReader archiveImportRunReader,
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
@@ -648,6 +651,44 @@ public sealed class AdminDataOperationsController(
             result.RowsPersisted,
             result.Duration.ToString("g")));
     }
+
+    [HttpPost("tsetmc/validate")]
+    public async Task<ActionResult<AdminTsetmcValidationResponse>> RunTsetmcValidation(
+        CancellationToken cancellationToken)
+    {
+        if (!tsetmcValidation.CanValidate)
+            return Conflict(new { error = "Cannot validate: both StockMarketDb (UsePersistedMarketQuotes=true) and TsetmcWebService (Enabled=true with credentials) must be configured." });
+
+        var result = await tsetmcValidation.ValidateLatestQuotesAsync(cancellationToken);
+        return Ok(new AdminTsetmcValidationResponse(
+            tsetmcValidation.CanValidate,
+            result.InstrumentsCompared,
+            result.MismatchCount,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpGet("tsetmc/mismatches")]
+    public async Task<ActionResult<AdminTsetmcMismatchSummaryResponse>> GetTsetmcMismatchSummary(
+        [FromQuery] int recentDays = 7,
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = await mismatchReader.GetSummaryAsync(recentDays, cancellationToken);
+        return Ok(new AdminTsetmcMismatchSummaryResponse(
+            recentDays,
+            summaries.Select(s => new AdminTsetmcMismatchFieldSummary(
+                s.Field, s.MismatchCount, s.AvgRelativeDiffPercent,
+                s.MaxRelativeDiffPercent, s.LastComparedAt)).ToArray()));
+    }
+
+    [HttpGet("tsetmc/source-priority")]
+    public ActionResult<AdminMarketQuoteSourceStatusResponse> GetMarketQuoteSourcePriority() =>
+        Ok(new AdminMarketQuoteSourceStatusResponse(
+            PrimarySourceName: marketQuoteSourcePriority.PrimarySourceName,
+            BridgeEnabled: true,
+            DirectFeedOperational: tsetmcDirectFeed.IsOperational,
+            Notes: marketQuoteSourcePriority.PrimarySourceName == "TsetmcWebService"
+                ? "Phase 4 cutover active: live quotes served from TsetmcWebService direct feed."
+                : "Bridge phase active: live quotes served from StockMarketDb."));
 
     [HttpGet("missing-answer-feedback")]
     public async Task<ActionResult<IReadOnlyCollection<AdminMissingAnswerFeedbackItem>>> GetMissingAnswerFeedback(

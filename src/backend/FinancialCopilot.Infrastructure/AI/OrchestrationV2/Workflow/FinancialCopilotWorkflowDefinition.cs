@@ -229,10 +229,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "Use when the user asks for a metric of a specific stock by name or ticker (e.g., P/E of فولاد).");
 
         var comprehensiveAnalysisTool = AIFunctionFactory.Create(
-            async (string? symbolName, string[]? topicTags, int limit) =>
+            async (string[]? symbolNames, string[]? topicTags, string? fromDateIso, int limit) =>
             {
                 var result = await comprehensiveAnalysisAdapter.QueryAsync(
-                    symbolName, topicTags, limit <= 0 ? 3 : limit, ct);
+                    symbolNames, topicTags, fromDateIso, limit <= 0 ? 3 : limit, ct);
                 comprehensiveAnalysisResult = result;
                 return result.AgentSummary;
             },
@@ -241,9 +241,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "Use when the user asks about fundamental analysis, technical analysis, P/E valuation, " +
                          "equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), dollar-indexed index, " +
                          "or investment suitability for a specific stock symbol. " +
-                         "symbol_name: Persian stock ticker (e.g. شغدیر, کرازی, غگلپا). " +
-                         "topic_tags: analysis type tags (e.g. تحلیل_بنیادی, تحلیل_تکنیکال, قیمت_تعادلی). " +
-                         "limit: max results (default 3).");
+                         "symbol_names: Persian stock tickers (e.g. شغدیر, کرازی, غگلپا). " +
+                         "topic_tags: allowed slugs: تحلیل_تکنیکال, قیمت_تعادلی, رصد_معاملات_عمده, گزارش_فصلی, گزارش_ماهانه, نمودار_P_S, نمودار_P_E. " +
+                         "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
+                         "limit: max results 1-5 (default 3).");
 
         var agent = agentFactory.Create(chatClientAdapter, BuildSystemInstructions(), [scannerTool, lookupTool, comprehensiveAnalysisTool]);
 
@@ -281,13 +282,16 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         stepActivity?.SetTag("workflow.intent",
-            scannerResult is not null ? "Scanner" : lookupResult is not null ? "SymbolLookup" : "Unknown");
+            scannerResult is not null ? "Scanner"
+            : lookupResult is not null ? "SymbolLookup"
+            : comprehensiveAnalysisResult is not null ? "ComprehensiveAnalysis"
+            : "Unknown");
         stepActivity?.SetTag("workflow.from_cache", fromCache);
 
         return new AgentExecutedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            agentResponseText, scannerResult, lookupResult,
+            agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult,
             completionStatus, fromCache, modelClient, usage);
     }
 
@@ -296,7 +300,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
-        var detectedIntent = DetermineIntent(msg.ScannerResult, msg.LookupResult);
+        var detectedIntent = DetermineIntent(msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult);
         var clarificationRequired =
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -326,7 +330,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return new ResultsComputedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult,
+            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult,
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
             explainableAnswer, confidenceScore, groundedAnswer, msg.Usage);
@@ -363,7 +367,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.LookupResult?.Table,
             msg.ExplainableAnswer, msg.ConfidenceScore, msg.Usage,
             msg.MemoryContext, msg.GroundedAnswer,
-            msg.CreateConversation, ct);
+            msg.CreateConversation, ct,
+            comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -371,7 +376,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request, msg.ConversationId,
             persistedExchange.UserMessageId, persistedExchange.AssistantMessageId,
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
-            msg.ScannerResult, msg.LookupResult,
+            msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
             textAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId);
@@ -401,16 +406,20 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             WorkflowVersion: "2",
             ProviderSelection: providerSelection,
             ProviderFallbackOccurred: false,
-            WorkflowCorrelationId: msg.WorkflowCorrelationId);
+            WorkflowCorrelationId: msg.WorkflowCorrelationId,
+            ComprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────
 
     private static DetectedIntent DetermineIntent(
-        ScannerToolResult? scannerResult, SymbolLookupToolResult? lookupResult)
+        ScannerToolResult? scannerResult,
+        SymbolLookupToolResult? lookupResult,
+        ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult)
     {
         if (scannerResult is not null) return DetectedIntent.Scanner;
         if (lookupResult is not null) return DetectedIntent.SymbolLookup;
+        if (comprehensiveAnalysisResult is not null) return DetectedIntent.ComprehensiveAnalysis;
         return DetectedIntent.Unknown;
     }
 

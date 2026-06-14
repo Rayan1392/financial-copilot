@@ -364,3 +364,5 @@ public sealed record AdminComprehensiveAnalysisSyncRunResponse(
     int PagesTotal,
     int ItemsSynced,
     string? ErrorMessage);
+
+public sealed record AdminComprehensiveAnalysisBackfillResponse(int RowsUpdated);

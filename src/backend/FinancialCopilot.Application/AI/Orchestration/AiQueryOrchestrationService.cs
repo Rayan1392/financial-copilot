@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.MissingAnswer;
@@ -23,6 +24,8 @@ public sealed class AiQueryOrchestrationService(
     IAnswerConsistencyValidator consistencyValidator,
     ISymbolLookupProseBuilder symbolLookupProseBuilder,
     IConfidenceScoringService confidenceScoringService,
+    IComprehensiveAnalysisQueryParser comprehensiveAnalysisParser,
+    IComprehensiveAnalysisQueryUseCase comprehensiveAnalysisUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -70,6 +73,7 @@ public sealed class AiQueryOrchestrationService(
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
         SymbolLookupTableResult? symbolLookupTable = null;
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -231,6 +235,70 @@ public sealed class AiQueryOrchestrationService(
                     clarificationMessage = null;
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.ComprehensiveAnalysis)
+            {
+                var parseResult = await comprehensiveAnalysisParser.ParseAsync(
+                    enrichedMessage, cancellationToken);
+
+                if (parseResult.Status == ComprehensiveAnalysisParseStatus.ClarificationRequired)
+                {
+                    clarificationRequired = true;
+                    clarificationMessage = parseResult.ClarificationPrompt ??
+                        "لطفاً نماد سهم، نوع تحلیل، یا بازه زمانی مورد نظر را مشخص کنید.";
+                    completionStatus = "ClarificationRequired";
+
+                    try
+                    {
+                        await feedbackCollector.CollectAsync(
+                            new MissingAnswerFeedbackRequest(
+                                ActorId: request.ActorId.ToString(),
+                                QueryText: request.Message,
+                                Classification: MissingAnswerFeedbackClassification.ParserLimitation,
+                                RequestedMetricCode: null,
+                                AffectedDataCodeOrName: null,
+                                SymbolCountTotal: 0,
+                                SymbolCountMatched: 0,
+                                SubmittedAt: now,
+                                Context: "ComprehensiveAnalysis: parser returned ClarificationRequired"),
+                            cancellationToken);
+                    }
+                    catch { /* fire-and-forget */ }
+                }
+                else
+                {
+                    var queryRequest = new ComprehensiveAnalysisQueryRequest(
+                        parseResult.SymbolNames,
+                        parseResult.TopicTags,
+                        parseResult.FromDate,
+                        parseResult.Limit);
+
+                    comprehensiveAnalysisResult = await comprehensiveAnalysisUseCase.ExecuteAsync(
+                        queryRequest, cancellationToken);
+
+                    clarificationRequired = false;
+                    clarificationMessage = null;
+
+                    if (!comprehensiveAnalysisResult.HasResults && parseResult.SymbolNames.Count > 0)
+                    {
+                        try
+                        {
+                            await feedbackCollector.CollectAsync(
+                                new MissingAnswerFeedbackRequest(
+                                    ActorId: request.ActorId.ToString(),
+                                    QueryText: request.Message,
+                                    Classification: MissingAnswerFeedbackClassification.DataCoverageGap,
+                                    RequestedMetricCode: null,
+                                    AffectedDataCodeOrName: string.Join(",", parseResult.SymbolNames),
+                                    SymbolCountTotal: parseResult.SymbolNames.Count,
+                                    SymbolCountMatched: 0,
+                                    SubmittedAt: now,
+                                    Context: $"ComprehensiveAnalysis: no results for symbols [{string.Join(",", parseResult.SymbolNames)}]"),
+                                cancellationToken);
+                        }
+                        catch { /* fire-and-forget */ }
+                    }
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
@@ -303,7 +371,7 @@ public sealed class AiQueryOrchestrationService(
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-            consistencyContext);
+            consistencyContext, comprehensiveAnalysisResult);
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             assistantContent,
@@ -333,7 +401,8 @@ public sealed class AiQueryOrchestrationService(
                     explainableAnswer,
                     confidenceScore,
                     usage,
-                    memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null)),
+                    memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
+                    comprehensiveAnalysisResult)),
             createConversation,
             cancellationToken);
 
@@ -354,7 +423,8 @@ public sealed class AiQueryOrchestrationService(
             memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
             AiOrchestrationMode: "V1",
             WorkflowVersion: "1",
-            WorkflowCorrelationId: request.CorrelationId);
+            WorkflowCorrelationId: request.CorrelationId,
+            ComprehensiveAnalysisResult: comprehensiveAnalysisResult);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
@@ -492,10 +562,27 @@ public sealed class AiQueryOrchestrationService(
         string? textAnswer,
         bool clarificationRequired,
         string? clarificationMessage,
-        AnswerConsistencyContext consistencyContext)
+        AnswerConsistencyContext consistencyContext,
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
+
+        if (comprehensiveAnalysisResult is not null)
+        {
+            if (!comprehensiveAnalysisResult.HasResults)
+                return "هیچ تحلیلی برای معیارهای درخواست‌شده در پایگاه داده یافت نشد.";
+
+            var sb = new StringBuilder();
+            foreach (var item in comprehensiveAnalysisResult.Items)
+            {
+                sb.AppendLine($"### {item.Title}");
+                sb.AppendLine($"تاریخ: {item.PersianCreatedAt} | نویسنده: {item.AuthorName}");
+                sb.AppendLine(item.PlainTextSummary);
+                sb.AppendLine();
+            }
+            return sb.ToString().TrimEnd();
+        }
 
         // Symbol-lookup prose is built deterministically from the structured table cell — never from
         // LLM free text — so the prose value always equals the table value.

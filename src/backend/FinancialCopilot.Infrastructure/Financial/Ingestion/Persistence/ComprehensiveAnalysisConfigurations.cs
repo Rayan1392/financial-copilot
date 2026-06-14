@@ -15,6 +15,7 @@ public sealed class ComprehensiveAnalysisRowConfiguration : IEntityTypeConfigura
         builder.Property(r => r.Summary).HasColumnType("text");
         builder.Property(r => r.PersianCreatedAt).HasMaxLength(30);
         builder.Property(r => r.AuthorName).HasMaxLength(200);
+        builder.Property(r => r.PlainTextSummary).HasMaxLength(10_000).IsRequired(false);
 
         builder.HasIndex(r => r.CreatedAt);
     }

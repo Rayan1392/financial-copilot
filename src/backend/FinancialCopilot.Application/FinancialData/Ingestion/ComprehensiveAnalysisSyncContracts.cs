@@ -38,6 +38,13 @@ public sealed record ComprehensiveAnalysisSyncRunView(
     int ItemsSynced,
     string? ErrorMessage);
 
+public sealed record ComprehensiveAnalysisBackfillResult(int RowsUpdated);
+
+public interface IComprehensiveAnalysisPlainTextBackfillService
+{
+    Task<ComprehensiveAnalysisBackfillResult> ExecuteAsync(CancellationToken cancellationToken);
+}
+
 public interface IComprehensiveAnalysisFullSyncService
 {
     Task<ComprehensiveAnalysisFullSyncResult> ExecuteAsync(CancellationToken cancellationToken);

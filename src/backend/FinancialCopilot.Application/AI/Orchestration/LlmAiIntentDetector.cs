@@ -18,12 +18,18 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "- SymbolLookup: the user names one or more specific symbols or companies AND asks for the value of a " +
         "metric — with no threshold or filter (e.g. 'PE حفاری چقدر است؟', 'نسبت بدهی فملی را نشان بده', " +
         "'what is the ROE of AAPL?').\n" +
-        "- Unknown: the intent is not related to stock screening or metric lookup.\n" +
+        "- ComprehensiveAnalysis: the user is asking about analysis posts, reports, or market commentary. " +
+        "Triggers include: تحلیل, گزارش, رصد معاملات عمده, تحلیل تکنیکال, تحلیل بنیادی, قیمت تعادلی, " +
+        "نمودار P/E, نمودار P/S, تحلیل جامع, 'comprehensive analysis', 'market report'. " +
+        "Does NOT trigger when the user asks for a metric value of a specific symbol (use SymbolLookup) " +
+        "or asks for stocks matching a condition (use Scanner).\n" +
+        "- Unknown: the intent is not related to stock screening, metric lookup, or analysis posts.\n" +
         "- Clarification: the message is too vague to classify.\n" +
         "Key distinction: Scanner requires an operator+threshold (filter many); " +
-        "SymbolLookup asks for a value for named symbol(s) with no threshold.\n" +
+        "SymbolLookup asks for a metric value for named symbol(s) with no threshold; " +
+        "ComprehensiveAnalysis asks about published analysis content or reports.\n" +
         "Respond ONLY with JSON matching this schema: " +
-        "{\"intent\":\"Scanner|SymbolLookup|Unknown|Clarification\",\"confidence\":0.0}";
+        "{\"intent\":\"Scanner|SymbolLookup|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
 
     public async Task<IntentDetectionResult> DetectAsync(
         IntentDetectionInput input,
@@ -126,6 +132,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
             {
                 "Scanner" => DetectedIntent.Scanner,
                 "SymbolLookup" => DetectedIntent.SymbolLookup,
+                "ComprehensiveAnalysis" => DetectedIntent.ComprehensiveAnalysis,
                 "Clarification" => DetectedIntent.Clarification,
                 _ => DetectedIntent.Unknown
             };

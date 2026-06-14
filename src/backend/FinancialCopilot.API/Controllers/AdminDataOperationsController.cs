@@ -49,6 +49,7 @@ public sealed class AdminDataOperationsController(
     IComprehensiveAnalysisFullSyncService comprehensiveAnalysisFullSync,
     IComprehensiveAnalysisDailySyncService comprehensiveAnalysisDailySync,
     IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
+    IComprehensiveAnalysisPlainTextBackfillService comprehensiveAnalysisBackfill,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -144,6 +145,14 @@ public sealed class AdminDataOperationsController(
             result.PagesTotal,
             result.ItemsSynced,
             result.Duration.ToString("g")));
+    }
+
+    [HttpPost("comprehensive-analysis/backfill-plain-text")]
+    public async Task<ActionResult<AdminComprehensiveAnalysisBackfillResponse>> BackfillComprehensiveAnalysisPlainText(
+        CancellationToken cancellationToken)
+    {
+        var result = await comprehensiveAnalysisBackfill.ExecuteAsync(cancellationToken);
+        return Ok(new AdminComprehensiveAnalysisBackfillResponse(result.RowsUpdated));
     }
 
     [HttpGet("comprehensive-analysis/sync-runs")]

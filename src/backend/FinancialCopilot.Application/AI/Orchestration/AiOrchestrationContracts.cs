@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
@@ -7,6 +8,7 @@ public enum DetectedIntent
 {
     Scanner,
     SymbolLookup,
+    ComprehensiveAnalysis,
     Clarification,
     Unknown
 }
@@ -59,7 +61,8 @@ public sealed record AiQueryResponse(
     string? WorkflowVersion = null,
     string? ProviderSelection = null,
     bool? ProviderFallbackOccurred = null,
-    string? WorkflowCorrelationId = null);
+    string? WorkflowCorrelationId = null,
+    ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

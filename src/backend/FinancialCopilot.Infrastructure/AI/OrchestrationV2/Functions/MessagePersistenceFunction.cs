@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
@@ -26,14 +27,16 @@ internal sealed class MessagePersistenceFunction(
         AuthorizedMemoryContext memoryContext,
         string? agentResponseText,
         bool createConversation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
             ? agentResponseText
             : BuildAssistantContent(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
-                explainableAnswer, textAnswer, clarificationRequired, clarificationMessage);
+                explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
+                comprehensiveAnalysisResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -59,7 +62,8 @@ internal sealed class MessagePersistenceFunction(
                     explainableAnswer,
                     confidenceScore,
                     usage,
-                    disclosures)),
+                    disclosures,
+                    ComprehensiveAnalysisResult: comprehensiveAnalysisResult)),
             createConversation,
             cancellationToken);
     }
@@ -81,7 +85,8 @@ internal sealed class MessagePersistenceFunction(
         ExplainableAnswer? explainableAnswer,
         string? textAnswer,
         bool clarificationRequired,
-        string? clarificationMessage)
+        string? clarificationMessage,
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -106,6 +111,11 @@ internal sealed class MessagePersistenceFunction(
             return plan.Language?.StartsWith("fa", StringComparison.OrdinalIgnoreCase) == true
                 ? $"برنامه اسکن با {plan.Conditions.Count} شرط ایجاد شد."
                 : $"Scanner plan created with {plan.Conditions.Count} condition(s).";
+
+        if (comprehensiveAnalysisResult is not null)
+            return comprehensiveAnalysisResult.HasResults
+                ? $"{comprehensiveAnalysisResult.Items.Count} تحلیل جامع یافت شد."
+                : "تحلیل جامعی برای معیارهای درخواستی یافت نشد.";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
     }

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +6,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 internal sealed class ComprehensiveAnalysisRepository(
     FinancialIngestionDbContext dbContext,
+    IHtmlTextStripper htmlStripper,
     TimeProvider timeProvider)
     : IComprehensiveAnalysisQueryRepository, IComprehensiveAnalysisSyncRunReader
 {
@@ -21,14 +21,18 @@ internal sealed class ComprehensiveAnalysisRepository(
             var existing = await dbContext.ComprehensiveAnalyses
                 .FindAsync([analysis.Id], cancellationToken);
 
+            var plainText = htmlStripper.Strip(analysis.Summary);
+
             if (existing is null)
             {
+                analysis.PlainTextSummary = plainText;
                 dbContext.ComprehensiveAnalyses.Add(analysis);
             }
             else
             {
                 existing.Title = analysis.Title;
                 existing.Summary = analysis.Summary;
+                existing.PlainTextSummary = plainText;
                 existing.CreatedAt = analysis.CreatedAt;
                 existing.PersianCreatedAt = analysis.PersianCreatedAt;
                 existing.AuthorId = analysis.AuthorId;
@@ -205,7 +209,7 @@ internal sealed class ComprehensiveAnalysisRepository(
             .Select(a => new ComprehensiveAnalysisSummary(
                 a.Id,
                 a.Title,
-                StripHtml(a.Summary),
+                string.IsNullOrEmpty(a.PlainTextSummary) ? htmlStripper.Strip(a.Summary) : a.PlainTextSummary,
                 a.CreatedAt,
                 a.PersianCreatedAt,
                 a.AuthorName,
@@ -219,9 +223,4 @@ internal sealed class ComprehensiveAnalysisRepository(
                     : []))
             .ToList();
     }
-
-    private static readonly Regex HtmlTagPattern = new("<[^>]*>", RegexOptions.Compiled);
-
-    private static string StripHtml(string html) =>
-        HtmlTagPattern.Replace(html, string.Empty).Trim();
 }

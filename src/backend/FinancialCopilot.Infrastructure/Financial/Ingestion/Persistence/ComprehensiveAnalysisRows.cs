@@ -17,6 +17,8 @@ public sealed class ComprehensiveAnalysisRow
     public string AuthorName { get; set; } = string.Empty;
 
     public DateTimeOffset SyncedAt { get; set; }
+
+    public string? PlainTextSummary { get; set; }
 }
 
 public sealed class ComprehensiveAnalysisTagRow

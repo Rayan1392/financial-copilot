@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
@@ -43,6 +44,7 @@ internal sealed record AgentExecutedMessage(
     string AgentResponseText,
     ScannerToolResult? ScannerResult,
     SymbolLookupToolResult? LookupResult,
+    ComprehensiveAnalysisToolResult? ComprehensiveAnalysisResult,
     string CompletionStatus,
     bool FromCache,
     IAiModelClient ModelClient,
@@ -58,6 +60,7 @@ internal sealed record ResultsComputedMessage(
     string AgentResponseText,
     ScannerToolResult? ScannerResult,
     SymbolLookupToolResult? LookupResult,
+    ComprehensiveAnalysisToolResult? ComprehensiveAnalysisResult,
     string CompletionStatus,
     bool FromCache,
     IAiModelClient ModelClient,
@@ -79,6 +82,7 @@ internal sealed record PersistenceCompletedMessage(
     string? ClarificationMessage,
     ScannerToolResult? ScannerResult,
     SymbolLookupToolResult? LookupResult,
+    ComprehensiveAnalysisToolResult? ComprehensiveAnalysisResult,
     ExplainableAnswer? ExplainableAnswer,
     ConfidenceScoreResult? ConfidenceScore,
     string? TextAnswer,

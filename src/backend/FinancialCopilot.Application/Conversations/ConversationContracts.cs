@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
@@ -44,7 +45,8 @@ public sealed record AssistantMessagePayload(
     ExplainableAnswer? ExplainableAnswer,
     ConfidenceScoreResult? ConfidenceScore,
     UsageAccountingResult? Usage,
-    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures);
+    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures,
+    ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

@@ -4,6 +4,7 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using Microsoft.AspNetCore.Authorization;
@@ -204,7 +205,8 @@ public sealed class AiFacadeController(
             result.WorkflowVersion,
             result.ProviderSelection,
             result.ProviderFallbackOccurred,
-            result.WorkflowCorrelationId);
+            result.WorkflowCorrelationId,
+            MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -375,7 +377,26 @@ public sealed class AiFacadeController(
                     payload.Usage.PricingPolicyVersion,
                     payload.Usage.Cached),
                 payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
-                    d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList());
+                    d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
+                MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult));
+
+    private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
+        ComprehensiveAnalysisQueryResponse? result)
+    {
+        if (result is null) return null;
+
+        return new ComprehensiveAnalysisResultResponse(
+            result.Items.Select(i => new ComprehensiveAnalysisItemResponse(
+                i.AnalysisId,
+                i.Title,
+                i.PersianCreatedAt,
+                i.AuthorName,
+                i.PlainTextSummary,
+                i.TagNames,
+                i.SyncedAt)).ToList(),
+            result.UnresolvedSymbols,
+            result.HasResults);
+    }
 
     private static ConfidenceScoreResponse? MapConfidenceScore(ConfidenceScoreResult? confidence)
     {

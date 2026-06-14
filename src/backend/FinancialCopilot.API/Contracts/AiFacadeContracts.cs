@@ -27,7 +27,8 @@ public sealed record AiQueryHttpResponse(
     string? WorkflowVersion = null,
     string? ProviderSelection = null,
     bool? ProviderFallbackOccurred = null,
-    string? WorkflowCorrelationId = null);
+    string? WorkflowCorrelationId = null,
+    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -167,4 +168,19 @@ public sealed record AssistantMessageContentResponse(
     ExplainableAnswerResponse? ExplainableAnswer,
     ConfidenceScoreResponse? ConfidenceScore,
     UsageAccountingResponse? Usage,
-    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures);
+    IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures,
+    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null);
+
+public sealed record ComprehensiveAnalysisResultResponse(
+    IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,
+    IReadOnlyList<string> UnresolvedSymbols,
+    bool HasResults);
+
+public sealed record ComprehensiveAnalysisItemResponse(
+    long AnalysisId,
+    string Title,
+    string PersianCreatedAt,
+    string AuthorName,
+    string PlainTextSummary,
+    IReadOnlyList<string> TagNames,
+    DateTimeOffset SyncedAt);

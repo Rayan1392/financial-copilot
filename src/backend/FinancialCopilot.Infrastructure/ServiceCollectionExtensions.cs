@@ -403,6 +403,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMemoryContextProvider, EfCoreMemoryContextProvider>();
         services.AddSingleton<IMemoryProtectionPolicy, ConsentAwareMemoryProtectionPolicy>();
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
+        services.AddScoped<IComprehensiveAnalysisQueryParser, LlmComprehensiveAnalysisQueryParser>();
         services.AddScoped<ISymbolLookupParser, LlmSymbolLookupParser>();
         services.AddScoped<ISymbolNameResolver, EfCoreSymbolNameResolver>();
         services.AddScoped<ISymbolMetricLookupService, EfCoreSymbolMetricLookupService>();
@@ -634,6 +635,7 @@ public static class ServiceCollectionExtensions
             })
             .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
             .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
+        services.AddSingleton<IHtmlTextStripper, HtmlAgilityPackTextStripper>();
         services.AddScoped<ComprehensiveAnalysisRepository>();
         services.AddScoped<IComprehensiveAnalysisQueryRepository>(provider =>
             provider.GetRequiredService<ComprehensiveAnalysisRepository>());
@@ -641,6 +643,9 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<ComprehensiveAnalysisRepository>());
         services.AddScoped<IComprehensiveAnalysisFullSyncService, ComprehensiveAnalysisFullSyncService>();
         services.AddScoped<IComprehensiveAnalysisDailySyncService, ComprehensiveAnalysisDailySyncService>();
+        services.AddScoped<IComprehensiveAnalysisPlainTextBackfillService, ComprehensiveAnalysisPlainTextBackfillService>();
+        services.AddScoped<IComprehensiveAnalysisSearchRepository, EfCoreComprehensiveAnalysisSearchRepository>();
+        services.AddScoped<IComprehensiveAnalysisQueryUseCase, ComprehensiveAnalysisQueryUseCase>();
         services.AddScoped<IQueryComprehensiveAnalysisUseCase, QueryComprehensiveAnalysisUseCase>();
 
         // NADPCO HTTP API provider foundation. Registered by name for coexisting ingestion routes;

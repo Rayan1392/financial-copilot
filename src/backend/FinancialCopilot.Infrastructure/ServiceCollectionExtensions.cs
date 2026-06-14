@@ -32,6 +32,7 @@ using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
+using FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
@@ -44,6 +45,7 @@ using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
+using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
@@ -53,6 +55,7 @@ using FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Config;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
+using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -442,6 +445,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<FinancialCopilotAgentFactory>(sp =>
                 new FinancialCopilotAgentFactory(sp.GetService<ILoggerFactory>()));
             services.AddScoped<FinancialCopilotAgentWorkflowRunner>();
+            services.AddScoped<FinancialCopilotWorkflowDefinition>();
             services.AddScoped<IAiQueryOrchestrationService,
                 MicrosoftAgentFrameworkAiQueryOrchestrationService>();
         }
@@ -538,7 +542,36 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<FinancialMetricRegistry>());
         services.AddSingleton<IMetricDependencyResolver>(provider =>
             provider.GetRequiredService<FinancialMetricRegistry>());
-        services.AddSingleton<IMetricAliasResolver, MetricAliasResolver>();
+        services.AddSingleton<MetricAliasResolver>();
+        services.AddSingleton<IMetricAliasExpressionNormalizer, DefaultMetricAliasExpressionNormalizer>();
+        services.AddScoped<IDynamicMetricAliasRepository, EfCoreDynamicMetricAliasRepository>();
+        services.AddScoped<IMetricAliasCandidateRepository, EfCoreMetricAliasCandidateRepository>();
+        services.AddSingleton<CompositeMetricAliasResolver>(provider =>
+            new CompositeMetricAliasResolver(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                provider.GetRequiredService<MetricAliasResolver>(),
+                provider.GetRequiredService<IMetricAliasExpressionNormalizer>(),
+                provider.GetRequiredService<ILogger<CompositeMetricAliasResolver>>()));
+        services.AddSingleton<IMetricAliasResolver>(provider =>
+            provider.GetRequiredService<CompositeMetricAliasResolver>());
+        services.AddSingleton<IMetricAliasCacheInvalidator>(provider =>
+            provider.GetRequiredService<CompositeMetricAliasResolver>());
+
+        services
+            .AddOptions<MetricAliasLearningOptions>()
+            .BindConfiguration(MetricAliasLearningOptions.SectionName);
+        services.AddSingleton<MetricAliasLearningPolicy>(provider =>
+            new MetricAliasLearningPolicy(
+                provider.GetRequiredService<IOptions<MetricAliasLearningOptions>>().Value));
+        services.AddSingleton<NoOpMetricAliasLearningSignalCollector>();
+        services.AddSingleton<AsyncFireAndForgetMetricAliasLearningSignalCollector>();
+        services.AddSingleton<IMetricAliasLearningSignalCollector>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<MetricAliasLearningOptions>>().Value;
+            return settings.Enabled
+                ? provider.GetRequiredService<AsyncFireAndForgetMetricAliasLearningSignalCollector>()
+                : provider.GetRequiredService<NoOpMetricAliasLearningSignalCollector>();
+        });
         services.AddSingleton<IMetricCalculationPolicyProvider>(_ =>
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies));
 
@@ -735,6 +768,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesQuantityMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlyProductionQuantityMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesRateMetricInputSource>();
+        services.AddSingleton<IMonthlyActivityOutputTypeResolver, DefaultMonthlyActivityOutputTypeResolver>();
         services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
         services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();
@@ -808,7 +842,27 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStockMarketDbSyncStateReader>(provider =>
             provider.GetRequiredService<StockMarketDbSyncService>());
         services.AddScoped<IStockMarketHistoryRetentionService, StockMarketHistoryRetentionService>();
-        services.AddSingleton<ITsetmcDirectFeedSyncService, NullTsetmcDirectFeedSyncService>();
+        // Spec 054 Phase 2 — direct TSETMC web-service feed. When TsetmcWebService:Enabled=false
+        // (or credentials absent), NullTsetmcDirectFeedSyncService is wired and all sync operations
+        // are no-ops. Set Enabled=true + UserName/Password to activate the real adapter.
+        services
+            .AddOptions<TsetmcWebServiceOptions>()
+            .BindConfiguration(TsetmcWebServiceOptions.SectionName);
+        services.AddHttpClient<TsetmcWebServiceClient>((provider, client) =>
+        {
+            var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
+            client.BaseAddress = new Uri(opts.ServiceUrl);
+            client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
+        });
+        services.AddScoped<ITsetmcWebServiceClient, TsetmcWebServiceClient>();
+        services.AddScoped<TsetmcDirectFeedSyncService>();
+        services.AddScoped<ITsetmcDirectFeedSyncService>(provider =>
+        {
+            var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
+            return opts.Enabled && !string.IsNullOrWhiteSpace(opts.UserName)
+                ? provider.GetRequiredService<TsetmcDirectFeedSyncService>()
+                : new NullTsetmcDirectFeedSyncService();
+        });
         services
             .AddOptions<MarketQuoteSourcePriorityOptions>()
             .BindConfiguration(MarketQuoteSourcePriorityOptions.SectionName);

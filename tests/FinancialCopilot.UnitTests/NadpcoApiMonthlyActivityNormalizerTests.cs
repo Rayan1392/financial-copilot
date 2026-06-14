@@ -237,17 +237,48 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.Equal(2, await db.MonthlyReports.CountAsync(row => row.ExternalReportId == "ProductSales:1001:output-2"));
     }
 
+    // Single-month (outputType=0) fixture used by the metric-source filter tests.
+    // Uses a different activityId (9001) and externalReportId suffix ":output-0" so it
+    // does not collide with ProductSalesJson (which uses activityId 1001, outputType 2).
+    private const string SingleMonthProductSalesJson = """
+        [
+          {
+            "activityID": 9001,
+            "com_ID": 3,
+            "year": 1402,
+            "month": 1,
+            "outputType": 0,
+            "productID": 77,
+            "productTitle": "Steel Billet",
+            "productUnit": "ton",
+            "salesValue": 105000000
+          },
+          {
+            "activityID": 9001,
+            "com_ID": 3,
+            "year": 1402,
+            "month": 1,
+            "outputType": 0,
+            "productID": 78,
+            "productTitle": "Steel Slab",
+            "productUnit": "ton",
+            "salesValue": 25200000
+          }
+        ]
+        """;
+
     [Fact]
     public async Task Normalize_MonthlySalesMetricSource_ProductSalesYieldsOneObservation()
     {
         await using var db = CreateDb();
 
-        await CreateNormalizer(db).NormalizeAsync(MakePayload(ProductSalesJson, "[]"), CancellationToken.None);
+        // Use SingleMonthProductSalesJson (outputType=0) so the source filter includes the row.
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleMonthProductSalesJson, "[]"), CancellationToken.None);
 
         var source = new MonthlySalesMetricInputSource(db);
         var observations = await source.LoadAsync(CompanyId, CancellationToken.None);
 
-        // ProductSales normalizes to one MonthlyReport → one observation with the summed line items.
+        // ProductSales (outputType=0) normalizes to one MonthlyReport → one observation.
         var observation = Assert.Single(observations);
         Assert.Equal(105000000m + 25200000m, observation.Value);
     }
@@ -262,7 +293,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         var source = new MonthlySalesMetricInputSource(db);
         var observations = await source.LoadAsync(CompanyId, CancellationToken.None);
 
-        // ServiceSales normalizes to one MonthlyReport → one observation.
+        // ServiceSales has OutputType=null → included by the null-pass-through rule.
         var observation = Assert.Single(observations);
         Assert.Equal(3000000m, observation.Value);
     }

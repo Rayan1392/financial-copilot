@@ -39,12 +39,20 @@ builder.Services
             options.LockLeaseSeconds > 0,
         "NADPCO scheduled sync settings must be positive.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<MetricAliasLearningWorkerOptions>()
+    .BindConfiguration(MetricAliasLearningWorkerOptions.SectionName)
+    .Validate(
+        options => options.IntervalSeconds > 0 && options.BatchSize > 0,
+        "MetricAliasLearning worker settings must be positive.")
+    .ValidateOnStart();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
+builder.Services.AddHostedService<MetricAliasLearningWorker>();
 
 var host = builder.Build();
 host.Run();

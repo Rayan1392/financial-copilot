@@ -32,6 +32,7 @@ public sealed class AdminDataOperationsController(
     INadpcoScheduledSyncRunReader nadpcoScheduledSyncRunReader,
     IStockMarketDbSyncService stockMarketDbSync,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
+    ITsetmcDirectFeedSyncService tsetmcDirectFeed,
     IArchiveImportCoordinator archiveImportCoordinator,
     IArchiveImportRunReader archiveImportRunReader,
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
@@ -603,6 +604,49 @@ public sealed class AdminDataOperationsController(
             state.LogicalVendor,
             state.PhysicalSource,
             state.SourceMode)).ToArray());
+    }
+
+    [HttpGet("tsetmc/status")]
+    public ActionResult<AdminTsetmcDirectFeedStatusResponse> GetTsetmcDirectFeedStatus() =>
+        Ok(new AdminTsetmcDirectFeedStatusResponse(
+            IsOperational: tsetmcDirectFeed.IsOperational,
+            PhysicalSource: "TsetmcWebService",
+            Notes: tsetmcDirectFeed.IsOperational
+                ? "Direct TSETMC feed is configured and operational."
+                : "Direct TSETMC feed is not operational. Set TsetmcWebService:Enabled=true and provide credentials."));
+
+    [HttpPost("tsetmc/{dataset}/sync")]
+    public async Task<ActionResult<AdminTsetmcSyncResponse>> RunTsetmcDirectFeedSync(
+        string dataset,
+        CancellationToken cancellationToken)
+    {
+        if (!tsetmcDirectFeed.IsOperational)
+            return Conflict(new { error = "TsetmcWebService is not operational. Enable it and configure credentials." });
+
+        TsetmcSyncResult result;
+        try
+        {
+            result = dataset.ToLowerInvariant() switch
+            {
+                "instruments" => await tsetmcDirectFeed.SynchronizeInstrumentsAsync(cancellationToken),
+                "intradaytrades" => await tsetmcDirectFeed.SynchronizeIntradayTradesAsync(cancellationToken),
+                "dailytrades" => await tsetmcDirectFeed.SynchronizeDailyTradesAsync(cancellationToken),
+                "dailyindices" => await tsetmcDirectFeed.SynchronizeDailyIndicesAsync(cancellationToken),
+                "intradayindices" => await tsetmcDirectFeed.SynchronizeIntradayIndicesAsync(cancellationToken),
+                _ => throw new ArgumentException($"Unknown dataset '{dataset}'. Valid: instruments, intradaytrades, dailytrades, dailyindices, intradayindices.")
+            };
+        }
+        catch (ArgumentException ex)
+        {
+            ModelState.AddModelError(nameof(dataset), ex.Message);
+            return ValidationProblem(ModelState);
+        }
+
+        return Ok(new AdminTsetmcSyncResponse(
+            result.Dataset,
+            result.RowsFetched,
+            result.RowsPersisted,
+            result.Duration.ToString("g")));
     }
 
     [HttpGet("missing-answer-feedback")]

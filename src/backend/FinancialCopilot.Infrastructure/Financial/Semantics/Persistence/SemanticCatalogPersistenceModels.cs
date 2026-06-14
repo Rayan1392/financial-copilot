@@ -71,3 +71,73 @@ public sealed class MetricDependencyRow
 
     public bool Required { get; set; }
 }
+
+public sealed class DynamicMetricAliasRow
+{
+    public Guid Id { get; set; }
+
+    public string Expression { get; set; } = string.Empty;
+
+    public string NormalizedExpression { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
+
+    public string MetricCode { get; set; } = string.Empty;
+
+    public string MetricVersion { get; set; } = string.Empty;
+
+    public string Source { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public decimal ConfidenceScore { get; set; }
+
+    public int FrequencyCount { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public string? CreatedBy { get; set; }
+
+    public DateTimeOffset? ApprovedAt { get; set; }
+
+    public string? ApprovedBy { get; set; }
+
+    public DateTimeOffset? DisabledAt { get; set; }
+
+    public string? DisabledBy { get; set; }
+
+    public string? DisableReason { get; set; }
+}
+
+public sealed class MetricAliasCandidateRow
+{
+    public Guid Id { get; set; }
+
+    public string Expression { get; set; } = string.Empty;
+
+    public string NormalizedExpression { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
+
+    public string SuggestedMetricCode { get; set; } = string.Empty;
+
+    public string? SuggestedMetricVersion { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public decimal ConfidenceScore { get; set; }
+
+    public int FrequencyCount { get; set; }
+
+    public int DistinctActorCount { get; set; }
+
+    public DateTimeOffset FirstSeenAt { get; set; }
+
+    public DateTimeOffset LastSeenAt { get; set; }
+
+    public string? EvidenceExamplesJson { get; set; }
+
+    public string? RejectionReason { get; set; }
+
+    public Guid? PromotedAliasId { get; set; }
+}

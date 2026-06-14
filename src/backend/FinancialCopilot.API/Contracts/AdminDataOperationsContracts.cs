@@ -304,3 +304,14 @@ public sealed record AdminMissingAnswerFeedbackSummary(
     DateTimeOffset? DateTo,
     IReadOnlyDictionary<string, int> CountsByClassification,
     int TotalCount);
+
+public sealed record AdminTsetmcDirectFeedStatusResponse(
+    bool IsOperational,
+    string PhysicalSource,
+    string Notes);
+
+public sealed record AdminTsetmcSyncResponse(
+    string Dataset,
+    int RowsFetched,
+    int RowsPersisted,
+    string Duration);

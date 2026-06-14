@@ -9,7 +9,8 @@ public sealed class LlmScannerQueryParser(
     IAiModelExecutionService executionService,
     IMetricAliasResolver aliasResolver,
     IScannerQueryPlanValidator validator,
-    TimeProvider timeProvider) : IScannerQueryParser
+    TimeProvider timeProvider,
+    IMetricAliasLearningSignalCollector? learningSignalCollector = null) : IScannerQueryParser
 {
     private const string PolicyVersion = "v1";
     private const string SchemaName = "ScannerParseOutput";
@@ -70,7 +71,7 @@ public sealed class LlmScannerQueryParser(
         CancellationToken cancellationToken)
     {
         var llmOutput = await InvokeLlmAsync(request, cancellationToken);
-        return BuildPlan(request, llmOutput);
+        return BuildPlan(request, llmOutput, cancellationToken);
     }
 
     private async Task<LlmScannerParseOutput> InvokeLlmAsync(
@@ -168,7 +169,7 @@ public sealed class LlmScannerQueryParser(
         }
     }
 
-    private ScannerParseResult BuildPlan(ScannerParseRequest request, LlmScannerParseOutput llmOutput)
+    private ScannerParseResult BuildPlan(ScannerParseRequest request, LlmScannerParseOutput llmOutput, CancellationToken cancellationToken = default)
     {
         var conditions = new List<ScannerCondition>();
         var clarificationItems = new List<ScannerClarificationItem>();
@@ -218,6 +219,8 @@ public sealed class LlmScannerQueryParser(
                         candidate.UserTerminology,
                         resolution.ClarificationMessage ?? "Ambiguous metric expression.",
                         resolution.Candidates.Select(d => d.Code.Value).ToArray()));
+                    EmitLearningSignal(candidate.UserTerminology, NormalizeBcp47(candidate.Language),
+                        MetricResolutionStatus.Ambiguous, null, request.CorrelationId, cancellationToken);
                     break;
 
                 case MetricResolutionStatus.NotFound:
@@ -226,6 +229,8 @@ public sealed class LlmScannerQueryParser(
                         candidate.UserTerminology,
                         "Metric term is not recognized in the supported catalog.",
                         []));
+                    EmitLearningSignal(candidate.UserTerminology, NormalizeBcp47(candidate.Language),
+                        MetricResolutionStatus.NotFound, null, request.CorrelationId, cancellationToken);
                     break;
             }
         }
@@ -407,6 +412,22 @@ public sealed class LlmScannerQueryParser(
             "fa" => "fa-IR",
             _ => language
         };
+
+    private void EmitLearningSignal(
+        string userExpression, string language, MetricResolutionStatus failureKind,
+        string? actorId, string? correlationId, CancellationToken cancellationToken)
+    {
+        if (learningSignalCollector is null) return;
+        var signal = new MetricAliasLearningSignal(
+            UserExpression: userExpression,
+            NormalizedExpression: userExpression,
+            Language: language,
+            FailureKind: failureKind,
+            ActorId: actorId,
+            CorrelationId: correlationId,
+            OccurredAt: timeProvider.GetUtcNow());
+        _ = learningSignalCollector.CollectAsync(signal, CancellationToken.None);
+    }
 }
 
 public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator

@@ -54,18 +54,49 @@ public interface IStockMarketDbSyncStateReader
 }
 
 /// <summary>
-/// Placeholder contract for the future direct TSETMC web-service ingestion adapter (spec 054, Phase 2).
-/// The interface lives in Application so Infrastructure and tests can depend on the abstraction;
-/// the real implementation will be wired in once the TSETMC ASMX client is built.
+/// Direct TSETMC web-service ingestion adapter (spec 054, Phase 2).
+/// The interface lives in Application so Infrastructure and tests can depend on the abstraction.
+/// <see cref="IsOperational"/> returns false until credentials and the endpoint are configured;
+/// callers fall back to the StockMarketDB bridge when this is false.
 /// </summary>
 public interface ITsetmcDirectFeedSyncService
 {
     /// <summary>
-    /// Returns false — the direct feed is not yet operational. Implementations must check
-    /// configuration or a feature flag before returning true.
+    /// Returns true only when the adapter is enabled and configured with credentials.
     /// </summary>
     bool IsOperational { get; }
+
+    /// <summary>
+    /// Synchronizes instruments (equity dimension) for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeInstrumentsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches today's intraday trade snapshots for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeIntradayTradesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches daily historical trade records for the configured date range, day by day.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeDailyTradesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches daily index values for the configured date range.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeDailyIndicesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches today's intraday index snapshots for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeIntradayIndicesAsync(CancellationToken cancellationToken);
 }
+
+public sealed record TsetmcSyncResult(
+    string Dataset,
+    int RowsFetched,
+    int RowsPersisted,
+    TimeSpan Duration);
 
 public sealed record StockMarketHistoryRetentionResult(
     int IntradayTradesDeleted,

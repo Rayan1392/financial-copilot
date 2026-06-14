@@ -6,7 +6,9 @@ namespace FinancialCopilot.Application.Scanner;
 
 public sealed class LlmSymbolLookupParser(
     IAiModelExecutionService executionService,
-    IMetricAliasResolver aliasResolver) : ISymbolLookupParser
+    IMetricAliasResolver aliasResolver,
+    TimeProvider? timeProvider = null,
+    IMetricAliasLearningSignalCollector? learningSignalCollector = null) : ISymbolLookupParser
 {
     private const string SchemaName = "SymbolLookupParseOutput";
     private static readonly AiStructuredOutputContract LookupContract = new(
@@ -49,7 +51,7 @@ public sealed class LlmSymbolLookupParser(
         var result = await executionService.ExecuteAsync(selection, aiRequest, cancellationToken);
         var llmOutput = ParseLlmOutput(result.StructuredJson);
 
-        return BuildParseResult(request, llmOutput);
+        return BuildParseResult(request, llmOutput, cancellationToken);
     }
 
     private static LlmLookupParseOutput ParseLlmOutput(string? json)
@@ -107,7 +109,8 @@ public sealed class LlmSymbolLookupParser(
 
     private SymbolLookupParseResult BuildParseResult(
         SymbolLookupParseRequest request,
-        LlmLookupParseOutput llmOutput)
+        LlmLookupParseOutput llmOutput,
+        CancellationToken cancellationToken = default)
     {
         if (llmOutput.ClarificationRequired || llmOutput.Pairs.Count == 0)
         {
@@ -137,12 +140,16 @@ public sealed class LlmSymbolLookupParser(
             {
                 clarificationMessages.Add(
                     $"Metric term '{pair.MetricTerm}' is not recognized in the supported catalog.");
+                EmitLearningSignal(pair.MetricTerm, language, MetricResolutionStatus.NotFound,
+                    request.CorrelationId, cancellationToken);
             }
             else if (resolution.Status == MetricResolutionStatus.Ambiguous)
             {
                 clarificationMessages.Add(
                     $"Metric term '{pair.MetricTerm}' is ambiguous: " +
                     string.Join(", ", resolution.Candidates.Select(c => c.Code.Value)));
+                EmitLearningSignal(pair.MetricTerm, language, MetricResolutionStatus.Ambiguous,
+                    request.CorrelationId, cancellationToken);
             }
 
             resolvedPairs.Add(new SymbolLookupParsedPair(pair.SymbolName, resolvedCode, pair.MetricTerm));
@@ -159,6 +166,22 @@ public sealed class LlmSymbolLookupParser(
         }
 
         return new SymbolLookupParseResult(resolvedPairs, LookupParseStatus.Parsed);
+    }
+
+    private void EmitLearningSignal(
+        string userExpression, string language, MetricResolutionStatus failureKind,
+        string? correlationId, CancellationToken cancellationToken)
+    {
+        if (learningSignalCollector is null) return;
+        var signal = new MetricAliasLearningSignal(
+            UserExpression: userExpression,
+            NormalizedExpression: userExpression,
+            Language: language,
+            FailureKind: failureKind,
+            ActorId: null,
+            CorrelationId: correlationId,
+            OccurredAt: (timeProvider ?? TimeProvider.System).GetUtcNow());
+        _ = learningSignalCollector.CollectAsync(signal, CancellationToken.None);
     }
 
     private static string NormalizeBcp47(string language) =>

@@ -52,7 +52,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
 
             var continuationRequest = new AiModelRequest(
                 correlationId, tenantId, workload,
-                newMessages.Select(MapMessage).ToList(),
+                newMessages.SelectMany(MapMessages).ToList(),
                 StructuredOutput: null,
                 Tools: tools is { Count: > 0 } ? tools : null,
                 PreviousResponseId: _lastResponseId);
@@ -72,7 +72,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
 
         var request = new AiModelRequest(
             correlationId, tenantId, workload,
-            messageList.Select(MapMessage).ToList(),
+            messageList.SelectMany(MapMessages).ToList(),
             StructuredOutput: null,
             Tools: tools is { Count: > 0 } ? tools : null);
 
@@ -117,7 +117,7 @@ internal sealed class FinancialCopilotChatClientAdapter(
         var submittedCallIds = messages
             .Where(m => m.Role == ChatRole.Tool)
             .SelectMany(m => m.Contents.OfType<FunctionResultContent>())
-            .Select(r => r.CallId)
+            .Select(r => r.CallId ?? string.Empty)
             .ToHashSet();
 
         var unmatched = submittedCallIds.Except(_pendingToolCallIds).ToList();
@@ -173,15 +173,16 @@ internal sealed class FinancialCopilotChatClientAdapter(
         return response;
     }
 
-    // Maps an Extensions.AI ChatMessage to our provider-neutral AiConversationMessage.
-    private static AiConversationMessage MapMessage(ChatMessage m)
+    // Maps a single Extensions.AI ChatMessage to one or more provider-neutral AiConversationMessages.
+    // Tool messages may bundle multiple FunctionResultContent items (one per parallel tool call);
+    // each must become its own function_call_output item for the Responses API.
+    private static IEnumerable<AiConversationMessage> MapMessages(ChatMessage m)
     {
         var role = MapRole(m.Role);
 
         if (role == AiMessageRole.Tool)
         {
-            var toolResult = m.Contents.OfType<FunctionResultContent>().FirstOrDefault();
-            if (toolResult is not null)
+            foreach (var toolResult in m.Contents.OfType<FunctionResultContent>())
             {
                 var content = toolResult.Result switch
                 {
@@ -189,8 +190,9 @@ internal sealed class FinancialCopilotChatClientAdapter(
                     string s => s,
                     _ => JsonSerializer.Serialize(toolResult.Result)
                 };
-                return new AiConversationMessage(AiMessageRole.Tool, content, toolResult.CallId);
+                yield return new AiConversationMessage(AiMessageRole.Tool, content, toolResult.CallId);
             }
+            yield break;
         }
 
         var functionCalls = m.Contents.OfType<FunctionCallContent>().ToList();
@@ -202,10 +204,11 @@ internal sealed class FinancialCopilotChatClientAdapter(
                 item_id = fc.AdditionalProperties?.TryGetValue("item_id", out var iid) == true ? iid as string : null,
                 function = new { name = fc.Name, arguments = SerializeArgs(fc.Arguments) }
             }));
-            return new AiConversationMessage(role, serialized);
+            yield return new AiConversationMessage(role, serialized);
+            yield break;
         }
 
-        return new AiConversationMessage(role, m.Text ?? string.Empty);
+        yield return new AiConversationMessage(role, m.Text ?? string.Empty);
     }
 
     private static AiMessageRole MapRole(ChatRole role)

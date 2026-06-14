@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Metrics;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Periods;
@@ -72,13 +73,16 @@ public sealed class NetProfitMetricInputSource(
 
 /// <summary>
 /// Shared per-company-month aggregation over normalized monthly report line items (spec 057).
-/// Each <c>MonthlyReport</c> row corresponds to exactly one vendor report type
-/// (<c>ProductSales</c> or <c>ServiceSales</c>) — a company publishes one type, not both.
-/// One observation is produced per report. The aggregate policy is supplied by the concrete source.
+/// After spec 059, each company-month may have up to 5 rows in <c>MonthlyReports</c> — one per
+/// NADPCO outputTypeId (0–4). The <paramref name="outputTypeFilter"/> selects the correct variant
+/// so that exactly one observation is produced per period. Null means "accept any OutputType"
+/// (used for <c>ServiceSales</c> rows, which have no outputTypeId, and for legacy rows ingested
+/// before spec 059).
 /// </summary>
 public abstract class MonthlyReportAggregateInputSource(
     FinancialIngestionDbContext dbContext,
-    string metricCode) : INormalizedMetricInputSource
+    string metricCode,
+    int? outputTypeFilter) : INormalizedMetricInputSource
 {
     public MetricCode MetricCode { get; } = new(metricCode);
 
@@ -88,9 +92,18 @@ public abstract class MonthlyReportAggregateInputSource(
         string externalCompanyId,
         CancellationToken cancellationToken)
     {
-        var reports = await dbContext.MonthlyReports.AsNoTracking()
-            .Where(report => report.ExternalCompanyId == externalCompanyId)
-            .ToListAsync(cancellationToken);
+        var query = dbContext.MonthlyReports.AsNoTracking()
+            .Where(report => report.ExternalCompanyId == externalCompanyId);
+
+        // When a specific output type is requested, include rows that match that type AND legacy
+        // rows with null OutputType (ingested before spec 059) so old data remains queryable.
+        if (outputTypeFilter.HasValue)
+        {
+            query = query.Where(report =>
+                report.OutputType == outputTypeFilter.Value || report.OutputType == null);
+        }
+
+        var reports = await query.ToListAsync(cancellationToken);
         if (reports.Count == 0)
         {
             return [];
@@ -118,8 +131,13 @@ public abstract class MonthlyReportAggregateInputSource(
     }
 }
 
+// OutputType=0 (single month) is the correct filter for all four spec-057 metrics when the
+// user asks for "آخرین فروش" / "latest sales". Legacy rows (OutputType=null, ingested before
+// spec 059) are also included by the base class so old data remains queryable.
 public sealed class MonthlySalesMetricInputSource(
-    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES")
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_SALES",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.SingleMonth)
 {
     // Pre-057 behavior preserved: the month's sales amount is reliable only when every line item
     // carries a value; a partially-valued report yields null (MissingData) instead of an
@@ -131,8 +149,9 @@ public sealed class MonthlySalesMetricInputSource(
 }
 
 public sealed class MonthlySalesQuantityMetricInputSource(
-    FinancialIngestionDbContext dbContext) :
-    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES_QUANTITY")
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_SALES_QUANTITY",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.SingleMonth)
 {
     // Sum over lines that report a sales quantity; null when no line does. Lines without a
     // quantity (rare aggregate rows) are excluded rather than nulling the whole month, because
@@ -145,8 +164,9 @@ public sealed class MonthlySalesQuantityMetricInputSource(
 }
 
 public sealed class MonthlyProductionQuantityMetricInputSource(
-    FinancialIngestionDbContext dbContext) :
-    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_PRODUCTION_QUANTITY")
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_PRODUCTION_QUANTITY",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.SingleMonth)
 {
     // Service-sales lines never carry production; sum the product lines that do, null when none.
     protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
@@ -157,8 +177,9 @@ public sealed class MonthlyProductionQuantityMetricInputSource(
 }
 
 public sealed class MonthlySalesRateMetricInputSource(
-    FinancialIngestionDbContext dbContext) :
-    MonthlyReportAggregateInputSource(dbContext, "MONTHLY_SALES_RATE")
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_SALES_RATE",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.SingleMonth)
 {
     // Quantity-weighted average rate: Σ sales amount ÷ Σ sales quantity over lines where both are
     // present and quantity is positive (policy "monthly-sales-rate-source-v1"). Null when no

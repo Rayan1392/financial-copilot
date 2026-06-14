@@ -57,3 +57,52 @@ public sealed class MetricDependencyRowConfiguration : IEntityTypeConfiguration<
         builder.Property(row => row.DependencyMetricCode).HasMaxLength(128);
     }
 }
+
+public sealed class DynamicMetricAliasRowConfiguration : IEntityTypeConfiguration<DynamicMetricAliasRow>
+{
+    public void Configure(EntityTypeBuilder<DynamicMetricAliasRow> builder)
+    {
+        builder.ToTable("DynamicMetricAliases");
+        builder.HasKey(row => row.Id);
+        // Fast per-language active alias lookup (cache fill query)
+        builder.HasIndex(row => new { row.Language, row.Status });
+        // Uniqueness: one active expression per metric per language
+        builder.HasIndex(row => new { row.NormalizedExpression, row.Language, row.MetricCode })
+            .IsUnique()
+            .HasFilter("\"Status\" = 'Active'");
+        builder.Property(row => row.Expression).HasMaxLength(300).IsRequired();
+        builder.Property(row => row.NormalizedExpression).HasMaxLength(300).IsRequired();
+        builder.Property(row => row.Language).HasMaxLength(16).IsRequired();
+        builder.Property(row => row.MetricCode).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.MetricVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.Source).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.CreatedBy).HasMaxLength(256);
+        builder.Property(row => row.ApprovedBy).HasMaxLength(256);
+        builder.Property(row => row.DisabledBy).HasMaxLength(256);
+        builder.Property(row => row.DisableReason).HasMaxLength(500);
+        builder.Property(row => row.ConfidenceScore).HasPrecision(5, 4);
+    }
+}
+
+public sealed class MetricAliasCandidateRowConfiguration : IEntityTypeConfiguration<MetricAliasCandidateRow>
+{
+    public void Configure(EntityTypeBuilder<MetricAliasCandidateRow> builder)
+    {
+        builder.ToTable("MetricAliasCandidates");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => new { row.NormalizedExpression, row.Language, row.SuggestedMetricCode })
+            .IsUnique();
+        builder.HasIndex(row => row.LastSeenAt);
+        builder.Property(row => row.Expression).HasMaxLength(300).IsRequired();
+        builder.Property(row => row.NormalizedExpression).HasMaxLength(300).IsRequired();
+        builder.Property(row => row.Language).HasMaxLength(16).IsRequired();
+        builder.Property(row => row.SuggestedMetricCode).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.SuggestedMetricVersion).HasMaxLength(64);
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.RejectionReason).HasMaxLength(500);
+        builder.Property(row => row.EvidenceExamplesJson).HasMaxLength(2000);
+        builder.Property(row => row.ConfidenceScore).HasPrecision(5, 4);
+    }
+}

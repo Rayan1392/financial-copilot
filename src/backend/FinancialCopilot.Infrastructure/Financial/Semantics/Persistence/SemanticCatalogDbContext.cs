@@ -12,6 +12,10 @@ public sealed class SemanticCatalogDbContext(DbContextOptions<SemanticCatalogDbC
 
     public DbSet<MetricDependencyRow> MetricDependencies => Set<MetricDependencyRow>();
 
+    public DbSet<DynamicMetricAliasRow> DynamicMetricAliases => Set<DynamicMetricAliasRow>();
+
+    public DbSet<MetricAliasCandidateRow> MetricAliasCandidates => Set<MetricAliasCandidateRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(SemanticCatalogDbContext).Assembly,

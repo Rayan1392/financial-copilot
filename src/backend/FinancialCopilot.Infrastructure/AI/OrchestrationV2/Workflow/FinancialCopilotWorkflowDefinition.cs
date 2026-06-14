@@ -281,11 +281,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             throw;
         }
 
-        stepActivity?.SetTag("workflow.intent",
+        var intentLabel =
             scannerResult is not null ? "Scanner"
+            : lookupResult is not null && comprehensiveAnalysisResult is not null ? "SymbolLookup+ComprehensiveAnalysis"
             : lookupResult is not null ? "SymbolLookup"
             : comprehensiveAnalysisResult is not null ? "ComprehensiveAnalysis"
-            : "Unknown");
+            : "Unknown";
+        stepActivity?.SetTag("workflow.intent", intentLabel);
         stepActivity?.SetTag("workflow.from_cache", fromCache);
 
         return new AgentExecutedMessage(
@@ -418,8 +420,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult)
     {
         if (scannerResult is not null) return DetectedIntent.Scanner;
-        if (lookupResult is not null) return DetectedIntent.SymbolLookup;
+        // When both tools were called (combined analysis), ComprehensiveAnalysis wins
+        // so both results are propagated in the response.
         if (comprehensiveAnalysisResult is not null) return DetectedIntent.ComprehensiveAnalysis;
+        if (lookupResult is not null) return DetectedIntent.SymbolLookup;
         return DetectedIntent.Unknown;
     }
 
@@ -506,9 +510,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         """
         You are a financial data assistant for the Iranian stock market (Tehran Stock Exchange).
         You have three tools available:
-        - screen_stocks: Use when the user wants to screen, filter, or find stocks based on financial metrics or conditions (e.g., P/E below 10, high ROE, low debt).
-        - lookup_symbol_metrics: Use when the user wants specific metric values for named stock symbols (e.g., "P/E of فولاد", "revenue of شپدیس").
-        - query_comprehensive_analysis: Use when the user asks about comprehensive analysis posts — fundamental analysis (تحلیل بنیادی), technical analysis (تحلیل تکنیکال), equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), dollar-indexed index, or investment suitability for a specific stock (e.g., "آخرین تحلیل بنیادی سهم کرازی", "تحلیل دلاری شاخص کل").
+
+        - screen_stocks: Use when the user wants to screen or filter stocks by financial metric conditions (e.g., P/E below 10, high ROE, low debt).
+        - lookup_symbol_metrics: Use when the user wants live or derived metric values for named stock symbols.
+          Always fetch: LATEST_PRICE, DAILY_CHANGE_PCT, MONTHLY_SALES, PE_TTM, PS_TTM, EPS.
+          Add MONTHLY_SALES_GROWTH_YOY, MONTHLY_PRODUCTION_QUANTITY if the user asks about recent performance or production.
+        - query_comprehensive_analysis: Use when the user asks about analysis posts, technical analysis (تحلیل تکنیکال), equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), or investment suitability for a stock.
+
+        IMPORTANT — For comprehensive stock analysis requests (e.g., "تحلیل شغدیر", "سهم X را بررسی کن", "وضعیت X چطور است"):
+        Call BOTH lookup_symbol_metrics AND query_comprehensive_analysis in parallel.
+        lookup_symbol_metrics gives live price, daily change, monthly sales, and valuation ratios.
+        query_comprehensive_analysis gives expert narrative analysis from the connected source.
+        Combine both results into one unified answer.
+
         Always respond in the same language as the user's message (Persian/Farsi or English).
         If the request does not fit any tool, briefly explain what you can help with.
         """;

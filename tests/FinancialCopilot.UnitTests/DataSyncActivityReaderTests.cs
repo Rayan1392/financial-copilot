@@ -176,6 +176,7 @@ public sealed class DataSyncActivityReaderTests
         IDataSyncRunReader? dataSyncRunReader = null,
         INadpcoScheduledSyncRunReader? nadpcoRunReader = null,
         IStockMarketDbSyncStateReader? stockMarketStateReader = null,
+        ITsetmcSyncStateReader? tsetmcStateReader = null,
         IArchiveImportRunReader? archiveImportRunReader = null,
         IMonthlyActivityBackfillCoordinator? monthlyBackfill = null,
         IFundamentalIndexCatchUpRunReader? catchUpRunReader = null) =>
@@ -183,6 +184,7 @@ public sealed class DataSyncActivityReaderTests
             dataSyncRunReader ?? new StubDataSyncRunReader([]),
             nadpcoRunReader ?? new StubNadpcoScheduledSyncRunReader([]),
             stockMarketStateReader ?? new StubStockMarketDbSyncStateReader([]),
+            tsetmcStateReader ?? new StubTsetmcSyncStateReader([]),
             archiveImportRunReader ?? new StubArchiveImportRunReader([]),
             monthlyBackfill ?? new StubMonthlyActivityBackfillCoordinator(),
             catchUpRunReader ?? new StubFundamentalIndexCatchUpRunReader([]),
@@ -262,6 +264,13 @@ public sealed class DataSyncActivityReaderTests
         IReadOnlyCollection<StockMarketSyncState> states) : IStockMarketDbSyncStateReader
     {
         public Task<IReadOnlyCollection<StockMarketSyncState>> QueryAsync(CancellationToken ct) =>
+            Task.FromResult(states);
+    }
+
+    private sealed class StubTsetmcSyncStateReader(
+        IReadOnlyCollection<TsetmcSyncState> states) : ITsetmcSyncStateReader
+    {
+        public Task<IReadOnlyCollection<TsetmcSyncState>> QueryAsync(CancellationToken ct) =>
             Task.FromResult(states);
     }
 

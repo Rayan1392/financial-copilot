@@ -27,7 +27,7 @@ public sealed class TsetmcDirectFeedSyncService(
     IScannerCache scannerCache,
     IMarketViewCache marketViewCache,
     TimeProvider timeProvider,
-    ILogger<TsetmcDirectFeedSyncService> logger) : ITsetmcDirectFeedSyncService
+    ILogger<TsetmcDirectFeedSyncService> logger) : ITsetmcDirectFeedSyncService, ITsetmcSyncStateReader
 {
     private readonly TsetmcWebServiceOptions _options = options.Value;
 
@@ -39,6 +39,7 @@ public sealed class TsetmcDirectFeedSyncService(
     public async Task<TsetmcSyncResult> SynchronizeInstrumentsAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
+        await StampSyncStateStartAsync("Instruments", started, cancellationToken);
         var totalFetched = 0;
         var totalPersisted = 0;
 
@@ -55,13 +56,14 @@ public sealed class TsetmcDirectFeedSyncService(
             }
         }
 
-        await StampSyncStateAsync("Instruments", timeProvider.GetUtcNow(), cancellationToken);
+        await StampSyncStateEndAsync("Instruments", timeProvider.GetUtcNow(), cancellationToken);
         return new TsetmcSyncResult("Instruments", totalFetched, totalPersisted, timeProvider.GetUtcNow() - started);
     }
 
     public async Task<TsetmcSyncResult> SynchronizeIntradayTradesAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
+        await StampSyncStateStartAsync("IntradayTrades", started, cancellationToken);
         var totalFetched = 0;
         var totalPersisted = 0;
 
@@ -78,7 +80,7 @@ public sealed class TsetmcDirectFeedSyncService(
             }
         }
 
-        await StampSyncStateAsync("IntradayTrades", timeProvider.GetUtcNow(), cancellationToken);
+        await StampSyncStateEndAsync("IntradayTrades", timeProvider.GetUtcNow(), cancellationToken);
         await scannerCache.InvalidateAsync(
             new ScannerCacheInvalidation("TsetmcWebService.IntradayTrades", timeProvider.GetUtcNow()),
             cancellationToken);
@@ -90,6 +92,7 @@ public sealed class TsetmcDirectFeedSyncService(
     public async Task<TsetmcSyncResult> SynchronizeDailyTradesAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
+        await StampSyncStateStartAsync("DailyTrades", started, cancellationToken);
         var totalFetched = 0;
         var totalPersisted = 0;
 
@@ -119,7 +122,7 @@ public sealed class TsetmcDirectFeedSyncService(
             }
         }
 
-        await StampSyncStateAsync("DailyTrades", timeProvider.GetUtcNow(), cancellationToken);
+        await StampSyncStateEndAsync("DailyTrades", timeProvider.GetUtcNow(), cancellationToken);
         await scannerCache.InvalidateAsync(
             new ScannerCacheInvalidation("TsetmcWebService.DailyTrades", timeProvider.GetUtcNow()),
             cancellationToken);
@@ -131,6 +134,7 @@ public sealed class TsetmcDirectFeedSyncService(
     public async Task<TsetmcSyncResult> SynchronizeDailyIndicesAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
+        await StampSyncStateStartAsync("HistoricalDailyIndices", started, cancellationToken);
         var totalFetched = 0;
         var totalPersisted = 0;
 
@@ -154,7 +158,7 @@ public sealed class TsetmcDirectFeedSyncService(
             }
         }
 
-        await StampSyncStateAsync("HistoricalDailyIndices", timeProvider.GetUtcNow(), cancellationToken);
+        await StampSyncStateEndAsync("HistoricalDailyIndices", timeProvider.GetUtcNow(), cancellationToken);
         await marketViewCache.InvalidateAsync(cancellationToken);
 
         return new TsetmcSyncResult("DailyIndices", totalFetched, totalPersisted, timeProvider.GetUtcNow() - started);
@@ -163,6 +167,7 @@ public sealed class TsetmcDirectFeedSyncService(
     public async Task<TsetmcSyncResult> SynchronizeIntradayIndicesAsync(CancellationToken cancellationToken)
     {
         var started = timeProvider.GetUtcNow();
+        await StampSyncStateStartAsync("IntradayIndices", started, cancellationToken);
         var totalFetched = 0;
         var totalPersisted = 0;
 
@@ -180,7 +185,7 @@ public sealed class TsetmcDirectFeedSyncService(
             }
         }
 
-        await StampSyncStateAsync("IntradayIndices", timeProvider.GetUtcNow(), cancellationToken);
+        await StampSyncStateEndAsync("IntradayIndices", timeProvider.GetUtcNow(), cancellationToken);
         await marketViewCache.InvalidateAsync(cancellationToken);
 
         return new TsetmcSyncResult("IntradayIndices", totalFetched, totalPersisted, timeProvider.GetUtcNow() - started);
@@ -248,9 +253,9 @@ public sealed class TsetmcDirectFeedSyncService(
         var instruments = await InstrumentMapByInsCodeAsync(records.Select(r => r.InsCode), cancellationToken);
         var now = timeProvider.GetUtcNow();
 
-        // Intraday snapshots: keyed by (InsCode, TradingDate, TradingTime) — use a deterministic GUID
+        // Intraday snapshots: keyed by (InsCode, TradingDate, TradingTime) — use a deterministic GUID.
+        // All records are included — EnsureInstrumentStub creates stub rows for unseen InsCodes.
         var extIds = records
-            .Where(r => instruments.ContainsKey(r.InsCode))
             .Select(r => BuildIntradayTradeGuid(r.InsCode, r.TradingDate, r.TradingTime))
             .Distinct().ToList();
         var existing = (await dbContext.IntradayTradeSnapshots
@@ -258,16 +263,16 @@ public sealed class TsetmcDirectFeedSyncService(
                 .ToListAsync(cancellationToken))
             .ToDictionary(row => row.ExternalSnapshotId);
 
-        var instrumentIdsForQuotes = records
-            .Where(r => instruments.ContainsKey(r.InsCode))
-            .Select(r => instruments[r.InsCode].Id)
-            .Distinct().ToList();
+        // Quote map is pre-seeded from known instruments; stubs added during the loop are included
+        // via UpsertLatestQuote which creates new rows when missing.
+        var instrumentIdsForQuotes = instruments.Values.Select(v => v.Id).Distinct().ToList();
         var quotes = await LatestQuoteMapAsync(instrumentIdsForQuotes, cancellationToken);
 
         var persisted = 0;
         foreach (var source in records)
         {
-            if (!instruments.TryGetValue(source.InsCode, out var instrument)) continue;
+            // TsetmcIntradayTradeRecord has no Symbol field; use InsCode string as stub fallback.
+            var instrument = EnsureInstrumentStub(instruments, source.InsCode, source.InsCode.ToString(), now);
 
             var extId = BuildIntradayTradeGuid(source.InsCode, source.TradingDate, source.TradingTime);
             if (!existing.TryGetValue(extId, out var row))
@@ -310,9 +315,8 @@ public sealed class TsetmcDirectFeedSyncService(
         var instruments = await InstrumentMapByInsCodeAsync(records.Select(r => r.InsCode), cancellationToken);
         var now = timeProvider.GetUtcNow();
 
-        // Daily trades: keyed by (InsCode, TradingDate)
+        // Daily trades: keyed by (InsCode, TradingDate) — all records included, stubs created as needed.
         var extIds = records
-            .Where(r => instruments.ContainsKey(r.InsCode))
             .Select(r => BuildDailyTradeGuid(r.InsCode, r.TradingDate))
             .Distinct().ToList();
         var existing = (await dbContext.DailyInstrumentTrades
@@ -320,16 +324,14 @@ public sealed class TsetmcDirectFeedSyncService(
                 .ToListAsync(cancellationToken))
             .ToDictionary(row => row.ExternalTradeId);
 
-        var instrumentIdsForQuotes = records
-            .Where(r => instruments.ContainsKey(r.InsCode))
-            .Select(r => instruments[r.InsCode].Id)
-            .Distinct().ToList();
+        var instrumentIdsForQuotes = instruments.Values.Select(v => v.Id).Distinct().ToList();
         var quotes = await LatestQuoteMapAsync(instrumentIdsForQuotes, cancellationToken);
 
         var persisted = 0;
         foreach (var source in records)
         {
-            if (!instruments.TryGetValue(source.InsCode, out var instrument)) continue;
+            // TsetmcDailyTradeRecord has Symbol (from LVal18AFC).
+            var instrument = EnsureInstrumentStub(instruments, source.InsCode, source.Symbol, now);
 
             var extId = BuildDailyTradeGuid(source.InsCode, source.TradingDate);
             if (!existing.TryGetValue(extId, out var row))
@@ -373,16 +375,17 @@ public sealed class TsetmcDirectFeedSyncService(
         var instruments = await InstrumentMapByInsCodeAsync(records.Select(r => r.InsCode), cancellationToken);
         var now = timeProvider.GetUtcNow();
 
-        var keys = records
+        // Stubs are created in the loop below; pre-load keys only for already-known instruments.
+        var knownKeys = records
             .Where(r => instruments.ContainsKey(r.InsCode))
             .Select(r => (instruments[r.InsCode].Id, r.IndexDate))
             .Distinct().ToList();
-        var dailyIndices = await DailyIndexMapAsync(keys, cancellationToken);
+        var dailyIndices = await DailyIndexMapAsync(knownKeys, cancellationToken);
 
         var persisted = 0;
         foreach (var source in records)
         {
-            if (!instruments.TryGetValue(source.InsCode, out var instrument)) continue;
+            var instrument = EnsureInstrumentStub(instruments, source.InsCode, source.InsCode.ToString(), now);
             UpsertDailyIndex(dailyIndices, instrument.Id, source.IndexDate, source.Value,
                 source.High, source.Low, source.ChangePercent, "HistoricalBackfill", now);
             persisted++;
@@ -399,8 +402,8 @@ public sealed class TsetmcDirectFeedSyncService(
         var instruments = await InstrumentMapByInsCodeAsync(records.Select(r => r.InsCode), cancellationToken);
         var now = timeProvider.GetUtcNow();
 
+        // All records included — stubs created in loop for unseen InsCodes.
         var extIds = records
-            .Where(r => instruments.ContainsKey(r.InsCode))
             .Select(r => BuildIntradayIndexGuid(r.InsCode, r.IndexDate, r.IndexTime))
             .Distinct().ToList();
         var existing = (await dbContext.IntradayIndexSnapshots
@@ -408,16 +411,16 @@ public sealed class TsetmcDirectFeedSyncService(
                 .ToListAsync(cancellationToken))
             .ToDictionary(row => row.ExternalSnapshotId);
 
-        var keys = records
+        var knownKeys = records
             .Where(r => instruments.ContainsKey(r.InsCode))
             .Select(r => (instruments[r.InsCode].Id, r.IndexDate))
             .Distinct().ToList();
-        var dailyIndices = await DailyIndexMapAsync(keys, cancellationToken);
+        var dailyIndices = await DailyIndexMapAsync(knownKeys, cancellationToken);
 
         var persisted = 0;
         foreach (var source in records)
         {
-            if (!instruments.TryGetValue(source.InsCode, out var instrument)) continue;
+            var instrument = EnsureInstrumentStub(instruments, source.InsCode, source.InsCode.ToString(), now);
 
             var extId = BuildIntradayIndexGuid(source.InsCode, source.IndexDate, source.IndexTime);
             if (!existing.TryGetValue(extId, out var row))
@@ -450,13 +453,47 @@ public sealed class TsetmcDirectFeedSyncService(
 
     // --- infrastructure helpers ---
 
+    /// <summary>
+    /// Returns the existing instrument row for <paramref name="insCode"/>, or creates a minimal
+    /// stub row so that trade/index records are never silently dropped while waiting for the
+    /// next full instruments sync. The stub is filled in by the next <see cref="SynchronizeInstrumentsAsync"/> run.
+    /// </summary>
+    private TradingInstrumentRow EnsureInstrumentStub(
+        Dictionary<long, TradingInstrumentRow> instruments,
+        long insCode,
+        string symbol,
+        DateTimeOffset now)
+    {
+        if (instruments.TryGetValue(insCode, out var existing))
+            return existing;
+
+        var stub = new TradingInstrumentRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = _options.ProviderName,
+            ExternalInstrumentId = BuildInstrumentGuid(insCode),
+            InstrumentCode = insCode,
+            Symbol = symbol,
+            LastSynchronizedAt = now,
+            SourceChangedAt = now
+        };
+        dbContext.TradingInstruments.Add(stub);
+        instruments[insCode] = stub;
+        return stub;
+    }
+
     private async Task<Dictionary<long, TradingInstrumentRow>> InstrumentMapByInsCodeAsync(
         IEnumerable<long> insCodes,
         CancellationToken cancellationToken)
     {
         var codes = insCodes.Distinct().ToList();
+        // TradingInstruments is a provider-neutral dimension: do not filter by ProviderName.
+        // Rows inserted by StockMarketDbSyncService (bridge phase) or by any prior TSETMC sync
+        // are all valid lookup targets.
         return await dbContext.TradingInstruments
-            .Where(row => row.ProviderName == _options.ProviderName && codes.Contains(row.InstrumentCode))
+            .Where(row => codes.Contains(row.InstrumentCode))
+            .GroupBy(row => row.InstrumentCode)
+            .Select(g => g.OrderByDescending(r => r.LastSynchronizedAt).First())
             .ToDictionaryAsync(row => row.InstrumentCode, cancellationToken);
     }
 
@@ -535,7 +572,40 @@ public sealed class TsetmcDirectFeedSyncService(
         row.ObservedAt = observedAt;
     }
 
-    private async Task StampSyncStateAsync(string dataset, DateTimeOffset now, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<TsetmcSyncState>> QueryAsync(CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.StockMarketSyncStates.AsNoTracking()
+            .Where(r => r.Dataset.StartsWith("Tsetmc_"))
+            .OrderBy(r => r.Dataset)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(r => new TsetmcSyncState(
+            Dataset: r.Dataset,
+            LastRunStartedAt: r.LastRunStartedAt,
+            LastRunCompletedAt: r.LastRunCompletedAt,
+            LogicalVendor: r.LogicalVendor,
+            PhysicalSource: r.PhysicalSource,
+            SourceMode: r.SourceMode)).ToArray();
+    }
+
+    private async Task StampSyncStateStartAsync(string dataset, DateTimeOffset started, CancellationToken cancellationToken)
+    {
+        var state = await dbContext.StockMarketSyncStates
+            .SingleOrDefaultAsync(row => row.Dataset == $"Tsetmc_{dataset}", cancellationToken);
+        if (state is null)
+        {
+            state = new StockMarketSyncStateRow { Dataset = $"Tsetmc_{dataset}" };
+            dbContext.StockMarketSyncStates.Add(state);
+        }
+        state.LogicalVendor = ProviderSources.TsetmcWebService.Vendor.ToString();
+        state.PhysicalSource = ProviderSources.TsetmcWebService.Source.ToString();
+        state.SourceMode = ProviderSources.TsetmcWebService.DefaultMode.ToString();
+        state.LastRunStartedAt = started;
+        state.LastRunCompletedAt = null;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task StampSyncStateEndAsync(string dataset, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var state = await dbContext.StockMarketSyncStates
             .SingleOrDefaultAsync(row => row.Dataset == $"Tsetmc_{dataset}", cancellationToken);

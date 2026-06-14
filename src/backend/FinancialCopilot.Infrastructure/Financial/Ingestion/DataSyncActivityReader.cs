@@ -13,6 +13,7 @@ public sealed class EfCoreDataSyncActivityReader(
     IDataSyncRunReader dataSyncRunReader,
     INadpcoScheduledSyncRunReader nadpcoScheduledSyncRunReader,
     IStockMarketDbSyncStateReader stockMarketDbSyncStateReader,
+    ITsetmcSyncStateReader tsetmcSyncStateReader,
     IArchiveImportRunReader archiveImportRunReader,
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
@@ -33,7 +34,8 @@ public sealed class EfCoreDataSyncActivityReader(
 
         await CollectDataSyncRunsAsync(active, recent, recentPerProvider, cancellationToken);
         await CollectNadpcoScheduledRunsAsync(active, recent, recentPerProvider, cancellationToken);
-        await CollectStockMarketDbStateAsync(recent, cancellationToken);
+        await CollectStockMarketDbStateAsync(active, recent, cancellationToken);
+        await CollectTsetmcSyncStateAsync(active, recent, cancellationToken);
         await CollectArchiveImportRunsAsync(active, recent, recentPerProvider, cancellationToken);
         await CollectMonthlyActivityBackfillAsync(active, recent, cancellationToken);
         await CollectFundamentalIndexCatchUpAsync(active, recent, recentPerProvider, cancellationToken);
@@ -185,6 +187,7 @@ public sealed class EfCoreDataSyncActivityReader(
     // --------------------------------------------------------------------
 
     private async Task CollectStockMarketDbStateAsync(
+        List<DataSyncActivityItem> active,
         List<DataSyncActivityItem> recent,
         CancellationToken cancellationToken)
     {
@@ -221,6 +224,58 @@ public sealed class EfCoreDataSyncActivityReader(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to read StockMarketDbSyncState for activity snapshot.");
+        }
+    }
+
+    // --------------------------------------------------------------------
+    // TsetmcDirectFeedSyncState (one item per TSETMC dataset from last-run watermarks)
+    // --------------------------------------------------------------------
+
+    private async Task CollectTsetmcSyncStateAsync(
+        List<DataSyncActivityItem> active,
+        List<DataSyncActivityItem> recent,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var states = await tsetmcSyncStateReader.QueryAsync(cancellationToken);
+            foreach (var state in states)
+            {
+                if (state.LastRunStartedAt is null)
+                    continue;
+
+                var durationMs = state.LastRunStartedAt.HasValue && state.LastRunCompletedAt.HasValue
+                    ? (long)(state.LastRunCompletedAt.Value - state.LastRunStartedAt.Value).TotalMilliseconds
+                    : (long?)null;
+
+                var status = state.LastRunCompletedAt.HasValue ? "Completed" : "Running";
+
+                var item = new DataSyncActivityItem(
+                    RunId: $"tsetmc-{state.Dataset}-{state.LastRunStartedAt:yyyyMMddHHmmss}",
+                    Provider: ProviderSources.TsetmcWebServiceName,
+                    Dataset: state.Dataset,
+                    Status: status,
+                    StartedAt: state.LastRunStartedAt,
+                    CompletedAt: state.LastRunCompletedAt,
+                    DurationMs: durationMs,
+                    ProcessedRecords: 0,
+                    ErrorCount: 0,
+                    ErrorMessage: null,
+                    TriggerSource: "Worker",
+                    RequestedShamsiMonth: null,
+                    LogicalVendor: state.LogicalVendor ?? LogicalVendor.Tsetmc.ToString(),
+                    PhysicalSource: state.PhysicalSource ?? PhysicalSource.TsetmcWebService.ToString(),
+                    SourceMode: state.SourceMode ?? SourceMode.CurrentIncremental.ToString());
+
+                if (status == "Running")
+                    active.Add(item);
+                else
+                    recent.Add(item);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read TsetmcSyncState for activity snapshot.");
         }
     }
 

@@ -17,8 +17,10 @@ public sealed class StockMarketDbSyncServiceTests
     private static readonly Guid InstrumentRef = Guid.Parse("935dc0fc-405d-4efd-ba38-af34f67d77c0");
 
     [Fact]
-    public async Task Instruments_LinkExistingCompanyByInstrumentCode()
+    public async Task Instruments_DoesNotWriteToTradingInstrumentsTable()
     {
+        // spec 064: TradingInstruments is owned exclusively by TsetmcDirectFeedSyncService.
+        // StockMarketDbSyncService must not insert or update instrument rows.
         await using var db = CreateDb();
         db.Companies.Add(new NormalizedCompanyRow
         {
@@ -36,28 +38,26 @@ public sealed class StockMarketDbSyncServiceTests
 
         await Service(db, executor).SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
 
-        var instrument = await db.TradingInstruments.SingleAsync();
-        Assert.NotNull(instrument.NormalizedCompanyId);
-        Assert.True(instrument.IsActive);
+        Assert.Equal(0, await db.TradingInstruments.CountAsync());
     }
 
     [Fact]
-    public async Task Instruments_LinkPrefersMostRecentlySyncedCompanyWhenInstrumentCodeIsShared()
+    public async Task Instruments_SyncCompletesWithoutErrorWhenInstrumentCodeMatchesMultipleCompanies()
     {
+        // spec 064: StockMarketDb instruments sync is now a no-op for TradingInstruments.
+        // It should still complete successfully even when duplicate company rows exist.
         await using var db = CreateDb();
-        var archiveId = Guid.NewGuid();
-        var currentId = Guid.NewGuid();
-        // Same InstrumentCode registered by two provider-scoped company rows (archive + current).
-        db.Companies.Add(new NormalizedCompanyRow
-        {
-            Id = archiveId, ProviderName = "NoavaranArchiveSql", ExternalCompanyId = "A",
-            Name = "Archive", InstrumentCode = "123", LastSynchronizedAt = Now.AddYears(-1)
-        });
-        db.Companies.Add(new NormalizedCompanyRow
-        {
-            Id = currentId, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "C",
-            Name = "Current", InstrumentCode = "123", LastSynchronizedAt = Now
-        });
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "NoavaranArchiveSql", ExternalCompanyId = "A",
+                Name = "Archive", InstrumentCode = "123", LastSynchronizedAt = Now.AddYears(-1)
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "C",
+                Name = "Current", InstrumentCode = "123", LastSynchronizedAt = Now
+            });
         await db.SaveChangesAsync();
         var executor = new FakeExecutor
         {
@@ -67,10 +67,10 @@ public sealed class StockMarketDbSyncServiceTests
             ]
         };
 
+        // Must not throw; TradingInstruments remains empty.
         await Service(db, executor).SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
 
-        var instrument = await db.TradingInstruments.SingleAsync();
-        Assert.Equal(currentId, instrument.NormalizedCompanyId);
+        Assert.Equal(0, await db.TradingInstruments.CountAsync());
     }
 
     [Fact]
@@ -98,8 +98,10 @@ public sealed class StockMarketDbSyncServiceTests
     }
 
     [Fact]
-    public async Task Instruments_LeaveCompanyLinkNullWhenInstrumentHasNoCompany()
+    public async Task Instruments_SyncRecordsRowsReadForWatermarkEvenWithoutInstrumentWrite()
     {
+        // spec 064: StockMarketDb instruments sync still fetches and counts records for watermark
+        // continuation, even though it no longer writes to TradingInstruments.
         await using var db = CreateDb();
         var executor = new FakeExecutor
         {
@@ -109,9 +111,10 @@ public sealed class StockMarketDbSyncServiceTests
             ]
         };
 
-        await Service(db, executor).SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
+        var result = await Service(db, executor).SynchronizeAsync(StockMarketDataset.Instruments, true, CancellationToken.None);
 
-        Assert.Null((await db.TradingInstruments.SingleAsync()).NormalizedCompanyId);
+        Assert.Equal(1, result.RowsRead);
+        Assert.Equal(0, await db.TradingInstruments.CountAsync());
     }
 
     [Fact]
@@ -446,7 +449,12 @@ public sealed class StockMarketDbSyncServiceTests
             cache ?? new NoOpScannerCache(), marketViewCache ?? new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
     private static PersistedMarketDataProvider Provider(FinancialIngestionDbContext db) =>
-        new(db, Options.Create(new StockMarketDbProviderOptions()), new FixedTimeProvider(Now));
+        new(db, new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName), new FixedTimeProvider(Now));
+
+    private sealed class FixedMarketQuoteSourcePriority(string sourceName) : IMarketQuoteSourcePriority
+    {
+        public string PrimarySourceName => sourceName;
+    }
 
     private static async Task SeedLinkedInstrumentAsync(FinancialIngestionDbContext db)
     {

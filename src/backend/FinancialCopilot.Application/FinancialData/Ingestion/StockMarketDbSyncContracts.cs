@@ -54,6 +54,29 @@ public interface IStockMarketDbSyncStateReader
 }
 
 /// <summary>
+/// Lightweight sync-state snapshot for a single TSETMC dataset run.
+/// Uses a plain string dataset key (e.g. "Tsetmc_IntradayTrades") rather than the
+/// StockMarketDataset enum so it is independent of that enumeration.
+/// </summary>
+public sealed record TsetmcSyncState(
+    string Dataset,
+    DateTimeOffset? LastRunStartedAt,
+    DateTimeOffset? LastRunCompletedAt,
+    string? LogicalVendor = null,
+    string? PhysicalSource = null,
+    string? SourceMode = null);
+
+/// <summary>
+/// Reads the last-run state rows for all TSETMC dataset syncs.
+/// Written by <see cref="ITsetmcDirectFeedSyncService"/> implementors and read by the
+/// activity monitor to surface TSETMC runs in the DataSyncActivityMonitor UI.
+/// </summary>
+public interface ITsetmcSyncStateReader
+{
+    Task<IReadOnlyCollection<TsetmcSyncState>> QueryAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Direct TSETMC web-service ingestion adapter (spec 054, Phase 2).
 /// The interface lives in Application so Infrastructure and tests can depend on the abstraction.
 /// <see cref="IsOperational"/> returns false until credentials and the endpoint are configured;

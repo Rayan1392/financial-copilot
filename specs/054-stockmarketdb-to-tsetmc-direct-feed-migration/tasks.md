@@ -27,3 +27,35 @@
 - Keep rollback to StockMarketDB until direct feed proves stable.
 - Disable StockMarketDB polling after cutover.
 - Update docs and operational runbooks.
+
+## Known Architectural Debt (tracked in spec 064)
+
+The following issues were discovered post-cutover and are tracked in
+[spec 064 - Trading Instrument Unification](../064-trading-instrument-unification/user-story.md):
+
+### TradingInstruments is not provider-neutral
+
+`TradingInstruments` is a dimension table but is currently partitioned by `ProviderName`.
+Both `StockMarketDbSyncService` and `TsetmcDirectFeedSyncService` insert rows with their own
+`ProviderName`, producing duplicate rows for the same physical instrument.
+
+`InstrumentMapByInsCodeAsync` in `TsetmcDirectFeedSyncService` filters by
+`ProviderName == "TsetmcWebService"`, so on any day before `SynchronizeInstrumentsAsync`
+(EOD only) has run, the map is **empty** and every call to `PersistIntradayTradesAsync` silently
+skips all records, resulting in zero rows in `IntradayTradeSnapshots`.
+
+**Required fix (Phase 1 of spec 064):**
+1. Remove the `ProviderName` filter from `InstrumentMapByInsCodeAsync`.
+2. Auto-create minimal stub instrument rows for unseen InsCodes during intraday persistence.
+3. Remove instrument-write logic from `StockMarketDbSyncService`.
+
+### Noavaran Amin cross-source linkage via tseCode
+
+Noavaran Amin company records expose `tseCode` (= TSETMC `InsCode`), `tseCIsinCode`, and
+`tseSIsinCode`. These are not stored on `NormalizedCompanyRow` and are not used when linking
+companies to instruments. Linkage currently relies on `InstrumentCode` string matching.
+
+**Required fix (Phase 2 of spec 064):**
+1. Add `TseCode`, `TseCIsinCode`, `TseSIsinCode` columns to `NormalizedCompanyRow`.
+2. Populate from Noavaran Amin company catalog in `NadpcoApiCompanyNormalizer`.
+3. Use `TseCode` as the primary join key in `TsetmcDirectFeedSyncService.PersistInstrumentsAsync`.

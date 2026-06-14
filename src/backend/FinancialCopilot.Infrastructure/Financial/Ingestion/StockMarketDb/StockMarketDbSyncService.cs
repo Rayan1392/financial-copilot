@@ -138,6 +138,7 @@ public sealed class StockMarketDbSyncService(
         (await dbContext.StockMarketSyncStates.AsNoTracking()
             .OrderBy(row => row.Dataset)
             .ToListAsync(cancellationToken))
+        .Where(row => Enum.TryParse<StockMarketDataset>(row.Dataset, out _))
         .Select(row => new StockMarketSyncState(
             Enum.Parse<StockMarketDataset>(row.Dataset),
             row.Watermark,
@@ -148,61 +149,15 @@ public sealed class StockMarketDbSyncService(
             row.SourceMode))
         .ToArray();
 
-    private async Task<int> PersistInstrumentsAsync(
+    private Task<int> PersistInstrumentsAsync(
         IReadOnlyCollection<StockMarketInstrumentRecord> rows,
         CancellationToken cancellationToken)
     {
-        var codes = rows.Select(row => row.InsCode.ToString()).ToList();
-        // The same InstrumentCode can map to more than one normalized company row because
-        // companies are provider-scoped (e.g. NoavaranCurrentApi and NoavaranArchiveSql both carry
-        // the listing). Pick one deterministic canonical company per code — the most recently
-        // synchronized (current source beats archive), tie-broken by Id — so linkage is stable and
-        // the dictionary build cannot throw on duplicates.
-        var companies = (await dbContext.Companies
-                .Where(row => row.InstrumentCode != null && codes.Contains(row.InstrumentCode))
-                .ToListAsync(cancellationToken))
-            .GroupBy(row => row.InstrumentCode!)
-            .ToDictionary(
-                group => group.Key,
-                group => group
-                    .OrderByDescending(row => row.LastSynchronizedAt)
-                    .ThenBy(row => row.Id)
-                    .First().Id);
-        var sourceIds = rows.Select(row => row.Id).Distinct().ToList();
-        var existing = (await dbContext.TradingInstruments
-                .Where(row => row.ProviderName == _options.ProviderName && sourceIds.Contains(row.ExternalInstrumentId))
-                .ToListAsync(cancellationToken))
-            .ToDictionary(row => row.ExternalInstrumentId);
-
-        foreach (var source in rows)
-        {
-            if (!existing.TryGetValue(source.Id, out var row))
-            {
-                row = new TradingInstrumentRow
-                {
-                    Id = Guid.NewGuid(),
-                    ProviderName = _options.ProviderName,
-                    ExternalInstrumentId = source.Id
-                };
-                dbContext.TradingInstruments.Add(row);
-                existing[source.Id] = row;
-            }
-
-            row.InstrumentCode = source.InsCode;
-            row.InstrumentIsin = source.InstrumentId;
-            row.Symbol = source.Symbol;
-            row.Name = source.Name;
-            row.MarketCode = source.MarketCode;
-            row.InstrumentKind = source.InstrumentKind;
-            row.NormalizedCompanyId = companies.TryGetValue(source.InsCode.ToString(), out var companyId)
-                ? companyId
-                : null;
-            row.IsActive = source.Valid == true && source.IsDeleted != true;
-            row.SourceChangedAt = source.ChangeTime;
-            row.LastSynchronizedAt = timeProvider.GetUtcNow();
-        }
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return rows.Count;
+        // TradingInstruments is now owned exclusively by TsetmcDirectFeedSyncService (spec 064).
+        // StockMarketDb instrument records are no longer written to the shared dimension table.
+        // The instrument data is still fetched and counted for watermark/continuation purposes.
+        _ = cancellationToken;
+        return Task.FromResult(rows.Count);
     }
 
     private async Task<int> PersistIntradayTradesAsync(
@@ -351,8 +306,9 @@ public sealed class StockMarketDbSyncService(
         CancellationToken cancellationToken)
     {
         var ids = refs.Distinct().ToList();
+        // TradingInstruments is provider-neutral (spec 064): do not filter by ProviderName.
         return await dbContext.TradingInstruments
-            .Where(row => row.ProviderName == _options.ProviderName && ids.Contains(row.ExternalInstrumentId))
+            .Where(row => ids.Contains(row.ExternalInstrumentId))
             .ToDictionaryAsync(row => row.ExternalInstrumentId, cancellationToken);
     }
 

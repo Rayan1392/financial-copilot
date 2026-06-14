@@ -850,15 +850,21 @@ public static class ServiceCollectionExtensions
         services
             .AddOptions<TsetmcWebServiceOptions>()
             .BindConfiguration(TsetmcWebServiceOptions.SectionName);
-        services.AddHttpClient<TsetmcWebServiceClient>((provider, client) =>
+        services.AddHttpClient<ITsetmcWebServiceClient, TsetmcWebServiceClient>((provider, client) =>
         {
             var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
             client.BaseAddress = new Uri(opts.ServiceUrl);
             client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds);
         });
-        services.AddScoped<ITsetmcWebServiceClient, TsetmcWebServiceClient>();
         services.AddScoped<TsetmcDirectFeedSyncService>();
         services.AddScoped<ITsetmcDirectFeedSyncService>(provider =>
+        {
+            var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
+            return opts.Enabled && !string.IsNullOrWhiteSpace(opts.UserName)
+                ? provider.GetRequiredService<TsetmcDirectFeedSyncService>()
+                : new NullTsetmcDirectFeedSyncService();
+        });
+        services.AddScoped<ITsetmcSyncStateReader>(provider =>
         {
             var opts = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TsetmcWebServiceOptions>>().Value;
             return opts.Enabled && !string.IsNullOrWhiteSpace(opts.UserName)
@@ -879,9 +885,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMarketSummaryService, MarketSummaryService>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
-            provider.GetRequiredService<IOptions<StockMarketDbProviderOptions>>().Value.UsePersistedMarketQuotes
-                ? provider.GetRequiredService<PersistedMarketDataProvider>()
-                : provider.GetRequiredService<MockFinancialDataProvider>());
+            provider.GetRequiredService<PersistedMarketDataProvider>());
 
         // Missing-answer feedback (spec 028). Phase 1 default: real repository, no-op collector
         // (so production has zero collection overhead until MissingAnswerFeedback:Enabled=true).

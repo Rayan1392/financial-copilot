@@ -77,13 +77,13 @@ public sealed class TsetmcWebServiceClient(
     {
         return $"""
             <?xml version="1.0" encoding="utf-8"?>
-            <soap:Envelope xmlns:soap="{SoapNs}" xmlns:tns="{TsetmcNs}">
+            <soap:Envelope xmlns:soap="{SoapNs}">
               <soap:Body>
-                <tns:{methodName}>
-                  <tns:UserName>{SecurityElement(Escape(_options.UserName))}</tns:UserName>
-                  <tns:Password>{SecurityElement(Escape(_options.Password))}</tns:Password>
+                <{methodName} xmlns="{TsetmcNs}">
+                  <UserName>{SecurityElement(Escape(_options.UserName))}</UserName>
+                  <Password>{SecurityElement(Escape(_options.Password))}</Password>
                   {bodyContent}
-                </tns:{methodName}>
+                </{methodName}>
               </soap:Body>
             </soap:Envelope>
             """;
@@ -99,9 +99,10 @@ public sealed class TsetmcWebServiceClient(
             try
             {
                 using var content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
-                content.Headers.Add("SOAPAction", $"\"{TsetmcNs}{action}\"");
+                content.Headers.ContentType!.CharSet = "utf-8";
+                content.Headers.Add("SOAPAction", $"{TsetmcNs}{action}");
 
-                using var response = await httpClient.PostAsync(string.Empty, content, cancellationToken);
+                using var response = await httpClient.PostAsync(httpClient.BaseAddress, content, cancellationToken);
                 response.EnsureSuccessStatusCode();
 
                 var responseXml = await response.Content.ReadAsStringAsync(cancellationToken);

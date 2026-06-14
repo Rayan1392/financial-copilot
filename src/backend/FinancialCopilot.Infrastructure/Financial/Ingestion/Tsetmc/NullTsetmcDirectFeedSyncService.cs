@@ -6,7 +6,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Tsetmc;
 /// Stand-in used when TsetmcWebService is disabled or credentials are absent.
 /// All sync operations throw; callers must check <see cref="IsOperational"/> first.
 /// </summary>
-public sealed class NullTsetmcDirectFeedSyncService : ITsetmcDirectFeedSyncService
+public sealed class NullTsetmcDirectFeedSyncService : ITsetmcDirectFeedSyncService, ITsetmcSyncStateReader
 {
     public bool IsOperational => false;
 
@@ -24,4 +24,7 @@ public sealed class NullTsetmcDirectFeedSyncService : ITsetmcDirectFeedSyncServi
 
     public Task<TsetmcSyncResult> SynchronizeIntradayIndicesAsync(CancellationToken cancellationToken) =>
         throw new InvalidOperationException("TsetmcWebService is not operational.");
+
+    public Task<IReadOnlyCollection<TsetmcSyncState>> QueryAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyCollection<TsetmcSyncState>>(Array.Empty<TsetmcSyncState>());
 }

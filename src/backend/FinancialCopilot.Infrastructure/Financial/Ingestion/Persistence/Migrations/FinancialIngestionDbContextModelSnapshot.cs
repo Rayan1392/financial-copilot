@@ -807,6 +807,139 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("MarketQuoteMismatches", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PersianCreatedAt")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("SyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("ComprehensiveAnalyses", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisTagRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAnalytic")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TagName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TagSlug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("TagTypeId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("AnalysisId", "TagId");
+
+                    b.HasIndex("TagName", "TagTypeId", "AnalysisId");
+
+                    b.HasIndex("TagName", "IsAnalytic", "AnalysisId");
+
+                    b.HasIndex("TagTypeId", "AnalysisId");
+
+                    b.ToTable("ComprehensiveAnalysisTags", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisCategoryRow", b =>
+                {
+                    b.Property<long>("AnalysisId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("AnalysisId", "CategoryId");
+
+                    b.ToTable("ComprehensiveAnalysisCategories", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisSyncLogRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ItemsSynced")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("JobName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("PagesTotal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("ComprehensiveAnalysisSyncLogs", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.LatestMarketQuoteRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1887,6 +2020,24 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .WithMany()
                         .HasForeignKey("NormalizedCompanyId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisTagRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisCategoryRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisRow", null)
+                        .WithMany()
+                        .HasForeignKey("AnalysisId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

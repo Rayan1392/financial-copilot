@@ -342,3 +342,25 @@ public sealed record AdminMarketQuoteSourceStatusResponse(
     bool BridgeEnabled,
     bool DirectFeedOperational,
     string Notes);
+
+// --- Spec 065: CyclicalWaves ComprehensiveAnalysis sync ---
+
+public sealed record AdminComprehensiveAnalysisFullSyncResponse(
+    int PagesTotal,
+    int ItemsSynced,
+    string Duration);
+
+public sealed record AdminComprehensiveAnalysisDailySyncResponse(
+    int PagesTotal,
+    int ItemsSynced,
+    string Duration);
+
+public sealed record AdminComprehensiveAnalysisSyncRunResponse(
+    int Id,
+    string JobName,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? FinishedAt,
+    string Status,
+    int PagesTotal,
+    int ItemsSynced,
+    string? ErrorMessage);

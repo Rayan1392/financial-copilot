@@ -68,6 +68,14 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<FeatureComputationJobRow> FeatureComputationJobs => Set<FeatureComputationJobRow>();
 
+    public DbSet<ComprehensiveAnalysisRow> ComprehensiveAnalyses => Set<ComprehensiveAnalysisRow>();
+
+    public DbSet<ComprehensiveAnalysisTagRow> ComprehensiveAnalysisTags => Set<ComprehensiveAnalysisTagRow>();
+
+    public DbSet<ComprehensiveAnalysisCategoryRow> ComprehensiveAnalysisCategories => Set<ComprehensiveAnalysisCategoryRow>();
+
+    public DbSet<ComprehensiveAnalysisSyncLogRow> ComprehensiveAnalysisSyncLogs => Set<ComprehensiveAnalysisSyncLogRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,

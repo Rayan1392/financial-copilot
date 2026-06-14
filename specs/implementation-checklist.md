@@ -297,6 +297,28 @@ refresh. No new persistent tables are introduced.
 |---|---:|---|---|---|
 | [x] | 62 | [058](./058-live-data-sync-monitor/user-story.md) / [tasks](./058-live-data-sync-monitor/tasks.md) | Live Data Sync Monitor | **Completed 2026-06-13.** `IDataSyncActivityReader` + `EfCoreDataSyncActivityReader` (aggregates 6 provider readers with per-source isolation). `PollingDataSyncActivityMonitor` singleton (5 s poll-diff, `SemaphoreSlim` connection cap, SSE fan-out via `Channel<DataSyncActivityEvent>`, graceful shutdown on `IHostApplicationLifetime.ApplicationStopping`). `GET /api/v1/admin/data-sync/activity` (snapshot REST, recentPerProvider 1–20, DataAdmin policy). `GET /api/v1/admin/data-sync/activity/stream` (SSE, 429 on cap). Frontend: `data-admin-client.ts`, `useDataSyncActivityStream` hook (SSE + exponential-backoff polling fallback), `DataSyncMonitorPage` (summary strip, active/recent run tables, detail panel, filter bar), route `/admin_/data/monitor`, nav link in admin page header. Tests: 15 unit tests pass (reader isolation, duration, recentPerProvider cap, monitor diff, connection cap), 4 integration tests added to `AdminDataOperationsEndpointTests`. `dotnet test` 505/505 passed; `bun run build` succeeded. |
 
+### Stage 20 - CyclicalWaves Comprehensive Analysis Sync
+
+This stage adds a new bounded context — `ComprehensiveAnalysisSync` — that fetches, stores, and
+refreshes the **تحلیل جامع** (Comprehensive Analysis) content published by CyclicalWaves through
+`GET /api/blog/getComprehensiveAnalysis`. The context is independent of the financial data
+ingestion pipeline; it populates a dedicated read model used by the AI assistant to answer
+market-analysis questions without calling the external API at query time.
+
+Two run modes are supported:
+- **Full sync** — a one-time seed triggered manually (CLI, admin endpoint, or startup flag) that
+  iterates all pages for all seven allowed tag categories with no date filter.
+- **Daily incremental sync** — a Hangfire recurring job that runs once per day and fetches only
+  content created since yesterday, using `filter[from_date]` / `filter[to_date]`.
+
+The CyclicalWaves Bearer-token auth flow (10-day expiry, automatic re-authentication on 401) is
+isolated inside this context and shares no token state with the existing CyclicalWaves financial
+data provider.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [x] | 65 | [065](./065-comprehensive-analysis-sync/user-story.md) / [tasks](./065-comprehensive-analysis-sync/tasks.md) | CyclicalWaves Comprehensive Analysis Sync | Depends on `001`, `002`, `012`; add Bearer-token auth client, `ComprehensiveAnalysis` entity + EF migration, upsert repository, full-sync service (all pages × all 7 tag categories, no date filter), daily incremental sync service (`filter[from_date]=yesterday`, Hangfire recurring job `"0 6 * * *"`), manual trigger via admin endpoint `POST /api/v1/admin/comprehensive-analysis/full-sync`, Polly retry policy (3× exponential back-off on 500), client-side category validation against the 7 allowed Persian tag values, structured Serilog logging, and `IHealthCheck` for the CyclicalWaves auth endpoint. The main category filter is set server-side; the client must never send numeric ids. Idempotent upsert key: `(Title, CreatedAt)`. |
+
 ## Supersession Notes
 
 - `044-nadpco-api-scheduled-sync-worker` should not be implemented as a recurring worker for an archive source.
@@ -343,6 +365,7 @@ These items are explicitly deferred from their originating spec. They are not ne
 | Admin operations ready | `035` | Authorized administrators can operate Identity, tenancy, plans, subscriptions, credit adjustments, and audit reads through granular tenant-scoped backend APIs without direct database changes. |
 | Symbol point lookup ready | `045` | Users can ask "PE حفاری چقدر است؟" and receive the latest metric value for named symbols through the same AI facade, with freshness status, billing, and conversation persistence. |
 | Native Workflow Orchestration ready | `056` | Microsoft Agent Framework V2 uses native Workflow execution primitives instead of manual orchestration. Workflow state, telemetry, step execution, fault handling, and future Deep Research / Multi-Agent expansion are supported while preserving existing API contracts and V1 rollback capability. |
+| Comprehensive Analysis content live | `065` | CyclicalWaves تحلیل جامع content is seeded in the local database via a one-time full sync and refreshed daily through a Hangfire recurring job; the AI assistant can serve market-analysis answers without calling the external API at query time. |
 ## Completion Log
 
 Add one row only after verification. Do not mark an item complete solely because source files exist.

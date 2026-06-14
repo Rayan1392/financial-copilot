@@ -437,6 +437,7 @@ public static class ServiceCollectionExtensions
         {
             services.AddScoped<ScannerToolAdapter>();
             services.AddScoped<SymbolLookupToolAdapter>();
+            services.AddScoped<ComprehensiveAnalysisToolAdapter>();
             services.AddScoped<ExplainableAnswerAdapter>();
             services.AddScoped<MemoryContextAdapter>();
             services.AddScoped<BillingFunctions>();
@@ -618,6 +619,29 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+
+        // CyclicalWaves blog — ComprehensiveAnalysis sync (spec 065).
+        // Reuses CyclicalWavesAuthHandler + CyclicalWavesTokenCache from above.
+        services
+            .AddOptions<ComprehensiveAnalysisBlogOptions>()
+            .BindConfiguration(ComprehensiveAnalysisBlogOptions.SectionName);
+        services
+            .AddHttpClient<ComprehensiveAnalysisBlogClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+            })
+            .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
+            .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
+        services.AddScoped<ComprehensiveAnalysisRepository>();
+        services.AddScoped<IComprehensiveAnalysisQueryRepository>(provider =>
+            provider.GetRequiredService<ComprehensiveAnalysisRepository>());
+        services.AddScoped<IComprehensiveAnalysisSyncRunReader>(provider =>
+            provider.GetRequiredService<ComprehensiveAnalysisRepository>());
+        services.AddScoped<IComprehensiveAnalysisFullSyncService, ComprehensiveAnalysisFullSyncService>();
+        services.AddScoped<IComprehensiveAnalysisDailySyncService, ComprehensiveAnalysisDailySyncService>();
+        services.AddScoped<IQueryComprehensiveAnalysisUseCase, QueryComprehensiveAnalysisUseCase>();
 
         // NADPCO HTTP API provider foundation. Registered by name for coexisting ingestion routes;
         // it does not replace the default CyclicalWaves provider and is not a market-data source.

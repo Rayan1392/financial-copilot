@@ -5,6 +5,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
@@ -28,6 +29,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
     SymbolLookupToolAdapter lookupAdapter,
+    ComprehensiveAnalysisToolAdapter comprehensiveAnalysisAdapter,
     ExplainableAnswerAdapter explainableAnswerAdapter,
     MemoryContextAdapter memoryAdapter,
     BillingFunctions billingFunctions,
@@ -199,6 +201,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         ScannerToolResult? scannerResult = null;
         SymbolLookupToolResult? lookupResult = null;
+        ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult = null;
 
         var scannerTool = AIFunctionFactory.Create(
             async (string query) =>
@@ -225,7 +228,24 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             description: "Look up specific financial metric values for named stock symbols. " +
                          "Use when the user asks for a metric of a specific stock by name or ticker (e.g., P/E of فولاد).");
 
-        var agent = agentFactory.Create(chatClientAdapter, BuildSystemInstructions(), [scannerTool, lookupTool]);
+        var comprehensiveAnalysisTool = AIFunctionFactory.Create(
+            async (string? symbolName, string[]? topicTags, int limit) =>
+            {
+                var result = await comprehensiveAnalysisAdapter.QueryAsync(
+                    symbolName, topicTags, limit <= 0 ? 3 : limit, ct);
+                comprehensiveAnalysisResult = result;
+                return result.AgentSummary;
+            },
+            name: "query_comprehensive_analysis",
+            description: "Retrieve comprehensive stock analysis posts (تحلیل جامع) from CyclicalWaves. " +
+                         "Use when the user asks about fundamental analysis, technical analysis, P/E valuation, " +
+                         "equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), dollar-indexed index, " +
+                         "or investment suitability for a specific stock symbol. " +
+                         "symbol_name: Persian stock ticker (e.g. شغدیر, کرازی, غگلپا). " +
+                         "topic_tags: analysis type tags (e.g. تحلیل_بنیادی, تحلیل_تکنیکال, قیمت_تعادلی). " +
+                         "limit: max results (default 3).");
+
+        var agent = agentFactory.Create(chatClientAdapter, BuildSystemInstructions(), [scannerTool, lookupTool, comprehensiveAnalysisTool]);
 
         string agentResponseText;
         var completionStatus = "Completed";
@@ -476,11 +496,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private static string BuildSystemInstructions() =>
         """
         You are a financial data assistant for the Iranian stock market (Tehran Stock Exchange).
-        You have two tools available:
+        You have three tools available:
         - screen_stocks: Use when the user wants to screen, filter, or find stocks based on financial metrics or conditions (e.g., P/E below 10, high ROE, low debt).
         - lookup_symbol_metrics: Use when the user wants specific metric values for named stock symbols (e.g., "P/E of فولاد", "revenue of شپدیس").
+        - query_comprehensive_analysis: Use when the user asks about comprehensive analysis posts — fundamental analysis (تحلیل بنیادی), technical analysis (تحلیل تکنیکال), equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), dollar-indexed index, or investment suitability for a specific stock (e.g., "آخرین تحلیل بنیادی سهم کرازی", "تحلیل دلاری شاخص کل").
         Always respond in the same language as the user's message (Persian/Farsi or English).
-        If the request does not fit either tool, briefly explain what you can help with.
+        If the request does not fit any tool, briefly explain what you can help with.
         """;
 
     private static string BuildEnrichedMessage(string originalMessage, AuthorizedMemoryContext memoryContext)

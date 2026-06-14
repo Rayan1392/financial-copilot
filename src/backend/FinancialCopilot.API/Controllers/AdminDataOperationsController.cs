@@ -46,6 +46,9 @@ public sealed class AdminDataOperationsController(
     ICurrentActorContext currentActor,
     IMissingAnswerFeedbackRepository missingAnswerFeedback,
     IDataSyncActivityMonitor activityMonitor,
+    IComprehensiveAnalysisFullSyncService comprehensiveAnalysisFullSync,
+    IComprehensiveAnalysisDailySyncService comprehensiveAnalysisDailySync,
+    IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -117,6 +120,53 @@ public sealed class AdminDataOperationsController(
             result.TickersFailed,
             result.FailedTickers,
             result.Duration.ToString("g")));
+    }
+
+    // --- Spec 065: CyclicalWaves ComprehensiveAnalysis sync ---
+
+    [HttpPost("comprehensive-analysis/full-sync")]
+    public async Task<ActionResult<AdminComprehensiveAnalysisFullSyncResponse>> RunComprehensiveAnalysisFullSync(
+        CancellationToken cancellationToken)
+    {
+        var result = await comprehensiveAnalysisFullSync.ExecuteAsync(cancellationToken);
+        return Ok(new AdminComprehensiveAnalysisFullSyncResponse(
+            result.PagesTotal,
+            result.ItemsSynced,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpPost("comprehensive-analysis/daily-sync")]
+    public async Task<ActionResult<AdminComprehensiveAnalysisDailySyncResponse>> RunComprehensiveAnalysisDailySync(
+        CancellationToken cancellationToken)
+    {
+        var result = await comprehensiveAnalysisDailySync.ExecuteAsync(cancellationToken);
+        return Ok(new AdminComprehensiveAnalysisDailySyncResponse(
+            result.PagesTotal,
+            result.ItemsSynced,
+            result.Duration.ToString("g")));
+    }
+
+    [HttpGet("comprehensive-analysis/sync-runs")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminComprehensiveAnalysisSyncRunResponse>>> GetComprehensiveAnalysisSyncRuns(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            ModelState.AddModelError(nameof(limit), "Limit must be between 1 and 100.");
+            return ValidationProblem(ModelState);
+        }
+
+        var runs = await comprehensiveAnalysisSyncRunReader.QueryRecentAsync(limit, cancellationToken);
+        return Ok(runs.Select(r => new AdminComprehensiveAnalysisSyncRunResponse(
+            r.Id,
+            r.JobName,
+            r.StartedAt,
+            r.FinishedAt,
+            r.Status,
+            r.PagesTotal,
+            r.ItemsSynced,
+            r.ErrorMessage)).ToArray());
     }
 
     [HttpPost("codaldb/full-sync")]

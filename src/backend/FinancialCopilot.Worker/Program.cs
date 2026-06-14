@@ -1,4 +1,5 @@
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Worker;
 using Serilog;
@@ -49,6 +50,9 @@ builder.Services
 builder.Services
     .AddOptions<TsetmcPollingOptions>()
     .BindConfiguration(TsetmcPollingOptions.SectionName);
+builder.Services
+    .AddOptions<ComprehensiveAnalysisBlogOptions>()
+    .BindConfiguration(ComprehensiveAnalysisBlogOptions.SectionName);
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
@@ -57,6 +61,7 @@ builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
+builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
 
 var host = builder.Build();
 host.Run();

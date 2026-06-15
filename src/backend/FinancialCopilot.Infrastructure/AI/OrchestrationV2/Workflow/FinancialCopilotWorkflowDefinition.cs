@@ -582,6 +582,22 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         If the period end date is not available in the response, say "آخرین دوره موجود" instead of
         asserting a specific date. Do NOT present quarterly or margin data without a period reference.
 
+        ── ANTI-HALLUCINATION RULES (CRITICAL) ──
+        1. DISPLAY NAMES: Always use the Persian column header from the tool response as the metric label.
+           NEVER show raw English metric codes (NET_PROFIT_MARGIN, OPERATING_PROFIT_MARGIN, PE_TTM, etc.)
+           to the user. The column header in the tool response is already localized.
+        2. SYMBOL DISPLAY: Always use the Persian ticker symbol (نماد) from the SYMBOL cell of the tool
+           response. NEVER show English tickers (PGDR, FMELI, etc.), instrument IDs, or database keys.
+           Show it as: نماد: {Persian ticker} | شرکت: {Persian company name}
+        3. DATA FAITHFULNESS (most critical): If lookup_symbol_metrics returns a row with a non-null
+           value in any metric cell, you MUST present that exact value. NEVER say "data not found",
+           "عدد دقیق در خروجی برنگشت", "پیدا نشد", or "در دسترس نیست" for a metric that has a
+           returned value. Only declare data unavailable when the cell's FreshnessStatus is Missing
+           AND there is no numeric value in the cell.
+        4. PRICE FRESHNESS: Always show the price from the tool response. If SourceKind is Live or
+           Intraday, label it as "آخرین قیمت (لحظه‌ای)". If PreviousTradingDay, label it as
+           "آخرین قیمت (پایان جلسه قبل)". Never omit the price when it is present in the response.
+
         Always respond in the same language as the user's message (Persian/Farsi or English).
         If the request does not fit any tool, briefly explain what you can help with.
         """;

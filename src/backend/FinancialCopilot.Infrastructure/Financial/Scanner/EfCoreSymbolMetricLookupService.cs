@@ -74,8 +74,37 @@ public sealed class EfCoreSymbolMetricLookupService(
 
         var companyIds = resolvedSymbolRows.Select(s => s.CompanyId).Distinct().ToList();
 
+        // Expand to sibling companies: different provider rows for the same real-world entity
+        // often have different CompanyIds. Pull all companies whose TseSymbol or CompanySymbol
+        // matches any resolved company's identifiers so that DerivedMetrics stored under an
+        // archive provider (e.g. NoavaranArchiveSql) are reachable when the resolver returned
+        // the current-API provider's company.
+        var resolvedCompanies = await dbContext.Companies.AsNoTracking()
+            .Where(c => companyIds.Contains(c.Id))
+            .ToListAsync(cancellationToken);
+
+        var siblingMatchTerms = resolvedCompanies
+            .SelectMany(c => new[] { c.TseSymbol, c.CompanySymbol, c.CompanySymbolEnglish, c.CompanySymbolPinglish, c.Name })
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var siblingCompanyIds = siblingMatchTerms.Count > 0
+            ? (await dbContext.Companies.AsNoTracking()
+                .Where(c =>
+                    (c.TseSymbol != null && siblingMatchTerms.Contains(c.TseSymbol.ToLower())) ||
+                    (c.CompanySymbol != null && siblingMatchTerms.Contains(c.CompanySymbol.ToLower())) ||
+                    (c.CompanySymbolEnglish != null && siblingMatchTerms.Contains(c.CompanySymbolEnglish.ToLower())) ||
+                    siblingMatchTerms.Contains(c.Name.ToLower()))
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken))
+            : [];
+
+        var allCompanyIds = companyIds.Concat(siblingCompanyIds).Distinct().ToList();
+
         var allCompanySymbolRows = await dbContext.Symbols.AsNoTracking()
-            .Where(s => companyIds.Contains(s.CompanyId))
+            .Where(s => allCompanyIds.Contains(s.CompanyId))
             .ToListAsync(cancellationToken);
 
         var companyLookup = await CompanyDisplayResolver.BuildLookupAsync(
@@ -102,9 +131,32 @@ public sealed class EfCoreSymbolMetricLookupService(
             derivedRows);
 
         var companyIdBySymbolId = allCompanySymbolRows.ToDictionary(s => s.Id, s => s.CompanyId);
+
+        // Map sibling company IDs back to the primary (resolver-returned) company ID so that
+        // metrics stored under an archive provider row are reachable via the primary CompanyId.
+        // Priority: prefer the primary companyIds set; siblings map to the closest primary.
+        var primaryCompanyIdSet = companyIds.ToHashSet();
+        var siblingToPrimary = new Dictionary<Guid, Guid>();
+        foreach (var siblingId in siblingCompanyIds)
+        {
+            // Find the primary company whose identifiers caused this sibling to be included.
+            var primaryMatch = resolvedCompanies.FirstOrDefault(p =>
+            {
+                var siblingSymbols = allCompanySymbolRows
+                    .Where(s => s.CompanyId == siblingId)
+                    .Select(s => s.SymbolCode.ToLowerInvariant())
+                    .ToHashSet();
+                return siblingMatchTerms.Any(t => siblingSymbols.Contains(t));
+            });
+            siblingToPrimary[siblingId] = primaryMatch?.Id ?? primaryCompanyIdSet.FirstOrDefault();
+        }
+
+        Guid CanonicalCompanyId(Guid id) =>
+            siblingToPrimary.TryGetValue(id, out var primary) ? primary : id;
+
         var latestByCompanyMetric = derivedRows
             .Where(dm => companyIdBySymbolId.ContainsKey(dm.SymbolId))
-            .GroupBy(dm => (CompanyId: companyIdBySymbolId[dm.SymbolId], dm.MetricCode))
+            .GroupBy(dm => (CompanyId: CanonicalCompanyId(companyIdBySymbolId[dm.SymbolId]), dm.MetricCode))
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderByDescending(dm => dm.PeriodEnd).First());
@@ -194,10 +246,10 @@ public sealed class EfCoreSymbolMetricLookupService(
     {
         var columns = new List<ScannerTableColumn>
         {
-            new("SYMBOL", "Symbol", ScannerColumnType.Symbol),
-            new("COMPANY_NAME", "Company", ScannerColumnType.CompanyName),
-            new("LATEST_PRICE", "Latest Price", ScannerColumnType.LatestPrice),
-            new("DAILY_CHANGE_PCT", "Change %", ScannerColumnType.DailyChangePercent)
+            new("SYMBOL", "نماد", ScannerColumnType.Symbol),
+            new("COMPANY_NAME", "شرکت", ScannerColumnType.CompanyName),
+            new("LATEST_PRICE", "آخرین قیمت", ScannerColumnType.LatestPrice),
+            new("DAILY_CHANGE_PCT", "تغییر روزانه %", ScannerColumnType.DailyChangePercent)
         };
 
         var seen = columns
@@ -210,13 +262,38 @@ public sealed class EfCoreSymbolMetricLookupService(
                 continue;
 
             if (string.Equals(code, "MARKET_CAP", StringComparison.OrdinalIgnoreCase))
-                columns.Add(new ScannerTableColumn("MARKET_CAP", "Market Cap", ScannerColumnType.MarketCap));
+                columns.Add(new ScannerTableColumn("MARKET_CAP", "ارزش بازار", ScannerColumnType.MarketCap));
             else
-                columns.Add(new ScannerTableColumn(code, code, ScannerColumnType.Metric, code));
+                columns.Add(new ScannerTableColumn(code, FormatPersianMetricDisplayName(code), ScannerColumnType.Metric, code));
         }
 
         return columns;
     }
+
+    private static string FormatPersianMetricDisplayName(string metricCode) =>
+        metricCode.Replace("_", " ").ToUpperInvariant() switch
+        {
+            "PE TTM" => "P/E دوازده‌ماهه",
+            "PS TTM" => "P/S دوازده‌ماهه",
+            "NET PROFIT GROWTH YOY" => "رشد سالانه سود خالص",
+            "NET PROFIT GROWTH QOQ" => "رشد فصلی سود خالص",
+            "MONTHLY SALES GROWTH YOY" => "رشد سالانه فروش",
+            "MONTHLY SALES GROWTH MOM" => "رشد ماهانه فروش",
+            "TTM EARNINGS" => "سود دوازده‌ماهه",
+            "TTM SALES" => "فروش دوازده‌ماهه",
+            "TTM EPS" => "EPS دوازده‌ماهه",
+            "LATEST PRICE" => "آخرین قیمت",
+            "NET PROFIT" => "سود خالص",
+            "NET PROFIT MARGIN" => "حاشیه سود خالص",
+            "GROSS PROFIT MARGIN" => "حاشیه سود ناخالص",
+            "OPERATING PROFIT MARGIN" => "حاشیه سود عملیاتی",
+            "MONTHLY SALES" => "فروش ماهانه",
+            "MONTHLY PRODUCTION QUANTITY" => "تولید ماهانه",
+            "EPS" => "EPS",
+            "ROE" => "ROE",
+            "ROA" => "ROA",
+            _ => metricCode
+        };
 
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(
         IReadOnlyCollection<ScannerTableColumn> columns,

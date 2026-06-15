@@ -122,6 +122,9 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             "MARKET CAP" => "Market Cap",
             "LATEST PRICE" => "Latest Price",
             "NET PROFIT" => "Net Profit",
+            "NET PROFIT MARGIN" => "Net Profit Margin",
+            "GROSS PROFIT MARGIN" => "Gross Profit Margin",
+            "OPERATING PROFIT MARGIN" => "Operating Profit Margin",
             _ => metricCode
         };
 
@@ -140,6 +143,9 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             "MARKET CAP" => "ارزش بازار",
             "LATEST PRICE" => "آخرین قیمت",
             "NET PROFIT" => "سود خالص",
+            "NET PROFIT MARGIN" => "حاشیه سود خالص",
+            "GROSS PROFIT MARGIN" => "حاشیه سود ناخالص",
+            "OPERATING PROFIT MARGIN" => "حاشیه سود عملیاتی",
             _ => metricCode
         };
 

@@ -530,8 +530,15 @@ public sealed class TsetmcDirectFeedSyncService(
     {
         if (quotes.TryGetValue(instrumentId, out var row))
         {
-            if (row.SourceKind == "Intraday" && sourceKind == "Daily" && row.TradingDate == tradingDate) return;
-            if (row.AsOf > asOf && !(row.SourceKind == "Daily" && sourceKind == "Intraday" && row.TradingDate == tradingDate)) return;
+            // Intraday always beats Daily — regardless of which trading date each carries.
+            // A Daily record for a previous session must never overwrite a live Intraday quote
+            // even if the Daily record's AsOf timestamp is later (e.g. end-of-day batch arrives
+            // after the intraday snapshot was written).
+            if (row.SourceKind == "Intraday" && sourceKind == "Daily") return;
+
+            // For two records of the same kind, keep the newer AsOf — but allow an Intraday to
+            // replace a Daily for the same trading day regardless of timestamps.
+            if (row.AsOf > asOf && !(row.SourceKind == "Daily" && sourceKind == "Intraday")) return;
         }
         if (row is null)
         {

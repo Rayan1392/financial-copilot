@@ -78,7 +78,7 @@ internal static class CompanyDisplayResolver
     public static string GetDisplaySymbol(
         NormalizedCompanyRow? company,
         NormalizedSymbolRow symbol) =>
-        FirstNonBlank(company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
+        FirstNonBlank(company?.Ticker, company?.TseSymbol, company?.CompanySymbol, symbol.SymbolCode) ?? symbol.SymbolCode;
 
     public static string? FirstNonBlank(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();

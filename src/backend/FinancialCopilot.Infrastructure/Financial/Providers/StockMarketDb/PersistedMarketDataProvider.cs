@@ -54,7 +54,10 @@ public sealed class PersistedMarketDataProvider(
         // A quote is "live" only when it is an intraday observation for the current trading day.
         // An intraday snapshot left over from a previous session must surface as
         // PreviousTradingDay so the answer never labels stale data as live.
-        var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
+        // TradingDate values from TSETMC always use Iran Standard Time (IRST = UTC+3:30, no DST).
+        // Use the same offset here to avoid mismatches when the server runs in UTC or another zone.
+        var irstOffset = TimeSpan.FromHours(3.5);
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().ToOffset(irstOffset).DateTime);
         var observations = rows
             .GroupBy(row => row.SymbolCode, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(item => item.quote.AsOf).First())

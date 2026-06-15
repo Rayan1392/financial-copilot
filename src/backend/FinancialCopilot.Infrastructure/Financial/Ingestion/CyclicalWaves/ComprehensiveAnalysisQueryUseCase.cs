@@ -6,8 +6,8 @@ internal sealed class ComprehensiveAnalysisQueryUseCase(
     IComprehensiveAnalysisSearchRepository repository,
     TimeProvider timeProvider) : IComprehensiveAnalysisQueryUseCase
 {
-    // Analysis posts older than 3 months are rarely actionable; cap the window
-    // unless the user explicitly requested an earlier date via the parser.
+    // Analyses older than 30 days are considered stale; use that as the default window.
+    // The parser overrides this when the user explicitly names a date or range.
     private static readonly TimeSpan DefaultWindow = TimeSpan.FromDays(30);
 
     public async Task<ComprehensiveAnalysisQueryResponse> ExecuteAsync(
@@ -18,9 +18,7 @@ internal sealed class ComprehensiveAnalysisQueryUseCase(
         var hasSymbols = request.SymbolNames.Count > 0;
         var hasTags = request.TopicTags.Count > 0;
 
-        // Apply a default 3-month window when the user did not specify a date.
-        // If the parser already resolved a date (e.g. "این ماه", "هفته گذشته", ISO date),
-        // use that value as-is — it may be earlier or later than the default.
+        // Default to 30-day window unless the parser resolved an explicit date.
         var effectiveFrom = request.FromDate ?? timeProvider.GetUtcNow() - DefaultWindow;
 
         IReadOnlyList<ComprehensiveAnalysisSummaryItem> items;

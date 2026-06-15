@@ -115,6 +115,22 @@ public sealed class NormalizedCompanyRow
 
     /// <summary>Import mode (<c>SourceMode</c>) the record was ingested under.</summary>
     public string? SourceMode { get; set; }
+
+    // --- Spec 067: CyclicalWaves company-mapping columns ---
+
+    /// <summary>
+    /// Persian ticker symbol as supplied by the CyclicalWaves / TSE feed (e.g. "شغدیر").
+    /// Populated by <c>CyclicalWavesCompanyMappingService</c>. Null until that sync runs.
+    /// Has a partial unique index (WHERE NOT NULL).
+    /// </summary>
+    public string? Ticker { get; set; }
+
+    /// <summary>
+    /// English ticker / share ISIN as supplied by the CyclicalWaves / TSE feed (e.g. "IRO1GHDS0001").
+    /// Populated by <c>CyclicalWavesCompanyMappingService</c>. Null until that sync runs.
+    /// Has a partial unique index (WHERE NOT NULL).
+    /// </summary>
+    public string? EnTicker { get; set; }
 }
 
 public sealed class NormalizedSymbolRow
@@ -217,6 +233,18 @@ public sealed class NormalizedFinancialStatementRow
 
     /// <summary>Import mode (<c>SourceMode</c>) the statement was ingested under (spec 051).</summary>
     public string? SourceMode { get; set; }
+
+    /// <summary>
+    /// Vendor-reported period end date for this statement snapshot (e.g. CyclicalWaves last_quarter_date).
+    /// Null when the vendor does not supply a date; used to suppress StaleData warnings.
+    /// </summary>
+    public DateOnly? VendorPeriodDate { get; set; }
+
+    /// <summary>
+    /// FK → <see cref="NormalizedCompanyRow.Id"/>. Set during CyclicalWaves ingestion via
+    /// <c>ICompanyResolverService</c> (spec 067). Null when resolution fails or for non-CyclicalWaves rows.
+    /// </summary>
+    public Guid? CompanyId { get; set; }
 }
 
 public sealed class NormalizedFinancialStatementLineItemRow
@@ -265,6 +293,18 @@ public sealed class NormalizedMonthlyReportRow
     /// Null for ServiceSales rows (endpoint has no outputTypeId parameter) and legacy rows.
     /// </summary>
     public int? OutputType { get; set; }
+
+    /// <summary>
+    /// Vendor-reported period end date for this monthly report snapshot (e.g. CyclicalWaves last_month_sale_date).
+    /// Null when the vendor does not supply a date; used to suppress StaleData warnings.
+    /// </summary>
+    public DateOnly? VendorPeriodDate { get; set; }
+
+    /// <summary>
+    /// FK → <see cref="NormalizedCompanyRow.Id"/>. Set during CyclicalWaves ingestion via
+    /// <c>ICompanyResolverService</c> (spec 067). Null when resolution fails or for non-CyclicalWaves rows.
+    /// </summary>
+    public Guid? CompanyId { get; set; }
 }
 
 public sealed class NormalizedMonthlyReportLineItemRow

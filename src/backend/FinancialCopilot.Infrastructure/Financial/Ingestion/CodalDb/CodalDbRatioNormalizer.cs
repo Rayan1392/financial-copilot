@@ -39,7 +39,7 @@ public sealed class CodalDbRatioNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FinancialRatios;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var rows = JsonSerializer.Deserialize<IReadOnlyList<CodalRatioRow>>(payload.Payload, JsonOptions)
             ?? throw new FinancialProviderException(
@@ -55,7 +55,7 @@ public sealed class CodalDbRatioNormalizer(
 
         if (symbol is null)
         {
-            return 0;
+            return new NormalizationOutcome(0);
         }
 
         var selected = SelectCanonicalVariants(rows, _preferConsolidated);
@@ -88,7 +88,7 @@ public sealed class CodalDbRatioNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return count;
+        return new NormalizationOutcome(count, externalCompanyId);
     }
 
     private async Task UpsertDerivedMetricRowAsync(

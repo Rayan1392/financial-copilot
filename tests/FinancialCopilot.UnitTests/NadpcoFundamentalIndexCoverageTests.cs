@@ -55,9 +55,9 @@ public sealed class NadpcoFundamentalIndexCoverageTests
     {
         await using var db = CreateDb();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoIndexesJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoIndexesJson), default);
 
-        Assert.Equal(2, count);
+        Assert.Equal(2, outcome.ProcessedRecords);
         var observations = await db.NadpcoFundamentalIndexObservations.ToListAsync();
         Assert.Equal(2, observations.Count);
 

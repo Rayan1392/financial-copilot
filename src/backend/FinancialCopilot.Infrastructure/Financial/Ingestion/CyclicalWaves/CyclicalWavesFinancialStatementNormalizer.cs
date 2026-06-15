@@ -1,3 +1,4 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.DataQuality;
 using FinancialCopilot.Domain.Financial.Entities;
@@ -5,18 +6,21 @@ using FinancialCopilot.Domain.Financial.Periods;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 public sealed class CyclicalWavesFinancialStatementNormalizer(
-    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext,
+    ICompanyResolverService companyResolver,
+    ILogger<CyclicalWavesFinancialStatementNormalizer> logger) : IFinancialPayloadNormalizer
 {
     public string ProviderName => "CyclicalWaves";
 
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var response = JsonSerializer.Deserialize<CyclicalWavesTickerDetailResponse>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -33,8 +37,20 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         var data = response.Data;
         var linkage = await EnrichSymbolAsync(data, payload.ReceivedAt, cancellationToken);
 
+        // Resolve Companies.Id via the normalized symbol — sets CompanyId FK on each row (spec 067).
+        var resolvedCompany = await companyResolver.ResolveBySymbolAsync(data.Ticker, cancellationToken);
+        if (resolvedCompany is null)
+        {
+            logger.LogWarning(
+                "[CyclicalWaves] CompanyId unresolved for ticker={Ticker} enticker={EnTicker}",
+                data.Ticker,
+                data.Enticker);
+        }
+
         var asOf = payload.ReceivedAt;
         var warnings = Warnings(linkage is null, data.Ticker);
+
+        var vendorQuarterDate = ParseVendorDate(data.LastQuarterDate);
 
         var periods = new[]
         {
@@ -48,7 +64,8 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
                 NetProfitMargin: data.LastQuarterNetProfitMargin,
                 GrossProfitMargin: data.LastQuarterGrossProfitMargin,
                 OperatingProfitMargin: data.LastQuarterOperatingProfitMargin,
-                IsQ0: true
+                IsQ0: true,
+                VendorPeriodDate: vendorQuarterDate
             ),
             (
                 StatementId: $"{data.Id}:Q1",
@@ -60,7 +77,8 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
                 NetProfitMargin: data.PenultimateQuarterNetProfitMargin,
                 GrossProfitMargin: data.PenultimateQuarterGrossProfitMargin,
                 OperatingProfitMargin: data.PenultimateQuarterOperatingProfitMargin,
-                IsQ0: false
+                IsQ0: false,
+                VendorPeriodDate: (DateOnly?)null
             ),
             (
                 StatementId: $"{data.Id}:Q4",
@@ -72,7 +90,8 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
                 NetProfitMargin: data.LastYearSameQuarterNetProfitMargin,
                 GrossProfitMargin: data.LastYearSameQuarterGrossProfitMargin,
                 OperatingProfitMargin: data.LastYearSameQuarterOperatingProfitMargin,
-                IsQ0: false
+                IsQ0: false,
+                VendorPeriodDate: (DateOnly?)null
             )
         };
 
@@ -102,6 +121,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             }
 
             statement.ExternalCompanyId = linkage?.ExternalCompanyId ?? data.Id;
+            statement.CompanyId = resolvedCompany?.Id;
             statement.StatementType = incomeStatementType;
             statement.PeriodType = threeMonthsPeriodType;
             statement.PeriodStart = p.Period.Start;
@@ -109,6 +129,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             statement.SourcePayloadChecksum = payload.Checksum;
             statement.LastSynchronizedAt = payload.ReceivedAt;
             statement.WarningsJson = warnings;
+            statement.VendorPeriodDate = p.VendorPeriodDate;
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -124,11 +145,13 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             {
                 await UpsertLineItemAsync(statement.Id, "PE_RATIO", data.Pe, cancellationToken);
                 await UpsertLineItemAsync(statement.Id, "PS_RATIO", data.Ps, cancellationToken);
+                // Pre-computed 4-quarter rolling average of quarterly revenue, supplied by CyclicalWaves.
+                await UpsertLineItemAsync(statement.Id, "AVG_4Q_REVENUE", data.Average4QuarterSale, cancellationToken);
             }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return periods.Length;
+        return new NormalizationOutcome(periods.Length, linkage?.ExternalCompanyId);
     }
 
     private async Task<CyclicalWavesCompanyLinkage?> EnrichSymbolAsync(
@@ -217,6 +240,17 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             ];
 
         return JsonSerializer.Serialize(warnings, JsonOptions);
+    }
+
+    private static DateOnly? ParseVendorDate(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+        // Accepts ISO 8601 date (yyyy-MM-dd) as supplied by CyclicalWaves API.
+        return DateOnly.TryParseExact(raw, "yyyy-MM-dd", null,
+            System.Globalization.DateTimeStyles.None, out var d)
+            ? d
+            : null;
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

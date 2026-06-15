@@ -65,9 +65,9 @@ public sealed class NadpcoApiCompanyNormalizerTests
     public async Task Normalize_CreatesCompanySymbolAndDimensions()
     {
         await using var db = CreateIngestionDbContext();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
         Assert.Equal(1, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
         Assert.Equal(1, await db.Industries.CountAsync(i => i.ProviderName == ProviderName));
@@ -120,25 +120,26 @@ public sealed class NadpcoApiCompanyNormalizerTests
     }
 
     [Fact]
-    public async Task Normalize_UsesInstrumentCodeBeforeIsinForCanonicalSymbol()
+    public async Task Normalize_UsesTseSymbolAsCanonicalSymbolCode()
     {
         await using var db = CreateIngestionDbContext();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
 
+        // TseSymbolFirst: CoSymbol (Persian ticker "آبین") wins over InstrumentCode/ISIN.
         var symbol = await db.Symbols.SingleAsync(s => s.ExternalSymbolId == "13226");
-        Assert.Equal("9987529074833218", symbol.SymbolCode);
-        Assert.Equal("InstrumentCode", symbol.LinkageBasis);
+        Assert.Equal("آبین", symbol.SymbolCode);
+        Assert.Equal("TseSymbol", symbol.LinkageBasis);
     }
 
     [Fact]
-    public async Task Normalize_WhenTseCodeMissing_FallsBackToSymbolIsinAndLogsWarning()
+    public async Task Normalize_WhenTseSymbolMissing_FallsBackToSymbolIsin()
     {
         const string json = """
             [
               {
                 "coID": 2,
                 "coTitle": "Fallback",
-                "coSymbol": "فال",
+                "coSymbol": null,
                 "tseCode": null,
                 "tseSIsinCode": "IRO1FALL0001"
               }
@@ -220,7 +221,7 @@ public sealed class NadpcoApiCompanyNormalizerTests
         var company = await db.Companies.SingleAsync();
         var symbol = await db.Symbols.SingleAsync();
         Assert.Equal("Second", company.Name);
-        Assert.Equal("222", symbol.SymbolCode);
+        Assert.Equal("ب", symbol.SymbolCode);
         Assert.Contains(logger.Messages, message => message.Contains("conflicting identifiers"));
     }
 
@@ -230,9 +231,9 @@ public sealed class NadpcoApiCompanyNormalizerTests
         const string json = """[{ "coID": 11, "coTitle": "No identifiers" }]""";
         await using var db = CreateIngestionDbContext();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(json), CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(json), CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync());
         Assert.Empty(await db.Symbols.ToListAsync());
     }

@@ -36,13 +36,19 @@ public sealed class MetricRecalculationProcessor(
                 "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
                 "OPERATING_CASH_FLOW",
                 // Vendor-supplied ratio snapshots (CyclicalWaves) that trigger PE_TTM / PS_TTM passthrough.
-                "PE_RATIO", "PS_RATIO"
+                "PE_RATIO", "PS_RATIO",
+                // CyclicalWaves vendor-supplied margin line items (Order 66 / Phase 4).
+                "NET_PROFIT_MARGIN", "GROSS_PROFIT_MARGIN", "OPERATING_PROFIT_MARGIN",
+                // CyclicalWaves vendor-supplied 4-quarter rolling average (Order 66 / Phase 2).
+                "AVG_4Q_REVENUE"
             },
             [ProviderDataset.MonthlyProductionSales] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "MONTHLY_SALES",
                 // Spec 057: monthly-activity aggregates persisted per company-month for lookup.
-                "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE"
+                "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE",
+                // CyclicalWaves vendor-supplied 12-month rolling average (Order 66 / Phase 2).
+                "AVG_12M_MONTHLY_SALES"
             }
         };
 
@@ -124,24 +130,35 @@ public sealed class MetricRecalculationProcessor(
             return 0;
         }
 
-        var externalCompanyId = row.ExternalReference;
-        if (string.IsNullOrWhiteSpace(externalCompanyId))
+        var reference = row.ExternalReference;
+        if (string.IsNullOrWhiteSpace(reference))
         {
             // Cross-company recalc not supported in Phase 1 — would scan every symbol; explicit no-op.
             return 0;
         }
 
+        // ExternalReference is the CanonicalExternalCompanyId written by the normalizer into
+        // FinancialStatements/MonthlyReports.ExternalCompanyId. Both lookups use the same value,
+        // so no heuristic fallback is needed.
+        var company = await dbContext.Companies.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ExternalCompanyId == reference, cancellationToken);
+
+        if (company is null)
+        {
+            return 0;
+        }
+
         var symbolIds = await dbContext.Symbols.AsNoTracking()
-            .Where(symbol => dbContext.Companies
-                .Any(company => company.ExternalCompanyId == externalCompanyId &&
-                    company.Id == symbol.CompanyId))
-            .Select(symbol => symbol.Id)
+            .Where(s => s.CompanyId == company.Id)
+            .Select(s => s.Id)
             .ToListAsync(cancellationToken);
 
         if (symbolIds.Count == 0)
         {
             return 0;
         }
+
+        var externalCompanyId = reference;
 
         // Determine which registered metrics have a calculator AND depend on at least one source
         // metric persisted by this dataset.

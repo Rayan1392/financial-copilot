@@ -76,9 +76,9 @@ public sealed class CodalDbSymbolNormalizerTests
     public async Task Normalize_CreatesCompaniesSymbolsAndDeduplicatedDimensions()
     {
         await using var db = CreateDbContext();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), default);
 
-        Assert.Equal(2, count);
+        Assert.Equal(2, outcome.ProcessedRecords);
         Assert.Equal(2, await db.Companies.CountAsync());
         Assert.Equal(2, await db.Symbols.CountAsync());
         Assert.Equal(1, await db.Industries.CountAsync()); // shared IndustryID 270
@@ -177,9 +177,9 @@ public sealed class CodalDbSymbolNormalizerTests
             """;
 
         await using var db = CreateDbContext();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(json), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(json), default);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync());
         Assert.Equal(0, await db.Symbols.CountAsync());
     }

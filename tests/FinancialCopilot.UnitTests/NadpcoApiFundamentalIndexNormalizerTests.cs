@@ -23,9 +23,9 @@ public sealed class NadpcoApiFundamentalIndexNormalizerTests
         await using var db = CreateDb();
         await SeedSymbolAsync(db);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(SampleJson), CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(SampleJson), CancellationToken.None);
 
-        Assert.Equal(2, count);
+        Assert.Equal(2, outcome.ProcessedRecords);
         var rows = await db.DerivedMetrics.OrderBy(row => row.MetricCode).ToListAsync();
         Assert.Equal(2, rows.Count);
         Assert.All(rows, row => Assert.Equal("nadpco-api-fundamental-index-source-v1", row.CalculationPolicyVersion));
@@ -39,9 +39,9 @@ public sealed class NadpcoApiFundamentalIndexNormalizerTests
         await using var db = CreateDb();
         await SeedSymbolAsync(db);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(UnmappedJson), CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(UnmappedJson), CancellationToken.None);
 
-        Assert.Equal(0, count);
+        Assert.Equal(0, outcome.ProcessedRecords);
         Assert.Empty(await db.DerivedMetrics.ToListAsync());
     }
 

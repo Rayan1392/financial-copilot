@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260615084028_AddVendorPeriodDateToStatementAndMonthlyReport")]
+    partial class AddVendorPeriodDateToStatementAndMonthlyReport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1372,10 +1375,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("CompanySymbolPinglish")
                         .HasColumnType("text");
 
-                    b.Property<string>("EnTicker")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("EnlistedDateGregorian")
                         .HasColumnType("text");
 
@@ -1474,28 +1473,16 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<string>("SymbolIsin")
                         .HasColumnType("text");
 
-                    b.Property<string>("Ticker")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("TseSymbol")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EnTicker")
-                        .IsUnique()
-                        .HasFilter("\"EnTicker\" IS NOT NULL");
 
                     b.HasIndex("GroupId");
 
                     b.HasIndex("IndustryId");
 
                     b.HasIndex("MarketId");
-
-                    b.HasIndex("Ticker")
-                        .IsUnique()
-                        .HasFilter("\"Ticker\" IS NOT NULL");
 
                     b.HasIndex("LogicalVendor", "SourceMode");
 
@@ -1533,9 +1520,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CompanyId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ExternalCompanyId")
@@ -1588,8 +1572,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
 
                     b.HasIndex("ProviderName", "StatementType");
 
@@ -1738,9 +1720,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("CompanyId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ExternalCompanyId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1788,8 +1767,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
 
                     b.HasIndex("ProviderName", "ExternalReportId")
                         .IsUnique();
@@ -2061,28 +2038,12 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedFinancialStatementRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedIndustryRow", null)
                         .WithMany()
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedMonthlyReportRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.TradingInstrumentRow", b =>

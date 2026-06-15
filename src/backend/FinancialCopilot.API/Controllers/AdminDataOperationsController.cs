@@ -50,6 +50,7 @@ public sealed class AdminDataOperationsController(
     IComprehensiveAnalysisDailySyncService comprehensiveAnalysisDailySync,
     IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
     IComprehensiveAnalysisPlainTextBackfillService comprehensiveAnalysisBackfill,
+    IBackfillCyclicalWavesCompanyIdService cyclicalWavesCompanyIdBackfill,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
@@ -153,6 +154,18 @@ public sealed class AdminDataOperationsController(
     {
         var result = await comprehensiveAnalysisBackfill.ExecuteAsync(cancellationToken);
         return Ok(new AdminComprehensiveAnalysisBackfillResponse(result.RowsUpdated));
+    }
+
+    // --- Spec 067: CyclicalWaves CompanyId backfill (DataAdmin only) ---
+    // Backfills CompanyId FK on historical CyclicalWaves FinancialStatements and MonthlyReports
+    // rows ingested before the spec 067 normalizer wiring was in place. Safe to re-invoke.
+
+    [HttpPost("cyclicalwaves/backfill-company-id")]
+    public async Task<ActionResult<AdminBackfillCyclicalWavesCompanyIdResponse>> BackfillCyclicalWavesCompanyId(
+        CancellationToken cancellationToken)
+    {
+        var result = await cyclicalWavesCompanyIdBackfill.RunAsync(cancellationToken);
+        return Ok(new AdminBackfillCyclicalWavesCompanyIdResponse(result.Resolved, result.Unresolved));
     }
 
     [HttpGet("comprehensive-analysis/sync-runs")]

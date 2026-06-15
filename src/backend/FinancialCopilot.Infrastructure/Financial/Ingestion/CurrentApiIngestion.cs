@@ -31,15 +31,19 @@ public sealed class EfCoreCurrentApiGapReader(
         var minGregorianYear = boundaryShamsiYear + 621;
 
         var statementGaps = await BuildGapsAsync(
-            dbContext.FinancialStatements.AsNoTracking().Select(row =>
-                new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
+            dbContext.FinancialStatements.AsNoTracking()
+                .Where(row => (row.ProviderName == ArchiveSource || row.ProviderName == CurrentSource) &&
+                    row.PeriodEnd.Year >= minGregorianYear)
+                .Select(row => new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
             ArchiveImportDataset.FinancialStatements.ToString(),
             minGregorianYear,
             cancellationToken);
 
         var monthlyGaps = await BuildGapsAsync(
-            dbContext.MonthlyReports.AsNoTracking().Select(row =>
-                new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
+            dbContext.MonthlyReports.AsNoTracking()
+                .Where(row => (row.ProviderName == ArchiveSource || row.ProviderName == CurrentSource) &&
+                    row.PeriodEnd.Year >= minGregorianYear)
+                .Select(row => new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
             ArchiveImportDataset.MonthlyActivity.ToString(),
             minGregorianYear,
             cancellationToken);
@@ -60,9 +64,8 @@ public sealed class EfCoreCurrentApiGapReader(
         CancellationToken cancellationToken)
     {
         // Counts per (company, fiscalYear) split by archive vs current source, at/after the boundary.
+        // Filtering is applied by the caller on the raw entity before projection so EF can translate it.
         var counts = await source
-            .Where(row => (row.ProviderName == ArchiveSource || row.ProviderName == CurrentSource) &&
-                row.FiscalYear >= minGregorianYear)
             .GroupBy(row => new { row.ExternalCompanyId, row.FiscalYear, row.ProviderName })
             .Select(group => new
             {

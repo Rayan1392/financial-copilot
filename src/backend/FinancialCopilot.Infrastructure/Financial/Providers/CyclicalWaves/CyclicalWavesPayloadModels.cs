@@ -35,8 +35,12 @@ internal sealed record CyclicalWavesTickerData(
     [property: JsonPropertyName("last_quarter_operating_profit_margin")] decimal? LastQuarterOperatingProfitMargin,
     [property: JsonPropertyName("penultimate_quarter_operating_profit_margin")] decimal? PenultimateQuarterOperatingProfitMargin,
     [property: JsonPropertyName("last_year_same_quarter_operating_profit_margin")] decimal? LastYearSameQuarterOperatingProfitMargin,
+    [property: JsonPropertyName("average_4_quarter_sale")] decimal? Average4QuarterSale,
     [property: JsonPropertyName("last_month_sale")] decimal? LastMonthSale,
     [property: JsonPropertyName("penultimate_month_sale")] decimal? PenultimateMonthSale,
     [property: JsonPropertyName("last_year_same_month_sale")] decimal? LastYearSameMonthSale,
+    [property: JsonPropertyName("average_12_month_sale")] decimal? Average12MonthSale,
     [property: JsonPropertyName("pe")] decimal? Pe,
-    [property: JsonPropertyName("ps")] decimal? Ps);
+    [property: JsonPropertyName("ps")] decimal? Ps,
+    [property: JsonPropertyName("last_quarter_date")] string? LastQuarterDate,
+    [property: JsonPropertyName("last_month_sale_date")] string? LastMonthSaleDate);

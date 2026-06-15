@@ -34,6 +34,17 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
         builder.HasIndex(row => row.IndustryId);
         builder.HasIndex(row => row.GroupId);
         builder.HasIndex(row => row.MarketId);
+
+        // Spec 067: Persian/English ticker lookup. Partial indexes exclude the common null case
+        // (only NADPCO-linked rows ever carry a Ticker/EnTicker value).
+        builder.Property(row => row.Ticker).HasMaxLength(64);
+        builder.Property(row => row.EnTicker).HasMaxLength(64);
+        builder.HasIndex(row => row.Ticker)
+            .IsUnique()
+            .HasFilter("\"Ticker\" IS NOT NULL");
+        builder.HasIndex(row => row.EnTicker)
+            .IsUnique()
+            .HasFilter("\"EnTicker\" IS NOT NULL");
     }
 }
 
@@ -102,6 +113,13 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
         }).IsUnique();
         // Support index for "all balance sheets from provider X" filtering.
         builder.HasIndex(row => new { row.ProviderName, row.StatementType });
+        builder.Property(row => row.VendorPeriodDate);
+        // Spec 067: nullable FK to Companies for CyclicalWaves rows; company deletion leaves rows orphaned.
+        builder.HasOne<NormalizedCompanyRow>()
+            .WithMany()
+            .HasForeignKey(row => row.CompanyId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(row => row.CompanyId);
     }
 }
 
@@ -127,6 +145,13 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);
         builder.Property(row => row.OutputType);
+        builder.Property(row => row.VendorPeriodDate);
+        // Spec 067: nullable FK to Companies for CyclicalWaves rows; company deletion leaves rows orphaned.
+        builder.HasOne<NormalizedCompanyRow>()
+            .WithMany()
+            .HasForeignKey(row => row.CompanyId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(row => row.CompanyId);
     }
 }
 

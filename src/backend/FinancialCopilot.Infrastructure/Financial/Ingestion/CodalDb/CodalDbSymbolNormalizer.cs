@@ -28,7 +28,7 @@ public sealed class CodalDbSymbolNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var records = JsonSerializer.Deserialize<CodalDbCompanyRecord[]>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -137,7 +137,7 @@ public sealed class CodalDbSymbolNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return distinctCompanies.Count;
+        return new NormalizationOutcome(distinctCompanies.Count);
     }
 
     private Guid? ResolveIndustry(

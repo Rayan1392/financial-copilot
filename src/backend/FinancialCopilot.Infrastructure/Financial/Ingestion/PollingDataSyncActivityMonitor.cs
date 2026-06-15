@@ -73,7 +73,10 @@ public sealed class PollingDataSyncActivityMonitor : IDataSyncActivityMonitor, I
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (_cts is not null)
-            await _cts.CancelAsync();
+        {
+            try { await _cts.CancelAsync(); }
+            catch (ObjectDisposedException) { }
+        }
 
         if (_pollLoop is not null)
             await _pollLoop.ConfigureAwait(false);
@@ -259,10 +262,12 @@ public sealed class PollingDataSyncActivityMonitor : IDataSyncActivityMonitor, I
 
     public async ValueTask DisposeAsync()
     {
-        if (_cts is not null)
+        var cts = Interlocked.Exchange(ref _cts, null);
+        if (cts is not null)
         {
-            await _cts.CancelAsync();
-            _cts.Dispose();
+            try { await cts.CancelAsync(); }
+            catch (ObjectDisposedException) { }
+            cts.Dispose();
         }
 
         _connectionSlot.Dispose();

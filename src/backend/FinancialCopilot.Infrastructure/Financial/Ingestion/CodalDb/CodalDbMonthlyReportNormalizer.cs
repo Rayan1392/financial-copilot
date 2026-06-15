@@ -35,7 +35,7 @@ public sealed class CodalDbMonthlyReportNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.MonthlyProductionSales;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var rows = JsonSerializer.Deserialize<IReadOnlyList<CodalMonthlyActivityRow>>(payload.Payload, JsonOptions)
             ?? throw new FinancialProviderException(
@@ -43,11 +43,13 @@ public sealed class CodalDbMonthlyReportNormalizer(
                 "CodalDb monthly-activity payload is null or invalid.");
 
         var count = 0;
+        string? canonicalExternalCompanyId = null;
 
         foreach (var activity in rows)
         {
             var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(activity.Year, activity.Month);
             var externalCompanyId = activity.CompanyId.ToString(CultureInfo.InvariantCulture);
+            canonicalExternalCompanyId = externalCompanyId;
             var externalReportId = activity.Id.ToString(CultureInfo.InvariantCulture);
 
             var report = await dbContext.MonthlyReports.SingleOrDefaultAsync(
@@ -102,7 +104,7 @@ public sealed class CodalDbMonthlyReportNormalizer(
             count++;
         }
 
-        return count;
+        return new NormalizationOutcome(count, canonicalExternalCompanyId);
     }
 
     private static string BuildEvidenceJson(

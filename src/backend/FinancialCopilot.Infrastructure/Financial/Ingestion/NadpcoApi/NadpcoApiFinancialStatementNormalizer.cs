@@ -16,7 +16,7 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var envelope = JsonSerializer.Deserialize<NadpcoFinancialStatementEnvelope>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -29,6 +29,7 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         typed.AddRange(ReadStatements(envelope.CashFlow, FinancialStatementType.CashFlow));
 
         var selected = NadpcoApiStatementSelectionPolicy.SelectAll(typed);
+        string? canonicalExternalCompanyId = null;
 
         foreach (var item in selected)
         {
@@ -36,6 +37,7 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             var period = MapPeriod(statement);
             var externalStatementId = statement.StatementID.ToString(CultureInfo.InvariantCulture);
             var externalCompanyId = statement.ComID.ToString(CultureInfo.InvariantCulture);
+            canonicalExternalCompanyId = externalCompanyId;
             var statementTypeText = item.StatementType.ToString();
 
             var row = await dbContext.FinancialStatements.SingleOrDefaultAsync(
@@ -70,7 +72,7 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return selected.Count;
+        return new NormalizationOutcome(selected.Count, canonicalExternalCompanyId);
     }
 
     private static IReadOnlyList<NadpcoApiTypedStatement> ReadStatements(

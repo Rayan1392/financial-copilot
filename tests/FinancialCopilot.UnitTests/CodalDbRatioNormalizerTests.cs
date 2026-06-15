@@ -74,9 +74,9 @@ public sealed class CodalDbRatioNormalizerTests
         await using var db = CreateDb();
         await SeedSymbolAsync(db, ExternalCompanyId);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoRatiosJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoRatiosJson), default);
 
-        Assert.Equal(2, count);
+        Assert.Equal(2, outcome.ProcessedRecords);
         var metrics = await db.DerivedMetrics.ToListAsync();
         Assert.Equal(2, metrics.Count);
         Assert.All(metrics, m => Assert.Equal("codal-ratio-source-v1", m.CalculationPolicyVersion));
@@ -183,9 +183,9 @@ public sealed class CodalDbRatioNormalizerTests
         await using var db = CreateDb();
         await SeedSymbolAsync(db, ExternalCompanyId);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(UnmappedRatioJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(UnmappedRatioJson), default);
 
-        Assert.Equal(0, count);
+        Assert.Equal(0, outcome.ProcessedRecords);
         Assert.Equal(0, await db.DerivedMetrics.CountAsync());
     }
 
@@ -195,9 +195,9 @@ public sealed class CodalDbRatioNormalizerTests
         await using var db = CreateDb();
         // No symbol seeded for company "9999"
 
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoRatiosJson, "9999"), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoRatiosJson, "9999"), default);
 
-        Assert.Equal(0, count);
+        Assert.Equal(0, outcome.ProcessedRecords);
         Assert.Equal(0, await db.DerivedMetrics.CountAsync());
     }
 

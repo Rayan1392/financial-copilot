@@ -343,7 +343,7 @@ public sealed class FinancialDataIngestionTests
 
         public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
-        public Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
+        public Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("normalization failed");
     }
 

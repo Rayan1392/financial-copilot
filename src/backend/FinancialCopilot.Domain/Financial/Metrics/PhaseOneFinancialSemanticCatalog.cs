@@ -113,6 +113,32 @@ public static class PhaseOneFinancialSemanticCatalog
         DefineSource("LATEST_PRICE", "Latest Observed Price", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
         DefineSource("MARKET_CAP", "Market Capitalization", MetricCategory.Valuation, Amount, FiscalPeriodType.TrailingTwelveMonths),
         DefineSource("SHARES_OUTSTANDING", "Shares Outstanding", MetricCategory.FinancialHealth, Amount, FiscalPeriodType.TrailingTwelveMonths),
+        // CyclicalWaves pre-computed rolling averages (Q0 / M0 snapshots; no schema change required).
+        // AVG_4Q_REVENUE: 4-quarter rolling average of quarterly revenue supplied by the vendor.
+        // AVG_12M_MONTHLY_SALES: 12-month rolling average of monthly sales supplied by the vendor.
+        Define("AVG_4Q_REVENUE", "Average 4-Quarter Revenue", MetricCategory.SalesAndProduction, Amount,
+            [FiscalPeriodType.ThreeMonths],
+            [Alias("average 4 quarter revenue", "en-US", "AVG_4Q_REVENUE"),
+             Alias("avg 4q revenue", "en-US", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش ۴ فصل", "fa-IR", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش 4 فصل", "fa-IR", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش فصلی", "fa-IR", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش چهار فصل", "fa-IR", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش ۴ فصل اخیر", "fa-IR", "AVG_4Q_REVENUE"),
+             Alias("میانگین فروش 4 فصل اخیر", "fa-IR", "AVG_4Q_REVENUE")],
+            [Dependency("AVG_4Q_REVENUE")]),
+        Define("AVG_12M_MONTHLY_SALES", "Average 12-Month Monthly Sales", MetricCategory.SalesAndProduction, Amount,
+            [FiscalPeriodType.Monthly],
+            [Alias("average 12 month sales", "en-US", "AVG_12M_MONTHLY_SALES"),
+             Alias("avg 12m sales", "en-US", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش ۱۲ ماه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش 12 ماه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش ماهانه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش دوازده ماه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش ۱۲ ماه اخیر", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش 12 ماه اخیر", "fa-IR", "AVG_12M_MONTHLY_SALES")],
+            [Dependency("AVG_12M_MONTHLY_SALES")]),
+
         // PE_RATIO and PS_RATIO are intentionally NOT in Definitions — they are internal pipeline
         // source metrics fed by CyclicalWaves FinancialStatementLineItems and consumed only by
         // SourceLineItemPassthroughMetricCalculator for PE_TTM / PS_TTM.  Keeping them out of the
@@ -150,7 +176,9 @@ public static class PhaseOneFinancialSemanticCatalog
             [
                 Alias("net profit growth yoy", "en-US", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
                 Alias("رشد سود خالص سالانه", "fa-IR", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
-                Alias("رشد سود خالص آخرین فصل", "fa-IR", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear)
+                Alias("رشد سود خالص آخرین فصل", "fa-IR", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("رشد سود خالص نسبت به سال قبل", "fa-IR", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("رشد سود نسبت به سال قبل", "fa-IR", "NET_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear)
             ],
             [Dependency("NET_PROFIT")]),
         Define(
@@ -162,7 +190,8 @@ public static class PhaseOneFinancialSemanticCatalog
             [
                 Alias("net profit growth qoq", "en-US", "NET_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
                 Alias("رشد سود خالص فصلی", "fa-IR", "NET_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
-                Alias("رشد سود خالص آخرین فصل", "fa-IR", "NET_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)
+                Alias("رشد سود خالص آخرین فصل", "fa-IR", "NET_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+                Alias("رشد سود خالص نسبت به فصل قبل", "fa-IR", "NET_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)
             ],
             [Dependency("NET_PROFIT")]),
         Define(
@@ -202,6 +231,7 @@ public static class PhaseOneFinancialSemanticCatalog
                 Alias("pe", "fa-IR", "PE_TTM"),
                 Alias("نسبت پی به ای", "fa-IR", "PE_TTM"),
                 Alias("پی به ای", "fa-IR", "PE_TTM"),
+                Alias("پی بر ای", "fa-IR", "PE_TTM"),
                 Alias("پی‌ای", "fa-IR", "PE_TTM"),
                 Alias("پی ای", "fa-IR", "PE_TTM"),
                 Alias("نسبت قیمت به سود", "fa-IR", "PE_TTM"),
@@ -221,10 +251,15 @@ public static class PhaseOneFinancialSemanticCatalog
             [
                 Alias("p/s", "en-US", "PS_TTM"),
                 Alias("ps", "en-US", "PS_TTM"),
+                Alias("price-to-sales", "en-US", "PS_TTM"),
+                Alias("price to sales", "en-US", "PS_TTM"),
                 Alias("p/s", "fa-IR", "PS_TTM"),
                 Alias("ps", "fa-IR", "PS_TTM"),
                 Alias("نسبت قیمت به فروش", "fa-IR", "PS_TTM"),
                 Alias("پی به اس", "fa-IR", "PS_TTM"),
+                Alias("پی بر اس", "fa-IR", "PS_TTM"),
+                Alias("پی‌اس", "fa-IR", "PS_TTM"),
+                Alias("پی اس", "fa-IR", "PS_TTM"),
             ],
             [Dependency("PS_RATIO")]),
 
@@ -238,7 +273,9 @@ public static class PhaseOneFinancialSemanticCatalog
         // Engine-derived YoY growth metrics (depend on Codal line items from spec 023).
         DefineGrowth("REVENUE_GROWTH_YOY", "Revenue Growth YoY", "REVENUE",
             [Alias("revenue growth yoy", "en-US", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear),
-             Alias("رشد درآمد سالانه", "fa-IR", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+             Alias("رشد درآمد سالانه", "fa-IR", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد فروش نسبت به سال قبل", "fa-IR", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد فروش سالانه", "fa-IR", "REVENUE_GROWTH_YOY", GrowthComparison.YearOverYear)]),
         DefineGrowth("GROSS_PROFIT_GROWTH_YOY", "Gross Profit Growth YoY", "GROSS_PROFIT",
             [Alias("gross profit growth yoy", "en-US", "GROSS_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear),
              Alias("رشد سود ناخالص سالانه", "fa-IR", "GROSS_PROFIT_GROWTH_YOY", GrowthComparison.YearOverYear)]),
@@ -258,16 +295,24 @@ public static class PhaseOneFinancialSemanticCatalog
         // Engine-derived QoQ growth metrics (use CodalDiscreteQuarterDeriver to convert cumulative first).
         DefineGrowth("REVENUE_GROWTH_QOQ", "Revenue Growth QoQ", "REVENUE",
             [Alias("revenue growth qoq", "en-US", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
-             Alias("رشد درآمد فصلی", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+             Alias("رشد درآمد فصلی", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد فروش فصلی", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد فروش نسبت به فصل قبل", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد فروش", "fa-IR", "REVENUE_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
         DefineGrowth("GROSS_PROFIT_GROWTH_QOQ", "Gross Profit Growth QoQ", "GROSS_PROFIT",
             [Alias("gross profit growth qoq", "en-US", "GROSS_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
              Alias("رشد سود ناخالص فصلی", "fa-IR", "GROSS_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
         DefineGrowth("OPERATING_PROFIT_GROWTH_QOQ", "Operating Profit Growth QoQ", "OPERATING_PROFIT",
             [Alias("operating profit growth qoq", "en-US", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
-             Alias("رشد سود عملیاتی فصلی", "fa-IR", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+             Alias("رشد سود عملیاتی فصلی", "fa-IR", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود عملیاتی نسبت به فصل قبل", "fa-IR", "OPERATING_PROFIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
         DefineGrowth("EPS_GROWTH_QOQ", "EPS Growth QoQ", "EPS",
             [Alias("eps growth qoq", "en-US", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
-             Alias("رشد سود هر سهم فصلی", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
+             Alias("رشد سود هر سهم فصلی", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود فصلی", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود نسبت به فصل قبل", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد سود", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
+             Alias("رشد فصلی", "fa-IR", "EPS_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
         DefineGrowth("EBIT_GROWTH_QOQ", "EBIT Growth QoQ", "EBIT",
             [Alias("ebit growth qoq", "en-US", "EBIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter),
              Alias("رشد سود قبل از بهره و مالیات فصلی", "fa-IR", "EBIT_GROWTH_QOQ", GrowthComparison.QuarterOverQuarter)]),
@@ -346,9 +391,32 @@ public static class PhaseOneFinancialSemanticCatalog
             MetricCategory.Profitability, Percentage,
             [Alias("net return on working capital", "en-US", "NET_RETURN_ON_WORKING_CAPITAL"),
              Alias("بازده خالص سرمایه در گردش", "fa-IR", "NET_RETURN_ON_WORKING_CAPITAL")]),
-        DefineRatio("NET_PROFIT_MARGIN", "Net Profit Margin", MetricCategory.Profitability, Percentage,
+        // Margin metrics sourced from CyclicalWaves quarterly income statement line items
+        // (GROSS_PROFIT_MARGIN, OPERATING_PROFIT_MARGIN, NET_PROFIT_MARGIN in FinancialStatementLineItems).
+        // Data is already persisted by CyclicalWavesFinancialStatementNormalizer; these definitions
+        // make them queryable by the semantic alias resolver.
+        Define("NET_PROFIT_MARGIN", "Net Profit Margin", MetricCategory.Profitability, Percentage,
+            [FiscalPeriodType.ThreeMonths],
             [Alias("net profit margin", "en-US", "NET_PROFIT_MARGIN"),
-             Alias("حاشیه سود خالص", "fa-IR", "NET_PROFIT_MARGIN")]),
+             Alias("حاشیه سود خالص", "fa-IR", "NET_PROFIT_MARGIN"),
+             Alias("حاشیه سود", "fa-IR", "NET_PROFIT_MARGIN"),
+             Alias("مارجین خالص", "fa-IR", "NET_PROFIT_MARGIN"),
+             Alias("مارجین سود خالص", "fa-IR", "NET_PROFIT_MARGIN")],
+            []),
+        Define("GROSS_PROFIT_MARGIN", "Gross Profit Margin", MetricCategory.Profitability, Percentage,
+            [FiscalPeriodType.ThreeMonths],
+            [Alias("gross profit margin", "en-US", "GROSS_PROFIT_MARGIN"),
+             Alias("حاشیه سود ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN"),
+             Alias("مارجین ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN"),
+             Alias("مارجین سود ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN")],
+            []),
+        Define("OPERATING_PROFIT_MARGIN", "Operating Profit Margin", MetricCategory.Profitability, Percentage,
+            [FiscalPeriodType.ThreeMonths],
+            [Alias("operating profit margin", "en-US", "OPERATING_PROFIT_MARGIN"),
+             Alias("حاشیه سود عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN"),
+             Alias("مارجین عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN"),
+             Alias("مارجین سود عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN")],
+            []),
         DefineRatio("DEBT_TO_EQUITY", "Debt to Equity", MetricCategory.FinancialHealth, Ratio,
             [Alias("debt to equity", "en-US", "DEBT_TO_EQUITY"), Alias("d/e ratio", "en-US", "DEBT_TO_EQUITY"),
              Alias("نسبت بدهی به حقوق صاحبان سهام", "fa-IR", "DEBT_TO_EQUITY")])
@@ -400,6 +468,60 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricVersion("v1"),
             new MetricFormula("additive-composite",
                 "EBIT = NET_PROFIT + FINANCE_COSTS + INCOME_TAX. Proxy: OPERATING_PROFIT when components missing (deferred)."),
+            EffectiveFrom),
+
+        // CyclicalWaves pre-computed average metrics — passthrough from line items → DerivedMetrics.
+        new MetricCalculationPolicy(
+            new MetricCode("AVG_4Q_REVENUE"),
+            new CalculationPolicyVersion("cw-avg-4q-revenue-passthrough-v1"),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode("AVG_4Q_REVENUE"), FiscalPeriodType.ThreeMonths, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("vendor-line-item-passthrough", "Vendor-supplied 4-quarter rolling average of quarterly revenue from CyclicalWaves."),
+            EffectiveFrom),
+        new MetricCalculationPolicy(
+            new MetricCode("AVG_12M_MONTHLY_SALES"),
+            new CalculationPolicyVersion("cw-avg-12m-monthly-sales-passthrough-v1"),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode("AVG_12M_MONTHLY_SALES"), FiscalPeriodType.Monthly, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("vendor-line-item-passthrough", "Vendor-supplied 12-month rolling average of monthly sales from CyclicalWaves."),
+            EffectiveFrom),
+
+        // CyclicalWaves margin snapshots — passthrough from FinancialStatementLineItems → DerivedMetrics.
+        new MetricCalculationPolicy(
+            new MetricCode("NET_PROFIT_MARGIN"),
+            new CalculationPolicyVersion("cw-net-profit-margin-passthrough-v1"),
+            MetricValueUnit.Percentage,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode("NET_PROFIT_MARGIN"), FiscalPeriodType.ThreeMonths, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("vendor-line-item-passthrough", "Vendor-supplied net profit margin from CyclicalWaves quarterly income statement snapshot."),
+            EffectiveFrom),
+        new MetricCalculationPolicy(
+            new MetricCode("GROSS_PROFIT_MARGIN"),
+            new CalculationPolicyVersion("cw-gross-profit-margin-passthrough-v1"),
+            MetricValueUnit.Percentage,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode("GROSS_PROFIT_MARGIN"), FiscalPeriodType.ThreeMonths, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("vendor-line-item-passthrough", "Vendor-supplied gross profit margin from CyclicalWaves quarterly income statement snapshot."),
+            EffectiveFrom),
+        new MetricCalculationPolicy(
+            new MetricCode("OPERATING_PROFIT_MARGIN"),
+            new CalculationPolicyVersion("cw-operating-profit-margin-passthrough-v1"),
+            MetricValueUnit.Percentage,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode("OPERATING_PROFIT_MARGIN"), FiscalPeriodType.ThreeMonths, true)],
+            new MetricVersion("v1"),
+            new MetricFormula("vendor-line-item-passthrough", "Vendor-supplied operating profit margin from CyclicalWaves quarterly income statement snapshot."),
             EffectiveFrom),
 
         // Engine-derived YoY growth policies (same cumulative period, shifted −12 months).

@@ -520,6 +520,25 @@ public static class ServiceCollectionExtensions
             new MetricCode("PS_TTM"),
             new MetricCode("PS_RATIO")));
 
+        // CyclicalWaves pre-computed average metrics — passthrough from line items → DerivedMetrics.
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
+            new MetricCode("AVG_4Q_REVENUE"),
+            new MetricCode("AVG_4Q_REVENUE")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
+            new MetricCode("AVG_12M_MONTHLY_SALES"),
+            new MetricCode("AVG_12M_MONTHLY_SALES")));
+
+        // CyclicalWaves margin snapshots — passthrough from FinancialStatementLineItems → DerivedMetrics.
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
+            new MetricCode("NET_PROFIT_MARGIN"),
+            new MetricCode("NET_PROFIT_MARGIN")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
+            new MetricCode("GROSS_PROFIT_MARGIN"),
+            new MetricCode("GROSS_PROFIT_MARGIN")));
+        services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
+            new MetricCode("OPERATING_PROFIT_MARGIN"),
+            new MetricCode("OPERATING_PROFIT_MARGIN")));
+
         // CodalDB-derived YoY growth calculators (use cumulative ThreeMonths input, shifted −12 months).
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("REVENUE_GROWTH_YOY"),          new MetricCode("REVENUE")));
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("GROSS_PROFIT_GROWTH_YOY"),     new MetricCode("GROSS_PROFIT")));
@@ -777,6 +796,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>
             sp.GetRequiredService<NadpcoApiDataProviderClient>());
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexCoverageNormalizer>();
+        services.AddScoped<ICompanyResolverService, CompanyResolverService>();
+        services.AddScoped<ICyclicalWavesCompanyMappingService, CyclicalWavesCompanyMappingService>();
+        services.AddScoped<IBackfillCyclicalWavesCompanyIdService, BackfillCyclicalWavesCompanyIdService>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
         // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
@@ -784,7 +806,11 @@ public static class ServiceCollectionExtensions
                                      "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
                                      "OPERATING_CASH_FLOW",
                                      // Vendor ratio snapshots — triggers PE_TTM / PS_TTM passthrough.
-                                     "PE_RATIO", "PS_RATIO" })
+                                     "PE_RATIO", "PS_RATIO",
+                                     // CyclicalWaves margin snapshots — triggers passthrough calculators below.
+                                     "NET_PROFIT_MARGIN", "GROSS_PROFIT_MARGIN", "OPERATING_PROFIT_MARGIN",
+                                     // CyclicalWaves pre-computed 4-quarter average revenue snapshot (Q0 only).
+                                     "AVG_4Q_REVENUE" })
         {
             var captured = new MetricCode(code);
             services.AddScoped<INormalizedMetricInputSource>(sp =>
@@ -793,6 +819,7 @@ public static class ServiceCollectionExtensions
                     captured,
                     sp.GetRequiredService<ILogger<LineItemMetricInputSource>>()));
         }
+        services.AddScoped<INormalizedMetricInputSource, MonthlyAvgSaleMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
         // Spec 057: monthly-activity aggregates (sales quantity, production quantity,
         // quantity-weighted sales rate) backed by MonthlyReportLineItems.

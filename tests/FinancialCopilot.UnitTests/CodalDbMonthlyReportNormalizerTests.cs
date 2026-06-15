@@ -113,9 +113,9 @@ public sealed class CodalDbMonthlyReportNormalizerTests
     public async Task Normalize_SingleActivityRow_CreatesReportAndLineItem()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleActivityJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleActivityJson), default);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal(ProviderName, report.ProviderName);
         Assert.Equal("101", report.ExternalReportId);
@@ -154,9 +154,9 @@ public sealed class CodalDbMonthlyReportNormalizerTests
     public async Task Normalize_MultiProductMonth_CreatesOneLineItemPerProduct()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(MultiProductJson, "2002"), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(MultiProductJson, "2002"), default);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.MonthlyReports.CountAsync());
         var lineItems = await db.MonthlyReportLineItems.ToListAsync();
         Assert.Equal(2, lineItems.Count);
@@ -185,9 +185,9 @@ public sealed class CodalDbMonthlyReportNormalizerTests
     public async Task Normalize_ZeroAmountMonth_IsRetained()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(ZeroAmountJson, "2003"), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(ZeroAmountJson, "2003"), default);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.MonthlyReports.CountAsync());
         var lineItem = await db.MonthlyReportLineItems.SingleAsync();
         Assert.Equal(0m, lineItem.SalesAmount);

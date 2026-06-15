@@ -586,3 +586,83 @@ ComprehensiveAnalyses (last 30 days)
 → then AI reasoning
 
 Never perform AI reasoning first when a recent ComprehensiveAnalysis exists.
+
+
+## Intent Classification Rules
+
+Before querying ComprehensiveAnalyses, determine the user's intent.
+
+### Analysis Intent
+
+Query ComprehensiveAnalyses only when the user is requesting:
+
+* analysis
+* opinion
+* review
+* valuation
+* attractiveness
+* investment decision
+* outlook
+* latest analysis
+
+Examples:
+
+* شغدیر را بررسی کن
+* تحلیل شغدیر
+* شغدیر ارزنده است؟
+* نظرت درباره شغدیر چیست؟
+* آخرین تحلیل شغدیر
+
+For these requests:
+
+Search ComprehensiveAnalyses and return the latest analysis from the last 30 days.
+
+---
+
+### Financial Metric Intent
+
+Do NOT query ComprehensiveAnalyses when the user requests specific financial data or metrics.
+
+Examples:
+
+* P/E شغدیر
+* P/S شغدیر
+* EPS شغدیر
+* فروش شغدیر
+* درآمد شغدیر
+* سود خالص شغدیر
+* حاشیه سود خالص شغدیر
+* حاشیه سود عملیاتی شغدیر
+* ارزش بازار شغدیر
+* تولید ماهانه شغدیر
+* نسبت جاری شغدیر
+* ROE شغدیر
+* ROA شغدیر
+
+For these requests:
+
+Use structured financial data sources only.
+
+Do not search ComprehensiveAnalyses.
+
+Do not summarize analyst reports.
+
+Return the requested metric directly from financial databases.
+
+---
+
+### Priority Order
+
+If the user asks for analysis:
+
+ComprehensiveAnalyses
+→ Other Internal Research Sources
+→ AI Reasoning
+
+If the user asks for financial metrics:
+
+Financial Databases
+→ Market Data Sources
+→ AI Explanation
+
+Never use ComprehensiveAnalyses as the primary source for financial metric queries.

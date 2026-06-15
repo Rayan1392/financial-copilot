@@ -82,20 +82,27 @@ public sealed class FinancialDataSyncProcessor(
 
             var payload = await FetchPayloadAsync(request, cancellationToken);
             await rawPayloads.StoreAsync(payload, cancellationToken);
-            var processedRecords = await _normalizers[(payload.ProviderName, payload.Dataset)]
+            var outcome = await _normalizers[(payload.ProviderName, payload.Dataset)]
                 .NormalizeAsync(payload, cancellationToken);
 
             run.SourcePayloadChecksum = payload.Checksum;
-            run.ProcessedRecords = processedRecords;
+            run.ProcessedRecords = outcome.ProcessedRecords;
             run.Status = DataSyncRunStatus.Completed.ToString();
             run.CompletedAt = timeProvider.GetUtcNow();
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Prefer the canonical ExternalCompanyId the normalizer resolved and stored in
+            // FinancialStatements/MonthlyReports. This guarantees MetricRecalculationProcessor
+            // can always resolve the company with a simple direct lookup. Fall back to the
+            // request's ExternalReference only for normalizers that don't write company-scoped
+            // financial rows (e.g. Symbols-only providers).
+            var recalculationReference = outcome.CanonicalExternalCompanyId ?? request.ExternalReference;
 
             await recalculationPublisher.PublishAsync(
                 new DerivedMetricRecalculationRequested(
                     Guid.NewGuid(),
                     request.Dataset,
-                    request.ExternalReference,
+                    recalculationReference,
                     payload.Checksum,
                     timeProvider.GetUtcNow()),
                 cancellationToken);

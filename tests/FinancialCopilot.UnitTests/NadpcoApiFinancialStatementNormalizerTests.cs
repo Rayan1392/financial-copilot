@@ -117,9 +117,9 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
     public async Task Normalize_WritesDistinctIncomeBalanceAndCashFlowRows()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        Assert.Equal(3, count);
+        Assert.Equal(3, outcome.ProcessedRecords);
         Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "IncomeStatement");
         Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "BalanceSheet");
         Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "CashFlow");

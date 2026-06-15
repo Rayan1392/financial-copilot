@@ -88,9 +88,9 @@ public sealed class CodalDbFinancialStatementNormalizerTests
     public async Task Normalize_SingleStatement_ProducesIncomeAndBalanceRowsSharingExternalId()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(SingleStatementJson), default);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(2, await db.FinancialStatements.CountAsync()); // income + balance, same ExternalStatementId
         var inc = await db.FinancialStatements.SingleAsync(s =>
             s.ExternalStatementId == "100" && s.StatementType == "IncomeStatement");
@@ -183,9 +183,9 @@ public sealed class CodalDbFinancialStatementNormalizerTests
     public async Task Normalize_TwoDistinctPeriods_ProducesFourStatementRows()
     {
         await using var db = CreateDb();
-        var count = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoPeriodsJson), default);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(TwoPeriodsJson), default);
 
-        Assert.Equal(2, count);
+        Assert.Equal(2, outcome.ProcessedRecords);
         Assert.Equal(4, await db.FinancialStatements.CountAsync()); // 2 periods × (income + balance)
     }
 

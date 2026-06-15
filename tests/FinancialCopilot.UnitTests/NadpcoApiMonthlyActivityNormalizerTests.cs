@@ -127,11 +127,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     {
         await using var db = CreateDb();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(
+        var outcome = await CreateNormalizer(db).NormalizeAsync(
             MakePayload(ProductSalesJson, "[]"),
             CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal(ProviderName, report.ProviderName);
         Assert.Equal("ProductSales:1001:output-2", report.ExternalReportId);
@@ -147,11 +147,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     {
         await using var db = CreateDb();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(
+        var outcome = await CreateNormalizer(db).NormalizeAsync(
             MakePayload("[]", ServiceSalesJson),
             CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal("ServiceSales:2001:output-none", report.ExternalReportId);
         var item = await db.MonthlyReportLineItems.SingleAsync();
@@ -416,11 +416,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     {
         await using var db = CreateDb();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(
+        var outcome = await CreateNormalizer(db).NormalizeAsync(
             MakePayload(LiveNestedProductSalesJson, "[]"),
             CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal("3", report.ExternalCompanyId);
         var cal = new PersianCalendar();
@@ -444,11 +444,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     {
         await using var db = CreateDb();
 
-        var count = await CreateNormalizer(db).NormalizeAsync(
+        var outcome = await CreateNormalizer(db).NormalizeAsync(
             MakePayload("[]", LiveServiceSalesJson),
             CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Equal("13201", report.ExternalCompanyId);
         var item = await db.MonthlyReportLineItems.SingleAsync();
@@ -481,9 +481,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             JsonSerializer.Serialize(envelope, JsonOptions),
             "checksum-multi", Now);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
 
-        Assert.Equal(5, count);
+        Assert.Equal(5, outcome.ProcessedRecords);
         Assert.Equal(5, await db.MonthlyReports.CountAsync());
         // Each report should have its slot output-type hint set (0–4).
         var outputTypes = await db.MonthlyReports.Select(r => r.OutputType).OrderBy(t => t).ToListAsync();
@@ -507,10 +507,10 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
               "salesQuantity": 50, "salesValue": 5000}]
             """;
 
-        var count = await CreateNormalizer(db).NormalizeAsync(
+        var outcome = await CreateNormalizer(db).NormalizeAsync(
             MakeLegacyPayload(legacyJson, "[]"), CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
         Assert.Null(report.OutputType);
         Assert.Equal("ProductSales:8001:output-none", report.ExternalReportId);
@@ -529,9 +529,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             JsonSerializer.Serialize(envelope, JsonOptions),
             "checksum-empty", Now);
 
-        var count = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+        var outcome = await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
 
-        Assert.Equal(0, count);
+        Assert.Equal(0, outcome.ProcessedRecords);
         Assert.Equal(0, await db.MonthlyReports.CountAsync());
     }
 

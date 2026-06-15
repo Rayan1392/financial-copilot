@@ -41,7 +41,7 @@ public sealed class CodalDbFinancialStatementNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var rows = JsonSerializer.Deserialize<IReadOnlyList<CodalStatementRow>>(payload.Payload, JsonOptions)
             ?? throw new FinancialProviderException(
@@ -49,6 +49,7 @@ public sealed class CodalDbFinancialStatementNormalizer(
                 "CodalDb financial-statement payload is null or invalid.");
 
         var selected = CodalDbStatementSelectionPolicy.SelectAll(rows, _preferConsolidated);
+        string? canonicalExternalCompanyId = null;
 
         foreach (var stmt in selected)
         {
@@ -58,6 +59,7 @@ public sealed class CodalDbFinancialStatementNormalizer(
 
             var warningsJson = BuildSelectionEvidence(stmt, period);
             var externalCompanyId = stmt.CompanyId.ToString(CultureInfo.InvariantCulture);
+            canonicalExternalCompanyId = externalCompanyId;
 
             // Spec 029: ExternalStatementId keeps the source StmtId verbatim on both rows; the
             // StatementType column disambiguates income vs. balance under the new unique key.
@@ -79,7 +81,7 @@ public sealed class CodalDbFinancialStatementNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return selected.Count;
+        return new NormalizationOutcome(selected.Count, canonicalExternalCompanyId);
     }
 
     private async Task UpsertStatementRowAsync(

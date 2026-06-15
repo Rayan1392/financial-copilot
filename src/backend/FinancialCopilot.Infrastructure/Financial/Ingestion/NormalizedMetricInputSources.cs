@@ -216,6 +216,20 @@ public sealed class MonthlySalesRateMetricInputSource(
     }
 }
 
+// Reads the pre-computed 12-month rolling average monthly revenue from the AVG_12M product code
+// stored on M0 monthly report line items by CyclicalWavesMonthlyReportNormalizer.
+public sealed class MonthlyAvgSaleMetricInputSource(
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "AVG_12M_MONTHLY_SALES",
+    outputTypeFilter: null)
+{
+    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    {
+        var item = lineItems.FirstOrDefault(i => i.ProductCode == "AVG_12M");
+        return item?.SalesAmount;
+    }
+}
+
 internal static class NormalizedMetricInputFactory
 {
     public static MetricInputObservation Create(

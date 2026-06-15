@@ -15,7 +15,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FundamentalIndexes;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         IReadOnlyList<NadpcoApiFundamentalIndexRecord> records;
         try
@@ -33,6 +33,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
 
         var selected = SelectCanonicalIndexes(records);
         var count = 0;
+        string? canonicalExternalCompanyId = null;
 
         foreach (var item in selected)
         {
@@ -49,6 +50,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
             }
 
             var externalCompanyId = item.Record.ComID.ToString(CultureInfo.InvariantCulture);
+            canonicalExternalCompanyId = externalCompanyId;
             var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
                 symbol => symbol.ProviderName == ProviderName &&
                     symbol.ExternalSymbolId == externalCompanyId,
@@ -71,7 +73,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return count;
+        return new NormalizationOutcome(count, canonicalExternalCompanyId);
     }
 
     private async Task UpsertDerivedMetricRowAsync(

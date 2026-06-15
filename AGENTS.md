@@ -65,18 +65,45 @@ In V2, the agent LLM reads the system prompt, decides which tools to call (and i
 
 ---
 
+## Symbol Detection Rule
+
+If the user's message contains **any stock symbol or company name** (شغدیر, فملی, کگل, فارس, اخابر, …):
+- Immediately call `query_comprehensive_analysis` for that symbol — do NOT ask clarifying questions.
+- Do NOT say "لطفاً نام متریک موردنظرتان را مشخص کنید" or "منظورتان تکنیکال است یا بنیادی؟"
+- The symbol alone is sufficient to begin retrieval.
+
+---
+
+## Intent Classification Rules
+
+Classify intent BEFORE choosing tools:
+
+| Intent | Triggers | Tools |
+|---|---|---|
+| **Analysis** | تحلیل · بررسی · بررسی کن · ارزنده است؟ · نظر · وضعیت · ارزیابی · چطوره · آخرین تحلیل · review · analyze · opinion | `query_comprehensive_analysis` + `lookup_symbol_metrics` in parallel |
+| **Financial Metric** | P/E · P/S · EPS · فروش · درآمد · سود خالص · حاشیه سود · ارزش بازار · تولید ماهانه · ROE · ROA · نسبت جاری | `lookup_symbol_metrics` **only** — never `query_comprehensive_analysis` |
+| **Screening** | condition + threshold across many stocks ("P/E زیر ۵") | `screen_stocks` only |
+
+**Critical disambiguation:**
+- "P/E شغدیر" → Financial Metric → `lookup_symbol_metrics` only
+- "شغدیر را بررسی کن" → Analysis → both tools
+- "تحلیل شغدیر" → Analysis → both tools
+- "شغدیر ارزنده است؟" → Analysis → both tools
+- Never use `query_comprehensive_analysis` as the primary source for financial metric queries
+
+---
+
 ## Tool Combination Rules
 
-| User intent | Tools to call |
-|---|---|
-| Filter/rank stocks by condition | `screen_stocks` only |
-| Ask metric value for named symbol(s) | `lookup_symbol_metrics` only |
-| Ask about analysis/reports for a symbol | `query_comprehensive_analysis` only |
-| **Comprehensive stock analysis** ("تحلیل شغدیر", "بررسی سهم X", "وضعیت X چطور است") | **Both** `lookup_symbol_metrics` + `query_comprehensive_analysis` in parallel |
+**For Analysis intent:**
+1. `query_comprehensive_analysis` result → present verbatim (see Faithfulness Rule)
+2. `lookup_symbol_metrics` result → present as live metrics block
+3. Only fall back to AI reasoning if `query_comprehensive_analysis` returns zero results
 
-When calling both tools, combine results into one unified answer:
-- Live data (price, change %, monthly sales, P/E, P/S) from `lookup_symbol_metrics`
-- Expert narrative and reports from `query_comprehensive_analysis`
+**For Financial Metric intent:**
+- `lookup_symbol_metrics` only — return the value directly, do NOT summarize analyst reports
+
+**Symbol Detection:** if a symbol is present in the message, do NOT ask clarifying questions — immediately classify intent and call the appropriate tool(s).
 
 ---
 
@@ -158,9 +185,18 @@ AiQueryResponse {
 ### Q3 — Metric value lookup
 **User:** `P/E فولاد چقدر است؟`
 **Expected:**
-- Intent: `SymbolLookup`
-- Tool: `lookup_symbol_metrics` with PE_TTM for فولاد
+- Intent: `SymbolLookup` (Financial Metric — not Analysis)
+- Tool: `lookup_symbol_metrics` **only** — do NOT call `query_comprehensive_analysis`
 - Response: structured metric table with current P/E value and freshness
+- Must NOT return analyst report summaries
+
+### Q3b — Metric lookup with symbol only pattern
+**User:** `P/E شغدیر`
+**Expected:**
+- Intent: `SymbolLookup` (Financial Metric)
+- Tool: `lookup_symbol_metrics` only
+- Response: PE_TTM value for شغدیر directly from financial data
+- Must NOT call `query_comprehensive_analysis` even though شغدیر is mentioned
 
 ### Q4 — Scanner screening
 **User:** `سهام با P/E زیر ۵ و رشد سود بالای ۵۰ درصد`
@@ -209,16 +245,48 @@ AiQueryResponse {
 
 ## Date Window Policy — ComprehensiveAnalysis
 
-**Default:** when the user does not specify a date or time range, limit results to the **last 3 months** (90 days back from `now`).
+**Default:** when the user does not specify a date or time range, limit results to the **last 30 days** from `now`.
 
 This is enforced in `ComprehensiveAnalysisQueryUseCase.ExecuteAsync`:
-- If `request.FromDate` is `null` → set `effectiveFrom = now.AddMonths(-3)`
+- If `request.FromDate` is `null` → set `effectiveFrom = now - 30 days`
 - If `request.FromDate` is set by the parser (user said "این ماه", "هفته گذشته", ISO date, etc.) → use that value as-is
-- The 3-month window applies to **all** query paths: symbol-only, topic-only, and combined
+- The 30-day window applies to **all** query paths: symbol-only, topic-only, and combined
 
-**Rationale:** analysis posts older than 3 months are rarely actionable for users. Enforcing the window keeps responses fresh and prevents the LLM from being given stale data as if it were current.
+**Rationale:** only analyses from the last 30 days are considered current and actionable.
 
-If the user explicitly asks for older records (e.g. "تحلیل سال گذشته"), the parser will set `fromDateHint` to a past ISO date, which overrides the default window.
+If no results exist within 30 days, respond: "تحلیل جدیدی از نماد {symbol} در ۳۰ روز گذشته یافت نشد."
+Do NOT generate your own analysis or speculate.
+
+If the user explicitly asks for older records (e.g. "تحلیل سال گذشته"), the parser sets `fromDateHint` to a past ISO date, which overrides the 30-day default.
+
+---
+
+## Faithfulness Rule — ComprehensiveAnalysis Response
+
+When `query_comprehensive_analysis` returns results, the AI **MUST**:
+
+1. Present the author's statements, numbers, and conclusions **exactly as written** in `PlainTextSummary`
+2. **NOT** paraphrase, generalize, or soften any numeric fact (ارزش ذاتی, P/E, P/S, قیمت تعادلی, سود, تقسیم سود, EPS)
+3. **NOT** rewrite conclusions — if source says "سوپر مفت" or "ارزنده", use those exact words
+4. **NOT** add its own technical analysis, support/resistance levels, or valuation estimates
+5. **NOT** expand content with AI-generated commentary
+6. Only **MAY**: add section headers, improve readability, translate section titles
+
+**Required output format:**
+```
+آخرین تحلیل یافت‌شده برای {symbol}:
+تاریخ: {PersianCreatedAt}
+
+[sections from PlainTextSummary verbatim]
+
+منبع: ComprehensiveAnalyses | نویسنده: {AuthorName}
+```
+
+**If no analysis found:**
+```
+تحلیل جدیدی از نماد {symbol} در ۳۰ روز گذشته یافت نشد.
+```
+(Do not generate analysis. Do not speculate. Do not use market knowledge to fill the gap.)
 
 ---
 
@@ -238,8 +306,9 @@ If the user explicitly asks for older records (e.g. "تحلیل سال گذشت�
 
 When evaluating a response against a sample question, verify:
 
-- [ ] Correct intent detected
-- [ ] "بررسی", "وضعیت", "ارزیابی" + symbol name → `ComprehensiveAnalysis` (NOT `Clarification`)
+- [ ] Correct intent detected: Analysis vs Financial Metric vs Screening
+- [ ] "بررسی", "وضعیت", "ارزیابی" + symbol name → Analysis intent → both tools (NOT `Clarification`)
+- [ ] "P/E X", "EPS X", "فروش X", "ROE X" → Financial Metric intent → `lookup_symbol_metrics` only (NOT `query_comprehensive_analysis`)
 - [ ] Correct tool(s) called (single or combined as required)
 - [ ] For combined calls: both `SymbolLookupTable` and `ComprehensiveAnalysisResult` present in response
 - [ ] No false "not found" when data exists within the last 3 months

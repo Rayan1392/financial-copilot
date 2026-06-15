@@ -16,7 +16,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.MonthlyProductionSales;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var (productSalesSlots, serviceSalesJson) = DeserializeEnvelope(payload.Payload);
 
@@ -100,7 +100,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return groupedReports.Length;
+        // ExternalCompanyId varies per report group (one company per request); use the first.
+        var canonicalId = groupedReports.Length > 0 ? groupedReports[0].Key.ExternalCompanyId : null;
+        return new NormalizationOutcome(groupedReports.Length, canonicalId);
     }
 
     // Deserializes the envelope payload. Tries the new 6-field shape (spec 059) first; falls back to

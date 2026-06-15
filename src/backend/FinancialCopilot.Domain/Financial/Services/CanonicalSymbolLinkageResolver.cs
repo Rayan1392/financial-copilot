@@ -8,7 +8,8 @@ public sealed record CanonicalSymbolResolution(SymbolCode? SymbolCode, SymbolLin
 public enum CanonicalSymbolLinkagePriority
 {
     IsinFirst,
-    InstrumentCodeFirst
+    InstrumentCodeFirst,
+    TseSymbolFirst
 }
 
 /// <summary>
@@ -35,6 +36,14 @@ public sealed class CanonicalSymbolLinkageResolver
             return new CanonicalSymbolResolution(
                 new SymbolCode(preferredInstrumentCode),
                 SymbolLinkageBasis.InstrumentCode);
+        }
+
+        if (priority == CanonicalSymbolLinkagePriority.TseSymbolFirst &&
+            identifiers.TseSymbol is { } preferredTseSymbol)
+        {
+            return new CanonicalSymbolResolution(
+                new SymbolCode(preferredTseSymbol),
+                SymbolLinkageBasis.TseSymbol);
         }
 
         if (identifiers.SymbolIsin is { } symbolIsin)

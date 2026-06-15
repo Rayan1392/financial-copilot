@@ -1,8 +1,10 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -124,9 +126,9 @@ public sealed class CyclicalWavesNormalizerTests
         var normalizer = new CyclicalWavesSymbolNormalizer(db);
         var payload = MakePayload(ProviderDataset.Symbols, TickerListJson);
 
-        var count = await normalizer.NormalizeAsync(payload, default);
+        var outcome = await normalizer.NormalizeAsync(payload, default);
 
-        Assert.Equal(3, count);
+        Assert.Equal(3, outcome.ProcessedRecords);
         Assert.Equal(3, await db.Companies.CountAsync(c => c.ProviderName == NadpcoProviderName));
         Assert.Equal(0, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
         Assert.Equal(3, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
@@ -170,12 +172,12 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_ProducesThreeStatementRows()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
-        var count = await normalizer.NormalizeAsync(payload, default);
+        var outcome = await normalizer.NormalizeAsync(payload, default);
 
-        Assert.Equal(3, count);
+        Assert.Equal(3, outcome.ProcessedRecords);
         Assert.Equal(3, await db.FinancialStatements.CountAsync());
     }
 
@@ -183,7 +185,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_WritesIncomeStatementTypeAndThreeMonthsPeriodType()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -197,7 +199,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_Q0RowHasPeAndPsLineItems()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -215,7 +217,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_Q1AndQ4RowsHaveNoPeOrPs()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -237,7 +239,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_AllSevenLineItemsPerQuarterRow()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -267,7 +269,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_IsIdempotent_NoDuplicatesOnSecondCall()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -281,7 +283,7 @@ public sealed class CyclicalWavesNormalizerTests
     {
         await using var db = CreateDbContext();
         var seeded = SeedNadpcoCompany(db);
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
 
         await normalizer.NormalizeAsync(
             MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson),
@@ -309,7 +311,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task FinancialStatementNormalizer_WhenNadpcoLinkMissing_AttachesMissingDataWarning()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
 
         await normalizer.NormalizeAsync(
             MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson),
@@ -328,24 +330,26 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task MonthlyReportNormalizer_ProducesThreeReportRowsWithRevenueLineItem()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db);
+        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.MonthlyProductionSales, TickerDetailJson);
 
-        var count = await normalizer.NormalizeAsync(payload, default);
+        var outcome = await normalizer.NormalizeAsync(payload, default);
 
-        Assert.Equal(3, count);
+        Assert.Equal(3, outcome.ProcessedRecords);
         Assert.Equal(3, await db.MonthlyReports.CountAsync());
 
         var allItems = await db.MonthlyReportLineItems.ToListAsync();
-        Assert.Equal(3, allItems.Count);
-        Assert.All(allItems, item => Assert.Equal("REVENUE", item.ProductCode));
+        // 3 REVENUE line items (M0, M1, M12) + 1 AVG_12M line item (M0 only) = 4 total
+        Assert.Equal(4, allItems.Count);
+        Assert.Equal(3, allItems.Count(item => item.ProductCode == "REVENUE"));
+        Assert.Equal(1, allItems.Count(item => item.ProductCode == "AVG_12M"));
     }
 
     [Fact]
     public async Task MonthlyReportNormalizer_IsIdempotent_NoDuplicatesOnSecondCall()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db);
+        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.MonthlyProductionSales, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);
@@ -359,7 +363,7 @@ public sealed class CyclicalWavesNormalizerTests
     {
         await using var db = CreateDbContext();
         SeedNadpcoCompany(db);
-        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db);
+        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
 
         await normalizer.NormalizeAsync(
             MakePayload(ProviderDataset.MonthlyProductionSales, TickerDetailJson),
@@ -378,7 +382,7 @@ public sealed class CyclicalWavesNormalizerTests
     public async Task StatementNormalizer_AttachesStaleDataWarning()
     {
         await using var db = CreateDbContext();
-        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db);
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
         var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
 
         await normalizer.NormalizeAsync(payload, default);

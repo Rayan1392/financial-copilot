@@ -24,9 +24,9 @@ public sealed class ConfiguredFinancialProviderNormalizerTests
             statementId: "S1", companyId: "C1",
             period: "ThreeMonths", statementType: "IncomeStatement"));
 
-        var count = await normalizer.NormalizeAsync(payload, CancellationToken.None);
+        var outcome = await normalizer.NormalizeAsync(payload, CancellationToken.None);
 
-        Assert.Equal(1, count);
+        Assert.Equal(1, outcome.ProcessedRecords);
         var row = await db.FinancialStatements.SingleAsync();
         Assert.Equal("ThreeMonths", row.PeriodType);
         Assert.Equal("IncomeStatement", row.StatementType);

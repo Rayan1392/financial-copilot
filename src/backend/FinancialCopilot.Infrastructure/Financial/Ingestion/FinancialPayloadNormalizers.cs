@@ -7,13 +7,26 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
+/// <summary>
+/// Result returned by <see cref="IFinancialPayloadNormalizer.NormalizeAsync"/>.
+/// </summary>
+/// <param name="ProcessedRecords">Number of domain records written or updated.</param>
+/// <param name="CanonicalExternalCompanyId">
+/// The <c>ExternalCompanyId</c> actually stored in <c>FinancialStatements</c> /
+/// <c>MonthlyReports</c> for this payload's company, or <c>null</c> when the normalizer
+/// does not write company-scoped financial rows (e.g. Symbols-only normalizers).
+/// Downstream callers use this to publish recalculation requests with an identifier that
+/// is guaranteed to resolve without heuristic fallbacks.
+/// </param>
+public sealed record NormalizationOutcome(int ProcessedRecords, string? CanonicalExternalCompanyId = null);
+
 public interface IFinancialPayloadNormalizer
 {
     string ProviderName { get; }
 
     ProviderDataset Dataset { get; }
 
-    Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken);
+    Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken);
 }
 
 public sealed class SymbolPayloadNormalizer(
@@ -24,7 +37,7 @@ public sealed class SymbolPayloadNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var records = JsonSerializer.Deserialize<SymbolDocument[]>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -76,7 +89,7 @@ public sealed class SymbolPayloadNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return count;
+        return new NormalizationOutcome(count);
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -96,7 +109,7 @@ public sealed class FinancialStatementPayloadNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var document = JsonSerializer.Deserialize<StatementDocument>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -163,7 +176,7 @@ public sealed class FinancialStatementPayloadNormalizer(
 
         item.Value = document.NetProfit;
         await dbContext.SaveChangesAsync(cancellationToken);
-        return 1;
+        return new NormalizationOutcome(1, document.CompanyId);
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -186,7 +199,7 @@ public sealed class MonthlyReportPayloadNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.MonthlyProductionSales;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var document = JsonSerializer.Deserialize<MonthlyDocument>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -231,7 +244,7 @@ public sealed class MonthlyReportPayloadNormalizer(
         item.SalesQuantity = document.SalesQuantity;
         item.SalesAmount = document.SalesAmount;
         await dbContext.SaveChangesAsync(cancellationToken);
-        return 1;
+        return new NormalizationOutcome(1, document.CompanyId);
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

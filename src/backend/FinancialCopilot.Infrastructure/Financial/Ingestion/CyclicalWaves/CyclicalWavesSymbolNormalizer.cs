@@ -12,7 +12,7 @@ public sealed class CyclicalWavesSymbolNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var tickers = JsonSerializer.Deserialize<string[]>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -61,7 +61,7 @@ public sealed class CyclicalWavesSymbolNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return linked;
+        return new NormalizationOutcome(linked);
     }
 
     // Persian/Arabic Unicode block: U+0600-U+06FF.

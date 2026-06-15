@@ -22,7 +22,7 @@ public sealed class NadpcoApiFundamentalIndexCoverageNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.FundamentalIndexCoverage;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         IReadOnlyList<NadpcoApiFundamentalIndexRecord> records;
         try
@@ -55,7 +55,7 @@ public sealed class NadpcoApiFundamentalIndexCoverageNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return count;
+        return new NormalizationOutcome(count);
     }
 
     private async Task UpsertObservationAsync(

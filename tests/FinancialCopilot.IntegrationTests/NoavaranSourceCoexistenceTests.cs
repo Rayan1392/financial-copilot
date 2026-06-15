@@ -147,8 +147,8 @@ public sealed class NoavaranSourceCoexistenceTests
     {
         public string ProviderName => sourceName;
         public ProviderDataset Dataset => ProviderDataset.Symbols;
-        public Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
-            Task.FromResult(0);
+        public Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
+            Task.FromResult(new NormalizationOutcome(0));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

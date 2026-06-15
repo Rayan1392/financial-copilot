@@ -366,3 +366,6 @@ public sealed record AdminComprehensiveAnalysisSyncRunResponse(
     string? ErrorMessage);
 
 public sealed record AdminComprehensiveAnalysisBackfillResponse(int RowsUpdated);
+
+// --- Spec 067: CyclicalWaves CompanyId backfill ---
+public sealed record AdminBackfillCyclicalWavesCompanyIdResponse(int Resolved, int Unresolved);

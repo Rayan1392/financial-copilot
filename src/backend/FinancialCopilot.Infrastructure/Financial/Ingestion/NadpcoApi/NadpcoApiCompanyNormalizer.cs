@@ -22,7 +22,7 @@ public sealed class NadpcoApiCompanyNormalizer(
 
     public ProviderDataset Dataset => ProviderDataset.Symbols;
 
-    public async Task<int> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+    public async Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
     {
         var records = JsonSerializer.Deserialize<NadpcoApiCompanyRecord[]>(payload.Payload, JsonOptions) ??
             throw new FinancialProviderException(
@@ -119,7 +119,7 @@ public sealed class NadpcoApiCompanyNormalizer(
                     instrumentCode: record.TseCode,
                     companyIsin: record.TseCIsinCode,
                     symbolIsin: record.TseSIsinCode),
-                CanonicalSymbolLinkagePriority.InstrumentCodeFirst);
+                CanonicalSymbolLinkagePriority.TseSymbolFirst);
 
             if (resolution.SymbolCode is null)
             {
@@ -157,7 +157,7 @@ public sealed class NadpcoApiCompanyNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return distinctCompanies.Count;
+        return new NormalizationOutcome(distinctCompanies.Count);
     }
 
     private void LogDuplicateIdentifierWarning(IGrouping<int, NadpcoApiCompanyRecord> group)

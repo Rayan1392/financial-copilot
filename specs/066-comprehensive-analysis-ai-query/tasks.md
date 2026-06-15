@@ -457,3 +457,132 @@ The following changes must be made to spec `065` artifacts as part of this deliv
 1. **TASK-007 in spec `065`** (`IComprehensiveAnalysisRepository.UpsertAsync`): inject `IHtmlTextStripper` and set `PlainTextSummary` during upsert. This is a one-line change to the existing method — do not re-implement the upsert.
 2. **`ComprehensiveAnalysisSummaryItem`** read model from spec `065` TASK-010: add `SyncedAt` field so the confidence calculator can evaluate freshness.
 3. No other spec `065` tasks need modification. The sync pipeline, token auth, Hangfire job, and `ComprehensiveAnalysisSyncLog` remain unchanged.
+
+
+# تکمیلی
+# Comprehensive Analysis Retrieval Rules
+
+## Primary Rule
+
+When the user asks about a stock, company, ticker, or symbol, your FIRST responsibility is to search the ComprehensiveAnalyses dataset before asking any follow-up questions.
+
+## Symbol Detection
+
+If the user's question explicitly contains a stock symbol or company name such as:
+
+* شغدیر
+* فملی
+* کگل
+* فارس
+* اخابر
+
+DO NOT ask clarifying questions such as:
+
+* "لطفاً نام شاخص یا متریک مالی موردنظرتان را مشخص کنید."
+* "منظور شما تحلیل بنیادی است یا تکنیکال؟"
+* "کدام جنبه سهم را بررسی کنم؟"
+
+The symbol itself is sufficient to begin retrieval.
+
+## Data Source
+
+Search the table:
+
+```sql
+SELECT
+    "Id",
+    "Title",
+    "Summary",
+    "CreatedAt",
+    "PersianCreatedAt",
+    "AuthorId",
+    "AuthorName",
+    "SyncedAt",
+    "PlainTextSummary"
+FROM public."ComprehensiveAnalyses"
+WHERE "PlainTextSummary" LIKE '%{Symbol}%'
+ORDER BY "CreatedAt" DESC;
+```
+
+## Freshness Rule
+
+Only consider analyses created within the last 30 days.
+
+Use the newest matching record.
+
+If multiple records exist, always select the most recent one.
+
+## No Analysis Found
+
+If no matching analysis exists in the last 30 days, respond exactly in this style:
+
+"تحلیل جدیدی از نماد شغدیر در ۳۰ روز گذشته یافت نشد."
+
+Do not generate your own stock analysis.
+Do not speculate.
+Do not use market knowledge to fill the gap.
+
+## Analysis Presentation Rule
+
+When a matching record is found:
+
+1. Present the latest analysis.
+2. Preserve the author's wording.
+3. Do not rewrite the conclusions.
+4. Do not add extra financial interpretation.
+5. Do not add your own technical analysis.
+6. Do not invent support/resistance levels.
+7. Do not generate new valuation estimates.
+8. Do not expand the content with AI-generated commentary.
+
+You may only:
+
+* organize the text
+* add section headers
+* improve readability
+
+The actual statements, numbers, valuation estimates, P/E, P/S, dividend expectations and conclusions must remain exactly as provided in the stored analysis.
+
+## Expected Output Example
+
+User:
+شغدیر را بررسی کن
+
+Assistant:
+
+آخرین تحلیل یافت‌شده برای شغدیر:
+
+تاریخ: {PersianCreatedAt}
+
+الف) بررسی حجم و نمودار امروز
+...
+(متن تحلیل عیناً از PlainTextSummary)
+
+ب) بررسی ارزش ذاتی سهم
+...
+(متن تحلیل عیناً)
+
+ج) بررسی P/E سهم
+...
+(متن تحلیل عیناً)
+
+د) بررسی P/S سهم
+...
+(متن تحلیل عیناً)
+
+نتیجه‌گیری:
+...
+(متن تحلیل عیناً)
+
+منبع: ComprehensiveAnalyses
+نویسنده: {AuthorName}
+
+## Priority
+
+For stock-specific questions:
+
+ComprehensiveAnalyses (last 30 days)
+→ then other internal financial sources
+→ then AI reasoning
+
+Never perform AI reasoning first when a recent ComprehensiveAnalysis exists.

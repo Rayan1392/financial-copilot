@@ -484,11 +484,21 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (!hasSupportedValue)
             return ConfidenceSourceType.MissingDataFallback;
 
-        return financialColumns.All(c =>
-            string.Equals(c.MetricCode ?? c.Identifier, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "PS_TTM", StringComparison.OrdinalIgnoreCase))
-            ? ConfidenceSourceType.PreCalculatedMetric
-            : ConfidenceSourceType.DerivedMetric;
+        static bool IsPreCalculated(string id) =>
+            string.Equals(id, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "PS_TTM", StringComparison.OrdinalIgnoreCase);
+
+        var hasNonMissingPreCalc = table.Rows.Any(row =>
+            financialColumns
+                .Where(c => IsPreCalculated(c.MetricCode ?? c.Identifier))
+                .Any(c => row.Cells.TryGetValue(c.Identifier, out var cell) &&
+                          cell.Value is not null &&
+                          cell.FreshnessStatus != CellFreshnessStatus.Missing));
+
+        if (hasNonMissingPreCalc)
+            return ConfidenceSourceType.PreCalculatedMetric;
+
+        return ConfidenceSourceType.DerivedMetric;
     }
 
     private IAiModelClient ResolveModelClient(AiQueryRequest request)
@@ -517,11 +527,20 @@ internal sealed class FinancialCopilotWorkflowDefinition(
           Add MONTHLY_SALES_GROWTH_YOY, MONTHLY_PRODUCTION_QUANTITY if the user asks about recent performance or production.
         - query_comprehensive_analysis: Use when the user asks about analysis posts, technical analysis (تحلیل تکنیکال), equilibrium price (قیمت تعادلی), suspicious volumes (حجم مشکوک), or investment suitability for a stock.
 
-        IMPORTANT — For comprehensive stock analysis requests (e.g., "تحلیل شغدیر", "سهم X را بررسی کن", "وضعیت X چطور است"):
+        IMPORTANT — For comprehensive stock analysis requests (e.g., "تحلیل شغدیر", "سهم X را بررسی کن", "بررسی سهم X", "وضعیت X چطور است", "X را ارزیابی کن"):
         Call BOTH lookup_symbol_metrics AND query_comprehensive_analysis in parallel.
         lookup_symbol_metrics gives live price, daily change, monthly sales, and valuation ratios.
         query_comprehensive_analysis gives expert narrative analysis from the connected source.
         Combine both results into one unified answer.
+
+        FAITHFULNESS RULE — When query_comprehensive_analysis returns analysis text (PlainTextSummary), you MUST:
+        - Present the actual numbers, ratios, and conclusions exactly as they appear in the source text.
+        - Do NOT paraphrase, summarize, or soften specific numeric facts (e.g., ارزش ذاتی, P/E, P/S, قیمت تعادلی, سود پیش‌بینی, تقسیم سود).
+        - If the source text says "قیمت زیر 2470 تومان سوپر مفت است" or "P/E فعلی 5.4 در برابر میانگین 11" — quote those figures directly.
+        - If the source text contains a conclusion ("سوپر مفت", "ارزنده", "گران"), relay that conclusion.
+        - Cite the analysis title and date so the user knows the source.
+        - Only add a brief note if data is from a specific date (not today's live price).
+        If the tool returns multiple analysis items, present the most recent one in detail and briefly mention older ones.
 
         Always respond in the same language as the user's message (Persian/Farsi or English).
         If the request does not fit any tool, briefly explain what you can help with.

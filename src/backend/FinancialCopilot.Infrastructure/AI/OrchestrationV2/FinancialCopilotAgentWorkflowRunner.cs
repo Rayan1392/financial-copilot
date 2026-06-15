@@ -236,11 +236,21 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         if (!hasSupportedValue)
             return ConfidenceSourceType.MissingDataFallback;
 
-        return financialColumns.All(c =>
-            string.Equals(c.MetricCode ?? c.Identifier, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "PS_TTM", StringComparison.OrdinalIgnoreCase))
-            ? ConfidenceSourceType.PreCalculatedMetric
-            : ConfidenceSourceType.DerivedMetric;
+        static bool IsPreCalculated(string id) =>
+            string.Equals(id, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "PS_TTM", StringComparison.OrdinalIgnoreCase);
+
+        var hasNonMissingPreCalc = table.Rows.Any(row =>
+            financialColumns
+                .Where(c => IsPreCalculated(c.MetricCode ?? c.Identifier))
+                .Any(c => row.Cells.TryGetValue(c.Identifier, out var cell) &&
+                          cell.Value is not null &&
+                          cell.FreshnessStatus != CellFreshnessStatus.Missing));
+
+        if (hasNonMissingPreCalc)
+            return ConfidenceSourceType.PreCalculatedMetric;
+
+        return ConfidenceSourceType.DerivedMetric;
     }
 
     private AIFunction CreateScannerTool(

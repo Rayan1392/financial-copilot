@@ -22,6 +22,23 @@ Without storing all five types separately, the query layer cannot answer:
 - Single-month breakdown without type 0
 - Adjusted or corrected figures without types 2, 3, 4
 
+## Provider Data Semantics and Unit Policy
+
+Noavaran Amin monthly activity rows are raw product/service line-item facts. They are not
+provider-precomputed company totals until the platform aggregates them.
+
+- `productSaleValue` and service sales values are source-unit **million Rials**.
+- Each `OutputType` is a separate semantic view and must be stored as a distinct
+  `MonthlyReports` row.
+- Governed lookup metrics promoted from these rows must aggregate line items during
+  ingestion/recalculation and normalize monetary values to the platform canonical monetary unit
+  before storing the corresponding `DerivedMetrics` rows.
+- Query-time symbol lookup must only read persisted facts. It must not aggregate raw monthly
+  line items.
+- These Noavaran conversion rules must not be applied to CyclicalWaves data. CyclicalWaves
+  sales fields are provider-precomputed company metrics in Rials and are persisted as-is under
+  provider-marked passthrough policies.
+
 ## Bounded Context
 
 `FinancialCopilot.Infrastructure` / `FinancialCopilot.Application` — Financial Data Ingestion

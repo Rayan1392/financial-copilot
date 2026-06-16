@@ -98,11 +98,14 @@ public sealed class NetProfitMetricInputSource(
 public abstract class MonthlyReportAggregateInputSource(
     FinancialIngestionDbContext dbContext,
     string metricCode,
-    int? outputTypeFilter) : INormalizedMetricInputSource
+    int? outputTypeFilter,
+    bool includeLegacyNullOutputType = true) : INormalizedMetricInputSource
 {
     public MetricCode MetricCode { get; } = new(metricCode);
 
-    protected abstract decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems);
+    protected abstract decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems);
 
     public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
@@ -115,8 +118,10 @@ public abstract class MonthlyReportAggregateInputSource(
         // rows with null OutputType (ingested before spec 059) so old data remains queryable.
         if (outputTypeFilter.HasValue)
         {
-            query = query.Where(report =>
-                report.OutputType == outputTypeFilter.Value || report.OutputType == null);
+            query = includeLegacyNullOutputType
+                ? query.Where(report =>
+                    report.OutputType == outputTypeFilter.Value || report.OutputType == null)
+                : query.Where(report => report.OutputType == outputTypeFilter.Value);
         }
 
         var reports = await query.ToListAsync(cancellationToken);
@@ -138,13 +143,34 @@ public abstract class MonthlyReportAggregateInputSource(
                 return NormalizedMetricInputFactory.Create(
                     MetricCode,
                     FiscalPeriod.Closed(FiscalPeriodType.Monthly, report.PeriodStart, report.PeriodEnd),
-                    Aggregate(lineItems),
+                    Aggregate(report, lineItems),
                     report.ProviderName,
                     report.ExternalReportId,
                     report.LastSynchronizedAt);
             })
             .ToArray();
     }
+
+    protected static decimal? NormalizeMonetaryValue(NormalizedMonthlyReportRow report, decimal? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return IsNoavaranAminMonthlyActivity(report.ProviderName)
+            ? value.Value * 1_000_000m
+            : value;
+    }
+
+    private static bool IsNoavaranAminMonthlyActivity(string providerName) =>
+        string.Equals(providerName, ProviderSources.NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, ProviderSources.NoavaranArchiveSqlName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, "NadpcoApi", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, "CodalDb", StringComparison.OrdinalIgnoreCase);
+
+    protected static bool IsCyclicalWaves(string providerName) =>
+        string.Equals(providerName, ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase);
 }
 
 // OutputType=0 (single month) is the correct filter for all four spec-057 metrics when the
@@ -158,9 +184,49 @@ public sealed class MonthlySalesMetricInputSource(
     // Pre-057 behavior preserved: the month's sales amount is reliable only when every line item
     // carries a value; a partially-valued report yields null (MissingData) instead of an
     // understated total.
-    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
+        SelectSalesLineItems(report, lineItems) is { Count: > 0 } salesLineItems &&
+        salesLineItems.All(item => item.SalesAmount is not null)
+            ? NormalizeMonetaryValue(report, salesLineItems.Sum(item => item.SalesAmount!.Value))
+            : null;
+
+    private static IReadOnlyList<NormalizedMonthlyReportLineItemRow> SelectSalesLineItems(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
+        IsCyclicalWaves(report.ProviderName)
+            ? lineItems
+                .Where(item => string.Equals(item.ProductCode, "REVENUE", StringComparison.OrdinalIgnoreCase))
+                .ToArray()
+            : lineItems;
+}
+
+public sealed class MonthlySalesYtdMetricInputSource(
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_SALES_YTD",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.YearToDate,
+    includeLegacyNullOutputType: false)
+{
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
         lineItems.Count > 0 && lineItems.All(item => item.SalesAmount is not null)
-            ? lineItems.Sum(item => item.SalesAmount!.Value)
+            ? NormalizeMonetaryValue(report, lineItems.Sum(item => item.SalesAmount!.Value))
+            : null;
+}
+
+public sealed class MonthlySalesYtdPreviousMonthMetricInputSource(
+    FinancialIngestionDbContext dbContext) : MonthlyReportAggregateInputSource(
+    dbContext, "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+    outputTypeFilter: (int)MonthlyActivityQueryIntent.YearToDatePrevious,
+    includeLegacyNullOutputType: false)
+{
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems) =>
+        lineItems.Count > 0 && lineItems.All(item => item.SalesAmount is not null)
+            ? NormalizeMonetaryValue(report, lineItems.Sum(item => item.SalesAmount!.Value))
             : null;
 }
 
@@ -172,7 +238,9 @@ public sealed class MonthlySalesQuantityMetricInputSource(
     // Sum over lines that report a sales quantity; null when no line does. Lines without a
     // quantity (rare aggregate rows) are excluded rather than nulling the whole month, because
     // quantities are additive only across the lines that actually carry them.
-    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
         var values = lineItems.Where(item => item.SalesQuantity is not null).ToArray();
         return values.Length > 0 ? values.Sum(item => item.SalesQuantity!.Value) : null;
@@ -185,7 +253,9 @@ public sealed class MonthlyProductionQuantityMetricInputSource(
     outputTypeFilter: (int)MonthlyActivityQueryIntent.SingleMonth)
 {
     // Service-sales lines never carry production; sum the product lines that do, null when none.
-    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
         var values = lineItems.Where(item => item.ProductionQuantity is not null).ToArray();
         return values.Length > 0 ? values.Sum(item => item.ProductionQuantity!.Value) : null;
@@ -201,7 +271,9 @@ public sealed class MonthlySalesRateMetricInputSource(
     // present and quantity is positive (policy "monthly-sales-rate-source-v1"). Null when no
     // eligible line exists — mixed-unit months degrade to a blended rate by design, documented in
     // the calculation policy rather than silently picking one product line.
-    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
         var eligible = lineItems
             .Where(item => item.SalesAmount is not null && item.SalesQuantity is > 0)
@@ -212,7 +284,10 @@ public sealed class MonthlySalesRateMetricInputSource(
         }
 
         var totalQuantity = eligible.Sum(item => item.SalesQuantity!.Value);
-        return totalQuantity > 0 ? eligible.Sum(item => item.SalesAmount!.Value) / totalQuantity : null;
+        decimal? sourceRate = totalQuantity > 0
+            ? eligible.Sum(item => item.SalesAmount!.Value) / totalQuantity
+            : null;
+        return NormalizeMonetaryValue(report, sourceRate);
     }
 }
 
@@ -223,7 +298,9 @@ public sealed class MonthlyAvgSaleMetricInputSource(
     dbContext, "AVG_12M_MONTHLY_SALES",
     outputTypeFilter: null)
 {
-    protected override decimal? Aggregate(IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
+    protected override decimal? Aggregate(
+        NormalizedMonthlyReportRow report,
+        IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
         var item = lineItems.FirstOrDefault(i => i.ProductCode == "AVG_12M");
         return item?.SalesAmount;
@@ -243,6 +320,7 @@ internal static class NormalizedMetricInputFactory
         var observedAt = new DateTimeOffset(
             period.EndDate!.Value.ToDateTime(TimeOnly.MinValue),
             TimeSpan.Zero);
+        var unitEvidence = ResolveUnitEvidence(providerName, code);
 
         return new MetricInputObservation(
             code,
@@ -250,6 +328,66 @@ internal static class NormalizedMetricInputFactory
             new CalculationPolicyVersion("normalized-source-v1"),
             period,
             value,
-            [new FinancialSourceEvidence(providerName, observedAt, synchronizedAt, documentId)]);
+            [
+                new FinancialSourceEvidence(
+                    providerName,
+                    observedAt,
+                    synchronizedAt,
+                    documentId,
+                    unitEvidence.SourceUnit,
+                    unitEvidence.CanonicalUnit,
+                    unitEvidence.Policy)
+            ]);
     }
+
+    private static (string? SourceUnit, string? CanonicalUnit, string? Policy) ResolveUnitEvidence(
+        string providerName,
+        MetricCode code)
+    {
+        if (IsNoavaranAmin(providerName))
+        {
+            return IsNoavaranMonthlyMonetaryMetric(code.Value)
+                ? ("MillionRials", "Rials", "noavaran-million-rials-to-rials-v1")
+                : (null, null, null);
+        }
+
+        if (string.Equals(providerName, ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase))
+        {
+            if (IsCyclicalWavesMonetaryMetric(code.Value))
+            {
+                return ("Rials", "Rials", "cyclicalwaves-precomputed-rials-passthrough-v1");
+            }
+
+            if (IsCyclicalWavesUnitlessRatio(code.Value))
+            {
+                return ("Ratio", "Ratio", "cyclicalwaves-unitless-ratio-passthrough-v1");
+            }
+
+            return (null, null, null);
+        }
+
+        return (null, null, null);
+    }
+
+    private static bool IsNoavaranMonthlyMonetaryMetric(string metricCode) =>
+        string.Equals(metricCode, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "MONTHLY_SALES_RATE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCyclicalWavesMonetaryMetric(string metricCode) =>
+        string.Equals(metricCode, "REVENUE", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "AVG_4Q_REVENUE", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCyclicalWavesUnitlessRatio(string metricCode) =>
+        string.Equals(metricCode, "PE_RATIO", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "PS_RATIO", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsNoavaranAmin(string providerName) =>
+        string.Equals(providerName, ProviderSources.NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, ProviderSources.NoavaranArchiveSqlName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, "NadpcoApi", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, "CodalDb", StringComparison.OrdinalIgnoreCase);
 }

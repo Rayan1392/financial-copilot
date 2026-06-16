@@ -31,6 +31,7 @@ public sealed class CyclicalWavesNormalizerTests
             "last_quarter_sale": 53244165000000,
             "penultimate_quarter_sale": 48760460000000,
             "last_year_same_quarter_sale": 22690236000000,
+            "average_4_quarter_sale": 57549286500000,
             "last_quarter_net_profit": -222559000000,
             "penultimate_quarter_net_profit": 8401790000000,
             "last_year_same_quarter_net_profit": -3957691000000,
@@ -52,6 +53,7 @@ public sealed class CyclicalWavesNormalizerTests
             "last_month_sale": 2297714000000,
             "penultimate_month_sale": 23119257000000,
             "last_year_same_month_sale": 1221867000000,
+            "average_12_month_sale": 57549286500000,
             "pe": 20.66,
             "ps": 0.42
           }
@@ -152,6 +154,26 @@ public sealed class CyclicalWavesNormalizerTests
 
         Assert.Contains(items, i => i.MetricCode == "PE_RATIO");
         Assert.Contains(items, i => i.MetricCode == "PS_RATIO");
+    }
+
+    [Fact]
+    public async Task FinancialStatementNormalizer_CyclicalWavesPrecomputedValues_AreStoredAsIs()
+    {
+        await using var db = CreateDbContext();
+        var normalizer = new CyclicalWavesFinancialStatementNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
+        var payload = MakePayload(ProviderDataset.FinancialStatements, TickerDetailJson);
+
+        await normalizer.NormalizeAsync(payload, default);
+
+        var q0 = await db.FinancialStatements.FirstAsync(s => s.ExternalStatementId.EndsWith(":Q0"));
+        var items = await db.FinancialStatementLineItems
+            .Where(i => i.FinancialStatementId == q0.Id)
+            .ToDictionaryAsync(i => i.MetricCode);
+
+        Assert.Equal(53244165000000m, items["REVENUE"].Value);
+        Assert.Equal(57549286500000m, items["AVG_4Q_REVENUE"].Value);
+        Assert.Equal(20.66m, items["PE_RATIO"].Value);
+        Assert.Equal(0.42m, items["PS_RATIO"].Value);
     }
 
     [Fact]
@@ -280,6 +302,28 @@ public sealed class CyclicalWavesNormalizerTests
         Assert.Equal(4, allItems.Count);
         Assert.Equal(3, allItems.Count(item => item.ProductCode == "REVENUE"));
         Assert.Equal(1, allItems.Count(item => item.ProductCode == "AVG_12M"));
+    }
+
+    [Fact]
+    public async Task MonthlyReportNormalizer_CyclicalWavesPrecomputedMonthlyValues_AreStoredAsIs()
+    {
+        await using var db = CreateDbContext();
+        var normalizer = new CyclicalWavesMonthlyReportNormalizer(db, NullCompanyResolverService.Instance, NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
+
+        await normalizer.NormalizeAsync(MakePayload(ProviderDataset.MonthlyProductionSales, TickerDetailJson), default);
+
+        var m0 = await db.MonthlyReports.FirstAsync(report => report.ExternalReportId.EndsWith(":M0"));
+        var items = await db.MonthlyReportLineItems
+            .Where(item => item.MonthlyReportId == m0.Id)
+            .ToDictionaryAsync(item => item.ProductCode);
+
+        Assert.Equal(2297714000000m, items["REVENUE"].SalesAmount);
+        Assert.Equal(57549286500000m, items["AVG_12M"].SalesAmount);
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("6a144b2e5fad5d3fae081f92", CancellationToken.None);
+
+        Assert.Contains(observations, observation => observation.Value == 2297714000000m);
     }
 
     [Fact]

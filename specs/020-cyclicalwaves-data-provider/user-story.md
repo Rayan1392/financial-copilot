@@ -51,6 +51,24 @@ valuation ratios without depending on a specific vendor.
 - The existing `MockFinancialDataProvider` continues to be used in development/test for
   `IMarketDataProvider`.
 
+## Provider Data Semantics and Unit Policy
+
+CyclicalWaves financial snapshot fields are provider-precomputed company-level facts. They are
+not raw Noavaran monthly line items.
+
+- Monetary sales fields such as `last_month_sale`, `penultimate_month_sale`,
+  `last_year_same_month_sale`, `average_12_month_sale`, `last_quarter_sale`, and
+  `last_year_same_quarter_sale` are source-unit **Rials**.
+- These fields must be persisted as-is under provider-marked passthrough/source policies. No
+  Noavaran million-Rial multiplication is applied.
+- PE/PS fields are unitless ratios and must be stored as-is.
+- CyclicalWaves precomputed facts must not be recalculated from Noavaran monthly activity
+  line items.
+- If a CyclicalWaves field is exposed through a canonical metric code, provenance and policy
+  must still show that the value came from a CyclicalWaves passthrough/source observation.
+- The AI query path and symbol lookup read persisted facts only; they must not recalculate
+  CyclicalWaves precomputed values.
+
 ## Scanner Metrics Enabled
 
 | MetricCode | Source field | Period |

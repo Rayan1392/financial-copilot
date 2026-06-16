@@ -126,8 +126,9 @@ public sealed class LlmSymbolLookupParser(
         foreach (var pair in llmOutput.Pairs)
         {
             var language = NormalizeBcp47(llmOutput.DetectedLanguage);
+            var metricTerm = SelectResolvableMetricTerm(pair.MetricTerm, request.Message, language, request.AsOf);
             var resolution = aliasResolver.ResolveAlias(
-                pair.MetricTerm,
+                metricTerm,
                 language,
                 new MetricResolutionContext(PeriodType: null, Comparison: null),
                 request.AsOf);
@@ -182,6 +183,66 @@ public sealed class LlmSymbolLookupParser(
             CorrelationId: correlationId,
             OccurredAt: (timeProvider ?? TimeProvider.System).GetUtcNow());
         _ = learningSignalCollector.CollectAsync(signal, CancellationToken.None);
+    }
+
+    private string SelectResolvableMetricTerm(
+        string metricTerm,
+        string userMessage,
+        string language,
+        DateOnly asOf)
+    {
+        var direct = aliasResolver.ResolveAlias(
+            metricTerm,
+            language,
+            new MetricResolutionContext(PeriodType: null, Comparison: null),
+            asOf);
+
+        if (direct.Status != MetricResolutionStatus.NotFound)
+        {
+            return metricTerm;
+        }
+
+        var segments = metricTerm
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(segment => !string.IsNullOrWhiteSpace(segment))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (segments.Length <= 1)
+        {
+            return metricTerm;
+        }
+
+        foreach (var segment in segments.Where(segment =>
+                     userMessage.Contains(segment, StringComparison.OrdinalIgnoreCase)))
+        {
+            var resolution = aliasResolver.ResolveAlias(
+                segment,
+                language,
+                new MetricResolutionContext(PeriodType: null, Comparison: null),
+                asOf);
+
+            if (resolution.Status == MetricResolutionStatus.Resolved)
+            {
+                return segment;
+            }
+        }
+
+        foreach (var segment in segments)
+        {
+            var resolution = aliasResolver.ResolveAlias(
+                segment,
+                language,
+                new MetricResolutionContext(PeriodType: null, Comparison: null),
+                asOf);
+
+            if (resolution.Status == MetricResolutionStatus.Resolved)
+            {
+                return segment;
+            }
+        }
+
+        return metricTerm;
     }
 
     private static string NormalizeBcp47(string language) =>

@@ -71,7 +71,7 @@ public sealed class MonthlyActivityMetricInputSourceTests
 
         var observation = Assert.Single(observations);
         Assert.NotNull(observation.Value);
-        Assert.Equal(2_000m / 150m, observation.Value!.Value, precision: 10);
+        Assert.Equal((2_000m / 150m) * 1_000_000m, observation.Value!.Value, precision: 10);
     }
 
     [Fact]
@@ -100,6 +100,84 @@ public sealed class MonthlyActivityMetricInputSourceTests
         Assert.Equal(2, observations.Count);
     }
 
+    [Fact]
+    public async Task SalesYtd_UsesOutputTypeOneRows()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 999m)], 0, outputType: null);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 100m)], 0, outputType: 0);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 450m)], 0, outputType: 1);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 300m)], 0, outputType: 4);
+
+        var observations = await new MonthlySalesYtdMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(new MetricCode("MONTHLY_SALES_YTD"), observation.Code);
+        Assert.Equal(450_000_000m, observation.Value);
+    }
+
+    [Fact]
+    public async Task SalesYtdPreviousMonth_UsesOutputTypeFourRows()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 999m)], 0, outputType: null);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 100m)], 0, outputType: 0);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 450m)], 0, outputType: 1);
+        await SeedReportAsync(db, [Line(salesQuantity: 1m, salesAmount: 300m)], 0, outputType: 4);
+
+        var observations = await new MonthlySalesYtdPreviousMonthMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(new MetricCode("MONTHLY_SALES_YTD_PREVIOUS_MONTH"), observation.Code);
+        Assert.Equal(300_000_000m, observation.Value);
+    }
+
+    [Fact]
+    public async Task SalesAmount_NoavaranMillionRials_NormalizesToRials()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(db,
+            [Line(salesQuantity: 1m, salesAmount: 100m), Line(salesQuantity: 1m, salesAmount: 50m)],
+            periodOffset: 0,
+            outputType: 0);
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("13150", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(150_000_000m, observation.Value);
+        var evidence = Assert.Single(observation.SourceEvidence);
+        Assert.Equal("MillionRials", evidence.SourceUnit);
+        Assert.Equal("Rials", evidence.CanonicalUnit);
+        Assert.Equal("noavaran-million-rials-to-rials-v1", evidence.UnitNormalizationPolicy);
+    }
+
+    [Fact]
+    public async Task SalesAmount_CyclicalWavesRials_RemainsUnchanged()
+    {
+        await using var db = CreateDb();
+        await SeedReportAsync(
+            db,
+            [Line(salesQuantity: null, salesAmount: 90_879_722_000_000m)],
+            periodOffset: 0,
+            outputType: null,
+            providerName: "CyclicalWaves",
+            externalCompanyId: "cw-1",
+            productCodePrefix: "REVENUE");
+
+        var observations = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("cw-1", CancellationToken.None);
+
+        var observation = Assert.Single(observations);
+        Assert.Equal(90_879_722_000_000m, observation.Value);
+        var evidence = Assert.Single(observation.SourceEvidence);
+        Assert.Equal("Rials", evidence.SourceUnit);
+        Assert.Equal("Rials", evidence.CanonicalUnit);
+        Assert.Equal("cyclicalwaves-precomputed-rials-passthrough-v1", evidence.UnitNormalizationPolicy);
+    }
+
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -121,19 +199,24 @@ public sealed class MonthlyActivityMetricInputSourceTests
     private static async Task<Guid> SeedReportAsync(
         FinancialIngestionDbContext db,
         LineSpec[] lines,
-        int periodOffset)
+        int periodOffset,
+        int? outputType = null,
+        string providerName = "NoavaranCurrentApi",
+        string externalCompanyId = "13150",
+        string productCodePrefix = "PRODUCT")
     {
         var periodStart = new DateOnly(2026, 4, 21).AddMonths(periodOffset);
         var periodEnd = new DateOnly(2026, 5, 21).AddMonths(periodOffset);
         var report = new NormalizedMonthlyReportRow
         {
             Id = Guid.NewGuid(),
-            ProviderName = "NoavaranCurrentApi",
-            ExternalCompanyId = "13150",
+            ProviderName = providerName,
+            ExternalCompanyId = externalCompanyId,
             ExternalReportId = Guid.NewGuid().ToString(),
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
             ReportType = "ProductSales",
+            OutputType = outputType,
             SourcePayloadChecksum = "checksum",
             LastSynchronizedAt = Now
         };
@@ -145,7 +228,7 @@ public sealed class MonthlyActivityMetricInputSourceTests
             {
                 Id = Guid.NewGuid(),
                 MonthlyReportId = report.Id,
-                ProductCode = $"PRODUCT:{index++}",
+                ProductCode = productCodePrefix == "REVENUE" ? "REVENUE" : $"{productCodePrefix}:{index++}",
                 SalesQuantity = line.SalesQuantity,
                 SalesAmount = line.SalesAmount,
                 ProductionQuantity = line.ProductionQuantity

@@ -45,6 +45,7 @@ public sealed class MetricRecalculationProcessor(
             [ProviderDataset.MonthlyProductionSales] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "MONTHLY_SALES",
+                "MONTHLY_SALES_YTD", "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
                 // Spec 057: monthly-activity aggregates persisted per company-month for lookup.
                 "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE",
                 // CyclicalWaves vendor-supplied 12-month rolling average (Order 66 / Phase 2).

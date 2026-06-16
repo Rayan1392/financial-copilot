@@ -4,6 +4,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 
 namespace FinancialCopilot.Infrastructure.Financial.Scanner;
 
@@ -14,6 +15,11 @@ public sealed class EfCoreSymbolMetricLookupService(
     TimeProvider timeProvider,
     ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService
 {
+    private const string MonthlySales = "MONTHLY_SALES";
+    private const string MonthlySalesYtd = "MONTHLY_SALES_YTD";
+    private const string MonthlySalesYtdPreviousMonth = "MONTHLY_SALES_YTD_PREVIOUS_MONTH";
+    private const string MonthlySalesPriorFiscalYearSameMonth = "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH";
+
     public async Task<SymbolLookupTableResult> LookupAsync(
         SymbolLookupRequest request,
         CancellationToken cancellationToken)
@@ -35,6 +41,8 @@ public sealed class EfCoreSymbolMetricLookupService(
         {
             return BuildEmptyResult(lookupId, uniqueMetricCodes, startTime, [], uniqueSymbolNames);
         }
+
+        var displayMetricCodes = ExpandDisplayMetricCodes(uniqueMetricCodes);
 
         var unresolvedSymbols = new List<string>();
         var resolvedByName = new Dictionary<string, ResolvedCompany>(StringComparer.OrdinalIgnoreCase);
@@ -70,6 +78,7 @@ public sealed class EfCoreSymbolMetricLookupService(
             .ToList();
 
         var lookupMetricCodes = uniqueMetricCodes
+            .Concat(ExpandPersistedMetricCodes(displayMetricCodes))
             .Concat(["LATEST_PRICE", "DAILY_CHANGE_PCT"])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -124,7 +133,7 @@ public sealed class EfCoreSymbolMetricLookupService(
             }
         }
 
-        var columns = BuildLookupColumns(uniqueMetricCodes);
+        var columns = BuildLookupColumns(displayMetricCodes);
         var rows = new List<ScannerTableRow>();
 
         foreach (var name in uniqueSymbolNames)
@@ -146,7 +155,8 @@ public sealed class EfCoreSymbolMetricLookupService(
                 displaySymbol,
                 companyName,
                 quote,
-                latestByCompanyMetric);
+                latestByCompanyMetric,
+                derivedRows);
 
             LogPeLookupResult(
                 request.QueryText,
@@ -180,8 +190,50 @@ public sealed class EfCoreSymbolMetricLookupService(
                 Page: 1,
                 PageSize: Math.Max(1, rows.Count),
                 TotalPages: 1),
-            BuildMissingDataWarnings(rows, uniqueMetricCodes),
+            BuildMissingDataWarnings(rows, displayMetricCodes),
             unresolvedSymbols);
+    }
+
+    private static IReadOnlyCollection<string> ExpandDisplayMetricCodes(IReadOnlyCollection<string> metricCodes)
+    {
+        var expanded = new List<string>();
+        foreach (var code in metricCodes)
+        {
+            if (string.Equals(code, MonthlySales, StringComparison.OrdinalIgnoreCase))
+            {
+                AddIfMissing(expanded, MonthlySales);
+                AddIfMissing(expanded, MonthlySalesPriorFiscalYearSameMonth);
+                AddIfMissing(expanded, MonthlySalesYtd);
+                AddIfMissing(expanded, MonthlySalesYtdPreviousMonth);
+                continue;
+            }
+
+            AddIfMissing(expanded, code);
+        }
+
+        return expanded;
+    }
+
+    private static IReadOnlyCollection<string> ExpandPersistedMetricCodes(IReadOnlyCollection<string> metricCodes)
+    {
+        var expanded = new List<string>();
+        foreach (var code in metricCodes)
+        {
+            AddIfMissing(expanded,
+                string.Equals(code, MonthlySalesPriorFiscalYearSameMonth, StringComparison.OrdinalIgnoreCase)
+                    ? MonthlySales
+                    : code);
+        }
+
+        return expanded;
+    }
+
+    private static void AddIfMissing(List<string> metricCodes, string metricCode)
+    {
+        if (!metricCodes.Contains(metricCode, StringComparer.OrdinalIgnoreCase))
+        {
+            metricCodes.Add(metricCode);
+        }
     }
 
     private static IReadOnlyCollection<ScannerTableColumn> BuildLookupColumns(
@@ -222,6 +274,9 @@ public sealed class EfCoreSymbolMetricLookupService(
             "NET PROFIT GROWTH QOQ" => "رشد فصلی سود خالص",
             "MONTHLY SALES GROWTH YOY" => "رشد سالانه فروش",
             "MONTHLY SALES GROWTH MOM" => "رشد ماهانه فروش",
+            "MONTHLY SALES PRIOR FISCAL YEAR SAME MONTH" => "فروش ماه مشابه سال مالی قبل",
+            "MONTHLY SALES YTD" => "فروش از ابتدای سال مالی",
+            "MONTHLY SALES YTD PREVIOUS MONTH" => "فروش از ابتدای سال مالی تا ماه گذشته",
             "TTM EARNINGS" => "سود دوازده‌ماهه",
             "TTM SALES" => "فروش دوازده‌ماهه",
             "TTM EPS" => "EPS دوازده‌ماهه",
@@ -244,7 +299,8 @@ public sealed class EfCoreSymbolMetricLookupService(
         string displaySymbol,
         string? companyName,
         MarketQuoteObservation? quote,
-        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
+        IReadOnlyCollection<DerivedMetricRow> derivedRows)
     {
         var cells = new Dictionary<string, ScannerTableCell>(StringComparer.OrdinalIgnoreCase);
 
@@ -266,6 +322,9 @@ public sealed class EfCoreSymbolMetricLookupService(
 
                 ScannerColumnType.MarketCap =>
                     BuildPersistedMetricCell(externalCompanyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
+
+                ScannerColumnType.Metric when string.Equals(column.MetricCode, MonthlySalesPriorFiscalYearSameMonth, StringComparison.OrdinalIgnoreCase) =>
+                    BuildPriorFiscalYearSameMonthCell(externalCompanyId, derivedRows, v => v.ToString("N2")),
 
                 ScannerColumnType.Metric when column.MetricCode is not null =>
                     BuildPersistedMetricCell(externalCompanyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
@@ -350,6 +409,58 @@ public sealed class EfCoreSymbolMetricLookupService(
             formatter(row.Value.Value),
             CellFreshnessStatus.Persisted,
             row.ObservedAt);
+    }
+
+    private static ScannerTableCell BuildPriorFiscalYearSameMonthCell(
+        string externalCompanyId,
+        IReadOnlyCollection<DerivedMetricRow> derivedRows,
+        Func<decimal, string> formatter)
+    {
+        var current = derivedRows
+            .Where(row =>
+                string.Equals(row.ExternalCompanyId, externalCompanyId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(row.MetricCode, MonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                row.Value is not null)
+            .OrderByDescending(row => row.PeriodEnd)
+            .FirstOrDefault();
+
+        if (current is null)
+        {
+            return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
+        }
+
+        var calendar = new PersianCalendar();
+        var currentDate = current.PeriodEnd.ToDateTime(TimeOnly.MinValue);
+        var targetPersianYear = calendar.GetYear(currentDate) - 1;
+        var targetPersianMonth = calendar.GetMonth(currentDate);
+
+        var prior = derivedRows
+            .Where(row =>
+                string.Equals(row.ExternalCompanyId, externalCompanyId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(row.MetricCode, MonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                row.Value is not null &&
+                IsPersianYearMonth(row.PeriodEnd, targetPersianYear, targetPersianMonth))
+            .OrderByDescending(row => row.PeriodEnd)
+            .FirstOrDefault();
+
+        if (prior?.Value is null)
+        {
+            return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
+        }
+
+        return new ScannerTableCell(
+            prior.Value,
+            formatter(prior.Value.Value),
+            CellFreshnessStatus.Persisted,
+            prior.ObservedAt);
+    }
+
+    private static bool IsPersianYearMonth(DateOnly date, int persianYear, int persianMonth)
+    {
+        var calendar = new PersianCalendar();
+        var dateTime = date.ToDateTime(TimeOnly.MinValue);
+        return calendar.GetYear(dateTime) == persianYear &&
+            calendar.GetMonth(dateTime) == persianMonth;
     }
 
     private SymbolLookupTableResult BuildEmptyResult(

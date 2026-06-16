@@ -76,6 +76,7 @@ These specs implement concrete financial-data providers behind the `004` abstrac
 ### CyclicalWaves
 
 - `020-cyclicalwaves-data-provider` — CyclicalWaves HTTP API provider for financial statements, monthly observations, and valuation ratios. **No longer writes to the `Companies` catalog** (change request, order 48); resolves linkage through existing NADPCO-backed company/symbol metadata.
+- CyclicalWaves sales and valuation fields are provider-precomputed company-level facts. Monetary sales fields are source-unit Rials and must be persisted as-is under passthrough/source policies; PE/PS ratios are unitless and must also be stored as-is. Do not apply Noavaran million-Rial conversion or raw line-item aggregation rules to CyclicalWaves values.
 
 ### Noavaran Amin Archive (NoavaranArchiveSql / CodalDB)
 
@@ -95,6 +96,7 @@ Historical SQL Server source. One-time import only; recurring sync targets the c
 ### NADPCO HTTP API (NoavaranCurrentApi)
 
 Authenticated HTTP source at `https://data3.nadpco.com`. Coexists with the archive source and is the only recurring fundamentals sync target from Shamsi 1403 onward. **`NADPCO` is the authoritative company catalog source**; the `NoavaranEligibleCompanies` PostgreSQL view scopes per-company requests to equities only (`PrecedencyRight = 0`, markets: بورس/فرابورس/پایه).
+Noavaran monthly activity is raw product/service line-item data. Monetary monthly sales values are source-unit million Rials and must be aggregated and normalized to the platform canonical monetary unit during ingestion/recalculation, never during AI query execution.
 
 1. `038-nadpco-api-provider-foundation` — token authentication, secrets, resilience, health, raw payload capture, and provider routing.
 2. `039-nadpco-api-company-catalog-sync` — `/api/v3/BaseInfo/Companies` normalization and cross-provider canonical symbol linkage. Authoritative company catalog: clean-slate backfill via `CompanyCatalogCleanSlate` DataAdmin operation; non-destructive daily `CompanyCatalogRefresh` scheduled run. Every NADPCO company field persisted in `Companies` or related normalized tables; no field remains evidence-only.

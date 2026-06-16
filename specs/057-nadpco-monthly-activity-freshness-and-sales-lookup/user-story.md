@@ -21,6 +21,26 @@ The NADPCO monthly-activity flow already exists (specs `042`, `043`, `044`, `053
 | Derived metrics | `MonthlySalesMetricInputSource` aggregates `SalesAmount` per month into `MONTHLY_SALES`; recalculation publishes `MONTHLY_SALES_GROWTH_YOY`, `MONTHLY_SALES_GROWTH_MOM`, `TTM_SALES` into `DerivedMetrics` |
 | Permission bound | Current-API monthly activity is permitted from Shamsi `1404/01/01` onward only (clamped in the client); earlier months come from the frozen archive (`051`/`052`) |
 
+## Provider Data Semantics and Unit Policy
+
+Noavaran Amin monthly activity is a raw line-item source, not a provider-precomputed company
+metric source.
+
+- Product and service rows are raw facts. Company-level sales must be calculated by summing the
+  relevant line-item sales values for one `ExternalCompanyId`, provider, reporting period, and
+  `OutputType`.
+- Monetary monthly-activity source fields such as product sale value and service sales value are
+  reported in **million Rials**.
+- Persisted canonical monetary metrics in `DerivedMetrics` must be normalized to the platform
+  canonical monetary unit before query use. For the current platform policy, Noavaran
+  million-Rial sales values are multiplied by `1,000,000` when promoted to canonical monetary
+  metrics.
+- Aggregation and unit normalization happen only during ingestion/recalculation. The AI query
+  path and symbol lookup must never sum `MonthlyReportLineItems`.
+- These rules are provider-specific. They must not be applied to CyclicalWaves values, because
+  CyclicalWaves monthly/quarterly sales values are already provider-precomputed company-level
+  facts in Rials.
+
 ## Gaps This Story Closes
 
 ### Gap 1 — No month-by-month acquisition model (ingestion side)

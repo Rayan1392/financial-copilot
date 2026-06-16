@@ -494,7 +494,8 @@ public static class ServiceCollectionExtensions
         // «آخرین فروش / مقدار فروش / نرخ فروش / مقدار تولید» from the latest month.
         foreach (var monthlyCode in new[]
         {
-            "MONTHLY_SALES", "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE"
+            "MONTHLY_SALES", "MONTHLY_SALES_YTD", "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+            "MONTHLY_SALES_QUANTITY", "MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_RATE"
         })
         {
             var captured = new MetricCode(monthlyCode);
@@ -819,6 +820,8 @@ public static class ServiceCollectionExtensions
         }
         services.AddScoped<INormalizedMetricInputSource, MonthlyAvgSaleMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputSource, MonthlySalesYtdMetricInputSource>();
+        services.AddScoped<INormalizedMetricInputSource, MonthlySalesYtdPreviousMonthMetricInputSource>();
         // Spec 057: monthly-activity aggregates (sales quantity, production quantity,
         // quantity-weighted sales rate) backed by MonthlyReportLineItems.
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesQuantityMetricInputSource>();

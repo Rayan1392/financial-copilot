@@ -178,7 +178,7 @@ public sealed class CodalDbMonthlyReportNormalizerTests
 
         Assert.Single(observations);
         var obs = observations.Single();
-        Assert.Equal(225000000m + 98000000m, obs.Value); // 323000000
+        Assert.Equal((225000000m + 98000000m) * 1_000_000m, obs.Value);
     }
 
     [Fact]

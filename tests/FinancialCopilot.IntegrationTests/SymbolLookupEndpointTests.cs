@@ -767,6 +767,18 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         var cell = row.GetProperty("cells").GetProperty("MONTHLY_SALES");
         Assert.Equal(MonthlySalesLookupApiFactory.LatestMonthSales, cell.GetProperty("value").GetDecimal());
         Assert.NotEqual("Missing", cell.GetProperty("freshnessStatus").GetString());
+
+        var priorYear = row.GetProperty("cells").GetProperty("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH");
+        Assert.Equal(MonthlySalesLookupApiFactory.PriorYearSameMonthSales, priorYear.GetProperty("value").GetDecimal());
+        Assert.NotEqual("Missing", priorYear.GetProperty("freshnessStatus").GetString());
+
+        var ytd = row.GetProperty("cells").GetProperty("MONTHLY_SALES_YTD");
+        Assert.Equal(MonthlySalesLookupApiFactory.YearToDateSales, ytd.GetProperty("value").GetDecimal());
+        Assert.NotEqual("Missing", ytd.GetProperty("freshnessStatus").GetString());
+
+        var ytdPreviousMonth = row.GetProperty("cells").GetProperty("MONTHLY_SALES_YTD_PREVIOUS_MONTH");
+        Assert.Equal(MonthlySalesLookupApiFactory.YearToPreviousMonthSales, ytdPreviousMonth.GetProperty("value").GetDecimal());
+        Assert.NotEqual("Missing", ytdPreviousMonth.GetProperty("freshnessStatus").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -779,6 +791,9 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
 public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
 {
     public const decimal LatestMonthSales = 987_654_321m;
+    public const decimal PriorYearSameMonthSales = 777_000_000m;
+    public const decimal YearToDateSales = 1_777_654_321m;
+    public const decimal YearToPreviousMonthSales = 790_000_000m;
 
     private readonly string _dbName = $"monthly-sales-lookup-{Guid.NewGuid():N}";
     private bool _seeded;
@@ -835,6 +850,11 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
         db.DerivedMetrics.AddRange(
             MonthlySales("13150", new DateOnly(2026, 3, 21), new DateOnly(2026, 4, 20), 555_000_000m, now),
             MonthlySales("13150", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), LatestMonthSales, now),
+            MonthlySales("13150", new DateOnly(2025, 4, 21), new DateOnly(2025, 5, 21), PriorYearSameMonthSales, now),
+            MonthlyMetric("13150", "MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1",
+                new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), YearToDateSales, now),
+            MonthlyMetric("13150", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1",
+                new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), YearToPreviousMonthSales, now),
             new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
@@ -861,13 +881,30 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
         DateOnly periodEnd,
         decimal value,
         DateTimeOffset now) =>
+        MonthlyMetric(
+            externalCompanyId,
+            "MONTHLY_SALES",
+            "monthly-sales-source-v1",
+            periodStart,
+            periodEnd,
+            value,
+            now);
+
+    private static DerivedMetricRow MonthlyMetric(
+        string externalCompanyId,
+        string metricCode,
+        string policyVersion,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        decimal value,
+        DateTimeOffset now) =>
         new()
         {
             Id = Guid.NewGuid(),
             ExternalCompanyId = externalCompanyId,
-            MetricCode = "MONTHLY_SALES",
+            MetricCode = metricCode,
             MetricVersion = "v1",
-            CalculationPolicyVersion = "monthly-sales-source-v1",
+            CalculationPolicyVersion = policyVersion,
             PeriodType = "Monthly",
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,

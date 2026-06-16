@@ -112,11 +112,11 @@ public sealed class ConfidenceProtectionScorer : IConfidenceProtectionScorer
 
     public EvaluationScore Score(GoldenQuestion question, AiQueryResponse? response, Guid runId)
     {
-        if (response?.ExplainableAnswer is null)
+        var confidence = response?.ConfidenceScore ?? response?.ExplainableAnswer?.Confidence;
+        if (confidence is null)
             return new(Guid.NewGuid(), runId, question.QuestionId, question.Category,
                 EvaluationScoreType.Deterministic, 0.0, false, "No confidence result present");
 
-        var confidence = response.ExplainableAnswer.Confidence;
         var failures = new List<string>();
 
         if (confidence.Score < 0.0 || confidence.Score > 1.0)

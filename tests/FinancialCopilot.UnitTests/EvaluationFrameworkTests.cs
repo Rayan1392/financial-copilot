@@ -254,6 +254,19 @@ public sealed class ConfidenceProtectionScorerTests
     }
 
     [Fact]
+    public void Score_TopLevelConfidenceWithoutExplainableAnswer_Passes()
+    {
+        var question = E.Question(DetectedIntent.SymbolLookup, false,
+            category: EvaluationCategory.ConfidenceProtection);
+        var response = E.ResponseWithTopLevelConfidenceOnly(DetectedIntent.SymbolLookup, 0.95, "v1");
+
+        var score = _sut.Score(question, response, Guid.NewGuid());
+
+        Assert.True(score.Passed);
+        Assert.Equal(EvaluationScoreType.Deterministic, score.ScoreType);
+    }
+
+    [Fact]
     public void Score_WrongPolicyVersion_Fails()
     {
         var question = E.Question(DetectedIntent.Scanner, false,
@@ -486,6 +499,17 @@ internal static class E
         var answer = new ExplainableAnswer([], [], [], confidence, [], null);
         return new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Scanner,
             null, null, null, answer, confidence, null, false, null, null);
+    }
+
+    public static AiQueryResponse ResponseWithTopLevelConfidenceOnly(
+        DetectedIntent intent,
+        double score,
+        string policyVersion)
+    {
+        var confidence = new ConfidenceScoreResult(
+            score, new ConfidenceFactors(1.0, 1.0, 1.0, 0.0), policyVersion);
+        return new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), intent,
+            null, null, null, null, confidence, null, false, null, null);
     }
 
     public static ScannerQueryPlan Plan(IReadOnlyCollection<ScannerCondition> conditions) =>

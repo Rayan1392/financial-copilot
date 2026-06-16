@@ -64,6 +64,23 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(expectedMetricCode, result.Pairs.First().ResolvedMetricCode?.Value);
     }
 
+    [Fact]
+    public async Task Parser_CompositeMetricExpression_PrefersUserWrittenMonthlySalesSegment()
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildPairsJson([("GGLPA", "latest monthly sales / sales / revenue")], language: "en");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest("latest monthly sales GGLPA?", "en", "corr-composite-sales", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        Assert.Single(result.Pairs);
+        Assert.Equal("MONTHLY_SALES", result.Pairs.First().ResolvedMetricCode?.Value);
+        Assert.Equal("latest monthly sales / sales / revenue", result.Pairs.First().OriginalMetricTerm);
+    }
+
     [Theory]
     [InlineData("PE")]
     [InlineData("P/E")]

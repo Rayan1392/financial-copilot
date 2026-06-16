@@ -280,7 +280,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         // ProductSales (outputType=0) normalizes to one MonthlyReport → one observation.
         var observation = Assert.Single(observations);
-        Assert.Equal(105000000m + 25200000m, observation.Value);
+        Assert.Equal((105000000m + 25200000m) * 1_000_000m, observation.Value);
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         // ServiceSales has OutputType=null → included by the null-pass-through rule.
         var observation = Assert.Single(observations);
-        Assert.Equal(3000000m, observation.Value);
+        Assert.Equal(3000000m * 1_000_000m, observation.Value);
     }
 
     [Fact]

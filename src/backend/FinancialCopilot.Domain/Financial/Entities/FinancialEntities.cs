@@ -27,7 +27,10 @@ public sealed record FinancialSourceEvidence(
     string SourceProvider,
     DateTimeOffset SourceObservedAt,
     DateTimeOffset LastSynchronizedAt,
-    string? SourceDocumentId = null);
+    string? SourceDocumentId = null,
+    string? SourceUnit = null,
+    string? CanonicalUnit = null,
+    string? UnitNormalizationPolicy = null);
 
 public sealed class Industry
 {

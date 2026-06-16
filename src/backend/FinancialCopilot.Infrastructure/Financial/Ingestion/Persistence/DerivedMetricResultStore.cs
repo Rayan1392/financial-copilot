@@ -20,7 +20,7 @@ public sealed class PersistedDerivedMetricResultStore(
             throw new ArgumentException("Persisted derived metrics require a closed period.", nameof(metric));
         var row = await dbContext.DerivedMetrics.SingleOrDefaultAsync(
             candidate =>
-                candidate.SymbolId == metric.SymbolId &&
+                candidate.ExternalCompanyId == metric.ExternalCompanyId &&
                 candidate.MetricCode == metric.Code.Value &&
                 candidate.MetricVersion == metric.MetricVersion.Value &&
                 candidate.CalculationPolicyVersion == metric.CalculationPolicyVersion.Value &&
@@ -32,7 +32,7 @@ public sealed class PersistedDerivedMetricResultStore(
             row = new DerivedMetricRow
             {
                 Id = metric.Id,
-                SymbolId = metric.SymbolId,
+                ExternalCompanyId = metric.ExternalCompanyId,
                 MetricCode = metric.Code.Value,
                 MetricVersion = metric.MetricVersion.Value,
                 CalculationPolicyVersion = metric.CalculationPolicyVersion.Value,
@@ -55,7 +55,7 @@ public sealed class PersistedDerivedMetricResultStore(
             dbContext.ChangeTracker.Clear();
             row = await dbContext.DerivedMetrics.SingleAsync(
                 candidate =>
-                    candidate.SymbolId == metric.SymbolId &&
+                    candidate.ExternalCompanyId == metric.ExternalCompanyId &&
                     candidate.MetricCode == metric.Code.Value &&
                     candidate.MetricVersion == metric.MetricVersion.Value &&
                     candidate.CalculationPolicyVersion == metric.CalculationPolicyVersion.Value &&

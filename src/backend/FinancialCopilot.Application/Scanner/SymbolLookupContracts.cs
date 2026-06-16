@@ -57,12 +57,6 @@ public sealed record SymbolLookupTableResult(
     IReadOnlyCollection<string> MissingDataWarnings,
     IReadOnlyCollection<string> UnresolvedSymbols);
 
-// Application-layer port implemented by Infrastructure.
-public interface ISymbolNameResolver
-{
-    Task<SymbolCode?> ResolveAsync(string rawName, CancellationToken cancellationToken);
-}
-
 public interface ISymbolLookupParser
 {
     Task<SymbolLookupParseResult> ParseAsync(

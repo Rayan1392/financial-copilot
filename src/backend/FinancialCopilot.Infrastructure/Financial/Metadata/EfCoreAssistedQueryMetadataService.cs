@@ -27,14 +27,15 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
         int limit,
         CancellationToken cancellationToken)
     {
+        // Spec 068: Symbols table removed. Query Companies directly; use TseSymbol as the display
+        // symbol code, falling back to CompanySymbol, then ExternalCompanyId.
         var query =
-            from symbol in dbContext.Symbols.AsNoTracking()
-            join company in dbContext.Companies.AsNoTracking() on symbol.CompanyId equals company.Id
+            from company in dbContext.Companies.AsNoTracking()
             join industry in dbContext.Industries.AsNoTracking() on company.IndustryId equals industry.Id into industries
             from industry in industries.DefaultIfEmpty()
             select new
             {
-                symbol.SymbolCode,
+                SymbolCode = company.TseSymbol ?? company.CompanySymbol ?? company.ExternalCompanyId,
                 company.Name,
                 company.NameEnglish,
                 IndustryName = industry == null ? null : industry.Name
@@ -44,7 +45,7 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
         if (normalizedSearch is not null)
         {
             query = query.Where(row =>
-                row.SymbolCode.ToLower().Contains(normalizedSearch) ||
+                (row.SymbolCode != null && row.SymbolCode.ToLower().Contains(normalizedSearch)) ||
                 row.Name.ToLower().Contains(normalizedSearch) ||
                 (row.NameEnglish != null && row.NameEnglish.ToLower().Contains(normalizedSearch)));
         }

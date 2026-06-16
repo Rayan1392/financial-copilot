@@ -5,7 +5,7 @@ using FinancialCopilot.Domain.Financial.Periods;
 namespace FinancialCopilot.Application.FinancialData.Metrics;
 
 public sealed record CalculateDerivedMetricCommand(
-    Guid SymbolId,
+    string ExternalCompanyId,
     MetricCode MetricCode,
     CalculationPolicyVersion CalculationPolicyVersion,
     FiscalPeriod EffectivePeriod,
@@ -63,7 +63,7 @@ public sealed class DerivedMetricCalculationService(
         var result = await metricRegistry.ResolveCalculator(command.MetricCode)
             .CalculateAsync(
                 new MetricCalculationContext(
-                    command.SymbolId,
+                    command.ExternalCompanyId,
                     definition,
                     policy,
                     command.EffectivePeriod,
@@ -71,7 +71,7 @@ public sealed class DerivedMetricCalculationService(
                 cancellationToken);
         var metric = new DerivedMetric(
             Guid.NewGuid(),
-            command.SymbolId,
+            command.ExternalCompanyId,
             result.MetricCode,
             result.DefinitionVersion,
             result.CalculationPolicyVersion,

@@ -109,10 +109,13 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
     «مقدار فروش», «نرخ فروش», «تولید», «مقدار تولید» (plus English equivalents). The bare
     ambiguous «فروش» keeps a documented resolution policy (quarterly `REVENUE` vs
     `MONTHLY_SALES`) decided in the semantic layer, not in the parser.
-11. A symbol-lookup question such as «آخرین فروش غگلپا چقدر است؟» returns the latest
-    month's value from `DerivedMetrics` (Noavaran-sourced, period = the Shamsi month's
-    Gregorian window) with period and source evidence in the explainable answer — never a
-    fabricated or quarterly value silently substituted for a monthly ask.
+11. A symbol-lookup question such as «آخرین فروش غگلپا چقدر است؟» returns a grouped
+    Noavaran monthly-sales answer from persisted aggregate facts, not live line-item summation:
+    latest one-month sales (`OutputType = 0`), same reporting month in the previous fiscal year
+    when that persisted row exists, fiscal-year-to-date sales (`OutputType = 1`), and
+    fiscal-year-to-previous-month sales (`OutputType = 4`). Each value includes period and source
+    evidence; missing prior-year coverage is reported as missing, never fabricated or substituted
+    from quarterly `REVENUE`.
 12. The line-item model audit either confirms rate/unit/title can be derived from existing
     normalized columns or extends `NormalizedMonthlyReportLineItemRow` (additive migration)
     so `MONTHLY_SALES_RATE` is computable from normalized data, not raw payloads.

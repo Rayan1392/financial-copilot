@@ -24,7 +24,7 @@ public sealed class MetricRecalculationOutboxTests
     public async Task PendingRequest_ProducesPrecomputedGrowthRowReadableByScanner()
     {
         await using var db = NewDb();
-        var (companyId, symbolId) = SeedCompanyWithSymbol(db, "5099", "DOUBLER");
+        SeedCompanyWithSymbol(db, "5099", "DOUBLER");
         SeedQuarterlyNetProfit(db, "5099", 100m, 200m); // doubled YoY
         db.MetricRecalculationRequests.Add(new MetricRecalculationRequestRow
         {
@@ -58,7 +58,7 @@ public sealed class MetricRecalculationOutboxTests
 
         Assert.Equal(1, result.CompletedRequestCount);
         var precomputed = await db.DerivedMetrics
-            .Where(m => m.MetricCode == "NET_PROFIT_GROWTH_YOY" && m.SymbolId == symbolId && m.Value >= 100m)
+            .Where(m => m.MetricCode == "NET_PROFIT_GROWTH_YOY" && m.ExternalCompanyId == "5099" && m.Value >= 100m)
             .ToListAsync();
         var hit = Assert.Single(precomputed);
         Assert.Equal(100m, hit.Value); // (200-100)/100 * 100
@@ -68,31 +68,22 @@ public sealed class MetricRecalculationOutboxTests
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
-    private static (Guid CompanyId, Guid SymbolId) SeedCompanyWithSymbol(
+    private static Guid SeedCompanyWithSymbol(
         FinancialIngestionDbContext db,
         string externalCompanyId,
         string symbolCode)
     {
         var companyId = Guid.NewGuid();
-        var symbolId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyId,
             ProviderName = "CodalDb",
             ExternalCompanyId = externalCompanyId,
             Name = "Test Co",
+            CompanySymbol = symbolCode,
             LastSynchronizedAt = Now
         });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId,
-            CompanyId = companyId,
-            ProviderName = "CodalDb",
-            ExternalSymbolId = externalCompanyId,
-            SymbolCode = symbolCode,
-            LastSynchronizedAt = Now
-        });
-        return (companyId, symbolId);
+        return companyId;
     }
 
     private static void SeedQuarterlyNetProfit(

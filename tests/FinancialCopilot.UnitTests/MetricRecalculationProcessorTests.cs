@@ -19,7 +19,7 @@ public sealed class MetricRecalculationProcessorTests
     public async Task ProcessPending_WithFinancialStatementsRequest_ComputesGrowthForDependentMetric()
     {
         await using var db = NewDb();
-        var (companyId, symbolId) = SeedCompanyWithSymbol(db, "5001", "CODAL1");
+        SeedCompanyWithSymbol(db, "5001", "CODAL1");
         SeedQuarterlyNetProfit(db, "5001", priorYearValue: 100m, currentYearValue: 200m);
         var requestId = AddPendingRequest(db, ProviderDataset.FinancialStatements, externalRef: "5001");
         await db.SaveChangesAsync();
@@ -31,7 +31,7 @@ public sealed class MetricRecalculationProcessorTests
         Assert.Equal(1, result.CompletedRequestCount);
         Assert.True(result.MetricsRecomputed > 0);
         var growth = await db.DerivedMetrics
-            .SingleAsync(m => m.MetricCode == "NET_PROFIT_GROWTH_YOY" && m.SymbolId == symbolId);
+            .SingleAsync(m => m.MetricCode == "NET_PROFIT_GROWTH_YOY" && m.ExternalCompanyId == "5001");
         Assert.Equal(100m, growth.Value); // (200-100)/100 * 100
         var row = await db.MetricRecalculationRequests.SingleAsync(r => r.Id == requestId);
         Assert.NotNull(row.ProcessedAt);
@@ -143,7 +143,6 @@ public sealed class MetricRecalculationProcessorTests
         string symbolCode)
     {
         var companyId = Guid.NewGuid();
-        var symbolId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyId,
@@ -152,16 +151,7 @@ public sealed class MetricRecalculationProcessorTests
             Name = "Test Co",
             LastSynchronizedAt = Now
         });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId,
-            CompanyId = companyId,
-            ProviderName = "CodalDb",
-            ExternalSymbolId = externalCompanyId,
-            SymbolCode = symbolCode,
-            LastSynchronizedAt = Now
-        });
-        return (companyId, symbolId);
+        return (companyId, Guid.Empty);
     }
 
     private static void SeedQuarterlyNetProfit(

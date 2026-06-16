@@ -77,7 +77,7 @@ public sealed record MetricInputObservation(
     IReadOnlyCollection<FinancialSourceEvidence> SourceEvidence);
 
 public sealed record MetricCalculationContext(
-    Guid SymbolId,
+    string ExternalCompanyId,
     FinancialMetricDefinition Definition,
     MetricCalculationPolicy Policy,
     FiscalPeriod EffectivePeriod,

@@ -172,28 +172,21 @@ public sealed class ScannerExecutionWithFeedbackTests
     {
         for (var i = 0; i < count; i++)
         {
-            var companyId = Guid.NewGuid();
             db.Companies.Add(new NormalizedCompanyRow
             {
-                Id = companyId, ProviderName = "Test",
+                Id = Guid.NewGuid(), ProviderName = "Test",
                 ExternalCompanyId = $"co-{i}", Name = $"Company {i}",
+                CompanySymbol = $"SYM{i}",
                 LastSynchronizedAt = Now
-            });
-            db.Symbols.Add(new NormalizedSymbolRow
-            {
-                Id = Guid.NewGuid(), CompanyId = companyId,
-                ProviderName = "Test", ExternalSymbolId = $"sym-{i}",
-                SymbolCode = $"SYM{i}", LastSynchronizedAt = Now
             });
         }
     }
 
     private static void SeedPeMetricFor(FinancialIngestionDbContext db, int symbolIndex, decimal value)
     {
-        var symbol = db.Symbols.OrderBy(s => s.SymbolCode).Skip(symbolIndex).First();
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
-            Id = Guid.NewGuid(), SymbolId = symbol.Id,
+            Id = Guid.NewGuid(), ExternalCompanyId = $"co-{symbolIndex}",
             MetricCode = "PE_TTM", MetricVersion = "v1",
             CalculationPolicyVersion = "pe_v1",
             PeriodType = nameof(FiscalPeriodType.TrailingTwelveMonths),

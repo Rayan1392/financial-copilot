@@ -23,10 +23,11 @@ public sealed class PersistedMarketDataProvider(
         var codes = symbols.Select(symbol => symbol.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Two resolution paths, unioned:
-        // 1. Company-linked: quote -> instrument -> normalized company -> symbol. This is the
-        //    canonical normalized route, but it depends on TradingInstruments.NormalizedCompanyId,
-        //    which is null for most non-company instruments and can transiently point at the
-        //    "other" provider-scoped duplicate of a company between instrument syncs.
+        // 1. Company-linked: quote -> instrument -> normalized company -> TseSymbol. This is the
+        //    canonical normalized route (Spec 068: Symbols table removed; use company.TseSymbol).
+        //    It depends on TradingInstruments.NormalizedCompanyId, which is null for most
+        //    non-company instruments and can transiently point at the "other" provider-scoped
+        //    duplicate of a company between instrument syncs.
         // 2. Direct ticker: the instrument's own TSE symbol equals the requested code. This keeps
         //    quotes reachable when the company linkage is absent or temporarily mismatched.
         var companyLinked =
@@ -35,10 +36,9 @@ public sealed class PersistedMarketDataProvider(
                 on quote.TradingInstrumentId equals instrument.Id
             join company in dbContext.Companies.AsNoTracking()
                 on instrument.NormalizedCompanyId equals company.Id
-            join symbol in dbContext.Symbols.AsNoTracking()
-                on company.Id equals symbol.CompanyId
-            where quote.ProviderName == _providerName && codes.Contains(symbol.SymbolCode)
-            select new { quote, SymbolCode = symbol.SymbolCode };
+            where quote.ProviderName == _providerName &&
+                company.TseSymbol != null && codes.Contains(company.TseSymbol)
+            select new { quote, SymbolCode = company.TseSymbol! };
 
         var directTicker =
             from quote in dbContext.LatestMarketQuotes.AsNoTracking()

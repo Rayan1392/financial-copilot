@@ -148,16 +148,8 @@ public sealed class MetricRecalculationProcessor(
             return 0;
         }
 
-        var symbolIds = await dbContext.Symbols.AsNoTracking()
-            .Where(s => s.CompanyId == company.Id)
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
-
-        if (symbolIds.Count == 0)
-        {
-            return 0;
-        }
-
+        // Spec 068: Symbols table removed. The ExternalCompanyId from the recalculation request
+        // is the canonical identifier; no symbol-table lookup is needed.
         var externalCompanyId = reference;
 
         // Determine which registered metrics have a calculator AND depend on at least one source
@@ -208,42 +200,40 @@ public sealed class MetricRecalculationProcessor(
                 continue;
             }
 
-            foreach (var symbolId in symbolIds)
+            // Spec 068: Symbols removed; iterate per period using ExternalCompanyId directly.
+            foreach (var period in distinctPeriods)
             {
-                foreach (var period in distinctPeriods)
-                {
-                    var command = new CalculateDerivedMetricCommand(
-                        symbolId,
-                        definition.Code,
-                        policyVersion,
-                        period,
-                        unionInputs);
+                var command = new CalculateDerivedMetricCommand(
+                    externalCompanyId,
+                    definition.Code,
+                    policyVersion,
+                    period,
+                    unionInputs);
 
-                    try
+                try
+                {
+                    await recalculationCommand.ExecuteAsync([command], cancellationToken);
+                    recomputed++;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // Per-metric isolation — a single bad period/company must not abort the row.
+                    logger.LogDebug(
+                        exception,
+                        "Metric {Metric} for company {Company} period {Period} failed; continuing.",
+                        definition.Code,
+                        externalCompanyId,
+                        period);
+                    // Evict poisoned derived-metric entries from the shared scope: a failed
+                    // SaveChanges leaves them tracked as Added/Modified, and every later save
+                    // in this scope would replay the same failing insert (observed as
+                    // cascading PK_DerivedMetrics violations). The request-row tracking stays
+                    // intact.
+                    foreach (var entry in dbContext.ChangeTracker.Entries<DerivedMetricRow>()
+                        .Where(item => item.State is EntityState.Added or EntityState.Modified)
+                        .ToList())
                     {
-                        await recalculationCommand.ExecuteAsync([command], cancellationToken);
-                        recomputed++;
-                    }
-                    catch (Exception exception) when (exception is not OperationCanceledException)
-                    {
-                        // Per-metric isolation — a single bad period/symbol must not abort the row.
-                        logger.LogDebug(
-                            exception,
-                            "Metric {Metric} for symbol {Symbol} period {Period} failed; continuing.",
-                            definition.Code,
-                            symbolId,
-                            period);
-                        // Evict poisoned derived-metric entries from the shared scope: a failed
-                        // SaveChanges leaves them tracked as Added/Modified, and every later save
-                        // in this scope would replay the same failing insert (observed as
-                        // cascading PK_DerivedMetrics violations). The request-row tracking stays
-                        // intact.
-                        foreach (var entry in dbContext.ChangeTracker.Entries<DerivedMetricRow>()
-                            .Where(item => item.State is EntityState.Added or EntityState.Modified)
-                            .ToList())
-                        {
-                            entry.State = EntityState.Detached;
-                        }
+                        entry.State = EntityState.Detached;
                     }
                 }
             }

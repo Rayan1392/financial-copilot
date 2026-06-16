@@ -1,6 +1,6 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
-using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -9,7 +9,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Scanner;
 
 public sealed class EfCoreSymbolMetricLookupService(
     FinancialIngestionDbContext dbContext,
-    ISymbolNameResolver symbolNameResolver,
+    ICompanyResolverService companyResolver,
     IMarketQuoteResolver quoteResolver,
     TimeProvider timeProvider,
     ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService
@@ -37,15 +37,15 @@ public sealed class EfCoreSymbolMetricLookupService(
         }
 
         var unresolvedSymbols = new List<string>();
-        var symbolCodeByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var resolvedByName = new Dictionary<string, ResolvedCompany>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var name in uniqueSymbolNames)
         {
-            var resolved = await symbolNameResolver.ResolveAsync(name, cancellationToken);
+            var resolved = await companyResolver.ResolveBySymbolAsync(name, cancellationToken);
             if (resolved is not null)
             {
-                symbolCodeByName[name] = resolved.Value;
-                LogPeLookupResolution(request.QueryText, name, resolved.Value, uniqueMetricCodes);
+                resolvedByName[name] = resolved;
+                LogPeLookupResolution(request.QueryText, name, resolved.ExternalCompanyId, uniqueMetricCodes);
             }
             else
             {
@@ -54,119 +54,62 @@ public sealed class EfCoreSymbolMetricLookupService(
                     request.QueryText,
                     name,
                     null,
-                    null,
-                    null,
-                    null,
                     "SymbolResolutionFailed",
                     uniqueMetricCodes);
             }
         }
 
-        if (symbolCodeByName.Count == 0)
+        if (resolvedByName.Count == 0)
         {
             return BuildEmptyResult(lookupId, uniqueMetricCodes, startTime, unresolvedSymbols, uniqueSymbolNames);
         }
 
-        var resolvedCodes = symbolCodeByName.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var resolvedSymbolRows = await dbContext.Symbols.AsNoTracking()
-            .Where(s => resolvedCodes.Contains(s.SymbolCode))
-            .ToListAsync(cancellationToken);
-
-        var companyIds = resolvedSymbolRows.Select(s => s.CompanyId).Distinct().ToList();
-
-        // Expand to sibling companies: different provider rows for the same real-world entity
-        // often have different CompanyIds. Pull all companies whose TseSymbol or CompanySymbol
-        // matches any resolved company's identifiers so that DerivedMetrics stored under an
-        // archive provider (e.g. NoavaranArchiveSql) are reachable when the resolver returned
-        // the current-API provider's company.
-        var resolvedCompanies = await dbContext.Companies.AsNoTracking()
-            .Where(c => companyIds.Contains(c.Id))
-            .ToListAsync(cancellationToken);
-
-        var siblingMatchTerms = resolvedCompanies
-            .SelectMany(c => new[] { c.TseSymbol, c.CompanySymbol, c.CompanySymbolEnglish, c.CompanySymbolPinglish, c.Name })
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Select(v => v!.Trim().ToLowerInvariant())
-            .Distinct()
+        var externalCompanyIds = resolvedByName.Values
+            .Select(r => r.ExternalCompanyId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        var siblingCompanyIds = siblingMatchTerms.Count > 0
-            ? (await dbContext.Companies.AsNoTracking()
-                .Where(c =>
-                    (c.TseSymbol != null && siblingMatchTerms.Contains(c.TseSymbol.ToLower())) ||
-                    (c.CompanySymbol != null && siblingMatchTerms.Contains(c.CompanySymbol.ToLower())) ||
-                    (c.CompanySymbolEnglish != null && siblingMatchTerms.Contains(c.CompanySymbolEnglish.ToLower())) ||
-                    siblingMatchTerms.Contains(c.Name.ToLower()))
-                .Select(c => c.Id)
-                .ToListAsync(cancellationToken))
-            : [];
-
-        var allCompanyIds = companyIds.Concat(siblingCompanyIds).Distinct().ToList();
-
-        var allCompanySymbolRows = await dbContext.Symbols.AsNoTracking()
-            .Where(s => allCompanyIds.Contains(s.CompanyId))
-            .ToListAsync(cancellationToken);
-
-        var companyLookup = await CompanyDisplayResolver.BuildLookupAsync(
-            dbContext,
-            allCompanySymbolRows.Count == 0 ? resolvedSymbolRows : allCompanySymbolRows,
-            cancellationToken);
 
         var lookupMetricCodes = uniqueMetricCodes
             .Concat(["LATEST_PRICE", "DAILY_CHANGE_PCT"])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var symbolIds = allCompanySymbolRows.Select(s => s.Id).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
-            .Where(dm => symbolIds.Contains(dm.SymbolId) && lookupMetricCodes.Contains(dm.MetricCode))
+            .Where(dm => externalCompanyIds.Contains(dm.ExternalCompanyId) && lookupMetricCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
 
         LogPeLookupQueryScope(
             request.QueryText,
             uniqueMetricCodes,
-            resolvedCodes,
-            companyIds,
-            symbolIds,
+            externalCompanyIds,
             derivedRows);
 
-        var companyIdBySymbolId = allCompanySymbolRows.ToDictionary(s => s.Id, s => s.CompanyId);
-
-        // Map sibling company IDs back to the primary (resolver-returned) company ID so that
-        // metrics stored under an archive provider row are reachable via the primary CompanyId.
-        // Priority: prefer the primary companyIds set; siblings map to the closest primary.
-        var primaryCompanyIdSet = companyIds.ToHashSet();
-        var siblingToPrimary = new Dictionary<Guid, Guid>();
-        foreach (var siblingId in siblingCompanyIds)
-        {
-            // Find the primary company whose identifiers caused this sibling to be included.
-            var primaryMatch = resolvedCompanies.FirstOrDefault(p =>
-            {
-                var siblingSymbols = allCompanySymbolRows
-                    .Where(s => s.CompanyId == siblingId)
-                    .Select(s => s.SymbolCode.ToLowerInvariant())
-                    .ToHashSet();
-                return siblingMatchTerms.Any(t => siblingSymbols.Contains(t));
-            });
-            siblingToPrimary[siblingId] = primaryMatch?.Id ?? primaryCompanyIdSet.FirstOrDefault();
-        }
-
-        Guid CanonicalCompanyId(Guid id) =>
-            siblingToPrimary.TryGetValue(id, out var primary) ? primary : id;
-
         var latestByCompanyMetric = derivedRows
-            .Where(dm => companyIdBySymbolId.ContainsKey(dm.SymbolId))
-            .GroupBy(dm => (CompanyId: CanonicalCompanyId(companyIdBySymbolId[dm.SymbolId]), dm.MetricCode))
+            .GroupBy(dm => (dm.ExternalCompanyId, dm.MetricCode), ExternalCompanyMetricKeyComparer.Instance)
             .ToDictionary(
                 g => g.Key,
-                g => g.OrderByDescending(dm => dm.PeriodEnd).First());
+                g => g.OrderByDescending(dm => dm.PeriodEnd).First(),
+                ExternalCompanyMetricKeyComparer.Instance);
+
+        var companyRows = await dbContext.Companies.AsNoTracking()
+            .Where(c => externalCompanyIds.Contains(c.ExternalCompanyId))
+            .ToListAsync(cancellationToken);
+
+        var companyRowByExternalId = companyRows
+            .ToDictionary(c => c.ExternalCompanyId, StringComparer.OrdinalIgnoreCase);
 
         var quoteBySymbol = new Dictionary<string, MarketQuoteObservation>(StringComparer.OrdinalIgnoreCase);
-        if (allCompanySymbolRows.Count > 0)
+        if (companyRows.Count > 0)
         {
             try
             {
-                var symbolCodes = allCompanySymbolRows.Select(s => new SymbolCode(s.SymbolCode)).ToList();
+                // Use Ticker (Persian) for quote resolution; fall back to TseSymbol/CompanySymbol.
+                var symbolCodes = companyRows
+                    .Select(c => CompanyDisplayResolver.FirstNonBlank(c.Ticker, c.TseSymbol, c.CompanySymbol, c.ExternalCompanyId))
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(s => new Domain.Financial.ValueObjects.SymbolCode(s!))
+                    .ToList();
                 var quoteResult = await quoteResolver.ResolveAsync(symbolCodes, cancellationToken);
                 foreach (var obs in quoteResult.Observations)
                     quoteBySymbol[obs.SymbolCode.Value] = obs;
@@ -183,38 +126,38 @@ public sealed class EfCoreSymbolMetricLookupService(
 
         var columns = BuildLookupColumns(uniqueMetricCodes);
         var rows = new List<ScannerTableRow>();
+
         foreach (var name in uniqueSymbolNames)
         {
-            if (!symbolCodeByName.TryGetValue(name, out var symbolCode)) continue;
+            if (!resolvedByName.TryGetValue(name, out var resolved)) continue;
 
-            var symbolRow = resolvedSymbolRows.FirstOrDefault(s =>
-                string.Equals(s.SymbolCode, symbolCode, StringComparison.OrdinalIgnoreCase));
-            if (symbolRow is null) continue;
+            companyRowByExternalId.TryGetValue(resolved.ExternalCompanyId, out var companyRow);
+            var displaySymbol = CompanyDisplayResolver.FirstNonBlank(
+                companyRow?.TseSymbol,
+                resolved.Ticker,
+                companyRow?.CompanySymbol,
+                resolved.ExternalCompanyId) ?? resolved.ExternalCompanyId;
+            var companyName = companyRow?.Name;
 
-            var quote = ResolveQuoteForCompany(symbolRow.CompanyId, allCompanySymbolRows, quoteBySymbol);
-            var company = CompanyDisplayResolver.ResolveCompany(symbolRow, companyLookup);
-            var displaySymbol = CompanyDisplayResolver.GetDisplaySymbol(company, symbolRow);
+            var quote = ResolveQuoteForCompany(resolved, companyRow, quoteBySymbol);
             var cells = BuildCells(
                 columns,
-                symbolRow.CompanyId,
+                resolved.ExternalCompanyId,
                 displaySymbol,
-                company?.Name,
+                companyName,
                 quote,
                 latestByCompanyMetric);
 
             LogPeLookupResult(
                 request.QueryText,
                 name,
-                symbolCode,
-                symbolRow.Id,
-                symbolRow.CompanyId,
-                allCompanySymbolRows,
+                resolved.ExternalCompanyId,
                 latestByCompanyMetric,
                 cells);
 
             rows.Add(new ScannerTableRow(
                 displaySymbol,
-                company?.Name,
+                companyName,
                 cells,
                 Score: 1.0,
                 []));
@@ -297,11 +240,11 @@ public sealed class EfCoreSymbolMetricLookupService(
 
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(
         IReadOnlyCollection<ScannerTableColumn> columns,
-        Guid companyId,
+        string externalCompanyId,
         string displaySymbol,
         string? companyName,
         MarketQuoteObservation? quote,
-        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         var cells = new Dictionary<string, ScannerTableCell>(StringComparer.OrdinalIgnoreCase);
 
@@ -316,16 +259,16 @@ public sealed class EfCoreSymbolMetricLookupService(
                     new ScannerTableCell(null, companyName, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.LatestPrice =>
-                    BuildPriceCell(companyId, quote, latestByCompanyMetric),
+                    BuildPriceCell(externalCompanyId, quote, latestByCompanyMetric),
 
                 ScannerColumnType.DailyChangePercent =>
-                    BuildChangeCell(companyId, quote, latestByCompanyMetric),
+                    BuildChangeCell(externalCompanyId, quote, latestByCompanyMetric),
 
                 ScannerColumnType.MarketCap =>
-                    BuildPersistedMetricCell(companyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
+                    BuildPersistedMetricCell(externalCompanyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
 
                 ScannerColumnType.Metric when column.MetricCode is not null =>
-                    BuildPersistedMetricCell(companyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
+                    BuildPersistedMetricCell(externalCompanyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
 
                 _ => new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null)
             };
@@ -335,9 +278,9 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static ScannerTableCell BuildPriceCell(
-        Guid companyId,
+        string externalCompanyId,
         MarketQuoteObservation? quote,
-        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         if (quote is not null)
         {
@@ -351,7 +294,7 @@ public sealed class EfCoreSymbolMetricLookupService(
                 quote.AsOf);
         }
 
-        if (latestByCompanyMetric.TryGetValue((companyId, "LATEST_PRICE"), out var row) && row.Value is not null)
+        if (latestByCompanyMetric.TryGetValue((externalCompanyId, "LATEST_PRICE"), out var row) && row.Value is not null)
         {
             return new ScannerTableCell(
                 row.Value,
@@ -364,9 +307,9 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static ScannerTableCell BuildChangeCell(
-        Guid companyId,
+        string externalCompanyId,
         MarketQuoteObservation? quote,
-        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         if (quote is not null)
         {
@@ -381,7 +324,7 @@ public sealed class EfCoreSymbolMetricLookupService(
                 quote.AsOf);
         }
 
-        if (latestByCompanyMetric.TryGetValue((companyId, "DAILY_CHANGE_PCT"), out var row) && row.Value is not null)
+        if (latestByCompanyMetric.TryGetValue((externalCompanyId, "DAILY_CHANGE_PCT"), out var row) && row.Value is not null)
         {
             return new ScannerTableCell(
                 row.Value,
@@ -394,12 +337,12 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static ScannerTableCell BuildPersistedMetricCell(
-        Guid companyId,
+        string externalCompanyId,
         string metricCode,
-        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
         Func<decimal, string> formatter)
     {
-        if (!latestByCompanyMetric.TryGetValue((companyId, metricCode), out var row) || row.Value is null)
+        if (!latestByCompanyMetric.TryGetValue((externalCompanyId, metricCode), out var row) || row.Value is null)
             return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
 
         return new ScannerTableCell(
@@ -435,13 +378,22 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static MarketQuoteObservation? ResolveQuoteForCompany(
-        Guid companyId,
-        IReadOnlyCollection<NormalizedSymbolRow> symbols,
+        ResolvedCompany resolved,
+        NormalizedCompanyRow? companyRow,
         IReadOnlyDictionary<string, MarketQuoteObservation> quoteBySymbol)
     {
-        foreach (var symbol in symbols.Where(s => s.CompanyId == companyId))
+        // Try Persian ticker first, then TseSymbol, CompanySymbol, ExternalCompanyId
+        var candidates = new[]
         {
-            if (quoteBySymbol.TryGetValue(symbol.SymbolCode, out var quote))
+            resolved.Ticker,
+            companyRow?.TseSymbol,
+            companyRow?.CompanySymbol,
+            resolved.ExternalCompanyId
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(candidate) && quoteBySymbol.TryGetValue(candidate!, out var quote))
                 return quote;
         }
 
@@ -460,50 +412,38 @@ public sealed class EfCoreSymbolMetricLookupService(
     private void LogPeLookupResolution(
         string? queryText,
         string detectedSymbol,
-        string resolvedSymbol,
+        string externalCompanyId,
         IReadOnlyCollection<string> metricCodes)
     {
         if (!ContainsPeMetric(metricCodes)) return;
 
         logger.LogInformation(
-            "PE lookup symbol resolved. Query={OriginalUserQuery}; DetectedSymbol={DetectedSymbol}; ResolvedSymbol={ResolvedSymbol}; RequestedMetric=PE_TTM",
+            "PE lookup symbol resolved. Query={OriginalUserQuery}; DetectedSymbol={DetectedSymbol}; ResolvedExternalCompanyId={ResolvedExternalCompanyId}; RequestedMetric=PE_TTM",
             queryText,
             detectedSymbol,
-            resolvedSymbol);
+            externalCompanyId);
     }
 
     private void LogPeLookupResult(
         string? queryText,
         string detectedSymbol,
-        string resolvedSymbol,
-        Guid resolvedSymbolId,
-        Guid companyId,
-        IReadOnlyCollection<NormalizedSymbolRow> candidateSymbols,
-        IReadOnlyDictionary<(Guid CompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
+        string externalCompanyId,
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
         IReadOnlyDictionary<string, ScannerTableCell> cells)
     {
         if (!cells.TryGetValue("PE_TTM", out var cell))
             return;
 
-        latestByCompanyMetric.TryGetValue((companyId, "PE_TTM"), out var rawRow);
-        var candidateSymbolIds = string.Join(
-            ",",
-            candidateSymbols
-                .Where(s => s.CompanyId == companyId)
-                .Select(s => s.Id)
-                .Distinct());
+        latestByCompanyMetric.TryGetValue((externalCompanyId, "PE_TTM"), out var rawRow);
 
         if (cell.Value is not null && cell.FreshnessStatus != CellFreshnessStatus.Missing)
         {
             logger.LogInformation(
-                "PE lookup value retrieved. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; NormalizedSymbol={ResolvedSymbol}; ResolvedSymbolId={ResolvedSymbolId}; ResolvedCompanyId={ResolvedCompanyId}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; RawPeTtmValue={RawPeTtmValue}; Freshness={Freshness}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
+                "PE lookup value retrieved. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; ResolvedExternalCompanyId={ResolvedExternalCompanyId}; SqlSource={SqlSource}; RawPeTtmValue={RawPeTtmValue}; Freshness={Freshness}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
                 queryText,
                 detectedSymbol,
-                resolvedSymbol,
-                resolvedSymbolId,
-                companyId,
-                candidateSymbolIds,
-                "DerivedMetrics grouped by Symbols.CompanyId",
+                externalCompanyId,
+                "DerivedMetrics by ExternalCompanyId",
                 rawRow?.Value ?? cell.Value,
                 cell.FreshnessStatus,
                 "PreCalculatedMetric because PE_TTM has a persisted non-missing value.");
@@ -511,16 +451,13 @@ public sealed class EfCoreSymbolMetricLookupService(
         }
 
         var missingReason = rawRow is null
-            ? "NoDerivedMetricRowForResolvedCompanySymbols"
+            ? "NoDerivedMetricRowForResolvedExternalCompanyId"
             : "DerivedMetricValueNull";
 
         LogPeLookupMissing(
             queryText,
             detectedSymbol,
-            resolvedSymbol,
-            resolvedSymbolId,
-            companyId,
-            candidateSymbolIds,
+            externalCompanyId,
             missingReason,
             ["PE_TTM"]);
     }
@@ -528,25 +465,18 @@ public sealed class EfCoreSymbolMetricLookupService(
     private void LogPeLookupMissing(
         string? queryText,
         string detectedSymbol,
-        string? resolvedSymbol,
-        Guid? resolvedSymbolId,
-        Guid? companyId,
-        string? candidateSymbolIds,
+        string? externalCompanyId,
         string reason,
         IReadOnlyCollection<string> metricCodes)
     {
         if (!ContainsPeMetric(metricCodes)) return;
 
         logger.LogWarning(
-            "PE lookup value missing. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; NormalizedSymbol={ResolvedSymbol}; ResolvedSymbolId={ResolvedSymbolId}; ResolvedCompanyId={ResolvedCompanyId}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; RawPeTtmValue={RawPeTtmValue}; MissingReason={MissingReason}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
+            "PE lookup value missing. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; DetectedSymbol={DetectedSymbol}; ResolvedExternalCompanyId={ResolvedExternalCompanyId}; SqlSource={SqlSource}; MissingReason={MissingReason}; ConfidenceDecisionReason={ConfidenceDecisionReason}",
             queryText,
             detectedSymbol,
-            resolvedSymbol,
-            resolvedSymbolId,
-            companyId,
-            candidateSymbolIds,
-            "DerivedMetrics grouped by Symbols.CompanyId",
-            null,
+            externalCompanyId,
+            "DerivedMetrics by ExternalCompanyId",
             reason,
             "MissingDataFallback because PE_TTM has no persisted non-missing value.");
     }
@@ -554,20 +484,16 @@ public sealed class EfCoreSymbolMetricLookupService(
     private void LogPeLookupQueryScope(
         string? queryText,
         IReadOnlyCollection<string> metricCodes,
-        IReadOnlyCollection<string> resolvedCodes,
-        IReadOnlyCollection<Guid> companyIds,
-        IReadOnlyCollection<Guid> symbolIds,
+        IReadOnlyCollection<string> externalCompanyIds,
         IReadOnlyCollection<DerivedMetricRow> derivedRows)
     {
         if (!ContainsPeMetric(metricCodes)) return;
 
         logger.LogInformation(
-            "PE lookup query scope. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; NormalizedSymbols={ResolvedSymbols}; ResolvedCompanyIds={ResolvedCompanyIds}; CandidateSymbolIds={CandidateSymbolIds}; SqlSource={SqlSource}; DerivedMetricRowsRead={DerivedMetricRowsRead}; NonNullPeTtmRowsRead={NonNullPeTtmRowsRead}",
+            "PE lookup query scope. Query={OriginalUserQuery}; NormalizedMetric=PE_TTM; ResolvedExternalCompanyIds={ResolvedExternalCompanyIds}; SqlSource={SqlSource}; DerivedMetricRowsRead={DerivedMetricRowsRead}; NonNullPeTtmRowsRead={NonNullPeTtmRowsRead}",
             queryText,
-            string.Join(",", resolvedCodes),
-            string.Join(",", companyIds),
-            string.Join(",", symbolIds),
-            "DerivedMetrics joined by SymbolId from Symbols for matched company ids",
+            string.Join(",", externalCompanyIds),
+            "DerivedMetrics by ExternalCompanyId",
             derivedRows.Count(row => string.Equals(row.MetricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase)),
             derivedRows.Count(row =>
                 string.Equals(row.MetricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase) &&
@@ -590,5 +516,19 @@ public sealed class EfCoreSymbolMetricLookupService(
             .Select(row => $"PE_TTM is missing for symbol '{row.SymbolCode}'.")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private sealed class ExternalCompanyMetricKeyComparer : IEqualityComparer<(string ExternalCompanyId, string MetricCode)>
+    {
+        public static readonly ExternalCompanyMetricKeyComparer Instance = new();
+
+        public bool Equals((string ExternalCompanyId, string MetricCode) x, (string ExternalCompanyId, string MetricCode) y) =>
+            string.Equals(x.ExternalCompanyId, y.ExternalCompanyId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(x.MetricCode, y.MetricCode, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string ExternalCompanyId, string MetricCode) obj) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.ExternalCompanyId),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.MetricCode));
     }
 }

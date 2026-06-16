@@ -133,26 +133,6 @@ public sealed class NormalizedCompanyRow
     public string? EnTicker { get; set; }
 }
 
-public sealed class NormalizedSymbolRow
-{
-    public Guid Id { get; set; }
-
-    public Guid CompanyId { get; set; }
-
-    public string ProviderName { get; set; } = string.Empty;
-
-    public string ExternalSymbolId { get; set; } = string.Empty;
-
-    public string SymbolCode { get; set; } = string.Empty;
-
-    public DateTimeOffset LastSynchronizedAt { get; set; }
-
-    /// <summary>
-    /// Which identifier produced <see cref="SymbolCode"/> (e.g. <c>SymbolIsin</c>), recorded so
-    /// the canonical value is reproducible/auditable and cross-provider alignment is explainable.
-    /// </summary>
-    public string? LinkageBasis { get; set; }
-}
 
 /// <summary>Industry classification dimension (provider-scoped; ready for future hierarchy).</summary>
 public sealed class NormalizedIndustryRow
@@ -841,7 +821,7 @@ public sealed class DerivedMetricRow
 {
     public Guid Id { get; set; }
 
-    public Guid SymbolId { get; set; }
+    public string ExternalCompanyId { get; set; } = string.Empty;
 
     public string MetricCode { get; set; } = string.Empty;
 
@@ -905,7 +885,7 @@ public sealed class FeatureSnapshotRow
 {
     public Guid Id { get; set; }
 
-    public Guid SymbolId { get; set; }
+    public string ExternalCompanyId { get; set; } = string.Empty;
 
     public string FeatureCode { get; set; } = string.Empty;
 
@@ -944,7 +924,7 @@ public sealed class FeatureComputationJobRow
 
     public string FeatureVersion { get; set; } = string.Empty;
 
-    public Guid? SymbolId { get; set; }
+    public string? ExternalCompanyId { get; set; }
 
     public string PeriodType { get; set; } = string.Empty;
 

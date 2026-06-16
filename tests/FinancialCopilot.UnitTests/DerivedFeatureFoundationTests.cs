@@ -68,7 +68,7 @@ public sealed class DerivedFeatureFoundationTests
             Guid.NewGuid(),
             new FeatureCode("MOMENTUM_SCORE"),
             new FeatureVersion("v1"),
-            Guid.NewGuid(),
+            "EXT-TEST",
             FeatureComputationPeriod.From(Period()),
             "job-period-round-trip",
             DateTimeOffset.Parse("2026-05-27T10:00:00Z"));
@@ -98,7 +98,7 @@ public sealed class DerivedFeatureFoundationTests
         FeatureDefinition definition,
         IReadOnlyCollection<FeatureInputObservation> inputs) =>
         new(
-            Guid.Parse("fe6132a3-d4c1-47d8-a44e-b2126d00d840"),
+            "EXT-FE6132A3",
             definition.Code,
             definition.Version,
             Period(),
@@ -149,7 +149,7 @@ public sealed class DerivedFeatureFoundationTests
             var at = DateTimeOffset.Parse("2026-04-30T12:00:00Z");
             return Task.FromResult(new FeatureSnapshot(
                 Guid.Parse("03ad4097-e838-4cc7-aa63-a08bfe6656bb"),
-                context.SymbolId,
+                context.ExternalCompanyId,
                 new DerivedFeature(
                     context.Definition.Code,
                     context.Definition.Version,

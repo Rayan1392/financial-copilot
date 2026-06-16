@@ -282,8 +282,6 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
     private static void SeedLookupData(FinancialIngestionDbContext db)
     {
         var companyHafariId = Guid.Parse("50000000-0000-0000-0000-100000000001");
-        var staleHafariCompanyId = Guid.Parse("50000000-0000-0000-0000-100000000101");
-        var symbolHafariMetricsId = Guid.Parse("60000000-0000-0000-0000-100000000101");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -294,35 +292,16 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             Name = "حفاری شمال",
             ProviderName = "test",
             ExternalCompanyId = "hafari-v2-001",
+            Ticker = "حفاری",
             TseSymbol = "HAF_TSE",
             CompanySymbol = "HAFARI",
             LastSynchronizedAt = now
         });
 
-        db.Symbols.AddRange(
-            new NormalizedSymbolRow
-            {
-                Id = Guid.Parse("60000000-0000-0000-0000-100000000001"),
-                CompanyId = staleHafariCompanyId,
-                ProviderName = "test",
-                ExternalSymbolId = "hafari-v2-001",
-                SymbolCode = "HAFARI",
-                LastSynchronizedAt = now
-            },
-            new NormalizedSymbolRow
-            {
-                Id = symbolHafariMetricsId,
-                CompanyId = staleHafariCompanyId,
-                ProviderName = "metrics-provider",
-                ExternalSymbolId = "hafari-metrics-v2-001",
-                SymbolCode = "HAFARI_CW",
-                LastSynchronizedAt = now
-            });
-
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolHafariMetricsId,
+            ExternalCompanyId = "hafari-v2-001",
             MetricCode = "PE_TTM",
             MetricVersion = "v1",
             CalculationPolicyVersion = "PE_TTM_v1",
@@ -388,7 +367,6 @@ public sealed class V2InconsistentLookupApiFactory : AiFacadeApiFactory
     private static void SeedLookupData(FinancialIngestionDbContext db)
     {
         var companyId = Guid.Parse("50000000-0000-0000-0000-200000000001");
-        var symbolMetricsId = Guid.Parse("60000000-0000-0000-0000-200000000101");
         var now = DateTimeOffset.UtcNow;
 
         db.Companies.Add(new NormalizedCompanyRow
@@ -402,20 +380,10 @@ public sealed class V2InconsistentLookupApiFactory : AiFacadeApiFactory
             LastSynchronizedAt = now
         });
 
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolMetricsId,
-            CompanyId = companyId,
-            ProviderName = "metrics-provider",
-            ExternalSymbolId = "shabandar-metrics-v2-001",
-            SymbolCode = "شبندر",
-            LastSynchronizedAt = now
-        });
-
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolMetricsId,
+            ExternalCompanyId = "shabandar-v2-001",
             MetricCode = "PE_TTM",
             MetricVersion = "v1",
             CalculationPolicyVersion = "PE_TTM_v1",

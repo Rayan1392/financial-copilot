@@ -38,7 +38,6 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(2, symbolResult.Run.ProcessedRecords);
         Assert.Equal(DataSyncRunStatus.Completed, statementResult.Run.Status);
         Assert.Equal(DataSyncRunStatus.Completed, monthlyResult.Run.Status);
-        Assert.Equal(2, await ingestionDb.Symbols.CountAsync());
         Assert.Single(await ingestionDb.FinancialStatements.ToListAsync());
         Assert.Single(await ingestionDb.MonthlyReports.ToListAsync());
         Assert.Equal(3, await ingestionDb.SyncRuns.CountAsync());
@@ -150,10 +149,7 @@ public sealed class FinancialDataIngestionTests
             provider,
             provider,
             provider,
-            [new CodalDbSymbolNormalizer(
-                ingestionDb,
-                new CanonicalSymbolLinkageResolver(),
-                NullLogger<CodalDbSymbolNormalizer>.Instance)],
+            [new CodalDbSymbolNormalizer(ingestionDb)],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
             NullLogger<FinancialDataSyncProcessor>.Instance,
@@ -182,10 +178,6 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(1, await ingestionDb.Industries.CountAsync());
         Assert.Equal(1, await ingestionDb.IndustryGroups.CountAsync());
         Assert.Equal(1, await ingestionDb.Markets.CountAsync());
-
-        var symbol = await ingestionDb.Symbols.SingleAsync(s => s.ProviderName == ProviderSources.NoavaranArchiveSqlName);
-        Assert.Equal("IRO1FOLD0001", symbol.SymbolCode);
-        Assert.Equal("SymbolIsin", symbol.LinkageBasis);
 
         Assert.Equal(1, await ingestionDb.MetricRecalculationRequests.CountAsync());
     }
@@ -218,10 +210,7 @@ public sealed class FinancialDataIngestionTests
             defaultProvider,
             defaultProvider,
             defaultProvider,
-            [new CodalDbSymbolNormalizer(
-                ingestionDb,
-                new CanonicalSymbolLinkageResolver(),
-                NullLogger<CodalDbSymbolNormalizer>.Instance)],
+            [new CodalDbSymbolNormalizer(ingestionDb)],
             new StoredDerivedMetricRecalculationPublisher(ingestionDb),
             new FixedTimeProvider(Now),
             NullLogger<FinancialDataSyncProcessor>.Instance,
@@ -240,6 +229,30 @@ public sealed class FinancialDataIngestionTests
 
         Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
         Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == ProviderSources.NoavaranArchiveSqlName));
+    }
+
+    [Fact]
+    public async Task Processor_CyclicalWavesSymbolsRequest_CompletesWithoutUpdatingCatalog()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+        var processor = CreateProcessor(providerDb, ingestionDb);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.Symbols,
+                ExternalReference: null,
+                Now,
+                "cyclicalwaves-symbols-noop",
+                ProviderName: ProviderSources.CyclicalWavesName),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.Equal(0, result.Run.ProcessedRecords);
+        Assert.Empty(await providerDb.ProviderRawPayloads.ToListAsync());
+        Assert.Empty(await ingestionDb.Companies.ToListAsync());
+        Assert.Empty(await ingestionDb.MetricRecalculationRequests.ToListAsync());
     }
 
     [Fact]
@@ -262,7 +275,6 @@ public sealed class FinancialDataIngestionTests
         Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
         Assert.Contains("No provider named 'CodalDbb'", result.Run.ErrorMessage);
         Assert.Empty(await providerDb.ProviderRawPayloads.ToListAsync());
-        Assert.Empty(await ingestionDb.Symbols.ToListAsync());
     }
 
     private const string CodalDbCompaniesJson = """

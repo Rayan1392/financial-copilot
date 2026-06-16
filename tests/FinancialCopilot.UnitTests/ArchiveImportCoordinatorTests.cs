@@ -126,29 +126,17 @@ public sealed class ArchiveImportCoordinatorTests
 
     private static void SeedCompany(FinancialIngestionDbContext db, string externalCompanyId, string? canonicalSymbol)
     {
-        var companyId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
-            Id = companyId,
+            Id = Guid.NewGuid(),
             ProviderName = ProviderSources.NoavaranArchiveSqlName,
             ExternalCompanyId = externalCompanyId,
             Name = $"Company {externalCompanyId}",
             LogicalVendor = LogicalVendor.NoavaranAmin.ToString(),
             SourceMode = SourceMode.ArchiveOneTime.ToString(),
+            TseSymbol = canonicalSymbol,
             LastSynchronizedAt = Now
         });
-        if (canonicalSymbol is not null)
-        {
-            db.Symbols.Add(new NormalizedSymbolRow
-            {
-                Id = Guid.NewGuid(),
-                CompanyId = companyId,
-                ProviderName = ProviderSources.NoavaranArchiveSqlName,
-                ExternalSymbolId = externalCompanyId,
-                SymbolCode = canonicalSymbol,
-                LastSynchronizedAt = Now
-            });
-        }
     }
 
     private static void SeedStatement(FinancialIngestionDbContext db, string externalCompanyId, DateOnly periodEnd)

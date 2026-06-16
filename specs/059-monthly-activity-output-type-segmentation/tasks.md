@@ -174,13 +174,22 @@ public interface IMonthlyActivityOutputTypeResolver
 
 Rules:
 - If `hasExplicitMonth == true` → `SingleMonth` (0)
-- Otherwise → `YearToDate` (1) (default for "latest sales" intent)
+- If the query explicitly asks for year-to-date / from fiscal-year start → `YearToDate` (1)
+- If the query asks for latest sales without explicit month qualification → compose the grouped
+  latest-sales view from persisted facts: `SingleMonth` (0), prior fiscal-year same-month
+  `SingleMonth` (0 from the previous year), `YearToDate` (1), and `YearToDatePrevious` (4)
+  when available.
+- Otherwise → `SingleMonth` (0)
 
 Register in DI as `AddSingleton<IMonthlyActivityOutputTypeResolver, DefaultMonthlyActivityOutputTypeResolver>`.
 
 ### Task C-3 — Wire resolver into metric lookup
 
-Identify the metric query path for `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` (spec 057 Phase C metrics) and pass the resolved `OutputType` as a filter when querying `MonthlyReports` and `MonthlyReportLineItems`.
+Identify the metric query path for `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` (spec 057 Phase C metrics) and pass the resolved `OutputType` as a filter when producing persisted aggregate facts. For latest-sales symbol lookup, compose the response from already-persisted aggregates; do not sum `MonthlyReportLineItems` live in the query path.
+
+For the prior fiscal-year same-month value, select the persisted single-month aggregate for the
+same `ExternalCompanyId` and same Shamsi/reporting month one fiscal year earlier. If it is absent,
+return a missing comparable-period value with source/freshness context instead of fabricating it.
 
 This task requires spec 057 Phase C metrics to be implemented first.
 

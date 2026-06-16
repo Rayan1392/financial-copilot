@@ -175,36 +175,26 @@ public sealed class AssistedMetadataApiFactory : AiFacadeApiFactory
                 Name = "Technology",
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             };
-            var alpha = Company("1", "Alpha Company", industry.Id);
-            var beta = Company("2", "Beta Company", industry.Id);
+            var alpha = Company("1", "ALPHA", "Alpha Company", industry.Id);
+            var beta = Company("2", "BETA", "Beta Company", industry.Id);
             db.Industries.Add(industry);
             db.Companies.AddRange(alpha, beta);
-            db.Symbols.AddRange(Symbol(alpha.Id, "ALPHA"), Symbol(beta.Id, "BETA"));
             db.SaveChanges();
             _metadataSeeded = true;
         }
     }
 
-    private static NormalizedCompanyRow Company(string id, string name, Guid industryId) =>
+    private static NormalizedCompanyRow Company(string id, string symbol, string name, Guid industryId) =>
         new()
         {
             Id = Guid.NewGuid(),
             ProviderName = "Test",
             ExternalCompanyId = id,
+            TseSymbol = symbol,
             Name = name,
             NameEnglish = name,
             IndustryId = industryId,
             LastSynchronizedAt = DateTimeOffset.UtcNow
         };
 
-    private static NormalizedSymbolRow Symbol(Guid companyId, string symbolCode) =>
-        new()
-        {
-            Id = Guid.NewGuid(),
-            CompanyId = companyId,
-            ProviderName = "Test",
-            ExternalSymbolId = symbolCode,
-            SymbolCode = symbolCode,
-            LastSynchronizedAt = DateTimeOffset.UtcNow
-        };
 }

@@ -1,6 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
-using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -69,7 +68,6 @@ public sealed class NadpcoApiCompanyNormalizerTests
 
         Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
-        Assert.Equal(1, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
         Assert.Equal(1, await db.Industries.CountAsync(i => i.ProviderName == ProviderName));
         Assert.Equal(1, await db.IndustryGroups.CountAsync(g => g.ProviderName == ProviderName));
         Assert.Equal(1, await db.Markets.CountAsync(m => m.ProviderName == ProviderName));
@@ -126,9 +124,8 @@ public sealed class NadpcoApiCompanyNormalizerTests
         await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
 
         // TseSymbolFirst: CoSymbol (Persian ticker "آبین") wins over InstrumentCode/ISIN.
-        var symbol = await db.Symbols.SingleAsync(s => s.ExternalSymbolId == "13226");
-        Assert.Equal("آبین", symbol.SymbolCode);
-        Assert.Equal("TseSymbol", symbol.LinkageBasis);
+        var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "13226");
+        Assert.Equal("آبین", company.TseSymbol);
     }
 
     [Fact]
@@ -150,9 +147,8 @@ public sealed class NadpcoApiCompanyNormalizerTests
 
         await CreateNormalizer(db, logger).NormalizeAsync(MakePayload(json), CancellationToken.None);
 
-        var symbol = await db.Symbols.SingleAsync();
-        Assert.Equal("IRO1FALL0001", symbol.SymbolCode);
-        Assert.Equal("SymbolIsin", symbol.LinkageBasis);
+        var company = await db.Companies.SingleAsync();
+        Assert.Equal("IRO1FALL0001", company.SymbolIsin);
         Assert.Contains(logger.Messages, message => message.Contains("TseCode was missing"));
     }
 
@@ -167,7 +163,6 @@ public sealed class NadpcoApiCompanyNormalizerTests
         await normalizer.NormalizeAsync(payload, CancellationToken.None);
 
         Assert.Equal(1, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
-        Assert.Equal(1, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
         Assert.Equal(1, await db.Industries.CountAsync(i => i.ProviderName == ProviderName));
     }
 
@@ -199,7 +194,6 @@ public sealed class NadpcoApiCompanyNormalizerTests
         await normalizer.NormalizeAsync(MakePayload(secondCompanyJson), CancellationToken.None);
 
         Assert.Equal(2, await db.Companies.CountAsync(c => c.ProviderName == ProviderName));
-        Assert.Equal(2, await db.Symbols.CountAsync(s => s.ProviderName == ProviderName));
         Assert.NotNull(await db.Companies.SingleOrDefaultAsync(c => c.ExternalCompanyId == "13226"));
         Assert.NotNull(await db.Companies.SingleOrDefaultAsync(c => c.ExternalCompanyId == "99999"));
     }
@@ -219,9 +213,8 @@ public sealed class NadpcoApiCompanyNormalizerTests
         await CreateNormalizer(db, logger).NormalizeAsync(MakePayload(json), CancellationToken.None);
 
         var company = await db.Companies.SingleAsync();
-        var symbol = await db.Symbols.SingleAsync();
         Assert.Equal("Second", company.Name);
-        Assert.Equal("ب", symbol.SymbolCode);
+        Assert.Equal("ب", company.TseSymbol);
         Assert.Contains(logger.Messages, message => message.Contains("conflicting identifiers"));
     }
 
@@ -235,7 +228,6 @@ public sealed class NadpcoApiCompanyNormalizerTests
 
         Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync());
-        Assert.Empty(await db.Symbols.ToListAsync());
     }
 
     [Fact]
@@ -275,7 +267,6 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Equal(ProviderName, result.Run.ProviderName);
         Assert.Single(await providerDb.ProviderRawPayloads.ToListAsync());
         Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == ProviderName));
-        Assert.Equal(1, await ingestionDb.Symbols.CountAsync(s => s.ProviderName == ProviderName));
     }
 
     [Fact]
@@ -284,14 +275,13 @@ public sealed class NadpcoApiCompanyNormalizerTests
         await using var db = CreateIngestionDbContext();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
         var company = await db.Companies.SingleAsync();
-        var symbol = await db.Symbols.SingleAsync();
         var periodStart = new DateOnly(2026, 1, 1);
         var periodEnd = new DateOnly(2026, 3, 31);
 
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbol.Id,
+            ExternalCompanyId = company.ExternalCompanyId,
             MetricCode = "PE_TTM",
             MetricVersion = "v1",
             CalculationPolicyVersion = "v1",
@@ -305,7 +295,7 @@ public sealed class NadpcoApiCompanyNormalizerTests
         db.FeatureSnapshots.Add(new FeatureSnapshotRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbol.Id,
+            ExternalCompanyId = company.ExternalCompanyId,
             FeatureCode = "value",
             FeatureVersion = "v1",
             PolicyVersion = "v1",
@@ -320,7 +310,7 @@ public sealed class NadpcoApiCompanyNormalizerTests
         db.FeatureComputationJobs.Add(new FeatureComputationJobRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbol.Id,
+            ExternalCompanyId = company.ExternalCompanyId,
             FeatureCode = "value",
             FeatureVersion = "v1",
             PeriodType = "TTM",
@@ -362,11 +352,10 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Equal(1, result.FeatureComputationJobsDeleted);
         Assert.Equal(1, result.FeatureSnapshotsDeleted);
         Assert.Equal(1, result.DerivedMetricsDeleted);
-        Assert.Equal(1, result.SymbolsDeleted);
+        Assert.Equal(0, result.SymbolsDeleted);
         Assert.Equal(1, result.TradingInstrumentLinksCleared);
         Assert.Equal(1, result.CompaniesDeleted);
         Assert.Empty(await db.Companies.ToListAsync());
-        Assert.Empty(await db.Symbols.ToListAsync());
         Assert.Empty(await db.DerivedMetrics.ToListAsync());
         Assert.Empty(await db.FeatureSnapshots.ToListAsync());
         Assert.Empty(await db.FeatureComputationJobs.ToListAsync());
@@ -387,7 +376,7 @@ public sealed class NadpcoApiCompanyNormalizerTests
     private static NadpcoApiCompanyNormalizer CreateNormalizer(
         FinancialIngestionDbContext db,
         ILogger<NadpcoApiCompanyNormalizer>? logger = null) =>
-        new(db, new CanonicalSymbolLinkageResolver(), logger ?? NullLogger<NadpcoApiCompanyNormalizer>.Instance);
+        new(db, logger ?? NullLogger<NadpcoApiCompanyNormalizer>.Instance);
 
     private static ProviderRawPayload MakePayload(string json) =>
         new(

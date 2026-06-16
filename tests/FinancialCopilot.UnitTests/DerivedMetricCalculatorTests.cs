@@ -184,7 +184,7 @@ public sealed class DerivedMetricCalculatorTests
 
         var result = await service.CalculateAsync(
             new CalculateDerivedMetricCommand(
-                Guid.NewGuid(),
+                "EXT-TEST",
                 definition.Code,
                 policy.Version,
                 Ttm(),
@@ -207,7 +207,7 @@ public sealed class DerivedMetricCalculatorTests
         var definition = registry.ResolveDefinition(new MetricCode(code), AsOf);
         var policy = new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies)
             .GetPolicy(definition.Code, new CalculationPolicyVersion(policyVersion));
-        return new MetricCalculationContext(Guid.NewGuid(), definition, policy, period, inputs);
+        return new MetricCalculationContext("EXT-TEST", definition, policy, period, inputs);
     }
 
     private static MetricInputObservation Input(

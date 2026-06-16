@@ -215,7 +215,7 @@ public sealed class CodalDbGrowthMetricCalculatorTests
         var definition = registry.ResolveDefinition(new MetricCode(code), AsOf);
         var policy = new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies)
             .GetPolicy(definition.Code, new CalculationPolicyVersion(policyVersion));
-        return new MetricCalculationContext(Guid.NewGuid(), definition, policy, period, inputs);
+        return new MetricCalculationContext("EXT-TEST", definition, policy, period, inputs);
     }
 
     private static MetricInputObservation Obs(string code, FiscalPeriod period, decimal? value) =>

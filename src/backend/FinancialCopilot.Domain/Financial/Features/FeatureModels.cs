@@ -114,7 +114,7 @@ public sealed class FeatureSnapshot
 {
     public FeatureSnapshot(
         Guid id,
-        Guid symbolId,
+        string externalCompanyId,
         DerivedFeature feature,
         FiscalPeriod period,
         decimal? value,
@@ -124,9 +124,14 @@ public sealed class FeatureSnapshot
         IReadOnlyCollection<FeatureDependencyEvidence> dependencyEvidence,
         string inputFingerprint)
     {
-        if (id == Guid.Empty || symbolId == Guid.Empty)
+        if (id == Guid.Empty)
         {
-            throw new ArgumentException("Feature snapshot and symbol identifiers are required.");
+            throw new ArgumentException("Feature snapshot identifier is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(externalCompanyId))
+        {
+            throw new ArgumentException("ExternalCompanyId is required.", nameof(externalCompanyId));
         }
 
         if (string.IsNullOrWhiteSpace(inputFingerprint))
@@ -135,7 +140,7 @@ public sealed class FeatureSnapshot
         }
 
         Id = id;
-        SymbolId = symbolId;
+        ExternalCompanyId = externalCompanyId.Trim();
         Feature = feature ?? throw new ArgumentNullException(nameof(feature));
         Period = period;
         Value = value;
@@ -148,7 +153,7 @@ public sealed class FeatureSnapshot
 
     public Guid Id { get; }
 
-    public Guid SymbolId { get; }
+    public string ExternalCompanyId { get; }
 
     public DerivedFeature Feature { get; }
 
@@ -179,7 +184,7 @@ public sealed record FeatureComputationJob(
     Guid Id,
     FeatureCode FeatureCode,
     FeatureVersion FeatureVersion,
-    Guid? SymbolId,
+    string? ExternalCompanyId,
     FiscalPeriod Period,
     string IdempotencyKey,
     FeatureComputationStatus Status,

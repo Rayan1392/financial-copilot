@@ -22,7 +22,7 @@ public sealed class FeatureRecalculationScheduler(
             request.JobId,
             request.FeatureCode,
             request.FeatureVersion,
-            request.SymbolId,
+            request.ExternalCompanyId,
             request.Period.ToFiscalPeriod(),
             request.IdempotencyKey,
             FeatureComputationStatus.Requested,
@@ -56,7 +56,7 @@ public sealed class FeatureComputationProcessor(
             existing?.Id ?? request.JobId,
             request.FeatureCode,
             request.FeatureVersion,
-            request.SymbolId,
+            request.ExternalCompanyId,
             request.Period.ToFiscalPeriod(),
             request.IdempotencyKey,
             FeatureComputationStatus.Running,
@@ -66,17 +66,17 @@ public sealed class FeatureComputationProcessor(
 
         try
         {
-            var symbolId = request.SymbolId ??
-                throw new InvalidOperationException("Feature calculation requests must identify a symbol.");
+            var externalCompanyId = request.ExternalCompanyId ??
+                throw new InvalidOperationException("Feature calculation requests must identify a company.");
             var definition = await definitionRegistry.ResolveAsync(
                 request.FeatureCode,
                 request.FeatureVersion,
                 cancellationToken);
             var period = request.Period.ToFiscalPeriod();
-            var inputs = await inputReader.LoadAsync(definition, symbolId, period, cancellationToken);
+            var inputs = await inputReader.LoadAsync(definition, externalCompanyId, period, cancellationToken);
             var snapshot = await calculationService.CalculateAsync(
                 new CalculateDerivedFeatureCommand(
-                    symbolId,
+                    externalCompanyId,
                     request.FeatureCode,
                     request.FeatureVersion,
                     period,
@@ -115,7 +115,7 @@ public sealed class NoOpFeatureInputReader : IFeatureInputReader
 {
     public Task<IReadOnlyCollection<FeatureInputObservation>> LoadAsync(
         FeatureDefinition definition,
-        Guid symbolId,
+        string externalCompanyId,
         FiscalPeriod period,
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<FeatureInputObservation>>([]);

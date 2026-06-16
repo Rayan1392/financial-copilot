@@ -95,11 +95,10 @@ public sealed class NadpcoApiFundamentalIndexNormalizerTests
     {
         await using var db = CreateDb();
         await SeedSymbolAsync(db);
-        var symbol = await db.Symbols.SingleAsync(row => row.ExternalSymbolId == ExternalCompanyId);
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbol.Id,
+            ExternalCompanyId = ExternalCompanyId,
             MetricCode = "CURRENT_RATIO",
             MetricVersion = "v1",
             CalculationPolicyVersion = "engine-current-ratio-v1",
@@ -315,22 +314,12 @@ public sealed class NadpcoApiFundamentalIndexNormalizerTests
 
     private static async Task SeedSymbolAsync(FinancialIngestionDbContext db)
     {
-        var companyId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
-            Id = companyId,
+            Id = Guid.NewGuid(),
             ProviderName = ProviderName,
             ExternalCompanyId = ExternalCompanyId,
             Name = "Gol Gohar",
-            LastSynchronizedAt = Now
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = Guid.NewGuid(),
-            CompanyId = companyId,
-            ProviderName = ProviderName,
-            ExternalSymbolId = ExternalCompanyId,
-            SymbolCode = "GOLG",
             LastSynchronizedAt = Now
         });
         await db.SaveChangesAsync();

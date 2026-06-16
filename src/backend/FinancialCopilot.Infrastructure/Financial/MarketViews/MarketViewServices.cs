@@ -99,13 +99,14 @@ public sealed class WatchlistService(
             throw new ArgumentException($"The active subscription plan allows at most {limit} watchlist symbols.", nameof(symbols));
         }
 
+        // Spec 068: Symbols table removed. Fall back to Companies rows for symbol validation.
         var knownSymbols = await dbContext.TradingInstruments
             .AsNoTracking()
             .Where(row => row.IsActive && normalized.Contains(row.Symbol))
             .Select(row => row.Symbol)
-            .Union(dbContext.Symbols.AsNoTracking()
-                .Where(row => normalized.Contains(row.SymbolCode))
-                .Select(row => row.SymbolCode))
+            .Union(dbContext.Companies.AsNoTracking()
+                .Where(row => row.TseSymbol != null && normalized.Contains(row.TseSymbol))
+                .Select(row => row.TseSymbol!))
             .ToArrayAsync(cancellationToken);
         var known = knownSymbols.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var unknown = normalized.Where(symbol => !known.Contains(symbol)).ToArray();

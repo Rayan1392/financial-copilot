@@ -9,43 +9,36 @@ public sealed class NadpcoCompanyCatalogCleanSlateService(FinancialIngestionDbCo
 {
     public async Task<NadpcoCompanyCatalogCleanSlateResult> ClearAsync(CancellationToken cancellationToken)
     {
-        var companyIds = await dbContext.Companies
-            .Select(row => row.Id)
-            .ToListAsync(cancellationToken);
-        if (companyIds.Count == 0)
+        // Spec 068: Symbols table removed. DerivedMetrics/FeatureSnapshots/FeatureComputationJobs
+        // are now keyed by ExternalCompanyId (string), not SymbolId (Guid).
+        var companies = await dbContext.Companies.ToListAsync(cancellationToken);
+        if (companies.Count == 0)
         {
             return new NadpcoCompanyCatalogCleanSlateResult(0, 0, 0, 0, 0, 0, 0);
         }
 
-        var symbolIds = await dbContext.Symbols
-            .Where(row => companyIds.Contains(row.CompanyId))
-            .Select(row => row.Id)
-            .ToListAsync(cancellationToken);
+        var externalCompanyIds = companies.Select(c => c.ExternalCompanyId).ToList();
+        var companyIds = companies.Select(c => c.Id).ToList();
 
         var metricRequests = await dbContext.MetricRecalculationRequests
             .ToListAsync(cancellationToken);
         var jobs = await dbContext.FeatureComputationJobs
-            .Where(row => row.SymbolId.HasValue && symbolIds.Contains(row.SymbolId.Value))
+            .Where(row => row.ExternalCompanyId != null && externalCompanyIds.Contains(row.ExternalCompanyId))
             .ToListAsync(cancellationToken);
         var featureSnapshots = await dbContext.FeatureSnapshots
-            .Where(row => symbolIds.Contains(row.SymbolId))
+            .Where(row => externalCompanyIds.Contains(row.ExternalCompanyId))
             .ToListAsync(cancellationToken);
         var derivedMetrics = await dbContext.DerivedMetrics
-            .Where(row => symbolIds.Contains(row.SymbolId))
-            .ToListAsync(cancellationToken);
-        var symbols = await dbContext.Symbols
-            .Where(row => companyIds.Contains(row.CompanyId))
+            .Where(row => externalCompanyIds.Contains(row.ExternalCompanyId))
             .ToListAsync(cancellationToken);
         var tradingInstruments = await dbContext.TradingInstruments
             .Where(row => row.NormalizedCompanyId.HasValue && companyIds.Contains(row.NormalizedCompanyId.Value))
             .ToListAsync(cancellationToken);
-        var companies = await dbContext.Companies.ToListAsync(cancellationToken);
 
         dbContext.MetricRecalculationRequests.RemoveRange(metricRequests);
         dbContext.FeatureComputationJobs.RemoveRange(jobs);
         dbContext.FeatureSnapshots.RemoveRange(featureSnapshots);
         dbContext.DerivedMetrics.RemoveRange(derivedMetrics);
-        dbContext.Symbols.RemoveRange(symbols);
         foreach (var instrument in tradingInstruments)
         {
             instrument.NormalizedCompanyId = null;
@@ -60,7 +53,7 @@ public sealed class NadpcoCompanyCatalogCleanSlateService(FinancialIngestionDbCo
             jobs.Count,
             featureSnapshots.Count,
             derivedMetrics.Count,
-            symbols.Count,
+            SymbolsDeleted: 0, // Spec 068: Symbols table removed
             tradingInstruments.Count,
             companies.Count);
     }

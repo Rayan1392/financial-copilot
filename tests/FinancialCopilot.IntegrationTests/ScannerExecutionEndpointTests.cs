@@ -179,8 +179,8 @@ public sealed class ScannerExecutionEndpointTests : IClassFixture<ScannerExecuti
             .GetProperty("scannerTable")
             .GetProperty("executionFacts");
 
-        // 3 symbols total seeded; 2 match PE < 6
-        Assert.Equal(3, facts.GetProperty("totalSymbolsEvaluated").GetInt32());
+        // 4 companies seeded; 2 match PE < 6 (company-live PE=3.5, company-stale-fallback PE=4.8)
+        Assert.Equal(4, facts.GetProperty("totalSymbolsEvaluated").GetInt32());
         Assert.Equal(2, facts.GetProperty("matchingSymbolCount").GetInt32());
         Assert.False(facts.GetProperty("fromCache").GetBoolean());
     }
@@ -340,15 +340,12 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
         var companyHighPeId = Guid.Parse("10000000-0000-0000-0000-000000000003");
         var staleFallbackCompanyId = Guid.Parse("10000000-0000-0000-0000-000000000102");
 
-        var symbolLiveId = Guid.Parse("20000000-0000-0000-0000-000000000001");
-        var symbolFallbackId = Guid.Parse("20000000-0000-0000-0000-000000000002");
-        var symbolHighPeId = Guid.Parse("20000000-0000-0000-0000-000000000003");
-
         db.Companies.AddRange(
             new NormalizedCompanyRow
             {
                 Id = companyLiveId, Name = "Live Corp",
                 ProviderName = "test", ExternalCompanyId = "company-live",
+                CompanySymbol = "LIVE",
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             },
             new NormalizedCompanyRow
@@ -360,11 +357,9 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
             },
             new NormalizedCompanyRow
             {
-                // staleFallbackCompanyId is the company that symbolFallbackId actually references —
-                // it is intentionally a different Id from companyFallbackId to exercise the
-                // stale-company-link path in the scanner.
                 Id = staleFallbackCompanyId, Name = "Stale Fallback Corp",
                 ProviderName = "test", ExternalCompanyId = "company-stale-fallback",
+                CompanySymbol = "FALLBACK",
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             },
             new NormalizedCompanyRow
@@ -374,30 +369,8 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
                 LastSynchronizedAt = DateTimeOffset.UtcNow
             });
 
-        db.Symbols.AddRange(
-            new NormalizedSymbolRow
-            {
-                Id = symbolLiveId, CompanyId = companyLiveId,
-                ProviderName = "test", ExternalSymbolId = "sym-live",
-                SymbolCode = "LIVE", LastSynchronizedAt = DateTimeOffset.UtcNow
-            },
-            new NormalizedSymbolRow
-            {
-                Id = symbolFallbackId, CompanyId = staleFallbackCompanyId,
-                ProviderName = "test", ExternalSymbolId = "sym-fallback",
-                SymbolCode = "FALLBACK", LastSynchronizedAt = DateTimeOffset.UtcNow
-            },
-            new NormalizedSymbolRow
-            {
-                Id = symbolHighPeId, CompanyId = companyHighPeId,
-                ProviderName = "test", ExternalSymbolId = "sym-highpe",
-                SymbolCode = "HIGHPE", LastSynchronizedAt = DateTimeOffset.UtcNow
-            });
-
         // TradingInstruments + LatestMarketQuotes for PersistedMarketDataProvider.
         // The join path is: LatestMarketQuotes → TradingInstruments.NormalizedCompanyId → Companies.Id
-        //                   ← Symbols.CompanyId — so instrument.NormalizedCompanyId must match the
-        //                   company that the symbol references.
         var instrLive = SeedInstrument(db, companyLiveId, "LIVE");
         var instrFallback = SeedInstrument(db, staleFallbackCompanyId, "FALLBACK");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -425,18 +398,18 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
 
         db.DerivedMetrics.AddRange(
             // PE_TTM: LIVE=3.5, FALLBACK=4.8, HIGHPE=12.0
-            MakeDerivedMetric(symbolLiveId, "PE_TTM", 3.5m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolFallbackId, "PE_TTM", 4.8m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolHighPeId, "PE_TTM", 12.0m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-live", "PE_TTM", 3.5m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-stale-fallback", "PE_TTM", 4.8m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-highpe", "PE_TTM", 12.0m, periodStart, periodEnd, now),
 
             // NET_PROFIT_GROWTH_YOY: LIVE=75%, FALLBACK=30%
-            MakeDerivedMetric(symbolLiveId, "NET_PROFIT_GROWTH_YOY", 75m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolFallbackId, "NET_PROFIT_GROWTH_YOY", 30m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-live", "NET_PROFIT_GROWTH_YOY", 75m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-stale-fallback", "NET_PROFIT_GROWTH_YOY", 30m, periodStart, periodEnd, now),
 
             // MARKET_CAP
-            MakeDerivedMetric(symbolLiveId, "MARKET_CAP", 5_000_000_000m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolFallbackId, "MARKET_CAP", 2_000_000_000m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolHighPeId, "MARKET_CAP", 800_000_000m, periodStart, periodEnd, now));
+            MakeDerivedMetric("company-live", "MARKET_CAP", 5_000_000_000m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-stale-fallback", "MARKET_CAP", 2_000_000_000m, periodStart, periodEnd, now),
+            MakeDerivedMetric("company-highpe", "MARKET_CAP", 800_000_000m, periodStart, periodEnd, now));
     }
 
     private static TradingInstrumentRow SeedInstrument(FinancialIngestionDbContext db, Guid normalizedCompanyId, string symbol)
@@ -462,7 +435,7 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
     }
 
     private static DerivedMetricRow MakeDerivedMetric(
-        Guid symbolId,
+        string externalCompanyId,
         string metricCode,
         decimal value,
         DateOnly periodStart,
@@ -471,7 +444,7 @@ public class ScannerExecutionApiFactory : AiFacadeApiFactory
         new()
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolId,
+            ExternalCompanyId = externalCompanyId,
             MetricCode = metricCode,
             MetricVersion = "v1",
             CalculationPolicyVersion = $"{metricCode}_v1",
@@ -649,7 +622,6 @@ public sealed class CodalDbRatioScannerApiFactory : AiFacadeApiFactory
     private static void SeedTestData(FinancialIngestionDbContext db)
     {
         var companyId = Guid.Parse("30000000-0000-0000-0000-000000000001");
-        var symbolId  = Guid.Parse("40000000-0000-0000-0000-000000000001");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2024, 4, 1);
         var periodEnd   = new DateOnly(2025, 3, 31);
@@ -658,23 +630,18 @@ public sealed class CodalDbRatioScannerApiFactory : AiFacadeApiFactory
         {
             Id = companyId, Name = "Codal Company One",
             ProviderName = "CodalDb", ExternalCompanyId = "3001",
+            CompanySymbol = "CODAL1",
             LastSynchronizedAt = now
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId, CompanyId = companyId,
-            ProviderName = "CodalDb", ExternalSymbolId = "3001",
-            SymbolCode = "CODAL1", LastSynchronizedAt = now
         });
 
         // ROE = 18.5% (CodalDB vendor-precomputed) — qualifies for "ROE > 15"
-        db.DerivedMetrics.Add(MakeVendorRatio(symbolId, "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
+        db.DerivedMetrics.Add(MakeVendorRatio("3001", "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
         // CURRENT_RATIO = 2.3 — qualifies for "current ratio > 1"
-        db.DerivedMetrics.Add(MakeVendorRatio(symbolId, "CURRENT_RATIO", 2.3m, periodStart, periodEnd, now));
+        db.DerivedMetrics.Add(MakeVendorRatio("3001", "CURRENT_RATIO", 2.3m, periodStart, periodEnd, now));
         // MARKET_CAP for default columns
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
-            Id = Guid.NewGuid(), SymbolId = symbolId,
+            Id = Guid.NewGuid(), ExternalCompanyId = "3001",
             MetricCode = "MARKET_CAP", MetricVersion = "v1", CalculationPolicyVersion = "mktcap_v1",
             PeriodType = "TwelveMonths", PeriodStart = periodStart, PeriodEnd = periodEnd,
             Value = 3_000_000_000m, Unit = "Amount",
@@ -684,12 +651,12 @@ public sealed class CodalDbRatioScannerApiFactory : AiFacadeApiFactory
     }
 
     private static DerivedMetricRow MakeVendorRatio(
-        Guid symbolId, string metricCode, decimal value,
+        string externalCompanyId, string metricCode, decimal value,
         DateOnly periodStart, DateOnly periodEnd, DateTimeOffset now) =>
         new()
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolId,
+            ExternalCompanyId = externalCompanyId,
             MetricCode = metricCode,
             MetricVersion = "v1",
             CalculationPolicyVersion = "codal-ratio-source-v1",
@@ -824,7 +791,6 @@ public sealed class NadpcoFundamentalIndexScannerApiFactory : AiFacadeApiFactory
     private static void SeedTestData(FinancialIngestionDbContext db)
     {
         var companyId = Guid.Parse("30000000-0000-0000-0000-000000000041");
-        var symbolId = Guid.Parse("40000000-0000-0000-0000-000000000041");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2021, 3, 21);
         var periodEnd = new DateOnly(2021, 9, 22);
@@ -835,21 +801,13 @@ public sealed class NadpcoFundamentalIndexScannerApiFactory : AiFacadeApiFactory
             Name = "NADPCO Company One",
             ProviderName = "NadpcoApi",
             ExternalCompanyId = "4",
-            LastSynchronizedAt = now
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId,
-            CompanyId = companyId,
-            ProviderName = "NadpcoApi",
-            ExternalSymbolId = "4",
-            SymbolCode = "NADPCO1",
+            CompanySymbol = "NADPCO1",
             LastSynchronizedAt = now
         });
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolId,
+            ExternalCompanyId = "4",
             MetricCode = "CURRENT_RATIO",
             MetricVersion = "v1",
             CalculationPolicyVersion = "nadpco-api-fundamental-index-source-v1",

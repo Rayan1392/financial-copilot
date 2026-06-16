@@ -47,22 +47,12 @@ public sealed class CodalDbRatioNormalizerTests
 
     private static async Task SeedSymbolAsync(FinancialIngestionDbContext db, string externalCompanyId)
     {
-        var companyId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
-            Id = companyId,
+            Id = Guid.NewGuid(),
             Name = "Test Co",
             ProviderName = ProviderName,
             ExternalCompanyId = externalCompanyId,
-            LastSynchronizedAt = DateTimeOffset.UtcNow
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = Guid.NewGuid(),
-            CompanyId = companyId,
-            ProviderName = ProviderName,
-            ExternalSymbolId = externalCompanyId,
-            SymbolCode = $"SYM{externalCompanyId}",
             LastSynchronizedAt = DateTimeOffset.UtcNow
         });
         await db.SaveChangesAsync();
@@ -131,13 +121,12 @@ public sealed class CodalDbRatioNormalizerTests
     {
         await using var db = CreateDb();
         await SeedSymbolAsync(db, ExternalCompanyId);
-        var symbol = await db.Symbols.SingleAsync(s => s.ExternalSymbolId == ExternalCompanyId);
 
         // Seed an engine-calculated ROE row with a different policy version.
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbol.Id,
+            ExternalCompanyId = ExternalCompanyId,
             MetricCode = "RETURN_ON_EQUITY",
             MetricVersion = "v1",
             CalculationPolicyVersion = "roe-engine-v1", // different policy

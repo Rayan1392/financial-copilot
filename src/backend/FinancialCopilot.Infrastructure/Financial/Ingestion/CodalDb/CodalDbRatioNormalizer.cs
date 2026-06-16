@@ -9,25 +9,9 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 
 /// <summary>
-/// Normalizes the CodalDB <c>FinancialRatios</c> payload (a JSON array of <see cref="CodalRatioRow"/>
-/// for one company) into <c>DerivedMetricRow</c>s with
-/// <c>CalculationPolicyVersion = "codal-ratio-source-v1"</c>.
-/// <para>
-/// Each mapped ratio value is persisted as a <em>vendor-precomputed</em> observation so the scanner
-/// can query it through the existing <c>DerivedMetrics</c> read path with no engine changes. These
-/// rows never overwrite engine-calculated metrics because they use a distinct
-/// <c>CalculationPolicyVersion</c>.
-/// </para>
-/// <para>
-/// Canonical variant selection per <c>(PeriodEnd.Date, PeriodType, ItemId)</c> group follows the
-/// same priority as <see cref="CodalDbStatementSelectionPolicy"/>: audited → latest representment
-/// → consolidated/parent by configuration → lowest row Id tie-break.
-/// </para>
-/// <para>
-/// Idempotent on the <c>DerivedMetricRow</c> unique key
-/// <c>(SymbolId, MetricCode, MetricVersion, CalculationPolicyVersion, PeriodEnd)</c>.
-/// If the company's symbol has not yet been synced (spec 022), the row is skipped with a warning.
-/// </para>
+/// Normalizes the CodalDB <c>FinancialRatios</c> payload into <c>DerivedMetricRow</c>s keyed by
+/// <c>ExternalCompanyId</c> (NADPCO coID). Idempotent on
+/// <c>(ExternalCompanyId, MetricCode, MetricVersion, CalculationPolicyVersion, PeriodEnd)</c>.
 /// </summary>
 public sealed class CodalDbRatioNormalizer(
     FinancialIngestionDbContext dbContext,
@@ -48,12 +32,11 @@ public sealed class CodalDbRatioNormalizer(
 
         var externalCompanyId = payload.ExternalReference;
 
-        // Resolve the symbol once; skip entire payload if symbol not yet synced.
-        var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
-            s => s.ProviderName == ProviderName && s.ExternalSymbolId == externalCompanyId,
-            cancellationToken);
+        // Verify the company exists in the catalog; skip payload if not yet synced.
+        var companyExists = await dbContext.Companies.AsNoTracking()
+            .AnyAsync(c => c.ExternalCompanyId == externalCompanyId, cancellationToken);
 
-        if (symbol is null)
+        if (!companyExists)
         {
             return new NormalizationOutcome(0);
         }
@@ -75,7 +58,7 @@ public sealed class CodalDbRatioNormalizer(
                 row.JalaliPeriodEnd, row.JalaliFiscalYearEnd);
 
             await UpsertDerivedMetricRowAsync(
-                symbol.Id,
+                externalCompanyId,
                 metricCode,
                 unitKey,
                 (decimal)row.ItemValue,
@@ -92,7 +75,7 @@ public sealed class CodalDbRatioNormalizer(
     }
 
     private async Task UpsertDerivedMetricRowAsync(
-        Guid symbolId,
+        string externalCompanyId,
         string metricCode,
         string unitKey,
         decimal value,
@@ -104,7 +87,7 @@ public sealed class CodalDbRatioNormalizer(
         var periodEnd = period.PeriodEnd;
 
         var existing = await dbContext.DerivedMetrics.SingleOrDefaultAsync(
-            row => row.SymbolId == symbolId
+            row => row.ExternalCompanyId == externalCompanyId
                 && row.MetricCode == metricCode
                 && row.MetricVersion == MetricVersion
                 && row.CalculationPolicyVersion == CodalDbRatioItemMap.CalculationPolicyVersion
@@ -116,7 +99,7 @@ public sealed class CodalDbRatioNormalizer(
             existing = new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = externalCompanyId,
                 MetricCode = metricCode,
                 MetricVersion = MetricVersion,
                 CalculationPolicyVersion = CodalDbRatioItemMap.CalculationPolicyVersion,
@@ -136,11 +119,6 @@ public sealed class CodalDbRatioNormalizer(
         existing.DependencyEvidenceJson = "[]";
     }
 
-    /// <summary>
-    /// Selects one canonical variant per <c>(PeriodEnd.Date, PeriodType, ItemId)</c> group using
-    /// the same priority as <see cref="CodalDbStatementSelectionPolicy"/>:
-    /// audited → representment → consolidated/parent → lowest Id.
-    /// </summary>
     private static IReadOnlyList<CodalRatioRow> SelectCanonicalVariants(
         IReadOnlyList<CodalRatioRow> rows,
         bool preferConsolidated) =>

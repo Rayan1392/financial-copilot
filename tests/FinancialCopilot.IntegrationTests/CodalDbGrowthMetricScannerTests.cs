@@ -124,7 +124,6 @@ public sealed class CodalDbGrowthScannerApiFactory : AiFacadeApiFactory
     private static void SeedTestData(FinancialIngestionDbContext db)
     {
         var companyId = Guid.Parse("50000000-0000-0000-0000-000000000001");
-        var symbolId  = Guid.Parse("60000000-0000-0000-0000-000000000001");
         var now = DateTimeOffset.UtcNow;
         var pStart = new DateOnly(2025, 1, 1);
         var pEnd   = new DateOnly(2025, 3, 31);
@@ -133,19 +132,14 @@ public sealed class CodalDbGrowthScannerApiFactory : AiFacadeApiFactory
         {
             Id = companyId, Name = "Codal Growth Co",
             ProviderName = "CodalDb", ExternalCompanyId = "5001",
+            CompanySymbol = "CODAL2",
             LastSynchronizedAt = now
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId, CompanyId = companyId,
-            ProviderName = "CodalDb", ExternalSymbolId = "5001",
-            SymbolCode = "CODAL2", LastSynchronizedAt = now
         });
 
         // Engine-derived EPS_GROWTH_YOY (distinct policy version from vendor ratios).
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
-            Id = Guid.NewGuid(), SymbolId = symbolId,
+            Id = Guid.NewGuid(), ExternalCompanyId = "5001",
             MetricCode = "EPS_GROWTH_YOY", MetricVersion = "v1",
             CalculationPolicyVersion = "yoy-eps-engine-v1",
             PeriodType = "ThreeMonths", PeriodStart = pStart, PeriodEnd = pEnd,
@@ -157,7 +151,7 @@ public sealed class CodalDbGrowthScannerApiFactory : AiFacadeApiFactory
         // Vendor-precomputed SALES_GROWTH_RATE (codal-ratio-source-v1).
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
-            Id = Guid.NewGuid(), SymbolId = symbolId,
+            Id = Guid.NewGuid(), ExternalCompanyId = "5001",
             MetricCode = "SALES_GROWTH_RATE", MetricVersion = "v1",
             CalculationPolicyVersion = "codal-ratio-source-v1",
             PeriodType = "ThreeMonths", PeriodStart = pStart, PeriodEnd = pEnd,
@@ -171,7 +165,7 @@ public sealed class CodalDbGrowthScannerApiFactory : AiFacadeApiFactory
         // MARKET_CAP for default scanner columns.
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
-            Id = Guid.NewGuid(), SymbolId = symbolId,
+            Id = Guid.NewGuid(), ExternalCompanyId = "5001",
             MetricCode = "MARKET_CAP", MetricVersion = "v1", CalculationPolicyVersion = "mktcap_v1",
             PeriodType = "ThreeMonths", PeriodStart = pStart, PeriodEnd = pEnd,
             Value = 2_000_000_000m, Unit = "Amount",

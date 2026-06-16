@@ -15,7 +15,7 @@ The Noavaran Amin (NADPCO) monthly activity endpoint for product sales accepts a
 | 3 | From fiscal year start to previous month, adjusted (از ابتدای سال مالی تا ماه گذشته اصلاح‌شده) | تا ماه گذشته (اصلاح‌شده) |
 | 4 | From fiscal year start to previous month (از ابتدای سال مالی تا ماه گذشته) | تا ماه گذشته |
 
-Currently the system only calls `outputTypeId=0` (single-month period) for product sales. All five output types contain materially different numbers: type 0 gives a monthly slice, type 1 gives a cumulative year-to-date figure. When the AI query layer answers "آخرین فروش کگل" ("latest sales of KEGOL") the user almost always expects the year-to-date cumulative figure (type 1), not just the last calendar month (type 0).
+Currently the system only calls `outputTypeId=0` (single-month period) for product sales. All five output types contain materially different numbers: type 0 gives a monthly slice, type 1 gives a cumulative year-to-date figure, and type 4 gives fiscal-year-to-previous-month. When the AI query layer answers "آخرین فروش کگل" ("latest sales of KEGOL"), the current required behavior is a grouped sales view: latest single-month sales (type 0), same reporting month in the previous fiscal year when available (type 0 from the prior year), fiscal-year-to-date sales (type 1), and fiscal-year-to-previous-month sales (type 4).
 
 Without storing all five types separately, the query layer cannot answer:
 - Cumulative year-to-date sales without fetching type 1
@@ -58,16 +58,17 @@ Without storing all five types separately, the query layer cannot answer:
 ### Story C — AI query routing by output type
 
 **As a** user querying the AI assistant,  
-**I want** the system to automatically select the correct output type based on my intent  
-**so that** "آخرین فروش" returns year-to-date cumulative (type 1) by default, while "فروش فروردین ۱۴۰۵" returns the single-month figure (type 0).
+**I want** the system to automatically select or combine the correct output types based on my intent  
+**so that** "آخرین فروش" returns the grouped sales view, while "فروش فروردین ۱۴۰۵" returns the single-month figure (type 0).
 
 **Acceptance criteria:**
 
 1. A `MonthlyActivityOutputTypeResolver` service (Application layer) maps a `MonthlyActivityQueryIntent` (enum: `SingleMonth`, `YearToDate`, `Adjustment`, `YearToDateAdjusted`, `YearToDatePrevious`) to an `outputTypeId` integer.
-2. When a metric query is for "latest sales" or "year-to-date" without explicit month qualification, `YearToDate` (type 1) is selected.
-3. When a metric query references a specific Shamsi month explicitly (e.g., "فروردین 1405"), `SingleMonth` (type 0) is selected.
-4. The scanner and symbol-lookup metric resolution layer uses the resolver when retrieving `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` metrics.
-5. Story C is a separate milestone and **must not block** Story A or Story B delivery.
+2. When a metric query is for "latest sales" without explicit month qualification, the response composes the persisted `SingleMonth` (type 0), prior fiscal-year same-month `SingleMonth` (type 0 from the prior year), `YearToDate` (type 1), and `YearToDatePrevious` (type 4) facts when available.
+3. When a metric query is specifically for "year-to-date" / "from the beginning of fiscal year", `YearToDate` (type 1) is selected.
+4. When a metric query references a specific Shamsi month explicitly (e.g., "فروردین 1405"), `SingleMonth` (type 0) is selected.
+5. The scanner and symbol-lookup metric resolution layer uses the resolver when retrieving `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` metrics.
+6. Story C is a separate milestone and **must not block** Story A or Story B delivery.
 
 ## Out of Scope
 
@@ -90,4 +91,4 @@ Without storing all five types separately, the query layer cannot answer:
 
 ## Priority
 
-**High.** Without output type segmentation, the AI query layer defaults to single-month data (type 0), which does not match user expectation for "latest sales" queries. Type 1 (year-to-date) is the most commercially meaningful figure and is required before the scanner can accurately answer cumulative production/sales questions.
+**High.** Without output type segmentation, the AI query layer can only return a single sales number, which does not match the current expectation for "latest sales" queries. Type 0, prior fiscal-year same-month type 0, type 1, and type 4 are all needed before the assistant can accurately answer Noavaran production/sales questions.

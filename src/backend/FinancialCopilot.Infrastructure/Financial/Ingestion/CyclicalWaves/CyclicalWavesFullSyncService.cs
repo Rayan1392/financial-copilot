@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -20,29 +21,18 @@ public sealed class CyclicalWavesFullSyncService(
     {
         var started = timeProvider.GetUtcNow();
 
-        // Step 1: sync the symbol list
-        logger.LogInformation("CyclicalWaves full sync — starting symbol sync.");
-        var symbolRun = await processor.ProcessAsync(
-            new DataSyncRequest(
-                Guid.NewGuid(),
-                ProviderDataset.Symbols,
-                null,
-                timeProvider.GetUtcNow(),
-                $"cw-symbols:{Guid.NewGuid():N}"),
-            cancellationToken);
-
-        var symbolsSynced = symbolRun.Run.ProcessedRecords;
-        logger.LogInformation(
-            "CyclicalWaves symbol sync complete — {Count} symbols.",
-            symbolsSynced);
-
-        // Step 2: load all CyclicalWaves tickers from DB, keep only Persian symbols
-        var tickers = (await dbContext.Symbols
+        // Spec 068: CyclicalWaves must not update Companies/Symbols from its ticker list.
+        // Use the existing NADPCO-owned company catalog as the source of ticker work items.
+        var tickerCandidates = await NoavaranCompanyScope
+            .EligibleCompanies(dbContext, NadpcoApiCompanyNormalizer.NadpcoApiProviderName)
             .AsNoTracking()
-            .Where(s => s.ProviderName == CyclicalWavesProvider)
-            .Select(s => s.ExternalSymbolId)
+            .Select(c => c.Ticker ?? c.CompanySymbol ?? c.TseSymbol)
             .Distinct()
-            .ToListAsync(cancellationToken))
+            .ToListAsync(cancellationToken);
+        var tickers = tickerCandidates
+            .Select(t => t?.Trim())
+            .OfType<string>()
+            .Where(t => t.Length > 0)
             .Where(t => t.Any(c => c is >= '؀' and <= 'ۿ'))
             .ToList();
 
@@ -84,7 +74,7 @@ public sealed class CyclicalWavesFullSyncService(
             duration);
 
         return new CyclicalWavesFullSyncResult(
-            symbolsSynced,
+            SymbolsSynced: 0,
             succeeded,
             failed.Count,
             failed.Order().ToArray(),

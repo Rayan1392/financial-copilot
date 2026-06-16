@@ -42,64 +42,67 @@ public sealed class EfCoreScannerExecutionService(
 
         var allRequiredCodes = conditionCodes.Union(displayMetricCodes, StringComparer.OrdinalIgnoreCase).ToList();
 
-        var symbolRows = await dbContext.Symbols.AsNoTracking().ToListAsync(cancellationToken);
-        var totalSymbolCount = symbolRows.Count;
+        // Use Companies as the universe — each company with an ExternalCompanyId is a candidate
+        var companyRows = await dbContext.Companies.AsNoTracking()
+            .Where(c => c.ExternalCompanyId != null && c.ExternalCompanyId != string.Empty)
+            .ToListAsync(cancellationToken);
+        var totalCompanyCount = companyRows.Count;
 
-        if (totalSymbolCount == 0 || !plan.Conditions.Any())
+        if (totalCompanyCount == 0 || !plan.Conditions.Any())
         {
             await TryCollectMissingAnswerFeedbackAsync(
                 request,
                 plan,
-                totalSymbolCount,
-                matchedSymbolCount: 0,
+                totalCompanyCount,
+                matchedCompanyCount: 0,
                 cancellationToken);
-            return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), totalSymbolCount);
+            return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), totalCompanyCount);
         }
 
-        var companyLookup = await CompanyDisplayResolver.BuildLookupAsync(
-            dbContext,
-            symbolRows,
-            cancellationToken);
-
-        var symbolIds = symbolRows.Select(s => s.Id).ToList();
+        var externalCompanyIds = companyRows.Select(c => c.ExternalCompanyId).ToList();
         var derivedRows = await dbContext.DerivedMetrics.AsNoTracking()
-            .Where(dm => symbolIds.Contains(dm.SymbolId) && allRequiredCodes.Contains(dm.MetricCode))
+            .Where(dm => externalCompanyIds.Contains(dm.ExternalCompanyId) && allRequiredCodes.Contains(dm.MetricCode))
             .ToListAsync(cancellationToken);
 
-        // Latest row per (SymbolId, MetricCode) — highest PeriodEnd wins
-        var latestBySymbolMetric = derivedRows
-            .GroupBy(dm => (dm.SymbolId, dm.MetricCode))
+        // Latest row per (ExternalCompanyId, MetricCode) — highest PeriodEnd wins
+        var latestByCompanyMetric = derivedRows
+            .GroupBy(dm => (dm.ExternalCompanyId, dm.MetricCode), ExternalCompanyMetricKeyComparer.Instance)
             .ToDictionary(
                 g => g.Key,
-                g => g.OrderByDescending(dm => dm.PeriodEnd).First());
+                g => g.OrderByDescending(dm => dm.PeriodEnd).First(),
+                ExternalCompanyMetricKeyComparer.Instance);
 
-        // AND-filter: intersect symbols satisfying each condition
-        var passingSymbolIds = new HashSet<Guid>(symbolIds);
+        // AND-filter: intersect companies satisfying each condition
+        var passingExternalIds = new HashSet<string>(externalCompanyIds, StringComparer.OrdinalIgnoreCase);
 
         foreach (var condition in plan.Conditions)
         {
             var code = condition.MetricReference.MetricCode.Value;
-            var passing = new HashSet<Guid>();
+            var passing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var symbol in symbolRows)
+            foreach (var company in companyRows)
             {
-                if (!latestBySymbolMetric.TryGetValue((symbol.Id, code), out var row) || row.Value is null)
+                if (!latestByCompanyMetric.TryGetValue((company.ExternalCompanyId, code), out var row) || row.Value is null)
                     continue;
 
                 if (PassesCondition(row.Value.Value, condition.Operator, condition.Threshold))
-                    passing.Add(symbol.Id);
+                    passing.Add(company.ExternalCompanyId);
             }
 
-            passingSymbolIds.IntersectWith(passing);
+            passingExternalIds.IntersectWith(passing);
         }
 
-        var matchingSymbols = symbolRows
-            .Where(s => passingSymbolIds.Contains(s.Id))
-            .OrderBy(s => s.SymbolCode, StringComparer.OrdinalIgnoreCase)
+        var matchingCompanies = companyRows
+            .Where(c => passingExternalIds.Contains(c.ExternalCompanyId))
+            .OrderBy(c => c.Ticker ?? c.TseSymbol ?? c.CompanySymbol ?? c.ExternalCompanyId, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var symbolCodes = matchingSymbols
-            .Select(s => new SymbolCode(s.SymbolCode))
+        // Use Ticker (Persian) as the primary symbol code for quote resolution
+        var symbolCodes = matchingCompanies
+            .Select(c => CompanyDisplayResolver.FirstNonBlank(c.Ticker, c.TseSymbol, c.CompanySymbol, c.ExternalCompanyId))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => new SymbolCode(s!))
+            .Distinct()
             .ToList();
 
         var quoteResult = symbolCodes.Count > 0
@@ -114,21 +117,31 @@ public sealed class EfCoreScannerExecutionService(
             .Select(c => c.MetricReference.MetricCode.Value)
             .ToList();
 
-        var rows = matchingSymbols.Select(symbol =>
+        var rows = matchingCompanies.Select(company =>
         {
-            quoteBySymbol.TryGetValue(symbol.SymbolCode, out var quote);
-            var company = CompanyDisplayResolver.ResolveCompany(symbol, companyLookup);
-            var displaySymbol = CompanyDisplayResolver.GetDisplaySymbol(company, symbol);
-            var cells = BuildCells(columns, symbol, displaySymbol, company?.Name, quote, latestBySymbolMetric);
+            var displaySymbol = CompanyDisplayResolver.FirstNonBlank(
+                company.Ticker, company.TseSymbol, company.CompanySymbol, company.ExternalCompanyId)
+                ?? company.ExternalCompanyId;
+
+            // Try known symbol identifiers in priority order for quote
+            MarketQuoteObservation? quote = null;
+            foreach (var candidate in new[] { company.Ticker, company.TseSymbol, company.CompanySymbol, company.ExternalCompanyId })
+            {
+                if (!string.IsNullOrWhiteSpace(candidate) && quoteBySymbol.TryGetValue(candidate!, out var q))
+                {
+                    quote = q;
+                    break;
+                }
+            }
+
+            var cells = BuildCells(columns, company.ExternalCompanyId, displaySymbol, company.Name, quote, latestByCompanyMetric);
             return new ScannerTableRow(
                 displaySymbol,
-                company?.Name,
+                company.Name,
                 cells,
                 Score: 0.0,
                 conditionMetricCodes,
-                // Archive provenance for explainable answers (spec 052 AC #10): the company's physical
-                // source name (e.g. NoavaranArchiveSql) when resolved, else the symbol's provider.
-                SourceProvider: company?.ProviderName ?? symbol.ProviderName);
+                SourceProvider: company.ProviderName);
         }).ToList();
 
         foreach (var unavailable in quoteResult.UnavailableSymbols)
@@ -156,8 +169,8 @@ public sealed class EfCoreScannerExecutionService(
         await TryCollectMissingAnswerFeedbackAsync(
             request,
             plan,
-            totalSymbolCount,
-            matchingSymbols.Count,
+            totalCompanyCount,
+            matchingCompanies.Count,
             cancellationToken);
 
         var endTime = timeProvider.GetUtcNow();
@@ -165,21 +178,16 @@ public sealed class EfCoreScannerExecutionService(
             plan.PlanId,
             columns,
             paginated,
-            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbolCount, matchingSymbols.Count,
+            new ScannerExecutionFacts(endTime, endTime - startTime, totalCompanyCount, matchingCompanies.Count,
                 FromCache: false, Page: page, PageSize: pageSize, TotalPages: totalPages),
             warnings);
     }
 
-    /// <summary>
-    /// Spec 028: emit missing-answer feedback when the execution produced no rows or a sparse result
-    /// (matched &lt; 50% of the universe). Fire-and-forget by collector contract — this method must
-    /// never throw and must add no measurable latency to the query.
-    /// </summary>
     private async Task TryCollectMissingAnswerFeedbackAsync(
         ScannerExecutionRequest request,
         ScannerQueryPlan plan,
-        int totalSymbolCount,
-        int matchedSymbolCount,
+        int totalCompanyCount,
+        int matchedCompanyCount,
         CancellationToken cancellationToken)
     {
         try
@@ -202,8 +210,8 @@ public sealed class EfCoreScannerExecutionService(
                     PrimaryMetricCode: primaryCode,
                     MetricRegistered: registered,
                     DerivedMetricRowCountForMetric: derivedRowCount,
-                    TotalSymbolCount: totalSymbolCount,
-                    MatchedSymbolCount: matchedSymbolCount));
+                    TotalSymbolCount: totalCompanyCount,
+                    MatchedSymbolCount: matchedCompanyCount));
             if (classification is null) return;
 
             var context = JsonSerializer.Serialize(new
@@ -225,16 +233,15 @@ public sealed class EfCoreScannerExecutionService(
                     Classification: classification.Value,
                     RequestedMetricCode: primaryCode,
                     AffectedDataCodeOrName: primary.OriginalUserTerminology,
-                    SymbolCountTotal: totalSymbolCount,
-                    SymbolCountMatched: matchedSymbolCount,
+                    SymbolCountTotal: totalCompanyCount,
+                    SymbolCountMatched: matchedCompanyCount,
                     SubmittedAt: timeProvider.GetUtcNow(),
                     Context: context),
                 cancellationToken);
         }
         catch
         {
-            // Collection must never disturb the scanner response. Failures are observed by the
-            // collector itself (logging); we deliberately swallow here as a second safety net.
+            // Collection must never disturb the scanner response.
         }
     }
 
@@ -253,11 +260,11 @@ public sealed class EfCoreScannerExecutionService(
 
     private static IReadOnlyDictionary<string, ScannerTableCell> BuildCells(
         IReadOnlyCollection<ScannerTableColumn> columns,
-        NormalizedSymbolRow symbol,
+        string externalCompanyId,
         string displaySymbol,
         string? companyName,
         MarketQuoteObservation? quote,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         var cells = new Dictionary<string, ScannerTableCell>(StringComparer.OrdinalIgnoreCase);
 
@@ -272,16 +279,16 @@ public sealed class EfCoreScannerExecutionService(
                     new ScannerTableCell(null, companyName, CellFreshnessStatus.Persisted, null),
 
                 ScannerColumnType.LatestPrice =>
-                    BuildPriceCell(symbol, quote, latestBySymbolMetric),
+                    BuildPriceCell(externalCompanyId, quote, latestByCompanyMetric),
 
                 ScannerColumnType.DailyChangePercent =>
                     BuildChangeCell(quote),
 
                 ScannerColumnType.MarketCap =>
-                    BuildPersistedMetricCell(symbol, "MARKET_CAP", latestBySymbolMetric, FormatLargeNumber),
+                    BuildPersistedMetricCell(externalCompanyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
 
                 ScannerColumnType.Metric when column.MetricCode is not null =>
-                    BuildPersistedMetricCell(symbol, column.MetricCode, latestBySymbolMetric, v => v.ToString("N2")),
+                    BuildPersistedMetricCell(externalCompanyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
 
                 _ => new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null)
             };
@@ -291,9 +298,9 @@ public sealed class EfCoreScannerExecutionService(
     }
 
     private static ScannerTableCell BuildPriceCell(
-        NormalizedSymbolRow symbol,
+        string externalCompanyId,
         MarketQuoteObservation? quote,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric)
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric)
     {
         if (quote is not null)
         {
@@ -307,7 +314,7 @@ public sealed class EfCoreScannerExecutionService(
                 quote.AsOf);
         }
 
-        if (latestBySymbolMetric.TryGetValue((symbol.Id, "LATEST_PRICE"), out var row) && row.Value is not null)
+        if (latestByCompanyMetric.TryGetValue((externalCompanyId, "LATEST_PRICE"), out var row) && row.Value is not null)
         {
             return new ScannerTableCell(
                 row.Value,
@@ -336,12 +343,12 @@ public sealed class EfCoreScannerExecutionService(
     }
 
     private static ScannerTableCell BuildPersistedMetricCell(
-        NormalizedSymbolRow symbol,
+        string externalCompanyId,
         string metricCode,
-        Dictionary<(Guid SymbolId, string MetricCode), DerivedMetricRow> latestBySymbolMetric,
+        IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> latestByCompanyMetric,
         Func<decimal, string> formatter)
     {
-        if (!latestBySymbolMetric.TryGetValue((symbol.Id, metricCode), out var row) || row.Value is null)
+        if (!latestByCompanyMetric.TryGetValue((externalCompanyId, metricCode), out var row) || row.Value is null)
             return new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null);
 
         return new ScannerTableCell(
@@ -377,14 +384,28 @@ public sealed class EfCoreScannerExecutionService(
         IReadOnlyCollection<ScannerTableColumn> columns,
         DateTimeOffset startTime,
         DateTimeOffset endTime,
-        int totalSymbols) =>
+        int totalCompanies) =>
         new(
             plan.PlanId,
             columns,
             [],
-            new ScannerExecutionFacts(endTime, endTime - startTime, totalSymbols, 0,
+            new ScannerExecutionFacts(endTime, endTime - startTime, totalCompanies, 0,
                 FromCache: false, Page: 1, PageSize: 20, TotalPages: 1),
             []);
+
+    private sealed class ExternalCompanyMetricKeyComparer : IEqualityComparer<(string ExternalCompanyId, string MetricCode)>
+    {
+        public static readonly ExternalCompanyMetricKeyComparer Instance = new();
+
+        public bool Equals((string ExternalCompanyId, string MetricCode) x, (string ExternalCompanyId, string MetricCode) y) =>
+            string.Equals(x.ExternalCompanyId, y.ExternalCompanyId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(x.MetricCode, y.MetricCode, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string ExternalCompanyId, string MetricCode) obj) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.ExternalCompanyId),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.MetricCode));
+    }
 }
 
 public sealed class ProviderMarketQuoteResolver(IMarketDataProvider marketDataProvider) : IMarketQuoteResolver

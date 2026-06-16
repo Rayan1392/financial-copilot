@@ -464,11 +464,6 @@ public sealed class StockMarketDbSyncServiceTests
             Id = companyId, ProviderName = "CodalDb", ExternalCompanyId = "1", Name = "Company",
             InstrumentCode = "123", LastSynchronizedAt = Now
         });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = Guid.NewGuid(), CompanyId = companyId, ProviderName = "CodalDb",
-            ExternalSymbolId = "1", SymbolCode = "SYM", LastSynchronizedAt = Now
-        });
         await SeedInstrumentAsync(db, companyId);
     }
 

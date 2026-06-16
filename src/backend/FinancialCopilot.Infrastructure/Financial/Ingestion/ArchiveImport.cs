@@ -438,13 +438,13 @@ public sealed class ArchiveImportCoordinator(
             .Select(row => row.ExternalCompanyId)
             .ToListAsync(cancellationToken);
 
-        var mappedIds = await dbContext.Symbols.AsNoTracking()
-            .Where(symbol => symbol.ProviderName == source && symbol.SymbolCode != "")
-            .Join(
-                dbContext.Companies.AsNoTracking().Where(company => company.ProviderName == source),
-                symbol => symbol.CompanyId,
-                company => company.Id,
-                (symbol, company) => company.ExternalCompanyId)
+        // Spec 068: Symbols table removed. A company is considered "mapped" when it has a non-empty
+        // TseSymbol or CompanySymbol on its Companies row (the canonical identifier fields).
+        var mappedIds = await dbContext.Companies.AsNoTracking()
+            .Where(company => company.ProviderName == source &&
+                (company.TseSymbol != null && company.TseSymbol != "" ||
+                 company.CompanySymbol != null && company.CompanySymbol != ""))
+            .Select(company => company.ExternalCompanyId)
             .Distinct()
             .ToListAsync(cancellationToken);
 

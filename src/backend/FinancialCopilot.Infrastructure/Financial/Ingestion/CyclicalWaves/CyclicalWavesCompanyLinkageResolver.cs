@@ -31,6 +31,7 @@ internal static class CyclicalWavesCompanyLinkageResolver
             .Where(row => row.ProviderName == NadpcoProviderName)
             .ToListAsync(cancellationToken);
 
+        // Spec 068: Symbols table removed. Match solely on Companies fields.
         var company = companies.FirstOrDefault(row =>
             Matches(normalizedTicker, row.CompanySymbol) ||
             Matches(normalizedTicker, row.Name) ||
@@ -38,28 +39,12 @@ internal static class CyclicalWavesCompanyLinkageResolver
             Matches(normalizedEnticker, row.SymbolIsin) ||
             Matches(normalizedEnticker, row.CompanyIsin) ||
             Matches(normalizedEnticker, row.CompanySymbolEnglish));
-        if (company is not null)
-        {
-            return new CyclicalWavesCompanyLinkage(company.Id, company.ExternalCompanyId);
-        }
-
-        var symbols = await dbContext.Symbols.AsNoTracking()
-            .Where(row => row.ProviderName == NadpcoProviderName)
-            .ToListAsync(cancellationToken);
-        var symbol = symbols.FirstOrDefault(row =>
-            Matches(normalizedTicker, row.ExternalSymbolId) ||
-            Matches(normalizedTicker, row.SymbolCode) ||
-            Matches(normalizedEnticker, row.ExternalSymbolId) ||
-            Matches(normalizedEnticker, row.SymbolCode));
-        if (symbol is null)
+        if (company is null)
         {
             return null;
         }
 
-        var symbolCompany = companies.SingleOrDefault(row => row.Id == symbol.CompanyId);
-        return symbolCompany is null
-            ? null
-            : new CyclicalWavesCompanyLinkage(symbolCompany.Id, symbolCompany.ExternalCompanyId);
+        return new CyclicalWavesCompanyLinkage(company.Id, company.ExternalCompanyId);
     }
 
     private static bool Matches(string? expected, string? actual) =>

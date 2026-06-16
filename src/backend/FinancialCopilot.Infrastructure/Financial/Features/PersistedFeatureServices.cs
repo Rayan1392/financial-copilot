@@ -92,7 +92,7 @@ public sealed class PersistedFeatureSnapshotRepository(
         var end = snapshot.Period.EndDate ??
             throw new ArgumentException("Persisted feature snapshots require a closed period.", nameof(snapshot));
         var row = await dbContext.FeatureSnapshots.SingleOrDefaultAsync(
-            candidate => candidate.SymbolId == snapshot.SymbolId &&
+            candidate => candidate.ExternalCompanyId == snapshot.ExternalCompanyId &&
                 candidate.FeatureCode == snapshot.Feature.Code.Value &&
                 candidate.FeatureVersion == snapshot.Feature.Version.Value &&
                 candidate.PolicyVersion == snapshot.Feature.PolicyVersion.Value &&
@@ -105,7 +105,7 @@ public sealed class PersistedFeatureSnapshotRepository(
             row = new FeatureSnapshotRow
             {
                 Id = snapshot.Id,
-                SymbolId = snapshot.SymbolId,
+                ExternalCompanyId = snapshot.ExternalCompanyId,
                 FeatureCode = snapshot.Feature.Code.Value,
                 FeatureVersion = snapshot.Feature.Version.Value,
                 PolicyVersion = snapshot.Feature.PolicyVersion.Value,
@@ -134,9 +134,9 @@ public sealed class PersistedFeatureSnapshotRepository(
         var codes = query.FeatureCodes.Select(code => code.Value).ToArray();
         var rows = dbContext.FeatureSnapshots.AsNoTracking()
             .Where(row => codes.Contains(row.FeatureCode));
-        if (query.SymbolIds is { Count: > 0 })
+        if (query.ExternalCompanyIds is { Count: > 0 })
         {
-            rows = rows.Where(row => query.SymbolIds.Contains(row.SymbolId));
+            rows = rows.Where(row => query.ExternalCompanyIds.Contains(row.ExternalCompanyId));
         }
         if (query.AsOfDate is { } asOf)
         {
@@ -151,7 +151,7 @@ public sealed class PersistedFeatureSnapshotRepository(
     private static FeatureSnapshot Map(FeatureSnapshotRow row) =>
         new(
             row.Id,
-            row.SymbolId,
+            row.ExternalCompanyId,
             new DerivedFeature(
                 new FeatureCode(row.FeatureCode),
                 new FeatureVersion(row.FeatureVersion),
@@ -203,7 +203,7 @@ public sealed class PersistedFeatureComputationJobRepository(
 
         row.FeatureCode = job.FeatureCode.Value;
         row.FeatureVersion = job.FeatureVersion.Value;
-        row.SymbolId = job.SymbolId;
+        row.ExternalCompanyId = job.ExternalCompanyId;
         row.PeriodType = job.Period.Type.ToString();
         row.PeriodStart = start;
         row.PeriodEnd = end;
@@ -221,7 +221,7 @@ public sealed class PersistedFeatureComputationJobRepository(
             row.Id,
             new FeatureCode(row.FeatureCode),
             new FeatureVersion(row.FeatureVersion),
-            row.SymbolId,
+            row.ExternalCompanyId,
             FiscalPeriod.Closed(Enum.Parse<FiscalPeriodType>(row.PeriodType), row.PeriodStart, row.PeriodEnd),
             row.IdempotencyKey,
             Enum.Parse<FeatureComputationStatus>(row.Status),

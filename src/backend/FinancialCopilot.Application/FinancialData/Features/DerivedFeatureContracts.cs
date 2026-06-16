@@ -11,14 +11,14 @@ public sealed record FeatureInputObservation(
     string EvidenceFingerprint);
 
 public sealed record FeatureCalculationContext(
-    Guid SymbolId,
+    string ExternalCompanyId,
     FeatureDefinition Definition,
     FiscalPeriod Period,
     IReadOnlyCollection<FeatureInputObservation> Inputs);
 
 public sealed record FeatureSnapshotQuery(
     IReadOnlyCollection<FeatureCode> FeatureCodes,
-    IReadOnlyCollection<Guid>? SymbolIds = null,
+    IReadOnlyCollection<string>? ExternalCompanyIds = null,
     DateOnly? AsOfDate = null);
 
 public interface IFeatureDefinitionRegistry
@@ -53,7 +53,7 @@ public interface IFeatureQueryService
 }
 
 public sealed record CalculateDerivedFeatureCommand(
-    Guid SymbolId,
+    string ExternalCompanyId,
     FeatureCode FeatureCode,
     FeatureVersion FeatureVersion,
     FiscalPeriod Period,
@@ -91,7 +91,7 @@ public sealed class DerivedFeatureCalculationService(
 
         ValidateInputs(definition, command.Inputs);
         var snapshot = await calculator.CalculateAsync(
-            new FeatureCalculationContext(command.SymbolId, definition, command.Period, command.Inputs),
+            new FeatureCalculationContext(command.ExternalCompanyId, definition, command.Period, command.Inputs),
             cancellationToken);
         ValidateSnapshot(command, definition, snapshot);
         await snapshotRepository.StoreAsync(snapshot, cancellationToken);
@@ -120,14 +120,14 @@ public sealed class DerivedFeatureCalculationService(
         FeatureDefinition definition,
         FeatureSnapshot snapshot)
     {
-        if (snapshot.SymbolId != command.SymbolId ||
+        if (!string.Equals(snapshot.ExternalCompanyId, command.ExternalCompanyId, StringComparison.OrdinalIgnoreCase) ||
             snapshot.Feature.Code != definition.Code ||
             snapshot.Feature.Version != definition.Version ||
             snapshot.Feature.PolicyVersion != definition.PolicyVersion ||
             snapshot.Period != command.Period)
         {
             throw new InvalidOperationException(
-                "A feature calculator returned evidence outside its requested definition, symbol, policy, or period.");
+                "A feature calculator returned evidence outside its requested definition, company, policy, or period.");
         }
     }
 }
@@ -150,7 +150,7 @@ public sealed record FeatureRecalculationRequested(
     Guid JobId,
     FeatureCode FeatureCode,
     FeatureVersion FeatureVersion,
-    Guid? SymbolId,
+    string? ExternalCompanyId,
     FeatureComputationPeriod Period,
     string IdempotencyKey,
     DateTimeOffset RequestedAt);
@@ -208,7 +208,7 @@ public interface IFeatureInputReader
 {
     Task<IReadOnlyCollection<FeatureInputObservation>> LoadAsync(
         FeatureDefinition definition,
-        Guid symbolId,
+        string externalCompanyId,
         FiscalPeriod period,
         CancellationToken cancellationToken);
 }

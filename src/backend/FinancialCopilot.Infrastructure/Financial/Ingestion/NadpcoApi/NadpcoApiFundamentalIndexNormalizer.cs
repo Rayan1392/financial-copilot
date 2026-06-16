@@ -51,19 +51,19 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
 
             var externalCompanyId = item.Record.ComID.ToString(CultureInfo.InvariantCulture);
             canonicalExternalCompanyId = externalCompanyId;
-            var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
-                symbol => symbol.ProviderName == ProviderName &&
-                    symbol.ExternalSymbolId == externalCompanyId,
-                cancellationToken);
 
-            if (symbol is null)
+            // Verify company exists in the catalog before persisting metrics.
+            var companyExists = await dbContext.Companies.AsNoTracking()
+                .AnyAsync(c => c.ExternalCompanyId == externalCompanyId, cancellationToken);
+
+            if (!companyExists)
             {
                 continue;
             }
 
             var period = MapPeriod(item.Record);
             await UpsertDerivedMetricRowAsync(
-                symbol.Id,
+                externalCompanyId,
                 mapping,
                 item,
                 period,
@@ -77,7 +77,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
     }
 
     private async Task UpsertDerivedMetricRowAsync(
-        Guid symbolId,
+        string externalCompanyId,
         NadpcoApiFundamentalIndexMapping mapping,
         NadpcoApiSelectedFundamentalIndex selected,
         NadpcoApiFundamentalIndexPeriod period,
@@ -85,7 +85,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.DerivedMetrics.SingleOrDefaultAsync(
-            row => row.SymbolId == symbolId &&
+            row => row.ExternalCompanyId == externalCompanyId &&
                 row.MetricCode == mapping.MetricCode &&
                 row.MetricVersion == MetricVersion &&
                 row.CalculationPolicyVersion == NadpcoApiFundamentalIndexMap.CalculationPolicyVersion &&
@@ -97,7 +97,7 @@ public sealed class NadpcoApiFundamentalIndexNormalizer(
             existing = new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = externalCompanyId,
                 MetricCode = mapping.MetricCode,
                 MetricVersion = MetricVersion,
                 CalculationPolicyVersion = NadpcoApiFundamentalIndexMap.CalculationPolicyVersion,

@@ -1,9 +1,7 @@
 using FinancialCopilot.Application.FinancialData.Providers;
-using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -59,7 +57,7 @@ public sealed class CodalDbSymbolNormalizerTests
             .Options);
 
     private static CodalDbSymbolNormalizer CreateNormalizer(FinancialIngestionDbContext db) =>
-        new(db, new CanonicalSymbolLinkageResolver(), NullLogger<CodalDbSymbolNormalizer>.Instance);
+        new(db);
 
     private static ProviderRawPayload MakePayload(string json) =>
         new(
@@ -80,7 +78,6 @@ public sealed class CodalDbSymbolNormalizerTests
 
         Assert.Equal(2, outcome.ProcessedRecords);
         Assert.Equal(2, await db.Companies.CountAsync());
-        Assert.Equal(2, await db.Symbols.CountAsync());
         Assert.Equal(1, await db.Industries.CountAsync()); // shared IndustryID 270
         Assert.Equal(1, await db.IndustryGroups.CountAsync());
         Assert.Equal(1, await db.Markets.CountAsync());
@@ -112,9 +109,8 @@ public sealed class CodalDbSymbolNormalizerTests
         await using var db = CreateDbContext();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), default);
 
-        var symbol = await db.Symbols.SingleAsync(s => s.ExternalSymbolId == "1001");
-        Assert.Equal("IRO1FOLD0001", symbol.SymbolCode);
-        Assert.Equal("SymbolIsin", symbol.LinkageBasis);
+        var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "1001");
+        Assert.Equal("IRO1FOLD0001", company.SymbolIsin);
     }
 
     [Fact]
@@ -123,9 +119,8 @@ public sealed class CodalDbSymbolNormalizerTests
         await using var db = CreateDbContext();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(CompaniesJson), default);
 
-        var symbol = await db.Symbols.SingleAsync(s => s.ExternalSymbolId == "1002");
-        Assert.Equal("70289374903549577", symbol.SymbolCode);
-        Assert.Equal("InstrumentCode", symbol.LinkageBasis);
+        var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "1002");
+        Assert.Equal("70289374903549577", company.InstrumentCode);
     }
 
     [Fact]
@@ -153,7 +148,6 @@ public sealed class CodalDbSymbolNormalizerTests
         await normalizer.NormalizeAsync(payload, default);
 
         Assert.Equal(2, await db.Companies.CountAsync());
-        Assert.Equal(2, await db.Symbols.CountAsync());
         Assert.Equal(1, await db.Industries.CountAsync());
         Assert.Equal(1, await db.IndustryGroups.CountAsync());
         Assert.Equal(1, await db.Markets.CountAsync());
@@ -181,6 +175,5 @@ public sealed class CodalDbSymbolNormalizerTests
 
         Assert.Equal(1, outcome.ProcessedRecords);
         Assert.Equal(1, await db.Companies.CountAsync());
-        Assert.Equal(0, await db.Symbols.CountAsync());
     }
 }

@@ -89,7 +89,7 @@ public sealed class FinancialDomainTests
     {
         var metric = new DerivedMetric(
             Guid.NewGuid(),
-            Guid.NewGuid(),
+            "EXT-TEST",
             new MetricCode("net_profit_growth_yoy"),
             new MetricVersion("v1"),
             new CalculationPolicyVersion("yoy-quarterly-v1"),

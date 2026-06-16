@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
-using FinancialCopilot.Domain.Financial.Services;
-using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +10,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public sealed class NadpcoApiCompanyNormalizer(
     FinancialIngestionDbContext dbContext,
-    CanonicalSymbolLinkageResolver linkageResolver,
     ILogger<NadpcoApiCompanyNormalizer> logger) : IFinancialPayloadNormalizer
 {
     // Spec 051: the persisted source name is the Noavaran Amin current API source (was "NadpcoApi").
@@ -42,9 +39,6 @@ public sealed class NadpcoApiCompanyNormalizer(
         var companies = await dbContext.Companies
             .Where(c => c.ProviderName == ProviderName)
             .ToDictionaryAsync(c => c.ExternalCompanyId, StringComparer.OrdinalIgnoreCase, cancellationToken);
-        var symbols = await dbContext.Symbols
-            .Where(s => s.ProviderName == ProviderName)
-            .ToDictionaryAsync(s => s.ExternalSymbolId, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var industries = await dbContext.Industries
             .Where(r => r.ProviderName == ProviderName)
             .ToDictionaryAsync(r => r.ExternalId, StringComparer.OrdinalIgnoreCase, cancellationToken);
@@ -112,48 +106,9 @@ public sealed class NadpcoApiCompanyNormalizer(
             company.SourceModifiedAt = null;
             company.LastSynchronizedAt = payload.ReceivedAt;
 
-            var resolution = linkageResolver.Resolve(
-                new CompanyIdentifiers(
-                    companySymbol: record.CoSymbolEnglish ?? record.CoSymbol,
-                    tseSymbol: record.CoSymbol,
-                    instrumentCode: record.TseCode,
-                    companyIsin: record.TseCIsinCode,
-                    symbolIsin: record.TseSIsinCode),
-                CanonicalSymbolLinkagePriority.TseSymbolFirst);
-
-            if (resolution.SymbolCode is null)
-            {
-                logger.LogWarning(
-                    "NADPCO company {CompanyId} has no usable instrument, ISIN, or symbol identifier; symbol row skipped.",
-                    externalCompanyId);
-                continue;
-            }
-
-            if (resolution.Basis is not SymbolLinkageBasis.InstrumentCode)
-            {
-                logger.LogWarning(
-                    "NADPCO company {CompanyId} canonical symbol resolved by {Basis} because TseCode was missing.",
-                    externalCompanyId,
-                    resolution.Basis);
-            }
-
-            if (!symbols.TryGetValue(externalCompanyId, out var symbol))
-            {
-                symbol = new NormalizedSymbolRow
-                {
-                    Id = Guid.NewGuid(),
-                    CompanyId = company.Id,
-                    ProviderName = ProviderName,
-                    ExternalSymbolId = externalCompanyId
-                };
-                dbContext.Symbols.Add(symbol);
-                symbols[externalCompanyId] = symbol;
-            }
-
-            symbol.CompanyId = company.Id;
-            symbol.SymbolCode = resolution.SymbolCode.Value;
-            symbol.LinkageBasis = resolution.Basis.ToString();
-            symbol.LastSynchronizedAt = payload.ReceivedAt;
+            // Spec 068: Symbols table removed. The canonical symbol/linkage is stored on the company
+            // row via TseSymbol / InstrumentCode fields already set above — no separate symbol row needed.
+            LogMissingTseCodeFallback(record, externalCompanyId);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -177,6 +132,21 @@ public sealed class NadpcoApiCompanyNormalizer(
                 "NADPCO company {CompanyId} appeared multiple times with conflicting identifiers; last row wins.",
                 group.Key);
         }
+    }
+
+    private void LogMissingTseCodeFallback(NadpcoApiCompanyRecord record, string externalCompanyId)
+    {
+        var tseCode = Trim(record.TseCode);
+        var symbolIsin = Trim(record.TseSIsinCode);
+        if (tseCode is not null || symbolIsin is null)
+        {
+            return;
+        }
+
+        logger.LogWarning(
+            "NADPCO company {ExternalCompanyId}: TseCode was missing; using SymbolIsin {SymbolIsin} as a resolution fallback.",
+            externalCompanyId,
+            symbolIsin);
     }
 
     private Guid? ResolveIndustry(

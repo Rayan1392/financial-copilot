@@ -67,6 +67,17 @@ public sealed class FinancialDataSyncProcessor(
 
         try
         {
+            if (ShouldSkipCyclicalWavesSymbolSync(request))
+            {
+                logger.LogInformation(
+                    "Skipping CyclicalWaves Symbols synchronization because company catalog updates from CyclicalWaves are disabled by spec 068.");
+                run.ProcessedRecords = 0;
+                run.Status = DataSyncRunStatus.Completed.ToString();
+                run.CompletedAt = timeProvider.GetUtcNow();
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
+            }
+
             // Apply a per-run current-API Shamsi boundary override (spec 053) so it reaches this
             // worker scope's provider client; no-op for providers without a Shamsi boundary.
             boundaryOverride?.Set(request.FromShamsiYearOverride);
@@ -210,6 +221,10 @@ public sealed class FinancialDataSyncProcessor(
     // configured primary, or a foreign name) yields null and leaves provenance columns null.
     private static ProviderSourceDescriptor? ResolveProvenance(DataSyncRequest request) =>
         ProviderSources.TryResolve(request.ProviderName);
+
+    private static bool ShouldSkipCyclicalWavesSymbolSync(DataSyncRequest request) =>
+        request.Dataset == ProviderDataset.Symbols &&
+        string.Equals(request.ProviderName, ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase);
 
     private static InvalidOperationException UnknownProvider(
         string providerName,

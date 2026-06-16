@@ -30,7 +30,7 @@ public sealed class DerivedFeaturePersistenceTests
         await repository.StoreAsync(revised, CancellationToken.None);
         var readDefinition = await registry.ResolveAsync(definition.Code, definition.Version, CancellationToken.None);
         var results = await repository.QueryAsync(
-            new FeatureSnapshotQuery([definition.Code], [first.SymbolId], new DateOnly(2026, 3, 31)),
+            new FeatureSnapshotQuery([definition.Code], [first.ExternalCompanyId], new DateOnly(2026, 3, 31)),
             CancellationToken.None);
 
         Assert.Equal(12, readDefinition.RequiredObservationWindow);
@@ -64,7 +64,7 @@ public sealed class DerivedFeaturePersistenceTests
             Guid.NewGuid(),
             definition.Code,
             definition.Version,
-            Guid.Parse("2fc64d56-1320-4612-b894-511bd163914f"),
+            "ext-2fc64d56-1320-4612-b894-511bd163914f",
             FeatureComputationPeriod.From(Period(2026, 4)),
             "feature-job-1",
             Now);
@@ -103,7 +103,7 @@ public sealed class DerivedFeaturePersistenceTests
             Guid.NewGuid(),
             definition.Code,
             definition.Version,
-            Guid.NewGuid(),
+            "ext-missing-company-1",
             FeatureComputationPeriod.From(Period(2026, 4)),
             "missing-input-job",
             Now);
@@ -138,7 +138,7 @@ public sealed class DerivedFeaturePersistenceTests
         var source = new FinancialSourceEvidence("DerivedMetricStore", Now, Now);
         return new FeatureSnapshot(
             Guid.NewGuid(),
-            Guid.Parse("2fc64d56-1320-4612-b894-511bd163914f"),
+            "ext-2fc64d56-1320-4612-b894-511bd163914f",
             new DerivedFeature(definition.Code, definition.Version, definition.PolicyVersion),
             period,
             value,
@@ -168,7 +168,7 @@ public sealed class DerivedFeaturePersistenceTests
     {
         public Task<IReadOnlyCollection<FeatureInputObservation>> LoadAsync(
             FeatureDefinition definition,
-            Guid symbolId,
+            string externalCompanyId,
             FiscalPeriod period,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<FeatureInputObservation>>(
@@ -181,7 +181,7 @@ public sealed class DerivedFeaturePersistenceTests
     {
         public Task<IReadOnlyCollection<FeatureInputObservation>> LoadAsync(
             FeatureDefinition definition,
-            Guid symbolId,
+            string externalCompanyId,
             FiscalPeriod period,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<FeatureInputObservation>>([]);

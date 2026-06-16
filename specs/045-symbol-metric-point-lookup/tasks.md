@@ -80,21 +80,28 @@
   1. Call `ISymbolLookupParser.ParseAsync`.
   2. If `ClarificationRequired`, persist clarification message and return.
   3. Call `ISymbolMetricLookupService.LookupAsync`.
-  4. Persist the result in the assistant conversation message (same structured payload as scanner).
-  5. Call `IBillingFacadeHook.TryReserveAsync` before lookup and `FinalizeAsync` after
+  4. Compute deterministic top-level `ConfidenceScore` from the lookup table and generated
+     narrative consistency; do not rely on scanner `ExplainableAnswer.Confidence`.
+  5. Persist the result and top-level `ConfidenceScore` in the assistant conversation message
+     (same structured payload family as scanner).
+  6. Call `IBillingFacadeHook.TryReserveAsync` before lookup and `FinalizeAsync` after
      (same billing lifecycle as scanner; use operation code `AiQuery.Scanner` for Phase 1).
-  6. Collect missing-answer feedback via `IMissingAnswerFeedbackCollector` for unresolved
+  7. Collect missing-answer feedback via `IMissingAnswerFeedbackCollector` for unresolved
      symbols and metrics with no data (`DataCoverageGap` classification).
 - Add integration tests through `POST /api/ai/v1/query`:
   - "PE حفاری چقدر است؟" → `SymbolLookup` intent, حفاری resolved, PE_TTM value returned.
   - Unknown symbol → `UnresolvedSymbols` list, non-empty `MissingDataWarnings`.
   - Unknown metric → `ClarificationRequired` response.
   - Billing entry created per lookup.
+  - Structured PE lookup with matching narrative/table value returns a non-zero, high top-level
+    confidence score.
 
 ## API Contracts
 
 - Extend `AiQueryHttpResponse` with `SymbolLookupTable?: ScannerTableResponse` (nullable, same
   type as `ScannerTable` — the frontend renders both identically).
+- Ensure `AiQueryHttpResponse.ConfidenceScore` is populated for `SymbolLookup` responses even when
+  `ExplainableAnswer` is null.
 - Map `SymbolLookupTableResult.UnresolvedSymbols` into `MissingDataWarnings` on the HTTP response.
 - Update `mapAssistantBlock` in `chat.functions.ts` to read `symbolLookupTable` from the API
   response and populate `block.table` (re-uses the existing `ScannerResultTable` component).
@@ -102,6 +109,9 @@
 ## Frontend
 
 - No new component required; `ScannerResultTable` renders the lookup result unchanged.
+- Extend confidence mapping to prefer backend `result.confidenceScore` before any
+  `result.explainableAnswer.confidence` fallback. A present `symbolLookupTable` with structured
+  financial values must never display `0%` merely because `explainableAnswer` is absent.
 - Extend `mapAssistantBlock` to read `result.symbolLookupTable` and fall back to
   `result.scannerTable` — whichever is present populates `block.table`.
 - Add a label or badge to distinguish lookup results ("مقدار مستقیم") from screener results

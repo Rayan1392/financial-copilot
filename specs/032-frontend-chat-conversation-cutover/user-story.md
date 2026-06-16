@@ -20,7 +20,7 @@ assistant-message content.
 - Persist a versioned structured assistant payload that can be rendered after reload.
 - Replace Supabase chat persistence and mock reply generation with .NET API calls.
 - Adapt the current React renderer to backend scanner table, explainable answer, citations,
-  clarification, and usage contracts.
+  clarification, top-level confidence, and usage contracts.
 - Keep all user prompts routed only through `POST /api/ai/v1/query`.
 
 ## Acceptance Criteria
@@ -37,11 +37,15 @@ assistant-message content.
 6. Reloaded assistant messages preserve structured answer content needed by the renderer.
 7. The frontend no longer calls `generateMockReply`, writes Supabase chat tables, or decrements
    credits.
-8. Scanner answers render backend text, filter chips, ranked rows, freshness, citations,
-   confidence, follow-up questions, and usage metadata.
-9. Unsupported prototype actions such as deep research and portfolio analysis are hidden or
+8. Structured financial answers render backend text, tables, freshness, citations, top-level
+   confidence, follow-up questions when present, and usage metadata. Scanner answers additionally
+   render filter chips and ranked rows.
+9. The frontend prefers backend `confidenceScore` over `explainableAnswer.confidence`; a symbol
+   lookup response with a structured table must not display `0%` merely because no scanner
+   explainable answer exists.
+10. Unsupported prototype actions such as deep research and portfolio analysis are hidden or
    visibly disabled until backend capabilities are specified and implemented.
-10. Backend integration tests and frontend lint/build checks pass.
+11. Backend integration tests and frontend lint/build checks pass.
 
 ## Out Of Scope
 
@@ -49,4 +53,3 @@ assistant-message content.
 - Portfolio-management implementation.
 - Streaming transport; the first cutover may remain request/response.
 - Migrating old Supabase prototype threads into PostgreSQL.
-

@@ -169,24 +169,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             return null;
         }
 
-        var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
-            row => row.ProviderName == ProviderName && row.ExternalSymbolId == data.Ticker,
-            cancellationToken);
-
-        if (symbol is null)
-        {
-            symbol = new NormalizedSymbolRow
-            {
-                Id = Guid.NewGuid(),
-                ProviderName = ProviderName,
-                ExternalSymbolId = data.Ticker
-            };
-            dbContext.Symbols.Add(symbol);
-        }
-
-        symbol.CompanyId = linkage.CompanyId;
-        symbol.SymbolCode = data.Enticker;
-        symbol.LastSynchronizedAt = receivedAt;
+        // Spec 068: Symbols table removed. Linkage is resolved via Companies fields; no symbol row.
         return linkage;
     }
 

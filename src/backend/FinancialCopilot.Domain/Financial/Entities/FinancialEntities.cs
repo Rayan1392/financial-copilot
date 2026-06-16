@@ -269,7 +269,7 @@ public sealed class DerivedMetric
 {
     public DerivedMetric(
         Guid id,
-        Guid symbolId,
+        string externalCompanyId,
         MetricCode code,
         MetricVersion metricVersion,
         CalculationPolicyVersion calculationPolicyVersion,
@@ -280,9 +280,14 @@ public sealed class DerivedMetric
         IReadOnlyCollection<FinancialSourceEvidence> sourceEvidence,
         IReadOnlyCollection<DerivedMetricDependencyEvidence>? dependencyEvidence = null)
     {
-        if (id == Guid.Empty || symbolId == Guid.Empty)
+        if (id == Guid.Empty)
         {
-            throw new ArgumentException("Metric and symbol ids are required.");
+            throw new ArgumentException("Metric id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(externalCompanyId))
+        {
+            throw new ArgumentException("ExternalCompanyId is required.", nameof(externalCompanyId));
         }
 
         if (period.IsLatestSelection)
@@ -291,7 +296,7 @@ public sealed class DerivedMetric
         }
 
         Id = id;
-        SymbolId = symbolId;
+        ExternalCompanyId = externalCompanyId.Trim();
         Code = code ?? throw new ArgumentNullException(nameof(code));
         MetricVersion = metricVersion ?? throw new ArgumentNullException(nameof(metricVersion));
         CalculationPolicyVersion = calculationPolicyVersion ??
@@ -306,7 +311,7 @@ public sealed class DerivedMetric
 
     public Guid Id { get; }
 
-    public Guid SymbolId { get; }
+    public string ExternalCompanyId { get; }
 
     public MetricCode Code { get; }
 

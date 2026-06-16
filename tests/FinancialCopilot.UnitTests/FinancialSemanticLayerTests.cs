@@ -120,7 +120,7 @@ public sealed class FinancialSemanticLayerTests
         var registry = new FinancialMetricRegistry(PhaseOneFinancialSemanticCatalog.Definitions, [calculator]);
         var definition = registry.ResolveDefinition(calculator.MetricCode, ActiveDate);
         var context = new MetricCalculationContext(
-            Guid.NewGuid(),
+            "EXT-TEST",
             definition,
             new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies)
                 .GetPolicy(calculator.MetricCode, new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1")),
@@ -143,7 +143,7 @@ public sealed class FinancialSemanticLayerTests
     {
         var historical = new DerivedMetric(
             Guid.NewGuid(),
-            Guid.NewGuid(),
+            "EXT-TEST",
             new MetricCode("PE_TTM"),
             new MetricVersion("v1"),
             new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"),

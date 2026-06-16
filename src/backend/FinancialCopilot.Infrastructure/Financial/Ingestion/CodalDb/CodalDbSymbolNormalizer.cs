@@ -1,25 +1,20 @@
 using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
-using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 
 /// <summary>
 /// Normalizes the CodalDB <c>Symbols</c> payload (a JSON array of <see cref="CodalDbCompanyRecord"/>)
 /// into the enriched company master-data model: company rows with English name, identifiers and
-/// ISINs, industry/group/market dimension references, and a canonical <c>SymbolCode</c> resolved
-/// by <see cref="CanonicalSymbolLinkageResolver"/>. All CodalDB-specific mapping is confined here.
+/// ISINs, industry/group/market dimension references. Symbols are no longer written (spec 068).
 /// </summary>
 public sealed class CodalDbSymbolNormalizer(
-    FinancialIngestionDbContext dbContext,
-    CanonicalSymbolLinkageResolver linkageResolver,
-    ILogger<CodalDbSymbolNormalizer> logger) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
 {
     // Spec 051: the persisted source name is the Noavaran Amin archive source (was "CodalDb").
     public const string CodalDbProviderName = ProviderSources.NoavaranArchiveSqlName;
@@ -45,9 +40,6 @@ public sealed class CodalDbSymbolNormalizer(
         var companies = await dbContext.Companies
             .Where(c => c.ProviderName == ProviderName)
             .ToDictionaryAsync(c => c.ExternalCompanyId, StringComparer.OrdinalIgnoreCase, cancellationToken);
-        var symbols = await dbContext.Symbols
-            .Where(s => s.ProviderName == ProviderName)
-            .ToDictionaryAsync(s => s.ExternalSymbolId, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var industries = await dbContext.Industries
             .Where(r => r.ProviderName == ProviderName)
             .ToDictionaryAsync(r => r.ExternalId, StringComparer.OrdinalIgnoreCase, cancellationToken);
@@ -92,48 +84,6 @@ public sealed class CodalDbSymbolNormalizer(
             company.SourceModifiedAt = record.ModifiedDateTime;
             company.LastSynchronizedAt = payload.ReceivedAt;
 
-            var identifiers = new CompanyIdentifiers(
-                companySymbol: record.CompanySymbol,
-                tseSymbol: record.CoTSESymbol,
-                instrumentCode: record.InstCode,
-                companyIsin: record.TseCIsinCode,
-                symbolIsin: record.TseSIsinCode);
-            var resolution = linkageResolver.Resolve(identifiers);
-
-            if (resolution.SymbolCode is null)
-            {
-                logger.LogWarning(
-                    "CodalDb company {CompanyId} has no usable symbol identifier; symbol row skipped.",
-                    externalCompanyId);
-                continue;
-            }
-
-            if (resolution.Basis is not (SymbolLinkageBasis.SymbolIsin or SymbolLinkageBasis.CompanyIsin))
-            {
-                logger.LogWarning(
-                    "CodalDb company {CompanyId} canonical symbol resolved by {Basis} (no ISIN); " +
-                    "cross-provider alignment with CyclicalWaves may not hold.",
-                    externalCompanyId,
-                    resolution.Basis);
-            }
-
-            if (!symbols.TryGetValue(externalCompanyId, out var symbol))
-            {
-                symbol = new NormalizedSymbolRow
-                {
-                    Id = Guid.NewGuid(),
-                    CompanyId = company.Id,
-                    ProviderName = ProviderName,
-                    ExternalSymbolId = externalCompanyId
-                };
-                dbContext.Symbols.Add(symbol);
-                symbols[externalCompanyId] = symbol;
-            }
-
-            symbol.CompanyId = company.Id;
-            symbol.SymbolCode = resolution.SymbolCode.Value;
-            symbol.LinkageBasis = resolution.Basis.ToString();
-            symbol.LastSynchronizedAt = payload.ReceivedAt;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

@@ -63,28 +63,10 @@ public sealed class SymbolPayloadNormalizer(
                 dbContext.Companies.Add(company);
             }
 
+            // Spec 068: Symbols table removed. Store the symbol code directly on the company row.
             company.Name = record.Company;
+            company.CompanySymbol = record.Symbol.Trim().ToUpperInvariant();
             company.LastSynchronizedAt = payload.ReceivedAt;
-
-            var symbol = await dbContext.Symbols.SingleOrDefaultAsync(
-                row => row.ProviderName == payload.ProviderName &&
-                    row.ExternalSymbolId == record.ExternalSymbolId,
-                cancellationToken);
-
-            if (symbol is null)
-            {
-                symbol = new NormalizedSymbolRow
-                {
-                    Id = Guid.NewGuid(),
-                    CompanyId = company.Id,
-                    ProviderName = payload.ProviderName,
-                    ExternalSymbolId = record.ExternalSymbolId
-                };
-                dbContext.Symbols.Add(symbol);
-            }
-
-            symbol.SymbolCode = record.Symbol.Trim().ToUpperInvariant();
-            symbol.LastSynchronizedAt = payload.ReceivedAt;
             count++;
         }
 

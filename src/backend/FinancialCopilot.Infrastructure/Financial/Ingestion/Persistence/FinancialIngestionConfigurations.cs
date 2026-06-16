@@ -82,16 +82,6 @@ public sealed class NormalizedMarketRowConfiguration : IEntityTypeConfiguration<
     }
 }
 
-public sealed class NormalizedSymbolRowConfiguration : IEntityTypeConfiguration<NormalizedSymbolRow>
-{
-    public void Configure(EntityTypeBuilder<NormalizedSymbolRow> builder)
-    {
-        builder.ToTable("Symbols");
-        builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalSymbolId }).IsUnique();
-        builder.HasIndex(row => row.SymbolCode);
-    }
-}
 
 public sealed class NormalizedFinancialStatementRowConfiguration :
     IEntityTypeConfiguration<NormalizedFinancialStatementRow>
@@ -485,12 +475,13 @@ public sealed class DerivedMetricRowConfiguration : IEntityTypeConfiguration<Der
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new
         {
-            row.SymbolId,
+            row.ExternalCompanyId,
             row.MetricCode,
             row.MetricVersion,
             row.CalculationPolicyVersion,
             row.PeriodEnd
         }).IsUnique();
+        builder.Property(row => row.ExternalCompanyId).HasMaxLength(64).IsRequired();
         builder.Property(row => row.MetricCode).HasMaxLength(128);
         builder.Property(row => row.MetricVersion).HasMaxLength(64);
         builder.Property(row => row.CalculationPolicyVersion).HasMaxLength(64);
@@ -524,13 +515,14 @@ public sealed class FeatureSnapshotRowConfiguration : IEntityTypeConfiguration<F
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new
         {
-            row.SymbolId,
+            row.ExternalCompanyId,
             row.FeatureCode,
             row.FeatureVersion,
             row.PolicyVersion,
             row.PeriodEnd,
             row.InputFingerprint
         }).IsUnique();
+        builder.Property(row => row.ExternalCompanyId).HasMaxLength(64).IsRequired();
         builder.Property(row => row.FeatureCode).HasMaxLength(128);
         builder.Property(row => row.FeatureVersion).HasMaxLength(64);
         builder.Property(row => row.PolicyVersion).HasMaxLength(64);

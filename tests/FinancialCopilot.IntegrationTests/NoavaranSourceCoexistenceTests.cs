@@ -40,13 +40,13 @@ public sealed class NoavaranSourceCoexistenceTests
         Assert.Contains(companies, c => c.SourceMode == SourceMode.CurrentIncremental.ToString());
 
         // No duplicate canonical identity: both sources resolve to one canonical symbol code.
-        var canonicalSymbols = await db.Symbols.Select(s => s.SymbolCode).Distinct().ToListAsync();
+        var canonicalSymbols = await db.Companies.Select(c => c.CompanySymbol).Distinct().ToListAsync();
         Assert.Single(canonicalSymbols);
         Assert.Equal("IRO1FOLD0001", canonicalSymbols[0]);
 
         // A canonical (source-agnostic) read finds the issuer regardless of physical source.
-        var symbolCount = await db.Symbols.CountAsync(s => s.SymbolCode == "IRO1FOLD0001");
-        Assert.Equal(2, symbolCount); // one symbol row per source, same canonical code — read joins on code, not source
+        var companyCount = await db.Companies.CountAsync(c => c.CompanySymbol == "IRO1FOLD0001");
+        Assert.Equal(2, companyCount); // one company row per source, same canonical code — read joins on code, not source
     }
 
     [Fact]
@@ -97,25 +97,15 @@ public sealed class NoavaranSourceCoexistenceTests
         string externalCompanyId,
         string canonicalSymbol)
     {
-        var companyId = Guid.NewGuid();
         db.Companies.Add(new NormalizedCompanyRow
         {
-            Id = companyId,
+            Id = Guid.NewGuid(),
             ProviderName = sourceName,
             ExternalCompanyId = externalCompanyId,
             Name = "فولاد مبارکه",
+            CompanySymbol = canonicalSymbol,
             LogicalVendor = LogicalVendor.NoavaranAmin.ToString(),
             SourceMode = mode.ToString(),
-            LastSynchronizedAt = Now
-        });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = Guid.NewGuid(),
-            CompanyId = companyId,
-            ProviderName = sourceName,
-            ExternalSymbolId = externalCompanyId,
-            SymbolCode = canonicalSymbol,
-            LinkageBasis = "SymbolIsin",
             LastSynchronizedAt = Now
         });
     }

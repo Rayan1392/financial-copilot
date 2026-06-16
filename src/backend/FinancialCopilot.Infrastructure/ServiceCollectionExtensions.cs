@@ -405,7 +405,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
         services.AddScoped<IComprehensiveAnalysisQueryParser, LlmComprehensiveAnalysisQueryParser>();
         services.AddScoped<ISymbolLookupParser, LlmSymbolLookupParser>();
-        services.AddScoped<ISymbolNameResolver, EfCoreSymbolNameResolver>();
         services.AddScoped<ISymbolMetricLookupService, EfCoreSymbolMetricLookupService>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
         services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();
@@ -779,7 +778,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, SymbolPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, FinancialStatementPayloadNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, MonthlyReportPayloadNormalizer>();
-        services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesSymbolNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, CyclicalWavesMonthlyReportNormalizer>();
         services.AddSingleton<CanonicalSymbolLinkageResolver>();

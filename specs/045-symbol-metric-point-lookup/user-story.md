@@ -39,8 +39,13 @@ intent type and lookup execution path to the single AI facade endpoint.
   row for the same `Companies.Id`.
 - The response includes a structured `SymbolLookupTable` (same column/cell/freshness contract as
   the scanner table) inside the existing `AiQueryResponse`.
+- The response includes a top-level `ConfidenceScore` for the lookup result. A valid structured
+  lookup must not depend on `ExplainableAnswer.Confidence`; symbol lookup responses may not have a
+  scanner explainable answer.
 - When a requested metric has no data for a symbol the cell shows `Missing` freshness — no error.
-- Confidence, citations, and billing accounting follow the same rules as scanner results.
+- Confidence, citations, and billing accounting follow the same deterministic backend rules as
+  scanner results. The frontend must prefer backend `ConfidenceScore` and must not display `0%`
+  solely because `ExplainableAnswer` is absent.
 - The lookup result is persisted in the conversation message so it can be reloaded on return visits.
 - No new public endpoint is added; lookup is always triggered through `POST /api/ai/v1/query`.
 - The scanner screener path is unaffected; intent detection selects exactly one path.
@@ -70,5 +75,9 @@ intent type and lookup execution path to the single AI facade endpoint.
 - `SymbolLookupTableResult` re-uses `ScannerTableResult` shape so the frontend `ScannerResultTable`
   component renders lookup results without modification. The `ExecutionFacts.MatchingSymbolCount`
   reflects the number of successfully resolved symbols.
+- Confidence scoring for symbol lookup is deterministic and derived from source type, structured
+  cell completeness, freshness, warnings/missing data, and consistency between generated prose and
+  the structured table values. If the table contains a non-null `PE_TTM = 5.17` and the narrative
+  repeats `5.17`, confidence should be high rather than falling back to zero.
 - The existing `MissingAnswerFeedbackCollector` records lookup gaps (unresolved symbol names,
   metrics with no data) using the `DataCoverageGap` classification.

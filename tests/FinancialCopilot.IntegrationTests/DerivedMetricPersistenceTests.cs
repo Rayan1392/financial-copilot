@@ -56,7 +56,7 @@ public sealed class DerivedMetricPersistenceTests
 
         var metrics = await new DerivedMetricRecalculationCommand(service).ExecuteAsync(
             [new CalculateDerivedMetricCommand(
-                Guid.NewGuid(),
+                "EXT-TEST",
                 new MetricCode("MONTHLY_SALES_GROWTH_MOM"),
                 new CalculationPolicyVersion("mom-monthly-sales-v1"),
                 Month(2026, 4),
@@ -96,7 +96,7 @@ public sealed class DerivedMetricPersistenceTests
 
         await service.CalculateAsync(
             new CalculateDerivedMetricCommand(
-                Guid.NewGuid(),
+                "EXT-TEST",
                 new MetricCode("PE_TTM"),
                 new CalculationPolicyVersion("vendor-pe-ratio-passthrough-v1"),
                 q1,

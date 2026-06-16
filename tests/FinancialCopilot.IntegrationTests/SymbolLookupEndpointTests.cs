@@ -370,10 +370,6 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
     {
         var companyHafariId = Guid.Parse("50000000-0000-0000-0000-000000000001");
         var companyFmlcoId = Guid.Parse("50000000-0000-0000-0000-000000000002");
-        var staleHafariCompanyId = Guid.Parse("50000000-0000-0000-0000-000000000101");
-        var symbolHafariId = Guid.Parse("60000000-0000-0000-0000-000000000001");
-        var symbolFmlcoId = Guid.Parse("60000000-0000-0000-0000-000000000002");
-        var symbolHafariMetricsId = Guid.Parse("60000000-0000-0000-0000-000000000101");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -385,6 +381,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
                 Name = "حفاری شمال",
                 ProviderName = "test",
                 ExternalCompanyId = "hafari-001",
+                Ticker = "حفاری",
                 TseSymbol = "HAF_TSE",
                 CompanySymbol = "HAFARI",
                 LastSynchronizedAt = now
@@ -400,44 +397,15 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
                 LastSynchronizedAt = now
             });
 
-        db.Symbols.AddRange(
-            new NormalizedSymbolRow
-            {
-                Id = symbolHafariId,
-                CompanyId = staleHafariCompanyId,
-                ProviderName = "test",
-                ExternalSymbolId = "hafari-001",
-                SymbolCode = "HAFARI",
-                LastSynchronizedAt = now
-            },
-            new NormalizedSymbolRow
-            {
-                Id = symbolHafariMetricsId,
-                CompanyId = staleHafariCompanyId,
-                ProviderName = "metrics-provider",
-                ExternalSymbolId = "hafari-metrics-001",
-                SymbolCode = "HAFARI_CW",
-                LastSynchronizedAt = now
-            },
-            new NormalizedSymbolRow
-            {
-                Id = symbolFmlcoId,
-                CompanyId = companyFmlcoId,
-                ProviderName = "test",
-                ExternalSymbolId = "fmlco-001",
-                SymbolCode = "FMLCO",
-                LastSynchronizedAt = now
-            });
-
         db.DerivedMetrics.AddRange(
-            MakeDerivedMetric(symbolHafariMetricsId, "PE_TTM", 5.2m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolHafariMetricsId, "RETURN_ON_EQUITY", 12.0m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolFmlcoId, "PE_TTM", 8.4m, periodStart, periodEnd, now),
-            MakeDerivedMetric(symbolFmlcoId, "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
+            MakeDerivedMetric("hafari-001", "PE_TTM", 5.2m, periodStart, periodEnd, now),
+            MakeDerivedMetric("hafari-001", "RETURN_ON_EQUITY", 12.0m, periodStart, periodEnd, now),
+            MakeDerivedMetric("fmlco-001", "PE_TTM", 8.4m, periodStart, periodEnd, now),
+            MakeDerivedMetric("fmlco-001", "RETURN_ON_EQUITY", 18.5m, periodStart, periodEnd, now));
     }
 
     private static DerivedMetricRow MakeDerivedMetric(
-        Guid symbolId,
+        string externalCompanyId,
         string metricCode,
         decimal value,
         DateOnly periodStart,
@@ -446,7 +414,7 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
         new()
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolId,
+            ExternalCompanyId = externalCompanyId,
             MetricCode = metricCode,
             MetricVersion = "v1",
             CalculationPolicyVersion = $"{metricCode}_v1",
@@ -522,7 +490,6 @@ public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
         int index)
     {
         var companyId = Guid.Parse($"70000000-0000-0000-0000-{index:000000000000}");
-        var symbolId = Guid.Parse($"71000000-0000-0000-0000-{index:000000000000}");
 
         db.Companies.Add(new NormalizedCompanyRow
         {
@@ -535,21 +502,11 @@ public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
             LastSynchronizedAt = now
         });
 
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId,
-            CompanyId = companyId,
-            ProviderName = "CodalDb",
-            ExternalSymbolId = $"symbol-{index}",
-            SymbolCode = symbol,
-            LastSynchronizedAt = now
-        });
-
         db.DerivedMetrics.AddRange(
             new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = $"company-{index}",
                 MetricCode = "PE_TTM",
                 MetricVersion = "v1",
                 CalculationPolicyVersion = "PE_TTM_v1",
@@ -567,7 +524,7 @@ public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
             new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = $"company-{index}",
                 MetricCode = "LATEST_PRICE",
                 MetricVersion = "v1",
                 CalculationPolicyVersion = "LATEST_PRICE_v1",
@@ -585,7 +542,7 @@ public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
             new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = $"company-{index}",
                 MetricCode = "DAILY_CHANGE_PCT",
                 MetricVersion = "v1",
                 CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
@@ -861,7 +818,6 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
     private static void SeedTestData(FinancialIngestionDbContext db)
     {
         var companyId = Guid.Parse("80000000-0000-0000-0000-000000000001");
-        var symbolId = Guid.Parse("81000000-0000-0000-0000-000000000001");
         var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
 
         db.Companies.Add(new NormalizedCompanyRow
@@ -873,25 +829,16 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
             CompanySymbol = "غگلپا",
             LastSynchronizedAt = now
         });
-        db.Symbols.Add(new NormalizedSymbolRow
-        {
-            Id = symbolId,
-            CompanyId = companyId,
-            ProviderName = "NoavaranCurrentApi",
-            ExternalSymbolId = "13150",
-            SymbolCode = "غگلپا",
-            LastSynchronizedAt = now
-        });
 
         // Farvardin 1405 (older) and Ordibehesht 1405 (latest) monthly observations, plus a
         // quarterly REVENUE row that must NOT be substituted for the monthly ask.
         db.DerivedMetrics.AddRange(
-            MonthlySales(symbolId, new DateOnly(2026, 3, 21), new DateOnly(2026, 4, 20), 555_000_000m, now),
-            MonthlySales(symbolId, new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), LatestMonthSales, now),
+            MonthlySales("13150", new DateOnly(2026, 3, 21), new DateOnly(2026, 4, 20), 555_000_000m, now),
+            MonthlySales("13150", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), LatestMonthSales, now),
             new DerivedMetricRow
             {
                 Id = Guid.NewGuid(),
-                SymbolId = symbolId,
+                ExternalCompanyId = "13150",
                 MetricCode = "REVENUE",
                 MetricVersion = "v1",
                 CalculationPolicyVersion = "normalized-source-v1",
@@ -909,7 +856,7 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
     }
 
     private static DerivedMetricRow MonthlySales(
-        Guid symbolId,
+        string externalCompanyId,
         DateOnly periodStart,
         DateOnly periodEnd,
         decimal value,
@@ -917,7 +864,7 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
         new()
         {
             Id = Guid.NewGuid(),
-            SymbolId = symbolId,
+            ExternalCompanyId = externalCompanyId,
             MetricCode = "MONTHLY_SALES",
             MetricVersion = "v1",
             CalculationPolicyVersion = "monthly-sales-source-v1",

@@ -378,6 +378,9 @@ public sealed class AiQueryOrchestrationService(
             scannerTable,
             symbolLookupTable,
             explainableAnswer);
+        var responseTextAnswer = detectedIntent == DetectedIntent.SymbolLookup
+            ? assistantContent
+            : textAnswer;
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -394,7 +397,7 @@ public sealed class AiQueryOrchestrationService(
                     detectedIntent,
                     clarificationRequired,
                     clarificationMessage,
-                    textAnswer,
+                    responseTextAnswer,
                     scannerPlan,
                     scannerTable,
                     symbolLookupTable,
@@ -416,7 +419,7 @@ public sealed class AiQueryOrchestrationService(
             symbolLookupTable,
             explainableAnswer,
             confidenceScore,
-            textAnswer,
+            responseTextAnswer,
             clarificationRequired,
             clarificationMessage,
             usage,

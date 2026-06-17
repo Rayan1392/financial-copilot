@@ -226,7 +226,7 @@ public sealed class ExplainableAnswerBuilder(
     private static string FormatThreshold(decimal threshold) =>
         threshold == Math.Floor(threshold)
             ? ((long)threshold).ToString()
-            : threshold.ToString("N2");
+            : threshold.ToString("N2", System.Globalization.CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
 }
 
 public sealed class ConfidenceScoringService(

@@ -76,8 +76,8 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         var content = assistant.GetProperty("content").GetString()!;
         var confidence = assistant.GetProperty("assistantContent").GetProperty("confidenceScore");
 
-        // Deterministic prose is grounded in the same table cell rendered in the table (5.20).
-        Assert.Contains("5.20", content);
+        // Deterministic prose is grounded in the same table cell rendered in the table (5.2).
+        Assert.Contains("5.2", content);
         Assert.True(confidence.GetProperty("score").GetDouble() >= 0.95);
     }
 
@@ -235,6 +235,7 @@ public sealed class PeSymbolLookupRegressionTests : IClassFixture<PeSymbolLookup
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
 
         var table = root.GetProperty("symbolLookupTable");
+
         var columns = table.GetProperty("columns").EnumerateArray()
             .Select(c => c.GetProperty("identifier").GetString())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -250,6 +251,8 @@ public sealed class PeSymbolLookupRegressionTests : IClassFixture<PeSymbolLookup
         Assert.Equal(expectedFormattedValue, cell.GetProperty("formattedValue").GetString());
         Assert.NotEqual(JsonValueKind.Null, cell.GetProperty("value").ValueKind);
         Assert.NotEqual("Missing", cell.GetProperty("freshnessStatus").GetString());
+        var latestPrice = row.GetProperty("cells").GetProperty("LATEST_PRICE");
+        Assert.False(latestPrice.GetProperty("formattedValue").GetString()?.EndsWith(".00", StringComparison.Ordinal) ?? false);
 
         var warnings = table.GetProperty("missingDataWarnings").EnumerateArray()
             .Select(w => w.GetString() ?? string.Empty)
@@ -756,8 +759,20 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.Contains("Unit: million Rials", root.GetProperty("textAnswer").GetString());
 
         var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("LATEST_PRICE", columnIds);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
+
+        Assert.Equal("فروش ماه مشابه دوره قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"));
+        Assert.Equal("فروش YTD", GetColumnDisplayName(columns, "MONTHLY_SALES_YTD"));
+        Assert.Equal("فروش YTD تا ماه قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_YTD_PREVIOUS_MONTH"));
+
         var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
         Assert.Equal("غگلپا", row.GetProperty("symbolCode").GetString());
 
@@ -766,20 +781,33 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         // with a different value to catch silent substitution.)
         var cell = row.GetProperty("cells").GetProperty("MONTHLY_SALES");
         Assert.Equal(MonthlySalesLookupApiFactory.LatestMonthSales, cell.GetProperty("value").GetDecimal());
+        Assert.Equal(FormatMillionRials(MonthlySalesLookupApiFactory.LatestMonthSales), cell.GetProperty("formattedValue").GetString());
         Assert.NotEqual("Missing", cell.GetProperty("freshnessStatus").GetString());
 
         var priorYear = row.GetProperty("cells").GetProperty("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH");
         Assert.Equal(MonthlySalesLookupApiFactory.PriorYearSameMonthSales, priorYear.GetProperty("value").GetDecimal());
+        Assert.Equal(FormatMillionRials(MonthlySalesLookupApiFactory.PriorYearSameMonthSales), priorYear.GetProperty("formattedValue").GetString());
         Assert.NotEqual("Missing", priorYear.GetProperty("freshnessStatus").GetString());
 
         var ytd = row.GetProperty("cells").GetProperty("MONTHLY_SALES_YTD");
         Assert.Equal(MonthlySalesLookupApiFactory.YearToDateSales, ytd.GetProperty("value").GetDecimal());
+        Assert.Equal(FormatMillionRials(MonthlySalesLookupApiFactory.YearToDateSales), ytd.GetProperty("formattedValue").GetString());
         Assert.NotEqual("Missing", ytd.GetProperty("freshnessStatus").GetString());
 
         var ytdPreviousMonth = row.GetProperty("cells").GetProperty("MONTHLY_SALES_YTD_PREVIOUS_MONTH");
         Assert.Equal(MonthlySalesLookupApiFactory.YearToPreviousMonthSales, ytdPreviousMonth.GetProperty("value").GetDecimal());
+        Assert.Equal(FormatMillionRials(MonthlySalesLookupApiFactory.YearToPreviousMonthSales), ytdPreviousMonth.GetProperty("formattedValue").GetString());
         Assert.NotEqual("Missing", ytdPreviousMonth.GetProperty("freshnessStatus").GetString());
     }
+
+    private static string FormatMillionRials(decimal value) =>
+        Math.Round(value / 1_000_000m, 0, MidpointRounding.AwayFromZero).ToString("N0");
+
+    private static string? GetColumnDisplayName(IReadOnlyCollection<JsonElement> columns, string identifier) =>
+        columns
+            .First(c => string.Equals(c.GetProperty("identifier").GetString(), identifier, StringComparison.OrdinalIgnoreCase))
+            .GetProperty("displayName")
+            .GetString();
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {

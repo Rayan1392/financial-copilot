@@ -81,6 +81,8 @@ existing orchestration/recalculation paths, and introduce no query-time vendor c
     fiscal-year-to-date sales (`OutputType = 1`), and fiscal-year-to-previous-month sales
     (`OutputType = 4`). Each value has monthly period evidence and non-Missing freshness when
     seeded; a quarterly `REVENUE` value is never substituted for an explicit monthly ask.
+    The same API-boundary test must assert that monthly production/sales responses do not include
+    `LATEST_PRICE` or `DAILY_CHANGE_PCT`.
 15. **Explainability.** Confirm citations show the Noavaran provider, the Shamsi month
     (Gregorian window), and the calculation policy version for the new metrics.
 
@@ -96,3 +98,4 @@ existing orchestration/recalculation paths, and introduce no query-time vendor c
       known company (e.g. غگلپا / vendor id `13150`).
     - The AI answer for «آخرین فروش غگلپا» reflects that month and includes the prior fiscal-year
       same-month value when the persisted comparable row exists.
+    - Monthly production/sales answers omit latest price and daily price change.

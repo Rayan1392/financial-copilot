@@ -136,6 +136,9 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
     fiscal-year-to-previous-month sales (`OutputType = 4`). Each value includes period and source
     evidence; missing prior-year coverage is reported as missing, never fabricated or substituted
     from quarterly `REVENUE`.
+    The grouped monthly production/sales response must omit stock market context columns:
+    do not include `LATEST_PRICE` or `DAILY_CHANGE_PCT` for latest sales, monthly sales,
+    sales quantity/rate, monthly production, or the composite monthly-sales snapshot.
 12. The line-item model audit either confirms rate/unit/title can be derived from existing
     normalized columns or extends `NormalizedMonthlyReportLineItemRow` (additive migration)
     so `MONTHLY_SALES_RATE` is computable from normalized data, not raw payloads.

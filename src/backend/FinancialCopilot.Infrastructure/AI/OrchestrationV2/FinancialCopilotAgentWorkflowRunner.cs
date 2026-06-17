@@ -160,6 +160,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             groundedAnswer,
             state.LookupResult?.Table,
             explainableAnswer);
+        var responseTextAnswer = detectedIntent == DetectedIntent.SymbolLookup
+            ? groundedAnswer
+            : textAnswer;
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -167,7 +170,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var persistedExchange = await persistenceFunction.PersistAsync(
             conversationId, request,
             detectedIntent, clarificationRequired, clarificationMessage,
-            textAnswer,
+            responseTextAnswer,
             state.ScannerResult?.Plan, state.ScannerResult?.Table,
             state.LookupResult?.Table,
             explainableAnswer, confidenceScore, usage,
@@ -186,7 +189,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             state.LookupResult?.Table,
             explainableAnswer,
             confidenceScore,
-            textAnswer,
+            responseTextAnswer,
             clarificationRequired,
             clarificationMessage,
             usage,

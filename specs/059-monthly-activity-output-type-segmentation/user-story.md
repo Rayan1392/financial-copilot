@@ -82,6 +82,8 @@ provider-precomputed company totals until the platform aggregates them.
 
 1. A `MonthlyActivityOutputTypeResolver` service (Application layer) maps a `MonthlyActivityQueryIntent` (enum: `SingleMonth`, `YearToDate`, `Adjustment`, `YearToDateAdjusted`, `YearToDatePrevious`) to an `outputTypeId` integer.
 2. When a metric query is for "latest sales" without explicit month qualification, the response composes the persisted `SingleMonth` (type 0), prior fiscal-year same-month `SingleMonth` (type 0 from the prior year), `YearToDate` (type 1), and `YearToDatePrevious` (type 4) facts when available.
+   This composed monthly production/sales response is a monthly activity view, not a market quote
+   view: it must omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
 3. When a metric query is specifically for "year-to-date" / "from the beginning of fiscal year", `YearToDate` (type 1) is selected.
 4. When a metric query references a specific Shamsi month explicitly (e.g., "فروردین 1405"), `SingleMonth` (type 0) is selected.
 5. The scanner and symbol-lookup metric resolution layer uses the resolver when retrieving `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` metrics.

@@ -52,7 +52,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
         // Multiple symbols, or multiple metrics: prose must not state a single value. Defer to the table.
         if (table.Rows.Count > 1 || metricColumns.Count != 1)
-            return MultiResultSentence(persian);
+            return WithUnitNote(table, MultiResultSentence(persian));
 
         var column = metricColumns[0];
         var metricCode = column.MetricCode ?? column.Identifier;
@@ -76,7 +76,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             return UnavailableSentence(persian, symbol, metricDisplay);
         }
 
-        return ValueSentence(persian, symbol, metricDisplay, cell.FormattedValue!);
+        return WithUnitNote(table, ValueSentence(persian, symbol, metricDisplay, cell.FormattedValue!));
     }
 
     private static string ValueSentence(bool persian, string symbol, string metricDisplay, string formattedValue) =>
@@ -98,6 +98,18 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         persian
             ? "بر اساس داده‌های موجود، مقدار درخواستی برای نمادهای موردنظر در جدول زیر آمده است."
             : "Based on the available data, the requested values for the symbols are shown in the table below.";
+
+    private static string WithUnitNote(SymbolLookupTableResult table, string sentence) =>
+        HasMonthlySalesMonetaryColumn(table)
+            ? $"Unit: million Rials{Environment.NewLine}{sentence}"
+            : sentence;
+
+    private static bool HasMonthlySalesMonetaryColumn(SymbolLookupTableResult table) =>
+        table.Columns.Any(c =>
+            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase));
 
     private static string? FirstRequestedSymbol(SymbolLookupTableResult table) =>
         table.UnresolvedSymbols.FirstOrDefault();

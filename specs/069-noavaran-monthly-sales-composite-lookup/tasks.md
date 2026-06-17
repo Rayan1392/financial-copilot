@@ -161,6 +161,8 @@ Render:
 
 Include:
 
+* visible unit note above the table: `Unit: million Rials`
+* sales monetary values displayed in million Rials
 * source evidence
 * freshness indicators
 * confidence
@@ -168,6 +170,10 @@ Include:
 ### Acceptance Criteria
 
 * Users receive a complete monthly sales snapshot.
+* Persisted canonical values remain in Rials, but displayed monthly-sales monetary cells are divided by 1,000,000.
+* Unit conversion applies only to the monthly-sales monetary snapshot columns, not prices, percentages, ratios, quantities, or non-sales metrics.
+* The unit note is present before the table in the AI response text.
+* Monthly production/sales lookup responses omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
 
 ---
 
@@ -183,8 +189,12 @@ Add:
 * lookup service tests
 * composite response tests
 * regression tests
+* display-unit tests for million-Rial sales rendering and unit-note output
+* API-boundary tests proving monthly production/sales lookup responses do not include latest price or daily price change
 
 ### Acceptance Criteria
 
 * Composite alias bug cannot regress.
 * Monthly sales snapshot behavior is fully covered.
+* Monthly sales display-unit behavior cannot regress.
+* Monthly production/sales market-context suppression cannot regress.

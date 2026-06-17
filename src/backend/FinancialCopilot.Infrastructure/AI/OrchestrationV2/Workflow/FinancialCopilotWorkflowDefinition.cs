@@ -360,11 +360,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
         var textAnswer = msg.DetectedIntent == DetectedIntent.Unknown ? msg.AgentResponseText : null;
+        var responseTextAnswer = msg.DetectedIntent == DetectedIntent.SymbolLookup
+            ? msg.GroundedAnswer
+            : textAnswer;
 
         var persistedExchange = await persistenceFunction.PersistAsync(
             msg.ConversationId, msg.Request,
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
-            textAnswer,
+            responseTextAnswer,
             msg.ScannerResult?.Plan, msg.ScannerResult?.Table,
             msg.LookupResult?.Table,
             msg.ExplainableAnswer, msg.ConfidenceScore, msg.Usage,
@@ -380,7 +383,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
             msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
-            textAnswer, msg.Usage, disclosures, msg.ModelClient,
+            responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId);
     }
 
@@ -523,8 +526,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         - screen_stocks: Use when the user wants to screen or filter stocks by financial metric conditions (e.g., P/E below 10, high ROE, low debt).
         - lookup_symbol_metrics: Use when the user requests a specific financial metric value for a named stock.
-          Always fetch: LATEST_PRICE, DAILY_CHANGE_PCT, MONTHLY_SALES, PE_TTM, PS_TTM, EPS.
-          Add MONTHLY_SALES_GROWTH_YOY, MONTHLY_PRODUCTION_QUANTITY when relevant.
+          For valuation/financial-ratio lookups, fetch LATEST_PRICE and DAILY_CHANGE_PCT alongside the requested metric when useful.
+          For monthly sales, monthly production, sales quantity, sales rate, and related monthly production/sales metrics, do NOT fetch or show LATEST_PRICE or DAILY_CHANGE_PCT.
+          For latest monthly sales, return the monthly sales snapshot: latest monthly sales, prior fiscal-year same-month sales, fiscal-year-to-date sales, and fiscal-year-to-previous-month sales.
         - query_comprehensive_analysis: Searches the ComprehensiveAnalyses database for expert narrative analysis posts.
           Use ONLY for analysis/opinion/review/outlook requests — NOT for financial metric requests.
 
@@ -540,7 +544,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         FINANCIAL METRIC INTENT → call lookup_symbol_metrics ONLY (never query_comprehensive_analysis):
           Triggers: any specific metric name alongside a symbol — P/E, P/S, EPS, فروش, درآمد, سود خالص,
                     حاشیه سود, ارزش بازار, تولید ماهانه, نسبت جاری, ROE, ROA, MONTHLY_SALES
-          Examples: "P/E شغدیر", "EPS فملی", "فروش ماهانه شغدیر", "ROE کگل"
+          Examples: "P/E شغدیر", "EPS فملی", "فروش ماهانه شغدیر", "تولید ماهانه کگل", "ROE کگل"
           Action: call lookup_symbol_metrics ONLY. Do NOT call query_comprehensive_analysis.
           Return the metric value directly. Do NOT summarize analyst reports.
 
@@ -594,9 +598,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
            "عدد دقیق در خروجی برنگشت", "پیدا نشد", or "در دسترس نیست" for a metric that has a
            returned value. Only declare data unavailable when the cell's FreshnessStatus is Missing
            AND there is no numeric value in the cell.
-        4. PRICE FRESHNESS: Always show the price from the tool response. If SourceKind is Live or
+        4. PRICE FRESHNESS: Show the price only when the tool response includes price columns. If SourceKind is Live or
            Intraday, label it as "آخرین قیمت (لحظه‌ای)". If PreviousTradingDay, label it as
-           "آخرین قیمت (پایان جلسه قبل)". Never omit the price when it is present in the response.
+           "آخرین قیمت (پایان جلسه قبل)". Monthly production/sales lookup responses intentionally omit price and daily-change columns.
 
         Always respond in the same language as the user's message (Persian/Farsi or English).
         If the request does not fit any tool, briefly explain what you can help with.

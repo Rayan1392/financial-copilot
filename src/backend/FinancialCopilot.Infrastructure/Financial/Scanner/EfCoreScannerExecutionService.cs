@@ -288,7 +288,11 @@ public sealed class EfCoreScannerExecutionService(
                     BuildPersistedMetricCell(externalCompanyId, "MARKET_CAP", latestByCompanyMetric, FormatLargeNumber),
 
                 ScannerColumnType.Metric when column.MetricCode is not null =>
-                    BuildPersistedMetricCell(externalCompanyId, column.MetricCode, latestByCompanyMetric, v => v.ToString("N2")),
+                    BuildPersistedMetricCell(
+                        externalCompanyId,
+                        column.MetricCode,
+                        latestByCompanyMetric,
+                        v => FinancialNumberFormatter.Metric(column.MetricCode, v)),
 
                 _ => new ScannerTableCell(null, null, CellFreshnessStatus.Missing, null)
             };
@@ -309,7 +313,7 @@ public sealed class EfCoreScannerExecutionService(
                 : CellFreshnessStatus.PreviousTradingDay;
             return new ScannerTableCell(
                 quote.LatestPrice,
-                quote.LatestPrice.ToString("N2"),
+                FinancialNumberFormatter.Whole(quote.LatestPrice),
                 freshness,
                 quote.AsOf);
         }
@@ -318,7 +322,7 @@ public sealed class EfCoreScannerExecutionService(
         {
             return new ScannerTableCell(
                 row.Value,
-                row.Value.Value.ToString("N2"),
+                FinancialNumberFormatter.Whole(row.Value.Value),
                 CellFreshnessStatus.Persisted,
                 row.ObservedAt);
         }
@@ -337,7 +341,7 @@ public sealed class EfCoreScannerExecutionService(
 
         return new ScannerTableCell(
             quote.PriceChangePercentage,
-            $"{quote.PriceChangePercentage:+0.00;-0.00;0.00}%",
+            FinancialNumberFormatter.SignedPercent(quote.PriceChangePercentage),
             freshness,
             quote.AsOf);
     }
@@ -370,14 +374,7 @@ public sealed class EfCoreScannerExecutionService(
             _ => false
         };
 
-    private static string FormatLargeNumber(decimal value) =>
-        value switch
-        {
-            >= 1_000_000_000_000m => $"{value / 1_000_000_000_000m:N1}T",
-            >= 1_000_000_000m => $"{value / 1_000_000_000m:N1}B",
-            >= 1_000_000m => $"{value / 1_000_000m:N1}M",
-            _ => value.ToString("N0")
-        };
+    private static string FormatLargeNumber(decimal value) => FinancialNumberFormatter.LargeNumber(value);
 
     private static ScannerTableResult BuildEmptyResult(
         ScannerQueryPlan plan,

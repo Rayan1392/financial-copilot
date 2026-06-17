@@ -39,6 +39,14 @@ intent type and lookup execution path to the single AI facade endpoint.
   row for the same `Companies.Id`.
 - The response includes a structured `SymbolLookupTable` (same column/cell/freshness contract as
   the scanner table) inside the existing `AiQueryResponse`.
+- Numeric display formatting is deterministic:
+  - Monetary, price, market-cap, volume, quantity, production, and sales amount cells must not
+    show a decimal fraction when the displayed value is whole. Large financial values should be
+    rendered as grouped whole numbers (for example `90,879,722`, not `90,879,722.00`).
+  - P/E, P/S, P/B, percent, growth, margin, and other financial-ratio cells may show decimals
+    when the decimal part is meaningful, but trailing zero-only fractions must be trimmed
+    (`5.20` -> `5.2`, `5.00` -> `5`).
+  - Raw numeric `value` remains unchanged; only `formattedValue` is affected.
 - The response includes a top-level `ConfidenceScore` for the lookup result. A valid structured
   lookup must not depend on `ExplainableAnswer.Confidence`; symbol lookup responses may not have a
   scanner explainable answer.

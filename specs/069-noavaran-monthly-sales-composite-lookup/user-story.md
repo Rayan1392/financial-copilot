@@ -136,6 +136,25 @@ along with:
 * confidence
 * freshness indicators
 
+Monthly sales monetary values must be displayed to users in **million Rials** even though the
+persisted canonical value is stored in Rials. The answer must include a visible unit note above
+the table, for example:
+
+```text
+Unit: million Rials
+```
+
+Only monthly-sales monetary columns use this display conversion. Prices, percentages, ratios,
+quantities, and non-sales metrics keep their existing display units.
+After conversion to million Rials, monthly-sales monetary cells must follow the shared financial
+number display policy: whole displayed values have no `.00` suffix, and large sales amounts are
+shown as grouped whole numbers unless a non-zero fractional part is intentionally meaningful.
+
+Monthly production/sales lookup responses must not include market-price context. When the user
+asks for latest sales, monthly sales, sales quantity/rate, monthly production, or the composite
+monthly-sales snapshot, the response must omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`; those
+columns remain available for valuation, ratio, and non-monthly metric lookups.
+
 ### Regression Coverage
 
 Tests must verify:
@@ -146,3 +165,6 @@ Tests must verify:
 * Persistence-backed retrieval.
 * No dependency on Symbols.
 * No live aggregation during query execution.
+* Monthly sales table values are rendered in million Rials with a unit note above the table.
+* Monthly production/sales lookup tables do not include latest price or daily price-change columns.
+* Monthly sales monetary formatted values do not include redundant `.00` decimal suffixes.

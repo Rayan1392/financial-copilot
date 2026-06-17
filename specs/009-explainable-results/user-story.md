@@ -16,6 +16,10 @@ so that I can trust and audit the output in my Conversation.
 - Each result includes warnings if data is stale or incomplete.
 - Scanner answers include applied filter chips whose labels and values match the executed plan and identify inferred defaults.
 - Stock-list answers expose a renderable table schema and rows, using default columns unless the user requested validated alternatives.
+- Rendered table `formattedValue` strings must use a stable financial display policy:
+  monetary, price, volume, quantity, production, and sales amount values are shown without
+  decimal zeros when whole; P/E, P/S, P/B, percent, growth, margin, and other ratio values may
+  keep meaningful decimals but must trim trailing zero-only fractions.
 - Every table value that can vary by observation time includes enough Data Citation/freshness metadata to indicate whether latest price information is live or from the previous completed trading day.
 - When the 10-column maximum omits requested or potentially useful metrics, the answer identifies the omission or prompts the user to narrow the requested table fields.
 - Each completed scanner answer includes contextually relevant suggested follow-up questions derived from the user's previous question and the returned result set.
@@ -31,6 +35,8 @@ so that I can trust and audit the output in my Conversation.
 ## Technical Notes
 
 - Numeric explanations should be generated from deterministic result data.
+- Deterministic result data includes backend-formatted numbers; LLM-facing prose must use those
+  formatted values instead of reformatting large financial values with `.00`.
 - LLM may polish text but must not change numbers.
 - Text generation and suggested-question generation use provider-neutral model interfaces from `014-ai-model-provider-abstraction`; model-provider changes must not alter deterministic evidence, confidence, table data, or Billing metadata.
 - AI explanations consume semantic metric labels/definitions from `015-financial-semantic-layer`; they must not invent or silently redefine a financial metric.

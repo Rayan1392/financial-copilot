@@ -1,55 +1,194 @@
-# Bug: Provider Sales Data Semantics and Unit Normalization Are Mixed
+# Bug: Provider Sales Data Semantics and Unit Normalization Are Mixed Between Noavaran Amin and CyclicalWaves
 
 ## Summary
 
-Noavaran Amin monthly activity data and CyclicalWaves sales metrics currently risk being treated as the same semantic shape and unit. They are not equivalent:
+The implementation incorrectly treats Noavaran Amin monthly sales data and CyclicalWaves sales metrics as if they have the same semantic shape and unit.
 
-- Noavaran Amin monthly activity is raw product/service line-item data. Monetary line-item values are source-unit million Rials and require ingestion-time aggregation into lookup-ready facts.
-- CyclicalWaves sales metrics are provider-precomputed company-level facts. Monetary values are source-unit Rials and must be persisted as-is without recalculation or million-Rial conversion.
+They are fundamentally different:
 
-This ambiguity can lead to wrong monthly sales answers, double conversion, and incorrect recomputation of provider-precomputed facts.
+1. **Noavaran Amin monthly activity data is raw line-item data**
 
-## Required Semantics
+   * Sales are reported per product/service line item.
+   * Company-level sales must be calculated by summing `productSaleValue` / service sales values.
+   * Values are reported in **million Rials**.
+   * Aggregation must happen during ingestion/recalculation, not at AI query time.
 
-### Noavaran Amin Monthly Activity
+2. **CyclicalWaves data is already precomputed**
 
-- Source shape: raw product/service line items.
-- Source unit: million Rials for monetary sales values such as product sale value and service sales value.
-- Required calculation: sum relevant line-item sales values per `ExternalCompanyId`, reporting period, provider, and `OutputType`.
-- Canonical storage: normalized monetary values according to the platform canonical monetary unit policy.
-- Timing: aggregation and unit normalization happen during ingestion/recalculation.
-- Query path: AI and symbol lookup must only read persisted facts. They must not aggregate `MonthlyReportLineItems`.
-- Required output types:
-  - `OutputType = 0`: single-month sales.
-  - `OutputType = 1`: fiscal-year-to-date sales.
-  - `OutputType = 4`: fiscal-year-to-previous-month sales.
-- Same-month prior fiscal-year comparison is resolved from persisted `OutputType = 0` monthly aggregates for the same company and same fiscal/Shamsi month one year earlier.
+   * Fields such as `last_month_sale`, `last_year_same_month_sale`, `average_12_month_sale`, `last_quarter_sale`, `pe`, and `ps` are already calculated by the provider.
+   * These values must be persisted as-is, without recalculating them from line items.
+   * Values are reported in **Rials**.
+
+The current specs do not clearly define this distinction, which caused incorrect implementation decisions.
+
+---
+
+## Root Cause
+
+The related specs describe monthly sales lookup and composite sales answers, but they do not explicitly define:
+
+* provider-level metric semantics;
+* whether a provider field is raw or precomputed;
+* monetary unit normalization rules;
+* which provider requires aggregation;
+* which provider must be treated as a passthrough source;
+* where unit conversion must happen.
+
+Because of this, the implementation conflated:
+
+* Noavaran Amin raw monthly activity line items;
+* CyclicalWaves already-computed metric fields.
+
+---
+
+## Required Provider Semantics
+
+### Noavaran Amin
+
+Noavaran Amin monthly activity responses contain detailed product/service rows.
+
+Example source shape:
+
+```json
+{
+  "companyTSESymbol": "کچاد",
+  "outputTypeId": 0,
+  "productSales": [
+    {
+      "productTitle": "فولاد",
+      "productSaleValue": 49185110,
+      "outputTypeTitle": "دوره یک ماهه"
+    },
+    {
+      "productTitle": "کنسانتره آهن",
+      "productSaleValue": 27990014,
+      "outputTypeTitle": "دوره یک ماهه"
+    }
+  ]
+}
+```
+
+Rules:
+
+* `productSaleValue` is a raw line-item value.
+* Company-level sales = sum of all relevant `productSaleValue` values for the company/month/output type.
+* Source unit is **million Rials**.
+* Persisted canonical monetary values must be normalized according to the platform canonical unit policy.
+* The aggregation must happen during ingestion/recalculation.
+* The AI query path must never sum `MonthlyReportLineItems`.
+
+Required aggregation keys:
+
+* `ExternalCompanyId`
+* reporting month / period
+* `OutputType`
+* provider/source metadata
+
+Required output types:
+
+* `OutputType = 0`: latest single-month sales
+* `OutputType = 1`: fiscal-year-to-date sales
+* `OutputType = 4`: fiscal-year-to-previous-month sales
+
+Same-month prior fiscal-year comparison must be resolved from persisted `OutputType = 0` monthly aggregates for the same company and same fiscal/Shamsi month one year earlier.
+
+---
 
 ### CyclicalWaves
 
-- Source shape: provider-precomputed company-level metrics.
-- Source unit: Rials for monetary sales fields.
-- Required calculation: none for precomputed fields.
-- Canonical storage: persist values as-is with provider provenance and a passthrough/source policy.
-- Forbidden behavior:
-  - Do not recalculate CyclicalWaves sales metrics from Noavaran line items.
-  - Do not apply Noavaran million-Rial conversion to CyclicalWaves values.
-  - Do not recompute provider-precomputed PE/PS/sales averages.
-- Required persisted facts include mapped equivalents for:
-  - last-month sale
-  - penultimate-month sale
-  - last-year same-month sale
-  - average 12-month sale
-  - last-quarter sale
-  - last-year same-quarter sale
-  - PE and PS ratios
+CyclicalWaves responses contain already-computed company-level metrics.
+
+Example source shape:
+
+```json
+{
+  "ticker": "کچاد",
+  "last_month_sale": 90879722000000,
+  "penultimate_month_sale": 52144839000000,
+  "last_year_same_month_sale": 69220219000000,
+  "average_12_month_sale": 57549286500000,
+  "last_quarter_sale": 249211279000000,
+  "last_year_same_quarter_sale": 206545150000000,
+  "pe": 9.73,
+  "ps": 2.14
+}
+```
+
+Rules:
+
+* These fields are provider-precomputed facts.
+* They must not be recalculated from Noavaran monthly line items.
+* They must be persisted as source-marked/pass-through `DerivedMetrics` or equivalent lookup-ready facts.
+* Source unit for monetary sales fields is **Rials**.
+* No multiplication by 1,000,000 must be applied to CyclicalWaves monetary values.
+* Ratios such as `pe` and `ps` are unitless and must be stored as-is.
+
+Required CyclicalWaves persisted metrics include, at minimum:
+
+* `CYCLICALWAVES_LAST_MONTH_SALE`
+* `CYCLICALWAVES_PENULTIMATE_MONTH_SALE`
+* `CYCLICALWAVES_LAST_YEAR_SAME_MONTH_SALE`
+* `CYCLICALWAVES_AVERAGE_12_MONTH_SALE`
+* `CYCLICALWAVES_LAST_QUARTER_SALE`
+* `CYCLICALWAVES_LAST_YEAR_SAME_QUARTER_SALE`
+* `PE_TTM` or mapped `pe`
+* `PS_TTM` or mapped `ps`
+
+Metric naming may differ if the governed semantic catalog already defines equivalent canonical codes, but the implementation must keep provider provenance and calculation policy clear.
+
+---
+
+## Required Fix
+
+Update the implementation and all related specs so they clearly separate:
+
+| Provider      | Data Shape                        | Calculation Requirement                       | Source Unit   |
+| ------------- | --------------------------------- | --------------------------------------------- | ------------- |
+| Noavaran Amin | Raw product/service line items    | Must aggregate during ingestion/recalculation | Million Rials |
+| CyclicalWaves | Precomputed company-level metrics | Must persist as-is                            | Rials         |
+
+---
+
+## Specs That Must Be Reviewed and Updated
+
+Update these specs if they exist in the repository:
+
+* `057-nadpco-monthly-activity-freshness-and-sales-lookup`
+* `059-monthly-activity-output-type-segmentation`
+* `067-cyclicalwaves-company-mapping`
+* `068-companies-first-refactor`
+* `069-noavaran-monthly-sales-composite-lookup`
+* any CyclicalWaves metric sync spec that defines quarterly/monthly sales, PE, PS, or margin ingestion
+* semantic catalog / derived metrics specs if they define metric units or calculation policies
+
+The specs must explicitly document:
+
+1. Raw vs precomputed provider semantics.
+2. Monetary unit conversion rules.
+3. Provider-specific calculation policy.
+4. Storage target and metric-code mapping.
+5. Query-time restriction: no live aggregation.
+6. Regression tests for unit normalization and provider passthrough.
+
+---
 
 ## Acceptance Criteria
 
-- Related specs explicitly document raw-vs-precomputed semantics, source units, canonical unit behavior, calculation policy, storage target, and query-time restrictions.
-- Noavaran monthly sales aggregates are normalized from million Rials during ingestion/recalculation.
-- CyclicalWaves precomputed sales values are persisted as-is in Rials.
-- CyclicalWaves PE/PS values are persisted as unitless ratios without transformation.
-- Symbol lookup for monthly sales reads persisted facts only.
-- Regression tests cover Noavaran aggregation/unit normalization, CyclicalWaves passthrough/no conversion, and composite monthly sales lookup behavior.
+* Noavaran Amin `productSaleValue` is summed per company/month/output type during ingestion/recalculation.
+* Noavaran Amin monetary values are normalized from million Rials according to the platform canonical monetary unit.
+* CyclicalWaves sales fields are persisted as provider-precomputed facts and are not recalculated.
+* CyclicalWaves monetary values are treated as Rials.
+* CyclicalWaves `pe` and `ps` are stored as-is as unitless ratios.
+* Query-time Symbol Lookup only reads persisted facts.
+* AI query path does not aggregate `MonthlyReportLineItems`.
+* Monthly production/sales Symbol Lookup responses omit market quote context: no `LATEST_PRICE`
+  and no `DAILY_CHANGE_PCT`.
+* Response evidence identifies provider, source unit, canonical unit, and calculation policy.
+* Regression tests prove:
 
+  * Noavaran aggregation sums all line-item `productSaleValue` values.
+  * Noavaran million-Rial values are normalized correctly.
+  * CyclicalWaves Rial values are not multiplied again.
+  * CyclicalWaves precomputed fields are persisted as passthrough metrics.
+  * Composite latest-sales lookup returns correct values with correct provider provenance.
+  * Monthly production/sales lookup responses do not include latest price or daily price change.

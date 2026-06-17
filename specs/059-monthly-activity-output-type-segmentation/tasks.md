@@ -191,6 +191,10 @@ For the prior fiscal-year same-month value, select the persisted single-month ag
 same `ExternalCompanyId` and same Shamsi/reporting month one fiscal year earlier. If it is absent,
 return a missing comparable-period value with source/freshness context instead of fabricating it.
 
+For latest sales, monthly sales, sales quantity/rate, monthly production, and the grouped
+monthly-sales snapshot, suppress market quote context in the lookup response: do not include
+`LATEST_PRICE` or `DAILY_CHANGE_PCT`. Add an API-boundary regression assertion for this behavior.
+
 This task requires spec 057 Phase C metrics to be implemented first.
 
 ---

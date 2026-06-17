@@ -15,7 +15,10 @@ public static class PhaseOneFinancialSemanticCatalog
 
     public static IReadOnlyCollection<FinancialMetricDefinition> Definitions { get; } =
     [
-        DefineSource("NET_PROFIT", "Net Profit", MetricCategory.Profitability, Amount, FiscalPeriodType.ThreeMonths),
+        Define("NET_PROFIT", "Net Profit", MetricCategory.Profitability, Amount,
+            [FiscalPeriodType.ThreeMonths],
+            [],
+            [Dependency("NET_PROFIT")]),
         // Monthly-activity metrics (spec 057): sourced from normalized Noavaran monthly reports.
         // Each is queryable (aliases) AND self-sourced — the self-dependency makes the
         // recalculation processor persist one DerivedMetrics row per company-month so the symbol
@@ -75,7 +78,7 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
             [Alias("revenue", "en-US", "REVENUE"), Alias("sales", "en-US", "REVENUE"),
              Alias("درآمد", "fa-IR", "REVENUE"), Alias("فروش", "fa-IR", "REVENUE"), Alias("فروش خالص", "fa-IR", "REVENUE")],
-            []),
+            [Dependency("REVENUE")]),
         Define("TOTAL_REVENUE", "Total Revenue", MetricCategory.Profitability, Amount,
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
             [Alias("total revenue", "en-US", "TOTAL_REVENUE"),
@@ -85,12 +88,12 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
             [Alias("gross profit", "en-US", "GROSS_PROFIT"),
              Alias("سود ناخالص", "fa-IR", "GROSS_PROFIT")],
-            []),
+            [Dependency("GROSS_PROFIT")]),
         Define("OPERATING_PROFIT", "Operating Profit", MetricCategory.Profitability, Amount,
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
             [Alias("operating profit", "en-US", "OPERATING_PROFIT"), Alias("ebit proxy", "en-US", "OPERATING_PROFIT"),
              Alias("سود عملیاتی", "fa-IR", "OPERATING_PROFIT")],
-            []),
+            [Dependency("OPERATING_PROFIT")]),
         Define("EPS", "Earnings per Share", MetricCategory.Profitability, PerShare,
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
             [Alias("eps", "en-US", "EPS"), Alias("earnings per share", "en-US", "EPS"),
@@ -419,21 +422,21 @@ public static class PhaseOneFinancialSemanticCatalog
              Alias("حاشیه سود", "fa-IR", "NET_PROFIT_MARGIN"),
              Alias("مارجین خالص", "fa-IR", "NET_PROFIT_MARGIN"),
              Alias("مارجین سود خالص", "fa-IR", "NET_PROFIT_MARGIN")],
-            []),
+            [Dependency("NET_PROFIT_MARGIN")]),
         Define("GROSS_PROFIT_MARGIN", "Gross Profit Margin", MetricCategory.Profitability, Percentage,
             [FiscalPeriodType.ThreeMonths],
             [Alias("gross profit margin", "en-US", "GROSS_PROFIT_MARGIN"),
              Alias("حاشیه سود ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN"),
              Alias("مارجین ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN"),
              Alias("مارجین سود ناخالص", "fa-IR", "GROSS_PROFIT_MARGIN")],
-            []),
+            [Dependency("GROSS_PROFIT_MARGIN")]),
         Define("OPERATING_PROFIT_MARGIN", "Operating Profit Margin", MetricCategory.Profitability, Percentage,
             [FiscalPeriodType.ThreeMonths],
             [Alias("operating profit margin", "en-US", "OPERATING_PROFIT_MARGIN"),
              Alias("حاشیه سود عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN"),
              Alias("مارجین عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN"),
              Alias("مارجین سود عملیاتی", "fa-IR", "OPERATING_PROFIT_MARGIN")],
-            []),
+            [Dependency("OPERATING_PROFIT_MARGIN")]),
         DefineRatio("DEBT_TO_EQUITY", "Debt to Equity", MetricCategory.FinancialHealth, Ratio,
             [Alias("debt to equity", "en-US", "DEBT_TO_EQUITY"), Alias("d/e ratio", "en-US", "DEBT_TO_EQUITY"),
              Alias("نسبت بدهی به حقوق صاحبان سهام", "fa-IR", "DEBT_TO_EQUITY")])
@@ -488,6 +491,12 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricFormula("additive-composite",
                 "EBIT = NET_PROFIT + FINANCE_COSTS + INCOME_TAX. Proxy: OPERATING_PROFIT when components missing (deferred)."),
             EffectiveFrom),
+
+        // CyclicalWaves statement snapshots — passthrough from line items → DerivedMetrics.
+        QuarterlySourcePolicy("REVENUE", "cw-revenue-passthrough-v1"),
+        QuarterlySourcePolicy("NET_PROFIT", "cw-net-profit-passthrough-v1"),
+        QuarterlySourcePolicy("GROSS_PROFIT", "cw-gross-profit-passthrough-v1"),
+        QuarterlySourcePolicy("OPERATING_PROFIT", "cw-operating-profit-passthrough-v1"),
 
         // CyclicalWaves pre-computed average metrics — passthrough from line items → DerivedMetrics.
         new MetricCalculationPolicy(
@@ -640,7 +649,14 @@ public static class PhaseOneFinancialSemanticCatalog
             aliases,
             dependencies,
             dependencies.Select(dependency =>
-                new MetricDataRequirement(dependency.MetricCode, periodTypes.Single(), dependency.Required)).ToArray());
+                new MetricDataRequirement(dependency.MetricCode, DependencyRequirementPeriod(periodTypes), dependency.Required)).ToArray());
+
+    private static FiscalPeriodType DependencyRequirementPeriod(IReadOnlyCollection<FiscalPeriodType> periodTypes) =>
+        periodTypes.Count == 1
+            ? periodTypes.Single()
+            : periodTypes.Contains(FiscalPeriodType.ThreeMonths)
+                ? FiscalPeriodType.ThreeMonths
+                : periodTypes.First();
 
     private static MetricAlias Alias(
         string expression,
@@ -684,6 +700,20 @@ public static class PhaseOneFinancialSemanticCatalog
             new MetricFormula(
                 "monthly-source-identity",
                 "Normalized Noavaran monthly-activity aggregate for the Shamsi month, persisted per month."),
+            EffectiveFrom);
+
+    private static MetricCalculationPolicy QuarterlySourcePolicy(string code, string policyVersion) =>
+        new(
+            new MetricCode(code),
+            new CalculationPolicyVersion(policyVersion),
+            MetricValueUnit.Amount,
+            null,
+            MissingDataPolicy.ReturnMissingValue,
+            [new MetricDataRequirement(new MetricCode(code), FiscalPeriodType.ThreeMonths, true)],
+            new MetricVersion("v1"),
+            new MetricFormula(
+                "quarterly-source-identity",
+                "CyclicalWaves provider-precomputed quarterly snapshot, persisted without arithmetic transformation."),
             EffectiveFrom);
 
     private static MetricCalculationPolicy SumPolicy(

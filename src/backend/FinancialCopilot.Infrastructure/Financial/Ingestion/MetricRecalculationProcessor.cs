@@ -155,8 +155,9 @@ public sealed class MetricRecalculationProcessor(
 
         // Determine which registered metrics have a calculator AND depend on at least one source
         // metric persisted by this dataset.
+        var semanticAsOf = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
         var candidates = metricRegistry
-            .GetSupportedMetrics(DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime))
+            .GetSupportedMetrics(semanticAsOf)
             .Where(definition => definition.Dependencies.Any(dep =>
                 sourceCodes.Contains(dep.MetricCode.Value)))
             .Where(HasRegisteredCalculator)
@@ -183,9 +184,12 @@ public sealed class MetricRecalculationProcessor(
             }
 
             var supportedPeriodTypes = definition.SupportedPeriodTypes.ToHashSet();
+            var allowHistoricalSourcePeriods = definition.Dependencies.Any(dependency =>
+                dependency.MetricCode == definition.Code);
             var distinctPeriods = unionInputs
                 .Where(input => input.Period.EndDate is not null &&
-                    supportedPeriodTypes.Contains(input.Period.Type))
+                    supportedPeriodTypes.Contains(input.Period.Type) &&
+                    (allowHistoricalSourcePeriods || input.Period.EndDate >= definition.EffectiveFrom))
                 .Select(input => input.Period)
                 .Distinct()
                 .ToArray();
@@ -195,7 +199,7 @@ public sealed class MetricRecalculationProcessor(
                 continue;
             }
 
-            var policyVersion = SelectActivePolicyVersion(definition.Code, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
+            var policyVersion = SelectActivePolicyVersion(definition.Code, semanticAsOf);
             if (policyVersion is null)
             {
                 continue;
@@ -209,7 +213,8 @@ public sealed class MetricRecalculationProcessor(
                     definition.Code,
                     policyVersion,
                     period,
-                    unionInputs);
+                    unionInputs,
+                    semanticAsOf);
 
                 try
                 {

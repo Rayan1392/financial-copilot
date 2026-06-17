@@ -1,5 +1,7 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -60,6 +62,49 @@ public sealed class CyclicalWavesNormalizerTests
         }
         """;
 
+    private static string KchadTickerDetailJson =>
+        """
+        {
+          "success": true,
+          "data": {
+            "_id": "cw-kchad-doc",
+            "ticker": "\u06a9\u0686\u0627\u062f",
+            "enticker": "IRO1CHML0001",
+            "last_quarter_sale": 249211279000000,
+            "penultimate_quarter_sale": 210000000000000,
+            "last_year_same_quarter_sale": 190000000000000,
+            "average_4_quarter_sale": 265915619500000,
+            "last_quarter_net_profit": 75257854000000,
+            "penultimate_quarter_net_profit": 61234567000000,
+            "last_year_same_quarter_net_profit": 55234567000000,
+            "last_quarter_gross_profit": 62289927000000,
+            "penultimate_quarter_gross_profit": 51234567000000,
+            "last_year_same_quarter_gross_profit": 41234567000000,
+            "last_quarter_operating_profit": 54150691000000,
+            "penultimate_quarter_operating_profit": 43234567000000,
+            "last_year_same_quarter_operating_profit": 33234567000000,
+            "last_quarter_net_profit_margin": 30.2,
+            "penultimate_quarter_net_profit_margin": 29.15,
+            "last_year_same_quarter_net_profit_margin": 28.11,
+            "last_quarter_gross_profit_margin": 24.99,
+            "penultimate_quarter_gross_profit_margin": 24.1,
+            "last_year_same_quarter_gross_profit_margin": 23.2,
+            "last_quarter_operating_profit_margin": 21.73,
+            "penultimate_quarter_operating_profit_margin": 20.5,
+            "last_year_same_quarter_operating_profit_margin": 19.4,
+            "last_month_sale": 90879722000000,
+            "penultimate_month_sale": 78000000000000,
+            "last_year_same_month_sale": 69220219000000,
+            "average_12_month_sale": 57549286500000,
+            "last_year_average_12_month_sale": 50000000000000,
+            "pe": 9.73,
+            "ps": 2.14,
+            "last_quarter_date": "2026-03-20",
+            "last_month_sale_date": "2026-05-31"
+          }
+        }
+        """;
+
     private static FinancialIngestionDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<FinancialIngestionDbContext>()
@@ -78,6 +123,90 @@ public sealed class CyclicalWavesNormalizerTests
             json,
             "checksum-" + Guid.NewGuid(),
             DateTimeOffset.UtcNow);
+
+    private static void SeedKchadCompany(FinancialIngestionDbContext db)
+    {
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoProviderName,
+            ExternalCompanyId = "3",
+            CompanySymbol = "\u06a9\u0686\u0627\u062f",
+            SymbolIsin = "IRO1CHML0001",
+            Name = "KCHAD",
+            LastSynchronizedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z")
+        });
+    }
+
+    private static void AddPendingRequest(
+        FinancialIngestionDbContext db,
+        ProviderDataset dataset,
+        string externalRef,
+        string checksumSuffix)
+    {
+        db.MetricRecalculationRequests.Add(new MetricRecalculationRequestRow
+        {
+            Id = Guid.NewGuid(),
+            SourceDataset = dataset.ToString(),
+            ExternalReference = externalRef,
+            SourcePayloadChecksum = $"cw-{dataset}-{externalRef}-{checksumSuffix}",
+            RequestedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z")
+        });
+    }
+
+    private static MetricRecalculationProcessor NewCyclicalWavesProcessor(FinancialIngestionDbContext db)
+    {
+        IFinancialMetricCalculator[] calculators =
+        [
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("REVENUE"), new MetricCode("REVENUE")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("NET_PROFIT"), new MetricCode("NET_PROFIT")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("GROSS_PROFIT"), new MetricCode("GROSS_PROFIT")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("OPERATING_PROFIT"), new MetricCode("OPERATING_PROFIT")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("AVG_4Q_REVENUE"), new MetricCode("AVG_4Q_REVENUE")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("NET_PROFIT_MARGIN"), new MetricCode("NET_PROFIT_MARGIN")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("GROSS_PROFIT_MARGIN"), new MetricCode("GROSS_PROFIT_MARGIN")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("OPERATING_PROFIT_MARGIN"), new MetricCode("OPERATING_PROFIT_MARGIN")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("PE_TTM"), new MetricCode("PE_RATIO")),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("PS_TTM"), new MetricCode("PS_RATIO")),
+            new AdditiveCompositeMetricCalculator(new MetricCode("MONTHLY_SALES"), [new MetricCode("MONTHLY_SALES")]),
+            new SourceLineItemPassthroughMetricCalculator(new MetricCode("AVG_12M_MONTHLY_SALES"), new MetricCode("AVG_12M_MONTHLY_SALES"))
+        ];
+
+        var registry = new FinancialMetricRegistry(PhaseOneFinancialSemanticCatalog.Definitions, calculators);
+        var policyProvider = new MetricCalculationPolicyProvider(PhaseOneFinancialSemanticCatalog.Policies);
+        INormalizedMetricInputSource[] sources =
+        [
+            new LineItemMetricInputSource(db, new MetricCode("REVENUE")),
+            new LineItemMetricInputSource(db, new MetricCode("NET_PROFIT")),
+            new LineItemMetricInputSource(db, new MetricCode("GROSS_PROFIT")),
+            new LineItemMetricInputSource(db, new MetricCode("OPERATING_PROFIT")),
+            new LineItemMetricInputSource(db, new MetricCode("AVG_4Q_REVENUE")),
+            new LineItemMetricInputSource(db, new MetricCode("NET_PROFIT_MARGIN")),
+            new LineItemMetricInputSource(db, new MetricCode("GROSS_PROFIT_MARGIN")),
+            new LineItemMetricInputSource(db, new MetricCode("OPERATING_PROFIT_MARGIN")),
+            new LineItemMetricInputSource(db, new MetricCode("PE_RATIO")),
+            new LineItemMetricInputSource(db, new MetricCode("PS_RATIO")),
+            new MonthlySalesMetricInputSource(db),
+            new MonthlyAvgSaleMetricInputSource(db)
+        ];
+        var inputReader = new NormalizedMetricInputReader(sources);
+        var resultStore = new PersistedDerivedMetricResultStore(db);
+        var calcService = new DerivedMetricCalculationService(registry, policyProvider, resultStore);
+        var recalcCommand = new DerivedMetricRecalculationCommand(calcService);
+        return new MetricRecalculationProcessor(
+            db,
+            registry,
+            policyProvider,
+            inputReader,
+            recalcCommand,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-06-17T00:00:00Z")),
+            NullLogger<MetricRecalculationProcessor>.Instance);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
 
     private static NormalizedCompanyRow SeedNadpcoCompany(
         FinancialIngestionDbContext db,
@@ -324,6 +453,103 @@ public sealed class CyclicalWavesNormalizerTests
             .LoadAsync("6a144b2e5fad5d3fae081f92", CancellationToken.None);
 
         Assert.Contains(observations, observation => observation.Value == 2297714000000m);
+    }
+
+    [Fact]
+    public async Task CyclicalWavesSyncAndRecalculation_PersistsFullDerivedMetricSnapshot()
+    {
+        await using var db = CreateDbContext();
+        SeedKchadCompany(db);
+        await db.SaveChangesAsync();
+        var statementNormalizer = new CyclicalWavesFinancialStatementNormalizer(
+            db,
+            NullCompanyResolverService.Instance,
+            NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance);
+        var monthlyNormalizer = new CyclicalWavesMonthlyReportNormalizer(
+            db,
+            NullCompanyResolverService.Instance,
+            NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
+
+        await statementNormalizer.NormalizeAsync(
+            MakePayload(ProviderDataset.FinancialStatements, KchadTickerDetailJson),
+            default);
+        await monthlyNormalizer.NormalizeAsync(
+            MakePayload(ProviderDataset.MonthlyProductionSales, KchadTickerDetailJson),
+            default);
+        var normalizedMonthlyReports = await db.MonthlyReports
+            .Where(row => row.ExternalCompanyId == "3")
+            .OrderBy(row => row.PeriodEnd)
+            .Select(row => $"{row.ExternalReportId}|{row.PeriodEnd:yyyy-MM-dd}")
+            .ToListAsync();
+        Assert.Contains("cw-kchad-doc:M12|2025-05-31", normalizedMonthlyReports);
+        var normalizedMonthlySalesInputs = await new MonthlySalesMetricInputSource(db)
+            .LoadAsync("3", CancellationToken.None);
+        Assert.Contains(normalizedMonthlySalesInputs, input =>
+            input.Period.EndDate == new DateOnly(2025, 5, 31) &&
+            input.Value == 69220219000000m);
+        AddPendingRequest(db, ProviderDataset.FinancialStatements, "3", "fs");
+        AddPendingRequest(db, ProviderDataset.MonthlyProductionSales, "3", "monthly");
+        await db.SaveChangesAsync();
+
+        var processor = NewCyclicalWavesProcessor(db);
+        await processor.ProcessPendingAsync(10, CancellationToken.None);
+
+        var metrics = await db.DerivedMetrics
+            .Where(row => row.ExternalCompanyId == "3")
+            .ToListAsync();
+        var latestByCode = metrics
+            .GroupBy(row => row.MetricCode)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderByDescending(row => row.PeriodEnd).First());
+
+        Assert.Equal(57549286500000m, latestByCode["AVG_12M_MONTHLY_SALES"].Value);
+        Assert.Equal(90879722000000m, latestByCode["MONTHLY_SALES"].Value);
+        Assert.Contains(metrics, row =>
+            row.MetricCode == "MONTHLY_SALES" &&
+            row.PeriodEnd == new DateOnly(2025, 5, 31) &&
+            row.Value == 69220219000000m);
+        Assert.Equal(249211279000000m, latestByCode["REVENUE"].Value);
+        Assert.Equal(265915619500000m, latestByCode["AVG_4Q_REVENUE"].Value);
+        Assert.Equal(75257854000000m, latestByCode["NET_PROFIT"].Value);
+        Assert.Equal(62289927000000m, latestByCode["GROSS_PROFIT"].Value);
+        Assert.Equal(54150691000000m, latestByCode["OPERATING_PROFIT"].Value);
+        Assert.Equal(30.2m, latestByCode["NET_PROFIT_MARGIN"].Value);
+        Assert.Equal(24.99m, latestByCode["GROSS_PROFIT_MARGIN"].Value);
+        Assert.Equal(21.73m, latestByCode["OPERATING_PROFIT_MARGIN"].Value);
+        Assert.Equal(9.73m, latestByCode["PE_TTM"].Value);
+        Assert.Equal(2.14m, latestByCode["PS_TTM"].Value);
+
+        var normalizedAvgMonthlySalesInputs = await new MonthlyAvgSaleMetricInputSource(db)
+            .LoadAsync("3", CancellationToken.None);
+        Assert.Contains(normalizedAvgMonthlySalesInputs, input =>
+            input.Period.EndDate == new DateOnly(2025, 5, 31) &&
+            input.Value == 50000000000000m);
+        Assert.Contains(metrics, row =>
+            row.MetricCode == "AVG_12M_MONTHLY_SALES" &&
+            row.PeriodEnd == new DateOnly(2025, 5, 31) &&
+            row.Value == 50000000000000m);
+        Assert.All(metrics.Where(row => row.Value is not null), row =>
+        {
+            Assert.Contains("CyclicalWaves", row.SourceEvidenceJson);
+            Assert.DoesNotContain("NoavaranCurrentApi", row.SourceEvidenceJson);
+        });
+        Assert.Contains("sourceUnit\":\"Rials", latestByCode["REVENUE"].SourceEvidenceJson);
+        Assert.Contains("canonicalUnit\":\"Rials", latestByCode["REVENUE"].SourceEvidenceJson);
+        Assert.Contains("cyclicalwaves-precomputed-rials-passthrough-v1", latestByCode["REVENUE"].SourceEvidenceJson);
+        Assert.Contains("sourceUnit\":\"Ratio", latestByCode["PE_TTM"].SourceEvidenceJson);
+
+        var narrowMonthlyOnly = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "AVG_12M_MONTHLY_SALES",
+            "MONTHLY_SALES",
+            "MONTHLY_SALES_GROWTH_MOM",
+            "MONTHLY_SALES_GROWTH_YOY",
+            "MONTHLY_SALES_QUANTITY",
+            "MONTHLY_SALES_RATE",
+            "MONTHLY_PRODUCTION_QUANTITY"
+        };
+        Assert.Contains(metrics, row => !narrowMonthlyOnly.Contains(row.MetricCode));
     }
 
     [Fact]

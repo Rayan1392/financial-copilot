@@ -9,7 +9,8 @@ public sealed record CalculateDerivedMetricCommand(
     MetricCode MetricCode,
     CalculationPolicyVersion CalculationPolicyVersion,
     FiscalPeriod EffectivePeriod,
-    IReadOnlyCollection<MetricInputObservation> Inputs);
+    IReadOnlyCollection<MetricInputObservation> Inputs,
+    DateOnly? SemanticAsOf = null);
 
 public interface IDerivedMetricResultStore
 {
@@ -58,7 +59,7 @@ public sealed class DerivedMetricCalculationService(
     {
         var asOf = command.EffectivePeriod.EndDate ??
             throw new ArgumentException("Derived metric calculation requires a closed period.", nameof(command));
-        var definition = metricRegistry.ResolveDefinition(command.MetricCode, asOf);
+        var definition = metricRegistry.ResolveDefinition(command.MetricCode, command.SemanticAsOf ?? asOf);
         var policy = policyProvider.GetPolicy(command.MetricCode, command.CalculationPolicyVersion);
         var result = await metricRegistry.ResolveCalculator(command.MetricCode)
             .CalculateAsync(

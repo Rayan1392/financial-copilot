@@ -510,6 +510,15 @@ public static class ServiceCollectionExtensions
             new MetricCode("TTM_EPS"),
             new MetricCode("TTM_EARNINGS"),
             new MetricCode("SHARES_OUTSTANDING")));
+        foreach (var cyclicalWavesBaseCode in new[]
+        {
+            "REVENUE", "NET_PROFIT", "GROSS_PROFIT", "OPERATING_PROFIT"
+        })
+        {
+            var captured = new MetricCode(cyclicalWavesBaseCode);
+            services.AddSingleton<IFinancialMetricCalculator>(_ =>
+                new SourceLineItemPassthroughMetricCalculator(captured, captured));
+        }
         // PE_TTM / PS_TTM: use vendor-supplied CyclicalWaves ratio snapshot until LATEST_PRICE and
         // SHARES_OUTSTANDING become available from market data, at which point replace with
         // ValuationRatioMetricCalculator(PE_TTM, LATEST_PRICE, TTM_EPS).

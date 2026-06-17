@@ -139,7 +139,9 @@ public sealed class SourceLineItemPassthroughMetricCalculator(
         CancellationToken cancellationToken)
     {
         var input = context.Inputs
-            .Where(i => i.Code == sourceMetricCode && i.Value is not null)
+            .Where(i => i.Code == sourceMetricCode &&
+                i.Period == context.EffectivePeriod &&
+                i.Value is not null)
             .OrderByDescending(i => i.Period.EndDate)
             .FirstOrDefault();
 

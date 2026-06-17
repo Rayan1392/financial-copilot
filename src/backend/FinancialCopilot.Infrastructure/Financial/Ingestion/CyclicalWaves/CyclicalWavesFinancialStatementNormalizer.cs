@@ -56,7 +56,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
         {
             (
                 StatementId: $"{data.Id}:Q0",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q0),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(vendorQuarterDate, asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q0),
                 Revenue: data.LastQuarterSale,
                 NetProfit: data.LastQuarterNetProfit,
                 GrossProfit: data.LastQuarterGrossProfit,
@@ -69,7 +69,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             ),
             (
                 StatementId: $"{data.Id}:Q1",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q1),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(vendorQuarterDate, asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q1),
                 Revenue: data.PenultimateQuarterSale,
                 NetProfit: data.PenultimateQuarterNetProfit,
                 GrossProfit: data.PenultimateQuarterGrossProfit,
@@ -82,7 +82,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
             ),
             (
                 StatementId: $"{data.Id}:Q4",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q4),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveQuarter(vendorQuarterDate, asOf, CyclicalWavesRelativePeriodResolver.QuarterOffset.Q4),
                 Revenue: data.LastYearSameQuarterSale,
                 NetProfit: data.LastYearSameQuarterNetProfit,
                 GrossProfit: data.LastYearSameQuarterGrossProfit,

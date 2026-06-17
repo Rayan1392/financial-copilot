@@ -57,7 +57,7 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
         {
             (
                 ReportId: $"{data.Id}:M0",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M0),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(vendorMonthDate, asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M0),
                 Sale: data.LastMonthSale,
                 VendorPeriodDate: vendorMonthDate,
                 IsM0: true,
@@ -65,7 +65,7 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
             ),
             (
                 ReportId: $"{data.Id}:M1",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M1),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(vendorMonthDate, asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M1),
                 Sale: data.PenultimateMonthSale,
                 VendorPeriodDate: (DateOnly?)null,
                 IsM0: false,
@@ -73,11 +73,11 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
             ),
             (
                 ReportId: $"{data.Id}:M12",
-                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M12),
+                Period: CyclicalWavesRelativePeriodResolver.ResolveMonth(vendorMonthDate, asOf, CyclicalWavesRelativePeriodResolver.MonthOffset.M12),
                 Sale: data.LastYearSameMonthSale,
                 VendorPeriodDate: (DateOnly?)null,
                 IsM0: false,
-                AvgSale: (decimal?)null
+                AvgSale: data.LastYearAverage12MonthSale
             )
         };
 
@@ -127,8 +127,8 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
             lineItem.SalesAmount = m.Sale;
 
             // Pre-computed 12-month rolling average of monthly revenue, supplied by CyclicalWaves.
-            // Only meaningful for the most-recent period (M0); null for M1/M12.
-            if (m.IsM0)
+            // M0 is the latest average; M12 is last year's average when the vendor supplies it.
+            if (m.IsM0 || m.AvgSale is not null)
             {
                 var avgLineItem = await dbContext.MonthlyReportLineItems.SingleOrDefaultAsync(
                     row => row.MonthlyReportId == report.Id && row.ProductCode == "AVG_12M",

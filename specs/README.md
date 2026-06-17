@@ -78,6 +78,7 @@ These specs implement concrete financial-data providers behind the `004` abstrac
 - `020-cyclicalwaves-data-provider` — CyclicalWaves HTTP API provider for financial statements, monthly observations, and valuation ratios. **No longer writes to the `Companies` catalog** (change request, order 48); resolves linkage through existing NADPCO-backed company/symbol metadata.
 - CyclicalWaves sales and valuation fields are provider-precomputed company-level facts. Monetary sales fields are source-unit Rials and must be persisted as-is under passthrough/source policies; PE/PS ratios are unitless and must also be stored as-is. Do not apply Noavaran million-Rial conversion or raw line-item aggregation rules to CyclicalWaves values.
 - `070-cyclicalwaves-monthly-sales-average-snapshot` — CyclicalWaves-only monthly/latest sales snapshots default to `MONTHLY_SALES`, `AVG_12M_MONTHLY_SALES`, YTD, and YTD-to-previous-month, with the mandatory Persian average header `متوسط فروش ۱۲ ماهه`; explicit same-period requests use prior-year same-month sales instead. This does not modify Noavaran spec 069 behavior.
+- `071-cyclicalwaves-derivedmetrics-full-snapshot-persistence` — CyclicalWaves-only persistence fix so all supported `/api/custom-filtering/ticker/{ticker}` sales, profit, margin, monthly, and valuation snapshots reach `DerivedMetrics` with Rials passthrough evidence instead of only the narrow monthly-sales subset.
 
 ### Noavaran Amin Archive (NoavaranArchiveSql / CodalDB)
 

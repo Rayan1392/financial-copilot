@@ -31,6 +31,26 @@ public static class CyclicalWavesRelativePeriodResolver
         };
     }
 
+    public static (DateOnly Start, DateOnly End) ResolveQuarter(
+        DateOnly? latestQuarterEnd,
+        DateTimeOffset fallbackAsOf,
+        QuarterOffset offset)
+    {
+        if (latestQuarterEnd is null)
+        {
+            return ResolveQuarter(fallbackAsOf, offset);
+        }
+
+        var latest = GetFiscalQuarterContaining(latestQuarterEnd.Value);
+        return offset switch
+        {
+            QuarterOffset.Q0 => latest,
+            QuarterOffset.Q1 => GetPreviousFiscalQuarter(latest.Start),
+            QuarterOffset.Q4 => ShiftFiscalYearBack(latest, years: 1),
+            _ => throw new ArgumentOutOfRangeException(nameof(offset))
+        };
+    }
+
     public static (DateOnly Start, DateOnly End) ResolveMonth(DateTimeOffset asOf, MonthOffset offset)
     {
         var today = DateOnly.FromDateTime(asOf.UtcDateTime);
@@ -41,6 +61,26 @@ public static class CyclicalWavesRelativePeriodResolver
             MonthOffset.M0 => lastMonth,
             MonthOffset.M1 => AddMonths(lastMonth.Start, -1),
             MonthOffset.M12 => AddMonths(lastMonth.Start, -12),
+            _ => throw new ArgumentOutOfRangeException(nameof(offset))
+        };
+    }
+
+    public static (DateOnly Start, DateOnly End) ResolveMonth(
+        DateOnly? latestMonthEnd,
+        DateTimeOffset fallbackAsOf,
+        MonthOffset offset)
+    {
+        if (latestMonthEnd is null)
+        {
+            return ResolveMonth(fallbackAsOf, offset);
+        }
+
+        var latest = GetMonthContaining(latestMonthEnd.Value);
+        return offset switch
+        {
+            MonthOffset.M0 => latest,
+            MonthOffset.M1 => AddMonths(latest.Start, -1),
+            MonthOffset.M12 => AddMonths(latest.Start, -12),
             _ => throw new ArgumentOutOfRangeException(nameof(offset))
         };
     }
@@ -116,6 +156,12 @@ public static class CyclicalWavesRelativePeriodResolver
         var firstOfLastMonth = firstOfThisMonth.AddMonths(-1);
         var lastOfLastMonth = firstOfThisMonth.AddDays(-1);
         return (firstOfLastMonth, lastOfLastMonth);
+    }
+
+    private static (DateOnly Start, DateOnly End) GetMonthContaining(DateOnly date)
+    {
+        var start = new DateOnly(date.Year, date.Month, 1);
+        return (start, start.AddMonths(1).AddDays(-1));
     }
 
     private static (DateOnly Start, DateOnly End) AddMonths(DateOnly monthStart, int months)

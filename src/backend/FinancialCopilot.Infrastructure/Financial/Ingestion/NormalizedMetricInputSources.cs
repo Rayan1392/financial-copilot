@@ -363,6 +363,11 @@ internal static class NormalizedMetricInputFactory
                 return ("Ratio", "Ratio", "cyclicalwaves-unitless-ratio-passthrough-v1");
             }
 
+            if (IsCyclicalWavesPercentageMetric(code.Value))
+            {
+                return ("Percent", "Percent", "cyclicalwaves-percentage-passthrough-v1");
+            }
+
             return (null, null, null);
         }
 
@@ -377,6 +382,9 @@ internal static class NormalizedMetricInputFactory
 
     private static bool IsCyclicalWavesMonetaryMetric(string metricCode) =>
         string.Equals(metricCode, "REVENUE", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "NET_PROFIT", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "GROSS_PROFIT", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "OPERATING_PROFIT", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(metricCode, "AVG_4Q_REVENUE", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(metricCode, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(metricCode, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase);
@@ -384,6 +392,11 @@ internal static class NormalizedMetricInputFactory
     private static bool IsCyclicalWavesUnitlessRatio(string metricCode) =>
         string.Equals(metricCode, "PE_RATIO", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(metricCode, "PS_RATIO", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCyclicalWavesPercentageMetric(string metricCode) =>
+        string.Equals(metricCode, "NET_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "GROSS_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "OPERATING_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsNoavaranAmin(string providerName) =>
         string.Equals(providerName, ProviderSources.NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase) ||

@@ -35,6 +35,19 @@ If this story conflicts with spec 069, spec 069 remains authoritative for Noavar
 
 ## Acceptance Criteria
 
+### Alias Routing
+
+The following phrases must resolve to `MONTHLY_SALES` and the monthly-sales snapshot workflow, not
+generic quarterly `REVENUE` lookup:
+
+* آخرین فروش
+* فروش ماهانه
+* فروش کچاد
+
+If the LLM parser emits a generic sales term such as `فروش`, `sales`, `revenue`, or `REVENUE` while
+the original user message is a latest/monthly sales question, the backend must preserve the
+monthly-sales snapshot route.
+
 ### Default CyclicalWaves Sales Layout
 
 For general/latest CyclicalWaves sales questions, the table columns are:
@@ -105,7 +118,10 @@ The response remains table-only with unit metadata:
 
 Tests must prove:
 
+* `آخرین فروش`, `فروش ماهانه`, and `فروش کچاد` resolve to `MONTHLY_SALES`, not `REVENUE`.
 * `آخرین فروش کچاد چقدر بوده؟` with CyclicalWaves rows uses `متوسط فروش ۱۲ ماهه`.
+* The CyclicalWaves regression table does not contain `REVENUE`, `آخرین قیمت`, or
+  `تغییر روزانه %`.
 * The default CyclicalWaves table does not include `فروش ماه مشابه دوره قبل`.
 * `AVG_12M_MONTHLY_SALES` values are divided by 1,000,000 for display.
 * `فروش ماه مشابه دوره قبل کچاد چقدر بوده؟` uses the prior-period layout and does not include

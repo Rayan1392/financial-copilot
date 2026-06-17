@@ -1009,9 +1009,26 @@ public sealed class CyclicalWavesMonthlySalesLookupTests : IClassFixture<Cyclica
         var columnIds = columns
             .Select(c => c.GetProperty("identifier").GetString())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var displayNames = columns
+            .Select(c => c.GetProperty("displayName").GetString())
+            .Where(name => name is not null)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         Assert.Contains("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.Contains("MONTHLY_SALES", columnIds);
+        Assert.Contains("MONTHLY_SALES_YTD", columnIds);
+        Assert.Contains("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columnIds);
         Assert.DoesNotContain("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", columnIds);
+        Assert.DoesNotContain("REVENUE", columnIds);
+        Assert.DoesNotContain("LATEST_PRICE", columnIds);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
+        Assert.Contains("فروش ماهانه", displayNames);
+        Assert.Contains("متوسط فروش ۱۲ ماهه", displayNames);
+        Assert.Contains("فروش YTD", displayNames);
+        Assert.Contains("فروش YTD تا ماه قبل", displayNames);
+        Assert.DoesNotContain("آخرین قیمت", displayNames);
+        Assert.DoesNotContain("تغییر روزانه %", displayNames);
+        Assert.DoesNotContain("فروش ماه مشابه دوره قبل", displayNames);
         Assert.Equal("متوسط فروش ۱۲ ماهه", GetColumnDisplayName(columns, "AVG_12M_MONTHLY_SALES"));
         AssertNoForbiddenAverageSalesDisplayLabels(columns);
 
@@ -1281,7 +1298,7 @@ public sealed class CyclicalWavesMonthlySalesLookupApiFactory : AiFacadeApiFacto
             services.AddSingleton<IAiModelClient>(_ =>
                 new SymbolLookupFakeAiModelClient(
                     symbolLookupSymbol: "کچاد",
-                    metricTerm: "آخرین فروش",
+                    metricTerm: "فروش",
                     clarificationMetricTerm: null,
                     multiSymbol: false));
         });

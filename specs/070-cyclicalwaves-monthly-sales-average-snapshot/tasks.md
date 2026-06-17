@@ -17,6 +17,10 @@ Acceptance:
 
 Requirements:
 
+* Preserve alias routing so `آخرین فروش`, `فروش ماهانه`, and `فروش کچاد` resolve to
+  `MONTHLY_SALES` / monthly-sales snapshot, not generic `REVENUE`.
+* Correct LLM-emitted generic sales terms back to monthly-sales routing when the original user
+  message is a latest/monthly sales question.
 * Detect CyclicalWaves monthly sales rows from persisted `DerivedMetrics` evidence.
 * For default latest/monthly sales questions, display:
   `فروش ماهانه`, `متوسط فروش ۱۲ ماهه`, `فروش YTD`, `فروش YTD تا ماه قبل`.
@@ -29,6 +33,7 @@ Acceptance:
 * CyclicalWaves defaults to `AVG_12M_MONTHLY_SALES`.
 * Noavaran defaults to prior fiscal-year same-month sales.
 * Explicit same-period requests do not use the average metric.
+* Latest-sales questions do not render `REVENUE`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`.
 
 ## Task 3 - Display Values and Labels
 
@@ -66,6 +71,10 @@ Add focused regression tests:
 
 * CyclicalWaves default query `آخرین فروش کچاد چقدر بوده؟` contains
   `متوسط فروش ۱۲ ماهه` and does not contain `فروش ماه مشابه دوره قبل`.
+* Alias-routing regression proves the same query resolves to monthly-sales snapshot even when the
+  parser emits generic `فروش`.
+* Regression proves the default table does not contain `REVENUE`, `آخرین قیمت`, or
+  `تغییر روزانه %`.
 * CyclicalWaves explicit query `فروش ماه مشابه دوره قبل کچاد چقدر بوده؟` contains
   `فروش ماه مشابه دوره قبل` and does not contain `متوسط فروش ۱۲ ماهه`.
 * Unit conversion divides `AVG_12M_MONTHLY_SALES` by 1,000,000.

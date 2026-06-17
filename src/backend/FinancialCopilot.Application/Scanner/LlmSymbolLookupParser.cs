@@ -191,6 +191,11 @@ public sealed class LlmSymbolLookupParser(
         string language,
         DateOnly asOf)
     {
+        if (ShouldForceMonthlySalesSnapshot(metricTerm, userMessage))
+        {
+            return "آخرین فروش";
+        }
+
         var direct = aliasResolver.ResolveAlias(
             metricTerm,
             language,
@@ -244,6 +249,43 @@ public sealed class LlmSymbolLookupParser(
 
         return metricTerm;
     }
+
+    private static bool ShouldForceMonthlySalesSnapshot(string metricTerm, string userMessage)
+    {
+        var normalizedTerm = NormalizePersianText(metricTerm).Trim();
+        if (!IsGenericSalesTerm(normalizedTerm))
+        {
+            return false;
+        }
+
+        var normalizedMessage = NormalizePersianText(userMessage);
+        return normalizedMessage.Contains("آخرین فروش", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش ماهانه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش ماهیانه", StringComparison.OrdinalIgnoreCase) ||
+            IsShortSymbolSalesQuestion(normalizedMessage);
+    }
+
+    private static bool IsGenericSalesTerm(string normalizedTerm) =>
+        string.Equals(normalizedTerm, "فروش", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(normalizedTerm, "sales", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(normalizedTerm, "revenue", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(normalizedTerm, "REVENUE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsShortSymbolSalesQuestion(string normalizedMessage)
+    {
+        var compact = normalizedMessage
+            .Replace("؟", " ", StringComparison.Ordinal)
+            .Replace("?", " ", StringComparison.Ordinal)
+            .Trim();
+
+        return compact.StartsWith("فروش ", StringComparison.OrdinalIgnoreCase) &&
+            !compact.Contains("فصلی", StringComparison.OrdinalIgnoreCase) &&
+            !compact.Contains("درآمد", StringComparison.OrdinalIgnoreCase) &&
+            !compact.Contains("خالص", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizePersianText(string text) =>
+        text.Replace('ي', 'ی').Replace('ك', 'ک');
 
     private static string NormalizeBcp47(string language) =>
         language.Trim().ToLowerInvariant() switch

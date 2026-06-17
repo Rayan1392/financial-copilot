@@ -82,6 +82,28 @@ public sealed class SymbolLookupParserTests
     }
 
     [Theory]
+    [InlineData("آخرین فروش کچاد چقدر بوده؟", "فروش")]
+    [InlineData("فروش ماهانه کچاد چقدر است؟", "REVENUE")]
+    [InlineData("فروش کچاد", "فروش")]
+    public async Task Parser_LatestSalesQuestionWithGenericSalesTerm_ForcesMonthlySalesSnapshot(
+        string userMessage,
+        string llmMetricTerm)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildPairsJson([("کچاد", llmMetricTerm)], language: "fa");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", $"corr-{llmMetricTerm}", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        Assert.Single(result.Pairs);
+        Assert.Equal("MONTHLY_SALES", result.Pairs.First().ResolvedMetricCode?.Value);
+        Assert.Equal(llmMetricTerm, result.Pairs.First().OriginalMetricTerm);
+    }
+
+    [Theory]
     [InlineData("PE")]
     [InlineData("P/E")]
     [InlineData("پی به ای")]

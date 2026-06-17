@@ -132,13 +132,15 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
 11. A symbol-lookup question such as «آخرین فروش غگلپا چقدر است؟» returns a grouped
     Noavaran monthly-sales answer from persisted aggregate facts, not live line-item summation:
     latest one-month sales (`OutputType = 0`), same reporting month in the previous fiscal year
-    when that persisted row exists, fiscal-year-to-date sales (`OutputType = 1`), and
-    fiscal-year-to-previous-month sales (`OutputType = 4`). Each value includes period and source
-    evidence; missing prior-year coverage is reported as missing, never fabricated or substituted
-    from quarterly `REVENUE`.
+    (`OutputType = 0` from the prior Shamsi year), fiscal-year-to-date sales (`OutputType = 1`),
+    and fiscal-year-to-previous-month sales (`OutputType = 4`). Missing prior-year coverage is
+    reported as missing, never fabricated or substituted from quarterly `REVENUE`.
     The grouped monthly production/sales response must omit stock market context columns:
     do not include `LATEST_PRICE` or `DAILY_CHANGE_PCT` for latest sales, monthly sales,
     sales quantity/rate, monthly production, or the composite monthly-sales snapshot.
+    For a grouped monthly-sales snapshot with any non-missing value, the answer text above the
+    table must be only `Unit: million Rials`; the table is the answer and no extra LLM prose or
+    clarification suggestions are returned.
 12. The line-item model audit either confirms rate/unit/title can be derived from existing
     normalized columns or extends `NormalizedMonthlyReportLineItemRow` (additive migration)
     so `MONTHLY_SALES_RATE` is computable from normalized data, not raw payloads.

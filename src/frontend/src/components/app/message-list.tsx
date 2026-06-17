@@ -60,13 +60,18 @@ function AssistantBlock({
   onPageChange?: (page: number) => void;
   showDiagnostics?: boolean;
 }) {
+  const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
+  const message = tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
+    ? ""
+    : block.message;
+
   return (
     <div className="flex gap-4" dir="ltr">
       <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
         AI
       </div>
       <div className="flex-1 space-y-5 min-w-0" dir="auto">
-        <MarkdownMessage content={block.message} />
+        {message.trim().length > 0 && <MarkdownMessage content={message} />}
 
         {block.filters.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -81,7 +86,13 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.table && <ScannerResultTable table={block.table} onPageChange={onPageChange} />}
+        {block.table && (
+          <ScannerResultTable
+            table={block.table}
+            metadataLabel={tableMetadataLabel}
+            onPageChange={onPageChange}
+          />
+        )}
 
         {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).
             When a scanner table is present the table's freshness indicators already
@@ -127,11 +138,28 @@ function AssistantBlock({
   );
 }
 
+function getMonthlySalesMetadataLabel(block: AssistantChatBlock) {
+  if (!isTechnicalMonthlySalesUnitNote(block.message)) return undefined;
+  if (!block.table?.columns.some((column) =>
+    column.identifier.toUpperCase().startsWith("MONTHLY_SALES"),
+  )) {
+    return undefined;
+  }
+
+  return "واحد: میلیون ریال";
+}
+
+function isTechnicalMonthlySalesUnitNote(message: string) {
+  return message.trim() === "Unit: million Rials";
+}
+
 function ScannerResultTable({
   table,
+  metadataLabel,
   onPageChange,
 }: {
   table: ScannerTable;
+  metadataLabel?: string;
   onPageChange?: (page: number) => void;
 }) {
   const isPersianTable = isRtlFinancialTable(table);
@@ -144,6 +172,15 @@ function ScannerResultTable({
         className="rounded-2xl overflow-x-auto ring-1 ring-hairline bg-surface/40"
         dir={isPersianTable ? "rtl" : "ltr"}
       >
+        {metadataLabel && (
+          <div
+            className="flex justify-start px-4 pt-2 text-[10px] text-muted-foreground"
+            data-testid="table-metadata"
+            dir="ltr"
+          >
+            <span dir="rtl">{metadataLabel}</span>
+          </div>
+        )}
         <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
           <thead className="bg-white/5">
             <tr>
@@ -262,6 +299,7 @@ function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {
     LATEST_PRICE: "آخرین قیمت",
     DAILY_CHANGE_PERCENT: "تغییر روزانه %",
     MARKET_CAP: "ارزش بازار",
+    AVG_12M_MONTHLY_SALES: "متوسط فروش ۱۲ ماهه",
   };
 
   return localizedLabels[key] ?? localizedLabels[displayName] ?? column.displayName;

@@ -9,7 +9,8 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 
 internal sealed class MessagePersistenceFunction(
     IConversationRepository repository,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ISymbolLookupProseBuilder symbolLookupProseBuilder)
 {
     internal async Task<PersistedConversationExchange> PersistAsync(
         Guid conversationId,
@@ -77,7 +78,7 @@ internal sealed class MessagePersistenceFunction(
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
 
-    private static string BuildAssistantContent(
+    private string BuildAssistantContent(
         DetectedIntent intent,
         ScannerQueryPlan? plan,
         ScannerTableResult? table,
@@ -92,12 +93,7 @@ internal sealed class MessagePersistenceFunction(
             return clarificationMessage;
 
         if (lookupTable is not null)
-        {
-            var count = lookupTable.ExecutionFacts.MatchingSymbolCount;
-            return lookupTable.Rows.Any(r => r.SymbolCode.Any(c => c is >= '؀' and <= 'ۿ'))
-                ? $"مقادیر مستقیم برای {count} نماد یافت شد."
-                : $"Found direct metric values for {count} symbol(s).";
-        }
+            return symbolLookupProseBuilder.Build(lookupTable);
 
         if (explainableAnswer?.ExplanationText is not null)
             return explainableAnswer.ExplanationText;

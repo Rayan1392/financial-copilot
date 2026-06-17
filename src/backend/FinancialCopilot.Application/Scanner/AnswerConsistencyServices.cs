@@ -41,9 +41,14 @@ public sealed class MetricDisplayNameResolver(
 
 public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNames) : ISymbolLookupProseBuilder
 {
+    private const string MonthlySalesUnitNote = "Unit: million Rials";
+
     public string Build(SymbolLookupTableResult table)
     {
         var persian = ContainsPersian(table);
+
+        if (HasAvailableMonthlySalesMonetaryCell(table))
+            return MonthlySalesUnitNote;
 
         var metricColumns = table.Columns
             .Where(c => c.ColumnType is ScannerColumnType.Metric
@@ -101,15 +106,36 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
     private static string WithUnitNote(SymbolLookupTableResult table, string sentence) =>
         HasMonthlySalesMonetaryColumn(table)
-            ? $"Unit: million Rials{Environment.NewLine}{sentence}"
+            ? $"{MonthlySalesUnitNote}{Environment.NewLine}{sentence}"
             : sentence;
 
     private static bool HasMonthlySalesMonetaryColumn(SymbolLookupTableResult table) =>
         table.Columns.Any(c =>
             string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.MetricCode ?? c.Identifier, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase));
+
+    internal static bool HasAvailableMonthlySalesMonetaryCell(SymbolLookupTableResult table)
+    {
+        var monthlySalesColumnIds = table.Columns
+            .Where(c =>
+                string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.MetricCode ?? c.Identifier, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase))
+            .Select(c => c.Identifier)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return monthlySalesColumnIds.Count > 0 &&
+            table.Rows.Any(row =>
+                monthlySalesColumnIds.Any(id =>
+                    row.Cells.TryGetValue(id, out var cell) &&
+                    cell.Value is not null &&
+                    cell.FreshnessStatus != CellFreshnessStatus.Missing));
+    }
 
     private static string? FirstRequestedSymbol(SymbolLookupTableResult table) =>
         table.UnresolvedSymbols.FirstOrDefault();
@@ -131,6 +157,12 @@ public sealed class AnswerConsistencyValidator(
     {
         var authoritative = ExtractSymbolLookupValues(table);
         var deterministic = proseBuilder.Build(table);
+        if (SymbolLookupProseBuilder.HasAvailableMonthlySalesMonetaryCell(table))
+            return new AnswerConsistencyResult(
+                AnswerConsistencyAction.ReplacedWithDeterministic,
+                deterministic,
+                []);
+
         // Strict mode: a symbol-lookup answer states a single metric value. Any prose number that is
         // not an authoritative cell value is a conflicting/invented metric claim.
         var conflicts = DetectStrictConflicts(candidateProse, authoritative);

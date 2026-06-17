@@ -187,8 +187,8 @@ Register in DI as `AddSingleton<IMonthlyActivityOutputTypeResolver, DefaultMonth
 
 Identify the metric query path for `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` (spec 057 Phase C metrics) and pass the resolved `OutputType` as a filter when producing persisted aggregate facts. For latest-sales symbol lookup, compose the response from already-persisted aggregates; do not sum `MonthlyReportLineItems` live in the query path.
 
-For the prior fiscal-year same-month value, select the persisted single-month aggregate for the
-same `ExternalCompanyId` and same Shamsi/reporting month one fiscal year earlier. If it is absent,
+For prior-period cells, select the persisted single-month aggregate for the same
+`ExternalCompanyId` and same Shamsi/reporting month one fiscal year earlier. If it is absent,
 return a missing comparable-period value with source/freshness context instead of fabricating it.
 
 For latest sales, monthly sales, sales quantity/rate, monthly production, and the grouped

@@ -27,6 +27,7 @@ export interface AssistantChatBlock {
   suggestedQuestions: string[];
   filters: Array<{ label: string; value: string }>;
   table?: ScannerTable;
+  tableMetadataLabel?: string;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -227,12 +228,16 @@ function mapAssistantBlock(
   const explanation = content?.explainableAnswer;
   // Prefer symbolLookupTable over scannerTable; both render via ScannerResultTable.
   const table = content?.symbolLookupTable ?? content?.scannerTable;
+  const rawMessage =
+    explanation?.explanationText ??
+    content?.clarificationMessage ??
+    content?.textAnswer ??
+    fallbackMessage;
+  const tableMetadataLabel = isMonthlySalesTechnicalUnitNote(rawMessage, table)
+    ? "واحد: میلیون ریال"
+    : undefined;
   return {
-    message:
-      explanation?.explanationText ??
-      content?.clarificationMessage ??
-      content?.textAnswer ??
-      fallbackMessage,
+    message: tableMetadataLabel ? "" : rawMessage,
     intent: content?.intent ?? "Unknown",
     confidence: content?.confidenceScore?.score ?? explanation?.confidence.score ?? 0,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
@@ -243,6 +248,7 @@ function mapAssistantBlock(
         value: `${chip.operatorSymbol} ${chip.thresholdFormatted}`,
       })) ?? [],
     table,
+    tableMetadataLabel,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {
@@ -254,4 +260,13 @@ function mapAssistantBlock(
         }
       : undefined,
   };
+}
+
+function isMonthlySalesTechnicalUnitNote(message: string | undefined, table?: ScannerTable) {
+  if (message?.trim() !== "Unit: million Rials") return false;
+  return Boolean(
+    table?.columns.some((column) =>
+      column.identifier.toUpperCase().startsWith("MONTHLY_SALES"),
+    ),
+  );
 }

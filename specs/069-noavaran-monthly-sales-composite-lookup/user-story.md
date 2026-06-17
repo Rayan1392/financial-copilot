@@ -4,54 +4,41 @@
 
 As a FinancialCopilot user,
 
-I want the AI assistant to correctly answer monthly sales questions such as:
+I want the AI assistant to correctly answer Noavaran monthly sales questions such as:
 
 * آخرین فروش غگلپا چقدر است؟
 * فروش ماهانه شپدیس چقدر بوده؟
 * آخرین فروش کگل را نشان بده
 
-so that I can receive a complete Noavaran monthly sales view instead of a single sales number or a failed metric lookup.
-
----
+so that I receive the complete Noavaran monthly activity sales snapshot instead of a single sales
+number, a quarterly revenue substitute, or a failed metric lookup.
 
 ## Business Context
 
-The platform currently supports Noavaran monthly activity ingestion and precomputed monthly sales metrics.
+This story is authoritative for **Noavaran Amin monthly activity data**:
 
-However, the Symbol Lookup flow has two gaps:
+* `MonthlyReports`
+* `MonthlyReportLineItems`
+* `OutputType` 0/1/4 logic
+* the Noavaran monthly activity composite snapshot
+* previous fiscal-year same-month lookup
 
-1. Composite metric terms produced by the LLM (for example `آخرین فروش / sales / revenue`) fail alias resolution even though the semantic catalog already supports `آخرین فروش`.
-
-2. The current lookup path only returns a single latest `MONTHLY_SALES` value while the product requirement for "latest sales" is a richer sales snapshot that includes:
-
-   * latest monthly sales;
-   * same reporting month in previous fiscal year;
-   * cumulative sales from fiscal year start to current month;
-   * cumulative sales from fiscal year start to previous month.
-
-The query path must remain read-only and deterministic.
-
-All required sales values must be precomputed and persisted before user queries are executed.
-
----
+CyclicalWaves `DerivedMetrics` behavior is outside this story. If a CyclicalWaves-specific sales
+snapshot requirement conflicts with this story, this story remains authoritative for Noavaran data.
 
 ## Provider Data Semantics and Unit Policy
 
-This story is specifically about Noavaran Amin monthly activity data.
+Noavaran monthly activity is raw product/service line-item data. Monetary source values are reported
+in million Rials by the provider, normalized into the platform canonical monetary unit before lookup,
+and exposed through persisted `DerivedMetrics`.
 
-- Noavaran Amin monthly activity is raw product/service line-item data.
-- Monetary source values are reported in **million Rials**.
-- Company-level sales facts are created by summing relevant line items per `ExternalCompanyId`,
-  period, provider, and `OutputType`, then normalizing the result to the platform canonical
-  monetary unit before writing lookup-ready `DerivedMetrics`.
-- The composite monthly-sales lookup reads only persisted `DerivedMetrics`; it must not sum
-  `MonthlyReportLineItems` at AI query time.
-- Same fiscal/Shamsi month in the previous year is selected from persisted `OutputType=0`
-  single-month sales for the same company.
-- CyclicalWaves values are outside this story. They are provider-precomputed company metrics in
-  Rials and must not receive Noavaran million-Rial conversion or line-item aggregation rules.
+The query path must remain read-only and deterministic:
 
----
+* do not aggregate `MonthlyReportLineItems` at AI query time;
+* read only persisted `DerivedMetrics`;
+* select previous fiscal-year same-month sales from persisted `OutputType=0` single-month sales for
+  the same company and Shamsi month;
+* never substitute quarterly `REVENUE` for a monthly sales question.
 
 ## Scope
 
@@ -60,111 +47,104 @@ This story is specifically about Noavaran Amin monthly activity data.
 * Symbol lookup support for Noavaran monthly sales queries.
 * Composite alias normalization.
 * Persisted monthly sales lookup metrics.
-* Previous fiscal year same-month comparison support.
+* Previous fiscal-year same-month comparison support.
 * Rich sales response rendering.
 * Regression test coverage.
 
 ### Excluded
 
-* Live aggregation of MonthlyReportLineItems.
+* Live aggregation of `MonthlyReportLineItems`.
+* Changes to CyclicalWaves sales metrics.
 * Changes to scanner behavior.
 * Changes to quarterly revenue metrics.
 * Changes to non-Noavaran providers.
-
----
 
 ## Acceptance Criteria
 
 ### Alias Resolution
 
-* Query:
-
-```text
-آخرین فروش غگلپا چقدر است؟
-```
-
-must successfully resolve to the monthly sales lookup workflow.
-
-* Composite metric expressions such as:
-
-```text
-آخرین فروش / sales / revenue
-```
-
-must not break metric resolution.
-
+* `آخرین فروش غگلپا چقدر است؟` resolves to the monthly sales lookup workflow.
+* Composite metric expressions such as `آخرین فروش / sales / revenue` do not break metric
+  resolution.
 * User-language aliases take precedence over translated aliases.
 
 ### Company Resolution
 
-* Company lookup must continue to use:
-
-  * Companies
-  * ExternalCompanyId
-
-* No lookup path may depend on the legacy Symbols table.
+* Company lookup continues to use `Companies.ExternalCompanyId`.
+* No lookup path depends on the legacy `Symbols` table.
 
 ### Persisted Sales Facts
 
-The platform must persist and expose:
+The Noavaran composite snapshot exposes these persisted facts:
 
-| Metric                              | Source                  |
-| ----------------------------------- | ----------------------- |
-| Latest Monthly Sales                | OutputType=0            |
-| Same Month Previous Fiscal Year     | Prior Year OutputType=0 |
-| Fiscal Year To Date Sales           | OutputType=1            |
-| Fiscal Year To Previous Month Sales | OutputType=4            |
-
-### Query-Time Behavior
-
-* Query execution must not aggregate MonthlyReportLineItems.
-* Query execution must only read persisted facts.
+| Display fact | Source |
+| --- | --- |
+| Latest Monthly Sales | `MONTHLY_SALES`, `OutputType=0` |
+| Same Month Previous Fiscal Year | persisted prior-year `MONTHLY_SALES`, `OutputType=0` |
+| Fiscal Year To Date Sales | `MONTHLY_SALES_YTD`, `OutputType=1` |
+| Fiscal Year To Previous Month Sales | `MONTHLY_SALES_YTD_PREVIOUS_MONTH`, `OutputType=4` |
 
 ### Response Composition
 
-The AI response must include all available sales facts for the latest reporting month:
+For Noavaran latest/monthly sales questions, the table columns are:
 
-* Latest Monthly Sales
-* Same Month Previous Fiscal Year
-* Fiscal Year To Date Sales
-* Fiscal Year To Previous Month Sales
+* فروش ماهانه
+* فروش ماه مشابه دوره قبل
+* فروش YTD
+* فروش YTD تا ماه قبل
 
-along with:
+The previous fiscal-year same-month cell is calculated by finding the latest `MONTHLY_SALES`
+period, subtracting one Persian year from that period, and reading the persisted `MONTHLY_SALES`
+value for that prior-year month. If the row is missing, the cell is Missing/null.
 
-* reporting period
-* source metadata
-* confidence
-* freshness indicators
-
-Monthly sales monetary values must be displayed to users in **million Rials** even though the
-persisted canonical value is stored in Rials. The answer must include a visible unit note above
-the table, for example:
+Monthly sales monetary values are displayed in **million Rials** with the visible unit note:
 
 ```text
 Unit: million Rials
 ```
 
 Only monthly-sales monetary columns use this display conversion. Prices, percentages, ratios,
-quantities, and non-sales metrics keep their existing display units.
-After conversion to million Rials, monthly-sales monetary cells must follow the shared financial
-number display policy: whole displayed values have no `.00` suffix, and large sales amounts are
-shown as grouped whole numbers unless a non-zero fractional part is intentionally meaningful.
+quantities, and non-sales metrics keep their existing display units. Whole displayed values have no
+`.00` suffix.
 
-Monthly production/sales lookup responses must not include market-price context. When the user
-asks for latest sales, monthly sales, sales quantity/rate, monthly production, or the composite
-monthly-sales snapshot, the response must omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`; those
-columns remain available for valuation, ratio, and non-monthly metric lookups.
+Monthly production/sales lookup responses must omit market-price context. When the user asks for
+latest sales, monthly sales, sales quantity/rate, monthly production, or the Noavaran composite
+monthly-sales snapshot, the response must not include `LATEST_PRICE` or `DAILY_CHANGE_PCT`.
+
+For a monthly-sales snapshot with at least one non-missing monetary sales cell, every final
+user-visible narrative or composed text field must be either empty/null or exactly:
+
+```text
+Unit: million Rials
+```
+
+This includes immediate API response fields and persisted/reloaded chat DTO fields. No LLM-authored
+explanatory prose, clarification suggestion, fallback text, report-type suggestion, or false
+"value did not return" language may appear when the table has valid sales values.
+
+Frontend rendering treats `Unit: million Rials` as a technical backend compatibility value. In the
+Persian chat UI, it is localized to `واحد: میلیون ریال`, rendered as small muted table metadata at
+the table container's top-left, and never displayed as standalone assistant paragraph text.
 
 ### Regression Coverage
 
 Tests must verify:
 
-* Composite alias parsing.
-* Monthly sales lookup resolution.
-* Previous fiscal year comparison lookup.
-* Persistence-backed retrieval.
-* No dependency on Symbols.
-* No live aggregation during query execution.
-* Monthly sales table values are rendered in million Rials with a unit note above the table.
-* Monthly production/sales lookup tables do not include latest price or daily price-change columns.
-* Monthly sales monetary formatted values do not include redundant `.00` decimal suffixes.
+* composite alias parsing;
+* monthly sales lookup resolution;
+* previous fiscal-year comparison lookup;
+* persistence-backed retrieval;
+* no dependency on `Symbols`;
+* no live aggregation during query execution;
+* Noavaran monthly-sales table values are rendered in million Rials with a unit note;
+* the Noavaran default table contains `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`,
+  and `فروش YTD تا ماه قبل`;
+* monthly production/sales lookup tables do not include latest price or daily price-change columns;
+* monthly sales monetary formatted values do not include redundant `.00` decimal suffixes;
+* monthly-sales snapshot narrative fields in the actual API/chat DTOs are empty/null or exactly the
+  unit note when data is present;
+* regression coverage for `آخرین فروش کچاد؟` proves that a valid sales table never appears beside
+  missing-data prose or report-type suggestions;
+* frontend regression coverage for `آخرین فروش کچاد چقدر بوده؟` proves the UI shows
+  `واحد: میلیون ریال`, does not show `Unit: million Rials`, and renders the unit label inside the
+  table metadata area rather than as a standalone assistant paragraph.

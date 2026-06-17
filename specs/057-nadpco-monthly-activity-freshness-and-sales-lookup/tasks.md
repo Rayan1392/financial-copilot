@@ -77,10 +77,11 @@ existing orchestration/recalculation paths, and introduce no query-time vendor c
 14. **Symbol-lookup verification.** Integration test: seeded Noavaran monthly rows for a test
     company; question «آخرین فروش <نماد> چقدر است؟» through `POST /api/ai/v1/query` returns
     the grouped latest-sales view from persisted aggregate facts: latest one-month sales
-    (`OutputType = 0`), same reporting month in the previous fiscal year when available,
-    fiscal-year-to-date sales (`OutputType = 1`), and fiscal-year-to-previous-month sales
-    (`OutputType = 4`). Each value has monthly period evidence and non-Missing freshness when
-    seeded; a quarterly `REVENUE` value is never substituted for an explicit monthly ask.
+    (`OutputType = 0`), same reporting month in the previous fiscal year (`OutputType = 0`
+    from the prior Shamsi year), fiscal-year-to-date sales (`OutputType = 1`), and
+    fiscal-year-to-previous-month sales (`OutputType = 4`). Each value has monthly period
+    evidence and non-Missing freshness when seeded; a quarterly `REVENUE` value is never
+    substituted for an explicit monthly ask.
     The same API-boundary test must assert that monthly production/sales responses do not include
     `LATEST_PRICE` or `DAILY_CHANGE_PCT`.
 15. **Explainability.** Confirm citations show the Noavaran provider, the Shamsi month
@@ -96,6 +97,7 @@ existing orchestration/recalculation paths, and introduce no query-time vendor c
     - After the 1st of the next Shamsi month, one scheduled run's history shows **only** the
       previous month requested (no full sweep) and new `MonthlyReports` rows for at least one
       known company (e.g. غگلپا / vendor id `13150`).
-    - The AI answer for «آخرین فروش غگلپا» reflects that month and includes the prior fiscal-year
-      same-month value when the persisted comparable row exists.
+    - The AI answer for «آخرین فروش غگلپا» reflects that month and includes 12-month average
+      monthly sales by default; the prior fiscal-year same-month value is returned only when the
+      request explicitly asks for the comparable period.
     - Monthly production/sales answers omit latest price and daily price change.

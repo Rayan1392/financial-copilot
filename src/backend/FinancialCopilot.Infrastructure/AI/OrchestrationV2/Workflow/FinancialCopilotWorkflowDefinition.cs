@@ -528,7 +528,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         - lookup_symbol_metrics: Use when the user requests a specific financial metric value for a named stock.
           For valuation/financial-ratio lookups, fetch LATEST_PRICE and DAILY_CHANGE_PCT alongside the requested metric when useful.
           For monthly sales, monthly production, sales quantity, sales rate, and related monthly production/sales metrics, do NOT fetch or show LATEST_PRICE or DAILY_CHANGE_PCT.
-          For latest monthly sales, return the monthly sales snapshot: latest monthly sales, prior fiscal-year same-month sales, fiscal-year-to-date sales, and fiscal-year-to-previous-month sales.
+          For CyclicalWaves general latest/monthly sales, return the monthly sales snapshot: latest monthly sales, 12-month average monthly sales, fiscal-year-to-date sales, and fiscal-year-to-previous-month sales.
+          For Noavaran monthly activity latest/monthly sales, keep the spec 069 snapshot: latest monthly sales, prior fiscal-year same-month sales, fiscal-year-to-date sales, and fiscal-year-to-previous-month sales.
+          For CyclicalWaves, include prior fiscal-year same-month sales instead of the 12-month average only when the user explicitly asks for same-month previous-period/year sales.
         - query_comprehensive_analysis: Searches the ComprehensiveAnalyses database for expert narrative analysis posts.
           Use ONLY for analysis/opinion/review/outlook requests — NOT for financial metric requests.
 

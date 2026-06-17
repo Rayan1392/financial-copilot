@@ -759,7 +759,7 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
-        Assert.Contains("Unit: million Rials", root.GetProperty("textAnswer").GetString());
+        Assert.Equal("Unit: million Rials", root.GetProperty("textAnswer").GetString());
 
         var table = root.GetProperty("symbolLookupTable");
         var columns = table.GetProperty("columns").EnumerateArray().ToList();
@@ -770,6 +770,8 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
 
         Assert.Equal("فروش ماه مشابه دوره قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"));
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", columnIds);
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
         Assert.Equal("فروش YTD", GetColumnDisplayName(columns, "MONTHLY_SALES_YTD"));
         Assert.Equal("فروش YTD تا ماه قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_YTD_PREVIOUS_MONTH"));
 
@@ -800,6 +802,103 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         Assert.NotEqual("Missing", ytdPreviousMonth.GetProperty("freshnessStatus").GetString());
     }
 
+    [Fact]
+    public async Task AiQuery_LatestMonthlySalesKchad_RendersOnlyTableAndUnitLabel()
+    {
+        using var client = _factory.CreateKchadClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "آخرین فروش کچاد چقدر بوده؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(root);
+        AssertNoForbiddenMonthlySalesProse(root.GetRawText());
+
+        var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Equal("فروش ماه مشابه دوره قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"));
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", columnIds);
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.Equal("کچاد", row.GetProperty("symbolCode").GetString());
+        Assert.Equal("معدنی و صنعتی چادرملو", row.GetProperty("companyName").GetString());
+
+        var cells = row.GetProperty("cells");
+        Assert.Equal("90,879,722", cells.GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.Equal(JsonValueKind.Null, cells.GetProperty("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH").GetProperty("formattedValue").ValueKind);
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.Equal("605,344,668", cells.GetProperty("MONTHLY_SALES_YTD_PREVIOUS_MONTH").GetProperty("formattedValue").GetString());
+
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        using var reload = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages",
+            CancellationToken.None);
+        using var reloadDoc = await ReadJsonAsync(reload);
+
+        Assert.Equal(HttpStatusCode.OK, reload.StatusCode);
+        AssertNoForbiddenMonthlySalesProse(reloadDoc.RootElement.GetRawText());
+
+        var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
+            .First(m => m.GetProperty("role").GetString() == "Assistant");
+        Assert.Equal("Unit: million Rials", assistant.GetProperty("content").GetString());
+
+        var assistantContent = assistant.GetProperty("assistantContent");
+        AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(assistantContent);
+        Assert.Equal(JsonValueKind.Object, assistantContent.GetProperty("symbolLookupTable").ValueKind);
+    }
+
+    [Fact]
+    public async Task AiQuery_ExplicitSameMonthPreviousSalesKchad_UsesPriorYearLayoutAndMissingDoesNotFallbackToAverage()
+    {
+        using var client = _factory.CreateKchadClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش ماه مشابه دوره قبل کچاد چقدر بوده؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(root);
+        AssertNoForbiddenMonthlySalesProse(root.GetRawText());
+
+        var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal("فروش ماه مشابه دوره قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"));
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.DoesNotContain("متوسط فروش ۱۲ ماهه", columns.Select(c => c.GetProperty("displayName").GetString()));
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("90,879,722", cells.GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
+
+        var priorYear = cells.GetProperty("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH");
+        Assert.Equal(JsonValueKind.Null, priorYear.GetProperty("value").ValueKind);
+        Assert.Equal(JsonValueKind.Null, priorYear.GetProperty("formattedValue").ValueKind);
+        Assert.Equal("Missing", priorYear.GetProperty("freshnessStatus").GetString());
+
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.Equal("605,344,668", cells.GetProperty("MONTHLY_SALES_YTD_PREVIOUS_MONTH").GetProperty("formattedValue").GetString());
+    }
+
     private static string FormatMillionRials(decimal value) =>
         Math.Round(value / 1_000_000m, 0, MidpointRounding.AwayFromZero).ToString("N0");
 
@@ -808,6 +907,193 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
             .First(c => string.Equals(c.GetProperty("identifier").GetString(), identifier, StringComparison.OrdinalIgnoreCase))
             .GetProperty("displayName")
             .GetString();
+
+    private static void AssertNoForbiddenAverageSalesDisplayLabels(IReadOnlyCollection<JsonElement> columns)
+    {
+        var displayNames = columns
+            .Select(c => c.GetProperty("displayName").GetString())
+            .Where(name => name is not null)
+            .ToList();
+
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", displayNames);
+        Assert.DoesNotContain("Average 12 Month Sales", displayNames);
+        Assert.DoesNotContain("Average 12-Month Monthly Sales", displayNames);
+    }
+
+    private static void AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(JsonElement element)
+    {
+        AssertOptionalStringIsNullEmptyOrUnitLabel(element, "textAnswer", requireUnitWhenPresent: true);
+        AssertOptionalStringIsNullEmptyOrUnitLabel(element, "clarificationMessage", requireUnitWhenPresent: false);
+
+        if (element.TryGetProperty("explainableAnswer", out var explainableAnswer) &&
+            explainableAnswer.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+        {
+            AssertOptionalStringIsNullEmptyOrUnitLabel(explainableAnswer, "explanationText", requireUnitWhenPresent: false);
+            if (explainableAnswer.TryGetProperty("suggestedFollowUpQuestions", out var followUps) &&
+                followUps.ValueKind == JsonValueKind.Array)
+            {
+                Assert.Empty(followUps.EnumerateArray());
+            }
+        }
+    }
+
+    private static void AssertOptionalStringIsNullEmptyOrUnitLabel(
+        JsonElement element,
+        string propertyName,
+        bool requireUnitWhenPresent)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            Assert.False(requireUnitWhenPresent, $"{propertyName} must be present as the unit label.");
+            return;
+        }
+
+        var value = property.GetString();
+        if (requireUnitWhenPresent)
+            Assert.Equal("Unit: million Rials", value);
+        else
+            Assert.True(string.IsNullOrEmpty(value) || value == "Unit: million Rials",
+                $"{propertyName} must be empty/null or exactly the unit label.");
+    }
+
+    private static void AssertNoForbiddenMonthlySalesProse(string json)
+    {
+        Assert.DoesNotContain("آخرین داده فروش", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("برنگشت", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("اگر منظورت", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("مشخص کن", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("فروش فصلی", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("درآمد عملیاتی", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("کدال", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("did not return", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class CyclicalWavesMonthlySalesLookupTests : IClassFixture<CyclicalWavesMonthlySalesLookupApiFactory>
+{
+    private readonly CyclicalWavesMonthlySalesLookupApiFactory _factory;
+
+    public CyclicalWavesMonthlySalesLookupTests(CyclicalWavesMonthlySalesLookupApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task AiQuery_CyclicalWavesLatestMonthlySales_UsesAverage12MonthLayout()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "آخرین فروش کچاد چقدر بوده؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(root);
+        AssertNoForbiddenMonthlySalesProse(root.GetRawText());
+
+        var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.DoesNotContain("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", columnIds);
+        Assert.Equal("متوسط فروش ۱۲ ماهه", GetColumnDisplayName(columns, "AVG_12M_MONTHLY_SALES"));
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("90,879,722", cells.GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.Equal("82,500,000", cells.GetProperty("AVG_12M_MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.Equal("605,344,668", cells.GetProperty("MONTHLY_SALES_YTD_PREVIOUS_MONTH").GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_CyclicalWavesExplicitSameMonthPreviousSales_DoesNotFallbackToAverage()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش ماه مشابه دوره قبل کچاد چقدر بوده؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", columnIds);
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.Equal("فروش ماه مشابه دوره قبل", GetColumnDisplayName(columns, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"));
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var priorYear = row.GetProperty("cells").GetProperty("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH");
+        Assert.Equal(JsonValueKind.Null, priorYear.GetProperty("value").ValueKind);
+        Assert.Equal(JsonValueKind.Null, priorYear.GetProperty("formattedValue").ValueKind);
+        Assert.Equal("Missing", priorYear.GetProperty("freshnessStatus").GetString());
+    }
+
+    private static string? GetColumnDisplayName(IReadOnlyCollection<JsonElement> columns, string identifier) =>
+        columns
+            .First(c => string.Equals(c.GetProperty("identifier").GetString(), identifier, StringComparison.OrdinalIgnoreCase))
+            .GetProperty("displayName")
+            .GetString();
+
+    private static void AssertNoForbiddenAverageSalesDisplayLabels(IReadOnlyCollection<JsonElement> columns)
+    {
+        var displayNames = columns
+            .Select(c => c.GetProperty("displayName").GetString())
+            .Where(name => name is not null)
+            .ToList();
+
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", displayNames);
+        Assert.DoesNotContain("Average 12 Month Sales", displayNames);
+        Assert.DoesNotContain("Average 12-Month Monthly Sales", displayNames);
+    }
+
+    private static void AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(JsonElement element)
+    {
+        Assert.Equal("Unit: million Rials", element.GetProperty("textAnswer").GetString());
+        if (element.TryGetProperty("clarificationMessage", out var clarificationMessage) &&
+            clarificationMessage.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+        {
+            Assert.True(string.IsNullOrEmpty(clarificationMessage.GetString()) ||
+                clarificationMessage.GetString() == "Unit: million Rials");
+        }
+    }
+
+    private static void AssertNoForbiddenMonthlySalesProse(string json)
+    {
+        Assert.DoesNotContain("آخرین داده فروش", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("برنگشت", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("اگر منظورت", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("مشخص کن", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("فروش فصلی", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("درآمد عملیاتی", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("کدال", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("did not return", json, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
@@ -822,6 +1108,9 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
     public const decimal PriorYearSameMonthSales = 777_000_000m;
     public const decimal YearToDateSales = 1_777_654_321m;
     public const decimal YearToPreviousMonthSales = 790_000_000m;
+    public const decimal KchadLatestMonthSales = 90_879_722_000_000m;
+    public const decimal KchadYearToDateSales = 787_016_400_000_000m;
+    public const decimal KchadYearToPreviousMonthSales = 605_344_668_000_000m;
 
     private readonly string _dbName = $"monthly-sales-lookup-{Guid.NewGuid():N}";
     private bool _seeded;
@@ -842,6 +1131,21 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
                     multiSymbol: false));
         });
     }
+
+    public HttpClient CreateKchadClient() =>
+        WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IAiModelClient>();
+                services.AddSingleton<IAiModelClient>(_ =>
+                    new SymbolLookupFakeAiModelClient(
+                        symbolLookupSymbol: "کچاد",
+                        metricTerm: "آخرین فروش",
+                        clarificationMetricTerm: null,
+                        multiSymbol: false));
+            });
+        }).CreateClient();
 
     public void EnsureSeeded()
     {
@@ -873,6 +1177,16 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
             LastSynchronizedAt = now
         });
 
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.Parse("80000000-0000-0000-0000-000000000002"),
+            Name = "معدنی و صنعتی چادرملو",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "20001",
+            CompanySymbol = "کچاد",
+            LastSynchronizedAt = now
+        });
+
         // Farvardin 1405 (older) and Ordibehesht 1405 (latest) monthly observations, plus a
         // quarterly REVENUE row that must NOT be substituted for the monthly ask.
         db.DerivedMetrics.AddRange(
@@ -900,7 +1214,12 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
                 WarningsJson = "[]",
                 SourceEvidenceJson = "[]",
                 DependencyEvidenceJson = "[]"
-            });
+            },
+            MonthlySales("20001", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), KchadLatestMonthSales, now),
+            MonthlyMetric("20001", "MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1",
+                new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), KchadYearToDateSales, now),
+            MonthlyMetric("20001", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1",
+                new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), KchadYearToPreviousMonthSales, now));
     }
 
     private static DerivedMetricRow MonthlySales(
@@ -942,6 +1261,104 @@ public sealed class MonthlySalesLookupApiFactory : AiFacadeApiFactory
             LastSynchronizedAt = now,
             WarningsJson = "[]",
             SourceEvidenceJson = "[{\"source\":\"NoavaranCurrentApi\"}]",
+            DependencyEvidenceJson = "[]"
+        };
+}
+
+public sealed class CyclicalWavesMonthlySalesLookupApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"cyclicalwaves-monthly-sales-lookup-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ =>
+                new SymbolLookupFakeAiModelClient(
+                    symbolLookupSymbol: "کچاد",
+                    metricTerm: "آخرین فروش",
+                    clarificationMetricTerm: null,
+                    multiSymbol: false));
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTestData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTestData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.Parse("81000000-0000-0000-0000-000000000001"),
+            Name = "معدنی و صنعتی چادرملو",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "30001",
+            CompanySymbol = "کچاد",
+            LastSynchronizedAt = now
+        });
+
+        db.DerivedMetrics.AddRange(
+            CyclicalWavesMonthlyMetric(
+                "MONTHLY_SALES",
+                "monthly-sales-source-v1",
+                90_879_722_000_000m,
+                now),
+            CyclicalWavesMonthlyMetric(
+                "AVG_12M_MONTHLY_SALES",
+                "avg-12m-monthly-sales-source-v1",
+                82_500_000_000_000m,
+                now),
+            CyclicalWavesMonthlyMetric(
+                "MONTHLY_SALES_YTD",
+                "monthly-sales-ytd-source-v1",
+                787_016_400_000_000m,
+                now),
+            CyclicalWavesMonthlyMetric(
+                "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+                "monthly-sales-ytd-previous-month-source-v1",
+                605_344_668_000_000m,
+                now));
+    }
+
+    private static DerivedMetricRow CyclicalWavesMonthlyMetric(
+        string metricCode,
+        string policyVersion,
+        decimal value,
+        DateTimeOffset now) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "30001",
+            MetricCode = metricCode,
+            MetricVersion = "v1",
+            CalculationPolicyVersion = policyVersion,
+            PeriodType = "Monthly",
+            PeriodStart = new DateOnly(2026, 4, 21),
+            PeriodEnd = new DateOnly(2026, 5, 21),
+            Value = value,
+            Unit = "Amount",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"CyclicalWaves\"}]",
             DependencyEvidenceJson = "[]"
         };
 }

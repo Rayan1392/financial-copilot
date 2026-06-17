@@ -2,36 +2,25 @@
 
 ## Task 1 - Harden Symbol Lookup Metric Parsing
 
-### Objective
-
 Prevent composite LLM metric expressions from breaking alias resolution.
 
-### Requirements
+Requirements:
 
-* Update LlmSymbolLookupParser instructions.
+* Update `LlmSymbolLookupParser` instructions.
 * Enforce shortest user-written metric phrase extraction.
-* Add explicit examples for:
+* Add examples for `آخرین فروش`, `فروش ماهانه`, and slash-separated phrases such as
+  `آخرین فروش / sales / revenue`.
 
-  * آخرین فروش
-  * فروش ماهانه
-* Add negative examples for:
-
-  * آخرین فروش / sales / revenue
-
-### Acceptance Criteria
+Acceptance:
 
 * Composite metric output resolves correctly.
 * Existing metric lookups remain unchanged.
 
----
-
 ## Task 2 - Implement Composite Alias Normalization
-
-### Objective
 
 Support defensive parsing of slash-separated metric expressions.
 
-### Requirements
+Requirements:
 
 * Split metric expressions on `/`.
 * Trim and normalize segments.
@@ -39,162 +28,127 @@ Support defensive parsing of slash-separated metric expressions.
 * Prefer exact user-language matches.
 * Fall back to translated aliases only when required.
 
-### Acceptance Criteria
+Acceptance:
 
 * Composite expressions resolve deterministically.
 * No ambiguity is introduced for existing aliases.
 
----
+## Task 3 - Introduce Persisted Noavaran Monthly Sales Lookup Metrics
 
-## Task 3 - Introduce Persisted Monthly Sales Lookup Metrics
+Expose the required Noavaran sales facts as lookup-ready persisted metrics.
 
-### Objective
+Required facts:
 
-Expose all required Noavaran sales facts as lookup-ready metrics.
+* `MONTHLY_SALES` from `OutputType=0`.
+* prior fiscal-year same-month sales by deterministic retrieval of prior-year `MONTHLY_SALES`.
+* `MONTHLY_SALES_YTD` from `OutputType=1`.
+* `MONTHLY_SALES_YTD_PREVIOUS_MONTH` from `OutputType=4`.
 
-### Requirements
+Acceptance:
 
-Add metric definitions for:
-
-* MONTHLY_SALES_SINGLE_MONTH
-* MONTHLY_SALES_YTD
-* MONTHLY_SALES_YTD_PREVIOUS_MONTH
-
-Define previous fiscal-year same-month lookup strategy:
-
-Either:
-
-* MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH
-
-or
-
-* deterministic retrieval of prior-year MONTHLY_SALES_SINGLE_MONTH
-
-### Acceptance Criteria
-
-* Metrics are persisted in DerivedMetrics.
-* Metrics support ExternalCompanyId lookup.
-
----
+* Metrics are persisted in `DerivedMetrics`.
+* Metrics support `ExternalCompanyId` lookup.
+* No CyclicalWaves metric-selection rule is introduced in this Noavaran spec.
 
 ## Task 4 - Extend Metric Recalculation Pipeline
 
-### Objective
+Precompute required sales facts during ingestion.
 
-Precompute all required sales facts during ingestion.
+Requirements:
 
-### Requirements
+* Aggregate and persist `OutputType=0`, `OutputType=1`, and `OutputType=4`.
+* Support prior fiscal-year same-month comparison from persisted single-month rows.
 
-Aggregate and persist:
-
-* OutputType=0
-* OutputType=1
-* OutputType=4
-
-Support prior fiscal-year same-month comparison.
-
-### Acceptance Criteria
+Acceptance:
 
 * No query-time aggregation exists.
 * Recalculation generates lookup-ready metrics.
 
----
-
 ## Task 5 - Implement Monthly Sales Composite Response Model
 
-### Objective
+Support grouped Noavaran sales responses.
 
-Support grouped sales responses.
+Response model fields:
 
-### Requirements
+* metric label;
+* value;
+* reporting period;
+* source;
+* output type;
+* freshness metadata.
 
-Create response model containing:
-
-* metric label
-* value
-* reporting period
-* source
-* output type
-* freshness metadata
-
-### Acceptance Criteria
+Acceptance:
 
 * Multiple sales facts can be returned in a single response.
 
----
-
 ## Task 6 - Extend Symbol Metric Lookup Service
 
-### Objective
+Return Noavaran composite monthly sales results without changing Noavaran provider semantics.
 
-Return composite monthly sales results.
+Requirements:
 
-### Requirements
+* Read persisted monthly sales facts.
+* Assemble grouped response with latest month, same-month previous fiscal year, YTD, and YTD to
+  previous month.
+* Resolve prior fiscal-year comparison from persisted `MONTHLY_SALES`.
+* Never aggregate `MonthlyReportLineItems` at query time.
 
-Update lookup service to:
+Acceptance:
 
-* read persisted monthly sales facts
-* assemble grouped response
-* resolve prior fiscal-year comparison
-
-### Acceptance Criteria
-
-* No MonthlyReportLineItems aggregation occurs.
-* All required sales facts are returned.
-
----
+* No `MonthlyReportLineItems` aggregation occurs.
+* Noavaran default monthly/latest sales lookup columns are exactly:
+  `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`, `فروش YTD تا ماه قبل`.
+* Missing prior fiscal-year same-month rows render Missing/null.
 
 ## Task 7 - AI Response Rendering
 
-### Objective
+Present Noavaran monthly sales snapshots consistently.
 
-Present monthly sales snapshots consistently.
+Requirements:
 
-### Requirements
+* Display sales monetary values in million Rials.
+* Include backend compatibility unit note `Unit: million Rials`.
+* Omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
+* Suppress all LLM-generated prose when the monthly-sales table has any non-missing value.
+* Persisted conversation message content and structured `AssistantContent` payload obey the same
+  no-extra-prose rule when the conversation is reloaded.
+* Frontend maps the technical backend unit note to localized Persian table metadata:
+  `واحد: میلیون ریال`.
 
-Render:
+Acceptance:
 
-* Latest Monthly Sales
-* Same Month Previous Fiscal Year
-* Fiscal Year To Date Sales
-* Fiscal Year To Previous Month Sales
-
-Include:
-
-* visible unit note above the table: `Unit: million Rials`
-* sales monetary values displayed in million Rials
-* source evidence
-* freshness indicators
-* confidence
-
-### Acceptance Criteria
-
-* Users receive a complete monthly sales snapshot.
-* Persisted canonical values remain in Rials, but displayed monthly-sales monetary cells are divided by 1,000,000.
-* Unit conversion applies only to the monthly-sales monetary snapshot columns, not prices, percentages, ratios, quantities, or non-sales metrics.
-* The unit note is present before the table in the AI response text.
-* Monthly production/sales lookup responses omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
-
----
+* Users receive the complete Noavaran monthly sales snapshot.
+* Persisted canonical values remain in Rials, but displayed monthly-sales monetary cells are
+  divided by 1,000,000.
+* Unit conversion applies only to monthly-sales monetary snapshot columns.
+* Persian users never see the raw English `Unit: million Rials` string in the chat UI.
 
 ## Task 8 - Automated Tests
 
-### Requirements
+Add or maintain:
 
-Add:
+* parser tests;
+* alias resolution tests;
+* metric persistence tests;
+* lookup service tests;
+* composite response tests;
+* display-unit tests for million-Rial sales rendering and unit-note output;
+* API-boundary tests proving monthly production/sales lookup responses do not include latest price
+  or daily price change;
+* API-boundary tests proving monthly-sales snapshot query response and reloaded chat DTO narrative
+  fields contain only the unit note, or are empty/null, when data exists;
+* regression test for `آخرین فروش کچاد؟` proving the rendered table exists, sales values are in
+  million Rials, and no missing-data or report-type prose appears;
+* Noavaran regression proving the default table contains `فروش ماه مشابه دوره قبل`;
+* frontend component/regression test for `آخرین فروش کچاد چقدر بوده؟` proving
+  `واحد: میلیون ریال` appears in the table metadata area, `Unit: million Rials` is absent, and no
+  standalone assistant paragraph renders the unit note.
 
-* parser tests
-* alias resolution tests
-* metric persistence tests
-* lookup service tests
-* composite response tests
-* regression tests
-* display-unit tests for million-Rial sales rendering and unit-note output
-* API-boundary tests proving monthly production/sales lookup responses do not include latest price or daily price change
+Acceptance:
 
-### Acceptance Criteria
-
-* Composite alias bug cannot regress.
-* Monthly sales snapshot behavior is fully covered.
+* Composite alias behavior cannot regress.
+* Noavaran monthly sales snapshot behavior is covered.
 * Monthly sales display-unit behavior cannot regress.
 * Monthly production/sales market-context suppression cannot regress.
+* Monthly sales no-extra-prose behavior cannot regress.
+* Monthly sales frontend unit-label localization cannot regress.

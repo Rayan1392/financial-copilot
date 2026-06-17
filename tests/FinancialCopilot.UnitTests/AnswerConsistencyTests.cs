@@ -125,6 +125,23 @@ public sealed class AnswerConsistencyTests
     }
 
     [Fact]
+    public void SymbolLookup_MonthlySalesWithData_ReplacesNonNumericLlmCommentaryWithUnitNoteOnly()
+    {
+        var table = MonthlySalesLookupTable();
+        var sut = MakeValidator();
+
+        var result = sut.ValidateSymbolLookup(
+            table,
+            "The direct metric tool did not return a numeric sales value. Please clarify whether you mean monthly, quarterly, or annual sales.",
+            Context());
+
+        Assert.Equal(AnswerConsistencyAction.ReplacedWithDeterministic, result.Action);
+        Assert.Equal("Unit: million Rials", result.Answer);
+        Assert.DoesNotContain("did not return", result.Answer);
+        Assert.DoesNotContain("clarify", result.Answer);
+    }
+
+    [Fact]
     public void Scanner_ProseInventsMetricValue_Replaced()
     {
         var (table, plan) = ScannerTableAndPlan(cellValue: 3.50m, threshold: 6m);
@@ -241,6 +258,33 @@ public sealed class AnswerConsistencyTests
             ],
             [MakeRow("شبندر", 5.06m), MakeRow("فولاد", 4.10m)],
             Facts(2),
+            [],
+            []);
+    }
+
+    private static SymbolLookupTableResult MonthlySalesLookupTable()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var cells = new Dictionary<string, ScannerTableCell>
+        {
+            ["SYMBOL"] = new(null, "کچاد", CellFreshnessStatus.Persisted, null),
+            ["MONTHLY_SALES"] = new(90_879_722m, "90,879,722", CellFreshnessStatus.Persisted, now),
+            ["MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"] = new(null, null, CellFreshnessStatus.Missing, null),
+            ["MONTHLY_SALES_YTD"] = new(787_016_400m, "787,016,400", CellFreshnessStatus.Persisted, now),
+            ["MONTHLY_SALES_YTD_PREVIOUS_MONTH"] = new(605_344_668m, "605,344,668", CellFreshnessStatus.Persisted, now)
+        };
+
+        return new SymbolLookupTableResult(
+            Guid.NewGuid(),
+            [
+                new ScannerTableColumn("SYMBOL", "نماد", ScannerColumnType.Symbol),
+                new ScannerTableColumn("MONTHLY_SALES", "فروش ماهانه", ScannerColumnType.Metric, "MONTHLY_SALES"),
+                new ScannerTableColumn("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", "فروش ماه مشابه قبل", ScannerColumnType.Metric, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"),
+                new ScannerTableColumn("MONTHLY_SALES_YTD", "فروش YTD", ScannerColumnType.Metric, "MONTHLY_SALES_YTD"),
+                new ScannerTableColumn("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل", ScannerColumnType.Metric, "MONTHLY_SALES_YTD_PREVIOUS_MONTH")
+            ],
+            [new ScannerTableRow("کچاد", "معدنی و صنعتی چادرملو", cells, 1.0, [])],
+            Facts(1),
             [],
             []);
     }

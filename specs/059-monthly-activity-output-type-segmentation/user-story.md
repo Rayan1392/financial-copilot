@@ -110,4 +110,4 @@ provider-precomputed company totals until the platform aggregates them.
 
 ## Priority
 
-**High.** Without output type segmentation, the AI query layer can only return a single sales number, which does not match the current expectation for "latest sales" queries. Type 0, prior fiscal-year same-month type 0, type 1, and type 4 are all needed before the assistant can accurately answer Noavaran production/sales questions.
+**High.** Without output type segmentation, the AI query layer can only return a single sales number, which does not match the current expectation for "latest sales" queries. Type 0, persisted 12-month average sales, type 1, and type 4 are needed for the default latest-sales view; prior fiscal-year same-month type 0 remains required for explicit comparable-period questions.

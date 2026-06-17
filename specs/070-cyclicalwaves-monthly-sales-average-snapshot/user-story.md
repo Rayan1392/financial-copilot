@@ -33,6 +33,52 @@ This story does **not** apply to Noavaran Amin monthly activity data:
 
 If this story conflicts with spec 069, spec 069 remains authoritative for Noavaran data.
 
+## Shared Monthly Sales Routing Rule
+
+For direct symbol lookup, the following user intents are monthly-sales intents and must resolve to
+`MONTHLY_SALES`, not generic quarterly `REVENUE`:
+
+* `فروش`
+* `آخرین فروش`
+* `فروش ماه`
+* `فروش ماهانه`
+* `فروش این ماه`
+* `فروش YTD`
+* `متوسط فروش 12 ماهه`
+* `متوسط فروش ۱۲ ماهه`
+
+`REVENUE` is selected only when the user explicitly asks for revenue, quarterly revenue/sales,
+`درآمد فصلی`, or `فروش فصلی`.
+
+## Regression Safety Rule
+
+The original user message has priority over parser/tool output for monthly-sales routing. If the
+original message is a monthly-sales question, parser output such as `REVENUE`, `sales`, or
+`AVG_12M_MONTHLY_SALES` must not override `MONTHLY_SALES` routing or the monthly-sales snapshot
+renderer. For example, if the original user message is `آخرین فروش کچاد چقدر بوده؟` and the LLM
+rewrites the tool argument as `REVENUE کچاد`, `MONTHLY_SALES` wins.
+
+## Renderer Ownership
+
+`MonthlySalesSnapshotRenderer` owns monthly-sales snapshot responses.
+
+Noavaran mode columns:
+
+* `فروش ماهانه`
+* `فروش ماه مشابه دوره قبل`
+* `فروش YTD`
+* `فروش YTD تا ماه قبل`
+
+CyclicalWaves default mode columns:
+
+* `فروش ماهانه`
+* `متوسط فروش ۱۲ ماهه`
+* `فروش YTD`
+* `فروش YTD تا ماه قبل`
+
+`GenericMetricRenderer` owns PE, PS, EPS, explicit `REVENUE`, net profit, margins, price metrics,
+and other non-monthly point lookups. It must not render monthly-sales snapshot responses.
+
 ## Acceptance Criteria
 
 ### Alias Routing
@@ -130,3 +176,5 @@ Tests must prove:
 * API response display names never contain `AVG_12M_MONTHLY_SALES`, `Average 12 Month Sales`, or
   `Average 12-Month Monthly Sales`.
 * Noavaran monthly-sales behavior from spec 069 remains unchanged.
+* `درآمد فصلی کچاد` resolves to `REVENUE` and the generic metric renderer.
+* If the LLM rewrites `آخرین فروش کچاد چقدر بوده؟` as `REVENUE کچاد`, `MONTHLY_SALES` still wins.

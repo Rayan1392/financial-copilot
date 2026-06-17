@@ -40,6 +40,15 @@ The query path must remain read-only and deterministic:
   the same company and Shamsi month;
 * never substitute quarterly `REVENUE` for a monthly sales question.
 
+## Shared Monthly Sales Routing Rule
+
+The following user intents are owned by the monthly-sales workflow and must resolve to
+`MONTHLY_SALES`, not quarterly `REVENUE`: `فروش`, `آخرین فروش`, `فروش ماه`, `فروش ماهانه`,
+`فروش این ماه`, `فروش YTD`, `متوسط فروش 12 ماهه`, and `متوسط فروش ۱۲ ماهه`.
+
+`REVENUE` is selected only when the user explicitly asks for revenue, quarterly revenue/sales,
+`درآمد فصلی`, or `فروش فصلی`.
+
 ## Scope
 
 ### Included

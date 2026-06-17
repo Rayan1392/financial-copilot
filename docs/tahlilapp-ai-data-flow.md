@@ -53,7 +53,7 @@ User message
       -> Clarification / unsupported intent
   -> Parse requested symbols, metrics, filters, periods
   -> Resolve metric aliases through semantic layer
-  -> Resolve symbols/companies through normalized Companies/Symbols
+  -> Resolve symbols/companies through normalized Companies
   -> Execute deterministic backend service
       -> ScannerExecutionEngine
       -> SymbolMetricLookupService
@@ -85,10 +85,10 @@ User: pe کگل چقدر است؟
        raw symbol = کگل
        metric term = pe
   -> IMetricAliasResolver maps `pe` to canonical MetricCode, usually PE_TTM
-  -> ISymbolNameResolver resolves کگل against Companies/Symbols
+  -> CompanyResolverService resolves کگل against Companies
   -> ISymbolMetricLookupService queries:
        DerivedMetrics for PE_TTM
-       all Symbols linked to the resolved CompanyId
+       rows keyed by the resolved ExternalCompanyId
   -> Result table uses:
        Companies.TseSymbol as display symbol
        Companies.Name as company name
@@ -422,16 +422,30 @@ For archive data, absence of recent sync should not be treated as stale after th
 ## For `PE کگل`
 
 ```text
-Question -> AI facade -> SymbolLookup -> Metric alias PE_TTM -> Company/Symbol کگل
+Question -> AI facade -> SymbolLookup -> Metric alias PE_TTM -> Companies -> ExternalCompanyId کگل
 -> DerivedMetrics -> answer
 ```
 
 ## For `آخرین قیمت شپنا`
 
 ```text
-Question -> AI facade -> SymbolLookup -> Metric alias LATEST_PRICE -> Company/Symbol شپنا
+Question -> AI facade -> SymbolLookup -> Metric alias LATEST_PRICE -> Companies -> ExternalCompanyId شپنا
 -> LatestMarketQuotes -> answer
 ```
+
+## For monthly sales snapshots
+
+```text
+Question contains فروش / آخرین فروش / فروش ماهانه / فروش YTD / متوسط فروش 12 ماهه
+-> SymbolLookup
+-> original user message forces MONTHLY_SALES
+-> Companies -> ExternalCompanyId
+-> DerivedMetrics
+-> MonthlySalesSnapshotRenderer
+```
+
+Monthly sales snapshots never use `REVENUE`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`. `REVENUE`
+belongs to explicit quarterly revenue/sales requests such as `درآمد فصلی` or `فروش فصلی`.
 
 ## For financial statement metrics
 

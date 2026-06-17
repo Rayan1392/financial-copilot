@@ -18,25 +18,57 @@ intent type and lookup execution path to the single AI facade endpoint.
 
 ## Acceptance Criteria
 
+### Post-068 Compatibility
+
+- Spec `068-companies-first-refactor` supersedes the original symbol lookup storage model. The
+  legacy `Symbols` table, `SymbolId`, `ISymbolNameResolver`, and `EfCoreSymbolNameResolver` are
+  no longer part of the runtime lookup path.
+- Symbol resolution follows this path:
+
+  ```text
+  User Symbol
+  -> Companies
+  -> ExternalCompanyId
+  -> DerivedMetrics / FinancialStatements / MonthlyReports
+  ```
+
+- Metric lookup must operate exclusively through `ExternalCompanyId`. No `SymbolId`-based lookup,
+  Symbols join, or company-to-symbol fan-out may remain in the active implementation.
+
 - `POST /api/ai/v1/query` handles `SymbolLookup` intent: one or more (symbol, metric) pairs
   extracted from the user's natural language message.
 - The LLM extracts symbol codes (e.g., `حفاری`, `فملی`, `کگل`) and metric terms (e.g., `P/E`,
   `نسبت بدهی به حقوق`) from the message. Metric terms are resolved to canonical `MetricCode`
   values through the existing `IMetricAliasResolver` (same resolver used by the scanner parser).
-- Symbol names are resolved to `SymbolCode` values in the normalized `Symbols` table using a
-  case-insensitive match against `SymbolCode` and `Companies.Name`/`Companies.ExternalCompanyId`.
-  Unresolved symbols are listed in the response as missing; the lookup proceeds for resolved ones.
+- Symbol names are resolved by `CompanyResolverService` against `Companies` fields such as
+  `CompanySymbol`, `TseSymbol`, `Ticker`, `EnTicker`, ISIN/instrument identifiers, normalized
+  company names, and `Companies.ExternalCompanyId`. Unresolved symbols are listed in the response
+  as missing; the lookup proceeds for resolved ones.
 - Display rows must be company-backed, not provider-symbol-backed. The table's symbol value must
   use `public."Companies"."TseSymbol"` whenever the resolved symbol has a company row, and the
   company column must use `public."Companies"."Name"`. Provider identifiers such as ISIN,
   instrument codes, or `Symbols.SymbolCode` are linkage keys and must not be shown as the primary
   symbol when a company display symbol exists.
-- Resolved (symbol, metric) pairs are looked up in `DerivedMetrics` (latest `PeriodEnd`) and
+- Resolved (company, metric) pairs are looked up in `DerivedMetrics` by `ExternalCompanyId`
+  (latest `PeriodEnd`) and
   supplemented by `LatestMarketQuotes` for price-class metrics (`LATEST_PRICE`, `MARKET_CAP`).
-- Metric lookup must evaluate all `Symbols` rows linked to the resolved company, because different
-  vendors may populate different symbol rows for the same listed company. A metric stored on a
-  CyclicalWaves-linked symbol must still answer a lookup resolved through a NADPCO/CodalDB symbol
-  row for the same `Companies.Id`.
+- Cross-provider lookup works because all provider observations are keyed to the same
+  `ExternalCompanyId`; no `Symbols` rows need to be evaluated.
+- Monthly sales routing rule: user intents containing `فروش`, `آخرین فروش`, `فروش ماه`,
+  `فروش ماهانه`, `فروش این ماه`, `فروش YTD`, `متوسط فروش 12 ماهه`, or
+  `متوسط فروش ۱۲ ماهه` resolve to `MONTHLY_SALES` and the monthly-sales snapshot renderer, not to
+  generic quarterly `REVENUE`. `REVENUE` is selected only when the user explicitly asks for
+  revenue, quarterly revenue/sales, `درآمد فصلی`, or `فروش فصلی`.
+- Monthly sales responses must never include `LATEST_PRICE`, `DAILY_CHANGE_PCT`, `آخرین قیمت`, or
+  `تغییر روزانه %`. Price context is allowed only for valuation metrics, trading metrics, and
+  market quote queries.
+- Renderer ownership is explicit:
+  - `MonthlySalesSnapshotRenderer` owns monthly-sales snapshot responses. In Noavaran mode it
+    renders `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`, and
+    `فروش YTD تا ماه قبل`. In CyclicalWaves default mode it renders `فروش ماهانه`,
+    `متوسط فروش ۱۲ ماهه`, `فروش YTD`, and `فروش YTD تا ماه قبل`.
+  - `GenericMetricRenderer` owns PE, PS, EPS, revenue, net profit, margins, price metrics, and
+    other non-monthly point lookups. It must not render monthly-sales snapshot responses.
 - The response includes a structured `SymbolLookupTable` (same column/cell/freshness contract as
   the scanner table) inside the existing `AiQueryResponse`.
 - Numeric display formatting is deterministic:
@@ -72,11 +104,11 @@ intent type and lookup execution path to the single AI facade endpoint.
 - Create `ISymbolLookupParser`: LLM structured-output call that returns a list of
   `{ symbolName, metricTerm }` pairs. Symbol name is passed as-is from the user; the
   backend resolves it to `SymbolCode`.
-- Create `ISymbolNameResolver`: Application-layer service that matches a raw name against
-  `Symbols.SymbolCode`, `Companies.Name`, and `Companies.ExternalCompanyId` (case-insensitive,
-  accent-insensitive for Persian). Returns the best-match `SymbolCode` or `null` if not found.
+- Use `CompanyResolverService`: Application-layer service that matches a raw name against
+  `Companies` only (case-insensitive, accent-insensitive for Persian). Returns the resolved
+  company and `ExternalCompanyId`, or `null` if not found.
 - Create `ISymbolMetricLookupService`: queries `DerivedMetrics` + `LatestMarketQuotes` for
-  the resolved (SymbolId, MetricCode) pairs; returns a `SymbolLookupTableResult` using the
+  the resolved (`ExternalCompanyId`, `MetricCode`) pairs; returns a `SymbolLookupTableResult` using the
   same `ScannerTableColumn`/`ScannerTableCell` contracts so the frontend renders it identically.
 - Extend `AiQueryOrchestrationService` with the new intent branch; billing reservation and
   finalization follow the same hook pattern as the scanner path.

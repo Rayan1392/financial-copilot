@@ -1041,6 +1041,38 @@ public sealed class CyclicalWavesMonthlySalesLookupTests : IClassFixture<Cyclica
     }
 
     [Fact]
+    public async Task AiQuery_CyclicalWavesAverage12MonthSalesQuestion_StillUsesMonthlySalesSnapshot()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "متوسط فروش 12 ماهه کچاد" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("MONTHLY_SALES", columnIds);
+        Assert.Contains("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.Contains("MONTHLY_SALES_YTD", columnIds);
+        Assert.Contains("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columnIds);
+        Assert.DoesNotContain("REVENUE", columnIds);
+        Assert.DoesNotContain("LATEST_PRICE", columnIds);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("82,500,000", cells.GetProperty("AVG_12M_MONTHLY_SALES").GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
     public async Task AiQuery_CyclicalWavesExplicitSameMonthPreviousSales_DoesNotFallbackToAverage()
     {
         using var client = _factory.CreateClient();

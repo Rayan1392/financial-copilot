@@ -57,6 +57,17 @@ At minimum, CyclicalWaves sync/recalculation must persist:
   `last_month_sale`, `penultimate_month_sale`, `last_year_same_month_sale`;
 * valuation: `pe`, `ps`.
 
+## Revenue Persistence Boundary
+
+Persisting `REVENUE` into `DerivedMetrics` is intended for explicit quarterly revenue lookup,
+screening, and financial snapshots. It must not change monthly-sales natural-language routing.
+
+Natural-language monthly-sales questions such as `فروش`, `آخرین فروش`, `فروش ماه`,
+`فروش ماهانه`, `فروش این ماه`, `فروش YTD`, `متوسط فروش 12 ماهه`, and
+`متوسط فروش ۱۲ ماهه` continue to resolve to `MONTHLY_SALES` and use the monthly-sales snapshot
+renderer. `REVENUE` is selected only when the user explicitly asks for revenue, quarterly
+revenue/sales, `درآمد فصلی`, or `فروش فصلی`.
+
 ## Units and Evidence
 
 CyclicalWaves monetary values are already in Rials.

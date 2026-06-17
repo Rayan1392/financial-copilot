@@ -41,6 +41,14 @@ metric source.
   CyclicalWaves monthly/quarterly sales values are already provider-precomputed company-level
   facts in Rials.
 
+## Shared Monthly Sales Routing Rule
+
+User intents containing `فروش`, `آخرین فروش`, `فروش ماه`, `فروش ماهانه`, `فروش این ماه`,
+`فروش YTD`, `متوسط فروش 12 ماهه`, or `متوسط فروش ۱۲ ماهه` are monthly-sales intents and must
+route to `MONTHLY_SALES` plus the monthly-sales snapshot renderer. They must not route to
+quarterly `REVENUE` unless the user explicitly asks for revenue, quarterly revenue/sales,
+`درآمد فصلی`, or `فروش فصلی`.
+
 ## Gaps This Story Closes
 
 ### Gap 1 — No month-by-month acquisition model (ingestion side)

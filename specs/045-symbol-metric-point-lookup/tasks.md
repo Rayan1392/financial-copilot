@@ -1,5 +1,21 @@
 # Tasks — Symbol Metric Point Lookup
 
+## Post-068 Compatibility Override
+
+The original resolver tasks below are superseded by spec `068-companies-first-refactor`.
+
+* Do not implement or reintroduce `ISymbolNameResolver`, `EfCoreSymbolNameResolver`, `Symbols`,
+  or `SymbolId` lookup.
+* Use `CompanyResolverService` against `Companies`.
+* All lookup reads use `ExternalCompanyId`.
+* `EfCoreSymbolMetricLookupService` queries `DerivedMetrics` by (`ExternalCompanyId`,
+  `MetricCode`) and never joins `Symbols`.
+* Monthly-sales requests containing `فروش`, `آخرین فروش`, `فروش ماه`, `فروش ماهانه`,
+  `فروش این ماه`, `فروش YTD`, or `متوسط فروش 12/۱۲ ماهه` resolve to `MONTHLY_SALES`, not
+  `REVENUE`, unless the user explicitly asks for `درآمد فصلی` or `فروش فصلی`.
+* Monthly-sales snapshot responses use the monthly-sales renderer and must not include
+  `LATEST_PRICE` or `DAILY_CHANGE_PCT`.
+
 ## Domain
 
 - Add `SymbolLookup` value to the `AiIntentType` enum in the Application layer.
@@ -28,7 +44,7 @@
   and a `Status` (Parsed / ClarificationRequired).
 - Implement `LlmSymbolLookupParser`: single LLM structured-output call with the user's message;
   the LLM returns raw symbol names (exactly as the user wrote them) and metric terms; the backend
-  resolves both using `ISymbolNameResolver` and `IMetricAliasResolver`.
+  resolves both using `CompanyResolverService` and `IMetricAliasResolver`.
 - Metric term resolution re-uses the existing `IMetricAliasResolver` (same BCP-47 normalisation).
 - Return `ClarificationRequired` with a helpful message when no valid (symbol, metric) pair can
   be extracted.
@@ -37,13 +53,11 @@
 
 ## Application — Symbol Name Resolver
 
-- Define `ISymbolNameResolver` interface:
-  `Task<SymbolCode?> ResolveAsync(string rawName, CancellationToken)`.
-- Implement `EfCoreSymbolNameResolver` against `FinancialIngestionDbContext`:
-  - Case-insensitive exact match on `Symbols.SymbolCode`.
+- Use the existing `CompanyResolverService`:
+  - Case-insensitive exact match on `Companies.CompanySymbol/TseSymbol`.
   - Case-insensitive match on `Companies.ExternalCompanyId`.
   - Case-insensitive substring/trim match on `Companies.Name`.
-  - Return the best match `SymbolCode` or `null`.
+  - Return the best match `ExternalCompanyId` or `null`.
 - Add unit tests for exact-code match, name match, no match, and ambiguous multi-match
   (returns `null` and logs a warning).
 
@@ -52,27 +66,25 @@
 - Define `ISymbolMetricLookupService` interface:
   `Task<SymbolLookupTableResult> LookupAsync(SymbolLookupRequest, CancellationToken)`.
 - Implement `EfCoreSymbolMetricLookupService`:
-  - Resolve each raw symbol name to a company-backed symbol context: resolved `SymbolId`,
+  - Resolve each raw symbol name to a company-backed symbol context: resolved `ExternalCompanyId`,
     `CompanyId`, display symbol, and company name.
   - Use `Companies.TseSymbol` as the response `symbolCode` whenever it exists; use
     `Companies.Name` as the response `companyName`. Fall back to `Companies.CompanySymbol` and
-    only then `Symbols.SymbolCode` if a legacy/test row has no `TseSymbol`.
-  - Query `DerivedMetrics` for the latest row per `(CompanyId, MetricCode)` by collecting all
-    `Symbols` rows linked to the resolved company and selecting the newest non-null metric across
-    those rows. Do not limit metric lookup to the exact provider symbol row used for name
-    resolution.
+    only then `Companies.CompanySymbol/TseSymbol` if a legacy/test row has no `TseSymbol`.
+  - Query `DerivedMetrics` for the latest row per (`ExternalCompanyId`, `MetricCode`). Do not join
+    to `Symbols`, do not use `SymbolId`, and do not fan out through provider symbol rows.
   - Supplement price-class metrics (`LATEST_PRICE`, `MARKET_CAP`) from `LatestMarketQuotes`
     using the same `IMarketQuoteResolver` used by the scanner.
   - Build `ScannerTableColumn` list from the resolved metric codes (one column per metric,
     plus Symbol and Company Name columns).
   - Build `ScannerTableRow` list with `ScannerTableCell` entries using the existing freshness
     status contract (`Live` / `PreviousTradingDay` / `Persisted` / `Missing`).
-  - Populate `UnresolvedSymbols` with raw names whose `SymbolCode` could not be found.
+  - Populate `UnresolvedSymbols` with raw names whose `ExternalCompanyId` could not be found.
   - Set `ExecutionFacts.MatchingSymbolCount` = number of symbols with at least one non-Missing cell.
 - Add integration tests: single symbol + single metric found, symbol not found, metric not found,
   multiple symbols + multiple metrics, price-class metric uses `LatestMarketQuotes`, display symbol
   comes from `Companies.TseSymbol`, company name comes from `Companies.Name`, and a metric stored on
-  another symbol row for the same company is still returned.
+  the same `ExternalCompanyId` is still returned.
 
 ## Application — Orchestration
 

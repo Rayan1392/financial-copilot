@@ -35,6 +35,12 @@ This story must not replace those working services. It introduces a V2 orchestra
 - Billing reservation must occur before billable model/tool work, and billing finalization/release must occur exactly once for success, clarification, validation failure, provider failure, cancellation, and unexpected exceptions.
 - LLM output may suggest intent, tool, metric wording, explanation text, or follow-up questions, but it must never perform deterministic financial calculations, SQL execution, credit calculation, wallet mutation, confidence scoring, or final authorization.
 - Scanner and SymbolLookup tool/function adapters must expose only narrow, validated input contracts and must call existing backend services; they must not expose raw database access, arbitrary SQL, or billing mutation to the LLM.
+- Every V2 tool invocation must preserve both the original user message and the LLM-provided tool
+  argument. Deterministic routing uses the original user message as the primary source of truth;
+  LLM-generated tool arguments are advisory only. They must never override monthly-sales routing,
+  provider selection, renderer selection, or intent correction. For example, if the user asks
+  `آخرین فروش کچاد چقدر بوده؟` and the LLM rewrites the lookup argument as `REVENUE کچاد`,
+  `MONTHLY_SALES` and the monthly-sales snapshot renderer must still win.
 - V2 workflow telemetry must emit OpenTelemetry-compatible workflow, agent, tool/function, provider-attempt, billing, and persistence spans compatible with `018-ai-observability-and-telemetry`.
 - V2 workflow must preserve provider-attempt metadata and normalized usage facts from `014` for billing, evaluation, and audit.
 - Conversation memory from `019`, when enabled and permitted, must be injected through an approved context provider/prompt context step and returned as material-use disclosure when it affects the response.

@@ -39,6 +39,14 @@ provider-precomputed company totals until the platform aggregates them.
   sales fields are provider-precomputed company metrics in Rials and are persisted as-is under
   provider-marked passthrough policies.
 
+## Shared Monthly Sales Routing Rule
+
+For direct symbol lookup, `فروش`, `آخرین فروش`, `فروش ماه`, `فروش ماهانه`, `فروش این ماه`,
+`فروش YTD`, `متوسط فروش 12 ماهه`, and `متوسط فروش ۱۲ ماهه` are monthly-sales intents. They
+resolve to `MONTHLY_SALES` and the monthly-sales snapshot renderer, never generic quarterly
+`REVENUE`. `REVENUE` remains valid for explicit revenue, quarterly revenue/sales,
+`درآمد فصلی`, and `فروش فصلی`.
+
 ## Bounded Context
 
 `FinancialCopilot.Infrastructure` / `FinancialCopilot.Application` — Financial Data Ingestion

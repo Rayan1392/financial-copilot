@@ -253,23 +253,40 @@ public sealed class LlmSymbolLookupParser(
     private static bool ShouldForceMonthlySalesSnapshot(string metricTerm, string userMessage)
     {
         var normalizedTerm = NormalizePersianText(metricTerm).Trim();
-        if (!IsGenericSalesTerm(normalizedTerm))
+        if (!IsSalesSnapshotQuery(userMessage) || !IsSalesRelatedLookupTerm(normalizedTerm))
         {
             return false;
         }
 
-        var normalizedMessage = NormalizePersianText(userMessage);
-        return normalizedMessage.Contains("آخرین فروش", StringComparison.OrdinalIgnoreCase) ||
-            normalizedMessage.Contains("فروش ماهانه", StringComparison.OrdinalIgnoreCase) ||
-            normalizedMessage.Contains("فروش ماهیانه", StringComparison.OrdinalIgnoreCase) ||
-            IsShortSymbolSalesQuestion(normalizedMessage);
+        return true;
     }
 
-    private static bool IsGenericSalesTerm(string normalizedTerm) =>
+    private static bool IsSalesRelatedLookupTerm(string normalizedTerm) =>
         string.Equals(normalizedTerm, "فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("فروش ماه", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("آخرین فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("متوسط فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("میانگین فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("YTD", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(normalizedTerm, "sales", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(normalizedTerm, "revenue", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(normalizedTerm, "REVENUE", StringComparison.OrdinalIgnoreCase);
+        normalizedTerm.Contains("sale", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("revenue", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSalesSnapshotQuery(string userMessage)
+    {
+        var normalizedMessage = NormalizePersianText(userMessage);
+        return normalizedMessage.Contains("آخرین فروش", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش ماه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش ماهانه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش ماهیانه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش این ماه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش YTD", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("متوسط فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("متوسط فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("میانگین فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("میانگین فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase) ||
+            IsShortSymbolSalesQuestion(normalizedMessage);
+    }
 
     private static bool IsShortSymbolSalesQuestion(string normalizedMessage)
     {

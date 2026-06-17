@@ -219,8 +219,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var lookupTool = AIFunctionFactory.Create(
             async (string query) =>
             {
+                // Use the original message, not an LLM-rewritten metric phrase, so sales aliases
+                // like "آخرین فروش" cannot be converted into generic REVENUE lookup.
                 var result = await lookupAdapter.LookupAsync(
-                    query, request.CorrelationId, request.TenantId, request.ActorId, ct);
+                    request.Message, request.CorrelationId, request.TenantId, request.ActorId, ct);
                 lookupResult = result;
                 return result.AgentSummary;
             },

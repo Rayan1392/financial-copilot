@@ -282,8 +282,10 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         AIFunctionFactory.Create(
             async (string query) =>
             {
+                // The LLM may rewrite "آخرین فروش ..." as "REVENUE ..."; parsing must use the
+                // original user wording so deterministic sales-routing rules are preserved.
                 var result = await lookupAdapter.LookupAsync(
-                    query,
+                    request.Message,
                     request.CorrelationId,
                     request.TenantId,
                     request.ActorId,

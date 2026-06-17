@@ -83,7 +83,11 @@ public sealed class SymbolLookupParserTests
 
     [Theory]
     [InlineData("آخرین فروش کچاد چقدر بوده؟", "فروش")]
+    [InlineData("آخرین فروش کچاد چقدر بوده؟", "REVENUE کچاد")]
     [InlineData("فروش ماهانه کچاد چقدر است؟", "REVENUE")]
+    [InlineData("فروش این ماه کچاد چقدر است؟", "revenue")]
+    [InlineData("فروش YTD کچاد چقدر است؟", "sales")]
+    [InlineData("متوسط فروش 12 ماهه کچاد چقدر است؟", "AVG_12M_MONTHLY_SALES")]
     [InlineData("فروش کچاد", "فروش")]
     public async Task Parser_LatestSalesQuestionWithGenericSalesTerm_ForcesMonthlySalesSnapshot(
         string userMessage,

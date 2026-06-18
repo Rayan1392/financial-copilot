@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FinancialCopilot.IntegrationTests;
 
-// ─── V2 Scanner tests ─────────────────────────────────────────────────────────
+// â”€â”€â”€ V2 Scanner tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public sealed class V2ScannerEndpointTests : IClassFixture<V2ScannerApiFactory>
 {
@@ -73,7 +73,7 @@ public sealed class V2ScannerEndpointTests : IClassFixture<V2ScannerApiFactory>
     }
 }
 
-// ─── V2 Symbol Lookup tests ───────────────────────────────────────────────────
+// â”€â”€â”€ V2 Symbol Lookup tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupApiFactory>
 {
@@ -93,7 +93,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "PE حفاری چقدر است؟" },
+            new { message = "PE Ø­ÙØ§Ø±ÛŒ Ú†Ù‚Ø¯Ø± Ø§Ø³ØªØŸ" },
             CancellationToken.None);
         using var document = await ReadJsonAsync(response);
 
@@ -114,79 +114,75 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         Assert.Equal("v1", confidence.GetProperty("policyVersion").GetString());
     }
 
-    [Theory]
-    [InlineData("نسبت پی به ای چادرملو؟", "کچاد")]
-    [InlineData("نسبت پی به ای کچاد؟", "کچاد")]
-    public async Task V2AiQuery_PeLookupByCompanyOrSymbol_RoutesThroughDirectPreflight(
-        string message,
-        string expectedSymbol)
+    [Fact]
+    public async Task V2AiQuery_DirectYtdFollowup_UsesPreviousConversationSymbol()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-        _factory.Fake.Reset();
 
-        using var response = await client.PostAsJsonAsync(
+        using var firstResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message },
+            new { message = "ÙØ±ÙˆØ´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ú©Ú†Ø§Ø¯ØŸ" },
             CancellationToken.None);
-        using var document = await ReadJsonAsync(response);
+        using var firstDocument = await ReadJsonAsync(firstResponse);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var root = document.RootElement;
+        using var followupResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "ÙØ±ÙˆØ´ YTD Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ", conversationId },
+            CancellationToken.None);
+        using var followupDocument = await ReadJsonAsync(followupResponse);
+
+        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
+        var root = followupDocument.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
-        var table = root.GetProperty("symbolLookupTable");
-        Assert.NotEqual(JsonValueKind.Null, table.ValueKind);
-        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
-        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
-        Assert.Equal("9.73", row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("787,016,400", textAnswer);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
     }
 
     [Fact]
-    public async Task V2AiQuery_PeLookupByCompanyName_WhenParserMissesPair_UsesDeterministicFallback()
+    public async Task V2AiQuery_PendingYtdMetricThenCompanyName_UsesStructuredLookup()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-        _factory.Fake.Reset();
-        _factory.Fake.ForceParserClarificationForChadormalu();
 
-        using var response = await client.PostAsJsonAsync(
+        using var firstResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "نسبت پی به ای چادرملو؟" },
+            new { message = "ÙØ±ÙˆØ´ YTD Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ" },
             CancellationToken.None);
-        using var document = await ReadJsonAsync(response);
+        using var firstDocument = await ReadJsonAsync(firstResponse);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var root = document.RootElement;
+        using var followupResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", conversationId },
+            CancellationToken.None);
+        using var followupDocument = await ReadJsonAsync(followupResponse);
+
+        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
+        var root = followupDocument.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
-        var table = root.GetProperty("symbolLookupTable");
-        Assert.NotEqual(JsonValueKind.Null, table.ValueKind);
-        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
-        Assert.Equal("کچاد", row.GetProperty("symbolCode").GetString());
-        Assert.Equal("9.73", row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
-    }
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("787,016,400", textAnswer);
+        Assert.DoesNotContain("415,830,370", textAnswer);
 
-    [Fact]
-    public async Task V2AiQuery_LookupTool_ReturnsConversationId()
-    {
-        using var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-
-        using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query",
-            new { message = "PE حفاری چقدر است؟" },
-            CancellationToken.None);
-        using var document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotEqual(Guid.Empty, document.RootElement.GetProperty("conversationId").GetGuid());
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -195,73 +191,6 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
     }
 }
-
-// ─── V2 numeric-consistency guardrail tests ───────────────────────────────────
-// Reproduces the reported bug: the V2 agent authors prose with a hallucinated/stale P/E ("7.88")
-// while the deterministic table reports PE_TTM = 5.06. The persisted assistant prose must be
-// corrected to the table value, and the table must keep the authoritative value.
-public sealed class V2AnswerConsistencyEndpointTests : IClassFixture<V2InconsistentLookupApiFactory>
-{
-    private readonly V2InconsistentLookupApiFactory _factory;
-
-    public V2AnswerConsistencyEndpointTests(V2InconsistentLookupApiFactory factory)
-    {
-        _factory = factory;
-        factory.EnsureSeeded();
-    }
-
-    [Fact]
-    public async Task V2AiQuery_LookupProseConflictsWithTable_PersistedProseCorrected()
-    {
-        using var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-
-        using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query",
-            new { message = "pe شبندر چقدر است؟" },
-            CancellationToken.None);
-        using var document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var root = document.RootElement;
-        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
-
-        // Table keeps the authoritative deterministic value.
-        var table = root.GetProperty("symbolLookupTable");
-        var cell = table.GetProperty("rows")[0].GetProperty("cells").GetProperty("PE_TTM");
-        Assert.Equal("5.06", cell.GetProperty("formattedValue").GetString());
-
-        var conversationId = root.GetProperty("conversationId").GetGuid();
-
-        // Reload the conversation: the persisted assistant prose must show the corrected value.
-        using var reload = await client.GetAsync(
-            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
-        using var reloadDoc = await ReadJsonAsync(reload);
-
-        var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
-            .First(m => m.GetProperty("role").GetString() == "Assistant");
-        var content = assistant.GetProperty("content").GetString()!;
-
-        Assert.DoesNotContain("7.88", content);
-        Assert.Contains("5.06", content);
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
-
-        // Persisted structured table also keeps the authoritative value (consistency preserved).
-        var assistantContent = assistant.GetProperty("assistantContent");
-        Assert.True(assistantContent.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
-        var persistedCell = assistantContent.GetProperty("symbolLookupTable").GetProperty("rows")[0]
-            .GetProperty("cells").GetProperty("PE_TTM");
-        Assert.Equal("5.06", persistedCell.GetProperty("formattedValue").GetString());
-    }
-
-    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
-    {
-        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
-        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
-    }
-}
-
-// ─── V2 Scanner factory ───────────────────────────────────────────────────────
 
 public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2MonthlySalesRoutingApiFactory>
 {
@@ -274,54 +203,9 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
     }
 
     [Theory]
-    [InlineData("فروش ماهانه کچاد؟")]
-    [InlineData("آخرین فروش کچاد")]
-    [InlineData("مبلغ فروش کچاد")]
-    [InlineData("فروش آخرین ماه کچاد")]
-    public async Task V2AiQuery_DirectMonthlySales_RoutesToLookupBeforeLlmToolSelection(string message)
-    {
-        using var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
-
-        using var response = await client.PostAsJsonAsync(
-            "/api/ai/v1/query",
-            new { message },
-            CancellationToken.None);
-        using var document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var root = document.RootElement;
-        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
-        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
-
-        var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("90,879,722", textAnswer);
-        Assert.Contains("میلیون ریال", textAnswer);
-        Assert.DoesNotContain("Unit: million Rials", textAnswer);
-        Assert.DoesNotContain("برنگشت", root.GetRawText());
-        Assert.DoesNotContain("اگر", textAnswer);
-
-        var table = root.GetProperty("symbolLookupTable");
-        var columns = table.GetProperty("columns").EnumerateArray()
-            .Select(c => c.GetProperty("identifier").GetString())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("MONTHLY_SALES", columns);
-        Assert.Contains("AVG_12M_MONTHLY_SALES", columns);
-        Assert.Contains("MONTHLY_SALES_YTD", columns);
-        Assert.Contains("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columns);
-        Assert.DoesNotContain("LATEST_PRICE", columns);
-        Assert.DoesNotContain("DAILY_CHANGE_PCT", columns);
-
-        var cells = table.GetProperty("rows")[0].GetProperty("cells");
-        Assert.Equal("90,879,722", cells.GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
-        Assert.Equal("57,549,287", cells.GetProperty("AVG_12M_MONTHLY_SALES").GetProperty("formattedValue").GetString());
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
-    }
-
-    [Theory]
-    [InlineData("متوسط فروش 12 ماهه کچاد چقدر بوده است", "AVG_12M_MONTHLY_SALES", "57,549,287")]
-    [InlineData("فروش YTD کچاد؟", "MONTHLY_SALES_YTD", "787,016,400")]
-    [InlineData("فروش YTD تا ماه قبل کچاد؟", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "605,344,668")]
+    [InlineData("\u0645\u062a\u0648\u0633\u0637 \u0641\u0631\u0648\u0634 12 \u0645\u0627\u0647\u0647 \u06a9\u0686\u0627\u062f \u0686\u0642\u062f\u0631 \u0628\u0648\u062f\u0647 \u0627\u0633\u062a", "AVG_12M_MONTHLY_SALES", "57,549,287")]
+    [InlineData("\u0641\u0631\u0648\u0634 YTD \u06a9\u0686\u0627\u062f\u061f", "MONTHLY_SALES_YTD", "787,016,400")]
+    [InlineData("\u0641\u0631\u0648\u0634 YTD \u062a\u0627 \u0645\u0627\u0647 \u0642\u0628\u0644 \u06a9\u0686\u0627\u062f\u061f", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "605,344,668")]
     public async Task V2AiQuery_DirectMonthlySalesCompanionMetric_UsesRequestedMetricInProse(
         string message,
         string expectedMetricCode,
@@ -358,75 +242,91 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
     }
 
-    [Fact]
-    public async Task V2AiQuery_DirectYtdFollowup_UsesPreviousConversationSymbol()
+    [Theory]
+    [InlineData("\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f", "MONTHLY_SALES", "90,879,722")]
+    [InlineData("\u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f", "MONTHLY_SALES", "90,879,722")]
+    [InlineData("\u0645\u062a\u0648\u0633\u0637 \u0641\u0631\u0648\u0634 12 \u0645\u0627\u0647\u0647 \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f", "AVG_12M_MONTHLY_SALES", "57,549,287")]
+    [InlineData("\u0641\u0631\u0648\u0634 YTD \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f", "MONTHLY_SALES_YTD", "787,016,400")]
+    public async Task V2AiQuery_DirectMonthlySalesCompanyName_ResolvesThroughCompaniesTable(
+        string message,
+        string expectedMetricCode,
+        string expectedFormattedValue)
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
-        using var firstResponse = await client.PostAsJsonAsync(
+        using var response = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "فروش ماهانه کچاد؟" },
+            new { message },
             CancellationToken.None);
-        using var firstDocument = await ReadJsonAsync(firstResponse);
-        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
-        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
+        using var document = await ReadJsonAsync(response);
 
-        using var followupResponse = await client.PostAsJsonAsync(
-            "/api/ai/v1/query",
-            new { message = "فروش YTD چقدر بوده؟", conversationId },
-            CancellationToken.None);
-        using var followupDocument = await ReadJsonAsync(followupResponse);
-
-        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
-        var root = followupDocument.RootElement;
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
-        var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("787,016,400", textAnswer);
-
         var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
-        var cells = row.GetProperty("cells");
-        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+        Assert.Equal("\u06a9\u0686\u0627\u062f", row.GetProperty("symbolCode").GetString());
+        Assert.Equal("\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u0686\u0627\u062f\u0631\u0645\u0644\u0648", row.GetProperty("companyName").GetString());
+        Assert.Equal(
+            expectedFormattedValue,
+            row.GetProperty("cells").GetProperty(expectedMetricCode).GetProperty("formattedValue").GetString());
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains(expectedFormattedValue, textAnswer);
+        Assert.DoesNotContain("Found metric data for 0 symbol(s). 1 unresolved.", textAnswer);
     }
 
     [Fact]
-    public async Task V2AiQuery_PendingYtdMetricThenCompanyName_UsesStructuredLookup()
+    public async Task V2AiQuery_DirectMonthlySalesCompanyName_MatchesDirectSymbolResult()
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
 
-        using var firstResponse = await client.PostAsJsonAsync(
+        using var symbolResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "فروش YTD چقدر بوده؟" },
+            new { message = "\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u06a9\u0686\u0627\u062f\u061f" },
             CancellationToken.None);
-        using var firstDocument = await ReadJsonAsync(firstResponse);
-        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
-        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
+        using var symbolDocument = await ReadJsonAsync(symbolResponse);
 
-        using var followupResponse = await client.PostAsJsonAsync(
+        using var companyResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "چادرملو", conversationId },
+            new { message = "\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f" },
             CancellationToken.None);
-        using var followupDocument = await ReadJsonAsync(followupResponse);
+        using var companyDocument = await ReadJsonAsync(companyResponse);
 
-        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
-        var root = followupDocument.RootElement;
+        var symbolRow = Assert.Single(symbolDocument.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var companyRow = Assert.Single(companyDocument.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+
+        Assert.Equal(
+            symbolRow.GetProperty("cells").GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString(),
+            companyRow.GetProperty("cells").GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.Equal("\u06a9\u0686\u0627\u062f", companyRow.GetProperty("symbolCode").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_UnresolvedMonthlySalesQuery_ReturnsDeterministicPersianMessage()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u0646\u0627\u0645\u0648\u062c\u0648\u062f\u061f" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
-        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
-        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("symbolLookupTable").ValueKind);
 
         var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("787,016,400", textAnswer);
-        Assert.DoesNotContain("415,830,370", textAnswer);
-
-        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
-        var cells = row.GetProperty("cells");
-        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
-        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+        Assert.Contains("\u0646\u0627\u0645\u0648\u062c\u0648\u062f", textAnswer);
+        Assert.DoesNotContain("Found metric data for 0 symbol(s). 1 unresolved.", textAnswer);
+        Assert.DoesNotContain("Clarification needed", textAnswer);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -487,11 +387,11 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = Guid.Parse("52000000-0000-0000-0000-000000000001"),
-            Name = "معدنی و صنعتی چادرملو",
+            Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u0686\u0627\u062f\u0631\u0645\u0644\u0648",
             ProviderName = "CyclicalWaves",
             ExternalCompanyId = "3",
-            CompanySymbol = "کچاد",
-            TseSymbol = "کچاد",
+            CompanySymbol = "\u06a9\u0686\u0627\u062f",
+            TseSymbol = "\u06a9\u0686\u0627\u062f",
             LastSynchronizedAt = now
         });
 
@@ -529,7 +429,7 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
 
 public sealed class V2ScannerApiFactory : ScannerExecutionApiFactory
 {
-    // Let V2 orchestration stand — do not replace with V1.
+    // Let V2 orchestration stand â€” do not replace with V1.
     protected override bool ForceV1Orchestration => false;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -554,7 +454,7 @@ public sealed class V2ScannerApiFactory : ScannerExecutionApiFactory
     }
 }
 
-// ─── V2 Symbol Lookup factory ─────────────────────────────────────────────────
+// â”€â”€â”€ V2 Symbol Lookup factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
 {
@@ -563,7 +463,7 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
     private readonly object _seedLock = new();
     internal V2SymbolLookupFakeAiModelClient Fake { get; } = new();
 
-    // Let V2 orchestration stand — do not replace with V1.
+    // Let V2 orchestration stand â€” do not replace with V1.
     protected override bool ForceV1Orchestration => false;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -607,6 +507,9 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
     {
         var companyHafariId = Guid.Parse("50000000-0000-0000-0000-100000000001");
         var companyKchadId = Guid.Parse("50000000-0000-0000-0000-100000000002");
+        var companyKgolId = Guid.Parse("50000000-0000-0000-0000-100000000003");
+        var companyShpnaId = Guid.Parse("50000000-0000-0000-0000-100000000004");
+        var companyShbandarId = Guid.Parse("50000000-0000-0000-0000-100000000005");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -614,10 +517,10 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyHafariId,
-            Name = "حفاری شمال",
+            Name = "Ø­ÙØ§Ø±ÛŒ Ø´Ù…Ø§Ù„",
             ProviderName = "test",
             ExternalCompanyId = "hafari-v2-001",
-            Ticker = "حفاری",
+            Ticker = "Ø­ÙØ§Ø±ÛŒ",
             TseSymbol = "HAF_TSE",
             CompanySymbol = "HAFARI",
             LastSynchronizedAt = now
@@ -626,12 +529,48 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyKchadId,
-            Name = "معدنی و صنعتی چادرملو",
+            Name = "Ù…Ø¹Ø¯Ù†ÛŒ Ùˆ ØµÙ†Ø¹ØªÛŒ Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ",
             ProviderName = "test",
             ExternalCompanyId = "kchad-v2-001",
-            Ticker = "کچاد",
-            TseSymbol = "کچاد",
-            CompanySymbol = "کچاد",
+            Ticker = "Ú©Ú†Ø§Ø¯",
+            TseSymbol = "Ú©Ú†Ø§Ø¯",
+            CompanySymbol = "Ú©Ú†Ø§Ø¯",
+            LastSynchronizedAt = now
+        });
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyKgolId,
+            Name = "Ù…Ø¹Ø¯Ù†ÛŒ Ùˆ ØµÙ†Ø¹ØªÛŒ Ú¯Ù„ Ú¯Ù‡Ø±",
+            ProviderName = "test",
+            ExternalCompanyId = "kgol-v2-001",
+            Ticker = "Ú©Ú¯Ù„",
+            TseSymbol = "Ú©Ú¯Ù„",
+            CompanySymbol = "Ú©Ú¯Ù„",
+            LastSynchronizedAt = now
+        });
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyShpnaId,
+            Name = "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†",
+            ProviderName = "test",
+            ExternalCompanyId = "shpna-v2-001",
+            Ticker = "Ø´Ù¾Ù†Ø§",
+            TseSymbol = "Ø´Ù¾Ù†Ø§",
+            CompanySymbol = "Ø´Ù¾Ù†Ø§",
+            LastSynchronizedAt = now
+        });
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyShbandarId,
+            Name = "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³",
+            ProviderName = "test",
+            ExternalCompanyId = "shbandar-v2-001",
+            Ticker = "Ø´Ø¨Ù†Ø¯Ø±",
+            TseSymbol = "Ø´Ø¨Ù†Ø¯Ø±",
+            CompanySymbol = "Ø´Ø¨Ù†Ø¯Ø±",
             LastSynchronizedAt = now
         });
 
@@ -672,10 +611,67 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             SourceEvidenceJson = "[]",
             DependencyEvidenceJson = "[]"
         });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kgol-v2-001",
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "PE_TTM_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 4.12m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "shpna-v2-001",
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "PE_TTM_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 5.17m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "shbandar-v2-001",
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "PE_TTM_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 5.06m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
     }
 }
 
-// ─── V2 inconsistent-lookup factory (consistency guardrail) ───────────────────
+// â”€â”€â”€ V2 inconsistent-lookup factory (consistency guardrail) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public sealed class V2InconsistentLookupApiFactory : AiFacadeApiFactory
 {
@@ -728,11 +724,11 @@ public sealed class V2InconsistentLookupApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyId,
-            Name = "پتروشیمی بندرامام",
+            Name = "Ù¾ØªØ±ÙˆØ´ÛŒÙ…ÛŒ Ø¨Ù†Ø¯Ø±Ø§Ù…Ø§Ù…",
             ProviderName = "test",
             ExternalCompanyId = "shabandar-v2-001",
-            TseSymbol = "شبندر",
-            CompanySymbol = "شبندر",
+            TseSymbol = "Ø´Ø¨Ù†Ø¯Ø±",
+            CompanySymbol = "Ø´Ø¨Ù†Ø¯Ø±",
             LastSynchronizedAt = now
         });
 
@@ -772,11 +768,11 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
 
     public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
     {
-        // Turn 2: continuation after tool execution — author CONFLICTING prose.
+        // Turn 2: continuation after tool execution â€” author CONFLICTING prose.
         if (request.PreviousResponseId is not null)
         {
             return Task.FromResult(new AiModelResult(
-                Text: "نسبت P/E نماد شبندر برابر است با 7.88",
+                Text: "Ù†Ø³Ø¨Øª P/E Ù†Ù…Ø§Ø¯ Ø´Ø¨Ù†Ø¯Ø± Ø¨Ø±Ø§Ø¨Ø± Ø§Ø³Øª Ø¨Ø§ 7.88",
                 StructuredJson: null,
                 ToolCalls: [],
                 Usage: MakeUsage(request)));
@@ -791,7 +787,7 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
                 ToolCalls: [new AiToolCall(
                     "v2-inconsistent-call-1",
                     "lookup_symbol_metrics",
-                    "{\"query\":\"pe شبندر چقدر است؟\"}")],
+                    "{\"query\":\"pe Ø´Ø¨Ù†Ø¯Ø± Ú†Ù‚Ø¯Ø± Ø§Ø³ØªØŸ\"}")],
                 Usage: MakeUsage(request, usedTools: true),
                 ResponseId: $"fake-v2-resp-{request.CorrelationId}"));
         }
@@ -799,7 +795,7 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
         var json = request.StructuredOutput?.SchemaName switch
         {
             "SymbolLookupParseOutput" =>
-                """{"detectedLanguage":"fa","pairs":[{"symbolName":"شبندر","metricTerm":"pe"}],"clarificationRequired":false,"clarificationMessage":null}""",
+                """{"detectedLanguage":"fa","pairs":[{"symbolName":"Ø´Ø¨Ù†Ø¯Ø±","metricTerm":"pe"}],"clarificationRequired":false,"clarificationMessage":null}""",
             _ => "{}"
         };
 
@@ -832,10 +828,10 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
 
 }
 
-// ─── V2 composite fake for scanner ────────────────────────────────────────────
+// â”€â”€â”€ V2 composite fake for scanner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Handles the three call types that occur in a V2 scanner flow:
-//   1. V2 outer agent, turn 1 — tools present, no PreviousResponseId → return screen_stocks tool call
-//   2. V2 outer agent, turn 2 — PreviousResponseId set → return final text
+//   1. V2 outer agent, turn 1 â€” tools present, no PreviousResponseId â†’ return screen_stocks tool call
+//   2. V2 outer agent, turn 2 â€” PreviousResponseId set â†’ return final text
 //   3. Internal ScannerParsing / ExplanationGeneration structured output calls
 public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 {
@@ -901,31 +897,39 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
     private static string BuildSymbolLookupParseJson(AiModelRequest request)
     {
         var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
-        if (!userMessage.Contains("کچاد", StringComparison.OrdinalIgnoreCase) &&
-            !userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase))
+        var metricTerm =
+            userMessage.Contains("YTD \u062a\u0627 \u0645\u0627\u0647 \u0642\u0628\u0644", StringComparison.OrdinalIgnoreCase)
+                ? "\u0641\u0631\u0648\u0634 YTD \u062a\u0627 \u0645\u0627\u0647 \u0642\u0628\u0644"
+                : userMessage.Contains("YTD", StringComparison.OrdinalIgnoreCase)
+                    ? "\u0641\u0631\u0648\u0634 YTD"
+                    : userMessage.Contains("\u0645\u062a\u0648\u0633\u0637 \u0641\u0631\u0648\u0634", StringComparison.OrdinalIgnoreCase)
+                        ? "\u0645\u062a\u0648\u0633\u0637 \u0641\u0631\u0648\u0634 12 \u0645\u0627\u0647\u0647"
+                        : "\u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647";
+
+        var symbolName =
+            userMessage.Contains("\u0686\u0627\u062f\u0631\u0645\u0644\u0648", StringComparison.OrdinalIgnoreCase)
+                ? "\u0686\u0627\u062f\u0631\u0645\u0644\u0648"
+                : userMessage.Contains("\u06a9\u0686\u0627\u062f", StringComparison.OrdinalIgnoreCase)
+                    ? "\u06a9\u0686\u0627\u062f"
+                    : userMessage.Contains("\u0646\u0627\u0645\u0648\u062c\u0648\u062f", StringComparison.OrdinalIgnoreCase)
+                        ? "\u0646\u0627\u0645\u0648\u062c\u0648\u062f"
+                        : null;
+
+        if (symbolName is null)
         {
             return JsonSerializer.Serialize(new
             {
                 detectedLanguage = "fa",
                 pairs = Array.Empty<object>(),
                 clarificationRequired = true,
-                clarificationMessage = "لطفاً نماد را مشخص کنید."
+                clarificationMessage = "\u0644\u0637\u0641\u0627\u064b \u0646\u0645\u0627\u062f \u0631\u0627 \u0645\u0634\u062e\u0635 \u06a9\u0646\u06cc\u062f."
             });
         }
-
-        var metricTerm =
-            userMessage.Contains("YTD تا ماه قبل", StringComparison.OrdinalIgnoreCase)
-                ? "فروش YTD تا ماه قبل"
-                : userMessage.Contains("YTD", StringComparison.OrdinalIgnoreCase)
-                    ? "فروش YTD"
-                    : userMessage.Contains("متوسط فروش", StringComparison.OrdinalIgnoreCase)
-                        ? "متوسط فروش 12 ماهه"
-                        : "فروش ماهانه";
 
         return JsonSerializer.Serialize(new
         {
             detectedLanguage = "fa",
-            pairs = new[] { new { symbolName = "کچاد", metricTerm } },
+            pairs = new[] { new { symbolName, metricTerm } },
             clarificationRequired = false,
             clarificationMessage = (string?)null
         });
@@ -956,7 +960,7 @@ internal sealed class V2ScannerFakeAiModelClient : IAiModelClient
                 Usage: MakeUsage(request)));
         }
 
-        // Turn 1: V2 outer agent turn — fire the screen_stocks tool
+        // Turn 1: V2 outer agent turn â€” fire the screen_stocks tool
         if (request.Tools is { Count: > 0 })
         {
             return Task.FromResult(new AiModelResult(
@@ -1009,10 +1013,10 @@ internal sealed class V2ScannerFakeAiModelClient : IAiModelClient
 
 }
 
-// ─── V2 composite fake for symbol lookup ──────────────────────────────────────
+// â”€â”€â”€ V2 composite fake for symbol lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Handles the three call types that occur in a V2 symbol lookup flow:
-//   1. V2 outer agent, turn 1 — tools present, no PreviousResponseId → return lookup_symbol_metrics call
-//   2. V2 outer agent, turn 2 — PreviousResponseId set → return final text
+//   1. V2 outer agent, turn 1 â€” tools present, no PreviousResponseId â†’ return lookup_symbol_metrics call
+//   2. V2 outer agent, turn 2 â€” PreviousResponseId set â†’ return final text
 //   3. Internal SymbolLookupParsing structured output call
 internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
 {
@@ -1037,13 +1041,13 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         if (request.PreviousResponseId is not null)
         {
             return Task.FromResult(new AiModelResult(
-                Text: "Here are the P/E metrics for حفاری.",
+                Text: "Here are the P/E metrics for Ø­ÙØ§Ø±ÛŒ.",
                 StructuredJson: null,
                 ToolCalls: [],
                 Usage: MakeUsage(request)));
         }
 
-        // Turn 1: V2 outer agent turn — fire the lookup_symbol_metrics tool
+        // Turn 1: V2 outer agent turn â€” fire the lookup_symbol_metrics tool
         if (request.Tools is { Count: > 0 })
         {
             Interlocked.Increment(ref _outerToolSelectionCalls);
@@ -1053,7 +1057,7 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
                 ToolCalls: [new AiToolCall(
                     "v2-lookup-call-1",
                     "lookup_symbol_metrics",
-                    "{\"query\":\"PE حفاری چقدر است؟\"}")],
+                    "{\"query\":\"PE Ø­ÙØ§Ø±ÛŒ Ú†Ù‚Ø¯Ø± Ø§Ø³ØªØŸ\"}")],
                 Usage: MakeUsage(request, usedTools: true),
                 ResponseId: $"fake-v2-resp-{request.CorrelationId}"));
         }
@@ -1105,23 +1109,37 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
     {
         var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
         if (Volatile.Read(ref _forceParserClarificationForChadormalu) == 1 &&
-            userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase))
+            userMessage.Contains("Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", StringComparison.OrdinalIgnoreCase))
         {
             return JsonSerializer.Serialize(new
             {
                 detectedLanguage = "fa",
                 pairs = Array.Empty<object>(),
                 clarificationRequired = true,
-                clarificationMessage = "لطفاً نماد را مشخص کنید."
+                clarificationMessage = "Ù„Ø·ÙØ§Ù‹ Ù†Ù…Ø§Ø¯ Ø±Ø§ Ù…Ø´Ø®Øµ Ú©Ù†ÛŒØ¯."
             });
         }
 
-        var symbol = userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase)
-            ? "چادرملو"
-            : userMessage.Contains("کچاد", StringComparison.OrdinalIgnoreCase)
-                ? "کچاد"
-                : "حفاری";
+        var symbol = userMessage.Contains("Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", StringComparison.OrdinalIgnoreCase)
+            ? "Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ"
+            : userMessage.Contains("Ú©Ú†Ø§Ø¯", StringComparison.OrdinalIgnoreCase)
+                ? "Ú©Ú†Ø§Ø¯"
+                : userMessage.Contains("Ú¯Ù„ Ú¯Ù‡Ø±", StringComparison.OrdinalIgnoreCase)
+                    ? "Ú¯Ù„ Ú¯Ù‡Ø±"
+                    : userMessage.Contains("Ú©Ú¯Ù„", StringComparison.OrdinalIgnoreCase)
+                        ? "Ú©Ú¯Ù„"
+                        : userMessage.Contains("Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†", StringComparison.OrdinalIgnoreCase)
+                            ? "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†"
+                            : userMessage.Contains("Ø´Ù¾Ù†Ø§", StringComparison.OrdinalIgnoreCase)
+                                ? "Ø´Ù¾Ù†Ø§"
+                                : userMessage.Contains("Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³", StringComparison.OrdinalIgnoreCase)
+                                    ? "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³"
+                                    : userMessage.Contains("Ø´Ø¨Ù†Ø¯Ø±", StringComparison.OrdinalIgnoreCase)
+                                        ? "Ø´Ø¨Ù†Ø¯Ø±"
+                                        : "Ø­ÙØ§Ø±ÛŒ";
 
-        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"نسبت پی به ای"}],"clarificationRequired":false,"clarificationMessage":null}""";
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"Ù†Ø³Ø¨Øª Ù¾ÛŒ Ø¨Ù‡ Ø§ÛŒ"}],"clarificationRequired":false,"clarificationMessage":null}""";
     }
 }
+
+

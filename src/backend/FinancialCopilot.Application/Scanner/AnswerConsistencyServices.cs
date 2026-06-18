@@ -56,6 +56,23 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 or ScannerColumnType.MarketCap)
             .ToList();
 
+        if (table.Rows.Count == 0)
+        {
+            var requested = FirstRequestedSymbol(table);
+            if (metricColumns.Count == 1)
+            {
+                var onlyMetricCode = metricColumns[0].MetricCode ?? metricColumns[0].Identifier;
+                var onlyMetricDisplay = displayNames.ResolveDisplayName(onlyMetricCode, persian);
+                return requested is null
+                    ? UnavailableSentenceNoSymbol(persian, onlyMetricDisplay)
+                    : UnavailableSentence(persian, requested, onlyMetricDisplay);
+            }
+
+            return requested is null
+                ? UnavailableLookupSentenceNoSymbol(persian)
+                : UnavailableLookupSentence(persian, requested);
+        }
+
         // Multiple symbols, or multiple metrics: prose must not state a single value. Defer to the table.
         if (table.Rows.Count > 1 || metricColumns.Count != 1)
             return WithUnitNote(table, MultiResultSentence(persian));
@@ -63,14 +80,6 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         var column = metricColumns[0];
         var metricCode = column.MetricCode ?? column.Identifier;
         var metricDisplay = displayNames.ResolveDisplayName(metricCode, persian);
-
-        if (table.Rows.Count == 0)
-        {
-            var requested = FirstRequestedSymbol(table);
-            return requested is null
-                ? UnavailableSentenceNoSymbol(persian, metricDisplay)
-                : UnavailableSentence(persian, requested, metricDisplay);
-        }
 
         var row = table.Rows.First();
         var symbol = row.SymbolCode;
@@ -104,6 +113,16 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         persian
             ? $"مقدار قابل اتکایی برای {metricDisplay} نماد درخواستی در داده‌های فعلی موجود نیست."
             : $"No reliable {metricDisplay} value is available for the requested symbol in the current data.";
+
+    private static string UnavailableLookupSentence(bool persian, string symbolOrCompany) =>
+        persian
+            ? $"برای {symbolOrCompany} داده قابل اتکایی در اطلاعات فعلی موجود نیست."
+            : $"No reliable data is available for {symbolOrCompany} in the current dataset.";
+
+    private static string UnavailableLookupSentenceNoSymbol(bool persian) =>
+        persian
+            ? "داده قابل اتکایی برای نماد یا شرکت درخواستی در اطلاعات فعلی موجود نیست."
+            : "No reliable data is available for the requested symbol or company in the current dataset.";
 
     private static string MultiResultSentence(bool persian) =>
         persian
@@ -230,6 +249,12 @@ public sealed class AnswerConsistencyValidator(
     {
         var authoritative = ExtractSymbolLookupValues(table);
         var deterministic = proseBuilder.Build(table);
+        if (table.Rows.Count == 0)
+            return new AnswerConsistencyResult(
+                AnswerConsistencyAction.ReplacedWithDeterministic,
+                deterministic,
+                []);
+
         if (SymbolLookupProseBuilder.HasAvailableMonthlySalesMonetaryCell(table))
             return new AnswerConsistencyResult(
                 AnswerConsistencyAction.ReplacedWithDeterministic,

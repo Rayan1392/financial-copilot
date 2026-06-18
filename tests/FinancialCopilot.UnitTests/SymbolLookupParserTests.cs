@@ -255,6 +255,37 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(expectedMetricTerm, pair.OriginalMetricTerm, ignoreCase: true);
     }
 
+    [Theory]
+    [InlineData("آخرین فروش چادرملو؟", "چادرملو", "MONTHLY_SALES", "آخرین فروش")]
+    [InlineData("فروش ماهانه چادرملو؟", "چادرملو", "MONTHLY_SALES", "آخرین فروش")]
+    [InlineData("متوسط فروش 12 ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
+    [InlineData("فروش YTD چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD", "فروش YTD")]
+    [InlineData("فروش YTD تا ماه قبل چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل")]
+    [InlineData("متوسط فروش ۱۲ ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
+    [InlineData("میانگین فروش 12 ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
+    [InlineData("میانگین فروش ۱۲ ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
+    [InlineData("فروش YTD تا ماه گذشته چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل")]
+    public async Task Parser_DirectMonthlySalesCompanyName_WhenLlmReturnsNoPairs_UsesDeterministicFallback(
+        string userMessage,
+        string expectedSymbolName,
+        string expectedMetricCode,
+        string expectedMetricTerm)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJson("I could not extract symbol/metric pairs.");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", "corr-direct-monthly-sales-fallback", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        var pair = Assert.Single(result.Pairs);
+        Assert.Equal(expectedSymbolName, pair.RawSymbolName);
+        Assert.Equal(expectedMetricCode, pair.ResolvedMetricCode?.Value);
+        Assert.Equal(expectedMetricTerm, pair.OriginalMetricTerm, ignoreCase: true);
+    }
+
     [Fact]
     public async Task Parser_MixedValidAndInvalidMetrics_ReturnsPartialResolution()
     {

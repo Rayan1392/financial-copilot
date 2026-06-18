@@ -1,7 +1,7 @@
 # monthly-sales-ytd-price-context-and-prose-regressions
 
 Date: 2026-06-18
-Status: RCA registered before production-code changes
+Status: Root cause confirmed and production fix implemented
 Scope: Microsoft Agent Framework V2 symbol lookup, monthly-sales companions, YTD follow-ups, quote context, deterministic prose
 
 ## Observed Behavior
@@ -203,6 +203,21 @@ LIMIT 50;
 - [ ] Confirm whether the frontend converts null backend confidence to 0%.
 - [ ] Confirm whether direct YTD wrong values came from an LLM-generated text answer, an older DB snapshot, `MonthlyReports`, `MonthlyReportLineItems`, Noavaran API path, or a missing/incorrect symbol context.
 - [ ] Confirm whether direct price should be supported through `lookup_symbol_metrics` with `LATEST_PRICE`, or whether the API should return a clearer unsupported message until quote data exists.
+
+## Confirmed Root Cause - Company-Name Monthly-Sales Regression
+
+- The V2 direct metric preflight was already correct. Direct monthly-sales questions such as `آخرین فروش چادرملو؟` were routed into the existing `lookup_symbol_metrics` path before outer LLM tool selection.
+- `CompanyResolverService.ResolveBySymbolAsync` was already correct for this bug. It can resolve `چادرملو` through `Companies.Name` and the unambiguous fragment fallback to `کچاد -> ExternalCompanyId = 3`.
+- The failing path was inside `LlmSymbolLookupParser`. Unlike PE lookups, monthly-sales company-name queries had no deterministic fallback when the structured parser returned clarification/no pairs. That meant the resolver never received `چادرملو`, so the existing resolver-side fix could not run.
+- The unresolved user-facing English text came from the empty lookup path. `SymbolLookupToolResult.AgentSummary` produced `Found metric data for 0 symbol(s). 1 unresolved.`, and the empty symbol-lookup consistency path left that text unchanged instead of replacing it with deterministic Persian prose.
+- The previous monthly-sales integration coverage was false-positive for company-name resolution. The fake parser injected `symbolName = "کچاد"` for monthly-sales tests, so those tests bypassed the real `چادرملو -> CompanyResolverService -> کچاد` production path.
+
+## Implemented Fix Summary - Company-Name Monthly-Sales Regression
+
+- Added deterministic monthly-sales company-name fallback in `LlmSymbolLookupParser`, following the same architectural pattern already used by `TryParseDirectPeLookup`.
+- Kept the existing lookup pipeline: parser -> `SymbolLookupToolAdapter` -> `EfCoreSymbolMetricLookupService` -> `CompanyResolverService`.
+- Forced empty/unresolved symbol-lookup answers onto deterministic Persian prose instead of leaking the internal English tool summary.
+- Replaced false-positive monthly-sales integration coverage with direct company-name regression tests that preserve `چادرملو` as parser output and prove resolver-side mapping to `کچاد`.
 
 ## Implementation Status - 2026-06-18
 

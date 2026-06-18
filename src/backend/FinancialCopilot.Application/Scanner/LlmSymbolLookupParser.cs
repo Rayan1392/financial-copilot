@@ -24,6 +24,26 @@ public sealed class LlmSymbolLookupParser(
         "p/e"
     ];
 
+    private static readonly string[] DirectMonthlySalesTerms =
+    [
+        "فروش YTD تا ماه قبل",
+        "فروش YTD تا ماه گذشته",
+        "متوسط فروش 12 ماهه",
+        "متوسط فروش ۱۲ ماهه",
+        "میانگین فروش 12 ماهه",
+        "میانگین فروش ۱۲ ماهه",
+        "آخرین فروش ماهانه",
+        "فروش ماهانه",
+        "فروش ماهیانه",
+        "فروش آخرین ماه",
+        "فروش این ماه",
+        "مبلغ فروش",
+        "آخرین فروش",
+        "فروش YTD",
+        "فروش ماه",
+        "فروش"
+    ];
+
     private static readonly string[] DirectLookupNoiseTerms =
     [
         "؟",
@@ -147,7 +167,7 @@ public sealed class LlmSymbolLookupParser(
         LlmLookupParseOutput llmOutput,
         CancellationToken cancellationToken = default)
     {
-        var deterministicPair = TryParseDirectPeLookup(request.Message);
+        var deterministicPair = TryParseDirectLookup(request.Message);
         if (llmOutput.ClarificationRequired || llmOutput.Pairs.Count == 0)
         {
             if (deterministicPair is not null)
@@ -218,6 +238,10 @@ public sealed class LlmSymbolLookupParser(
         return new SymbolLookupParseResult(resolvedPairs, LookupParseStatus.Parsed);
     }
 
+    private static SymbolLookupParsedPair? TryParseDirectLookup(string userMessage) =>
+        TryParseDirectPeLookup(userMessage) ??
+        TryParseDirectMonthlySalesLookup(userMessage);
+
     private static SymbolLookupParsedPair? TryParseDirectPeLookup(string userMessage)
     {
         var normalized = NormalizePersianText(userMessage)
@@ -246,6 +270,56 @@ public sealed class LlmSymbolLookupParser(
         return symbolName.Length == 0
             ? null
             : new SymbolLookupParsedPair(symbolName, new MetricCode("PE_TTM"), metricTerm);
+    }
+
+    private static SymbolLookupParsedPair? TryParseDirectMonthlySalesLookup(string userMessage)
+    {
+        var normalized = NormalizePersianText(userMessage)
+            .Replace('\u200c', ' ')
+            .Replace('\u200d', ' ');
+
+        var metricTerm = SelectExplicitMonthlySalesCompanionMetricTerm(normalized);
+        var resolvedMetricCode = metricTerm switch
+        {
+            "فروش YTD تا ماه قبل" => "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+            "فروش YTD تا ماه گذشته" => "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+
+            "فروش YTD" => "MONTHLY_SALES_YTD",
+
+            "متوسط فروش 12 ماهه" => "AVG_12M_MONTHLY_SALES",
+            "متوسط فروش ۱۲ ماهه" => "AVG_12M_MONTHLY_SALES",
+            "میانگین فروش 12 ماهه" => "AVG_12M_MONTHLY_SALES",
+            "میانگین فروش ۱۲ ماهه" => "AVG_12M_MONTHLY_SALES",
+
+            _ => null
+        };
+
+        if (metricTerm is null && IsSalesSnapshotQuery(normalized))
+        {
+            metricTerm = "آخرین فروش";
+            resolvedMetricCode = "MONTHLY_SALES";
+        }
+
+        if (metricTerm is null || resolvedMetricCode is null)
+        {
+            return null;
+        }
+
+        var symbolName = normalized;
+        foreach (var term in DirectMonthlySalesTerms)
+        {
+            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var noise in DirectLookupNoiseTerms)
+        {
+            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        symbolName = CollapseWhitespace(symbolName);
+        return symbolName.Length == 0
+            ? null
+            : new SymbolLookupParsedPair(symbolName, new MetricCode(resolvedMetricCode), metricTerm);
     }
 
     private void EmitLearningSignal(
@@ -351,7 +425,9 @@ public sealed class LlmSymbolLookupParser(
         }
 
         if (normalizedMessage.Contains("متوسط فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
-            normalizedMessage.Contains("متوسط فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase))
+            normalizedMessage.Contains("متوسط فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("میانگین فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("میانگین فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase))
         {
             return "متوسط فروش 12 ماهه";
         }

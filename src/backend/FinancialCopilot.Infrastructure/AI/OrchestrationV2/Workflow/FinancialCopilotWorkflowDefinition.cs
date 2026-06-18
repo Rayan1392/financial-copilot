@@ -251,7 +251,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (IsDirectMetricLookupRequest(request.Message))
         {
             lookupResult = await lookupAdapter.LookupAsync(
-                request.Message, request.CorrelationId, request.TenantId, request.ActorId, ct);
+                msg.EnrichedMessage,
+                request.CorrelationId,
+                request.TenantId,
+                request.ActorId,
+                ct,
+                queryTextForLookup: request.Message);
 
             var directCompletionStatus = lookupResult.CompletionStatus;
             UsageAccountingResult? directUsage = null;
@@ -477,6 +482,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return ContainsAny(normalized,
             "فروش ماهانه", "آخرین فروش", "مبلغ فروش", "فروش آخرین ماه", "فروش ماه",
+            "فروش ytd", "متوسط فروش 12 ماهه", "متوسط فروش ۱۲ ماهه",
+            "میانگین فروش 12 ماهه", "میانگین فروش ۱۲ ماهه",
             "تولید ماهانه", "مقدار تولید", "p/e", "pe ", " p e", "p/s", "ps ", "eps",
             "roe", "roa", "نسبت جاری", "حاشیه سود", "ارزش بازار");
     }

@@ -86,8 +86,6 @@ public sealed class SymbolLookupParserTests
     [InlineData("آخرین فروش کچاد چقدر بوده؟", "REVENUE کچاد")]
     [InlineData("فروش ماهانه کچاد چقدر است؟", "REVENUE")]
     [InlineData("فروش این ماه کچاد چقدر است؟", "revenue")]
-    [InlineData("فروش YTD کچاد چقدر است؟", "sales")]
-    [InlineData("متوسط فروش 12 ماهه کچاد چقدر است؟", "AVG_12M_MONTHLY_SALES")]
     [InlineData("فروش کچاد", "فروش")]
     public async Task Parser_LatestSalesQuestionWithGenericSalesTerm_ForcesMonthlySalesSnapshot(
         string userMessage,
@@ -104,6 +102,32 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(LookupParseStatus.Parsed, result.Status);
         Assert.Single(result.Pairs);
         Assert.Equal("MONTHLY_SALES", result.Pairs.First().ResolvedMetricCode?.Value);
+        Assert.Equal(llmMetricTerm, result.Pairs.First().OriginalMetricTerm);
+    }
+
+    [Theory]
+    [InlineData("متوسط فروش 12 ماهه کچاد چقدر است؟", "AVG_12M_MONTHLY_SALES", "AVG_12M_MONTHLY_SALES")]
+    [InlineData("متوسط فروش 12 ماهه کچاد چقدر است؟", "sales", "AVG_12M_MONTHLY_SALES")]
+    [InlineData("فروش YTD کچاد چقدر است؟", "sales", "MONTHLY_SALES_YTD")]
+    [InlineData("فروش YTD کچاد چقدر است؟", "فروش", "MONTHLY_SALES_YTD")]
+    [InlineData("فروش YTD تا ماه قبل کچاد؟", "sales", "MONTHLY_SALES_YTD_PREVIOUS_MONTH")]
+    [InlineData("فروش YTD تا ماه قبل کچاد؟", "فروش YTD", "MONTHLY_SALES_YTD_PREVIOUS_MONTH")]
+    public async Task Parser_ExplicitMonthlySalesCompanionQuestion_PreservesRequestedMetric(
+        string userMessage,
+        string llmMetricTerm,
+        string expectedMetricCode)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildPairsJson([("کچاد", llmMetricTerm)], language: "fa");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", $"corr-{expectedMetricCode}", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        Assert.Single(result.Pairs);
+        Assert.Equal(expectedMetricCode, result.Pairs.First().ResolvedMetricCode?.Value);
         Assert.Equal(llmMetricTerm, result.Pairs.First().OriginalMetricTerm);
     }
 

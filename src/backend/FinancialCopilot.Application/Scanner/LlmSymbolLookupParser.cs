@@ -191,6 +191,12 @@ public sealed class LlmSymbolLookupParser(
         string language,
         DateOnly asOf)
     {
+        var explicitMonthlyCompanionTerm = SelectExplicitMonthlySalesCompanionMetricTerm(userMessage);
+        if (explicitMonthlyCompanionTerm is not null)
+        {
+            return explicitMonthlyCompanionTerm;
+        }
+
         if (ShouldForceMonthlySalesSnapshot(metricTerm, userMessage))
         {
             return "آخرین فروش";
@@ -248,6 +254,30 @@ public sealed class LlmSymbolLookupParser(
         }
 
         return metricTerm;
+    }
+
+    private static string? SelectExplicitMonthlySalesCompanionMetricTerm(string userMessage)
+    {
+        var normalizedMessage = NormalizePersianText(userMessage);
+
+        if (normalizedMessage.Contains("فروش YTD تا ماه قبل", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش YTD تا ماه گذشته", StringComparison.OrdinalIgnoreCase))
+        {
+            return "فروش YTD تا ماه قبل";
+        }
+
+        if (normalizedMessage.Contains("فروش YTD", StringComparison.OrdinalIgnoreCase))
+        {
+            return "فروش YTD";
+        }
+
+        if (normalizedMessage.Contains("متوسط فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("متوسط فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase))
+        {
+            return "متوسط فروش 12 ماهه";
+        }
+
+        return null;
     }
 
     private static bool ShouldForceMonthlySalesSnapshot(string metricTerm, string userMessage)

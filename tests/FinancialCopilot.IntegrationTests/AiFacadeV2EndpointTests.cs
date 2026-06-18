@@ -259,6 +259,81 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
     }
 
+    [Theory]
+    [InlineData("متوسط فروش 12 ماهه کچاد چقدر بوده است", "AVG_12M_MONTHLY_SALES", "57,549,287")]
+    [InlineData("فروش YTD کچاد؟", "MONTHLY_SALES_YTD", "787,016,400")]
+    [InlineData("فروش YTD تا ماه قبل کچاد؟", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "605,344,668")]
+    public async Task V2AiQuery_DirectMonthlySalesCompanionMetric_UsesRequestedMetricInProse(
+        string message,
+        string expectedMetricCode,
+        string expectedFormattedValue)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains(expectedFormattedValue, textAnswer);
+        Assert.DoesNotContain("90,879,722", textAnswer);
+
+        var table = root.GetProperty("symbolLookupTable");
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal(expectedFormattedValue, cells.GetProperty(expectedMetricCode).GetProperty("formattedValue").GetString());
+
+        var columns = table.GetProperty("columns").EnumerateArray()
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("LATEST_PRICE", columns);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columns);
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_DirectYtdFollowup_UsesPreviousConversationSymbol()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش ماهانه کچاد؟" },
+            CancellationToken.None);
+        using var firstDocument = await ReadJsonAsync(firstResponse);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
+
+        using var followupResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش YTD چقدر بوده؟", conversationId },
+            CancellationToken.None);
+        using var followupDocument = await ReadJsonAsync(followupResponse);
+
+        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
+        var root = followupDocument.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("787,016,400", textAnswer);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -663,8 +738,7 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 
         var json = request.StructuredOutput?.SchemaName switch
         {
-            "SymbolLookupParseOutput" =>
-                """{"detectedLanguage":"fa","pairs":[{"symbolName":"کچاد","metricTerm":"فروش ماهانه"}],"clarificationRequired":false,"clarificationMessage":null}""",
+            "SymbolLookupParseOutput" => BuildSymbolLookupParseJson(request),
             _ => "{}"
         };
 
@@ -694,6 +768,39 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: false);
+
+    private static string BuildSymbolLookupParseJson(AiModelRequest request)
+    {
+        var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
+        if (!userMessage.Contains("کچاد", StringComparison.OrdinalIgnoreCase) &&
+            !userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                detectedLanguage = "fa",
+                pairs = Array.Empty<object>(),
+                clarificationRequired = true,
+                clarificationMessage = "لطفاً نماد را مشخص کنید."
+            });
+        }
+
+        var metricTerm =
+            userMessage.Contains("YTD تا ماه قبل", StringComparison.OrdinalIgnoreCase)
+                ? "فروش YTD تا ماه قبل"
+                : userMessage.Contains("YTD", StringComparison.OrdinalIgnoreCase)
+                    ? "فروش YTD"
+                    : userMessage.Contains("متوسط فروش", StringComparison.OrdinalIgnoreCase)
+                        ? "متوسط فروش 12 ماهه"
+                        : "فروش ماهانه";
+
+        return JsonSerializer.Serialize(new
+        {
+            detectedLanguage = "fa",
+            pairs = new[] { new { symbolName = "کچاد", metricTerm } },
+            clarificationRequired = false,
+            clarificationMessage = (string?)null
+        });
+    }
 }
 
 internal sealed class V2ScannerFakeAiModelClient : IAiModelClient

@@ -15,7 +15,8 @@ internal sealed class SymbolLookupToolAdapter(
         string correlationId,
         Guid tenantId,
         Guid actorId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? queryTextForLookup = null)
     {
         if (string.IsNullOrWhiteSpace(userQuery))
             return SymbolLookupToolResult.Clarification(
@@ -49,7 +50,7 @@ internal sealed class SymbolLookupToolAdapter(
             lookupPairs,
             DateOnly.FromDateTime(now.DateTime),
             ActorId: actorId.ToString(),
-            QueryText: userQuery);
+            QueryText: queryTextForLookup ?? userQuery);
 
         var table = await lookupService.LookupAsync(lookupRequest, cancellationToken);
 

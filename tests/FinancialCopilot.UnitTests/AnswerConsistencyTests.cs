@@ -142,6 +142,37 @@ public sealed class AnswerConsistencyTests
         Assert.DoesNotContain("clarify", result.Answer);
     }
 
+    [Theory]
+    [InlineData("AVG_12M_MONTHLY_SALES", "متوسط فروش ۱۲ ماهه", "57,549,287")]
+    [InlineData("MONTHLY_SALES_YTD", "فروش YTD", "787,016,400")]
+    [InlineData("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل", "605,344,668")]
+    public void SymbolLookup_MonthlySalesCompanionOnly_UsesRequestedMetricInProse(
+        string metricCode,
+        string displayName,
+        string formattedValue)
+    {
+        var table = MonthlySalesCompanionLookupTable(metricCode, displayName, formattedValue);
+        var sut = MakeValidator();
+
+        var result = sut.ValidateSymbolLookup(table, candidateProse: null, Context());
+
+        Assert.Contains(formattedValue, result.Answer);
+        Assert.Contains(displayName, result.Answer);
+        Assert.DoesNotContain("90,879,722", result.Answer);
+    }
+
+    [Fact]
+    public void SymbolLookup_PersianPeDisplayName_DoesNotDuplicateRatioPrefix()
+    {
+        var table = LookupTable("شبندر", value: 5.06m, persianSymbol: true);
+        var sut = MakeValidator();
+
+        var result = sut.ValidateSymbolLookup(table, candidateProse: null, Context());
+
+        Assert.Contains("نسبت پی به ای", result.Answer);
+        Assert.DoesNotContain("نسبت نسبت پی به ای", result.Answer);
+    }
+
     [Fact]
     public void Scanner_ProseInventsMetricValue_Replaced()
     {
@@ -283,6 +314,34 @@ public sealed class AnswerConsistencyTests
                 new ScannerTableColumn("MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", "فروش ماه مشابه قبل", ScannerColumnType.Metric, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"),
                 new ScannerTableColumn("MONTHLY_SALES_YTD", "فروش YTD", ScannerColumnType.Metric, "MONTHLY_SALES_YTD"),
                 new ScannerTableColumn("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل", ScannerColumnType.Metric, "MONTHLY_SALES_YTD_PREVIOUS_MONTH")
+            ],
+            [new ScannerTableRow("کچاد", "معدنی و صنعتی چادرملو", cells, 1.0, [])],
+            Facts(1),
+            [],
+            []);
+    }
+
+    private static SymbolLookupTableResult MonthlySalesCompanionLookupTable(
+        string metricCode,
+        string displayName,
+        string formattedValue)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var cells = new Dictionary<string, ScannerTableCell>
+        {
+            ["SYMBOL"] = new(null, "کچاد", CellFreshnessStatus.Persisted, null),
+            [metricCode] = new(
+                decimal.Parse(formattedValue.Replace(",", string.Empty)),
+                formattedValue,
+                CellFreshnessStatus.Persisted,
+                now)
+        };
+
+        return new SymbolLookupTableResult(
+            Guid.NewGuid(),
+            [
+                new ScannerTableColumn("SYMBOL", "نماد", ScannerColumnType.Symbol),
+                new ScannerTableColumn(metricCode, displayName, ScannerColumnType.Metric, metricCode)
             ],
             [new ScannerTableRow("کچاد", "معدنی و صنعتی چادرملو", cells, 1.0, [])],
             Facts(1),

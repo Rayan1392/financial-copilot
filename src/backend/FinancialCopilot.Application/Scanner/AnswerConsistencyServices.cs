@@ -87,8 +87,13 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
     private static string ValueSentence(bool persian, string symbol, string metricDisplay, string formattedValue) =>
         persian
-            ? $"نسبت {metricDisplay} نماد {symbol} برابر است با {formattedValue}."
+            ? $"{MetricDisplayForPersianSentence(metricDisplay)} نماد {symbol} برابر است با {formattedValue}."
             : $"The {metricDisplay} of {symbol} is {formattedValue}.";
+
+    private static string MetricDisplayForPersianSentence(string metricDisplay) =>
+        metricDisplay.StartsWith("نسبت", StringComparison.OrdinalIgnoreCase)
+            ? metricDisplay
+            : $"نسبت {metricDisplay}";
 
     private static string UnavailableSentence(bool persian, string symbol, string metricDisplay) =>
         persian
@@ -117,7 +122,39 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 : $"The latest monthly sales for {symbol} is {cell.FormattedValue} million Rials.";
         }
 
+        if (table.Rows.Count == 1 &&
+            TryGetFirstAvailableMonthlySalesMonetaryCell(table, table.Rows.First(), out var column, out var companionCell) &&
+            !string.IsNullOrWhiteSpace(companionCell.FormattedValue))
+        {
+            var symbol = table.Rows.First().SymbolCode;
+            var displayName = column.DisplayName;
+            return persian
+                ? $"{displayName} نماد {symbol} برابر با {companionCell.FormattedValue} میلیون ریال است."
+                : $"The {displayName} for {symbol} is {companionCell.FormattedValue} million Rials.";
+        }
+
         return MultiResultSentence(persian);
+    }
+
+    private static bool TryGetFirstAvailableMonthlySalesMonetaryCell(
+        SymbolLookupTableResult table,
+        ScannerTableRow row,
+        out ScannerTableColumn column,
+        out ScannerTableCell cell)
+    {
+        foreach (var candidateColumn in table.Columns.Where(IsMonthlySalesMonetaryColumn))
+        {
+            if (TryGetAvailableCell(row, candidateColumn.Identifier, out var candidateCell))
+            {
+                column = candidateColumn;
+                cell = candidateCell;
+                return true;
+            }
+        }
+
+        column = default!;
+        cell = default!;
+        return false;
     }
 
     private static bool TryGetAvailableCell(
@@ -141,12 +178,17 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             : sentence;
 
     private static bool HasMonthlySalesMonetaryColumn(SymbolLookupTableResult table) =>
-        table.Columns.Any(c =>
-            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.MetricCode ?? c.Identifier, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase));
+        table.Columns.Any(IsMonthlySalesMonetaryColumn);
+
+    private static bool IsMonthlySalesMonetaryColumn(ScannerTableColumn column)
+    {
+        var metricCode = column.MetricCode ?? column.Identifier;
+        return string.Equals(metricCode, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(metricCode, "AVG_12M_MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(metricCode, "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(metricCode, "MONTHLY_SALES_YTD", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(metricCode, "MONTHLY_SALES_YTD_PREVIOUS_MONTH", StringComparison.OrdinalIgnoreCase);
+    }
 
     internal static bool HasAvailableMonthlySalesMonetaryCell(SymbolLookupTableResult table)
     {

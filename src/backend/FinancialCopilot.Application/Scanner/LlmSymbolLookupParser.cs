@@ -267,6 +267,8 @@ public sealed class LlmSymbolLookupParser(
         normalizedTerm.Contains("آخرین فروش", StringComparison.OrdinalIgnoreCase) ||
         normalizedTerm.Contains("متوسط فروش", StringComparison.OrdinalIgnoreCase) ||
         normalizedTerm.Contains("میانگین فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("مبلغ فروش", StringComparison.OrdinalIgnoreCase) ||
+        normalizedTerm.Contains("فروش آخرین ماه", StringComparison.OrdinalIgnoreCase) ||
         normalizedTerm.Contains("YTD", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(normalizedTerm, "sales", StringComparison.OrdinalIgnoreCase) ||
         normalizedTerm.Contains("sale", StringComparison.OrdinalIgnoreCase) ||
@@ -280,6 +282,8 @@ public sealed class LlmSymbolLookupParser(
             normalizedMessage.Contains("فروش ماهانه", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("فروش ماهیانه", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("فروش این ماه", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("مبلغ فروش", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("فروش آخرین ماه", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("فروش YTD", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("متوسط فروش 12 ماهه", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("متوسط فروش ۱۲ ماهه", StringComparison.OrdinalIgnoreCase) ||

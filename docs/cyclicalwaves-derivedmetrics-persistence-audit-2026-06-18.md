@@ -185,6 +185,8 @@ This is explainable, but noisy. It is acceptable only if the product wants an ex
 
 ### 1. Real provider date format is not parsed
 
+Status: **Resolved 2026-06-18**.
+
 The attached sample uses:
 
 - `last_month_sale_date = "20260521"`
@@ -202,11 +204,36 @@ Impact:
 - Periods fall back to request timestamp.
 - Monthly growth and prior-year matching can be assigned to the wrong period if ingestion happens after the vendor period.
 
+Required fix:
+
+- Accept both `yyyyMMdd` and `yyyy-MM-dd` in CyclicalWaves financial-statement and monthly-report
+  vendor date parsing.
+- Cover real sample values `last_month_sale_date = "20260521"` and
+  `last_quarter_date = "20260320"` in tests.
+
+Resolution:
+
+- `CyclicalWavesFinancialStatementNormalizer.ParseVendorDate` and
+  `CyclicalWavesMonthlyReportNormalizer.ParseVendorDate` now accept both formats.
+- Regression tests cover compact, dashed, invalid, blank, and null date inputs.
+- The KCHAD full-snapshot test now uses compact real API dates and asserts Q0/Q1/Q4 plus M0/M1/M12
+  period alignment.
+
 ### 2. Tests hide the date-format bug
+
+Status: **Resolved 2026-06-18**.
 
 `CyclicalWavesNormalizerTests` uses `last_quarter_date = "2026-03-20"` and `last_month_sale_date = "2026-05-31"`, while the real sample uses compact `yyyyMMdd`.
 
+Resolution:
+
+- The main KCHAD sample now uses `last_quarter_date = "20260320"` and
+  `last_month_sale_date = "20260521"`.
+- Separate dashed-date coverage remains to preserve backward compatibility.
+
 ### 3. Provider mixing risk in normalized metric input readers
+
+Status: **Resolved for recalculation input selection 2026-06-18**.
 
 `LineItemMetricInputSource` and `MonthlyReportAggregateInputSource` read by `ExternalCompanyId` and metric code, not provider.
 
@@ -223,6 +250,25 @@ Risks:
 - `MONTHLY_SALES` for the same company/period can mix CyclicalWaves, Noavaran, and CodalDB inputs.
 - A shared policy such as `monthly-sales-source-v1` can overwrite or combine provider-origin rows for the same period.
 - Symbol lookup can combine `AVG_12M_MONTHLY_SALES` from CyclicalWaves with `MONTHLY_SALES` from another provider if latest periods differ or provider evidence is mixed.
+
+Selected fix strategy:
+
+- Keep the existing `DerivedMetrics` uniqueness key unchanged.
+- Resolve provider identity from the recalculation source payload/request.
+- Pass provider identity into normalized metric input reading.
+- Filter provider-specific recalculation inputs by normalized row `ProviderName`.
+- Keep any cross-provider fallback as an explicit future policy decision, not accidental behavior.
+
+Resolution:
+
+- `MetricRecalculationProcessor` resolves the source provider from normalized rows matching the
+  recalculation request's source dataset and payload checksum.
+- `NormalizedMetricInputReader`, `LineItemMetricInputSource`, and
+  `MonthlyReportAggregateInputSource` accept an optional provider filter.
+- CyclicalWaves-origin recalculation now reads CyclicalWaves rows only, while existing callers can
+  still omit the filter for provider-agnostic reads.
+- Regression coverage seeds competing Noavaran rows for the same company/month and verifies the
+  CyclicalWaves result and evidence stay CyclicalWaves-only.
 
 ### 4. CyclicalWaves full-sync concurrency does not match older spec wording
 
@@ -247,10 +293,13 @@ For CyclicalWaves, null rows for production quantity, sales quantity, and sales 
    - Accept `yyyyMMdd`.
    - Keep accepting `yyyy-MM-dd`.
    - Add tests using the exact attached sample values: `20260521`, `20260320`.
+   - Status: completed 2026-06-18.
 
 2. Add provider-aware source filtering for CyclicalWaves passthrough metrics:
-   - At minimum, for CyclicalWaves-only metrics and policies, input readers should load only CyclicalWaves-origin rows.
-   - Longer term, decide whether `DerivedMetrics` needs provider/source in its uniqueness model or whether policy version must encode provider identity for every provider-specific source.
+   - For CyclicalWaves-origin recalculation, input readers should load only CyclicalWaves-origin rows.
+   - Provider identity should be resolved from the source payload/checksum and applied during input reading.
+   - Keep the current `DerivedMetrics` key unchanged for this fix; provider-specific policy/evidence and provider-filtered inputs isolate the calculation.
+   - Status: completed 2026-06-18.
 
 3. Avoid persisting unsupported CyclicalWaves quantity/rate metrics, unless missing rows are an intentional diagnostic feature:
    - If intentional, document it in spec 071.
@@ -269,6 +318,10 @@ For CyclicalWaves, null rows for production quantity, sales quantity, and sales 
    - Parse compact vendor dates `20260521` and `20260320`.
    - Assert `MonthlyReports.VendorPeriodDate = 2026-05-21`.
    - Assert `FinancialStatements.VendorPeriodDate = 2026-03-20`.
+   - Assert dashed `yyyy-MM-dd` still parses.
+   - Assert invalid/blank/null values return null safely.
+   - Assert M0/M1/M12 and Q0/Q1/Q4 periods align to parsed vendor dates.
+   - Status: added 2026-06-18.
 
 2. `CyclicalWavesSyncAndRecalculation_PersistsFullDerivedMetricSnapshot`:
    - Use the real attached date formats.
@@ -284,7 +337,10 @@ For CyclicalWaves, null rows for production quantity, sales quantity, and sales 
 
 3. Provider isolation test:
    - Seed same company/period from CyclicalWaves and Noavaran.
-   - Assert no unintended overwrite or mixed evidence for `MONTHLY_SALES`.
+   - Trigger CyclicalWaves recalculation.
+   - Assert no unintended mixed evidence for `MONTHLY_SALES`, growth, average, quarterly,
+     valuation, or margin metrics included in the recalculation.
+   - Status: added for monthly/growth recalculation path 2026-06-18.
 
 4. Unsupported metric behavior test:
    - Decide expected behavior for `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_QUANTITY`, and `MONTHLY_SALES_RATE`.
@@ -465,4 +521,4 @@ Regression tests to add for this change:
 
 ## N. Bottom Line
 
-The current code does have the standard derived-metric framework wired for CyclicalWaves and should persist the major quarterly, monthly, average, margin, PE, and PS snapshots after full sync plus recalculation. The most important confirmed bug is vendor date parsing: real compact `yyyyMMdd` period markers are ignored, which can shift periods and therefore growth/same-period calculations. The second major design gap is provider mixing: normalized input sources and the `DerivedMetrics` upsert key are not provider-isolated, so rows for the same company/metric/period can mix evidence or overwrite behavior across providers.
+The current code has the standard derived-metric framework wired for CyclicalWaves and persists the major quarterly, monthly, average, margin, PE, and PS snapshots after full sync plus recalculation. The confirmed compact-date parsing bug is resolved, and provider-specific recalculation input selection is now provider-aware. The `DerivedMetrics` uniqueness key remains unchanged; provider isolation is enforced by resolving the recalculation source provider and filtering normalized inputs before calculation. Remaining follow-ups are the broader product decisions around unsupported CyclicalWaves quantity/rate null rows and any future explicit cross-provider fallback policy.

@@ -23,6 +23,7 @@ public interface INormalizedMetricInputSource
 
     Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
+        string? providerName,
         CancellationToken cancellationToken);
 }
 
@@ -31,6 +32,7 @@ public interface INormalizedMetricInputReader
     Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
         MetricCode metricCode,
+        string? providerName,
         CancellationToken cancellationToken);
 }
 

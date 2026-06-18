@@ -19,14 +19,23 @@ public sealed class NormalizedMetricInputReader(
         string externalCompanyId,
         MetricCode metricCode,
         CancellationToken cancellationToken) =>
+        LoadAsync(externalCompanyId, metricCode, providerName: null, cancellationToken);
+
+    public Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+        string externalCompanyId,
+        MetricCode metricCode,
+        string? providerName,
+        CancellationToken cancellationToken) =>
         _sources.TryGetValue(metricCode, out var source)
-            ? source.LoadAsync(externalCompanyId, cancellationToken)
+            ? source.LoadAsync(externalCompanyId, providerName, cancellationToken)
             : throw new KeyNotFoundException($"No normalized input source is registered for metric '{metricCode}'.");
 }
 
 /// <summary>
 /// Generic input source for any metric code backed by <c>NormalizedFinancialStatementLineItems</c>.
-/// Reads line items keyed by <paramref name="metricCode"/> from all providers, provider-agnostically.
+/// Reads line items keyed by <paramref name="metricCode"/>. When a provider name is supplied,
+/// input rows are restricted to that provider so provider-specific recalculation cannot mix
+/// normalized observations from other sources.
 /// Replaces/subsumes per-metric source classes such as the legacy <c>NetProfitMetricInputSource</c>.
 /// </summary>
 public sealed class LineItemMetricInputSource(
@@ -36,17 +45,29 @@ public sealed class LineItemMetricInputSource(
 {
     public MetricCode MetricCode { get; } = metricCode;
 
+    public Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken) =>
+        LoadAsync(externalCompanyId, providerName: null, cancellationToken);
+
     public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
+        string? providerName,
         CancellationToken cancellationToken)
     {
-        var observations = await (
+        var query =
                 from statement in dbContext.FinancialStatements.AsNoTracking()
                 join item in dbContext.FinancialStatementLineItems.AsNoTracking()
                     on statement.Id equals item.FinancialStatementId
                 where statement.ExternalCompanyId == externalCompanyId && item.MetricCode == MetricCode.Value
-                select new { statement, item.Value })
-            .ToListAsync(cancellationToken);
+                select new { statement, item.Value };
+
+        if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            query = query.Where(row => row.statement.ProviderName == providerName);
+        }
+
+        var observations = await query.ToListAsync(cancellationToken);
 
         var results = new List<MetricInputObservation>(observations.Count);
         foreach (var observation in observations)
@@ -81,10 +102,16 @@ public sealed class NetProfitMetricInputSource(
 {
     public MetricCode MetricCode { get; } = new("NET_PROFIT");
 
-    public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+    public Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
         CancellationToken cancellationToken) =>
-        await new LineItemMetricInputSource(dbContext, MetricCode).LoadAsync(externalCompanyId, cancellationToken);
+        LoadAsync(externalCompanyId, providerName: null, cancellationToken);
+
+    public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+        string externalCompanyId,
+        string? providerName,
+        CancellationToken cancellationToken) =>
+        await new LineItemMetricInputSource(dbContext, MetricCode).LoadAsync(externalCompanyId, providerName, cancellationToken);
 }
 
 /// <summary>
@@ -107,12 +134,23 @@ public abstract class MonthlyReportAggregateInputSource(
         NormalizedMonthlyReportRow report,
         IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems);
 
+    public Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken) =>
+        LoadAsync(externalCompanyId, providerName: null, cancellationToken);
+
     public async Task<IReadOnlyCollection<MetricInputObservation>> LoadAsync(
         string externalCompanyId,
+        string? providerName,
         CancellationToken cancellationToken)
     {
         var query = dbContext.MonthlyReports.AsNoTracking()
             .Where(report => report.ExternalCompanyId == externalCompanyId);
+
+        if (!string.IsNullOrWhiteSpace(providerName))
+        {
+            query = query.Where(report => report.ProviderName == providerName);
+        }
 
         // When a specific output type is requested, include rows that match that type AND legacy
         // rows with null OutputType (ingested before spec 059) so old data remains queryable.

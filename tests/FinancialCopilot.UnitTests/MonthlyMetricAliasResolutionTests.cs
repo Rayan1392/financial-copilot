@@ -28,6 +28,17 @@ public sealed class MonthlyMetricAliasResolutionTests
         Assert.Equal(expectedCode, Assert.Single(result.Candidates).Code.Value);
     }
 
+    [Theory]
+    [InlineData("مبلغ فروش")]
+    [InlineData("فروش آخرین ماه")]
+    public void PersianMonthlySalesAmountTerms_ResolveToMonthlySales(string term)
+    {
+        var result = Resolver.ResolveAlias(term, "fa-IR", new MetricResolutionContext(null, null), AsOf);
+
+        Assert.Equal(MetricResolutionStatus.Resolved, result.Status);
+        Assert.Equal("MONTHLY_SALES", Assert.Single(result.Candidates).Code.Value);
+    }
+
     [Fact]
     public void BareSalesTerm_StaysOnQuarterlyRevenueByPolicy()
     {

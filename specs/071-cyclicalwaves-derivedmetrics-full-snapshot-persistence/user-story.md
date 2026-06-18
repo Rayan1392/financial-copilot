@@ -92,6 +92,35 @@ CyclicalWaves monetary values are already in Rials.
 * Quarterly fields use quarterly `PeriodType`; latest-quarter values align to the latest-quarter
   period derived from CyclicalWaves quarter markers.
 * `PE_TTM` and `PS_TTM` keep the current/latest quarter policy already used by the system.
+* CyclicalWaves vendor period markers must parse both compact and dashed formats:
+  * `yyyyMMdd` for real API values such as `last_month_sale_date = "20260521"` and
+    `last_quarter_date = "20260320"`;
+  * `yyyy-MM-dd` for existing fixtures and backward-compatible payloads.
+* Invalid, blank, or null vendor period markers must be handled safely and fall back to the
+  existing receive-time period resolver.
+
+## Provider-Aware Recalculation Rule
+
+Provider-specific CyclicalWaves recalculation must read only CyclicalWaves-origin normalized rows.
+For example, `MONTHLY_SALES`, `AVG_12M_MONTHLY_SALES`, `MONTHLY_SALES_GROWTH_MOM`,
+`MONTHLY_SALES_GROWTH_YOY`, `REVENUE`, `AVG_4Q_REVENUE`, `PE_TTM`, `PS_TTM`, and margin metrics
+must not mix Noavaran, Codal, or other provider rows into a CyclicalWaves-origin recalculation.
+
+Implementation strategy:
+
+* Keep the existing `DerivedMetrics` uniqueness key unchanged:
+  `ExternalCompanyId + MetricCode + MetricVersion + CalculationPolicyVersion + PeriodEnd`.
+* Resolve the provider identity from the recalculation source payload/request.
+* Pass that provider identity into normalized metric input reading.
+* Filter normalized statement/monthly sources by `ProviderName` when the recalculation is
+  provider-specific.
+* Preserve provider identity in `SourceEvidenceJson`.
+
+This is preferred over changing the `DerivedMetrics` key because the immediate defect is accidental
+source mixing during input selection. A key change would require a broader migration and product
+decision about whether multiple provider-specific rows for the same metric/period should coexist.
+If future cross-provider fallback is desired, it must be represented by explicit policy versions
+and regression tests, not by unfiltered source reads.
 
 ## Single-Fetch Ingestion Rule
 
@@ -116,6 +145,13 @@ duplicate checksum/store lookups, and the network-bound portion of full-sync dur
 * CyclicalWaves full sync performs one remote ticker-detail request per ticker while still
   populating both `FinancialStatements` and `MonthlyReports`.
 * Exactly one raw ticker-detail payload is persisted for the shared CyclicalWaves response.
+* Compact real vendor dates are parsed:
+  `last_month_sale_date = "20260521"` yields `VendorPeriodDate = 2026-05-21`, and
+  `last_quarter_date = "20260320"` yields `VendorPeriodDate = 2026-03-20`.
+* Dashed vendor dates such as `2026-05-21` and `2026-03-20` continue to parse.
+* M0/M1/M12 and Q0/Q1/Q4 periods align to parsed vendor dates when present.
+* CyclicalWaves-derived metrics have CyclicalWaves-only source evidence when the recalculation
+  originates from CyclicalWaves, even if other providers have rows for the same company/period.
 * `AVG_12M_MONTHLY_SALES` stores the exact Rial value from `average_12_month_sale`.
 * `AVG_12M_MONTHLY_SALES` remains user-facing only through the Persian display title
   `متوسط فروش ۱۲ ماهه`; the internal code is not shown to users.

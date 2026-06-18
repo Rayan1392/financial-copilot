@@ -42,13 +42,14 @@ public sealed class MetricDisplayNameResolver(
 public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNames) : ISymbolLookupProseBuilder
 {
     private const string MonthlySalesUnitNote = "Unit: million Rials";
+    private const string MonthlySalesMetricCode = "MONTHLY_SALES";
 
     public string Build(SymbolLookupTableResult table)
     {
         var persian = ContainsPersian(table);
 
         if (HasAvailableMonthlySalesMonetaryCell(table))
-            return MonthlySalesUnitNote;
+            return MonthlySalesSentence(table, persian);
 
         var metricColumns = table.Columns
             .Where(c => c.ColumnType is ScannerColumnType.Metric
@@ -103,6 +104,36 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         persian
             ? "بر اساس داده‌های موجود، مقدار درخواستی برای نمادهای موردنظر در جدول زیر آمده است."
             : "Based on the available data, the requested values for the symbols are shown in the table below.";
+
+    private static string MonthlySalesSentence(SymbolLookupTableResult table, bool persian)
+    {
+        if (table.Rows.Count == 1 &&
+            TryGetAvailableCell(table.Rows.First(), MonthlySalesMetricCode, out var cell) &&
+            !string.IsNullOrWhiteSpace(cell.FormattedValue))
+        {
+            var symbol = table.Rows.First().SymbolCode;
+            return persian
+                ? $"آخرین فروش ماهانه {symbol} برابر با {cell.FormattedValue} میلیون ریال است."
+                : $"The latest monthly sales for {symbol} is {cell.FormattedValue} million Rials.";
+        }
+
+        return MultiResultSentence(persian);
+    }
+
+    private static bool TryGetAvailableCell(
+        ScannerTableRow row,
+        string cellId,
+        out ScannerTableCell cell)
+    {
+        if (row.Cells.TryGetValue(cellId, out cell!) &&
+            cell.Value is not null &&
+            cell.FreshnessStatus != CellFreshnessStatus.Missing)
+        {
+            return true;
+        }
+
+        return false;
+    }
 
     private static string WithUnitNote(SymbolLookupTableResult table, string sentence) =>
         HasMonthlySalesMonetaryColumn(table)

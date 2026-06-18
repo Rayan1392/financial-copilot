@@ -152,6 +152,7 @@ public sealed class MetricRecalculationProcessor(
         // Spec 068: Symbols table removed. The ExternalCompanyId from the recalculation request
         // is the canonical identifier; no symbol-table lookup is needed.
         var externalCompanyId = reference;
+        var sourceProviderName = await ResolveSourceProviderNameAsync(row, dataset, cancellationToken);
 
         // Determine which registered metrics have a calculator AND depend on at least one source
         // metric persisted by this dataset.
@@ -174,7 +175,11 @@ public sealed class MetricRecalculationProcessor(
             var unionInputs = new List<MetricInputObservation>();
             foreach (var dependency in definition.Dependencies)
             {
-                var depInputs = await TryLoadInputsAsync(externalCompanyId, dependency.MetricCode, cancellationToken);
+                var depInputs = await TryLoadInputsAsync(
+                    externalCompanyId,
+                    dependency.MetricCode,
+                    sourceProviderName,
+                    cancellationToken);
                 unionInputs.AddRange(depInputs);
             }
 
@@ -264,11 +269,12 @@ public sealed class MetricRecalculationProcessor(
     private async Task<IReadOnlyCollection<MetricInputObservation>> TryLoadInputsAsync(
         string externalCompanyId,
         MetricCode metricCode,
+        string? providerName,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await inputReader.LoadAsync(externalCompanyId, metricCode, cancellationToken);
+            return await inputReader.LoadAsync(externalCompanyId, metricCode, providerName, cancellationToken);
         }
         catch (KeyNotFoundException)
         {
@@ -277,6 +283,34 @@ public sealed class MetricRecalculationProcessor(
             // own ingestion path.
             return [];
         }
+    }
+
+    private async Task<string?> ResolveSourceProviderNameAsync(
+        MetricRecalculationRequestRow row,
+        ProviderDataset dataset,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(row.SourcePayloadChecksum))
+        {
+            return null;
+        }
+
+        return dataset switch
+        {
+            ProviderDataset.FinancialStatements => await dbContext.FinancialStatements.AsNoTracking()
+                .Where(statement => statement.SourcePayloadChecksum == row.SourcePayloadChecksum)
+                .Select(statement => statement.ProviderName)
+                .Distinct()
+                .OrderBy(providerName => providerName)
+                .FirstOrDefaultAsync(cancellationToken),
+            ProviderDataset.MonthlyProductionSales => await dbContext.MonthlyReports.AsNoTracking()
+                .Where(report => report.SourcePayloadChecksum == row.SourcePayloadChecksum)
+                .Select(report => report.ProviderName)
+                .Distinct()
+                .OrderBy(providerName => providerName)
+                .FirstOrDefaultAsync(cancellationToken),
+            _ => null
+        };
     }
 
     private CalculationPolicyVersion? SelectActivePolicyVersion(MetricCode metricCode, DateOnly asOf)

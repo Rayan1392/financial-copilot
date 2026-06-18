@@ -95,14 +95,14 @@ public sealed class CyclicalWavesNormalizerTests
             "penultimate_quarter_operating_profit_margin": 20.5,
             "last_year_same_quarter_operating_profit_margin": 19.4,
             "last_month_sale": 90879722000000,
-            "penultimate_month_sale": 78000000000000,
+            "penultimate_month_sale": 52144839000000,
             "last_year_same_month_sale": 69220219000000,
             "average_12_month_sale": 57549286500000,
             "last_year_average_12_month_sale": 50000000000000,
             "pe": 9.73,
             "ps": 2.14,
-            "last_quarter_date": "2026-03-20",
-            "last_month_sale_date": "2026-05-31"
+            "last_quarter_date": "20260320",
+            "last_month_sale_date": "20260521"
           }
         }
         """;
@@ -123,7 +123,11 @@ public sealed class CyclicalWavesNormalizerTests
         return new FinancialProviderDbContext(options);
     }
 
-    private static ProviderRawPayload MakePayload(ProviderDataset dataset, string json) =>
+    private static ProviderRawPayload MakePayload(
+        ProviderDataset dataset,
+        string json,
+        string? checksum = null,
+        DateTimeOffset? receivedAt = null) =>
         new(
             Guid.NewGuid(),
             ProviderName,
@@ -131,8 +135,8 @@ public sealed class CyclicalWavesNormalizerTests
             "test-endpoint",
             MainTicker,
             json,
-            "checksum-" + Guid.NewGuid(),
-            DateTimeOffset.UtcNow);
+            checksum ?? "checksum-" + Guid.NewGuid(),
+            receivedAt ?? DateTimeOffset.UtcNow);
 
     private static void SeedKchadCompany(FinancialIngestionDbContext db)
     {
@@ -152,15 +156,45 @@ public sealed class CyclicalWavesNormalizerTests
         FinancialIngestionDbContext db,
         ProviderDataset dataset,
         string externalRef,
-        string checksumSuffix)
+        string sourcePayloadChecksum)
     {
         db.MetricRecalculationRequests.Add(new MetricRecalculationRequestRow
         {
             Id = Guid.NewGuid(),
             SourceDataset = dataset.ToString(),
             ExternalReference = externalRef,
-            SourcePayloadChecksum = $"cw-{dataset}-{externalRef}-{checksumSuffix}",
+            SourcePayloadChecksum = sourcePayloadChecksum,
             RequestedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z")
+        });
+    }
+
+    private static void SeedNoavaranMonthlySales(
+        FinancialIngestionDbContext db,
+        string externalCompanyId,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        decimal salesAmount)
+    {
+        var report = new NormalizedMonthlyReportRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = ProviderSources.NoavaranCurrentApiName,
+            ExternalCompanyId = externalCompanyId,
+            ExternalReportId = $"noavaran:{externalCompanyId}:{periodEnd:yyyyMMdd}",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            SourcePayloadChecksum = $"noavaran-{periodEnd:yyyyMMdd}",
+            LastSynchronizedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z"),
+            WarningsJson = "[]",
+            OutputType = (int)MonthlyActivityQueryIntent.SingleMonth
+        };
+        db.MonthlyReports.Add(report);
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            MonthlyReportId = report.Id,
+            ProductCode = "NOAVARAN",
+            SalesAmount = salesAmount
         });
     }
 
@@ -178,6 +212,8 @@ public sealed class CyclicalWavesNormalizerTests
             new SourceLineItemPassthroughMetricCalculator(new MetricCode("OPERATING_PROFIT_MARGIN"), new MetricCode("OPERATING_PROFIT_MARGIN")),
             new SourceLineItemPassthroughMetricCalculator(new MetricCode("PE_TTM"), new MetricCode("PE_RATIO")),
             new SourceLineItemPassthroughMetricCalculator(new MetricCode("PS_TTM"), new MetricCode("PS_RATIO")),
+            new PercentageGrowthMetricCalculator(new MetricCode("MONTHLY_SALES_GROWTH_MOM"), new MetricCode("MONTHLY_SALES")),
+            new PercentageGrowthMetricCalculator(new MetricCode("MONTHLY_SALES_GROWTH_YOY"), new MetricCode("MONTHLY_SALES")),
             new AdditiveCompositeMetricCalculator(new MetricCode("MONTHLY_SALES"), [new MetricCode("MONTHLY_SALES")]),
             new SourceLineItemPassthroughMetricCalculator(new MetricCode("AVG_12M_MONTHLY_SALES"), new MetricCode("AVG_12M_MONTHLY_SALES"))
         ];
@@ -532,6 +568,93 @@ public sealed class CyclicalWavesNormalizerTests
     }
 
     [Fact]
+    public async Task Normalizers_ParseDashedVendorDates()
+    {
+        await using var db = CreateDbContext();
+        SeedKchadCompany(db);
+        await db.SaveChangesAsync();
+        var json = KchadTickerDetailJson
+            .Replace("\"last_quarter_date\": \"20260320\"", "\"last_quarter_date\": \"2026-03-20\"")
+            .Replace("\"last_month_sale_date\": \"20260521\"", "\"last_month_sale_date\": \"2026-05-21\"");
+
+        await new CyclicalWavesFinancialStatementNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.FinancialStatements, json), default);
+        await new CyclicalWavesMonthlyReportNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.MonthlyProductionSales, json), default);
+
+        Assert.Equal(
+            new DateOnly(2026, 3, 20),
+            (await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q0")).VendorPeriodDate);
+        Assert.Equal(
+            new DateOnly(2026, 5, 21),
+            (await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M0")).VendorPeriodDate);
+    }
+
+    [Fact]
+    public async Task Normalizers_InvalidBlankOrNullVendorDates_FallBackSafely()
+    {
+        await using var db = CreateDbContext();
+        SeedKchadCompany(db);
+        await db.SaveChangesAsync();
+        var json = KchadTickerDetailJson
+            .Replace("\"last_quarter_date\": \"20260320\"", "\"last_quarter_date\": \"bad-date\"")
+            .Replace("\"last_month_sale_date\": \"20260521\"", "\"last_month_sale_date\": null");
+        var receivedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z");
+
+        await new CyclicalWavesFinancialStatementNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.FinancialStatements, json, receivedAt: receivedAt), default);
+        await new CyclicalWavesMonthlyReportNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.MonthlyProductionSales, json, receivedAt: receivedAt), default);
+
+        var q0 = await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q0");
+        var m0 = await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M0");
+        Assert.Null(q0.VendorPeriodDate);
+        Assert.Null(m0.VendorPeriodDate);
+        Assert.Equal(new DateOnly(2025, 12, 23), q0.PeriodStart);
+        Assert.Equal(new DateOnly(2026, 3, 20), q0.PeriodEnd);
+        Assert.Equal(new DateOnly(2026, 5, 1), m0.PeriodStart);
+        Assert.Equal(new DateOnly(2026, 5, 31), m0.PeriodEnd);
+    }
+
+    [Fact]
+    public async Task Normalizers_BlankVendorDates_FallBackSafely()
+    {
+        await using var db = CreateDbContext();
+        SeedKchadCompany(db);
+        await db.SaveChangesAsync();
+        var json = KchadTickerDetailJson
+            .Replace("\"last_quarter_date\": \"20260320\"", "\"last_quarter_date\": \"\"")
+            .Replace("\"last_month_sale_date\": \"20260521\"", "\"last_month_sale_date\": \"\"");
+        var receivedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z");
+
+        await new CyclicalWavesFinancialStatementNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.FinancialStatements, json, receivedAt: receivedAt), default);
+        await new CyclicalWavesMonthlyReportNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance)
+            .NormalizeAsync(MakePayload(ProviderDataset.MonthlyProductionSales, json, receivedAt: receivedAt), default);
+
+        Assert.Null((await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q0")).VendorPeriodDate);
+        Assert.Null((await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M0")).VendorPeriodDate);
+    }
+
+    [Fact]
     public async Task CyclicalWavesSyncAndRecalculation_PersistsFullDerivedMetricSnapshot()
     {
         await using var db = CreateDbContext();
@@ -545,13 +668,37 @@ public sealed class CyclicalWavesNormalizerTests
             db,
             NullCompanyResolverService.Instance,
             NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance);
+        var statementPayload = MakePayload(
+            ProviderDataset.FinancialStatements,
+            KchadTickerDetailJson,
+            "cw-kchad-statement");
+        var monthlyPayload = MakePayload(
+            ProviderDataset.MonthlyProductionSales,
+            KchadTickerDetailJson,
+            "cw-kchad-monthly");
 
-        await statementNormalizer.NormalizeAsync(
-            MakePayload(ProviderDataset.FinancialStatements, KchadTickerDetailJson),
-            default);
-        await monthlyNormalizer.NormalizeAsync(
-            MakePayload(ProviderDataset.MonthlyProductionSales, KchadTickerDetailJson),
-            default);
+        await statementNormalizer.NormalizeAsync(statementPayload, default);
+        await monthlyNormalizer.NormalizeAsync(monthlyPayload, default);
+        var q0 = await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q0");
+        var q1 = await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q1");
+        var q4 = await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "cw-kchad-doc:Q4");
+        Assert.Equal(new DateOnly(2026, 3, 20), q0.VendorPeriodDate);
+        Assert.Equal(new DateOnly(2025, 12, 23), q0.PeriodStart);
+        Assert.Equal(new DateOnly(2026, 3, 20), q0.PeriodEnd);
+        Assert.Equal(new DateOnly(2025, 9, 23), q1.PeriodStart);
+        Assert.Equal(new DateOnly(2025, 12, 22), q1.PeriodEnd);
+        Assert.Equal(new DateOnly(2024, 12, 23), q4.PeriodStart);
+        Assert.Equal(new DateOnly(2025, 3, 20), q4.PeriodEnd);
+        var m0 = await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M0");
+        var m1 = await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M1");
+        var m12 = await db.MonthlyReports.SingleAsync(row => row.ExternalReportId == "cw-kchad-doc:M12");
+        Assert.Equal(new DateOnly(2026, 5, 21), m0.VendorPeriodDate);
+        Assert.Equal(new DateOnly(2026, 5, 1), m0.PeriodStart);
+        Assert.Equal(new DateOnly(2026, 5, 31), m0.PeriodEnd);
+        Assert.Equal(new DateOnly(2026, 4, 1), m1.PeriodStart);
+        Assert.Equal(new DateOnly(2026, 4, 30), m1.PeriodEnd);
+        Assert.Equal(new DateOnly(2025, 5, 1), m12.PeriodStart);
+        Assert.Equal(new DateOnly(2025, 5, 31), m12.PeriodEnd);
         var normalizedMonthlyReports = await db.MonthlyReports
             .Where(row => row.ExternalCompanyId == "3")
             .OrderBy(row => row.PeriodEnd)
@@ -563,8 +710,8 @@ public sealed class CyclicalWavesNormalizerTests
         Assert.Contains(normalizedMonthlySalesInputs, input =>
             input.Period.EndDate == new DateOnly(2025, 5, 31) &&
             input.Value == 69220219000000m);
-        AddPendingRequest(db, ProviderDataset.FinancialStatements, "3", "fs");
-        AddPendingRequest(db, ProviderDataset.MonthlyProductionSales, "3", "monthly");
+        AddPendingRequest(db, ProviderDataset.FinancialStatements, "3", statementPayload.Checksum);
+        AddPendingRequest(db, ProviderDataset.MonthlyProductionSales, "3", monthlyPayload.Checksum);
         await db.SaveChangesAsync();
 
         var processor = NewCyclicalWavesProcessor(db);
@@ -581,6 +728,8 @@ public sealed class CyclicalWavesNormalizerTests
 
         Assert.Equal(57549286500000m, latestByCode["AVG_12M_MONTHLY_SALES"].Value);
         Assert.Equal(90879722000000m, latestByCode["MONTHLY_SALES"].Value);
+        Assert.True(Math.Abs(latestByCode["MONTHLY_SALES_GROWTH_MOM"].Value!.Value - 74.283254m) < 0.000001m);
+        Assert.True(Math.Abs(latestByCode["MONTHLY_SALES_GROWTH_YOY"].Value!.Value - 31.290717m) < 0.000001m);
         Assert.Contains(metrics, row =>
             row.MetricCode == "MONTHLY_SALES" &&
             row.PeriodEnd == new DateOnly(2025, 5, 31) &&
@@ -688,6 +837,69 @@ public sealed class CyclicalWavesNormalizerTests
         Assert.Contains(recalculationRequests, row =>
             row.SourceDataset == ProviderDataset.MonthlyProductionSales.ToString() &&
             row.SourcePayloadChecksum == payload.Checksum);
+    }
+
+    [Fact]
+    public async Task Recalculation_CyclicalWavesRequest_IgnoresOtherProviderMonthlyRows()
+    {
+        await using var db = CreateDbContext();
+        SeedKchadCompany(db);
+        await db.SaveChangesAsync();
+        var monthlyPayload = MakePayload(
+            ProviderDataset.MonthlyProductionSales,
+            KchadTickerDetailJson,
+            "cw-kchad-monthly-isolation");
+        await new CyclicalWavesMonthlyReportNormalizer(
+                db,
+                NullCompanyResolverService.Instance,
+                NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance)
+            .NormalizeAsync(monthlyPayload, default);
+        SeedNoavaranMonthlySales(
+            db,
+            "3",
+            new DateOnly(2026, 5, 1),
+            new DateOnly(2026, 5, 31),
+            999999999m);
+        SeedNoavaranMonthlySales(
+            db,
+            "3",
+            new DateOnly(2026, 4, 1),
+            new DateOnly(2026, 4, 30),
+            999999999m);
+        SeedNoavaranMonthlySales(
+            db,
+            "3",
+            new DateOnly(2025, 5, 1),
+            new DateOnly(2025, 5, 31),
+            999999999m);
+        AddPendingRequest(db, ProviderDataset.MonthlyProductionSales, "3", monthlyPayload.Checksum);
+        await db.SaveChangesAsync();
+
+        var processor = NewCyclicalWavesProcessor(db);
+        await processor.ProcessPendingAsync(10, CancellationToken.None);
+
+        var metrics = await db.DerivedMetrics
+            .Where(row => row.ExternalCompanyId == "3")
+            .ToListAsync();
+        var latestMonthlySales = metrics
+            .Where(row => row.MetricCode == "MONTHLY_SALES")
+            .OrderByDescending(row => row.PeriodEnd)
+            .First();
+        Assert.Equal(90879722000000m, latestMonthlySales.Value);
+        Assert.Contains("CyclicalWaves", latestMonthlySales.SourceEvidenceJson);
+        Assert.DoesNotContain(ProviderSources.NoavaranCurrentApiName, latestMonthlySales.SourceEvidenceJson);
+        var mom = metrics
+            .Where(row => row.MetricCode == "MONTHLY_SALES_GROWTH_MOM")
+            .OrderByDescending(row => row.PeriodEnd)
+            .First();
+        var yoy = metrics
+            .Where(row => row.MetricCode == "MONTHLY_SALES_GROWTH_YOY")
+            .OrderByDescending(row => row.PeriodEnd)
+            .First();
+        Assert.True(Math.Abs(mom.Value!.Value - 74.283254m) < 0.000001m);
+        Assert.True(Math.Abs(yoy.Value!.Value - 31.290717m) < 0.000001m);
+        Assert.DoesNotContain(ProviderSources.NoavaranCurrentApiName, mom.SourceEvidenceJson);
+        Assert.DoesNotContain(ProviderSources.NoavaranCurrentApiName, yoy.SourceEvidenceJson);
     }
 
     [Fact]

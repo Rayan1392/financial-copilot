@@ -248,6 +248,29 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
                          "limit: max results 1-5 (default 3).");
 
+        if (IsDirectMetricLookupRequest(request.Message))
+        {
+            lookupResult = await lookupAdapter.LookupAsync(
+                request.Message, request.CorrelationId, request.TenantId, request.ActorId, ct);
+
+            var directCompletionStatus = lookupResult.CompletionStatus;
+            UsageAccountingResult? directUsage = null;
+            if (msg.Reservation is not null)
+            {
+                directUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, directCompletionStatus, false, CancellationToken.None);
+            }
+
+            stepActivity?.SetTag("workflow.intent", "SymbolLookup");
+            stepActivity?.SetTag("workflow.direct_metric_lookup", true);
+
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult,
+                directCompletionStatus, false, modelClient, directUsage);
+        }
+
         var agent = agentFactory.Create(chatClientAdapter, BuildSystemInstructions(), [scannerTool, lookupTool, comprehensiveAnalysisTool]);
 
         string agentResponseText;
@@ -425,12 +448,44 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult)
     {
         if (scannerResult is not null) return DetectedIntent.Scanner;
-        // When both tools were called (combined analysis), ComprehensiveAnalysis wins
-        // so both results are propagated in the response.
-        if (comprehensiveAnalysisResult is not null) return DetectedIntent.ComprehensiveAnalysis;
+        if (lookupResult?.Table is not null && comprehensiveAnalysisResult?.Succeeded != true)
+            return DetectedIntent.SymbolLookup;
+        if (comprehensiveAnalysisResult?.Succeeded == true) return DetectedIntent.ComprehensiveAnalysis;
         if (lookupResult is not null) return DetectedIntent.SymbolLookup;
         return DetectedIntent.Unknown;
     }
+
+    private static bool IsDirectMetricLookupRequest(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return false;
+
+        var normalized = NormalizeForIntent(message);
+        if (ContainsAny(normalized,
+                "تحلیل", "بررسی", "ارزیابی", "چطوره", "ارزنده",
+                "analysis", "analyze", "review", "opinion"))
+        {
+            return false;
+        }
+
+        if (ContainsAny(normalized,
+                " زیر ", " بالای ", " بیشتر از ", " کمتر از ", "کمترين", "بیشترین",
+                "فیلتر", "غربال", "screen", "filter", "below", "above", "greater than", "less than"))
+        {
+            return false;
+        }
+
+        return ContainsAny(normalized,
+            "فروش ماهانه", "آخرین فروش", "مبلغ فروش", "فروش آخرین ماه", "فروش ماه",
+            "تولید ماهانه", "مقدار تولید", "p/e", "pe ", " p e", "p/s", "ps ", "eps",
+            "roe", "roa", "نسبت جاری", "حاشیه سود", "ارزش بازار");
+    }
+
+    private static string NormalizeForIntent(string value) =>
+        $" {value.Replace('ي', 'ی').Replace('ك', 'ک').Trim().ToLowerInvariant()} ";
+
+    private static bool ContainsAny(string value, params string[] needles) =>
+        needles.Any(needle => value.Contains(needle, StringComparison.OrdinalIgnoreCase));
 
     private string? GroundAgentProse(
         DetectedIntent intent,

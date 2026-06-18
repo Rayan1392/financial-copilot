@@ -185,7 +185,7 @@ public sealed class CyclicalWavesMonthlyReportNormalizer(
     {
         if (string.IsNullOrWhiteSpace(raw))
             return null;
-        return DateOnly.TryParseExact(raw, "yyyy-MM-dd", null,
+        return DateOnly.TryParseExact(raw, ["yyyyMMdd", "yyyy-MM-dd"], null,
             System.Globalization.DateTimeStyles.None, out var d)
             ? d
             : null;

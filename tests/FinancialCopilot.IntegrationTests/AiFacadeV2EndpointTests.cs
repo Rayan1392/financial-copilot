@@ -204,6 +204,159 @@ public sealed class V2AnswerConsistencyEndpointTests : IClassFixture<V2Inconsist
 
 // ─── V2 Scanner factory ───────────────────────────────────────────────────────
 
+public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2MonthlySalesRoutingApiFactory>
+{
+    private readonly V2MonthlySalesRoutingApiFactory _factory;
+
+    public V2MonthlySalesRoutingEndpointTests(V2MonthlySalesRoutingApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("فروش ماهانه کچاد؟")]
+    [InlineData("آخرین فروش کچاد")]
+    [InlineData("مبلغ فروش کچاد")]
+    [InlineData("فروش آخرین ماه کچاد")]
+    public async Task V2AiQuery_DirectMonthlySales_RoutesToLookupBeforeLlmToolSelection(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("90,879,722", textAnswer);
+        Assert.Contains("میلیون ریال", textAnswer);
+        Assert.DoesNotContain("Unit: million Rials", textAnswer);
+        Assert.DoesNotContain("برنگشت", root.GetRawText());
+        Assert.DoesNotContain("اگر", textAnswer);
+
+        var table = root.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray()
+            .Select(c => c.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("MONTHLY_SALES", columns);
+        Assert.Contains("AVG_12M_MONTHLY_SALES", columns);
+        Assert.Contains("MONTHLY_SALES_YTD", columns);
+        Assert.Contains("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columns);
+        Assert.DoesNotContain("LATEST_PRICE", columns);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columns);
+
+        var cells = table.GetProperty("rows")[0].GetProperty("cells");
+        Assert.Equal("90,879,722", cells.GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.Equal("57,549,287", cells.GetProperty("AVG_12M_MONTHLY_SALES").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-monthly-sales-routing-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    public V2MonthlySalesRoutingFakeAiModelClient Fake { get; } = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(Fake);
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedLookupData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedLookupData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.Parse("52000000-0000-0000-0000-000000000001"),
+            Name = "معدنی و صنعتی چادرملو",
+            ProviderName = "CyclicalWaves",
+            ExternalCompanyId = "3",
+            CompanySymbol = "کچاد",
+            TseSymbol = "کچاد",
+            LastSynchronizedAt = now
+        });
+
+        db.DerivedMetrics.AddRange(
+            MonthlyMetric("MONTHLY_SALES", "monthly-sales-source-v1", 90_879_722_000_000m, now),
+            MonthlyMetric("AVG_12M_MONTHLY_SALES", "avg-12m-monthly-sales-source-v1", 57_549_287_000_000m, now),
+            MonthlyMetric("MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1", 787_016_400_000_000m, now),
+            MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 605_344_668_000_000m, now));
+    }
+
+    private static DerivedMetricRow MonthlyMetric(
+        string metricCode,
+        string policyVersion,
+        decimal value,
+        DateTimeOffset now) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "3",
+            MetricCode = metricCode,
+            MetricVersion = "v1",
+            CalculationPolicyVersion = policyVersion,
+            PeriodType = "Monthly",
+            PeriodStart = new DateOnly(2026, 5, 1),
+            PeriodEnd = new DateOnly(2026, 5, 31),
+            Value = value,
+            Unit = "Amount",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"CyclicalWaves\"}]",
+            DependencyEvidenceJson = "[]"
+        };
+}
+
 public sealed class V2ScannerApiFactory : ScannerExecutionApiFactory
 {
     // Let V2 orchestration stand — do not replace with V1.
@@ -480,6 +633,69 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
 //   1. V2 outer agent, turn 1 — tools present, no PreviousResponseId → return screen_stocks tool call
 //   2. V2 outer agent, turn 2 — PreviousResponseId set → return final text
 //   3. Internal ScannerParsing / ExplanationGeneration structured output calls
+public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
+{
+    private int _outerToolSelectionCalls;
+
+    public int OuterToolSelectionCalls => _outerToolSelectionCalls;
+
+    public AiModelProviderDescriptor Descriptor { get; } = new(
+        "V2MonthlySalesRoutingFake",
+        "fake-v2",
+        AiProviderHostingMode.Fake,
+        AiModelCapability.ChatCompletion | AiModelCapability.ToolCalling |
+        AiModelCapability.StructuredOutput | AiModelCapability.UsageReporting |
+        AiModelCapability.HealthCheck,
+        Enabled: true,
+        Priority: 1);
+
+    public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Tools is { Count: > 0 })
+        {
+            Interlocked.Increment(ref _outerToolSelectionCalls);
+            return Task.FromResult(new AiModelResult(
+                Text: "Monthly sales did not return directly. If you want, I can clarify the metric.",
+                StructuredJson: null,
+                ToolCalls: [],
+                Usage: MakeUsage(request)));
+        }
+
+        var json = request.StructuredOutput?.SchemaName switch
+        {
+            "SymbolLookupParseOutput" =>
+                """{"detectedLanguage":"fa","pairs":[{"symbolName":"کچاد","metricTerm":"فروش ماهانه"}],"clarificationRequired":false,"clarificationMessage":null}""",
+            _ => "{}"
+        };
+
+        return Task.FromResult(new AiModelResult(
+            Text: null,
+            StructuredJson: json,
+            ToolCalls: [],
+            Usage: MakeUsage(request)));
+    }
+
+    public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+        AiModelRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiEmbeddingResult> CreateEmbeddingsAsync(
+        AiEmbeddingRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new AiProviderHealthResult(
+            Descriptor.ProviderKey, Descriptor.ModelKey,
+            Available: true, DateTimeOffset.UtcNow, "OK"));
+
+    private AiExecutionUsageFacts MakeUsage(AiModelRequest request) =>
+        new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
+            AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
+            InputTokens: 10, OutputTokens: 4, UsedTools: false);
+}
+
 internal sealed class V2ScannerFakeAiModelClient : IAiModelClient
 {
     public AiModelProviderDescriptor Descriptor { get; } = new(

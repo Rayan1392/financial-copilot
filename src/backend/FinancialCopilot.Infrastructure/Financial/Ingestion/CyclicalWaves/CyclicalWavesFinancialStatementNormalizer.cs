@@ -229,8 +229,7 @@ public sealed class CyclicalWavesFinancialStatementNormalizer(
     {
         if (string.IsNullOrWhiteSpace(raw))
             return null;
-        // Accepts ISO 8601 date (yyyy-MM-dd) as supplied by CyclicalWaves API.
-        return DateOnly.TryParseExact(raw, "yyyy-MM-dd", null,
+        return DateOnly.TryParseExact(raw, ["yyyyMMdd", "yyyy-MM-dd"], null,
             System.Globalization.DateTimeStyles.None, out var d)
             ? d
             : null;

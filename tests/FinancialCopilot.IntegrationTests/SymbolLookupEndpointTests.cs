@@ -759,7 +759,9 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
-        Assert.Equal("Unit: million Rials", root.GetProperty("textAnswer").GetString());
+        Assert.Contains(
+            FormatMillionRials(MonthlySalesLookupApiFactory.LatestMonthSales),
+            root.GetProperty("textAnswer").GetString());
 
         var table = root.GetProperty("symbolLookupTable");
         var columns = table.GetProperty("columns").EnumerateArray().ToList();
@@ -850,7 +852,7 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
 
         var assistant = reloadDoc.RootElement.GetProperty("messages").EnumerateArray()
             .First(m => m.GetProperty("role").GetString() == "Assistant");
-        Assert.Equal("Unit: million Rials", assistant.GetProperty("content").GetString());
+        Assert.Contains("90,879,722", assistant.GetProperty("content").GetString());
 
         var assistantContent = assistant.GetProperty("assistantContent");
         AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(assistantContent);
@@ -945,16 +947,22 @@ public sealed class MonthlySalesLookupTests : IClassFixture<MonthlySalesLookupAp
         if (!element.TryGetProperty(propertyName, out var property) ||
             property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
-            Assert.False(requireUnitWhenPresent, $"{propertyName} must be present as the unit label.");
+            Assert.False(requireUnitWhenPresent, $"{propertyName} must be present as the monthly-sales value sentence.");
             return;
         }
 
         var value = property.GetString();
         if (requireUnitWhenPresent)
-            Assert.Equal("Unit: million Rials", value);
+        {
+            Assert.False(string.IsNullOrWhiteSpace(value));
+            Assert.Contains("میلیون ریال", value);
+            Assert.DoesNotContain("Unit: million Rials", value);
+        }
         else
-            Assert.True(string.IsNullOrEmpty(value) || value == "Unit: million Rials",
-                $"{propertyName} must be empty/null or exactly the unit label.");
+        {
+            Assert.True(string.IsNullOrEmpty(value),
+                $"{propertyName} must be empty/null for monthly-sales value answers.");
+        }
     }
 
     private static void AssertNoForbiddenMonthlySalesProse(string json)
@@ -1123,12 +1131,14 @@ public sealed class CyclicalWavesMonthlySalesLookupTests : IClassFixture<Cyclica
 
     private static void AssertMonthlySalesNarrativeFieldsAreOnlyUnitLabel(JsonElement element)
     {
-        Assert.Equal("Unit: million Rials", element.GetProperty("textAnswer").GetString());
+        var textAnswer = element.GetProperty("textAnswer").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(textAnswer));
+        Assert.Contains("میلیون ریال", textAnswer);
+        Assert.DoesNotContain("Unit: million Rials", textAnswer);
         if (element.TryGetProperty("clarificationMessage", out var clarificationMessage) &&
             clarificationMessage.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
         {
-            Assert.True(string.IsNullOrEmpty(clarificationMessage.GetString()) ||
-                clarificationMessage.GetString() == "Unit: million Rials");
+            Assert.True(string.IsNullOrEmpty(clarificationMessage.GetString()));
         }
     }
 

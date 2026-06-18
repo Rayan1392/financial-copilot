@@ -92,7 +92,7 @@ Acceptance:
 
 ## Task 6 - Remove Duplicate CyclicalWaves Ticker-Detail Fetch
 
-Status: Planned
+Status: Completed
 
 Requirements:
 
@@ -115,3 +115,50 @@ Acceptance:
 * A regression test proves recalculation requests or derived metric outputs remain present for both
   the financial and monthly datasets.
 * Existing Noavaran and generic provider ingestion behavior is unchanged.
+
+## Task 7 - Parse Real CyclicalWaves Vendor Dates
+
+Status: Completed
+
+Requirements:
+
+* Update `CyclicalWavesFinancialStatementNormalizer.ParseVendorDate`.
+* Update `CyclicalWavesMonthlyReportNormalizer.ParseVendorDate`.
+* Support both `yyyyMMdd` and `yyyy-MM-dd`.
+* Preserve safe null handling for blank, null, and invalid values.
+* Use real provider sample values in tests:
+  * `last_month_sale_date = "20260521"`;
+  * `last_quarter_date = "20260320"`.
+
+Acceptance:
+
+* `MonthlyReports.VendorPeriodDate = 2026-05-21` for the compact monthly sample.
+* `FinancialStatements.VendorPeriodDate = 2026-03-20` for the compact quarterly sample.
+* Dashed `yyyy-MM-dd` samples still parse.
+* Invalid/blank/null samples return null and use the existing fallback period resolver.
+* M0/M1/M12 and Q0/Q1/Q4 periods are aligned to parsed vendor dates.
+
+## Task 8 - Add Provider-Aware DerivedMetric Input Filtering
+
+Status: Completed
+
+Requirements:
+
+* Resolve provider identity for each recalculation request from the source payload/checksum.
+* Extend normalized metric input reading so provider-specific recalculation can filter by
+  `ProviderName`.
+* For CyclicalWaves-origin recalculation, read only CyclicalWaves normalized rows for monthly,
+  quarterly, average, valuation, growth, and margin metrics.
+* Preserve the existing `DerivedMetrics` uniqueness key. Provider isolation is implemented at
+  input-selection and policy/evidence level, not by a schema migration.
+* Do not introduce a parallel calculation framework.
+* Do not break Noavaran or Codal recalculation behavior.
+
+Acceptance:
+
+* A provider-isolation regression seeds CyclicalWaves plus another provider for the same
+  `ExternalCompanyId` and period, triggers CyclicalWaves recalculation, and verifies the result
+  uses only CyclicalWaves source rows.
+* `SourceEvidenceJson` for CyclicalWaves-origin metrics does not include unintended providers.
+* Existing CyclicalWaves full-snapshot regression values remain unchanged.
+* Focused unit/integration tests and backend Release build pass.

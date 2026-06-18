@@ -125,7 +125,7 @@ public sealed class AnswerConsistencyTests
     }
 
     [Fact]
-    public void SymbolLookup_MonthlySalesWithData_ReplacesNonNumericLlmCommentaryWithUnitNoteOnly()
+    public void SymbolLookup_MonthlySalesWithData_ReplacesNonNumericLlmCommentaryWithConciseValue()
     {
         var table = MonthlySalesLookupTable();
         var sut = MakeValidator();
@@ -136,7 +136,8 @@ public sealed class AnswerConsistencyTests
             Context());
 
         Assert.Equal(AnswerConsistencyAction.ReplacedWithDeterministic, result.Action);
-        Assert.Equal("Unit: million Rials", result.Answer);
+        Assert.Contains("90,879,722", result.Answer);
+        Assert.Contains("میلیون ریال", result.Answer);
         Assert.DoesNotContain("did not return", result.Answer);
         Assert.DoesNotContain("clarify", result.Answer);
     }

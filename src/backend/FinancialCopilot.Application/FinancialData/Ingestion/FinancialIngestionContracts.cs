@@ -79,6 +79,11 @@ public interface IFinancialDataSyncProcessor
     Task<DataSyncProcessingResult> ProcessAsync(
         DataSyncRequest request,
         CancellationToken cancellationToken);
+
+    Task<DataSyncProcessingResult> ProcessPayloadAsync(
+        DataSyncRequest request,
+        ProviderRawPayload payload,
+        CancellationToken cancellationToken);
 }
 
 public interface IDataSyncRunReader

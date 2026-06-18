@@ -22,9 +22,10 @@
       `IFinancialDataProviderHealthService`:
       - `FetchSymbolsAsync` → `GET /custom-filtering/tickers` → store raw array payload.
       - `FetchFinancialStatementsAsync(ticker)` → `GET /custom-filtering/ticker/{PercentEncode(ticker)}`
-        → store raw object payload under `ProviderDataset.FinancialStatements`.
-      - `FetchMonthlyReportsAsync(ticker)` → same HTTP call as above → store raw payload
-        under `ProviderDataset.MonthlyProductionSales` (checksum dedup prevents double storage).
+        → store the combined raw object payload.
+      - `FetchMonthlyReportsAsync(ticker)` must not force a second remote call during full sync
+        when the financial-statement payload for the same ticker is already available. The shared
+        payload is routed to the monthly normalizer through the ingestion processor.
       - `CheckAsync` → attempt login; return `Healthy` or `Unavailable`.
 - [ ] Apply `FinancialProviderResilienceHandler` (existing) to the CyclicalWaves typed
       `HttpClient` for timeout, retry, and circuit-breaker behavior.
@@ -90,6 +91,11 @@
       - Monthly-report normalizer produces 3 report rows with REVENUE line item.
       - Second normalization of identical payload is idempotent (no duplicate rows).
       - `enticker` overwrites provisional `SymbolCode` set by symbol normalizer.
+- [ ] Add single-fetch regression coverage for the ticker-detail full-sync path:
+      - one remote `GET /custom-filtering/ticker/{ticker}` request per ticker;
+      - one persisted raw payload for that ticker-detail body;
+      - both `CyclicalWavesFinancialStatementNormalizer` and
+        `CyclicalWavesMonthlyReportNormalizer` consume the shared payload successfully.
 - [ ] Add `CyclicalWavesAuthHandlerTests` (unit, ~5 tests) using mock `HttpMessageHandler`:
       - First request calls `/auth/login`, caches token, adds Authorization header.
       - Cached token is reused without re-login.

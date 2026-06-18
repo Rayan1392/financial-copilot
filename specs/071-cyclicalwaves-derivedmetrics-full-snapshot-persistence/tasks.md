@@ -89,3 +89,29 @@ Acceptance:
 
 * Focused unit/integration tests pass.
 * Backend Release build passes.
+
+## Task 6 - Remove Duplicate CyclicalWaves Ticker-Detail Fetch
+
+Status: Planned
+
+Requirements:
+
+* Treat `GET /api/custom-filtering/ticker/{ticker}` as a combined payload containing both
+  quarterly financial-statement fields and monthly sales fields.
+* Fetch the ticker-detail endpoint once per ticker during CyclicalWaves full sync.
+* Persist one `ProviderRawPayload` for the combined response.
+* Feed the shared payload into both `CyclicalWavesFinancialStatementNormalizer` and
+  `CyclicalWavesMonthlyReportNormalizer`.
+* Preserve the provider-neutral ingestion model by using a generic multi-normalizer payload
+  routing path instead of a CyclicalWaves-only shortcut.
+* Keep `DerivedMetrics` recalculation behavior unchanged for financial-statement and
+  monthly-production/sales datasets.
+
+Acceptance:
+
+* A regression test proves one remote ticker-detail request is made per ticker.
+* A regression test proves both `FinancialStatements` and `MonthlyReports` are populated from the
+  shared payload.
+* A regression test proves recalculation requests or derived metric outputs remain present for both
+  the financial and monthly datasets.
+* Existing Noavaran and generic provider ingestion behavior is unchanged.

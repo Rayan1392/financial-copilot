@@ -10,6 +10,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 public sealed class CyclicalWavesFullSyncService(
     IFinancialDataSyncProcessor processor,
+    IFinancialStatementProvider statementProvider,
     FinancialIngestionDbContext dbContext,
     TimeProvider timeProvider,
     ILogger<CyclicalWavesFullSyncService> logger) : ICyclicalWavesFullSyncService
@@ -84,23 +85,28 @@ public sealed class CyclicalWavesFullSyncService(
     private async Task SyncTickerAsync(string ticker, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
+        var payload = await statementProvider.FetchFinancialStatementsAsync(ticker, cancellationToken);
 
-        await processor.ProcessAsync(
+        await processor.ProcessPayloadAsync(
             new DataSyncRequest(
                 Guid.NewGuid(),
                 ProviderDataset.FinancialStatements,
                 ticker,
                 now,
-                $"cw-fs:{ticker}:{now:yyyyMMddHH}"),
+                $"cw-fs:{ticker}:{now:yyyyMMddHH}",
+                ProviderName: CyclicalWavesProvider),
+            payload,
             cancellationToken);
 
-        await processor.ProcessAsync(
+        await processor.ProcessPayloadAsync(
             new DataSyncRequest(
                 Guid.NewGuid(),
                 ProviderDataset.MonthlyProductionSales,
                 ticker,
                 now,
-                $"cw-monthly:{ticker}:{now:yyyyMMddHH}"),
+                $"cw-monthly:{ticker}:{now:yyyyMMddHH}",
+                ProviderName: CyclicalWavesProvider),
+            payload,
             cancellationToken);
 
         dbContext.ChangeTracker.Clear();

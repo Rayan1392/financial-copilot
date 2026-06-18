@@ -17,7 +17,7 @@ valuation ratios without depending on a specific vendor.
   `NormalizedCompanyRow` + `NormalizedSymbolRow`, using the Persian ticker name as the company
   name and the CyclicalWaves `_id` as the external provider reference.
 - A financial-snapshot sync step calls `GET /api/custom-filtering/ticker/{ticker}` (percent-
-  encoded) for each known ticker and normalizes the response into three layers:
+  encoded) once for each known ticker and normalizes the single response into three layers:
   - Three `NormalizedFinancialStatementRow` records (IncomeStatement type) — one per relative
     period: last quarter (Q-0), penultimate quarter (Q-1), and last-year same quarter (Q-4) —
     each with line items for REVENUE, NET_PROFIT, GROSS_PROFIT, OPERATING_PROFIT,
@@ -33,6 +33,11 @@ valuation ratios without depending on a specific vendor.
   flagged with a `StaleData` quality warning so consumers know the dates are approximate.
 - All raw JSON responses are stored in `ProviderRawPayloads` before normalization; idempotent
   checksum deduplication prevents double-processing identical payloads.
+- The ticker-detail response is a combined provider snapshot. It must be fetched once per ticker,
+  persisted once as a single `ProviderRawPayload`, and reused by both the financial-statement and
+  monthly-production/sales normalizers. The implementation must preserve provider-neutral
+  ingestion architecture by supporting one raw provider payload feeding multiple dataset
+  normalizers, not by adding a CyclicalWaves-only shortcut.
 - After successful normalization, `DerivedMetricRecalculationRequested` is published so the
   derived-metric engine can compute growth metrics (QoQ, YoY revenue growth) that the scanner
   consumes.
@@ -44,6 +49,9 @@ valuation ratios without depending on a specific vendor.
   ambiguity.
 - Concurrent ticker fetching is throttled (max 10 simultaneous HTTP calls) to avoid overloading
   the CyclicalWaves server.
+- Full-sync request accounting must count one remote ticker-detail call per ticker. The monthly
+  and financial dataset split must not cause two identical
+  `GET /api/custom-filtering/ticker/{ticker}` calls for the same ticker.
 - Provider credentials (username, password) are read from configuration section `CyclicalWaves`
   and never hardcoded.
 - The CyclicalWaves client does NOT implement `IMarketDataProvider`; real-time price data is
@@ -98,6 +106,10 @@ not raw Noavaran monthly line items.
 - `IFinancialPayloadNormalizer` gains a `string ProviderName { get; }` property; the
   processor selects by `(ProviderName, Dataset)` pair. Existing normalizers add the property
   with the value `"ConfiguredFinancialProvider"` — no behavioral change.
+- For providers whose endpoint returns multiple logical datasets in one payload, the processor
+  may route the same persisted raw payload through multiple `(ProviderName, Dataset)` normalizers.
+  CyclicalWaves uses this for financial statements and monthly-production/sales snapshots from
+  `custom-filtering/ticker/{ticker}`.
 - This spec does not cover a scheduling/trigger mechanism for daily sync; that is the
   responsibility of `012-admin-data-operations` admin endpoints or a future cron spec.
 

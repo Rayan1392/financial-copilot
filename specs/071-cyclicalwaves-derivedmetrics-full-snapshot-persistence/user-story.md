@@ -30,6 +30,11 @@ snapshots, and valuation ratios. The normalizers persist many of those fields in
 line-item tables, but the recalculation/passthrough path persists only a small subset into
 `DerivedMetrics` for the latest monthly period.
 
+The same provider response currently reaches the pipeline through two dataset requests:
+`FetchFinancialStatementsAsync(ticker)` and `FetchMonthlyReportsAsync(ticker)`. Both use
+`GET /api/custom-filtering/ticker/{ticker}` and receive the same combined payload. This double
+fetch is a dataset-abstraction artifact, not a CyclicalWaves payload requirement.
+
 For ExternalCompanyId `3` and PeriodEnd `2026-05-31`, `DerivedMetrics` must not be limited to:
 
 * `AVG_12M_MONTHLY_SALES`
@@ -88,15 +93,36 @@ CyclicalWaves monetary values are already in Rials.
   period derived from CyclicalWaves quarter markers.
 * `PE_TTM` and `PS_TTM` keep the current/latest quarter policy already used by the system.
 
+## Single-Fetch Ingestion Rule
+
+For CyclicalWaves full sync, `GET /api/custom-filtering/ticker/{ticker}` must be called once per
+ticker. The single persisted `ProviderRawPayload` must be reused by both:
+
+* `CyclicalWavesFinancialStatementNormalizer`;
+* `CyclicalWavesMonthlyReportNormalizer`.
+
+This must not change the provider-neutral ingestion model. The generic ingestion processor may
+route one raw provider payload to multiple dataset normalizers when a provider endpoint returns a
+combined snapshot, but the architecture must not become a CyclicalWaves-only special case.
+
+The expected performance improvement is fewer duplicate ticker-detail calls: `N` requests for `N`
+tickers instead of `2N`. This reduces provider endpoint quota usage, provider-throttling exposure,
+duplicate checksum/store lookups, and the network-bound portion of full-sync duration.
+
 ## Acceptance Criteria
 
 * CyclicalWaves normalization and recalculation persist all supported snapshot fields into
   `DerivedMetrics`.
+* CyclicalWaves full sync performs one remote ticker-detail request per ticker while still
+  populating both `FinancialStatements` and `MonthlyReports`.
+* Exactly one raw ticker-detail payload is persisted for the shared CyclicalWaves response.
 * `AVG_12M_MONTHLY_SALES` stores the exact Rial value from `average_12_month_sale`.
 * `AVG_12M_MONTHLY_SALES` remains user-facing only through the Persian display title
   `متوسط فروش ۱۲ ماهه`; the internal code is not shown to users.
 * Repository/database-level regression tests prove CyclicalWaves sync does not persist only monthly
   sales metrics.
+* Regression tests prove the single-fetch path does not change derived-metric recalculation
+  outputs or remove recalculation requests for either financial statements or monthly reports.
 * Noavaran behavior and unit normalization remain unchanged.
 
 ## Verification Query

@@ -29,6 +29,24 @@ public sealed class FinancialDataSyncProcessor(
 
     public async Task<DataSyncProcessingResult> ProcessAsync(
         DataSyncRequest request,
+        CancellationToken cancellationToken) =>
+        await ProcessCoreAsync(
+            request,
+            () => FetchPayloadAsync(request, cancellationToken),
+            cancellationToken);
+
+    public async Task<DataSyncProcessingResult> ProcessPayloadAsync(
+        DataSyncRequest request,
+        ProviderRawPayload payload,
+        CancellationToken cancellationToken) =>
+        await ProcessCoreAsync(
+            request,
+            () => Task.FromResult(payload),
+            cancellationToken);
+
+    private async Task<DataSyncProcessingResult> ProcessCoreAsync(
+        DataSyncRequest request,
+        Func<Task<ProviderRawPayload>> payloadFactory,
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.SyncRuns.SingleOrDefaultAsync(
@@ -91,10 +109,11 @@ public sealed class FinancialDataSyncProcessor(
                     request.SourceDateRangeEndJalali);
             }
 
-            var payload = await FetchPayloadAsync(request, cancellationToken);
+            var payload = await payloadFactory();
             await rawPayloads.StoreAsync(payload, cancellationToken);
-            var outcome = await _normalizers[(payload.ProviderName, payload.Dataset)]
-                .NormalizeAsync(payload, cancellationToken);
+            var normalizationPayload = payload with { Dataset = request.Dataset };
+            var outcome = await _normalizers[(normalizationPayload.ProviderName, normalizationPayload.Dataset)]
+                .NormalizeAsync(normalizationPayload, cancellationToken);
 
             run.SourcePayloadChecksum = payload.Checksum;
             run.ProcessedRecords = outcome.ProcessedRecords;

@@ -4,7 +4,9 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -113,6 +115,14 @@ public sealed class CyclicalWavesNormalizerTests
         return new FinancialIngestionDbContext(options);
     }
 
+    private static FinancialProviderDbContext CreateProviderDbContext()
+    {
+        var options = new DbContextOptionsBuilder<FinancialProviderDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new FinancialProviderDbContext(options);
+    }
+
     private static ProviderRawPayload MakePayload(ProviderDataset dataset, string json) =>
         new(
             Guid.NewGuid(),
@@ -206,6 +216,72 @@ public sealed class CyclicalWavesNormalizerTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class ThrowingFinancialProvider :
+        ISymbolDataProvider,
+        IFinancialStatementProvider,
+        IMonthlyProductionSalesProvider
+    {
+        public Task<ProviderRawPayload> FetchSymbolsAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Provider fetch should not be used.");
+
+        public Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Provider fetch should not be used.");
+
+        public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Provider fetch should not be used.");
+    }
+
+    private sealed class CountingStatementProvider(ProviderRawPayload payload) : IFinancialStatementProvider
+    {
+        public int FetchCount { get; private set; }
+
+        public Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+            string externalCompanyId,
+            CancellationToken cancellationToken)
+        {
+            FetchCount++;
+            return Task.FromResult(payload);
+        }
+    }
+
+    private sealed class RecordingSyncProcessor : IFinancialDataSyncProcessor
+    {
+        public List<(DataSyncRequest Request, ProviderRawPayload Payload)> Processed { get; } = [];
+
+        public Task<DataSyncProcessingResult> ProcessAsync(
+            DataSyncRequest request,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Full sync should process a fetched shared payload.");
+
+        public Task<DataSyncProcessingResult> ProcessPayloadAsync(
+            DataSyncRequest request,
+            ProviderRawPayload payload,
+            CancellationToken cancellationToken)
+        {
+            Processed.Add((request, payload));
+            return Task.FromResult(new DataSyncProcessingResult(
+                new DataSyncRun(
+                    request.RequestId,
+                    request.IdempotencyKey,
+                    request.Dataset,
+                    request.ExternalReference,
+                    DataSyncRunStatus.Completed,
+                    request.RequestedAt,
+                    request.RequestedAt,
+                    request.RequestedAt,
+                    ProcessedRecords: 1,
+                    ErrorCount: 0,
+                    ErrorMessage: null,
+                    SourcePayloadChecksum: payload.Checksum,
+                    request.ProviderName),
+                AlreadyProcessed: false));
+        }
     }
 
     private static NormalizedCompanyRow SeedNadpcoCompany(
@@ -550,6 +626,107 @@ public sealed class CyclicalWavesNormalizerTests
             "MONTHLY_PRODUCTION_QUANTITY"
         };
         Assert.Contains(metrics, row => !narrowMonthlyOnly.Contains(row.MetricCode));
+    }
+
+    [Fact]
+    public async Task Processor_SharedCyclicalWavesPayload_NormalizesFinancialAndMonthlyDatasets()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDbContext();
+        SeedKchadCompany(ingestionDb);
+        await ingestionDb.SaveChangesAsync();
+        var payload = MakePayload(ProviderDataset.FinancialStatements, KchadTickerDetailJson);
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingFinancialProvider(),
+            new ThrowingFinancialProvider(),
+            new ThrowingFinancialProvider(),
+            [
+                new CyclicalWavesFinancialStatementNormalizer(
+                    ingestionDb,
+                    NullCompanyResolverService.Instance,
+                    NullLogger<CyclicalWavesFinancialStatementNormalizer>.Instance),
+                new CyclicalWavesMonthlyReportNormalizer(
+                    ingestionDb,
+                    NullCompanyResolverService.Instance,
+                    NullLogger<CyclicalWavesMonthlyReportNormalizer>.Instance)
+            ],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-06-17T00:00:00Z")),
+            NullLogger<FinancialDataSyncProcessor>.Instance);
+
+        await processor.ProcessPayloadAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.FinancialStatements,
+                "\u06a9\u0686\u0627\u062f",
+                DateTimeOffset.Parse("2026-06-17T00:00:00Z"),
+                "cw-shared-fs",
+                ProviderName),
+            payload,
+            CancellationToken.None);
+        await processor.ProcessPayloadAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                "\u06a9\u0686\u0627\u062f",
+                DateTimeOffset.Parse("2026-06-17T00:00:00Z"),
+                "cw-shared-monthly",
+                ProviderName),
+            payload,
+            CancellationToken.None);
+
+        Assert.Single(await providerDb.ProviderRawPayloads.ToListAsync());
+        Assert.Equal(3, await ingestionDb.FinancialStatements.CountAsync());
+        Assert.Equal(3, await ingestionDb.MonthlyReports.CountAsync());
+        var recalculationRequests = await ingestionDb.MetricRecalculationRequests.ToListAsync();
+        Assert.Equal(2, recalculationRequests.Count);
+        Assert.Contains(recalculationRequests, row =>
+            row.SourceDataset == ProviderDataset.FinancialStatements.ToString() &&
+            row.SourcePayloadChecksum == payload.Checksum);
+        Assert.Contains(recalculationRequests, row =>
+            row.SourceDataset == ProviderDataset.MonthlyProductionSales.ToString() &&
+            row.SourcePayloadChecksum == payload.Checksum);
+    }
+
+    [Fact]
+    public async Task FullSync_FetchesCyclicalWavesTickerDetailOnceAndProcessesBothDatasets()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoProviderName,
+            ExternalCompanyId = "3",
+            CompanySymbol = "\u06a9\u0686\u0627\u062f",
+            Ticker = "\u06a9\u0686\u0627\u062f",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = DateTimeOffset.Parse("2026-06-17T00:00:00Z")
+        });
+        await db.SaveChangesAsync();
+        var payload = MakePayload(ProviderDataset.FinancialStatements, KchadTickerDetailJson);
+        var provider = new CountingStatementProvider(payload);
+        var processor = new RecordingSyncProcessor();
+        var service = new CyclicalWavesFullSyncService(
+            processor,
+            provider,
+            db,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-06-17T00:00:00Z")),
+            NullLogger<CyclicalWavesFullSyncService>.Instance);
+
+        var result = await service.ExecuteAsync(CancellationToken.None);
+
+        Assert.Equal(1, provider.FetchCount);
+        Assert.Equal(1, result.TickersSynced);
+        Assert.Equal(2, processor.Processed.Count);
+        Assert.Contains(processor.Processed, item =>
+            item.Request.Dataset == ProviderDataset.FinancialStatements &&
+            ReferenceEquals(payload, item.Payload));
+        Assert.Contains(processor.Processed, item =>
+            item.Request.Dataset == ProviderDataset.MonthlyProductionSales &&
+            ReferenceEquals(payload, item.Payload));
     }
 
     [Fact]

@@ -185,7 +185,9 @@ public sealed class AiFacadeController(
             MapScannerTable(result.ScannerTable),
             MapSymbolLookupTable(result.SymbolLookupTable),
             MapExplainableAnswer(result.ExplainableAnswer),
-            MapConfidenceScore(result.ConfidenceScore),
+            MapConfidenceScore(ShouldSuppressSymbolLookupConfidence(result.SymbolLookupTable)
+                ? null
+                : result.ConfidenceScore),
             result.Usage is null ? null : new UsageAccountingResponse(
                 result.Usage.OperationCode,
                 result.Usage.CompletionStatus,
@@ -211,6 +213,7 @@ public sealed class AiFacadeController(
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
         if (table is null) return null;
+        if (table.Rows.Count == 0) return null;
 
         return new ScannerTableResponse(
             table.LookupId,
@@ -234,6 +237,9 @@ public sealed class AiFacadeController(
             table.MissingDataWarnings.Concat(
                 table.UnresolvedSymbols.Select(s => $"Symbol '{s}' could not be resolved.")).ToList());
     }
+
+    private static bool ShouldSuppressSymbolLookupConfidence(SymbolLookupTableResult? table) =>
+        table is not null && table.Rows.Count == 0;
 
     private static ScannerTableResponse? MapScannerTable(ScannerTableResult? table)
     {
@@ -368,7 +374,9 @@ public sealed class AiFacadeController(
                 MapScannerTable(payload.ScannerTable),
                 MapSymbolLookupTable(payload.SymbolLookupTable),
                 MapExplainableAnswer(payload.ExplainableAnswer),
-                MapConfidenceScore(payload.ConfidenceScore),
+                MapConfidenceScore(ShouldSuppressSymbolLookupConfidence(payload.SymbolLookupTable)
+                    ? null
+                    : payload.ConfidenceScore),
                 payload.Usage is null ? null : new UsageAccountingResponse(
                     payload.Usage.OperationCode,
                     payload.Usage.CompletionStatus,

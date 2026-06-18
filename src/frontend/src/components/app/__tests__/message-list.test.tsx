@@ -79,4 +79,81 @@ describe("MessageList", () => {
     expect(tableContainer?.querySelector("table")).not.toBeNull();
     expect(tableContainer?.querySelector("p")).toBeNull();
   });
+
+  it("does not display zero confidence when backend confidence is missing", () => {
+    const assistantBlock: AssistantChatBlock = {
+      message: "پاسخ متنی بدون امتیاز",
+      intent: "Unknown",
+      creditsUsed: 1,
+      suggestedQuestions: [],
+      filters: [],
+      citations: [],
+    };
+
+    const messages: ChatMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: assistantBlock,
+        created_at: "2026-06-18T12:00:00Z",
+      },
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        loading={false}
+        streaming={false}
+        onSuggested={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/اطمینان/)).not.toBeInTheDocument();
+    expect(screen.getByText(/اعتبار مصرف شد/)).toBeInTheDocument();
+  });
+
+  it("does not render an empty result table", () => {
+    const assistantBlock: AssistantChatBlock = {
+      message: "نماد پیدا نشد.",
+      intent: "SymbolLookup",
+      creditsUsed: 1,
+      suggestedQuestions: [],
+      filters: [],
+      citations: [],
+      table: {
+        columns: [
+          { identifier: "SYMBOL", displayName: "نماد" },
+          { identifier: "PE_TTM", displayName: "PE_TTM" },
+        ],
+        rows: [],
+        executionFacts: {
+          matchingSymbolCount: 0,
+          totalSymbolsEvaluated: 1,
+          fromCache: false,
+          page: 1,
+          pageSize: 1,
+          totalPages: 1,
+        },
+        missingDataWarnings: [],
+      },
+    };
+
+    render(
+      <MessageList
+        messages={[
+          {
+            id: "assistant-empty",
+            role: "assistant",
+            content: assistantBlock,
+            created_at: "2026-06-18T12:00:00Z",
+          },
+        ]}
+        loading={false}
+        streaming={false}
+        onSuggested={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
 });

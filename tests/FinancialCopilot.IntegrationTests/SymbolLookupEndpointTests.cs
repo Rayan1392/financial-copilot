@@ -82,7 +82,7 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
     }
 
     [Fact]
-    public async Task AiQuery_UnknownSymbol_ReturnsEmptyLookupTableRows()
+    public async Task AiQuery_UnknownSymbol_DoesNotReturnEmptyLookupTable()
     {
         using var client = _factory.CreateUnknownSymbolClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
@@ -96,13 +96,7 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("SymbolLookup", document.RootElement.GetProperty("intent").GetString());
         var table = document.RootElement.GetProperty("symbolLookupTable");
-        Assert.NotEqual(JsonValueKind.Null, table.ValueKind);
-        var rows = table.GetProperty("rows").EnumerateArray().ToList();
-        Assert.Empty(rows);
-        // executionFacts should reflect 1 attempted symbol
-        var facts = table.GetProperty("executionFacts");
-        Assert.Equal(1, facts.GetProperty("totalSymbolsEvaluated").GetInt32());
-        Assert.Equal(0, facts.GetProperty("matchingSymbolCount").GetInt32());
+        Assert.Equal(JsonValueKind.Null, table.ValueKind);
     }
 
     [Fact]
@@ -270,6 +264,47 @@ public sealed class PeSymbolLookupRegressionTests : IClassFixture<PeSymbolLookup
             .First(m => m.GetProperty("role").GetString() == "Assistant");
         var answerText = assistant.GetProperty("content").GetString()!;
         Assert.Contains(expectedFormattedValue, answerText);
+    }
+
+    [Fact]
+    public async Task AiQuery_PeLookup_ByCompanyNameResolvesToSameRowAsSymbol()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var bySymbolResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "نسبت پی به ای کچاد؟" },
+            CancellationToken.None);
+        using var bySymbolDocument = await ReadJsonAsync(bySymbolResponse);
+
+        using var byCompanyResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "نسبت پی به ای چادرملو؟" },
+            CancellationToken.None);
+        using var byCompanyDocument = await ReadJsonAsync(byCompanyResponse);
+
+        Assert.Equal(HttpStatusCode.OK, bySymbolResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, byCompanyResponse.StatusCode);
+
+        var symbolRoot = bySymbolDocument.RootElement;
+        var companyRoot = byCompanyDocument.RootElement;
+        Assert.Equal("SymbolLookup", companyRoot.GetProperty("intent").GetString());
+        Assert.False(companyRoot.GetProperty("clarificationRequired").GetBoolean());
+
+        var symbolRow = Assert.Single(symbolRoot.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var companyTable = companyRoot.GetProperty("symbolLookupTable");
+        Assert.NotEqual(JsonValueKind.Null, companyTable.ValueKind);
+        var companyRow = Assert.Single(companyTable.GetProperty("rows").EnumerateArray());
+
+        Assert.Equal("کچاد", companyRow.GetProperty("symbolCode").GetString());
+        Assert.Equal(symbolRow.GetProperty("symbolCode").GetString(), companyRow.GetProperty("symbolCode").GetString());
+        Assert.Equal(
+            symbolRow.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString(),
+            companyRow.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+        Assert.Equal("9.73", companyRow.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+        Assert.True(companyRoot.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+        Assert.Contains("9.73", companyRoot.GetProperty("textAnswer").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -478,6 +513,7 @@ public sealed class PeSymbolLookupRegressionApiFactory : AiFacadeApiFactory
         SeedSymbol(db, "شبندر", "پالایش نفت بندرعباس", 5.06m, 7340m, 0.35m, now, periodStart, periodEnd, 4);
         SeedSymbol(db, "شتران", "پالایش نفت تهران", 5.89m, 6910m, -0.14m, now, periodStart, periodEnd, 5);
         SeedSymbol(db, "فزرین", "زرین معدن آسیا", 7.21m, 1480m, 2.10m, now, periodStart, periodEnd, 6);
+        SeedSymbol(db, "کچاد", "معدنی و صنعتی چادرملو", 9.73m, 0m, 0m, now, periodStart, periodEnd, 7);
     }
 
     private static void SeedSymbol(
@@ -630,6 +666,11 @@ internal sealed class PeLookupRegressionFakeAiModelClient : IAiModelClient
 
     private static string ResolveSymbol(string userMessage)
     {
+        if (userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase))
+            return "چادرملو";
+        if (userMessage.Contains("کچاد", StringComparison.OrdinalIgnoreCase))
+            return "کچاد";
+
         foreach (var symbol in new[] { "کگل", "فملی", "شپنا", "شبندر", "شتران", "فزرین" })
         {
             if (userMessage.Contains(symbol, StringComparison.OrdinalIgnoreCase))

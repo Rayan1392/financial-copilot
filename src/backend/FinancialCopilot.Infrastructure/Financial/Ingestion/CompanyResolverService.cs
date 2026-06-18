@@ -58,10 +58,14 @@ public sealed class CompanyResolverService(
             c.InstrumentCode is not null &&
             string.Equals(PersianSymbolNormalizer.Normalize(c.InstrumentCode), normalized, StringComparison.OrdinalIgnoreCase));
 
-        // Step 5: CompanySymbol or Name fallback (broadest, least precise).
+        // Step 5: CompanySymbol or exact Name fallback.
         match ??= candidates.FirstOrDefault(c =>
             (c.CompanySymbol is not null && string.Equals(PersianSymbolNormalizer.Normalize(c.CompanySymbol), normalized, StringComparison.OrdinalIgnoreCase)) ||
             (c.Name is not null && string.Equals(PersianSymbolNormalizer.Normalize(c.Name), normalized, StringComparison.OrdinalIgnoreCase)));
+
+        // Step 6: unambiguous company-name fragment fallback, e.g. "چادرملو" ->
+        // "معدنی و صنعتی چادرملو". Ambiguous fragments deliberately return null.
+        match ??= ResolveByCompanyNameFragment(candidates, normalized);
 
         if (match is null)
         {
@@ -79,6 +83,29 @@ public sealed class CompanyResolverService(
             match.EnTicker,
             match.InstrumentCode,
             match.SymbolIsin,
-            match.CompanyIsin);
+            match.CompanyIsin,
+            match.TseSymbol,
+            match.CompanySymbol);
+    }
+
+    private static NormalizedCompanyRow? ResolveByCompanyNameFragment(
+        IReadOnlyCollection<NormalizedCompanyRow> candidates,
+        string normalized)
+    {
+        if (normalized.Length < 3)
+            return null;
+
+        var matches = candidates
+            .Where(c => c.Name is not null)
+            .Select(c => new
+            {
+                Company = c,
+                NormalizedName = PersianSymbolNormalizer.Normalize(c.Name!)
+            })
+            .Where(c => c.NormalizedName.Contains(normalized, StringComparison.OrdinalIgnoreCase))
+            .Take(2)
+            .ToList();
+
+        return matches.Count == 1 ? matches[0].Company : null;
     }
 }

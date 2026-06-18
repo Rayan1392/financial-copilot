@@ -11,7 +11,9 @@ public sealed record ResolvedCompany(
     string? EnTicker,
     string? InstrumentCode,
     string? SymbolIsin,
-    string? CompanyIsin);
+    string? CompanyIsin,
+    string? TseSymbol = null,
+    string? CompanySymbol = null);
 
 /// <summary>
 /// Resolves a company from a ticker symbol using a normalized, multi-step lookup.

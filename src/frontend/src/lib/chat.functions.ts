@@ -22,7 +22,7 @@ export interface ChatMessage {
 export interface AssistantChatBlock {
   message: string;
   intent: string;
-  confidence: number;
+  confidence?: number;
   creditsUsed: number;
   suggestedQuestions: string[];
   filters: Array<{ label: string; value: string }>;
@@ -227,7 +227,7 @@ function mapAssistantBlock(
 ): AssistantChatBlock {
   const explanation = content?.explainableAnswer;
   // Prefer symbolLookupTable over scannerTable; both render via ScannerResultTable.
-  const table = content?.symbolLookupTable ?? content?.scannerTable;
+  const table = normalizeRenderableTable(content?.symbolLookupTable ?? content?.scannerTable);
   const rawMessage =
     explanation?.explanationText ??
     content?.clarificationMessage ??
@@ -239,7 +239,7 @@ function mapAssistantBlock(
   return {
     message: tableMetadataLabel ? "" : rawMessage,
     intent: content?.intent ?? "Unknown",
-    confidence: content?.confidenceScore?.score ?? explanation?.confidence.score ?? 0,
+    confidence: content?.confidenceScore?.score ?? explanation?.confidence?.score,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
     suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],
     filters:
@@ -260,6 +260,11 @@ function mapAssistantBlock(
         }
       : undefined,
   };
+}
+
+function normalizeRenderableTable(table: ScannerTable | undefined): ScannerTable | undefined {
+  if (!table || table.rows.length === 0) return undefined;
+  return table;
 }
 
 function isMonthlySalesTechnicalUnitNote(message: string | undefined, table?: ScannerTable) {

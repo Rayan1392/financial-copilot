@@ -114,6 +114,65 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         Assert.Equal("v1", confidence.GetProperty("policyVersion").GetString());
     }
 
+    [Theory]
+    [InlineData("نسبت پی به ای چادرملو؟", "کچاد")]
+    [InlineData("نسبت پی به ای کچاد؟", "کچاد")]
+    public async Task V2AiQuery_PeLookupByCompanyOrSymbol_RoutesThroughDirectPreflight(
+        string message,
+        string expectedSymbol)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        _factory.Fake.Reset();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var table = root.GetProperty("symbolLookupTable");
+        Assert.NotEqual(JsonValueKind.Null, table.ValueKind);
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
+        Assert.Equal("9.73", row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_PeLookupByCompanyName_WhenParserMissesPair_UsesDeterministicFallback()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        _factory.Fake.Reset();
+        _factory.Fake.ForceParserClarificationForChadormalu();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "نسبت پی به ای چادرملو؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var table = root.GetProperty("symbolLookupTable");
+        Assert.NotEqual(JsonValueKind.Null, table.ValueKind);
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.Equal("کچاد", row.GetProperty("symbolCode").GetString());
+        Assert.Equal("9.73", row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() >= 0.95);
+    }
+
     [Fact]
     public async Task V2AiQuery_LookupTool_ReturnsConversationId()
     {
@@ -334,6 +393,42 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
     }
 
+    [Fact]
+    public async Task V2AiQuery_PendingYtdMetricThenCompanyName_UsesStructuredLookup()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش YTD چقدر بوده؟" },
+            CancellationToken.None);
+        using var firstDocument = await ReadJsonAsync(firstResponse);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        var conversationId = firstDocument.RootElement.GetProperty("conversationId").GetGuid();
+
+        using var followupResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "چادرملو", conversationId },
+            CancellationToken.None);
+        using var followupDocument = await ReadJsonAsync(followupResponse);
+
+        Assert.Equal(HttpStatusCode.OK, followupResponse.StatusCode);
+        var root = followupDocument.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("787,016,400", textAnswer);
+        Assert.DoesNotContain("415,830,370", textAnswer);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        var cells = row.GetProperty("cells");
+        Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
+        Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -466,6 +561,7 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
     private readonly string _dbName = $"v2-lookup-ingestion-{Guid.NewGuid():N}";
     private bool _seeded;
     private readonly object _seedLock = new();
+    internal V2SymbolLookupFakeAiModelClient Fake { get; } = new();
 
     // Let V2 orchestration stand — do not replace with V1.
     protected override bool ForceV1Orchestration => false;
@@ -488,7 +584,7 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         {
             ReplaceIngestionDbContext(services, _dbName);
             services.RemoveAll<IAiModelClient>();
-            services.AddSingleton<IAiModelClient>(_ => new V2SymbolLookupFakeAiModelClient());
+            services.AddSingleton<IAiModelClient>(_ => Fake);
         });
     }
 
@@ -510,6 +606,7 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
     private static void SeedLookupData(FinancialIngestionDbContext db)
     {
         var companyHafariId = Guid.Parse("50000000-0000-0000-0000-100000000001");
+        var companyKchadId = Guid.Parse("50000000-0000-0000-0000-100000000002");
         var now = DateTimeOffset.UtcNow;
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
@@ -526,6 +623,18 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             LastSynchronizedAt = now
         });
 
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyKchadId,
+            Name = "معدنی و صنعتی چادرملو",
+            ProviderName = "test",
+            ExternalCompanyId = "kchad-v2-001",
+            Ticker = "کچاد",
+            TseSymbol = "کچاد",
+            CompanySymbol = "کچاد",
+            LastSynchronizedAt = now
+        });
+
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
@@ -537,6 +646,25 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
             Value = 5.2m,
+            Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kchad-v2-001",
+            MetricCode = "PE_TTM",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "PE_TTM_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 9.73m,
             Unit = "Ratio",
             ObservedAt = now,
             LastSynchronizedAt = now,
@@ -701,6 +829,7 @@ internal sealed class V2InconsistentLookupFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: usedTools);
+
 }
 
 // ─── V2 composite fake for scanner ────────────────────────────────────────────
@@ -877,6 +1006,7 @@ internal sealed class V2ScannerFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: usedTools);
+
 }
 
 // ─── V2 composite fake for symbol lookup ──────────────────────────────────────
@@ -886,6 +1016,11 @@ internal sealed class V2ScannerFakeAiModelClient : IAiModelClient
 //   3. Internal SymbolLookupParsing structured output call
 internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
 {
+    private int _outerToolSelectionCalls;
+    private int _forceParserClarificationForChadormalu;
+
+    public int OuterToolSelectionCalls => _outerToolSelectionCalls;
+
     public AiModelProviderDescriptor Descriptor { get; } = new(
         "V2LookupFake",
         "fake-v2",
@@ -911,6 +1046,7 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         // Turn 1: V2 outer agent turn — fire the lookup_symbol_metrics tool
         if (request.Tools is { Count: > 0 })
         {
+            Interlocked.Increment(ref _outerToolSelectionCalls);
             return Task.FromResult(new AiModelResult(
                 Text: null,
                 StructuredJson: null,
@@ -925,8 +1061,7 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         // Internal structured output calls (SymbolLookupParsing)
         var json = request.StructuredOutput?.SchemaName switch
         {
-            "SymbolLookupParseOutput" =>
-                """{"detectedLanguage":"fa","pairs":[{"symbolName":"حفاری","metricTerm":"نسبت پی به ای"}],"clarificationRequired":false,"clarificationMessage":null}""",
+            "SymbolLookupParseOutput" => BuildSymbolLookupParseJson(request),
             _ => "{}"
         };
 
@@ -956,4 +1091,37 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: usedTools);
+
+    public void Reset()
+    {
+        Interlocked.Exchange(ref _outerToolSelectionCalls, 0);
+        Interlocked.Exchange(ref _forceParserClarificationForChadormalu, 0);
+    }
+
+    public void ForceParserClarificationForChadormalu() =>
+        Interlocked.Exchange(ref _forceParserClarificationForChadormalu, 1);
+
+    private string BuildSymbolLookupParseJson(AiModelRequest request)
+    {
+        var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
+        if (Volatile.Read(ref _forceParserClarificationForChadormalu) == 1 &&
+            userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                detectedLanguage = "fa",
+                pairs = Array.Empty<object>(),
+                clarificationRequired = true,
+                clarificationMessage = "لطفاً نماد را مشخص کنید."
+            });
+        }
+
+        var symbol = userMessage.Contains("چادرملو", StringComparison.OrdinalIgnoreCase)
+            ? "چادرملو"
+            : userMessage.Contains("کچاد", StringComparison.OrdinalIgnoreCase)
+                ? "کچاد"
+                : "حفاری";
+
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"نسبت پی به ای"}],"clarificationRequired":false,"clarificationMessage":null}""";
+    }
 }

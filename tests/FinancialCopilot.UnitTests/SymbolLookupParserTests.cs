@@ -231,6 +231,30 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(LookupParseStatus.ClarificationRequired, result.Status);
     }
 
+    [Theory]
+    [InlineData("نسبت پی به ای چادرملو؟", "چادرملو", "نسبت پی به ای")]
+    [InlineData("P/E چادرملو", "چادرملو", "p/e")]
+    [InlineData("نسبت قیمت به سود پالایش نفت اصفهان؟", "پالایش نفت اصفهان", "نسبت قیمت به سود")]
+    public async Task Parser_DirectPeCompanyName_WhenLlmReturnsNoPairs_UsesDeterministicFallback(
+        string userMessage,
+        string expectedSymbolName,
+        string expectedMetricTerm)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJson("I could not extract symbol/metric pairs.");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", "corr-direct-pe-fallback", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        var pair = Assert.Single(result.Pairs);
+        Assert.Equal(expectedSymbolName, pair.RawSymbolName);
+        Assert.Equal("PE_TTM", pair.ResolvedMetricCode?.Value);
+        Assert.Equal(expectedMetricTerm, pair.OriginalMetricTerm, ignoreCase: true);
+    }
+
     [Fact]
     public async Task Parser_MixedValidAndInvalidMetrics_ReturnsPartialResolution()
     {

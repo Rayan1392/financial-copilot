@@ -10,6 +10,41 @@ public sealed class LlmSymbolLookupParser(
     TimeProvider? timeProvider = null,
     IMetricAliasLearningSignalCollector? learningSignalCollector = null) : ISymbolLookupParser
 {
+    private static readonly string[] DirectPeTerms =
+    [
+        "نسبت پی به ای",
+        "پی به ای",
+        "پی ای",
+        "پی‌ای",
+        "پی بر ای",
+        "نسبت قیمت به سود",
+        "قیمت به سود",
+        "price-to-earnings",
+        "price to earnings",
+        "p/e"
+    ];
+
+    private static readonly string[] DirectLookupNoiseTerms =
+    [
+        "؟",
+        "?",
+        "چقدر است",
+        "چقدر هست",
+        "چقدر بوده",
+        "چقدر",
+        "است",
+        "هست",
+        "بوده",
+        "برابر است",
+        "برابر",
+        "نماد",
+        "سهم",
+        "شرکت",
+        "برای",
+        "را",
+        ":"
+    ];
+
     private const string SchemaName = "SymbolLookupParseOutput";
     private static readonly AiStructuredOutputContract LookupContract = new(
         SchemaName,
@@ -112,8 +147,14 @@ public sealed class LlmSymbolLookupParser(
         LlmLookupParseOutput llmOutput,
         CancellationToken cancellationToken = default)
     {
+        var deterministicPair = TryParseDirectPeLookup(request.Message);
         if (llmOutput.ClarificationRequired || llmOutput.Pairs.Count == 0)
         {
+            if (deterministicPair is not null)
+            {
+                return new SymbolLookupParseResult([deterministicPair], LookupParseStatus.Parsed);
+            }
+
             return new SymbolLookupParseResult(
                 [],
                 LookupParseStatus.ClarificationRequired,
@@ -156,6 +197,14 @@ public sealed class LlmSymbolLookupParser(
             resolvedPairs.Add(new SymbolLookupParsedPair(pair.SymbolName, resolvedCode, pair.MetricTerm));
         }
 
+        // If the model missed a direct PE/P-E company-name lookup, recover from the
+        // original user message. This keeps common Persian PE questions off the
+        // unresolved-symbol path when the LLM extracts no usable pair.
+        if (deterministicPair is not null && resolvedPairs.All(p => p.ResolvedMetricCode is null))
+        {
+            return new SymbolLookupParseResult([deterministicPair], LookupParseStatus.Parsed);
+        }
+
         // If no pairs produced a resolvable metric, require clarification.
         var validPairs = resolvedPairs.Where(p => p.ResolvedMetricCode is not null).ToList();
         if (validPairs.Count == 0)
@@ -167,6 +216,36 @@ public sealed class LlmSymbolLookupParser(
         }
 
         return new SymbolLookupParseResult(resolvedPairs, LookupParseStatus.Parsed);
+    }
+
+    private static SymbolLookupParsedPair? TryParseDirectPeLookup(string userMessage)
+    {
+        var normalized = NormalizePersianText(userMessage)
+            .Replace('\u200c', ' ')
+            .Replace('\u200d', ' ');
+
+        var metricTerm = DirectPeTerms
+            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (metricTerm is null)
+        {
+            return null;
+        }
+
+        var symbolName = normalized;
+        foreach (var term in DirectPeTerms)
+        {
+            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var noise in DirectLookupNoiseTerms)
+        {
+            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        symbolName = CollapseWhitespace(symbolName);
+        return symbolName.Length == 0
+            ? null
+            : new SymbolLookupParsedPair(symbolName, new MetricCode("PE_TTM"), metricTerm);
     }
 
     private void EmitLearningSignal(
@@ -337,6 +416,9 @@ public sealed class LlmSymbolLookupParser(
 
     private static string NormalizePersianText(string text) =>
         text.Replace('ي', 'ی').Replace('ك', 'ک');
+
+    private static string CollapseWhitespace(string value) =>
+        string.Join(' ', value.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
 
     private static string NormalizeBcp47(string language) =>
         language.Trim().ToLowerInvariant() switch

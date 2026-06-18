@@ -86,7 +86,7 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.table && (
+        {block.table && block.table.rows.length > 0 && (
           <ScannerResultTable
             table={block.table}
             metadataLabel={tableMetadataLabel}
@@ -108,11 +108,15 @@ function AssistantBlock({
         )}
 
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="size-3 text-emerald" />
-            اطمینان {toPersianDigits(Math.round(block.confidence * 100))}٪
-          </span>
-          <span>·</span>
+          {typeof block.confidence === "number" && (
+            <>
+              <span className="flex items-center gap-1">
+                <ShieldCheck className="size-3 text-emerald" />
+                اطمینان {toPersianDigits(Math.round(block.confidence * 100))}٪
+              </span>
+              <span>·</span>
+            </>
+          )}
           <span>{toPersianDigits(block.creditsUsed)} اعتبار مصرف شد</span>
         </div>
 

@@ -177,4 +177,39 @@ public sealed class CompanyResolverServiceTests
         Assert.NotNull(result);
         Assert.Equal("300", result.ExternalCompanyId);
     }
+
+    [Fact]
+    public async Task ResolveBySymbolAsync_UnambiguousCompanyNameFragment_Resolves()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(MakeCompany(
+            "3",
+            ticker: "کچاد",
+            tseSymbol: "کچاد",
+            companySymbol: "کچاد",
+            name: "معدنی و صنعتی چادرملو"));
+        await db.SaveChangesAsync();
+
+        var svc = new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance);
+        var result = await svc.ResolveBySymbolAsync("چادرملو");
+
+        Assert.NotNull(result);
+        Assert.Equal("3", result.ExternalCompanyId);
+        Assert.Equal("کچاد", result.TseSymbol);
+    }
+
+    [Fact]
+    public async Task ResolveBySymbolAsync_AmbiguousCompanyNameFragment_ReturnsNull()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.AddRange(
+            MakeCompany("10", ticker: "الف", name: "شرکت نمونه چادرملو الف"),
+            MakeCompany("11", ticker: "ب", name: "شرکت نمونه چادرملو ب"));
+        await db.SaveChangesAsync();
+
+        var svc = new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance);
+        var result = await svc.ResolveBySymbolAsync("چادرملو");
+
+        Assert.Null(result);
+    }
 }

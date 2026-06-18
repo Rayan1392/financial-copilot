@@ -248,15 +248,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
                          "limit: max results 1-5 (default 3).");
 
-        if (IsDirectMetricLookupRequest(request.Message))
+        var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);
+        var isDirectMetricFollowup = !isDirectMetricLookup &&
+            IsDirectMetricLookupFollowup(request.Message, msg.EnrichedMessage);
+        if (isDirectMetricLookup || isDirectMetricFollowup)
         {
+            var queryTextForLookup = isDirectMetricLookup ? request.Message : msg.EnrichedMessage;
             lookupResult = await lookupAdapter.LookupAsync(
                 msg.EnrichedMessage,
                 request.CorrelationId,
                 request.TenantId,
                 request.ActorId,
                 ct,
-                queryTextForLookup: request.Message);
+                queryTextForLookup: queryTextForLookup);
 
             var directCompletionStatus = lookupResult.CompletionStatus;
             UsageAccountingResult? directUsage = null;
@@ -268,6 +272,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
             stepActivity?.SetTag("workflow.intent", "SymbolLookup");
             stepActivity?.SetTag("workflow.direct_metric_lookup", true);
+            stepActivity?.SetTag("workflow.direct_metric_followup", isDirectMetricFollowup);
 
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
@@ -480,13 +485,54 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return false;
         }
 
-        return ContainsAny(normalized,
+        return ContainsDirectMetricTerm(normalized);
+    }
+
+    private static bool IsDirectMetricLookupFollowup(string message, string enrichedMessage)
+    {
+        if (string.IsNullOrWhiteSpace(message) ||
+            string.Equals(message, enrichedMessage, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var normalizedMessage = NormalizeForIntent(message);
+        if (ContainsAny(normalizedMessage,
+                "تحلیل", "بررسی", "ارزیابی", "چطوره", "ارزنده",
+                "analysis", "analyze", "review", "opinion",
+                " زیر ", " بالای ", " بیشتر از ", " کمتر از ", "فیلتر", "غربال",
+                "screen", "filter", "below", "above", "greater than", "less than"))
+        {
+            return false;
+        }
+
+        if (!LooksLikeShortSymbolOrCompanyReply(message))
+            return false;
+
+        return ContainsDirectMetricTerm(NormalizeForIntent(enrichedMessage));
+    }
+
+    private static bool LooksLikeShortSymbolOrCompanyReply(string message)
+    {
+        var trimmed = message.Trim();
+        if (trimmed.Length is < 2 or > 48)
+            return false;
+
+        var words = trimmed
+            .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+
+        return words.Length <= 4;
+    }
+
+    private static bool ContainsDirectMetricTerm(string normalized) =>
+        ContainsAny(normalized,
             "فروش ماهانه", "آخرین فروش", "مبلغ فروش", "فروش آخرین ماه", "فروش ماه",
             "فروش ytd", "متوسط فروش 12 ماهه", "متوسط فروش ۱۲ ماهه",
             "میانگین فروش 12 ماهه", "میانگین فروش ۱۲ ماهه",
-            "تولید ماهانه", "مقدار تولید", "p/e", "pe ", " p e", "p/s", "ps ", "eps",
+            "تولید ماهانه", "مقدار تولید", "p/e", "pe ", " p e",
+            "نسبت پی به ای", "پی به ای", "نسبت قیمت به سود", "قیمت به سود",
+            "p/s", "ps ", "eps",
             "roe", "roa", "نسبت جاری", "حاشیه سود", "ارزش بازار");
-    }
 
     private static string NormalizeForIntent(string value) =>
         $" {value.Replace('ي', 'ی').Replace('ك', 'ک').Trim().ToLowerInvariant()} ";

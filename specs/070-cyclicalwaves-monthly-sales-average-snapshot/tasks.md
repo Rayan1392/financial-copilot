@@ -23,9 +23,13 @@ Requirements:
   message is a latest/monthly sales question.
 * Detect CyclicalWaves monthly sales rows from persisted `DerivedMetrics` evidence.
 * For default latest/monthly sales questions, display:
-  `فروش ماهانه`, `متوسط فروش ۱۲ ماهه`, `فروش YTD`, `فروش YTD تا ماه قبل`.
+  `نماد`, `شرکت`, `فروش ماهانه`, `متوسط فروش ۱۲ ماهه`, `فروش YTD`, `فروش YTD تا ماه قبل`.
 * For explicit same-month previous-period/year questions, display:
-  `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`, `فروش YTD تا ماه قبل`.
+  `نماد`, `شرکت`, `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`, `فروش YTD تا ماه قبل`.
+* Keep monthly production/sales answers compact and focused on operational metrics. This applies to
+  latest/monthly sales, production quantity, and grouped production/sales report questions.
+* Do not include market quote columns (`آخرین قیمت`, `درصد تغییر آخرین قیمت`, `LATEST_PRICE`,
+  `DAILY_CHANGE_PCT`) in monthly production/sales responses.
 * Keep Noavaran default behavior unchanged.
 
 Acceptance:
@@ -33,7 +37,12 @@ Acceptance:
 * CyclicalWaves defaults to `AVG_12M_MONTHLY_SALES`.
 * Noavaran defaults to prior fiscal-year same-month sales.
 * Explicit same-period requests do not use the average metric.
-* Latest-sales questions do not render `REVENUE`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`.
+* Default latest-sales questions do not render `REVENUE`, `فروش ماه مشابه دوره قبل`,
+  `آخرین قیمت`, `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`.
+* Explicit same-month previous-year questions may render `فروش ماه مشابه دوره قبل`, but still do
+  not render market quote columns.
+* Production/sales report questions such as `گزارش تولید و فروش کچاد` do not render market quote
+  columns.
 
 ## Task 3 - Display Values and Labels
 
@@ -58,25 +67,33 @@ Requirements:
 * Keep frontend localization to `واحد: میلیون ریال` as small muted table metadata.
 * Suppress LLM-generated prose, clarification suggestions, fallback text, and false missing-data
   narratives when monthly-sales table values exist.
-* Omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
+* Omit market quote columns from monthly production/sales responses: `آخرین قیمت`,
+  `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, and `DAILY_CHANGE_PCT`.
 
 Acceptance:
 
 * The table remains the main answer.
 * Persian users do not see raw `Unit: million Rials`.
+* Market quote columns remain available for valuation, screening, price, ratio, and market-statistic
+  questions; they are not removed globally.
 
 ## Task 5 - Automated Tests
 
 Add focused regression tests:
 
-* CyclicalWaves default query `آخرین فروش کچاد چقدر بوده؟` contains
-  `متوسط فروش ۱۲ ماهه` and does not contain `فروش ماه مشابه دوره قبل`.
+* Default sales question `آخرین فروش کچاد چقدر بوده؟` renders table columns `نماد`, `شرکت`,
+  `فروش ماهانه`, `متوسط فروش ۱۲ ماهه`, `فروش YTD`, and `فروش YTD تا ماه قبل`.
+* Default sales question `آخرین فروش کچاد چقدر بوده؟` does not render `آخرین قیمت`,
+  `درصد تغییر آخرین قیمت`, or `فروش ماه مشابه دوره قبل`.
 * Alias-routing regression proves the same query resolves to monthly-sales snapshot even when the
   parser emits generic `فروش`.
-* Regression proves the default table does not contain `REVENUE`, `آخرین قیمت`, or
-  `تغییر روزانه %`.
-* CyclicalWaves explicit query `فروش ماه مشابه دوره قبل کچاد چقدر بوده؟` contains
-  `فروش ماه مشابه دوره قبل` and does not contain `متوسط فروش ۱۲ ماهه`.
+* Regression proves the default table does not contain `REVENUE`, `LATEST_PRICE`, or
+  `DAILY_CHANGE_PCT`.
+* CyclicalWaves explicit query `فروش ماه مشابه سال قبل کچاد چقدر بوده؟` may contain
+  `فروش ماه مشابه دوره قبل`, does not contain `متوسط فروش ۱۲ ماهه`, and does not render market quote
+  columns.
+* Production/sales report query `گزارش تولید و فروش کچاد` renders a production/sales-focused table
+  only and does not render market quote columns.
 * Unit conversion divides `AVG_12M_MONTHLY_SALES` by 1,000,000.
 * Missing prior-year same-month rows remain Missing/null and do not fall back to
   `AVG_12M_MONTHLY_SALES`.

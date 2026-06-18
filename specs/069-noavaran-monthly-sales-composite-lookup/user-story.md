@@ -118,7 +118,10 @@ quantities, and non-sales metrics keep their existing display units. Whole displ
 
 Monthly production/sales lookup responses must omit market-price context. When the user asks for
 latest sales, monthly sales, sales quantity/rate, monthly production, or the Noavaran composite
-monthly-sales snapshot, the response must not include `LATEST_PRICE` or `DAILY_CHANGE_PCT`.
+monthly-sales snapshot, the response must not include `LATEST_PRICE`, `DAILY_CHANGE_PCT`,
+`آخرین قیمت`, or `درصد تغییر آخرین قیمت`. This rule is specific to production/sales answers and
+does not remove market quote columns from valuation, screening, price, ratio, or market-statistic
+questions.
 
 For a monthly-sales snapshot with at least one non-missing monetary sales cell, every final
 user-visible narrative or composed text field must be either empty/null or exactly:
@@ -148,7 +151,8 @@ Tests must verify:
 * Noavaran monthly-sales table values are rendered in million Rials with a unit note;
 * the Noavaran default table contains `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`,
   and `فروش YTD تا ماه قبل`;
-* monthly production/sales lookup tables do not include latest price or daily price-change columns;
+* monthly production/sales lookup tables do not include latest price or daily price-change columns
+  (`آخرین قیمت`, `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, `DAILY_CHANGE_PCT`);
 * monthly sales monetary formatted values do not include redundant `.00` decimal suffixes;
 * monthly-sales snapshot narrative fields in the actual API/chat DTOs are empty/null or exactly the
   unit note when data is present;

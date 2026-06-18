@@ -108,7 +108,8 @@ Requirements:
 
 * Display sales monetary values in million Rials.
 * Include backend compatibility unit note `Unit: million Rials`.
-* Omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
+* Omit market quote columns from monthly production/sales responses: `آخرین قیمت`,
+  `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, and `DAILY_CHANGE_PCT`.
 * Suppress all LLM-generated prose when the monthly-sales table has any non-missing value.
 * Persisted conversation message content and structured `AssistantContent` payload obey the same
   no-extra-prose rule when the conversation is reloaded.
@@ -134,7 +135,8 @@ Add or maintain:
 * composite response tests;
 * display-unit tests for million-Rial sales rendering and unit-note output;
 * API-boundary tests proving monthly production/sales lookup responses do not include latest price
-  or daily price change;
+  or daily price-change columns (`آخرین قیمت`, `درصد تغییر آخرین قیمت`, `LATEST_PRICE`,
+  `DAILY_CHANGE_PCT`);
 * API-boundary tests proving monthly-sales snapshot query response and reloaded chat DTO narrative
   fields contain only the unit note, or are empty/null, when data exists;
 * regression test for `آخرین فروش کچاد؟` proving the rendered table exists, sales values are in

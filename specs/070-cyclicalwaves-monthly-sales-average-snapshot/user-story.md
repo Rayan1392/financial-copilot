@@ -79,6 +79,30 @@ CyclicalWaves default mode columns:
 `GenericMetricRenderer` owns PE, PS, EPS, explicit `REVENUE`, net profit, margins, price metrics,
 and other non-monthly point lookups. It must not render monthly-sales snapshot responses.
 
+## Production/Sales Market Context Rule
+
+For all AI answers related to monthly production and sales, including but not limited to:
+
+* `آخرین فروش کچاد چقدر بوده؟`
+* `فروش ماهانه کچاد`
+* `گزارش تولید و فروش کچاد`
+* `تولید و فروش ماهانه کچاد`
+* `فروش کچاد در آخرین ماه`
+* `فروش اردیبهشت کچاد`
+* `تولید کچاد چقدر بوده؟`
+
+the response table must stay compact and focused on identity plus production/sales metrics. It
+must not include market quote columns:
+
+* `آخرین قیمت`
+* `درصد تغییر آخرین قیمت`
+* `LATEST_PRICE`
+* `DAILY_CHANGE_PCT`
+
+This rule is general for monthly production/sales answers across providers. It does not remove quote
+columns globally: price, valuation, screening, ratio, and market-statistic questions may still show
+market quote context when relevant.
+
 ## Acceptance Criteria
 
 ### Alias Routing
@@ -98,6 +122,8 @@ monthly-sales snapshot route.
 
 For general/latest CyclicalWaves sales questions, the table columns are:
 
+* نماد
+* شرکت
 * فروش ماهانه
 * متوسط فروش ۱۲ ماهه
 * فروش YTD
@@ -114,6 +140,12 @@ Mappings:
 
 `AVG_12M_MONTHLY_SALES` is stored in canonical Rials in `DerivedMetrics`; in this table it is
 displayed in million Rials by dividing by 1,000,000.
+
+Default CyclicalWaves sales questions must not show:
+
+* فروش ماه مشابه دوره قبل
+* آخرین قیمت
+* درصد تغییر آخرین قیمت
 
 The internal metric code `AVG_12M_MONTHLY_SALES` must never appear in UI labels, API display names,
 table headers, generated text, or Persian-facing assistant output. The mandatory Persian display
@@ -138,6 +170,8 @@ the table replaces the average column with:
 
 In this explicit mode, the table columns are:
 
+* نماد
+* شرکت
 * فروش ماهانه
 * فروش ماه مشابه دوره قبل
 * فروش YTD
@@ -148,6 +182,16 @@ The previous-period value is calculated from persisted `MONTHLY_SALES` rows by f
 month. Missing prior-year rows render Missing/null.
 
 `AVG_12M_MONTHLY_SALES` must not be used as a substitute in explicit same-period requests.
+
+Explicit same-month previous-period/year questions may show `فروش ماه مشابه دوره قبل`, but still
+must not show `آخرین قیمت`, `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`.
+
+### Production And Sales Report Layout
+
+For production/sales report questions such as `گزارش تولید و فروش کچاد` or
+`تولید و فروش ماهانه کچاد`, the table must remain production/sales-focused only. It may include
+identity columns and relevant production/sales metrics, but it must not include market quote
+columns.
 
 ### Rendering
 
@@ -165,16 +209,20 @@ The response remains table-only with unit metadata:
 Tests must prove:
 
 * `آخرین فروش`, `فروش ماهانه`, and `فروش کچاد` resolve to `MONTHLY_SALES`, not `REVENUE`.
-* `آخرین فروش کچاد چقدر بوده؟` with CyclicalWaves rows uses `متوسط فروش ۱۲ ماهه`.
-* The CyclicalWaves regression table does not contain `REVENUE`, `آخرین قیمت`, or
-  `تغییر روزانه %`.
+* Default query `آخرین فروش کچاد چقدر بوده؟` with CyclicalWaves rows renders exactly the compact
+  sales table: `نماد`, `شرکت`, `فروش ماهانه`, `متوسط فروش ۱۲ ماهه`, `فروش YTD`, and
+  `فروش YTD تا ماه قبل`.
+* The default CyclicalWaves regression table does not contain `REVENUE`, `آخرین قیمت`,
+  `درصد تغییر آخرین قیمت`, `LATEST_PRICE`, or `DAILY_CHANGE_PCT`.
 * The default CyclicalWaves table does not include `فروش ماه مشابه دوره قبل`.
 * `AVG_12M_MONTHLY_SALES` values are divided by 1,000,000 for display.
-* `فروش ماه مشابه دوره قبل کچاد چقدر بوده؟` uses the prior-period layout and does not include
-  `متوسط فروش ۱۲ ماهه`.
+* `فروش ماه مشابه سال قبل کچاد چقدر بوده؟` uses the prior-period layout, may include
+  `فروش ماه مشابه دوره قبل`, and does not include market quote columns.
 * Missing prior-year same-month rows render Missing/null and do not fall back to average sales.
 * API response display names never contain `AVG_12M_MONTHLY_SALES`, `Average 12 Month Sales`, or
   `Average 12-Month Monthly Sales`.
+* `گزارش تولید و فروش کچاد` renders a production/sales-focused table only and does not include
+  market quote columns.
 * Noavaran monthly-sales behavior from spec 069 remains unchanged.
 * `درآمد فصلی کچاد` resolves to `REVENUE` and the generic metric renderer.
 * If the LLM rewrites `آخرین فروش کچاد چقدر بوده؟` as `REVENUE کچاد`, `MONTHLY_SALES` still wins.

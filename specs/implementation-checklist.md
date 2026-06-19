@@ -364,6 +364,8 @@ affected data is re-ingested from source providers after deployment.
 
 | [x] | 71 | [071](./071-cyclicalwaves-derivedmetrics-full-snapshot-persistence/user-story.md) / [tasks](./071-cyclicalwaves-derivedmetrics-full-snapshot-persistence/tasks.md) | CyclicalWaves DerivedMetrics Full Snapshot Persistence | Depends on 020, 006, 068, 070. CyclicalWaves-only persistence fix: all supported ticker endpoint sales, profit, margin, monthly, and valuation snapshots must be recalculated into `DerivedMetrics` with CyclicalWaves/Rials passthrough evidence; Noavaran monthly activity behavior and unit normalization remain unchanged. |
 
+| [ ] | 72 | [072](./072-centralize-financial-metric-alias-and-intent-routing-registry/user-story.md) / [tasks](./072-centralize-financial-metric-alias-and-intent-routing-registry/tasks.md) | Centralize Financial Metric Alias and Intent Routing Registry | Depends on 020, 047, 057, 070, 071. Centralize Persian/English metric aliases, direct intent phrases, and routing capabilities into one canonical registry so workflow phrase gates, deterministic parser fallbacks, prompt trigger lists, and dynamic alias resolution stop duplicating metric vocabulary across separate hard-coded layers. |
+
 
 ## Supersession Notes
 

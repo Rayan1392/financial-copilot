@@ -53,7 +53,9 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
         var metricColumns = table.Columns
             .Where(c => c.ColumnType is ScannerColumnType.Metric
-                or ScannerColumnType.MarketCap)
+                or ScannerColumnType.MarketCap
+                or ScannerColumnType.LatestPrice
+                or ScannerColumnType.DailyChangePercent)
             .ToList();
 
         if (table.Rows.Count == 0)
@@ -73,7 +75,31 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 : UnavailableLookupSentence(persian, requested);
         }
 
-        // Multiple symbols, or multiple metrics: prose must not state a single value. Defer to the table.
+        if (table.Rows.Count == 1 &&
+            TryGetRequestedPrimaryColumn(table, metricColumns, out var requestedColumn))
+        {
+            var requestedMetricCode = requestedColumn.MetricCode ?? requestedColumn.Identifier;
+            var requestedMetricDisplay = displayNames.ResolveDisplayName(requestedMetricCode, persian);
+            var requestedRow = table.Rows.First();
+            var requestedSymbol = requestedRow.SymbolCode;
+
+            if (!requestedRow.Cells.TryGetValue(requestedColumn.Identifier, out var requestedCell)
+                || requestedCell.FreshnessStatus == CellFreshnessStatus.Missing
+                || string.IsNullOrWhiteSpace(requestedCell.FormattedValue))
+            {
+                return UnavailableSentence(persian, requestedSymbol, requestedMetricDisplay);
+            }
+
+            return WithUnitNote(table, ValueSentence(
+                persian,
+                requestedSymbol,
+                requestedMetricCode,
+                requestedMetricDisplay,
+                requestedCell.FormattedValue!));
+        }
+
+        // Multiple symbols, or multiple metrics without a known requested primary metric:
+        // prose must not state a single value. Defer to the table.
         if (table.Rows.Count > 1 || metricColumns.Count != 1)
             return WithUnitNote(table, MultiResultSentence(persian));
 
@@ -91,18 +117,32 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             return UnavailableSentence(persian, symbol, metricDisplay);
         }
 
-        return WithUnitNote(table, ValueSentence(persian, symbol, metricDisplay, cell.FormattedValue!));
+        return WithUnitNote(table, ValueSentence(persian, symbol, metricCode, metricDisplay, cell.FormattedValue!));
     }
 
-    private static string ValueSentence(bool persian, string symbol, string metricDisplay, string formattedValue) =>
+    private static string ValueSentence(
+        bool persian,
+        string symbol,
+        string metricCode,
+        string metricDisplay,
+        string formattedValue) =>
         persian
-            ? $"{MetricDisplayForPersianSentence(metricDisplay)} نماد {symbol} برابر است با {formattedValue}."
+            ? $"{MetricDisplayForPersianSentence(metricCode, metricDisplay)} نماد {symbol} برابر است با {formattedValue}."
             : $"The {metricDisplay} of {symbol} is {formattedValue}.";
 
-    private static string MetricDisplayForPersianSentence(string metricDisplay) =>
+    private static string MetricDisplayForPersianSentence(string metricCode, string metricDisplay) =>
         metricDisplay.StartsWith("نسبت", StringComparison.OrdinalIgnoreCase)
             ? metricDisplay
-            : $"نسبت {metricDisplay}";
+            : ShouldPrefixRatioLabel(metricCode)
+                ? $"نسبت {metricDisplay}"
+                : metricDisplay;
+
+    private static bool ShouldPrefixRatioLabel(string metricCode) =>
+        string.Equals(metricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(metricCode, "PS_TTM", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(metricCode, "CURRENT_RATIO", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(metricCode, "QUICK_RATIO", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(metricCode, "DEBT_TO_EQUITY", StringComparison.OrdinalIgnoreCase);
 
     private static string UnavailableSentence(bool persian, string symbol, string metricDisplay) =>
         persian
@@ -174,6 +214,24 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         column = default!;
         cell = default!;
         return false;
+    }
+
+    private static bool TryGetRequestedPrimaryColumn(
+        SymbolLookupTableResult table,
+        IReadOnlyCollection<ScannerTableColumn> metricColumns,
+        out ScannerTableColumn column)
+    {
+        var requestedCodes = (table.RequestedMetricCodes ?? [])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (requestedCodes.Count == 0)
+        {
+            column = default!;
+            return false;
+        }
+
+        column = metricColumns.FirstOrDefault(candidate =>
+            requestedCodes.Contains(candidate.MetricCode ?? candidate.Identifier))!;
+        return column is not null;
     }
 
     private static bool TryGetAvailableCell(
@@ -415,7 +473,9 @@ public sealed class AnswerConsistencyValidator(
     {
         var metricColumns = columns
             .Where(c => c.ColumnType is ScannerColumnType.Metric
-                or ScannerColumnType.LatestPrice or ScannerColumnType.MarketCap)
+                or ScannerColumnType.LatestPrice
+                or ScannerColumnType.DailyChangePercent
+                or ScannerColumnType.MarketCap)
             .ToList();
 
         var values = new List<AuthoritativeMetricValue>();

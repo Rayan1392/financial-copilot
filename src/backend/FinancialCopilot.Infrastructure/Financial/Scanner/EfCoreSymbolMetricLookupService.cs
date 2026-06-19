@@ -203,7 +203,8 @@ public sealed class EfCoreSymbolMetricLookupService(
                 PageSize: Math.Max(1, rows.Count),
                 TotalPages: 1),
             BuildMissingDataWarnings(rows, displayMetricCodes),
-            unresolvedSymbols);
+            unresolvedSymbols,
+            uniqueMetricCodes);
     }
 
     private static IReadOnlyCollection<string> ExpandDisplayMetricCodes(
@@ -616,7 +617,8 @@ public sealed class EfCoreSymbolMetricLookupService(
                 PageSize: 1,
                 TotalPages: 1),
             [],
-            unresolvedSymbols);
+            unresolvedSymbols,
+            metricCodes.ToList());
     }
 
     private static MarketQuoteObservation? ResolveQuoteForCompany(

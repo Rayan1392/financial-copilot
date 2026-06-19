@@ -44,6 +44,23 @@ public sealed class LlmSymbolLookupParser(
         "فروش"
     ];
 
+    private static readonly string[] DirectDailyChangeTerms =
+    [
+        "درصد تغییر قیمت",
+        "درصد تغییر روزانه",
+        "تغییر روزانه درصدی",
+        "تغییر قیمت",
+        "تغییر روزانه"
+    ];
+
+    private static readonly string[] DirectPriceTerms =
+    [
+        "آخرین قیمت",
+        "قیمت امروز",
+        "قیمت پایانی",
+        "قیمت"
+    ];
+
     private static readonly string[] DirectLookupNoiseTerms =
     [
         "؟",
@@ -240,6 +257,7 @@ public sealed class LlmSymbolLookupParser(
 
     private static SymbolLookupParsedPair? TryParseDirectLookup(string userMessage) =>
         TryParseDirectPeLookup(userMessage) ??
+        TryParseDirectPriceLookup(userMessage) ??
         TryParseDirectMonthlySalesLookup(userMessage);
 
     private static SymbolLookupParsedPair? TryParseDirectPeLookup(string userMessage)
@@ -320,6 +338,56 @@ public sealed class LlmSymbolLookupParser(
         return symbolName.Length == 0
             ? null
             : new SymbolLookupParsedPair(symbolName, new MetricCode(resolvedMetricCode), metricTerm);
+    }
+
+    private static SymbolLookupParsedPair? TryParseDirectPriceLookup(string userMessage)
+    {
+        var normalized = NormalizePersianText(userMessage)
+            .Replace('\u200c', ' ')
+            .Replace('\u200d', ' ');
+
+        if (DirectPeTerms.Any(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        var dailyChangeTerm = DirectDailyChangeTerms
+            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (dailyChangeTerm is not null)
+        {
+            var symbolName = StripDirectLookupTerms(normalized, DirectDailyChangeTerms);
+            return symbolName.Length == 0
+                ? null
+                : new SymbolLookupParsedPair(symbolName, new MetricCode("DAILY_CHANGE_PCT"), dailyChangeTerm);
+        }
+
+        var priceTerm = DirectPriceTerms
+            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (priceTerm is null)
+        {
+            return null;
+        }
+
+        var strippedSymbolName = StripDirectLookupTerms(normalized, DirectPriceTerms);
+        return strippedSymbolName.Length == 0
+            ? null
+            : new SymbolLookupParsedPair(strippedSymbolName, new MetricCode("LATEST_PRICE"), priceTerm);
+    }
+
+    private static string StripDirectLookupTerms(string userMessage, IEnumerable<string> metricTerms)
+    {
+        var symbolName = userMessage;
+        foreach (var term in metricTerms)
+        {
+            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var noise in DirectLookupNoiseTerms)
+        {
+            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return CollapseWhitespace(symbolName);
     }
 
     private void EmitLearningSignal(

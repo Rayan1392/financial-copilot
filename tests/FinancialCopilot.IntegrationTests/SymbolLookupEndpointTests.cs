@@ -1108,13 +1108,16 @@ public sealed class CyclicalWavesMonthlySalesLookupTests : IClassFixture<Cyclica
             .Select(c => c.GetProperty("identifier").GetString())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Contains("MONTHLY_SALES", columnIds);
         Assert.Contains("AVG_12M_MONTHLY_SALES", columnIds);
-        Assert.Contains("MONTHLY_SALES_YTD", columnIds);
-        Assert.Contains("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columnIds);
+        Assert.DoesNotContain("MONTHLY_SALES", columnIds);
+        Assert.DoesNotContain("MONTHLY_SALES_YTD", columnIds);
+        Assert.DoesNotContain("MONTHLY_SALES_YTD_PREVIOUS_MONTH", columnIds);
         Assert.DoesNotContain("REVENUE", columnIds);
         Assert.DoesNotContain("LATEST_PRICE", columnIds);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
+
+        Assert.Equal("متوسط فروش ۱۲ ماهه", GetColumnDisplayName(columns, "AVG_12M_MONTHLY_SALES"));
+        AssertNoForbiddenAverageSalesDisplayLabels(columns);
 
         var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
         var cells = row.GetProperty("cells");

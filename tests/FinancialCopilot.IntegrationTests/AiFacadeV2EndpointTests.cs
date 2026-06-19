@@ -115,6 +115,69 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         Assert.Equal("v1", confidence.GetProperty("policyVersion").GetString());
     }
 
+    [Theory]
+    [InlineData("آخرین قیمت کگل؟", "کگل", "2,110")]
+    [InlineData("آخرین قیمت کچاد؟", "کچاد", "26,350")]
+    [InlineData("قیمت امروز کگل؟", "کگل", "2,110")]
+    [InlineData("قیمت پایانی کچاد؟", "کچاد", "26,350")]
+    public async Task V2AiQuery_DirectPriceQuestion_UsesDirectSymbolLookupRoute(
+        string message,
+        string expectedSymbol,
+        string expectedFormattedValue)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
+        Assert.Equal(expectedFormattedValue, row.GetProperty("cells").GetProperty("LATEST_PRICE").GetProperty("formattedValue").GetString());
+        Assert.NotEqual("Missing", row.GetProperty("cells").GetProperty("LATEST_PRICE").GetProperty("freshnessStatus").GetString());
+        Assert.Contains(expectedFormattedValue, root.GetProperty("textAnswer").GetString());
+    }
+
+    [Theory]
+    [InlineData("تغییر قیمت کگل؟", "کگل", "+1.25%")]
+    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "+1.25%")]
+    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "+1.25%")]
+    public async Task V2AiQuery_DirectDailyChangeQuestion_UsesDirectSymbolLookupRoute(
+        string message,
+        string expectedSymbol,
+        string expectedFormattedValue)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
+        Assert.Equal(expectedFormattedValue, row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT").GetProperty("formattedValue").GetString());
+        Assert.NotEqual("Missing", row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT").GetProperty("freshnessStatus").GetString());
+        Assert.Contains(expectedFormattedValue, root.GetProperty("textAnswer").GetString());
+    }
+
     [Fact]
     public async Task V2AiQuery_DirectYtdFollowup_UsesPreviousConversationSymbol()
     {
@@ -710,6 +773,44 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         {
             Id = Guid.NewGuid(),
             ExternalCompanyId = "kchad-v2-001",
+            MetricCode = "LATEST_PRICE",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "LATEST_PRICE_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 26350m,
+            Unit = "Price",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kchad-v2-001",
+            MetricCode = "DAILY_CHANGE_PCT",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 1.15m,
+            Unit = "Percent",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kchad-v2-001",
             MetricCode = "MONTHLY_SALES_YTD",
             MetricVersion = "v1",
             CalculationPolicyVersion = "monthly-sales-ytd-source-v1",
@@ -766,6 +867,44 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
+            ExternalCompanyId = "kgol-v2-001",
+            MetricCode = "LATEST_PRICE",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "LATEST_PRICE_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 2110m,
+            Unit = "Price",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kgol-v2-001",
+            MetricCode = "DAILY_CHANGE_PCT",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 1.25m,
+            Unit = "Percent",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
             ExternalCompanyId = "shpna-v2-001",
             MetricCode = "PE_TTM",
             MetricVersion = "v1",
@@ -785,6 +924,44 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
             Id = Guid.NewGuid(),
+            ExternalCompanyId = "shpna-v2-001",
+            MetricCode = "LATEST_PRICE",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "LATEST_PRICE_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 8120m,
+            Unit = "Price",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "shpna-v2-001",
+            MetricCode = "DAILY_CHANGE_PCT",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 0.88m,
+            Unit = "Percent",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
             ExternalCompanyId = "shbandar-v2-001",
             MetricCode = "PE_TTM",
             MetricVersion = "v1",
@@ -794,6 +971,44 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             PeriodEnd = periodEnd,
             Value = 5.06m,
             Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "shbandar-v2-001",
+            MetricCode = "LATEST_PRICE",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "LATEST_PRICE_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 7340m,
+            Unit = "Price",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "shbandar-v2-001",
+            MetricCode = "DAILY_CHANGE_PCT",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "DAILY_CHANGE_PCT_v1",
+            PeriodType = "TrailingTwelveMonths",
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = 0.35m,
+            Unit = "Percent",
             ObservedAt = now,
             LastSynchronizedAt = now,
             WarningsJson = "[]",
@@ -1282,7 +1497,22 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
                                             ? "\u0634\u0628\u0646\u062f\u0631"
                                             : "\u062d\u0641\u0627\u0631\u06cc";
 
-        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"\u0646\u0633\u0628\u062a \u067e\u06cc \u0628\u0647 \u0627\u06cc"}],"clarificationRequired":false,"clarificationMessage":null}""";
+        var metricTerm =
+            userMessage.Contains("\u062f\u0631\u0635\u062f \u062a\u063a\u06cc\u06cc\u0631 \u0642\u06cc\u0645\u062a", StringComparison.OrdinalIgnoreCase)
+            || userMessage.Contains("\u062f\u0631\u0635\u062f \u062a\u063a\u06cc\u06cc\u0631 \u0631\u0648\u0632\u0627\u0646\u0647", StringComparison.OrdinalIgnoreCase)
+            || userMessage.Contains("\u062a\u063a\u06cc\u06cc\u0631 \u0631\u0648\u0632\u0627\u0646\u0647", StringComparison.OrdinalIgnoreCase)
+            || userMessage.Contains("\u062a\u063a\u06cc\u06cc\u0631 \u0642\u06cc\u0645\u062a", StringComparison.OrdinalIgnoreCase)
+                ? "\u062f\u0631\u0635\u062f \u062a\u063a\u06cc\u06cc\u0631 \u0642\u06cc\u0645\u062a"
+                : userMessage.Contains("\u0622\u062e\u0631\u06cc\u0646 \u0642\u06cc\u0645\u062a", StringComparison.OrdinalIgnoreCase)
+                  || userMessage.Contains("\u0642\u06cc\u0645\u062a \u0627\u0645\u0631\u0648\u0632", StringComparison.OrdinalIgnoreCase)
+                  || userMessage.Contains("\u0642\u06cc\u0645\u062a \u067e\u0627\u06cc\u0627\u0646\u06cc", StringComparison.OrdinalIgnoreCase)
+                  || (userMessage.Contains("\u0642\u06cc\u0645\u062a", StringComparison.OrdinalIgnoreCase)
+                      && !userMessage.Contains("\u0642\u06cc\u0645\u062a \u0628\u0647 \u0633\u0648\u062f", StringComparison.OrdinalIgnoreCase)
+                      && !userMessage.Contains("\u0646\u0633\u0628\u062a \u0642\u06cc\u0645\u062a \u0628\u0647 \u0633\u0648\u062f", StringComparison.OrdinalIgnoreCase))
+                    ? "\u0622\u062e\u0631\u06cc\u0646 \u0642\u06cc\u0645\u062a"
+                    : "\u0646\u0633\u0628\u062a \u067e\u06cc \u0628\u0647 \u0627\u06cc";
+
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"{{metricTerm}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
     }
 }
 

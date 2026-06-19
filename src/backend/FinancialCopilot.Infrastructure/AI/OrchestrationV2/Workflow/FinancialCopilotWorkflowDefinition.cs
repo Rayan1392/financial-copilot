@@ -533,7 +533,50 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             "تولید ماهانه", "مقدار تولید", "p/e", "pe ", " p e",
             "نسبت پی به ای", "پی به ای", "نسبت قیمت به سود", "قیمت به سود",
             "p/s", "ps ", "eps",
-            "roe", "roa", "نسبت جاری", "حاشیه سود", "ارزش بازار");
+            "roe", "roa", "نسبت جاری", "حاشیه سود", "ارزش بازار")
+        || ContainsDirectQuoteMetricTerm(normalized);
+
+    private static bool ContainsDirectQuoteMetricTerm(string normalized)
+    {
+        if (ContainsAny(normalized,
+                "نسبت قیمت به سود", "قیمت به سود", "price to earnings", "price-to-earnings", "p/e", "pe "))
+        {
+            return false;
+        }
+
+        return ContainsAny(normalized,
+            "آخرین قیمت",
+            "قیمت امروز",
+            "قیمت پایانی",
+            "تغییر قیمت",
+            "درصد تغییر قیمت",
+            "درصد تغییر روزانه",
+            "تغییر روزانه درصدی",
+            "تغییر روزانه",
+            " latest price ",
+            " last price ",
+            " closing price ",
+            " daily change ",
+            " daily change percent ",
+            " daily change pct ",
+            " change percent ")
+            || HasStandalonePriceToken(normalized);
+    }
+
+    private static bool HasStandalonePriceToken(string normalized)
+    {
+        if (!normalized.Contains("قیمت", StringComparison.OrdinalIgnoreCase) &&
+            !normalized.Contains(" price ", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !ContainsAny(normalized,
+            "قیمت به سود",
+            "نسبت قیمت به سود",
+            "price to earnings",
+            "price-to-earnings");
+    }
 
     private static string NormalizeForIntent(string value) =>
         $" {value.Replace('ي', 'ی').Replace('ك', 'ک').Trim().ToLowerInvariant()} ";
@@ -656,8 +699,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         FINANCIAL METRIC INTENT → call lookup_symbol_metrics ONLY (never query_comprehensive_analysis):
           Triggers: any specific metric name alongside a symbol — P/E, P/S, EPS, فروش, درآمد, سود خالص,
-                    حاشیه سود, ارزش بازار, تولید ماهانه, نسبت جاری, ROE, ROA, MONTHLY_SALES
-          Examples: "P/E شغدیر", "EPS فملی", "فروش ماهانه شغدیر", "تولید ماهانه کگل", "ROE کگل"
+                    حاشیه سود, ارزش بازار, تولید ماهانه, نسبت جاری, ROE, ROA, MONTHLY_SALES,
+                    آخرین قیمت, قیمت امروز, قیمت پایانی, تغییر قیمت, درصد تغییر قیمت
+          Examples: "P/E شغدیر", "EPS فملی", "فروش ماهانه شغدیر", "تولید ماهانه کگل", "ROE کگل",
+                    "آخرین قیمت کگل", "قیمت امروز کچاد", "درصد تغییر قیمت کگل"
           Action: call lookup_symbol_metrics ONLY. Do NOT call query_comprehensive_analysis.
           Return the metric value directly. Do NOT summarize analyst reports.
 

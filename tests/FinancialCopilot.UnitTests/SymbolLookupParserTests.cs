@@ -173,6 +173,54 @@ public sealed class SymbolLookupParserTests
         Assert.Equal("PE_TTM", result.Pairs.First().ResolvedMetricCode?.Value);
     }
 
+    [Theory]
+    [InlineData("آخرین قیمت کچاد؟", "کچاد", "LATEST_PRICE", "آخرین قیمت")]
+    [InlineData("قیمت کگل؟", "کگل", "LATEST_PRICE", "قیمت")]
+    [InlineData("قیمت امروز کچاد؟", "کچاد", "LATEST_PRICE", "قیمت امروز")]
+    [InlineData("قیمت پایانی کگل؟", "کگل", "LATEST_PRICE", "قیمت پایانی")]
+    [InlineData("تغییر قیمت کگل؟", "کگل", "DAILY_CHANGE_PCT", "تغییر قیمت")]
+    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "DAILY_CHANGE_PCT", "درصد تغییر قیمت")]
+    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "DAILY_CHANGE_PCT", "درصد تغییر روزانه")]
+    public async Task Parser_DirectQuoteQuestion_WhenLlmReturnsNoPairs_UsesDeterministicFallback(
+        string userMessage,
+        string expectedSymbolName,
+        string expectedMetricCode,
+        string expectedMetricTerm)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJson("I could not extract symbol/metric pairs.");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", "corr-direct-quote-fallback", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        var pair = Assert.Single(result.Pairs);
+        Assert.Equal(expectedSymbolName, pair.RawSymbolName);
+        Assert.Equal(expectedMetricCode, pair.ResolvedMetricCode?.Value);
+        Assert.Equal(expectedMetricTerm, pair.OriginalMetricTerm, ignoreCase: true);
+    }
+
+    [Theory]
+    [InlineData("نسبت قیمت به سود کگل؟")]
+    [InlineData("قیمت به سود کگل؟")]
+    public async Task Parser_PePhraseContainingPrice_DoesNotResolveAsDirectPrice(string userMessage)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJson("I could not extract symbol/metric pairs.");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", "corr-direct-pe-protection", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        var pair = Assert.Single(result.Pairs);
+        Assert.Equal("کگل", pair.RawSymbolName);
+        Assert.Equal("PE_TTM", pair.ResolvedMetricCode?.Value);
+    }
+
     [Fact]
     public async Task Parser_MultipleSymbolsOnePair_ReturnsBothPairs()
     {

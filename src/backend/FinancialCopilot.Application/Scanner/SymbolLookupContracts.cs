@@ -55,7 +55,8 @@ public sealed record SymbolLookupTableResult(
     IReadOnlyCollection<ScannerTableRow> Rows,
     ScannerExecutionFacts ExecutionFacts,
     IReadOnlyCollection<string> MissingDataWarnings,
-    IReadOnlyCollection<string> UnresolvedSymbols);
+    IReadOnlyCollection<string> UnresolvedSymbols,
+    IReadOnlyCollection<string>? RequestedMetricCodes = null);
 
 public interface ISymbolLookupParser
 {

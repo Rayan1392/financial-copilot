@@ -77,6 +77,159 @@ public sealed class SymbolLookupToolAdapterTests
         Assert.Equal("PE_TTM", pair.MetricCode.Value);
     }
 
+    // ── Rule 1: explicit symbol in current message wins ──────────────────────────────────────────
+    // Second query names كچاد explicitly; شگل from prior turn must not appear in parser input.
+    [Fact]
+    public async Task LookupAsync_ExplicitSymbolInCurrentMessage_DoesNotMergeWithPriorSymbol()
+    {
+        var parser = new RecordingSymbolLookupParser(new SymbolLookupParseResult(
+            [new SymbolLookupParsedPair("کچاد", new MetricCode("LATEST_PRICE"), "آخرین قیمت")],
+            LookupParseStatus.Parsed));
+        var lookup = new RecordingSymbolMetricLookupService();
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+
+        const string enrichedContext = """
+            [Recent conversation]
+            User: آخرین قیمت شگل
+            Assistant: Found metric data for 1 symbol(s).
+            ---
+            آخرین قیمت کچاد
+            """;
+
+        await adapter.LookupAsync(
+            "آخرین قیمت کچاد",
+            "corr-rule1",
+            TenantId,
+            ActorId,
+            CancellationToken.None,
+            queryTextForLookup: enrichedContext);
+
+        // Parser must receive only the current message — no شگل bleed-through
+        Assert.Equal("آخرین قیمت کچاد", parser.LastMessage);
+        Assert.DoesNotContain("شگل", parser.LastMessage);
+
+        Assert.NotNull(lookup.LastRequest);
+        var pair = Assert.Single(lookup.LastRequest!.Pairs);
+        Assert.Equal("کچاد", pair.SymbolName);
+        Assert.Equal("LATEST_PRICE", pair.MetricCode.Value);
+    }
+
+    // ── Rule 2: implicit follow-up uses prior symbol as fallback ─────────────────────────────────
+    // "pe چقدره؟" has no entity → prior turn شگل must be merged in for the parser.
+    [Fact]
+    public async Task LookupAsync_ImplicitFollowup_UsesConversationContextSymbol()
+    {
+        var parser = new RecordingSymbolLookupParser(new SymbolLookupParseResult(
+            [new SymbolLookupParsedPair("شگل", new MetricCode("PE_TTM"), "pe")],
+            LookupParseStatus.Parsed));
+        var lookup = new RecordingSymbolMetricLookupService();
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+
+        const string enrichedContext = """
+            [Recent conversation]
+            User: آخرین قیمت شگل
+            Assistant: Found metric data for 1 symbol(s).
+            ---
+            pe چقدره؟
+            """;
+
+        await adapter.LookupAsync(
+            "pe چقدره؟",
+            "corr-rule2",
+            TenantId,
+            ActorId,
+            CancellationToken.None,
+            queryTextForLookup: enrichedContext);
+
+        // Parser must receive the merged string containing prior symbol so it can resolve شگل
+        Assert.Contains("شگل", parser.LastMessage);
+        Assert.Contains("pe", parser.LastMessage, StringComparison.OrdinalIgnoreCase);
+
+        Assert.NotNull(lookup.LastRequest);
+        var pair = Assert.Single(lookup.LastRequest!.Pairs);
+        Assert.Equal("شگل", pair.SymbolName);
+        Assert.Equal("PE_TTM", pair.MetricCode.Value);
+    }
+
+    // ── Rule 4: new explicit symbol replaces active subject ──────────────────────────────────────
+    // Third query "pe چقدره؟" must resolve to کچاد (the latest explicit subject), not شگل.
+    [Fact]
+    public async Task LookupAsync_ThirdQueryImplicit_ResolvesToLatestExplicitSubject()
+    {
+        var parser = new RecordingSymbolLookupParser(new SymbolLookupParseResult(
+            [new SymbolLookupParsedPair("کچاد", new MetricCode("PE_TTM"), "pe")],
+            LookupParseStatus.Parsed));
+        var lookup = new RecordingSymbolMetricLookupService();
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+
+        // enrichedMessage contains both turns; the most-recent User turn is كچاد
+        const string enrichedContext = """
+            [Recent conversation]
+            User: آخرین قیمت شگل
+            Assistant: Found metric data for 1 symbol(s).
+            User: آخرین قیمت کچاد
+            Assistant: Found metric data for 1 symbol(s).
+            ---
+            pe چقدره؟
+            """;
+
+        await adapter.LookupAsync(
+            "pe چقدره؟",
+            "corr-rule4",
+            TenantId,
+            ActorId,
+            CancellationToken.None,
+            queryTextForLookup: enrichedContext);
+
+        // Merged parser input must contain the most-recent prior turn (کچاد), not شگل
+        Assert.Contains("کچاد", parser.LastMessage);
+        Assert.DoesNotContain("شگل", parser.LastMessage);
+
+        Assert.NotNull(lookup.LastRequest);
+        var pair = Assert.Single(lookup.LastRequest!.Pairs);
+        Assert.Equal("کچاد", pair.SymbolName);
+        Assert.Equal("PE_TTM", pair.MetricCode.Value);
+    }
+
+    // ── Rule 5: no rolling window — multiple explicit symbols stay exact ─────────────────────────
+    // Query names both کگل and کچاد; exactly those two must reach the parser, nothing from history.
+    [Fact]
+    public async Task LookupAsync_MultipleExplicitSymbols_NoHistorySymbolsInjected()
+    {
+        var parser = new RecordingSymbolLookupParser(new SymbolLookupParseResult(
+            [
+                new SymbolLookupParsedPair("کگل", new MetricCode("LATEST_PRICE"), "آخرین قیمت"),
+                new SymbolLookupParsedPair("کچاد", new MetricCode("LATEST_PRICE"), "آخرین قیمت"),
+            ],
+            LookupParseStatus.Parsed));
+        var lookup = new RecordingSymbolMetricLookupService();
+        var adapter = new SymbolLookupToolAdapter(parser, lookup, TimeProvider.System);
+
+        const string enrichedContext = """
+            [Recent conversation]
+            User: آخرین قیمت شگل
+            Assistant: Found metric data for 1 symbol(s).
+            ---
+            آخرین قیمت کگل و کچاد
+            """;
+
+        await adapter.LookupAsync(
+            "آخرین قیمت کگل و کچاد",
+            "corr-rule5",
+            TenantId,
+            ActorId,
+            CancellationToken.None,
+            queryTextForLookup: enrichedContext);
+
+        Assert.Equal("آخرین قیمت کگل و کچاد", parser.LastMessage);
+        Assert.DoesNotContain("شگل", parser.LastMessage);
+
+        Assert.NotNull(lookup.LastRequest);
+        Assert.Equal(2, lookup.LastRequest!.Pairs.Count);
+        Assert.Contains(lookup.LastRequest.Pairs, p => p.SymbolName == "کگل");
+        Assert.Contains(lookup.LastRequest.Pairs, p => p.SymbolName == "کچاد");
+    }
+
     private sealed class RecordingSymbolLookupParser(SymbolLookupParseResult result) : ISymbolLookupParser
     {
         public string LastMessage { get; private set; } = string.Empty;

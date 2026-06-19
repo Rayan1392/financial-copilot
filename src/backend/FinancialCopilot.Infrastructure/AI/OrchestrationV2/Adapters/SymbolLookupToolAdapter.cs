@@ -126,6 +126,17 @@ internal sealed class SymbolLookupToolAdapter(
         if (string.IsNullOrWhiteSpace(priorUserTurn))
             return cleanLatest;
 
+        // A message is self-contained when it carries BOTH a symbol/company entity AND an
+        // explicit metric term.  Such messages must never be merged with a prior turn because
+        // doing so injects previous symbols into the parser (e.g. "آخرین قیمت شگل" + "آخرین قیمت کچاد"
+        // → both symbols appear in the lookup table).
+        //
+        // Merge is only appropriate for incomplete messages:
+        //   • metric-only reply ("pe چقدره؟")  → no entity → prepend prior symbol
+        //   • entity-only reply ("چادرملو")    → no metric → prepend prior metric context
+        if (HasEntityCandidate(cleanLatest) && HasDirectMetricTerm(cleanLatest))
+            return cleanLatest;
+
         return LooksLikeEntityOnlyReply(cleanLatest) || !HasEntityCandidate(cleanLatest)
             ? CollapseWhitespace($"{priorUserTurn} {cleanLatest}")
             : cleanLatest;
@@ -156,7 +167,45 @@ internal sealed class SymbolLookupToolAdapter(
             candidate = candidate.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
         }
 
-        return CollapseWhitespace(candidate).Length > 0;
+        // Require at least 2 characters so lone noise remnants (e.g. "ه", "ر") don't
+        // masquerade as entity candidates after stripping.
+        return CollapseWhitespace(candidate).Length > 1;
+    }
+
+    // Returns true when the message contains at least one recognisable metric term so the
+    // parser can resolve it without needing prior-turn context.
+    private static bool HasDirectMetricTerm(string text)
+    {
+        var normalized = text;
+        foreach (var noise in new[]
+                 {
+                     "چقدر است", "چقدر هست", "چقدر بوده", "چقدر", "است", "هست", "بوده",
+                     "برابر است", "برابر", "?", "؟"
+                 })
+        {
+            normalized = normalized.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        normalized = CollapseWhitespace(normalized).ToLowerInvariant();
+
+        return normalized.Contains("آخرین قیمت", StringComparison.Ordinal) ||
+               normalized.Contains("قیمت امروز", StringComparison.Ordinal) ||
+               normalized.Contains("قیمت پایانی", StringComparison.Ordinal) ||
+               normalized.Contains("تغییر قیمت", StringComparison.Ordinal) ||
+               normalized.Contains("درصد تغییر", StringComparison.Ordinal) ||
+               normalized.Contains("تغییر روزانه", StringComparison.Ordinal) ||
+               normalized.Contains("نسبت پی به ای", StringComparison.Ordinal) ||
+               normalized.Contains("پی به ای", StringComparison.Ordinal) ||
+               normalized.Contains("نسبت قیمت به سود", StringComparison.Ordinal) ||
+               normalized.Contains("قیمت به سود", StringComparison.Ordinal) ||
+               normalized.Contains("p/e", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("pe ", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("فروش ytd", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("متوسط فروش", StringComparison.Ordinal) ||
+               normalized.Contains("میانگین فروش", StringComparison.Ordinal) ||
+               normalized.Contains("فروش ماهانه", StringComparison.Ordinal) ||
+               normalized.Contains("آخرین فروش", StringComparison.Ordinal) ||
+               normalized.Contains("مبلغ فروش", StringComparison.Ordinal);
     }
 
     private static string ExtractLatestUserMessage(string message)

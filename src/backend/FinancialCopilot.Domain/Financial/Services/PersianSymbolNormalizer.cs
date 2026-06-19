@@ -22,7 +22,8 @@ public static class PersianSymbolNormalizer
 
     /// <summary>
     /// Returns the normalized form of <paramref name="input"/>:
-    /// trimmed, stripped of invisible characters, Arabic Ye/Kaf mapped to Persian.
+    /// trimmed, stripped of invisible characters, Arabic Ye/Kaf mapped to Persian,
+    /// and compacted so spacing/punctuation variants normalize to the same lookup key.
     /// Returns an empty string for null or whitespace-only input.
     /// </summary>
     public static string Normalize(string? input)
@@ -41,12 +42,19 @@ public static class PersianSymbolNormalizer
                 continue;
             }
 
-            result.Append(ch switch
+            var mapped = ch switch
             {
                 'ي' => 'ی', // Arabic Ye (ي) → Persian Ye (ی)
                 'ك' => 'ک', // Arabic Kaf (ك) → Persian Kaf (ک)
                 _ => ch
-            });
+            };
+
+            if (char.IsWhiteSpace(mapped) || char.IsPunctuation(mapped) || char.IsSeparator(mapped))
+            {
+                continue;
+            }
+
+            result.Append(mapped);
         }
 
         return result.ToString();

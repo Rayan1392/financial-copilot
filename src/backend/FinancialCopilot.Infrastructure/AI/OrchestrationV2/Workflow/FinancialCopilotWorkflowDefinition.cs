@@ -255,12 +255,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         {
             var queryTextForLookup = isDirectMetricLookup ? request.Message : msg.EnrichedMessage;
             lookupResult = await lookupAdapter.LookupAsync(
-                msg.EnrichedMessage,
+                request.Message,
                 request.CorrelationId,
                 request.TenantId,
                 request.ActorId,
                 ct,
-                queryTextForLookup: queryTextForLookup);
+                queryTextForLookup: queryTextForLookup,
+                parserContextMessage: msg.EnrichedMessage);
 
             var directCompletionStatus = lookupResult.CompletionStatus;
             UsageAccountingResult? directUsage = null;

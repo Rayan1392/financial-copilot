@@ -212,4 +212,46 @@ public sealed class CompanyResolverServiceTests
 
         Assert.Null(result);
     }
+
+    [Theory]
+    [InlineData("گل گهر")]
+    [InlineData("گلگهر")]
+    public async Task ResolveBySymbolAsync_CompanyNameSpacingVariant_Resolves(string input)
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(MakeCompany(
+            "12",
+            ticker: "کگل",
+            tseSymbol: "کگل",
+            companySymbol: "کگل",
+            name: "معدنی و صنعتی گل گهر"));
+        await db.SaveChangesAsync();
+
+        var svc = new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance);
+        var result = await svc.ResolveBySymbolAsync(input);
+
+        Assert.NotNull(result);
+        Assert.Equal("12", result.ExternalCompanyId);
+        Assert.Equal("کگل", result.TseSymbol);
+    }
+
+    [Fact]
+    public async Task ResolveBySymbolAsync_CompanyNameIgnoresPunctuation_Resolves()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(MakeCompany(
+            "13",
+            ticker: "فولاد",
+            tseSymbol: "فولاد",
+            companySymbol: "فولاد",
+            name: "فولاد مبارکه اصفهان"));
+        await db.SaveChangesAsync();
+
+        var svc = new CompanyResolverService(db, NullLogger<CompanyResolverService>.Instance);
+        var result = await svc.ResolveBySymbolAsync("فولاد-مبارکه، اصفهان");
+
+        Assert.NotNull(result);
+        Assert.Equal("13", result.ExternalCompanyId);
+        Assert.Equal("فولاد", result.TseSymbol);
+    }
 }

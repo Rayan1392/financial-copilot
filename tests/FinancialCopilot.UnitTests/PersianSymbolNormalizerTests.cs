@@ -89,4 +89,21 @@ public sealed class PersianSymbolNormalizerTests
         var result = PersianSymbolNormalizer.Normalize(polluted);
         Assert.Equal("شغدیر", result);
     }
+
+    [Fact]
+    public void Normalize_SpacingVariants_CollapseToSameKey()
+    {
+        var separated = PersianSymbolNormalizer.Normalize("گل گهر");
+        var joined = PersianSymbolNormalizer.Normalize("گلگهر");
+
+        Assert.Equal("گلگهر", separated);
+        Assert.Equal(joined, separated);
+    }
+
+    [Fact]
+    public void Normalize_PunctuationAndExtraSpaces_AreIgnored()
+    {
+        var result = PersianSymbolNormalizer.Normalize("  فولاد-مبارکه،   اصفهان؟ ");
+        Assert.Equal("فولادمبارکهاصفهان", result);
+    }
 }

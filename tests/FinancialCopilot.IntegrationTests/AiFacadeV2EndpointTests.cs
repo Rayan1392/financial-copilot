@@ -83,6 +83,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     {
         _factory = factory;
         factory.EnsureSeeded();
+        factory.Fake.Reset();
     }
 
     [Fact]
@@ -122,7 +123,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         using var firstResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "ÙØ±ÙˆØ´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ú©Ú†Ø§Ø¯ØŸ" },
+            new { message = "\u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u0686\u0627\u062f\u061f" },
             CancellationToken.None);
         using var firstDocument = await ReadJsonAsync(firstResponse);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
@@ -130,7 +131,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         using var followupResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "ÙØ±ÙˆØ´ YTD Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ", conversationId },
+            new { message = "\u0641\u0631\u0648\u0634 YTD \u0686\u0642\u062f\u0631 \u0628\u0648\u062f\u0647\u061f", conversationId },
             CancellationToken.None);
         using var followupDocument = await ReadJsonAsync(followupResponse);
 
@@ -157,7 +158,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         using var firstResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "ÙØ±ÙˆØ´ YTD Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ" },
+            new { message = "\u0641\u0631\u0648\u0634 YTD \u0686\u0642\u062f\u0631 \u0628\u0648\u062f\u0647\u061f" },
             CancellationToken.None);
         using var firstDocument = await ReadJsonAsync(firstResponse);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
@@ -165,7 +166,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         using var followupResponse = await client.PostAsJsonAsync(
             "/api/ai/v1/query",
-            new { message = "Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", conversationId },
+            new { message = "\u0686\u0627\u062f\u0631\u0645\u0644\u0648", conversationId },
             CancellationToken.None);
         using var followupDocument = await ReadJsonAsync(followupResponse);
 
@@ -183,6 +184,61 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         var cells = row.GetProperty("cells");
         Assert.Equal("787,016,400", cells.GetProperty("MONTHLY_SALES_YTD").GetProperty("formattedValue").GetString());
         Assert.True(root.GetProperty("confidenceScore").GetProperty("score").GetDouble() > 0);
+    }
+
+    [Theory]
+    [InlineData("\u067e\u06cc \u0628\u0647 \u0627\u06cc \u06af\u0644 \u06af\u0647\u0631", "\u06a9\u06af\u0644", "4.12")]
+    [InlineData("\u067e\u06cc \u0628\u0647 \u0627\u06cc \u06af\u0644\u06af\u0647\u0631", "\u06a9\u06af\u0644", "4.12")]
+    public async Task V2AiQuery_PeCompanyNameSpacingVariant_ResolvesToKgol(
+        string message,
+        string expectedSymbol,
+        string expectedFormattedValue)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
+        Assert.Equal(expectedFormattedValue, row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ExplicitPeFollowup_UsesLatestUserMessageAsParserInput()
+    {
+        _factory.Fake.Reset();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u0686\u0627\u062f\u0631\u0645\u0644\u0648\u061f" },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        var conversationId = (await ReadJsonAsync(firstResponse)).RootElement.GetProperty("conversationId").GetGuid();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "pe \u06a9\u0686\u0627\u062f", conversationId },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("pe \u06a9\u0686\u0627\u062f", _factory.Fake.LastParserUserMessage);
+        Assert.DoesNotContain("[Recent conversation]", _factory.Fake.LastParserUserMessage);
+        Assert.DoesNotContain("Assistant", _factory.Fake.LastParserUserMessage);
+        Assert.DoesNotContain("User", _factory.Fake.LastParserUserMessage);
+
+        var row = Assert.Single(document.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal("\u06a9\u0686\u0627\u062f", row.GetProperty("symbolCode").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -277,6 +333,28 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         var textAnswer = root.GetProperty("textAnswer").GetString();
         Assert.Contains(expectedFormattedValue, textAnswer);
         Assert.DoesNotContain("Found metric data for 0 symbol(s). 1 unresolved.", textAnswer);
+    }
+
+    [Theory]
+    [InlineData("\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u06af\u0644 \u06af\u0647\u0631\u061f")]
+    [InlineData("\u0622\u062e\u0631\u06cc\u0646 \u0641\u0631\u0648\u0634 \u06af\u0644\u06af\u0647\u0631\u061f")]
+    public async Task V2AiQuery_DirectMonthlySalesKgolCompanyName_ResolvesToKgol(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal("\u06a9\u06af\u0644", row.GetProperty("symbolCode").GetString());
+        Assert.Equal("\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0644 \u06af\u0647\u0631", row.GetProperty("companyName").GetString());
+        Assert.Equal("61,234,567", row.GetProperty("cells").GetProperty("MONTHLY_SALES").GetProperty("formattedValue").GetString());
     }
 
     [Fact]
@@ -384,33 +462,49 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
     private static void SeedLookupData(FinancialIngestionDbContext db)
     {
         var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
-        db.Companies.Add(new NormalizedCompanyRow
-        {
-            Id = Guid.Parse("52000000-0000-0000-0000-000000000001"),
-            Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u0686\u0627\u062f\u0631\u0645\u0644\u0648",
-            ProviderName = "CyclicalWaves",
-            ExternalCompanyId = "3",
-            CompanySymbol = "\u06a9\u0686\u0627\u062f",
-            TseSymbol = "\u06a9\u0686\u0627\u062f",
-            LastSynchronizedAt = now
-        });
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("52000000-0000-0000-0000-000000000001"),
+                Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u0686\u0627\u062f\u0631\u0645\u0644\u0648",
+                ProviderName = "CyclicalWaves",
+                ExternalCompanyId = "3",
+                CompanySymbol = "\u06a9\u0686\u0627\u062f",
+                TseSymbol = "\u06a9\u0686\u0627\u062f",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("52000000-0000-0000-0000-000000000002"),
+                Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0644 \u06af\u0647\u0631",
+                ProviderName = "CyclicalWaves",
+                ExternalCompanyId = "5",
+                CompanySymbol = "\u06a9\u06af\u0644",
+                TseSymbol = "\u06a9\u06af\u0644",
+                LastSynchronizedAt = now
+            });
 
         db.DerivedMetrics.AddRange(
             MonthlyMetric("MONTHLY_SALES", "monthly-sales-source-v1", 90_879_722_000_000m, now),
             MonthlyMetric("AVG_12M_MONTHLY_SALES", "avg-12m-monthly-sales-source-v1", 57_549_287_000_000m, now),
             MonthlyMetric("MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1", 787_016_400_000_000m, now),
-            MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 605_344_668_000_000m, now));
+            MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 605_344_668_000_000m, now),
+            MonthlyMetric("MONTHLY_SALES", "monthly-sales-source-v1", 61_234_567_000_000m, now, externalCompanyId: "5"),
+            MonthlyMetric("AVG_12M_MONTHLY_SALES", "avg-12m-monthly-sales-source-v1", 48_765_432_000_000m, now, externalCompanyId: "5"),
+            MonthlyMetric("MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1", 512_345_678_000_000m, now, externalCompanyId: "5"),
+            MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 430_123_456_000_000m, now, externalCompanyId: "5"));
     }
 
     private static DerivedMetricRow MonthlyMetric(
         string metricCode,
         string policyVersion,
         decimal value,
-        DateTimeOffset now) =>
+        DateTimeOffset now,
+        string externalCompanyId = "3") =>
         new()
         {
             Id = Guid.NewGuid(),
-            ExternalCompanyId = "3",
+            ExternalCompanyId = externalCompanyId,
             MetricCode = metricCode,
             MetricVersion = "v1",
             CalculationPolicyVersion = policyVersion,
@@ -517,10 +611,10 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyHafariId,
-            Name = "Ø­ÙØ§Ø±ÛŒ Ø´Ù…Ø§Ù„",
+            Name = "\u062d\u0641\u0627\u0631\u06cc \u0634\u0645\u0627\u0644",
             ProviderName = "test",
             ExternalCompanyId = "hafari-v2-001",
-            Ticker = "Ø­ÙØ§Ø±ÛŒ",
+            Ticker = "\u062d\u0641\u0627\u0631\u06cc",
             TseSymbol = "HAF_TSE",
             CompanySymbol = "HAFARI",
             LastSynchronizedAt = now
@@ -529,48 +623,48 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyKchadId,
-            Name = "Ù…Ø¹Ø¯Ù†ÛŒ Ùˆ ØµÙ†Ø¹ØªÛŒ Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ",
+            Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u0686\u0627\u062f\u0631\u0645\u0644\u0648",
             ProviderName = "test",
             ExternalCompanyId = "kchad-v2-001",
-            Ticker = "Ú©Ú†Ø§Ø¯",
-            TseSymbol = "Ú©Ú†Ø§Ø¯",
-            CompanySymbol = "Ú©Ú†Ø§Ø¯",
+            Ticker = "\u06a9\u0686\u0627\u062f",
+            TseSymbol = "\u06a9\u0686\u0627\u062f",
+            CompanySymbol = "\u06a9\u0686\u0627\u062f",
             LastSynchronizedAt = now
         });
 
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyKgolId,
-            Name = "Ù…Ø¹Ø¯Ù†ÛŒ Ùˆ ØµÙ†Ø¹ØªÛŒ Ú¯Ù„ Ú¯Ù‡Ø±",
+            Name = "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0644 \u06af\u0647\u0631",
             ProviderName = "test",
             ExternalCompanyId = "kgol-v2-001",
-            Ticker = "Ú©Ú¯Ù„",
-            TseSymbol = "Ú©Ú¯Ù„",
-            CompanySymbol = "Ú©Ú¯Ù„",
+            Ticker = "\u06a9\u06af\u0644",
+            TseSymbol = "\u06a9\u06af\u0644",
+            CompanySymbol = "\u06a9\u06af\u0644",
             LastSynchronizedAt = now
         });
 
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyShpnaId,
-            Name = "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†",
+            Name = "\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0627\u0635\u0641\u0647\u0627\u0646",
             ProviderName = "test",
             ExternalCompanyId = "shpna-v2-001",
-            Ticker = "Ø´Ù¾Ù†Ø§",
-            TseSymbol = "Ø´Ù¾Ù†Ø§",
-            CompanySymbol = "Ø´Ù¾Ù†Ø§",
+            Ticker = "\u0634\u067e\u0646\u0627",
+            TseSymbol = "\u0634\u067e\u0646\u0627",
+            CompanySymbol = "\u0634\u067e\u0646\u0627",
             LastSynchronizedAt = now
         });
 
         db.Companies.Add(new NormalizedCompanyRow
         {
             Id = companyShbandarId,
-            Name = "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³",
+            Name = "\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0628\u0646\u062f\u0631\u0639\u0628\u0627\u0633",
             ProviderName = "test",
             ExternalCompanyId = "shbandar-v2-001",
-            Ticker = "Ø´Ø¨Ù†Ø¯Ø±",
-            TseSymbol = "Ø´Ø¨Ù†Ø¯Ø±",
-            CompanySymbol = "Ø´Ø¨Ù†Ø¯Ø±",
+            Ticker = "\u0634\u0628\u0646\u062f\u0631",
+            TseSymbol = "\u0634\u0628\u0646\u062f\u0631",
+            CompanySymbol = "\u0634\u0628\u0646\u062f\u0631",
             LastSynchronizedAt = now
         });
 
@@ -605,6 +699,44 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             PeriodEnd = periodEnd,
             Value = 9.73m,
             Unit = "Ratio",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kchad-v2-001",
+            MetricCode = "MONTHLY_SALES_YTD",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "monthly-sales-ytd-source-v1",
+            PeriodType = "Monthly",
+            PeriodStart = new DateOnly(2026, 5, 1),
+            PeriodEnd = new DateOnly(2026, 5, 31),
+            Value = 787_016_400_000_000m,
+            Unit = "Amount",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[]",
+            DependencyEvidenceJson = "[]"
+        });
+
+        db.DerivedMetrics.Add(new DerivedMetricRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = "kchad-v2-001",
+            MetricCode = "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
+            MetricVersion = "v1",
+            CalculationPolicyVersion = "monthly-sales-ytd-previous-month-source-v1",
+            PeriodType = "Monthly",
+            PeriodStart = new DateOnly(2026, 5, 1),
+            PeriodEnd = new DateOnly(2026, 5, 31),
+            Value = 605_344_668_000_000m,
+            Unit = "Amount",
             ObservedAt = now,
             LastSynchronizedAt = now,
             WarningsJson = "[]",
@@ -911,6 +1043,12 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
                 ? "\u0686\u0627\u062f\u0631\u0645\u0644\u0648"
                 : userMessage.Contains("\u06a9\u0686\u0627\u062f", StringComparison.OrdinalIgnoreCase)
                     ? "\u06a9\u0686\u0627\u062f"
+                    : userMessage.Contains("\u06af\u0644 \u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)
+                        ? "\u06af\u0644 \u06af\u0647\u0631"
+                        : userMessage.Contains("\u06af\u0644\u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)
+                            ? "\u06af\u0644\u06af\u0647\u0631"
+                            : userMessage.Contains("\u06a9\u06af\u0644", StringComparison.OrdinalIgnoreCase)
+                                ? "\u06a9\u06af\u0644"
                     : userMessage.Contains("\u0646\u0627\u0645\u0648\u062c\u0648\u062f", StringComparison.OrdinalIgnoreCase)
                         ? "\u0646\u0627\u0645\u0648\u062c\u0648\u062f"
                         : null;
@@ -1022,8 +1160,10 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
 {
     private int _outerToolSelectionCalls;
     private int _forceParserClarificationForChadormalu;
+    private string? _lastParserUserMessage;
 
     public int OuterToolSelectionCalls => _outerToolSelectionCalls;
+    public string? LastParserUserMessage => Volatile.Read(ref _lastParserUserMessage);
 
     public AiModelProviderDescriptor Descriptor { get; } = new(
         "V2LookupFake",
@@ -1100,6 +1240,7 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
     {
         Interlocked.Exchange(ref _outerToolSelectionCalls, 0);
         Interlocked.Exchange(ref _forceParserClarificationForChadormalu, 0);
+        Volatile.Write(ref _lastParserUserMessage, null);
     }
 
     public void ForceParserClarificationForChadormalu() =>
@@ -1108,37 +1249,40 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
     private string BuildSymbolLookupParseJson(AiModelRequest request)
     {
         var userMessage = request.Messages.LastOrDefault(m => m.Role == AiMessageRole.User)?.Content ?? string.Empty;
+        Volatile.Write(ref _lastParserUserMessage, userMessage);
         if (Volatile.Read(ref _forceParserClarificationForChadormalu) == 1 &&
-            userMessage.Contains("Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", StringComparison.OrdinalIgnoreCase))
+            userMessage.Contains("\u0686\u0627\u062f\u0631\u0645\u0644\u0648", StringComparison.OrdinalIgnoreCase))
         {
             return JsonSerializer.Serialize(new
             {
                 detectedLanguage = "fa",
                 pairs = Array.Empty<object>(),
                 clarificationRequired = true,
-                clarificationMessage = "Ù„Ø·ÙØ§Ù‹ Ù†Ù…Ø§Ø¯ Ø±Ø§ Ù…Ø´Ø®Øµ Ú©Ù†ÛŒØ¯."
+                clarificationMessage = "\u0644\u0637\u0641\u0627\u064b \u0646\u0645\u0627\u062f \u0631\u0627 \u0645\u0634\u062e\u0635 \u06a9\u0646\u06cc\u062f."
             });
         }
 
-        var symbol = userMessage.Contains("Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ", StringComparison.OrdinalIgnoreCase)
-            ? "Ú†Ø§Ø¯Ø±Ù…Ù„Ùˆ"
-            : userMessage.Contains("Ú©Ú†Ø§Ø¯", StringComparison.OrdinalIgnoreCase)
-                ? "Ú©Ú†Ø§Ø¯"
-                : userMessage.Contains("Ú¯Ù„ Ú¯Ù‡Ø±", StringComparison.OrdinalIgnoreCase)
-                    ? "Ú¯Ù„ Ú¯Ù‡Ø±"
-                    : userMessage.Contains("Ú©Ú¯Ù„", StringComparison.OrdinalIgnoreCase)
-                        ? "Ú©Ú¯Ù„"
-                        : userMessage.Contains("Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†", StringComparison.OrdinalIgnoreCase)
-                            ? "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø§ØµÙÙ‡Ø§Ù†"
-                            : userMessage.Contains("Ø´Ù¾Ù†Ø§", StringComparison.OrdinalIgnoreCase)
-                                ? "Ø´Ù¾Ù†Ø§"
-                                : userMessage.Contains("Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³", StringComparison.OrdinalIgnoreCase)
-                                    ? "Ù¾Ø§Ù„Ø§ÛŒØ´ Ù†ÙØª Ø¨Ù†Ø¯Ø±Ø¹Ø¨Ø§Ø³"
-                                    : userMessage.Contains("Ø´Ø¨Ù†Ø¯Ø±", StringComparison.OrdinalIgnoreCase)
-                                        ? "Ø´Ø¨Ù†Ø¯Ø±"
-                                        : "Ø­ÙØ§Ø±ÛŒ";
+        var symbol = userMessage.Contains("\u0686\u0627\u062f\u0631\u0645\u0644\u0648", StringComparison.OrdinalIgnoreCase)
+            ? "\u0686\u0627\u062f\u0631\u0645\u0644\u0648"
+            : userMessage.Contains("\u06a9\u0686\u0627\u062f", StringComparison.OrdinalIgnoreCase)
+                ? "\u06a9\u0686\u0627\u062f"
+                : userMessage.Contains("\u06af\u0644 \u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)
+                    ? "\u06af\u0644 \u06af\u0647\u0631"
+                    : userMessage.Contains("\u06af\u0644\u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)
+                        ? "\u06af\u0644\u06af\u0647\u0631"
+                        : userMessage.Contains("\u06a9\u06af\u0644", StringComparison.OrdinalIgnoreCase)
+                            ? "\u06a9\u06af\u0644"
+                            : userMessage.Contains("\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0627\u0635\u0641\u0647\u0627\u0646", StringComparison.OrdinalIgnoreCase)
+                                ? "\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0627\u0635\u0641\u0647\u0627\u0646"
+                                : userMessage.Contains("\u0634\u067e\u0646\u0627", StringComparison.OrdinalIgnoreCase)
+                                    ? "\u0634\u067e\u0646\u0627"
+                                    : userMessage.Contains("\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0628\u0646\u062f\u0631\u0639\u0628\u0627\u0633", StringComparison.OrdinalIgnoreCase)
+                                        ? "\u067e\u0627\u0644\u0627\u06cc\u0634 \u0646\u0641\u062a \u0628\u0646\u062f\u0631\u0639\u0628\u0627\u0633"
+                                        : userMessage.Contains("\u0634\u0628\u0646\u062f\u0631", StringComparison.OrdinalIgnoreCase)
+                                            ? "\u0634\u0628\u0646\u062f\u0631"
+                                            : "\u062d\u0641\u0627\u0631\u06cc";
 
-        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"Ù†Ø³Ø¨Øª Ù¾ÛŒ Ø¨Ù‡ Ø§ÛŒ"}],"clarificationRequired":false,"clarificationMessage":null}""";
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"\u0646\u0633\u0628\u062a \u067e\u06cc \u0628\u0647 \u0627\u06cc"}],"clarificationRequired":false,"clarificationMessage":null}""";
     }
 }
 

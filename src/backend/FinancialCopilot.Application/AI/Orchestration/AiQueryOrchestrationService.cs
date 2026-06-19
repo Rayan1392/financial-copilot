@@ -606,15 +606,11 @@ public sealed class AiQueryOrchestrationService(
 
         if (table is not null)
         {
-            // Scanner explanation prose is LLM-authored; ground it against the deterministic table so
-            // a hallucinated metric value can never survive into the persisted answer.
-            var deterministicSummary = IsPersianLanguage(plan?.Language)
-                ? $"اسکنر برای {plan!.Conditions.Count} شرط، {table.Rows.Count} نماد منطبق پیدا کرد."
-                : $"Scanner found {table.Rows.Count} matching symbol(s) for {plan!.Conditions.Count} condition(s).";
-
-            var candidate = explainableAnswer?.ExplanationText ?? deterministicSummary;
+            // Scanner prose must be a short deterministic count summary — never LLM symbol enumeration.
+            // The structured table carries the full results; the prose is one sentence only.
+            // Passing null to ValidateScanner causes it to return ScannerSafeSentence directly.
             return consistencyValidator
-                .ValidateScanner(table, plan!, candidate, consistencyContext)
+                .ValidateScanner(table, plan!, null, consistencyContext)
                 .Answer;
         }
 

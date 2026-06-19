@@ -599,8 +599,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (intent == DetectedIntent.Scanner
             && scannerResult?.Table is not null
             && scannerResult.Plan is not null)
+            // Null candidate forces ValidateScanner to return the deterministic count sentence.
+            // Scanner prose must never enumerate symbols — the table carries the full results.
             return consistencyValidator
-                .ValidateScanner(scannerResult.Table, scannerResult.Plan, candidateProse, context)
+                .ValidateScanner(scannerResult.Table, scannerResult.Plan, null, context)
                 .Answer;
 
         return candidateProse;

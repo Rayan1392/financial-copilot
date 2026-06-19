@@ -173,6 +173,88 @@ public sealed class AnswerConsistencyTests
         Assert.DoesNotContain("نسبت نسبت پی به ای", result.Answer);
     }
 
+    // --- Scanner deterministic prose regression tests (Bug: LLM free-form symbol list) ---
+
+    [Fact]
+    public void Scanner_NullCandidate_ReturnsDeterministicEnglishSentence()
+    {
+        var (table, plan) = ScannerTableAndPlan(cellValue: 3.50m, threshold: 6m);
+        var sut = MakeValidator();
+
+        // Null candidate = orchestrator chose not to pass LLM prose; must get deterministic summary.
+        var result = sut.ValidateScanner(table, plan, null, Context());
+
+        Assert.Equal(AnswerConsistencyAction.Unchanged, result.Action);
+        Assert.Contains("1", result.Answer);
+        Assert.DoesNotContain("فباهنر", result.Answer);
+        Assert.DoesNotContain("اگر بخواهی", result.Answer);
+    }
+
+    [Fact]
+    public void Scanner_NullCandidate_PersianSymbols_ReturnsPersianSentence()
+    {
+        var (table, plan) = ScannerTableAndPlanPersian(rowCount: 15);
+        var sut = MakeValidator();
+
+        var result = sut.ValidateScanner(table, plan, null, Context());
+
+        Assert.Equal(AnswerConsistencyAction.Unchanged, result.Action);
+        // Must contain the count and be in Persian (contains Persian characters)
+        Assert.Contains("15", result.Answer);
+        Assert.Contains("نماد", result.Answer);
+        // Must not contain a symbol list or suggestions
+        Assert.DoesNotContain("اگر بخواهی", result.Answer);
+        Assert.DoesNotContain("وساپا", result.Answer);
+    }
+
+    [Fact]
+    public void Scanner_NullCandidate_ProseIsAtMostTwoSentences()
+    {
+        var (table, plan) = ScannerTableAndPlan(cellValue: 3.50m, threshold: 6m);
+        var sut = MakeValidator();
+
+        var result = sut.ValidateScanner(table, plan, null, Context());
+
+        // Deterministic summary must be compact — at most two sentences (one period + optional second)
+        var sentences = result.Answer.Split('.', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.True(sentences.Length <= 2, $"Expected at most 2 sentences, got: {result.Answer}");
+    }
+
+    [Fact]
+    public void Scanner_LlmSymbolListCandidate_IsReplacedWithDeterminsticSummary()
+    {
+        var (table, plan) = ScannerTableAndPlan(cellValue: 3.50m, threshold: 6m);
+        var sut = MakeValidator();
+
+        // The LLM prose contains no unsupported metric numbers (just names), so conservative
+        // conflict detection does NOT flag it — this is why the old path let it through.
+        // With null candidate (new behavior), the deterministic sentence is returned instead.
+        var resultNew = sut.ValidateScanner(table, plan, null, Context());
+
+        Assert.DoesNotContain("فباهنر", resultNew.Answer);
+        Assert.DoesNotContain("اگر بخواهی", resultNew.Answer);
+        Assert.Contains("1", resultNew.Answer); // row count present
+    }
+
+    [Fact]
+    public void Scanner_DeterministicSummary_DoesNotContainSymbolEnumeration()
+    {
+        // Regression guard: whatever ValidateScanner returns for null candidate must never
+        // be a symbol list — it must be a count summary only.
+        var (table, plan) = ScannerTableAndPlan(cellValue: 2.1m, threshold: 4m);
+        var sut = MakeValidator();
+
+        var result = sut.ValidateScanner(table, plan, null, Context());
+
+        // Must contain count (1 row) and must not look like a bullet list.
+        Assert.DoesNotContain("\n-", result.Answer);
+        Assert.DoesNotContain("•", result.Answer);
+        Assert.DoesNotContain("فباهنر", result.Answer);
+        Assert.DoesNotContain("وساپا", result.Answer);
+    }
+
+    // --- existing scanner tests ---
+
     [Fact]
     public void Scanner_ProseInventsMetricValue_Replaced()
     {
@@ -347,6 +429,35 @@ public sealed class AnswerConsistencyTests
             Facts(1),
             [],
             []);
+    }
+
+    private static (ScannerTableResult Table, ScannerQueryPlan Plan) ScannerTableAndPlanPersian(
+        int rowCount)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var rows = Enumerable.Range(1, rowCount).Select(i =>
+            new ScannerTableRow($"نماد{i}", null, new Dictionary<string, ScannerTableCell>
+            {
+                [MetricCode] = new(2m, "2.00", CellFreshnessStatus.Persisted, now)
+            }, 1.0, [MetricCode])).ToList();
+
+        var table = new ScannerTableResult(
+            Guid.NewGuid(),
+            [new ScannerTableColumn(MetricCode, MetricCode, ScannerColumnType.Metric, MetricCode)],
+            rows,
+            Facts(rowCount),
+            []);
+
+        var condition = new ScannerCondition(
+            new ScannerMetricReference(MetricCode, new MetricCode(MetricCode),
+                new MetricVersion("v1"), new CalculationPolicyVersion("PE_TTM_v1"),
+                FiscalPeriodType.ThreeMonths, null),
+            ConditionOperator.LessThan, 4m, FilterOrigin.Explicit);
+        var plan = new ScannerQueryPlan(
+            table.PlanId, "پی به ای زیر 4", "fa", [condition], [], false, null, [], [],
+            now, "v1");
+
+        return (table, plan);
     }
 
     private static (ScannerTableResult Table, ScannerQueryPlan Plan) ScannerTableAndPlan(

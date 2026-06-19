@@ -55,12 +55,19 @@ public sealed class LlmScannerQueryParser(
         "- For each condition, return the user's ORIGINAL terminology exactly as written — do not translate or resolve metric names.\n" +
         "- Detect the language of the query (e.g. 'en', 'fa').\n" +
         "- Extract any explicit column requests the user made.\n" +
-        "- Set clarificationRequired=true if the query is ambiguous.\n" +
+        "- Set clarificationRequired=true ONLY when a metric term in the query is genuinely ambiguous (e.g. the user wrote a term that matches multiple unrelated metrics).\n" +
+        "- NEVER set clarificationRequired=true because market scope, exchange, or universe is not specified. Omitted scope means the default full universe — do NOT ask which market.\n" +
+        "- NEVER set clarificationRequired=true for a query that contains only clear metric conditions (e.g. PE < 5, PS < 2) even if no market is named.\n" +
+        "- NEVER mention phrases not present in the user's message in the clarificationMessage.\n" +
         "- NEVER add conditions the user did not explicitly request.\n" +
         "- NEVER produce SQL.\n\n" +
         "Operators: GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Equal, NotEqual\n" +
         "GrowthComparison: YearOverYear, QuarterOverQuarter, MonthOverMonth, or null\n" +
         "PeriodHint: Monthly, Quarterly, TTM, LatestQuarter, LatestMonth, or null\n\n" +
+        "Examples of queries that must NOT trigger clarification:\n" +
+        "  'لیست نمادهای با pe کمتر از 5 و ps کمتر از 2' → clarificationRequired=false\n" +
+        "  'نمادهای با پی به ای زیر 4 و پی به اس زیر 1' → clarificationRequired=false\n" +
+        "  'symbols with PE below 5' → clarificationRequired=false\n\n" +
         "Schema: {\"detectedLanguage\":\"en\",\"conditions\":[{\"userTerminology\":\"P/E\",\"language\":\"en\"," +
         "\"operator\":\"LessThan\",\"threshold\":6.0,\"periodHint\":null,\"growthComparison\":null," +
         "\"inferredDefault\":false,\"inferredReason\":null}],\"requestedColumns\":[]," +
@@ -233,6 +240,16 @@ public sealed class LlmScannerQueryParser(
                         MetricResolutionStatus.NotFound, null, request.CorrelationId, cancellationToken);
                     break;
             }
+        }
+
+        // If every metric condition resolved cleanly and there are no unresolved terms,
+        // the LLM must not block the query with a clarification. LLM-originated clarifications
+        // for reasons unrelated to metric resolution (e.g. asking for market scope that was
+        // never mentioned by the user) are suppressed here as a deterministic backstop.
+        if (clarificationRequired && clarificationItems.Count == 0 && conditions.Count > 0)
+        {
+            clarificationRequired = false;
+            clarificationMessage = null;
         }
 
         if (clarificationRequired && clarificationItems.Count > 0 && clarificationMessage is null)

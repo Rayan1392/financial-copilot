@@ -382,6 +382,81 @@ public sealed class ExplainableAnswerBuilderTests
     }
 }
 
+public sealed class LlmScannerExplanationGeneratorBuildUserContentTests
+{
+    private static ScannerExplanationRequest MakeRequest(
+        int totalCount,
+        IReadOnlyCollection<string> pageSymbols,
+        string query = "pe < 5") =>
+        new(query, totalCount, pageSymbols, [], Guid.Empty, "corr");
+
+    [Fact]
+    public void BuildUserContent_AllSymbolsFitOnPage_ListsAllWithoutSampleLabel()
+    {
+        var request = MakeRequest(3, ["A", "B", "C"]);
+
+        var content = LlmScannerExplanationGenerator.BuildUserContent(request);
+
+        Assert.Contains("Found 3 symbol(s): A, B, C", content);
+        Assert.DoesNotContain("page", content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("do not name", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildUserContent_TotalExceedsPage_FramesAsPageSample()
+    {
+        var request = MakeRequest(247, ["خچرخش", "خزر", "دتولید", "شخارک", "غدام"]);
+
+        var content = LlmScannerExplanationGenerator.BuildUserContent(request);
+
+        Assert.Contains("247", content);
+        Assert.Contains("5 symbol(s)", content);
+        Assert.Contains("خچرخش", content);
+        Assert.Contains("do not name", content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Take", content);
+    }
+
+    [Fact]
+    public void BuildUserContent_TotalExceedsPage_ContainsAllPageSymbols()
+    {
+        // Regression: .Take(5) was dropping symbols beyond index 4.
+        // With 8 page symbols, all 8 must appear in the content.
+        var pageSymbols = Enumerable.Range(1, 8).Select(i => $"SYM{i}").ToList();
+        var request = MakeRequest(500, pageSymbols);
+
+        var content = LlmScannerExplanationGenerator.BuildUserContent(request);
+
+        foreach (var sym in pageSymbols)
+            Assert.Contains(sym, content);
+    }
+
+    [Fact]
+    public void BuildUserContent_NoSymbolsOnPage_SaysNoSymbols()
+    {
+        var request = MakeRequest(0, []);
+
+        var content = LlmScannerExplanationGenerator.BuildUserContent(request);
+
+        Assert.Contains("No symbols on this page", content);
+    }
+
+    [Fact]
+    public void BuildUserContent_FiltersAppearInContent()
+    {
+        var chips = new[]
+        {
+            new ConditionFilterChip("PE_TTM", "P/E", "<", "below", 5m, "5", "Explicit", false, null)
+        };
+        var request = new ScannerExplanationRequest("pe < 5", 2, ["A", "B"], chips, Guid.Empty, "corr");
+
+        var content = LlmScannerExplanationGenerator.BuildUserContent(request);
+
+        Assert.Contains("P/E", content);
+        Assert.Contains("below", content);
+        Assert.Contains("5", content);
+    }
+}
+
 // D = shared test data factory used across both test classes in this file
 internal static class D
 {

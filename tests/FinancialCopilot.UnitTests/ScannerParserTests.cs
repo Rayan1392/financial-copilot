@@ -290,6 +290,89 @@ public sealed class ScannerParserTests
         Assert.True(result.Plan.ClarificationRequired);
     }
 
+    // --- Bug 1 regression: market-scope clarification hallucination ---
+
+    [Fact]
+    public async Task Parser_PeAndPsConditions_WhenLlmReturnsClarificationForMarketScope_OverridestoScanner()
+    {
+        // Simulates the bug: LLM returns clarificationRequired=true with a market-scope message
+        // even though both PE_TTM and PS_TTM resolved cleanly. The parser must override this
+        // and return a successful Scanner plan.
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJsonWithConditions(
+            conditions: [("pe", "LessThan", 5m), ("ps", "LessThan", 2m)],
+            language: "fa",
+            clarificationMessage: "در کدام بازار؟");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("لیست نمادهای با pe کمتر از 5 و ps کمتر از 2", "fa", "corr-bug1-1", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Equal(2, result.Plan.Conditions.Count);
+        Assert.Contains(result.Plan.Conditions, c => c.MetricReference.MetricCode.Value == "PE_TTM");
+        Assert.Contains(result.Plan.Conditions, c => c.MetricReference.MetricCode.Value == "PS_TTM");
+    }
+
+    [Fact]
+    public async Task Parser_PeAndPsConditionsPersian_WhenLlmReturnsFalse_ProducesScanner()
+    {
+        // LLM correctly returns clarificationRequired=false — parser must produce a valid Scanner plan.
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJson("نسبت پی به ای", "LessThan", 4m, language: "fa");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("نمادهای با پی به ای زیر 4", "fa", "corr-bug1-2", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Single(result.Plan.Conditions);
+        Assert.Equal("PE_TTM", result.Plan.Conditions.First().MetricReference.MetricCode.Value);
+    }
+
+    [Fact]
+    public async Task Parser_PeOnlyCondition_WhenLlmReturnsFalse_ProducesScanner()
+    {
+        // لیست نمادهای با پی بر ای زیر 4 — single PE condition, no market scope
+        var resolver = BuildAliasResolver();
+        var json = BuildConditionsJson("P/E", "LessThan", 4m);
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("لیست نمادهای با پی بر ای زیر 4", "fa", "corr-bug1-3", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Single(result.Plan.Conditions);
+        Assert.Equal("PE_TTM", result.Plan.Conditions.First().MetricReference.MetricCode.Value);
+    }
+
+    [Fact]
+    public async Task Parser_WhenLlmClarificationMessageMentionsPhraseMissingFromQuery_ClarificationIsOverridden()
+    {
+        // The hallucinated phrase "در بازار" was not in the original query. The parser guard
+        // must suppress this clarification because all metric conditions resolved cleanly.
+        var resolver = BuildAliasResolver();
+        var json = BuildClarificationJsonWithConditions(
+            conditions: [("P/E", "LessThan", 5m)],
+            language: "en",
+            clarificationMessage: "عبارت «در بازار» مبهم است و مشخص نمی‌کند کدام بازار مدنظر است.");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("symbols with PE below 5", "en", "corr-bug1-4", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Null(result.Plan.ClarificationMessage);
+        Assert.Single(result.Plan.Conditions);
+    }
+
     // --- helpers ---
 
     private static LlmScannerQueryParser BuildParser(string llmJson, IMetricAliasResolver resolver)
@@ -301,6 +384,29 @@ public sealed class ScannerParserTests
 
     private static IMetricAliasResolver BuildAliasResolver() =>
         new MetricAliasResolver(new FinancialMetricRegistry(PhaseOneFinancialSemanticCatalog.Definitions, []));
+
+    private static string BuildClarificationJsonWithConditions(
+        IEnumerable<(string terminology, string @operator, decimal threshold)> conditions,
+        string language,
+        string clarificationMessage) =>
+        JsonSerializer.Serialize(new
+        {
+            detectedLanguage = language,
+            conditions = conditions.Select(c => new
+            {
+                userTerminology = c.terminology,
+                language,
+                @operator = c.@operator,
+                threshold = c.threshold,
+                periodHint = (string?)null,
+                growthComparison = (string?)null,
+                inferredDefault = false,
+                inferredReason = (string?)null
+            }).ToArray(),
+            requestedColumns = Array.Empty<string>(),
+            clarificationRequired = true,
+            clarificationMessage
+        });
 
     private static string BuildConditionsJson(
         string terminology,

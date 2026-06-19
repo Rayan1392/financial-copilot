@@ -2,57 +2,81 @@ namespace FinancialCopilot.Application.Scanner;
 
 public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
 {
-    private static readonly IReadOnlyCollection<ScannerTableColumn> DefaultColumns =
+    // Identity columns are always present and cannot be removed or reordered.
+    private static readonly IReadOnlyCollection<ScannerTableColumn> IdentityColumns =
     [
-        new ScannerTableColumn("SYMBOL", "Symbol", ScannerColumnType.Symbol),
-        new ScannerTableColumn("COMPANY", "Company", ScannerColumnType.CompanyName),
-        new ScannerTableColumn("LATEST_PRICE", "Latest Price", ScannerColumnType.LatestPrice),
-        new ScannerTableColumn("DAILY_CHANGE_PCT", "Change %", ScannerColumnType.DailyChangePercent),
-        new ScannerTableColumn("MARKET_CAP", "Market Cap", ScannerColumnType.MarketCap)
+        new ScannerTableColumn("SYMBOL",  "Symbol",  ScannerColumnType.Symbol),
+        new ScannerTableColumn("COMPANY", "Company", ScannerColumnType.CompanyName)
     ];
 
-    private static readonly HashSet<string> StandardColumnTerms = new(
+    // Quote columns are only added when the user explicitly requested them or they
+    // appear as a filter/sort condition. They are never automatic defaults for scanner results.
+    private static readonly IReadOnlyDictionary<string, ScannerTableColumn> QuoteColumnDefinitions =
+        new Dictionary<string, ScannerTableColumn>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LATEST_PRICE"]     = new("LATEST_PRICE",     "Latest Price", ScannerColumnType.LatestPrice),
+            ["DAILY_CHANGE_PCT"] = new("DAILY_CHANGE_PCT", "Change %",     ScannerColumnType.DailyChangePercent),
+            ["MARKET_CAP"]       = new("MARKET_CAP",       "Market Cap",   ScannerColumnType.MarketCap)
+        };
+
+    // Terms that must never become user-facing columns: identity columns already handled
+    // above, and internal LLM output schema field names. Quote column synonyms are NOT
+    // blocked here — they are resolved via QuoteColumnDefinitions when the user requests them.
+    private static readonly HashSet<string> BlockedColumnTerms = new(
         [
-            "symbol",
-            "ticker",
-            "company",
-            "companyname",
-            "latestprice",
-            "price",
-            "latestpricechangepercent",
-            "dailychangepct",
-            "dailychangepercent",
-            "changepercent",
-            "percentchange",
-            "marketcap",
-            "marketcapitalization",
-            "نماد",
-            "نامنماد",
-            "شرکت",
-            "نامشرکت",
-            "قیمت",
-            "آخرینقیمت",
-            "درصدتغییر",
-            "تغییرقیمت",
-            "درصدتغییرآخرینقیمت",
-            "ارزشبازار"
+            // identity — always present; must not be duplicated via RequestedColumns
+            "symbol", "ticker", "company", "companyname",
+            "نماد", "نامنماد", "شرکت", "نامشرکت",
+            // internal LLM output schema field names — must never surface as columns
+            "symbols", "universe", "conditions", "sort", "limit"
         ],
         StringComparer.OrdinalIgnoreCase);
+
+    // Normalized forms of quote column synonyms that the parser may pass in RequestedColumns.
+    // These are resolved to the canonical QuoteColumnDefinitions entry so their ColumnType
+    // is preserved. Without this map, "latest price" would become a generic Metric column.
+    private static readonly IReadOnlyDictionary<string, string> QuoteColumnSynonyms =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["latestprice"]              = "LATEST_PRICE",
+            ["price"]                    = "LATEST_PRICE",
+            ["latestpricechangepercent"] = "DAILY_CHANGE_PCT",
+            ["dailychangepct"]           = "DAILY_CHANGE_PCT",
+            ["dailychangepercent"]       = "DAILY_CHANGE_PCT",
+            ["changepercent"]            = "DAILY_CHANGE_PCT",
+            ["percentchange"]            = "DAILY_CHANGE_PCT",
+            ["marketcap"]                = "MARKET_CAP",
+            ["marketcapitalization"]     = "MARKET_CAP",
+            ["قیمت"]                     = "LATEST_PRICE",
+            ["آخرینقیمت"]               = "LATEST_PRICE",
+            ["درصدتغییر"]               = "DAILY_CHANGE_PCT",
+            ["تغییرقیمت"]               = "DAILY_CHANGE_PCT",
+            ["درصدتغییرآخرینقیمت"]     = "DAILY_CHANGE_PCT",
+            ["ارزشبازار"]               = "MARKET_CAP"
+        };
 
     public IReadOnlyCollection<ScannerTableColumn> BuildColumns(ScannerQueryPlan plan)
     {
         var usePersianLabels = IsPersianLanguage(plan.Language);
-        var columns = DefaultColumns
-            .Select(column => LocalizeDefaultColumn(column, usePersianLabels))
+        var columns = IdentityColumns
+            .Select(col => LocalizeDefaultColumn(col, usePersianLabels))
             .ToList();
         var seen = new HashSet<string>(
-            DefaultColumns.Select(c => c.Identifier),
+            IdentityColumns.Select(c => c.Identifier),
             StringComparer.OrdinalIgnoreCase);
 
+        // Add condition metrics. Quote-column conditions (e.g. MARKET_CAP filter) are added
+        // via QuoteColumnDefinitions so their ColumnType is preserved correctly.
         foreach (var condition in plan.Conditions)
         {
             var code = condition.MetricReference.MetricCode.Value;
-            if (seen.Add(code))
+            if (!seen.Add(code)) continue;
+
+            if (QuoteColumnDefinitions.TryGetValue(code, out var quoteCol))
+            {
+                columns.Add(LocalizeDefaultColumn(quoteCol, usePersianLabels));
+            }
+            else
             {
                 columns.Add(new ScannerTableColumn(
                     code,
@@ -62,23 +86,36 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             }
         }
 
+        // Add explicitly requested columns. Blocked terms (identity, internal schema names)
+        // are skipped. Quote column synonyms are resolved to their canonical identifier and
+        // added via QuoteColumnDefinitions so their ColumnType is preserved correctly.
         var requestedMetricCount = 0;
         foreach (var col in plan.RequestedColumns)
         {
-            if (IsStandardColumnTerm(col.Identifier))
-            {
-                continue;
-            }
+            if (IsBlockedColumnTerm(col.Identifier)) continue;
+            if (requestedMetricCount >= ScannerQueryPlan.MaxDisplayColumns) break;
 
-            if (seen.Add(col.Identifier) && requestedMetricCount < ScannerQueryPlan.MaxDisplayColumns)
+            // Resolve synonym → canonical quote column identifier (e.g. "latest price" → "LATEST_PRICE")
+            var normalized = NormalizeColumnTerm(col.Identifier);
+            var resolvedIdentifier = QuoteColumnSynonyms.TryGetValue(normalized, out var canonical)
+                ? canonical
+                : col.Identifier;
+
+            if (!seen.Add(resolvedIdentifier)) continue;
+
+            if (QuoteColumnDefinitions.TryGetValue(resolvedIdentifier, out var quoteCol))
+            {
+                columns.Add(LocalizeDefaultColumn(quoteCol, usePersianLabels));
+            }
+            else
             {
                 columns.Add(new ScannerTableColumn(
-                    col.Identifier,
-                    FormatMetricDisplayName(col.Identifier, usePersianLabels),
+                    resolvedIdentifier,
+                    FormatMetricDisplayName(resolvedIdentifier, usePersianLabels),
                     ScannerColumnType.Metric,
-                    col.Identifier));
-                requestedMetricCount++;
+                    resolvedIdentifier));
             }
+            requestedMetricCount++;
         }
 
         return columns;
@@ -152,8 +189,8 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
     private static bool IsPersianLanguage(string language) =>
         language.StartsWith("fa", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsStandardColumnTerm(string column) =>
-        StandardColumnTerms.Contains(NormalizeColumnTerm(column));
+    private static bool IsBlockedColumnTerm(string column) =>
+        BlockedColumnTerms.Contains(NormalizeColumnTerm(column));
 
     private static string NormalizeColumnTerm(string term)
     {

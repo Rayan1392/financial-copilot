@@ -31,14 +31,14 @@ public sealed class EfCoreScannerExecutionService(
             .Select(c => c.MetricReference.MetricCode.Value)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Derive display metric codes directly from the column list built by the column policy.
+        // Quote columns (LATEST_PRICE, DAILY_CHANGE_PCT, MARKET_CAP) are loaded only when
+        // the policy included them, which happens only when the user requested them explicitly
+        // or they appear as a filter/sort condition.
         var displayMetricCodes = columns
-            .Where(col => col.ColumnType == ScannerColumnType.Metric && col.MetricCode is not null)
+            .Where(col => col.MetricCode is not null)
             .Select(col => col.MetricCode!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        // Always load MARKET_CAP for the MarketCap column
-        displayMetricCodes.Add("MARKET_CAP");
-        displayMetricCodes.Add("LATEST_PRICE");
 
         var allRequiredCodes = conditionCodes.Union(displayMetricCodes, StringComparer.OrdinalIgnoreCase).ToList();
 
@@ -78,6 +78,7 @@ public sealed class EfCoreScannerExecutionService(
         foreach (var condition in plan.Conditions)
         {
             var code = condition.MetricReference.MetricCode.Value;
+            var isValuationRatio = IsValuationRatioMetric(condition.MetricReference.MetricCode, request.AsOf);
             var passing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var company in companyRows)
@@ -85,7 +86,7 @@ public sealed class EfCoreScannerExecutionService(
                 if (!latestByCompanyMetric.TryGetValue((company.ExternalCompanyId, code), out var row) || row.Value is null)
                     continue;
 
-                if (PassesCondition(row.Value.Value, condition.Operator, condition.Threshold))
+                if (PassesCondition(row.Value.Value, condition.Operator, condition.Threshold, isValuationRatio))
                     passing.Add(company.ExternalCompanyId);
             }
 
@@ -362,8 +363,19 @@ public sealed class EfCoreScannerExecutionService(
             row.ObservedAt);
     }
 
-    private static bool PassesCondition(decimal value, ConditionOperator op, decimal threshold) =>
-        op switch
+    // A stored value of 0 for a valuation ratio (PE, PS, PB, …) means the denominator was
+    // zero/negative or the metric was never computed — not a genuine ratio of zero. Treat it
+    // as missing/invalid and exclude the row from LessThan/LessThanOrEqual screens so that
+    // "PE < 5" does not match companies with no valid earnings.
+    internal static bool PassesCondition(decimal value, ConditionOperator op, decimal threshold, bool isValuationRatio = false)
+    {
+        if (isValuationRatio && value == 0m &&
+            op is ConditionOperator.LessThan or ConditionOperator.LessThanOrEqual)
+        {
+            return false;
+        }
+
+        return op switch
         {
             ConditionOperator.LessThan => value < threshold,
             ConditionOperator.LessThanOrEqual => value <= threshold,
@@ -373,6 +385,20 @@ public sealed class EfCoreScannerExecutionService(
             ConditionOperator.NotEqual => value != threshold,
             _ => false
         };
+    }
+
+    internal bool IsValuationRatioMetric(MetricCode code, DateOnly asOf)
+    {
+        try
+        {
+            var definition = metricRegistry.ResolveDefinition(code, asOf);
+            return definition.Category == MetricCategory.Valuation;
+        }
+        catch (KeyNotFoundException)
+        {
+            return false;
+        }
+    }
 
     private static string FormatLargeNumber(decimal value) => FinancialNumberFormatter.LargeNumber(value);
 

@@ -22,6 +22,9 @@ public sealed class LlmScannerExplanationGenerator(
         "- Explanation must describe results factually without altering or estimating numeric values.\n" +
         "- Respond in the same language as the user's original query.\n" +
         "- Keep follow-up questions within supported screening capabilities (metric filters only).\n" +
+        "- The provided symbol list is the ONLY source of truth for symbol names. " +
+        "Do NOT name any symbol not present in the provided list. " +
+        "Do NOT draw on general market knowledge to add more symbols.\n" +
         "Schema: {\"explanationText\":\"...\",\"suggestedFollowUpQuestions\":[\"...\",\"...\",\"...\"]}";
 
     public async Task<ScannerExplanationOutput> GenerateAsync(
@@ -50,18 +53,35 @@ public sealed class LlmScannerExplanationGenerator(
         return ParseOutput(result.StructuredJson);
     }
 
-    private static string BuildUserContent(ScannerExplanationRequest request)
+    internal static string BuildUserContent(ScannerExplanationRequest request)
     {
         var filters = request.FilterChips
             .Select(chip => $"{chip.MetricDisplayName} {chip.OperatorLabel} {chip.ThresholdFormatted}");
         var filterList = string.Join(", ", filters);
-        var symbolList = request.MatchedSymbols.Count > 0
-            ? string.Join(", ", request.MatchedSymbols.Take(5))
-            : "no symbols";
+
+        string symbolContext;
+        if (request.MatchedSymbols.Count == 0)
+        {
+            symbolContext = $"Found {request.MatchedSymbolCount} symbol(s). No symbols on this page.";
+        }
+        else if (request.MatchedSymbolCount > request.MatchedSymbols.Count)
+        {
+            // Total exceeds this page — frame explicitly as a sample to prevent hallucination.
+            var pageSymbols = string.Join(", ", request.MatchedSymbols);
+            symbolContext =
+                $"Found {request.MatchedSymbolCount} symbol(s) in total. " +
+                $"This page contains {request.MatchedSymbols.Count} symbol(s): {pageSymbols}. " +
+                $"Only describe the symbols listed above — do not name any others.";
+        }
+        else
+        {
+            var pageSymbols = string.Join(", ", request.MatchedSymbols);
+            symbolContext = $"Found {request.MatchedSymbolCount} symbol(s): {pageSymbols}.";
+        }
 
         return $"Query: \"{request.OriginalQuery}\"\n" +
                $"Filters: {filterList}\n" +
-               $"Found {request.MatchedSymbolCount} symbol(s): {symbolList}";
+               symbolContext;
     }
 
     private static ScannerExplanationOutput ParseOutput(string? json)

@@ -633,7 +633,7 @@ public sealed class StockMarketDbSyncServiceTests
         // Act: provider configured with StockMarketDb; data has TsetmcWebService.
         var provider = new PersistedMarketDataProvider(
             db,
-            new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+            //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
             new FixedTimeProvider(Now));
         var result = await provider.GetLatestQuotesAsync([new SymbolCode("شگل")], CancellationToken.None);
 
@@ -696,7 +696,7 @@ public sealed class StockMarketDbSyncServiceTests
 
         var result = await new PersistedMarketDataProvider(
                 db,
-                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
                 new FixedTimeProvider(Now))
             .GetLatestQuotesAsync([new SymbolCode("شگل2")], CancellationToken.None);
 
@@ -762,7 +762,7 @@ public sealed class StockMarketDbSyncServiceTests
 
         var result = await new PersistedMarketDataProvider(
                 db,
-                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
                 new FixedTimeProvider(Now))
             .GetLatestQuotesAsync([new SymbolCode("کچاد2")], CancellationToken.None);
 
@@ -824,7 +824,7 @@ public sealed class StockMarketDbSyncServiceTests
 
         var result = await new PersistedMarketDataProvider(
                 db,
-                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
                 new FixedTimeProvider(Now))
             .GetLatestQuotesAsync([new SymbolCode("لیبل")], CancellationToken.None);
 
@@ -889,7 +889,7 @@ public sealed class StockMarketDbSyncServiceTests
 
         var resultIntraday = await new PersistedMarketDataProvider(
                 db,
-                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
                 new FixedTimeProvider(Now))
             .GetLatestQuotesAsync([new SymbolCode("تست")], CancellationToken.None);
 
@@ -943,7 +943,7 @@ public sealed class StockMarketDbSyncServiceTests
 
         var resultDaily = await new PersistedMarketDataProvider(
                 db2,
-                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                //new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
                 new FixedTimeProvider(Now))
             .GetLatestQuotesAsync([new SymbolCode("تست")], CancellationToken.None);
 
@@ -961,7 +961,7 @@ public sealed class StockMarketDbSyncServiceTests
             cache ?? new NoOpScannerCache(), marketViewCache ?? new NoOpMarketViewCache(), new FixedTimeProvider(Now));
 
     private static PersistedMarketDataProvider Provider(FinancialIngestionDbContext db) =>
-        new(db, new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName), new FixedTimeProvider(Now));
+        new(db, /*new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),*/ new FixedTimeProvider(Now));
 
     private sealed class FixedMarketQuoteSourcePriority(string sourceName) : IMarketQuoteSourcePriority
     {

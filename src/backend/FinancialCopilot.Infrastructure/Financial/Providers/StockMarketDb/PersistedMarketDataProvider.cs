@@ -10,12 +10,12 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 
 public sealed class PersistedMarketDataProvider(
     FinancialIngestionDbContext dbContext,
-    IMarketQuoteSourcePriority sourcePriority,
+    //IMarketQuoteSourcePriority sourcePriority,
     TimeProvider timeProvider) : IMarketDataProvider
 {
     // PrimarySourceName is evaluated per-request so a live config change (Phase 4 cutover)
     // takes effect without restarting the process.
-    private string _providerName => sourcePriority.PrimarySourceName;
+    //private string _providerName => sourcePriority.PrimarySourceName;
 
     public async Task<BatchMarketQuoteResult> GetLatestQuotesAsync(
         IReadOnlyCollection<SymbolCode> symbols,
@@ -79,7 +79,7 @@ public sealed class PersistedMarketDataProvider(
                 item.quote.SourceKind == "Intraday" && item.quote.TradingDate == today
                     ? MarketQuoteSource.LiveQuote
                     : MarketQuoteSource.PreviousTradingDay,
-                new FinancialSourceEvidence(_providerName, item.quote.AsOf, item.quote.AsOf),
+                new FinancialSourceEvidence(item.quote.ProviderName, item.quote.AsOf, item.quote.AsOf),
                 item.quote.TradingDate,
                 item.quote.SourceKind == "Intraday" && item.quote.TradingDate == today
                     ? "IntradayToday"
@@ -123,7 +123,7 @@ public sealed class PersistedMarketDataProvider(
                 CalculatePriceChangePercentage(intraday.LastTradedPrice, intraday.PriceYesterday),
                 intraday.ReceivedAt,
                 MarketQuoteSource.LiveQuote,
-                new FinancialSourceEvidence(_providerName, intraday.ReceivedAt, intraday.ReceivedAt),
+                new FinancialSourceEvidence(intraday.ProviderName, intraday.ReceivedAt, intraday.ReceivedAt),
                 intraday.TradingDate,
                 "IntradayToday");
         }
@@ -146,7 +146,7 @@ public sealed class PersistedMarketDataProvider(
             CalculatePriceChangePercentage(daily.LastTradedPrice, daily.PriceYesterday),
             daily.SourceInsertedAt,
             MarketQuoteSource.PreviousTradingDay,
-            new FinancialSourceEvidence(_providerName, daily.SourceInsertedAt, daily.SourceInsertedAt),
+            new FinancialSourceEvidence(daily.ProviderName, daily.SourceInsertedAt, daily.SourceInsertedAt),
             daily.TradingDate,
             "LatestDailyFallback");
     }

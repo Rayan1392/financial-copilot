@@ -153,9 +153,9 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     }
 
     [Theory]
-    [InlineData("تغییر قیمت کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
-    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
-    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
+    [InlineData("تغییر قیمت کگل؟", "کگل", "+5.5%", "LatestDailyFallback")]
+    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "+5.5%", "LatestDailyFallback")]
+    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "+5.5%", "LatestDailyFallback")]
     public async Task V2AiQuery_DirectDailyChangeQuestion_UsesDirectSymbolLookupRoute(
         string message,
         string expectedSymbol,
@@ -209,7 +209,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         Assert.Equal("LatestDailyFallback", priceCell.GetProperty("sourceLabel").GetString());
 
         var changeCell = row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT");
-        Assert.Equal("+1.25%", changeCell.GetProperty("formattedValue").GetString());
+        Assert.Equal("+5.5%", changeCell.GetProperty("formattedValue").GetString());
         Assert.Equal("LatestDailyFallback", changeCell.GetProperty("sourceLabel").GetString());
     }
 

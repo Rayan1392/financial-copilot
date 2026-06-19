@@ -56,9 +56,14 @@ These entries are the initial supported semantic metric definitions, not a hardc
 ### Result Features
 
 - Matching stock lists represented as structured result tables.
-- Default table columns: symbol, latest price, price change percentage, market capitalization, and query-relevant metrics.
+- Mandatory identity columns for every scanner table: `نماد` (symbol) first, `شرکت` (company name) second. These are always present and cannot be removed or reordered.
+- Metric columns include only the metrics explicitly requested, filtered, sorted, or named by the user. No automatic quote enrichment (`LATEST_PRICE`, `DAILY_CHANGE_PCT`, `MARKET_CAP`) is added unless the user asked for it or it is part of a filter/sort condition.
+  - Example: `لیست نمادهای با پی به ای زیر 4 و پی به اس زیر 1` → columns are `نماد`, `شرکت`, `PE_TTM`, `PS_TTM` only.
+  - Example: same query with `همراه با آخرین قیمت` → columns are `نماد`, `شرکت`, `PE_TTM`, `PS_TTM`, `LATEST_PRICE`.
+- Internal/debug columns (e.g., `symbols`) must never appear in user-facing scanner output.
 - User-requested table-column overrides, validated to a maximum of 10 displayed data columns.
-- Live/low-latency price values when available, otherwise latest completed trading-day price statistics with visible source/freshness metadata.
+- Valuation ratio zero-value exclusion: rows with `PE_TTM = 0`, `PS_TTM = 0`, or `PB = 0` must not satisfy `<` or `<=` filter conditions for those metrics. Zero values for valuation ratios are treated as missing/invalid.
+- Live/low-latency price values when available, otherwise latest completed trading-day price statistics with visible source/freshness metadata. (Applies only when price columns are included per the rules above.)
 - Metric values.
 - Ranking score.
 - Explanation per symbol.
@@ -162,7 +167,7 @@ When the Scanner Tool answers a Message, each result item in the Explainable Ans
 
 The answer is persisted as an assistant Message in the Conversation, along with traceable Data Citations and usage outcome.
 
-For stock-list answers, table schema and row values are assembled by deterministic Application-layer services. Use a result-column policy to select default/query-specific columns and a market quote resolver to retrieve prices in batches with live-to-previous-trading-day fallback. The AI may describe the table but must not choose unvalidated columns or generate its numerical data.
+For stock-list answers, table schema and row values are assembled by deterministic Application-layer services. Use a result-column policy (`IScannerResultColumnPolicy`) that always emits `نماد` and `شرکت` as the first two columns, then emits only the metrics the user explicitly requested or used as filter/sort conditions. Quote columns are included only when the user explicitly asked for them or when they are part of a filter/sort condition. A market quote resolver retrieves prices in batches with live-to-previous-trading-day fallback when quote columns are included. The AI may describe the table but must not choose unvalidated columns, add unrequested columns, or generate numerical data.
 
 ## Internal Application Services
 

@@ -78,6 +78,11 @@ The original resolver tasks below are superseded by spec `068-companies-first-re
     canonical table queries must **not** filter rows by `ProviderName`; the best available
     price record for the resolved instrument must be returned regardless of which provider
     populated it (`TsetmcWebService`, `StockMarketDb`, or any future source).
+  - `ShouldIncludeMarketContext(...)` applies **only** to the `SymbolLookup` (point lookup) path.
+    It must not be applied to scanner/filter results. Scanner column selection is governed by
+    `IScannerResultColumnPolicy` in `008-scanner-execution-engine`, which requires that quote
+    columns be present only when the user explicitly requested them or they are part of a filter
+    or sort condition in the scanner query.
   - Build `ScannerTableColumn` list from the resolved metric codes (one column per metric,
     plus Symbol and Company Name columns).
   - Build `ScannerTableRow` list with `ScannerTableCell` entries using the existing freshness

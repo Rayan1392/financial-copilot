@@ -66,6 +66,11 @@ intent type and lookup execution path to the single AI facade endpoint.
 - Monthly sales responses must never include `LATEST_PRICE`, `DAILY_CHANGE_PCT`, `آخرین قیمت`, or
   `تغییر روزانه %`. Price context is allowed only for valuation metrics, trading metrics, and
   market quote queries.
+- Quote context enrichment (`LATEST_PRICE`, `DAILY_CHANGE_PCT`) for non-monthly-sales point
+  lookups (e.g., PE, PS, EPS) applies **only** to the Symbol Metric Point Lookup path
+  (`SymbolLookup` intent). It does **not** apply to scanner/filter queries. Scanner result tables
+  must not inherit point-lookup quote enrichment rules. See `008-scanner-execution-engine` for
+  scanner column policy.
 - Renderer ownership is explicit:
   - `MonthlySalesSnapshotRenderer` owns monthly-sales snapshot responses. In Noavaran mode it
     renders `فروش ماهانه`, `فروش ماه مشابه دوره قبل`, `فروش YTD`, and

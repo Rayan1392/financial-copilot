@@ -30,9 +30,16 @@ fallbacks.
   - resolve the requested TSE symbol/company to `NoavaranEligibleCompanies.TseSymbol`
   - resolve `InstrumentCode` from `NoavaranEligibleCompanies`
   - resolve `TradingInstrumentId` from `TradingInstruments.InstrumentCode`
-  - try `IntradayTradeSnapshots` for the current trading date first
-  - fall back to the latest `DailyInstrumentTrades` row when no intraday row exists for today
+  - try `IntradayTradeSnapshots` for the current trading date first — **no hard `ProviderName` filter**
+  - fall back to the latest `DailyInstrumentTrades` row when no intraday row exists for today — **no hard `ProviderName` filter**
+  - `LatestMarketQuotes` may be used as a projection/cache fallback only if canonical table lookup fails — **no hard `ProviderName` filter** there either
+  - the quote lookup must use the best available price record for the resolved instrument regardless of which provider populated it (`TsetmcWebService`, `StockMarketDb`, or any future source)
+  - `ProviderName` is provenance metadata for audit/diagnostics and must not be used as a runtime quote eligibility filter
+  - the API runtime `PrimarySourceName` (e.g. `StockMarketDb`) determines sync priority only; it must not cause the quote resolver to ignore valid canonical price records stored under a different `ProviderName`
   - return quote provenance/freshness, trading date, and daily change percentage from the selected row
+  - `LATEST_PRICE` must equal `LastTradedPrice`
+  - `DAILY_CHANGE_PCT` must equal `(LastTradedPrice / PriceYesterday - 1) * 100` using safe null-divide handling; do not calculate `DAILY_CHANGE_PCT` from `ClosingPrice`
+  - user-facing `DAILY_CHANGE_PCT` must be formatted to two decimal places (e.g. `2.9842931937172800` → `2.98`)
 - Add bounded, overlap-watermark polling workers with dataset-specific cadence.
 - Support both **full-sync** (bounded historical backfill) and **incremental sync**
   (overlap-watermark forward sync) for every dataset above.
@@ -69,6 +76,24 @@ fallbacks.
     corrected for direct price and valuation queries.
 15. Scanner and market-summary caches invalidate after successful projection updates.
 16. Unit, integration, architecture, and migration tests pass.
+17. Runtime quote retrieval from canonical price tables (`IntradayTradeSnapshots`,
+    `DailyInstrumentTrades`, `LatestMarketQuotes`) must **not** filter rows by `ProviderName`.
+    The API runtime `PrimarySourceName` setting controls sync/projection-building priority only;
+    it must not cause quote rows stored under a different `ProviderName` to be silently skipped.
+18. `LATEST_PRICE` equals `LastTradedPrice`; `DAILY_CHANGE_PCT` equals
+    `(LastTradedPrice / PriceYesterday - 1) * 100` with safe null-divide handling.
+    `ClosingPrice` must not be used to derive `DAILY_CHANGE_PCT` in latest-price context.
+    If closing-price change is ever needed it must be a separate metric (`CLOSING_PRICE_CHANGE_PCT`).
+19. User-facing `DAILY_CHANGE_PCT` is formatted to two decimal places
+    (e.g. raw `2.9842931937172800` displays as `+2.98%`).
+20. Source/freshness label must reflect the actual selected quote path:
+    `IntradayToday` when today's intraday row is used; `LatestDailyFallback` (or
+    `PreviousTradingDay`) when the latest daily row is used; projection/cache label only when
+    the projection path is actually used. A daily fallback row must not be mislabelled as intraday.
+21. Given API `PrimarySourceName = StockMarketDb` and quote rows stored under
+    `ProviderName = TsetmcWebService`, a user query for `آخرین قیمت شگل` must still return
+    `LATEST_PRICE = 3934`, `DAILY_CHANGE_PCT = 2.98`, and no `Missing` cells.
+    This provider-name mismatch scenario must be covered by a regression test.
 
 ## Out Of Scope
 

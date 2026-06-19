@@ -50,8 +50,12 @@ intent type and lookup execution path to the single AI facade endpoint.
   instrument codes, or `Symbols.SymbolCode` are linkage keys and must not be shown as the primary
   symbol when a company display symbol exists.
 - Resolved (company, metric) pairs are looked up in `DerivedMetrics` by `ExternalCompanyId`
-  (latest `PeriodEnd`) and
-  supplemented by `LatestMarketQuotes` for price-class metrics (`LATEST_PRICE`, `MARKET_CAP`).
+  (latest `PeriodEnd`) and supplemented by `LatestMarketQuotes` for price-class metrics
+  (`LATEST_PRICE`, `MARKET_CAP`). The `LatestMarketQuotes` lookup (and any underlying canonical
+  table lookup in `IntradayTradeSnapshots` or `DailyInstrumentTrades`) must **not** filter rows
+  by `ProviderName`. The API runtime `PrimarySourceName` setting determines sync priority only;
+  it must not cause valid quote rows stored under a different `ProviderName` to be skipped,
+  resulting in `Missing` cells when actual data exists.
 - Cross-provider lookup works because all provider observations are keyed to the same
   `ExternalCompanyId`; no `Symbols` rows need to be evaluated.
 - Monthly sales routing rule: user intents containing `فروش`, `آخرین فروش`, `فروش ماه`,

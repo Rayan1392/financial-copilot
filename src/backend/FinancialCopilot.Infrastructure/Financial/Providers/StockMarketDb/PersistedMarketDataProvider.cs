@@ -54,15 +54,14 @@ public sealed class PersistedMarketDataProvider(
                 on quote.TradingInstrumentId equals instrument.Id
             join company in dbContext.Companies.AsNoTracking()
                 on instrument.NormalizedCompanyId equals company.Id
-            where quote.ProviderName == _providerName &&
-                company.TseSymbol != null && codes.Contains(company.TseSymbol)
+            where company.TseSymbol != null && codes.Contains(company.TseSymbol)
             select new { quote, SymbolCode = company.TseSymbol! };
 
         var directTicker =
             from quote in dbContext.LatestMarketQuotes.AsNoTracking()
             join instrument in dbContext.TradingInstruments.AsNoTracking()
                 on quote.TradingInstrumentId equals instrument.Id
-            where quote.ProviderName == _providerName && codes.Contains(instrument.Symbol)
+            where codes.Contains(instrument.Symbol)
             select new { quote, SymbolCode = instrument.Symbol };
 
         var rows = await companyLinked
@@ -110,7 +109,6 @@ public sealed class PersistedMarketDataProvider(
 
         var intraday = await dbContext.IntradayTradeSnapshots.AsNoTracking()
             .Where(row =>
-                row.ProviderName == _providerName &&
                 instrumentIds.Contains(row.TradingInstrumentId) &&
                 row.TradingDate == today)
             .OrderByDescending(row => row.TradingTime)
@@ -122,7 +120,7 @@ public sealed class PersistedMarketDataProvider(
             return new MarketQuoteObservation(
                 new SymbolCode(symbolCode),
                 intraday.LastTradedPrice,
-                CalculatePriceChangePercentage(intraday.ClosingPrice, intraday.PriceYesterday),
+                CalculatePriceChangePercentage(intraday.LastTradedPrice, intraday.PriceYesterday),
                 intraday.ReceivedAt,
                 MarketQuoteSource.LiveQuote,
                 new FinancialSourceEvidence(_providerName, intraday.ReceivedAt, intraday.ReceivedAt),
@@ -132,7 +130,6 @@ public sealed class PersistedMarketDataProvider(
 
         var daily = await dbContext.DailyInstrumentTrades.AsNoTracking()
             .Where(row =>
-                row.ProviderName == _providerName &&
                 instrumentIds.Contains(row.TradingInstrumentId))
             .OrderByDescending(row => row.TradingDate)
             .ThenByDescending(row => row.SourceInsertedAt)
@@ -146,7 +143,7 @@ public sealed class PersistedMarketDataProvider(
         return new MarketQuoteObservation(
             new SymbolCode(symbolCode),
             daily.LastTradedPrice,
-            CalculatePriceChangePercentage(daily.ClosingPrice, daily.PriceYesterday),
+            CalculatePriceChangePercentage(daily.LastTradedPrice, daily.PriceYesterday),
             daily.SourceInsertedAt,
             MarketQuoteSource.PreviousTradingDay,
             new FinancialSourceEvidence(_providerName, daily.SourceInsertedAt, daily.SourceInsertedAt),
@@ -240,6 +237,8 @@ public sealed class PersistedMarketDataProvider(
             .ToListAsync(cancellationToken);
     }
 
-    private static decimal CalculatePriceChangePercentage(decimal closingPrice, decimal priceYesterday) =>
-        priceYesterday == 0 ? 0 : (closingPrice / priceYesterday - 1m) * 100m;
+    // DAILY_CHANGE_PCT = (LastTradedPrice / PriceYesterday - 1) * 100.
+    // ClosingPrice must not be used here; it is a separate metric if ever needed.
+    private static decimal CalculatePriceChangePercentage(decimal lastTradedPrice, decimal priceYesterday) =>
+        priceYesterday == 0 ? 0 : (lastTradedPrice / priceYesterday - 1m) * 100m;
 }

@@ -24,9 +24,16 @@
 ## Phase 4 - Cutover
 
 - Add configuration to switch market quote source priority from `StockMarketDB` to `TsetmcWebService`.
+  **Important:** `PrimarySourceName` controls which provider writes to the projection and which sync
+  workers are active. It must not be used as a `WHERE ProviderName = ...` filter in the runtime
+  quote resolver. The resolver must read the best available row for the resolved `TradingInstrumentId`
+  regardless of which provider populated it. If a filter exists in `PersistedMarketDataProvider` or
+  any quote resolver, it must be removed before or during cutover.
 - Keep rollback to StockMarketDB until direct feed proves stable.
 - Disable StockMarketDB polling after cutover.
 - Update docs and operational runbooks.
+- Verify that after cutover, quote rows previously written under `ProviderName = StockMarketDb`
+  are still resolved correctly by the runtime quote path (no `Missing` cells due to provider mismatch).
 
 ## Known Architectural Debt (tracked in spec 064)
 

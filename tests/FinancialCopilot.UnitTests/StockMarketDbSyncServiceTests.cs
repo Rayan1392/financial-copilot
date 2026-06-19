@@ -251,7 +251,7 @@ public sealed class StockMarketDbSyncServiceTests
             TradingDate = new DateOnly(2026, 5, 31),
             ClosingPrice = 2025m,
             LastTradedPrice = 2110m,
-            PriceChange = 25m,
+            PriceChange = 110m,
             PriceYesterday = 2000m,
             SourceInsertedAt = Now.AddDays(-1)
         });
@@ -261,7 +261,8 @@ public sealed class StockMarketDbSyncServiceTests
 
         var quote = Assert.Single(result.Observations);
         Assert.Equal(2110m, quote.LatestPrice);
-        Assert.Equal(1.25m, quote.PriceChangePercentage);
+        // DAILY_CHANGE_PCT = (LastTradedPrice / PriceYesterday - 1) * 100 = (2110/2000 - 1) * 100 = 5.5
+        Assert.Equal(5.5m, quote.PriceChangePercentage);
         Assert.Equal(new DateOnly(2026, 5, 31), quote.TradingDate);
         Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
         Assert.Equal("LatestDailyFallback", quote.SourceLabel);
@@ -322,8 +323,8 @@ public sealed class StockMarketDbSyncServiceTests
             TradingInstrumentId = instrumentId,
             TradingDate = today,
             TradingTime = new TimeOnly(12, 30),
-            ClosingPrice = 10115m,
-            LastTradedPrice = 26350m,
+            ClosingPrice = 10050m,
+            LastTradedPrice = 10115m,
             PriceChange = 115m,
             PriceYesterday = 10000m,
             ReceivedAt = Now
@@ -333,7 +334,8 @@ public sealed class StockMarketDbSyncServiceTests
         var result = await Provider(db).GetLatestQuotesAsync([new SymbolCode("کچاد")], CancellationToken.None);
 
         var quote = Assert.Single(result.Observations);
-        Assert.Equal(26350m, quote.LatestPrice);
+        Assert.Equal(10115m, quote.LatestPrice);
+        // DAILY_CHANGE_PCT = (LastTradedPrice / PriceYesterday - 1) * 100 = (10115/10000 - 1) * 100 = 1.15
         Assert.Equal(1.15m, quote.PriceChangePercentage);
         Assert.Equal(today, quote.TradingDate);
         Assert.Equal(MarketQuoteSource.LiveQuote, quote.Source);
@@ -570,6 +572,384 @@ public sealed class StockMarketDbSyncServiceTests
         Assert.Equal(1, result.IntradayIndicesDeleted);
         Assert.Single(await db.IntradayTradeSnapshots.ToListAsync());
         Assert.Single(await db.IntradayIndexSnapshots.ToListAsync());
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Regression: provider-name mismatch must not suppress quote resolution
+    // Spec 030 §17, §21: ProviderName is provenance metadata only; runtime
+    // PrimarySourceName must not be used as a WHERE filter on canonical tables.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ProviderNameMismatch_DailyInstrumentTrades_StillResolvesQuote()
+    {
+        // Arrange: API runtime config says StockMarketDb; row stored under TsetmcWebService.
+        await using var db = CreateDb();
+        var instrumentId = Guid.Parse("92990a92-e853-47e3-a682-bb8794b22999");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "shgol",
+            Name = "شگل",
+            Ticker = "شگل",
+            TseSymbol = "شگل",
+            CompanySymbol = "شگل",
+            InstrumentCode = "999",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "TsetmcWebService",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 999,
+            Symbol = "SHGOL-TICKER",
+            Name = "شگل",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        // Row has ProviderName=TsetmcWebService, API config has PrimarySourceName=StockMarketDb.
+        // PriceYesterday = 3820, LastTradedPrice = 3934 → (3934/3820 - 1)*100 ≈ 2.9843...
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = new DateOnly(2026, 6, 18),
+            ClosingPrice = 3930m,
+            LastTradedPrice = 3934m,
+            PriceChange = 114m,
+            PriceYesterday = 3820m,
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        // Act: provider configured with StockMarketDb; data has TsetmcWebService.
+        var provider = new PersistedMarketDataProvider(
+            db,
+            new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+            new FixedTimeProvider(Now));
+        var result = await provider.GetLatestQuotesAsync([new SymbolCode("شگل")], CancellationToken.None);
+
+        // Assert: quote must be found regardless of ProviderName mismatch.
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(3934m, quote.LatestPrice);
+        Assert.Empty(result.UnavailableSymbols);
+        Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
+        Assert.Equal("LatestDailyFallback", quote.SourceLabel);
+    }
+
+    [Fact]
+    public async Task ProviderNameMismatch_DailyChangePercentage_UsesLastTradedPriceNotClosingPrice()
+    {
+        // Spec 030 §12, §18: DAILY_CHANGE_PCT = (LastTradedPrice/PriceYesterday - 1)*100.
+        // ClosingPrice must not be used. Raw value 2.9842... must round to 2.98 (two decimals).
+        await using var db = CreateDb();
+        var instrumentId = Guid.NewGuid();
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "shgol2",
+            Name = "شگل",
+            Ticker = "شگل2",
+            TseSymbol = "شگل2",
+            CompanySymbol = "شگل2",
+            InstrumentCode = "888",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "TsetmcWebService",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 888,
+            Symbol = "SHGOL2-TICKER",
+            Name = "شگل2",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = new DateOnly(2026, 6, 18),
+            ClosingPrice = 3820m,       // deliberately different from LastTradedPrice
+            LastTradedPrice = 3934m,    // canonical latest price
+            PriceChange = 114m,
+            PriceYesterday = 3820m,     // (3934/3820 - 1)*100 = 2.9843…
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new PersistedMarketDataProvider(
+                db,
+                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                new FixedTimeProvider(Now))
+            .GetLatestQuotesAsync([new SymbolCode("شگل2")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        // Raw = (3934/3820 - 1)*100 = 2.9842931937172800…
+        // Two-decimal user display: 2.98 (not 0.00 which would result from ClosingPrice=PriceYesterday).
+        var rawPct = quote.PriceChangePercentage;
+        Assert.True(rawPct > 2.98m && rawPct < 2.99m,
+            $"Expected ~2.98 but got {rawPct}; ClosingPrice must not be used for DAILY_CHANGE_PCT");
+        // Formatted to two decimal places:
+        Assert.Equal("2.98", rawPct.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task ProviderNameMismatch_IntradayTradeSnapshots_StillResolvesLiveQuote()
+    {
+        // Spec 030 §17: IntradayTradeSnapshots must not filter by ProviderName.
+        await using var db = CreateDb();
+        var instrumentId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(Now.UtcDateTime);
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "kchad2",
+            Name = "کچاد2",
+            Ticker = "کچاد2",
+            TseSymbol = "کچاد2",
+            CompanySymbol = "کچاد2",
+            InstrumentCode = "777",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "TsetmcWebService",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 777,
+            Symbol = "KCHAD2-TICKER",
+            Name = "کچاد2",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db.IntradayTradeSnapshots.Add(new IntradayTradeSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",   // mismatch: API says StockMarketDb
+            ExternalSnapshotId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = today,
+            TradingTime = new TimeOnly(10, 0),
+            ClosingPrice = 5000m,
+            LastTradedPrice = 5050m,
+            PriceChange = 50m,
+            PriceYesterday = 5000m,
+            ReceivedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new PersistedMarketDataProvider(
+                db,
+                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                new FixedTimeProvider(Now))
+            .GetLatestQuotesAsync([new SymbolCode("کچاد2")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(5050m, quote.LatestPrice);
+        Assert.Equal(MarketQuoteSource.LiveQuote, quote.Source);
+        Assert.Equal("IntradayToday", quote.SourceLabel);
+        Assert.Empty(result.UnavailableSymbols);
+    }
+
+    [Fact]
+    public async Task FreshnessLabel_DailyFallback_IsNotMislabelledAsIntraday()
+    {
+        // Spec 030 §20: a daily-fallback quote must carry LatestDailyFallback, not IntradayToday.
+        await using var db = CreateDb();
+        var instrumentId = Guid.NewGuid();
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "labeltest",
+            Name = "لیبل",
+            Ticker = "لیبل",
+            TseSymbol = "لیبل",
+            CompanySymbol = "لیبل",
+            InstrumentCode = "555",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "TsetmcWebService",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 555,
+            Symbol = "LABEL-TICKER",
+            Name = "لیبل",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        // No intraday row for today — only a daily row for a previous date.
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-1),
+            ClosingPrice = 1200m,
+            LastTradedPrice = 1210m,
+            PriceChange = 10m,
+            PriceYesterday = 1200m,
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new PersistedMarketDataProvider(
+                db,
+                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                new FixedTimeProvider(Now))
+            .GetLatestQuotesAsync([new SymbolCode("لیبل")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal("LatestDailyFallback", quote.SourceLabel);
+        Assert.NotEqual("IntradayToday", quote.SourceLabel);
+        Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
+    }
+
+    [Fact]
+    public async Task DailyChangePercentage_ClosingPriceNotUsed_BothPaths()
+    {
+        // Spec 030 §12: verify ClosingPrice is NOT used for DAILY_CHANGE_PCT on either path.
+        // We set ClosingPrice = PriceYesterday so if ClosingPrice were used the result would be 0.
+        await using var db = CreateDb();
+        var instrumentId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(Now.UtcDateTime);
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "closingtest",
+            Name = "تست",
+            Ticker = "تست",
+            TseSymbol = "تست",
+            CompanySymbol = "تست",
+            InstrumentCode = "444",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "StockMarketDb",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 444,
+            Symbol = "TEST-TICKER",
+            Name = "تست",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+
+        // --- Intraday path: ClosingPrice == PriceYesterday, LastTradedPrice differs ---
+        db.IntradayTradeSnapshots.Add(new IntradayTradeSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalSnapshotId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = today,
+            TradingTime = new TimeOnly(11, 0),
+            ClosingPrice = 1000m,       // same as PriceYesterday → would yield 0 if used
+            LastTradedPrice = 1030m,    // (1030/1000-1)*100 = 3.0
+            PriceChange = 30m,
+            PriceYesterday = 1000m,
+            ReceivedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var resultIntraday = await new PersistedMarketDataProvider(
+                db,
+                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                new FixedTimeProvider(Now))
+            .GetLatestQuotesAsync([new SymbolCode("تست")], CancellationToken.None);
+
+        var intradayQuote = Assert.Single(resultIntraday.Observations);
+        Assert.Equal(1030m, intradayQuote.LatestPrice);
+        Assert.Equal(3.0m, intradayQuote.PriceChangePercentage); // must be 3.0, not 0.0
+
+        // --- Daily path: same pattern ---
+        await using var db2 = CreateDb();
+        db2.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "closingtest2",
+            Name = "تست",
+            Ticker = "تست",
+            TseSymbol = "تست",
+            CompanySymbol = "تست",
+            InstrumentCode = "444",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        var instrumentId2 = Guid.NewGuid();
+        db2.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId2,
+            ProviderName = "StockMarketDb",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 444,
+            Symbol = "TEST-TICKER",
+            Name = "تست",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db2.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId2,
+            TradingDate = today.AddDays(-1),
+            ClosingPrice = 1000m,       // same as PriceYesterday → would yield 0 if used
+            LastTradedPrice = 1030m,    // (1030/1000-1)*100 = 3.0
+            PriceChange = 30m,
+            PriceYesterday = 1000m,
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        await db2.SaveChangesAsync();
+
+        var resultDaily = await new PersistedMarketDataProvider(
+                db2,
+                new FixedMarketQuoteSourcePriority(ProviderSources.StockMarketDbName),
+                new FixedTimeProvider(Now))
+            .GetLatestQuotesAsync([new SymbolCode("تست")], CancellationToken.None);
+
+        var dailyQuote = Assert.Single(resultDaily.Observations);
+        Assert.Equal(1030m, dailyQuote.LatestPrice);
+        Assert.Equal(3.0m, dailyQuote.PriceChangePercentage); // must be 3.0, not 0.0
     }
 
     private static StockMarketDbSyncService Service(

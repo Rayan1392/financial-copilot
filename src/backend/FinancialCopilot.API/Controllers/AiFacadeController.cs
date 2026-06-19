@@ -280,7 +280,10 @@ public sealed class AiFacadeController(
                     cell.Value,
                     cell.FormattedValue,
                     cell.FreshnessStatus.ToString(),
-                    cell.SourceTimestamp);
+                    cell.SourceTimestamp,
+                    cell.TradingDate,
+                    cell.TradingDatePersian,
+                    cell.SourceLabel);
             });
 
     private static ScannerTableCell NormalizeDisplayCell(

@@ -61,7 +61,10 @@ public sealed record ScannerTableCellResponse(
     decimal? Value,
     string? FormattedValue,
     string FreshnessStatus,
-    DateTimeOffset? SourceTimestamp);
+    DateTimeOffset? SourceTimestamp,
+    DateOnly? TradingDate = null,
+    string? TradingDatePersian = null,
+    string? SourceLabel = null);
 
 public sealed record ScannerTableRowResponse(
     string SymbolCode,

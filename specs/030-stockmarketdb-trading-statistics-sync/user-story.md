@@ -26,6 +26,13 @@ fallbacks.
   - شاخص کل (هم‌وزن) — `D01F9D84-A1C8-46F3-A959-800DEF9E112F`
 - Link instruments to existing normalized companies through `InsCode -> InstrumentCode`.
 - Persist append-oriented history and a compact latest-quote projection.
+- Resolve user-facing company/symbol quote requests through the canonical market-quote lookup path:
+  - resolve the requested TSE symbol/company to `NoavaranEligibleCompanies.TseSymbol`
+  - resolve `InstrumentCode` from `NoavaranEligibleCompanies`
+  - resolve `TradingInstrumentId` from `TradingInstruments.InstrumentCode`
+  - try `IntradayTradeSnapshots` for the current trading date first
+  - fall back to the latest `DailyInstrumentTrades` row when no intraday row exists for today
+  - return quote provenance/freshness, trading date, and daily change percentage from the selected row
 - Add bounded, overlap-watermark polling workers with dataset-specific cadence.
 - Support both **full-sync** (bounded historical backfill) and **incremental sync**
   (overlap-watermark forward sync) for every dataset above.
@@ -44,8 +51,24 @@ fallbacks.
 6. Polling uses bounded pages, overlap watermarks, retry/failure isolation, and telemetry.
 7. `LatestMarketQuotes` exposes latest price, price-change percentage, source kind, and as-of
    timestamp with daily fallback when an intraday observation is unavailable.
-8. Scanner and market-summary caches invalidate after successful projection updates.
-9. Unit, integration, architecture, and migration tests pass.
+8. Quote resolution for direct latest-price questions resolves `TradingInstrumentId` from
+   `NoavaranEligibleCompanies.InstrumentCode -> TradingInstruments.InstrumentCode` and uses the
+   same canonical quote path as valuation quote enrichment.
+9. When an `IntradayTradeSnapshots` row exists for the current trading date (date-only
+   comparison), the response uses that intraday quote and exposes latest price, daily change
+   percentage, trading date, and source/freshness metadata.
+10. When no intraday snapshot exists for the current trading date, the response falls back to
+    the latest `DailyInstrumentTrades` row and does not show `Missing` if daily data exists.
+11. Quote data is marked unavailable only when both today intraday and latest daily lookup fail.
+12. Quote-backed responses expose the selected trading date in user-visible Persian/Jalali format
+    while preserving canonical Gregorian storage for persistence/projections.
+13. Valuation responses such as `PE` / `PS` quote enrichment use the same intraday-first,
+    latest-daily fallback behavior for `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
+14. Monthly production/sales responses continue to suppress quote columns (`LATEST_PRICE`,
+    `DAILY_CHANGE_PCT`, `آخرین قیمت`, `درصد تغییر آخرین قیمت`) even after quote fallback is
+    corrected for direct price and valuation queries.
+15. Scanner and market-summary caches invalidate after successful projection updates.
+16. Unit, integration, architecture, and migration tests pass.
 
 ## Out Of Scope
 
@@ -53,4 +76,3 @@ fallbacks.
 - Order-book depth, individual transaction tape, or portfolio valuation.
 - Treating every registered instrument as a company.
 - Replacing normalized PostgreSQL reads with query-time SQL Server access.
-

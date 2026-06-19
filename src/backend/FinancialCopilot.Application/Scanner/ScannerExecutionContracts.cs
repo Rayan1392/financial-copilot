@@ -31,7 +31,10 @@ public sealed record ScannerTableCell(
     decimal? Value,
     string? FormattedValue,
     CellFreshnessStatus FreshnessStatus,
-    DateTimeOffset? SourceTimestamp);
+    DateTimeOffset? SourceTimestamp,
+    DateOnly? TradingDate = null,
+    string? TradingDatePersian = null,
+    string? SourceLabel = null);
 
 public sealed record ScannerTableRow(
     string SymbolCode,

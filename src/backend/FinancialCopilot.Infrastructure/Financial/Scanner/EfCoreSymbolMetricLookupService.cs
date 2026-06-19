@@ -468,7 +468,10 @@ public sealed class EfCoreSymbolMetricLookupService(
                 quote.LatestPrice,
                 FinancialNumberFormatter.Whole(quote.LatestPrice),
                 freshness,
-                quote.AsOf);
+                quote.AsOf,
+                quote.TradingDate,
+                FormatPersianDate(quote.TradingDate),
+                quote.SourceLabel);
         }
 
         if (latestByCompanyMetric.TryGetValue((externalCompanyId, "LATEST_PRICE"), out var row) && row.Value is not null)
@@ -498,7 +501,10 @@ public sealed class EfCoreSymbolMetricLookupService(
                 quote.PriceChangePercentage,
                 FinancialNumberFormatter.SignedPercent(quote.PriceChangePercentage),
                 freshness,
-                quote.AsOf);
+                quote.AsOf,
+                quote.TradingDate,
+                FormatPersianDate(quote.TradingDate),
+                quote.SourceLabel);
         }
 
         if (latestByCompanyMetric.TryGetValue((externalCompanyId, "DAILY_CHANGE_PCT"), out var row) && row.Value is not null)
@@ -590,6 +596,13 @@ public sealed class EfCoreSymbolMetricLookupService(
 
     private static string FormatMillionRials(decimal value) =>
         FinancialNumberFormatter.Whole(value / 1_000_000m);
+
+    private static string FormatPersianDate(DateOnly date)
+    {
+        var calendar = new PersianCalendar();
+        var dateTime = date.ToDateTime(TimeOnly.MinValue);
+        return $"{calendar.GetYear(dateTime):0000}/{calendar.GetMonth(dateTime):00}/{calendar.GetDayOfMonth(dateTime):00}";
+    }
 
     private SymbolLookupTableResult BuildEmptyResult(
         Guid lookupId,

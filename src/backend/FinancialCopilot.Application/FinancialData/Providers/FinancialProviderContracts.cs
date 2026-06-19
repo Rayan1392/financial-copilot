@@ -101,7 +101,9 @@ public sealed record MarketQuoteObservation(
     decimal PriceChangePercentage,
     DateTimeOffset AsOf,
     MarketQuoteSource Source,
-    FinancialSourceEvidence SourceEvidence);
+    FinancialSourceEvidence SourceEvidence,
+    DateOnly TradingDate = default,
+    string SourceLabel = "");
 
 public sealed record BatchMarketQuoteResult(
     IReadOnlyCollection<MarketQuoteObservation> Observations,

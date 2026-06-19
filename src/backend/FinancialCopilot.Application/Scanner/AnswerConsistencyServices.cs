@@ -95,7 +95,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 requestedSymbol,
                 requestedMetricCode,
                 requestedMetricDisplay,
-                requestedCell.FormattedValue!));
+                requestedCell));
         }
 
         // Multiple symbols, or multiple metrics without a known requested primary metric:
@@ -117,7 +117,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             return UnavailableSentence(persian, symbol, metricDisplay);
         }
 
-        return WithUnitNote(table, ValueSentence(persian, symbol, metricCode, metricDisplay, cell.FormattedValue!));
+        return WithUnitNote(table, ValueSentence(persian, symbol, metricCode, metricDisplay, cell));
     }
 
     private static string ValueSentence(
@@ -125,10 +125,21 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         string symbol,
         string metricCode,
         string metricDisplay,
-        string formattedValue) =>
-        persian
-            ? $"{MetricDisplayForPersianSentence(metricCode, metricDisplay)} نماد {symbol} برابر است با {formattedValue}."
-            : $"The {metricDisplay} of {symbol} is {formattedValue}.";
+        ScannerTableCell cell)
+    {
+        var sentence = persian
+            ? $"{MetricDisplayForPersianSentence(metricCode, metricDisplay)} نماد {symbol} برابر است با {cell.FormattedValue}."
+            : $"The {metricDisplay} of {symbol} is {cell.FormattedValue}.";
+
+        if (!IsQuoteMetric(metricCode) || string.IsNullOrWhiteSpace(cell.TradingDatePersian))
+        {
+            return sentence;
+        }
+
+        return persian
+            ? $"{sentence} تاریخ معامله: {cell.TradingDatePersian}. منبع: {cell.SourceLabel ?? cell.FreshnessStatus.ToString()}."
+            : $"{sentence} Trading date: {cell.TradingDatePersian}. Source: {cell.SourceLabel ?? cell.FreshnessStatus.ToString()}.";
+    }
 
     private static string MetricDisplayForPersianSentence(string metricCode, string metricDisplay) =>
         metricDisplay.StartsWith("نسبت", StringComparison.OrdinalIgnoreCase)
@@ -143,6 +154,10 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         || string.Equals(metricCode, "CURRENT_RATIO", StringComparison.OrdinalIgnoreCase)
         || string.Equals(metricCode, "QUICK_RATIO", StringComparison.OrdinalIgnoreCase)
         || string.Equals(metricCode, "DEBT_TO_EQUITY", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsQuoteMetric(string metricCode) =>
+        string.Equals(metricCode, "LATEST_PRICE", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "DAILY_CHANGE_PCT", StringComparison.OrdinalIgnoreCase);
 
     private static string UnavailableSentence(bool persian, string symbol, string metricDisplay) =>
         persian

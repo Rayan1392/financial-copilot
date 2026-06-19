@@ -116,14 +116,15 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     }
 
     [Theory]
-    [InlineData("آخرین قیمت کگل؟", "کگل", "2,110")]
-    [InlineData("آخرین قیمت کچاد؟", "کچاد", "26,350")]
-    [InlineData("قیمت امروز کگل؟", "کگل", "2,110")]
-    [InlineData("قیمت پایانی کچاد؟", "کچاد", "26,350")]
+    [InlineData("آخرین قیمت کگل؟", "کگل", "2,110", "LatestDailyFallback")]
+    [InlineData("آخرین قیمت کچاد؟", "کچاد", "26,350", "IntradayToday")]
+    [InlineData("قیمت امروز کگل؟", "کگل", "2,110", "LatestDailyFallback")]
+    [InlineData("قیمت پایانی کچاد؟", "کچاد", "26,350", "IntradayToday")]
     public async Task V2AiQuery_DirectPriceQuestion_UsesDirectSymbolLookupRoute(
         string message,
         string expectedSymbol,
-        string expectedFormattedValue)
+        string expectedFormattedValue,
+        string expectedSourceLabel)
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
@@ -142,19 +143,24 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
         Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
-        Assert.Equal(expectedFormattedValue, row.GetProperty("cells").GetProperty("LATEST_PRICE").GetProperty("formattedValue").GetString());
-        Assert.NotEqual("Missing", row.GetProperty("cells").GetProperty("LATEST_PRICE").GetProperty("freshnessStatus").GetString());
+        var priceCell = row.GetProperty("cells").GetProperty("LATEST_PRICE");
+        Assert.Equal(expectedFormattedValue, priceCell.GetProperty("formattedValue").GetString());
+        Assert.NotEqual("Missing", priceCell.GetProperty("freshnessStatus").GetString());
+        Assert.Equal(expectedSourceLabel, priceCell.GetProperty("sourceLabel").GetString());
+        Assert.Equal(FormatJalaliDate(ParseTradingDate(priceCell.GetProperty("tradingDate").GetString()!)),
+            priceCell.GetProperty("tradingDatePersian").GetString());
         Assert.Contains(expectedFormattedValue, root.GetProperty("textAnswer").GetString());
     }
 
     [Theory]
-    [InlineData("تغییر قیمت کگل؟", "کگل", "+1.25%")]
-    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "+1.25%")]
-    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "+1.25%")]
+    [InlineData("تغییر قیمت کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
+    [InlineData("درصد تغییر قیمت کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
+    [InlineData("درصد تغییر روزانه کگل؟", "کگل", "+1.25%", "LatestDailyFallback")]
     public async Task V2AiQuery_DirectDailyChangeQuestion_UsesDirectSymbolLookupRoute(
         string message,
         string expectedSymbol,
-        string expectedFormattedValue)
+        string expectedFormattedValue,
+        string expectedSourceLabel)
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
@@ -173,9 +179,38 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
 
         var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
         Assert.Equal(expectedSymbol, row.GetProperty("symbolCode").GetString());
-        Assert.Equal(expectedFormattedValue, row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT").GetProperty("formattedValue").GetString());
-        Assert.NotEqual("Missing", row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT").GetProperty("freshnessStatus").GetString());
+        var changeCell = row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT");
+        Assert.Equal(expectedFormattedValue, changeCell.GetProperty("formattedValue").GetString());
+        Assert.NotEqual("Missing", changeCell.GetProperty("freshnessStatus").GetString());
+        Assert.Equal(expectedSourceLabel, changeCell.GetProperty("sourceLabel").GetString());
+        Assert.Equal(FormatJalaliDate(ParseTradingDate(changeCell.GetProperty("tradingDate").GetString()!)),
+            changeCell.GetProperty("tradingDatePersian").GetString());
         Assert.Contains(expectedFormattedValue, root.GetProperty("textAnswer").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_PeLookup_UsesQuoteFallbackContext()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "pe کگل؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var row = Assert.Single(document.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal("4.12", row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("formattedValue").GetString());
+
+        var priceCell = row.GetProperty("cells").GetProperty("LATEST_PRICE");
+        Assert.Equal("2,110", priceCell.GetProperty("formattedValue").GetString());
+        Assert.Equal("LatestDailyFallback", priceCell.GetProperty("sourceLabel").GetString());
+
+        var changeCell = row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT");
+        Assert.Equal("+1.25%", changeCell.GetProperty("formattedValue").GetString());
+        Assert.Equal("LatestDailyFallback", changeCell.GetProperty("sourceLabel").GetString());
     }
 
     [Fact]
@@ -308,6 +343,15 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+
+    private static DateOnly ParseTradingDate(string value) => DateOnly.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string FormatJalaliDate(DateOnly date)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        var dateTime = date.ToDateTime(TimeOnly.MinValue);
+        return $"{calendar.GetYear(dateTime):0000}/{calendar.GetMonth(dateTime):00}/{calendar.GetDayOfMonth(dateTime):00}";
     }
 }
 
@@ -477,6 +521,68 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
     }
 }
 
+public sealed class V2ShgolDirectPriceRegressionEndpointTests : IClassFixture<V2ShgolDirectPriceRegressionApiFactory>
+{
+    private readonly V2ShgolDirectPriceRegressionApiFactory _factory;
+
+    public V2ShgolDirectPriceRegressionEndpointTests(V2ShgolDirectPriceRegressionApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+        factory.Fake.Reset();
+    }
+
+    [Fact]
+    public async Task V2AiQuery_DirectPriceQuestion_Shgol_ShouldReturnLatestDailyFallbackQuote()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "آخرین قیمت شگل" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("SymbolLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var row = Assert.Single(root.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
+        Assert.Equal("شگل", row.GetProperty("symbolCode").GetString());
+        Assert.Equal("گلتاش", row.GetProperty("companyName").GetString());
+
+        var priceCell = row.GetProperty("cells").GetProperty("LATEST_PRICE");
+        Assert.Equal("3,934", priceCell.GetProperty("formattedValue").GetString());
+        Assert.Equal("PreviousTradingDay", priceCell.GetProperty("freshnessStatus").GetString());
+        Assert.Equal("LatestDailyFallback", priceCell.GetProperty("sourceLabel").GetString());
+        Assert.Equal("2026-06-17", priceCell.GetProperty("tradingDate").GetString());
+        Assert.Equal(FormatJalaliDate(ParseTradingDate(priceCell.GetProperty("tradingDate").GetString()!)),
+            priceCell.GetProperty("tradingDatePersian").GetString());
+
+        var changeCell = row.GetProperty("cells").GetProperty("DAILY_CHANGE_PCT");
+        Assert.Equal("+2.98%", changeCell.GetProperty("formattedValue").GetString());
+        Assert.Equal("LatestDailyFallback", changeCell.GetProperty("sourceLabel").GetString());
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+
+    private static DateOnly ParseTradingDate(string value) => DateOnly.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string FormatJalaliDate(DateOnly date)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        var dateTime = date.ToDateTime(TimeOnly.MinValue);
+        return $"{calendar.GetYear(dateTime):0000}/{calendar.GetMonth(dateTime):00}/{calendar.GetDayOfMonth(dateTime):00}";
+    }
+}
+
 public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-monthly-sales-routing-{Guid.NewGuid():N}";
@@ -584,6 +690,112 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
         };
 }
 
+public sealed class V2ShgolDirectPriceRegressionApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-shgol-direct-price-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+    internal V2SymbolLookupFakeAiModelClient Fake { get; } = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => Fake);
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedLookupData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedLookupData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var today = DateOnly.FromDateTime(now.UtcDateTime);
+        var companyId = Guid.Parse("53000000-0000-0000-0000-000000000167");
+        var instrumentId = Guid.Parse("92990a92-e853-47e3-a682-bb8794b22999");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            Name = "گلتاش",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "167",
+            Ticker = null,
+            TseSymbol = "شگل",
+            CompanySymbol = "شگل",
+            InstrumentCode = "44153164692325703",
+            LastSynchronizedAt = now
+        });
+
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "TsetmcWebService",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 44153164692325703,
+            Symbol = "شگل",
+            Name = "گلتاش",
+            NormalizedCompanyId = companyId,
+            IsActive = true,
+            SourceChangedAt = now,
+            LastSynchronizedAt = now
+        });
+
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = today.AddDays(-2),
+            ClosingPrice = 3911m,
+            LastTradedPrice = 3934m,
+            PriceChange = 91m,
+            PriceYesterday = 3820m,
+            SourceInsertedAt = now.AddDays(-1)
+        });
+
+        db.LatestMarketQuotes.Add(new LatestMarketQuoteRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            TradingInstrumentId = instrumentId,
+            LatestPrice = 3934m,
+            PriceChangePercentage = 2.9842931937172800m,
+            SourceKind = "Intraday",
+            TradingDate = today.AddDays(-2),
+            AsOf = now.AddDays(-2)
+        });
+    }
+}
+
 public sealed class V2ScannerApiFactory : ScannerExecutionApiFactory
 {
     // Let V2 orchestration stand â€” do not replace with V1.
@@ -668,6 +880,7 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
         var companyShpnaId = Guid.Parse("50000000-0000-0000-0000-100000000004");
         var companyShbandarId = Guid.Parse("50000000-0000-0000-0000-100000000005");
         var now = DateTimeOffset.UtcNow;
+        var today = DateOnly.FromDateTime(now.UtcDateTime);
         var periodStart = new DateOnly(2025, 1, 1);
         var periodEnd = new DateOnly(2025, 12, 31);
 
@@ -730,6 +943,121 @@ public sealed class V2SymbolLookupApiFactory : AiFacadeApiFactory
             CompanySymbol = "\u0634\u0628\u0646\u062f\u0631",
             LastSynchronizedAt = now
         });
+
+        var kchadInstrumentId = Guid.Parse("51000000-0000-0000-0000-100000000002");
+        var kgolInstrumentId = Guid.Parse("51000000-0000-0000-0000-100000000003");
+        var shpnaInstrumentId = Guid.Parse("51000000-0000-0000-0000-100000000004");
+        var shbandarInstrumentId = Guid.Parse("51000000-0000-0000-0000-100000000005");
+
+        db.TradingInstruments.AddRange(
+            new TradingInstrumentRow
+            {
+                Id = kchadInstrumentId,
+                ProviderName = "StockMarketDb",
+                ExternalInstrumentId = Guid.NewGuid(),
+                InstrumentCode = 2002,
+                Symbol = "KCHAD",
+                Name = "KCHAD",
+                NormalizedCompanyId = companyKchadId,
+                IsActive = true,
+                SourceChangedAt = now,
+                LastSynchronizedAt = now
+            },
+            new TradingInstrumentRow
+            {
+                Id = kgolInstrumentId,
+                ProviderName = "StockMarketDb",
+                ExternalInstrumentId = Guid.NewGuid(),
+                InstrumentCode = 2003,
+                Symbol = "KGOL",
+                Name = "KGOL",
+                NormalizedCompanyId = companyKgolId,
+                IsActive = true,
+                SourceChangedAt = now,
+                LastSynchronizedAt = now
+            },
+            new TradingInstrumentRow
+            {
+                Id = shpnaInstrumentId,
+                ProviderName = "StockMarketDb",
+                ExternalInstrumentId = Guid.NewGuid(),
+                InstrumentCode = 2004,
+                Symbol = "SHPNA",
+                Name = "SHPNA",
+                NormalizedCompanyId = companyShpnaId,
+                IsActive = true,
+                SourceChangedAt = now,
+                LastSynchronizedAt = now
+            },
+            new TradingInstrumentRow
+            {
+                Id = shbandarInstrumentId,
+                ProviderName = "StockMarketDb",
+                ExternalInstrumentId = Guid.NewGuid(),
+                InstrumentCode = 2005,
+                Symbol = "SHBANDAR",
+                Name = "SHBANDAR",
+                NormalizedCompanyId = companyShbandarId,
+                IsActive = true,
+                SourceChangedAt = now,
+                LastSynchronizedAt = now
+            });
+
+        db.IntradayTradeSnapshots.Add(new IntradayTradeSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalSnapshotId = Guid.NewGuid(),
+            TradingInstrumentId = kchadInstrumentId,
+            TradingDate = today,
+            TradingTime = new TimeOnly(12, 30),
+            ClosingPrice = 10_115m,
+            LastTradedPrice = 26_350m,
+            PriceChange = 115m,
+            PriceYesterday = 10_000m,
+            ReceivedAt = now
+        });
+
+        db.DailyInstrumentTrades.AddRange(
+            new DailyInstrumentTradeRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = "StockMarketDb",
+                ExternalTradeId = Guid.NewGuid(),
+                TradingInstrumentId = kgolInstrumentId,
+                TradingDate = today.AddDays(-1),
+                ClosingPrice = 2_025m,
+                LastTradedPrice = 2_110m,
+                PriceChange = 25m,
+                PriceYesterday = 2_000m,
+                SourceInsertedAt = now.AddDays(-1)
+            },
+            new DailyInstrumentTradeRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = "StockMarketDb",
+                ExternalTradeId = Guid.NewGuid(),
+                TradingInstrumentId = shpnaInstrumentId,
+                TradingDate = today.AddDays(-1),
+                ClosingPrice = 1_0088m,
+                LastTradedPrice = 8_120m,
+                PriceChange = 88m,
+                PriceYesterday = 10_000m,
+                SourceInsertedAt = now.AddDays(-1)
+            },
+            new DailyInstrumentTradeRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = "StockMarketDb",
+                ExternalTradeId = Guid.NewGuid(),
+                TradingInstrumentId = shbandarInstrumentId,
+                TradingDate = today.AddDays(-1),
+                ClosingPrice = 10_035m,
+                LastTradedPrice = 7_340m,
+                PriceChange = 35m,
+                PriceYesterday = 10_000m,
+                SourceInsertedAt = now.AddDays(-1)
+            });
 
         db.DerivedMetrics.Add(new DerivedMetricRow
         {
@@ -1481,6 +1809,8 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
             ? "\u0686\u0627\u062f\u0631\u0645\u0644\u0648"
             : userMessage.Contains("\u06a9\u0686\u0627\u062f", StringComparison.OrdinalIgnoreCase)
                 ? "\u06a9\u0686\u0627\u062f"
+                : userMessage.Contains("\u0634\u06af\u0644", StringComparison.OrdinalIgnoreCase)
+                    ? "\u0634\u06af\u0644"
                 : userMessage.Contains("\u06af\u0644 \u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)
                     ? "\u06af\u0644 \u06af\u0647\u0631"
                     : userMessage.Contains("\u06af\u0644\u06af\u0647\u0631", StringComparison.OrdinalIgnoreCase)

@@ -4,6 +4,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
@@ -206,6 +207,137 @@ public sealed class StockMarketDbSyncServiceTests
 
         var quote = Assert.Single(result.Observations);
         Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
+    }
+
+    [Fact]
+    public async Task Provider_ResolvesEligibleCompanyToTradingInstrument_AndUsesLatestDailyFallback()
+    {
+        await using var db = CreateDb();
+        var companyId = Guid.NewGuid();
+        var instrumentId = Guid.NewGuid();
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "3",
+            Name = "گل گهر",
+            Ticker = "کگل",
+            TseSymbol = "کگل",
+            CompanySymbol = "کگل",
+            InstrumentCode = "456",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "StockMarketDb",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 456,
+            Symbol = "KGOL-TICKER",
+            Name = "KGOL",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = new DateOnly(2026, 5, 31),
+            ClosingPrice = 2025m,
+            LastTradedPrice = 2110m,
+            PriceChange = 25m,
+            PriceYesterday = 2000m,
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Provider(db).GetLatestQuotesAsync([new SymbolCode("کگل")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(2110m, quote.LatestPrice);
+        Assert.Equal(1.25m, quote.PriceChangePercentage);
+        Assert.Equal(new DateOnly(2026, 5, 31), quote.TradingDate);
+        Assert.Equal(MarketQuoteSource.PreviousTradingDay, quote.Source);
+        Assert.Equal("LatestDailyFallback", quote.SourceLabel);
+    }
+
+    [Fact]
+    public async Task Provider_PrefersTodayIntradayOverLatestDailyFallback()
+    {
+        await using var db = CreateDb();
+        var companyId = Guid.NewGuid();
+        var instrumentId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(Now.UtcDateTime);
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            ProviderName = NadpcoApiCompanyNormalizer.NadpcoApiProviderName,
+            ExternalCompanyId = "4",
+            Name = "چادرملو",
+            Ticker = "کچاد",
+            TseSymbol = "کچاد",
+            CompanySymbol = "کچاد",
+            InstrumentCode = "789",
+            PrecedencyRight = 0,
+            MarketId = NoavaranCompanyScope.BourseMarketId,
+            LastSynchronizedAt = Now
+        });
+        db.TradingInstruments.Add(new TradingInstrumentRow
+        {
+            Id = instrumentId,
+            ProviderName = "StockMarketDb",
+            ExternalInstrumentId = Guid.NewGuid(),
+            InstrumentCode = 789,
+            Symbol = "KCHAD-TICKER",
+            Name = "KCHAD",
+            IsActive = true,
+            SourceChangedAt = Now,
+            LastSynchronizedAt = Now
+        });
+        db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalTradeId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = today.AddDays(-1),
+            ClosingPrice = 1000m,
+            LastTradedPrice = 1010m,
+            PriceChange = 10m,
+            PriceYesterday = 990m,
+            SourceInsertedAt = Now.AddDays(-1)
+        });
+        db.IntradayTradeSnapshots.Add(new IntradayTradeSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "StockMarketDb",
+            ExternalSnapshotId = Guid.NewGuid(),
+            TradingInstrumentId = instrumentId,
+            TradingDate = today,
+            TradingTime = new TimeOnly(12, 30),
+            ClosingPrice = 10115m,
+            LastTradedPrice = 26350m,
+            PriceChange = 115m,
+            PriceYesterday = 10000m,
+            ReceivedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Provider(db).GetLatestQuotesAsync([new SymbolCode("کچاد")], CancellationToken.None);
+
+        var quote = Assert.Single(result.Observations);
+        Assert.Equal(26350m, quote.LatestPrice);
+        Assert.Equal(1.15m, quote.PriceChangePercentage);
+        Assert.Equal(today, quote.TradingDate);
+        Assert.Equal(MarketQuoteSource.LiveQuote, quote.Source);
+        Assert.Equal("IntradayToday", quote.SourceLabel);
     }
 
     [Fact]

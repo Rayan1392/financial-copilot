@@ -208,3 +208,14 @@
 - [ ] Add an admin UI for reviewing canonical and dynamic aliases together.
 - [ ] Add telemetry dashboards for unresolved metric phrases.
 - [ ] Add automated suggestions for missing aliases based on failed user queries.
+
+## Change Request Tasks - 2026-06-20 - Period-Specific Financial Metric Aliases
+
+- [ ] Add period-aware aliases for all rows in the spec `073` coverage matrix.
+- [ ] Return both `MetricCode` and period selector from registry-derived routing where the phrase
+      contains an explicit relative period.
+- [ ] Add longest-match precedence for phrases such as `حاشیه سود خالص فصل مشابه سال قبل` over
+      generic `حاشیه سود خالص`.
+- [ ] Add PS aliases if missing: `ps`, `P/S`, `پی به اس`, `قیمت به فروش`, `نسبت قیمت به فروش`.
+- [ ] Add tests proving margin, monthly sales, average sales, PE, and PS aliases resolve to the
+      intended metric code and period selector.

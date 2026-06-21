@@ -87,7 +87,7 @@ GET /api/custom-filtering/tickers Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGci
 
 GET /api/custom-filtering/tickers Authorization: Bearer <access_token>
 :cURL   
-curl -X GET "<https://back1.cyclicalwaves.com/api/custom-filt ering/tickers>" \\
+curl -X GET "<https://back1.cyclicalwaves.com/api/custom-filtering/tickers>" \\
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 :)OK 200(  
 [ ,"" ,"" ,"" ,"" ,""
@@ -245,9 +245,9 @@ API     HTTP      .
 401 404 500
 
 
-Unauthorized ­      .
-Not Found ­     ticker/{ticker}  .
-Internal Server Error ­   .
+Unauthorized ï¿½      .
+Not Found ï¿½     ticker/{ticker}  .
+Internal Server Error ï¿½   .
 
 )(  
 {"error": "Unauthenticated."} 

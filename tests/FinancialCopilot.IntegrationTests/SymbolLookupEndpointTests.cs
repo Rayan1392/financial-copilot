@@ -1465,3 +1465,326 @@ public sealed class CyclicalWavesMonthlySalesLookupApiFactory : AiFacadeApiFacto
             DependencyEvidenceJson = "[]"
         };
 }
+
+public sealed class CyclicalWavesDirectPeriodMetricLookupTests : IClassFixture<CyclicalWavesDirectPeriodMetricLookupApiFactory>
+{
+    private readonly CyclicalWavesDirectPeriodMetricLookupApiFactory _factory;
+
+    public CyclicalWavesDirectPeriodMetricLookupTests(CyclicalWavesDirectPeriodMetricLookupApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task AiQuery_PreviousQuarterNetProfitMargin_ReturnsExactQuarterRow()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "حاشیه سود خالص فصل قبل کچاد" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        Assert.Equal("حاشیه سود خالص فصل قبل", GetColumnDisplayName(columns, "NET_PROFIT_MARGIN"));
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cell = row.GetProperty("cells").GetProperty("NET_PROFIT_MARGIN");
+        Assert.Equal(28.1m, cell.GetProperty("value").GetDecimal());
+        Assert.Equal("28.1", cell.GetProperty("formattedValue").GetString());
+        Assert.Equal("Persisted", cell.GetProperty("freshnessStatus").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_PreviousMonthSales_ReturnsSinglePeriodMetricWithoutQuoteColumns()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش ماه قبل کچاد" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        var columnIds = columns.Select(c => c.GetProperty("identifier").GetString()).ToList();
+        Assert.Equal("فروش ماه قبل", GetColumnDisplayName(columns, "MONTHLY_SALES"));
+        Assert.Contains("MONTHLY_SALES", columnIds);
+        Assert.DoesNotContain("LATEST_PRICE", columnIds);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", columnIds);
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", columnIds);
+        Assert.DoesNotContain("MONTHLY_SALES_YTD", columnIds);
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cell = row.GetProperty("cells").GetProperty("MONTHLY_SALES");
+        Assert.Equal(88_111_000_000_000m, cell.GetProperty("value").GetDecimal());
+        Assert.Equal("88,111,000", cell.GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_LastYearAverage12MonthSales_ReturnsM12Average()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "متوسط فروش 12 ماهه سال قبل کچاد" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        Assert.Equal("متوسط فروش ۱۲ ماهه سال قبل", GetColumnDisplayName(columns, "AVG_12M_MONTHLY_SALES"));
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cell = row.GetProperty("cells").GetProperty("AVG_12M_MONTHLY_SALES");
+        Assert.Equal(71_250_000_000_000m, cell.GetProperty("value").GetDecimal());
+        Assert.Equal("71,250,000", cell.GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_PeLookup_StillReturnsValuationMetric()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "PE کچاد" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        Assert.Equal("نسبت قیمت به سود", GetColumnDisplayName(columns, "PE_TTM"));
+
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        var cell = row.GetProperty("cells").GetProperty("PE_TTM");
+        Assert.Equal(9.73m, cell.GetProperty("value").GetDecimal());
+        Assert.Equal("9.73", cell.GetProperty("formattedValue").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_PreviousMonthSales_WhenExactPeriodMissing_ReturnsMissingWithoutFallback()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش ماه قبل شغدیر" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var table = document.RootElement.GetProperty("symbolLookupTable");
+        var columns = table.GetProperty("columns").EnumerateArray().ToList();
+        Assert.Contains(
+            columns.Select(c => c.GetProperty("identifier").GetString()),
+            identifier => string.Equals(identifier, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase));
+        var row = Assert.Single(table.GetProperty("rows").EnumerateArray());
+        Assert.True(row.GetProperty("cells").TryGetProperty("MONTHLY_SALES", out var cell));
+        Assert.Equal(JsonValueKind.Null, cell.GetProperty("value").ValueKind);
+        Assert.Equal("Missing", cell.GetProperty("freshnessStatus").GetString());
+    }
+
+    private static string? GetColumnDisplayName(IReadOnlyCollection<JsonElement> columns, string identifier) =>
+        columns
+            .First(c => string.Equals(c.GetProperty("identifier").GetString(), identifier, StringComparison.OrdinalIgnoreCase))
+            .GetProperty("displayName")
+            .GetString();
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class CyclicalWavesDirectPeriodMetricLookupApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"cyclicalwaves-direct-period-lookup-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(_ => new PeriodAwareSymbolLookupFakeAiModelClient());
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTestData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTestData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("82000000-0000-0000-0000-000000000001"),
+                Name = "معدنی و صنعتی چادرملو",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "30001",
+                CompanySymbol = "کچاد",
+                TseSymbol = "کچاد",
+                Ticker = "کچاد",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("82000000-0000-0000-0000-000000000002"),
+                Name = "شغدیر",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "30002",
+                CompanySymbol = "شغدیر",
+                TseSymbol = "شغدیر",
+                Ticker = "شغدیر",
+                LastSynchronizedAt = now
+            });
+
+        db.DerivedMetrics.AddRange(
+            Metric("30001", "NET_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 1, 1), new DateOnly(2025, 3, 20), 25.5m, now),
+            Metric("30001", "NET_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 10, 1), new DateOnly(2025, 12, 20), 28.1m, now),
+            Metric("30001", "NET_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 12, 21), new DateOnly(2026, 3, 20), 30.2m, now),
+            Metric("30001", "GROSS_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 1, 1), new DateOnly(2025, 3, 20), 21.4m, now),
+            Metric("30001", "GROSS_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 10, 1), new DateOnly(2025, 12, 20), 23.8m, now),
+            Metric("30001", "GROSS_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 12, 21), new DateOnly(2026, 3, 20), 24.99m, now),
+            Metric("30001", "OPERATING_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 1, 1), new DateOnly(2025, 3, 20), 19.25m, now),
+            Metric("30001", "OPERATING_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 10, 1), new DateOnly(2025, 12, 20), 20.55m, now),
+            Metric("30001", "OPERATING_PROFIT_MARGIN", "ThreeMonths", new DateOnly(2025, 12, 21), new DateOnly(2026, 3, 20), 21.73m, now),
+            Metric("30001", "MONTHLY_SALES", "Monthly", new DateOnly(2025, 4, 21), new DateOnly(2025, 5, 21), 69_220_219_000_000m, now),
+            Metric("30001", "MONTHLY_SALES", "Monthly", new DateOnly(2026, 3, 21), new DateOnly(2026, 4, 21), 88_111_000_000_000m, now),
+            Metric("30001", "MONTHLY_SALES", "Monthly", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), 90_879_722_000_000m, now),
+            Metric("30001", "AVG_12M_MONTHLY_SALES", "Monthly", new DateOnly(2025, 4, 21), new DateOnly(2025, 5, 21), 71_250_000_000_000m, now),
+            Metric("30001", "AVG_12M_MONTHLY_SALES", "Monthly", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), 82_500_000_000_000m, now),
+            Metric("30001", "PE_TTM", "ThreeMonths", new DateOnly(2025, 12, 21), new DateOnly(2026, 3, 20), 9.73m, now),
+            Metric("30001", "PS_TTM", "ThreeMonths", new DateOnly(2025, 12, 21), new DateOnly(2026, 3, 20), 2.14m, now),
+            Metric("30002", "MONTHLY_SALES", "Monthly", new DateOnly(2026, 4, 21), new DateOnly(2026, 5, 21), 11_500_000_000_000m, now));
+    }
+
+    private static DerivedMetricRow Metric(
+        string externalCompanyId,
+        string metricCode,
+        string periodType,
+        DateOnly periodStart,
+        DateOnly periodEnd,
+        decimal value,
+        DateTimeOffset now) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = externalCompanyId,
+            MetricCode = metricCode,
+            MetricVersion = "v1",
+            CalculationPolicyVersion = $"{metricCode.ToLowerInvariant()}-source-v1",
+            PeriodType = periodType,
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            Value = value,
+            Unit = "Amount",
+            ObservedAt = now,
+            LastSynchronizedAt = now,
+            WarningsJson = "[]",
+            SourceEvidenceJson = "[{\"source\":\"CyclicalWaves\"}]",
+            DependencyEvidenceJson = "[]"
+        };
+}
+
+internal sealed class PeriodAwareSymbolLookupFakeAiModelClient : IAiModelClient
+{
+    public AiModelProviderDescriptor Descriptor { get; } = new(
+        "PeriodAwareSymbolLookupFake",
+        "fake-v1",
+        AiProviderHostingMode.Fake,
+        AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput |
+        AiModelCapability.UsageReporting | AiModelCapability.HealthCheck,
+        Enabled: true,
+        Priority: 1);
+
+    public Task<AiModelResult> CompleteAsync(AiModelRequest request, CancellationToken cancellationToken)
+    {
+        var userMessage = request.Messages.Last(message => message.Role == AiMessageRole.User).Content ?? string.Empty;
+        var json = request.StructuredOutput?.SchemaName switch
+        {
+            "IntentDetectionOutput" => "{\"intent\":\"SymbolLookup\",\"confidence\":0.98}",
+            "SymbolLookupParseOutput" => BuildSinglePairJson(userMessage),
+            _ => "{}"
+        };
+
+        return Task.FromResult(new AiModelResult(
+            Text: null,
+            StructuredJson: json,
+            ToolCalls: [],
+            Usage: new AiExecutionUsageFacts(
+                request.CorrelationId,
+                Descriptor.ProviderKey,
+                Descriptor.ModelKey,
+                AiExecutionStatus.Completed,
+                TimeSpan.Zero,
+                AttemptNumber: 0,
+                InputTokens: 12,
+                OutputTokens: 6)));
+    }
+
+    public IAsyncEnumerable<AiStreamingChunk> StreamAsync(
+        AiModelRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiEmbeddingResult> CreateEmbeddingsAsync(
+        AiEmbeddingRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<AiProviderHealthResult> CheckHealthAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new AiProviderHealthResult(
+            Descriptor.ProviderKey,
+            Descriptor.ModelKey,
+            Available: true,
+            DateTimeOffset.UtcNow,
+            "OK"));
+
+    private static string BuildSinglePairJson(string userMessage)
+    {
+        var normalized = userMessage.Replace('ي', 'ی').Replace('ك', 'ک');
+        var symbol = normalized.Contains("شغدیر", StringComparison.OrdinalIgnoreCase) ? "شغدیر" : "کچاد";
+        var metricTerm = normalized.Contains("حاشیه سود عملیاتی", StringComparison.OrdinalIgnoreCase) ? "حاشیه سود عملیاتی"
+            : normalized.Contains("حاشیه سود ناخالص", StringComparison.OrdinalIgnoreCase) ? "حاشیه سود ناخالص"
+            : normalized.Contains("حاشیه سود خالص", StringComparison.OrdinalIgnoreCase) ? "حاشیه سود خالص"
+            : normalized.Contains("متوسط فروش", StringComparison.OrdinalIgnoreCase) || normalized.Contains("میانگین فروش", StringComparison.OrdinalIgnoreCase) ? "متوسط فروش 12 ماهه"
+            : normalized.Contains("قیمت به فروش", StringComparison.OrdinalIgnoreCase) || normalized.Contains("ps", StringComparison.OrdinalIgnoreCase) ? "ps"
+            : normalized.Contains("قیمت به سود", StringComparison.OrdinalIgnoreCase) || normalized.Contains("pe", StringComparison.OrdinalIgnoreCase) ? "pe"
+            : "فروش";
+
+        return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"{{metricTerm}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
+    }
+}

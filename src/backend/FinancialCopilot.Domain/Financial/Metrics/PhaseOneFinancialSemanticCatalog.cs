@@ -184,6 +184,8 @@ public static class PhaseOneFinancialSemanticCatalog
              Alias("avg 12m sales", "en-US", "AVG_12M_MONTHLY_SALES"),
              Alias("متوسط فروش ۱۲ ماهه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
              Alias("متوسط فروش 12 ماهه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش ۱۲ ماهه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
+             Alias("میانگین فروش 12 ماهه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
              Alias("میانگین فروش ۱۲ ماه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
              Alias("میانگین فروش 12 ماه", "fa-IR", "AVG_12M_MONTHLY_SALES"),
              Alias("میانگین فروش ماهانه", "fa-IR", "AVG_12M_MONTHLY_SALES"),

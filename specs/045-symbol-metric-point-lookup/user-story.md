@@ -130,3 +130,18 @@ intent type and lookup execution path to the single AI facade endpoint.
   repeats `5.17`, confidence should be high rather than falling back to zero.
 - The existing `MissingAnswerFeedbackCollector` records lookup gaps (unresolved symbol names,
   metrics with no data) using the `DataCoverageGap` classification.
+
+## Change Request - 2026-06-20 - Period-Aware CyclicalWaves Direct Metrics
+
+Spec `073-cyclicalwaves-direct-period-metric-query-coverage` extends this lookup path. When a user
+asks a direct point-lookup question for a persisted CyclicalWaves snapshot field, the parser and
+lookup service must carry a period selector in addition to the canonical metric code.
+
+Required examples include margin questions for latest quarter, previous quarter, and same quarter
+last year; monthly sales questions for latest month, previous month, and same month last year;
+average 12-month sales for the latest snapshot and the last-year same-month snapshot; and PE/PS
+valuation-ratio questions.
+
+The lookup remains `Companies`/`ExternalCompanyId` based and must not reintroduce the legacy
+`Symbols` table. If a period-specific persisted value is missing, the response must show Missing/null
+with a data-coverage warning instead of silently substituting the latest period.

@@ -305,14 +305,14 @@ public sealed class SymbolLookupParserTests
 
     [Theory]
     [InlineData("آخرین فروش چادرملو؟", "چادرملو", "MONTHLY_SALES", "آخرین فروش")]
-    [InlineData("فروش ماهانه چادرملو؟", "چادرملو", "MONTHLY_SALES", "آخرین فروش")]
+    [InlineData("فروش ماهانه چادرملو؟", "چادرملو", "MONTHLY_SALES", "فروش ماهانه")]
     [InlineData("متوسط فروش 12 ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
     [InlineData("فروش YTD چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD", "فروش YTD")]
     [InlineData("فروش YTD تا ماه قبل چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل")]
     [InlineData("متوسط فروش ۱۲ ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
-    [InlineData("میانگین فروش 12 ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
-    [InlineData("میانگین فروش ۱۲ ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "متوسط فروش 12 ماهه")]
-    [InlineData("فروش YTD تا ماه گذشته چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه قبل")]
+    [InlineData("میانگین فروش 12 ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "میانگین فروش 12 ماهه")]
+    [InlineData("میانگین فروش ۱۲ ماهه چادرملو؟", "چادرملو", "AVG_12M_MONTHLY_SALES", "میانگین فروش 12 ماهه")]
+    [InlineData("فروش YTD تا ماه گذشته چادرملو؟", "چادرملو", "MONTHLY_SALES_YTD_PREVIOUS_MONTH", "فروش YTD تا ماه گذشته")]
     public async Task Parser_DirectMonthlySalesCompanyName_WhenLlmReturnsNoPairs_UsesDeterministicFallback(
         string userMessage,
         string expectedSymbolName,
@@ -332,6 +332,33 @@ public sealed class SymbolLookupParserTests
         Assert.Equal(expectedSymbolName, pair.RawSymbolName);
         Assert.Equal(expectedMetricCode, pair.ResolvedMetricCode?.Value);
         Assert.Equal(expectedMetricTerm, pair.OriginalMetricTerm, ignoreCase: true);
+    }
+
+    [Theory]
+    [InlineData("حاشیه سود خالص آخرین فصل کگل", "حاشیه سود خالص", "NET_PROFIT_MARGIN", SymbolLookupPeriodSelector.LatestQuarter)]
+    [InlineData("حاشیه سود خالص فصل قبل کگل", "حاشیه سود خالص", "NET_PROFIT_MARGIN", SymbolLookupPeriodSelector.PreviousQuarter)]
+    [InlineData("حاشیه سود ناخالص فصل مشابه سال قبل کچاد", "حاشیه سود ناخالص", "GROSS_PROFIT_MARGIN", SymbolLookupPeriodSelector.SameQuarterLastYear)]
+    [InlineData("فروش ماه قبل کچاد", "فروش", "MONTHLY_SALES", SymbolLookupPeriodSelector.PreviousMonth)]
+    [InlineData("فروش ماه مشابه سال قبل کچاد", "فروش", "MONTHLY_SALES", SymbolLookupPeriodSelector.SameMonthLastYear)]
+    [InlineData("متوسط فروش 12 ماهه سال قبل کچاد", "متوسط فروش 12 ماهه", "AVG_12M_MONTHLY_SALES", SymbolLookupPeriodSelector.LastYearAverage12Month)]
+    public async Task Parser_PeriodAwareDirectMetricQuestions_ReturnMetricAndSelector(
+        string userMessage,
+        string llmMetricTerm,
+        string expectedMetricCode,
+        SymbolLookupPeriodSelector expectedSelector)
+    {
+        var resolver = BuildAliasResolver();
+        var json = BuildPairsJson([("کچاد", llmMetricTerm)], language: "fa");
+        var parser = BuildParser(json, resolver);
+
+        var result = await parser.ParseAsync(
+            new SymbolLookupParseRequest(userMessage, "fa", "corr-period-aware", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.Equal(LookupParseStatus.Parsed, result.Status);
+        var pair = Assert.Single(result.Pairs);
+        Assert.Equal(expectedMetricCode, pair.ResolvedMetricCode?.Value);
+        Assert.Equal(expectedSelector, pair.PeriodSelector);
     }
 
     [Fact]
@@ -356,7 +383,12 @@ public sealed class SymbolLookupParserTests
     private static LlmSymbolLookupParser BuildParser(string llmJson, IMetricAliasResolver resolver)
     {
         var execution = new StubAiModelExecutionService(llmJson);
-        return new LlmSymbolLookupParser(execution, resolver);
+        return new LlmSymbolLookupParser(
+            execution,
+            resolver,
+            new DirectMetricRoutingRegistry(
+                resolver,
+                new FinancialCopilot.Infrastructure.Financial.Semantics.DefaultMetricAliasExpressionNormalizer()));
     }
 
     private static IMetricAliasResolver BuildAliasResolver() =>

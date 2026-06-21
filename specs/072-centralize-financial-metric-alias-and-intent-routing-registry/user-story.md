@@ -270,3 +270,16 @@ This diagnostic information must not expose sensitive data and must not change p
 This feature is motivated by the confirmed bug report:
 
 `specs/bugs/direct-price-market-quote-routing-regression-2026-06-19.md`
+
+## Change Request - 2026-06-20 - Period-Specific Financial Metric Aliases
+
+The canonical alias/routing registry must support period-aware direct metric questions for
+CyclicalWaves snapshot fields listed in spec `073`. The registry should resolve both the canonical
+metric code and the requested relative period selector when phrases include terms such as
+`آخرین فصل`, `فصل قبل`, `فصل مشابه سال قبل`, `آخرین ماه`, `ماه قبل`, `ماه مشابه سال قبل`, or
+`سال قبل`.
+
+This change keeps metric identity separate from period selection: for example, all three net-profit
+margin quarter phrases resolve to `NET_PROFIT_MARGIN`, but with different selectors Q0, Q1, or Q4.
+Likewise, `متوسط فروش ۱۲ ماهه` and `متوسط فروش ۱۲ ماهه سال قبل` both resolve to
+`AVG_12M_MONTHLY_SALES`, with M0 and M12 selectors respectively.

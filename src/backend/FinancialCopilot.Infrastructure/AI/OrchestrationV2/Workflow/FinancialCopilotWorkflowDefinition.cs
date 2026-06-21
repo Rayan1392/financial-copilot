@@ -37,6 +37,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     MissingAnswerFeedbackFunction feedbackFunction,
     IAnswerConsistencyValidator consistencyValidator,
     IConfidenceScoringService confidenceScoringService,
+    IDirectMetricRoutingRegistry directMetricRoutingRegistry,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -466,7 +467,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return DetectedIntent.Unknown;
     }
 
-    private static bool IsDirectMetricLookupRequest(string message)
+    private bool IsDirectMetricLookupRequest(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
             return false;
@@ -486,10 +487,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return false;
         }
 
-        return ContainsDirectMetricTerm(normalized);
+        return directMetricRoutingRegistry.ContainsDirectMetricTerm(
+            normalized,
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime));
     }
 
-    private static bool IsDirectMetricLookupFollowup(string message, string enrichedMessage)
+    private bool IsDirectMetricLookupFollowup(string message, string enrichedMessage)
     {
         if (string.IsNullOrWhiteSpace(message) ||
             string.Equals(message, enrichedMessage, StringComparison.Ordinal))
@@ -510,7 +513,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (!LooksLikeShortSymbolOrCompanyReply(message))
             return false;
 
-        return ContainsDirectMetricTerm(NormalizeForIntent(enrichedMessage));
+        return directMetricRoutingRegistry.ContainsDirectMetricTerm(
+            NormalizeForIntent(enrichedMessage),
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime));
     }
 
     private static bool LooksLikeShortSymbolOrCompanyReply(string message)

@@ -7,6 +7,7 @@ namespace FinancialCopilot.Application.Scanner;
 public sealed class LlmSymbolLookupParser(
     IAiModelExecutionService executionService,
     IMetricAliasResolver aliasResolver,
+    IDirectMetricRoutingRegistry routingRegistry,
     TimeProvider? timeProvider = null,
     IMetricAliasLearningSignalCollector? learningSignalCollector = null) : ISymbolLookupParser
 {
@@ -184,7 +185,8 @@ public sealed class LlmSymbolLookupParser(
         LlmLookupParseOutput llmOutput,
         CancellationToken cancellationToken = default)
     {
-        var deterministicPair = TryParseDirectLookup(request.Message);
+        var directRouting = routingRegistry.TryResolve(request.Message, request.AsOf);
+        var deterministicPair = TryParseDirectLookup(request.Message, request.AsOf, directRouting);
         if (llmOutput.ClarificationRequired || llmOutput.Pairs.Count == 0)
         {
             if (deterministicPair is not null)
@@ -204,7 +206,13 @@ public sealed class LlmSymbolLookupParser(
         foreach (var pair in llmOutput.Pairs)
         {
             var language = NormalizeBcp47(llmOutput.DetectedLanguage);
-            var metricTerm = SelectResolvableMetricTerm(pair.MetricTerm, request.Message, language, request.AsOf);
+            var metricTerm = SelectResolvableMetricTerm(
+                directRouting is not null && directRouting.MatchedPhrase.Length > pair.MetricTerm.Length
+                    ? directRouting.MatchedPhrase
+                    : pair.MetricTerm,
+                request.Message,
+                language,
+                request.AsOf);
             var resolution = aliasResolver.ResolveAlias(
                 metricTerm,
                 language,
@@ -231,7 +239,15 @@ public sealed class LlmSymbolLookupParser(
                     request.CorrelationId, cancellationToken);
             }
 
-            resolvedPairs.Add(new SymbolLookupParsedPair(pair.SymbolName, resolvedCode, pair.MetricTerm));
+            var periodSelector = resolvedCode is null
+                ? null
+                : routingRegistry.ResolvePeriodSelector(request.Message, resolvedCode);
+
+            resolvedPairs.Add(new SymbolLookupParsedPair(
+                pair.SymbolName,
+                resolvedCode,
+                pair.MetricTerm,
+                periodSelector));
         }
 
         // If the model missed a direct PE/P-E company-name lookup, recover from the
@@ -255,139 +271,25 @@ public sealed class LlmSymbolLookupParser(
         return new SymbolLookupParseResult(resolvedPairs, LookupParseStatus.Parsed);
     }
 
-    private static SymbolLookupParsedPair? TryParseDirectLookup(string userMessage) =>
-        TryParseDirectPeLookup(userMessage) ??
-        TryParseDirectPriceLookup(userMessage) ??
-        TryParseDirectMonthlySalesLookup(userMessage);
-
-    private static SymbolLookupParsedPair? TryParseDirectPeLookup(string userMessage)
+    private SymbolLookupParsedPair? TryParseDirectLookup(
+        string userMessage,
+        DateOnly asOf,
+        DirectMetricRoutingMatch? directRouting = null)
     {
-        var normalized = NormalizePersianText(userMessage)
-            .Replace('\u200c', ' ')
-            .Replace('\u200d', ' ');
-
-        var metricTerm = DirectPeTerms
-            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
-        if (metricTerm is null)
+        var match = directRouting ?? routingRegistry.TryResolve(userMessage, asOf);
+        if (match is null)
         {
             return null;
         }
 
-        var symbolName = normalized;
-        foreach (var term in DirectPeTerms)
-        {
-            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        foreach (var noise in DirectLookupNoiseTerms)
-        {
-            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        symbolName = CollapseWhitespace(symbolName);
+        var symbolName = routingRegistry.StripResolvedPhrase(userMessage, match);
         return symbolName.Length == 0
             ? null
-            : new SymbolLookupParsedPair(symbolName, new MetricCode("PE_TTM"), metricTerm);
-    }
-
-    private static SymbolLookupParsedPair? TryParseDirectMonthlySalesLookup(string userMessage)
-    {
-        var normalized = NormalizePersianText(userMessage)
-            .Replace('\u200c', ' ')
-            .Replace('\u200d', ' ');
-
-        var metricTerm = SelectExplicitMonthlySalesCompanionMetricTerm(normalized);
-        var resolvedMetricCode = metricTerm switch
-        {
-            "فروش YTD تا ماه قبل" => "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
-            "فروش YTD تا ماه گذشته" => "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
-
-            "فروش YTD" => "MONTHLY_SALES_YTD",
-
-            "متوسط فروش 12 ماهه" => "AVG_12M_MONTHLY_SALES",
-            "متوسط فروش ۱۲ ماهه" => "AVG_12M_MONTHLY_SALES",
-            "میانگین فروش 12 ماهه" => "AVG_12M_MONTHLY_SALES",
-            "میانگین فروش ۱۲ ماهه" => "AVG_12M_MONTHLY_SALES",
-
-            _ => null
-        };
-
-        if (metricTerm is null && IsSalesSnapshotQuery(normalized))
-        {
-            metricTerm = "آخرین فروش";
-            resolvedMetricCode = "MONTHLY_SALES";
-        }
-
-        if (metricTerm is null || resolvedMetricCode is null)
-        {
-            return null;
-        }
-
-        var symbolName = normalized;
-        foreach (var term in DirectMonthlySalesTerms)
-        {
-            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        foreach (var noise in DirectLookupNoiseTerms)
-        {
-            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        symbolName = CollapseWhitespace(symbolName);
-        return symbolName.Length == 0
-            ? null
-            : new SymbolLookupParsedPair(symbolName, new MetricCode(resolvedMetricCode), metricTerm);
-    }
-
-    private static SymbolLookupParsedPair? TryParseDirectPriceLookup(string userMessage)
-    {
-        var normalized = NormalizePersianText(userMessage)
-            .Replace('\u200c', ' ')
-            .Replace('\u200d', ' ');
-
-        if (DirectPeTerms.Any(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase)))
-        {
-            return null;
-        }
-
-        var dailyChangeTerm = DirectDailyChangeTerms
-            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
-        if (dailyChangeTerm is not null)
-        {
-            var symbolName = StripDirectLookupTerms(normalized, DirectDailyChangeTerms);
-            return symbolName.Length == 0
-                ? null
-                : new SymbolLookupParsedPair(symbolName, new MetricCode("DAILY_CHANGE_PCT"), dailyChangeTerm);
-        }
-
-        var priceTerm = DirectPriceTerms
-            .FirstOrDefault(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
-        if (priceTerm is null)
-        {
-            return null;
-        }
-
-        var strippedSymbolName = StripDirectLookupTerms(normalized, DirectPriceTerms);
-        return strippedSymbolName.Length == 0
-            ? null
-            : new SymbolLookupParsedPair(strippedSymbolName, new MetricCode("LATEST_PRICE"), priceTerm);
-    }
-
-    private static string StripDirectLookupTerms(string userMessage, IEnumerable<string> metricTerms)
-    {
-        var symbolName = userMessage;
-        foreach (var term in metricTerms)
-        {
-            symbolName = symbolName.Replace(term, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        foreach (var noise in DirectLookupNoiseTerms)
-        {
-            symbolName = symbolName.Replace(noise, " ", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return CollapseWhitespace(symbolName);
+            : new SymbolLookupParsedPair(
+                symbolName,
+                match.MetricCode,
+                match.MatchedPhrase,
+                match.PeriodSelector);
     }
 
     private void EmitLearningSignal(

@@ -147,3 +147,15 @@ The original resolver tasks below are superseded by spec `068-companies-first-re
   multi-symbol multi-metric, billing entry.
 - Architecture: lookup service and parser must not import controllers, HTTP types, or Billing
   persistence directly.
+
+## Change Request Tasks - 2026-06-20 - Period-Aware CyclicalWaves Direct Metrics
+
+- [ ] Extend the internal symbol lookup parse result with an optional period selector for Q0, Q1,
+      Q4, M0, M1, and M12 style requests, as specified in `073`.
+- [ ] Update the lookup service to apply the period selector while querying `DerivedMetrics` by
+      `ExternalCompanyId` and `MetricCode`.
+- [ ] Ensure `last_year_average_12_month_sale` resolves to M12 `AVG_12M_MONTHLY_SALES` and is not
+      calculated from the latest average.
+- [ ] Return Missing/null for absent period-specific values without substituting another period.
+- [ ] Add direct AI regression tests for margins, monthly sales, average sales, PE, and PS listed in
+      spec `073`.

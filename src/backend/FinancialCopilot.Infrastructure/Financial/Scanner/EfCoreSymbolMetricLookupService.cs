@@ -12,6 +12,7 @@ public sealed class EfCoreSymbolMetricLookupService(
     FinancialIngestionDbContext dbContext,
     ICompanyResolverService companyResolver,
     IMarketQuoteResolver quoteResolver,
+    IDirectMetricRoutingRegistry directMetricRoutingRegistry,
     TimeProvider timeProvider,
     ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService
 {
@@ -33,7 +34,9 @@ public sealed class EfCoreSymbolMetricLookupService(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var uniqueMetricCodes = request.Pairs
+        var requestedPairs = request.Pairs.ToList();
+
+        var uniqueMetricCodes = requestedPairs
             .Select(p => p.MetricCode.Value)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -44,9 +47,10 @@ public sealed class EfCoreSymbolMetricLookupService(
         }
 
         var includeSameMonthPreviousYearSales = ShouldIncludeSameMonthPreviousYearSales(
+            requestedPairs,
             uniqueMetricCodes,
             request.QueryText);
-        var lookupMetricCodes = ExpandPersistedMetricCodes(ExpandLookupMetricCodes(uniqueMetricCodes))
+        var lookupMetricCodes = ExpandPersistedMetricCodes(ExpandLookupMetricCodes(requestedPairs, uniqueMetricCodes))
             .Concat(ShouldIncludeMarketContext(uniqueMetricCodes) ? ["LATEST_PRICE", "DAILY_CHANGE_PCT"] : [])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -94,12 +98,11 @@ public sealed class EfCoreSymbolMetricLookupService(
             externalCompanyIds,
             derivedRows);
 
-        var latestByCompanyMetric = derivedRows
-            .GroupBy(dm => (dm.ExternalCompanyId, dm.MetricCode), ExternalCompanyMetricKeyComparer.Instance)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(dm => dm.PeriodEnd).First(),
-                ExternalCompanyMetricKeyComparer.Instance);
+        var selectedByCompanyMetric = BuildSelectedMetricRows(
+            derivedRows,
+            externalCompanyIds,
+            lookupMetricCodes,
+            requestedPairs);
 
         var companyRows = await dbContext.Companies.AsNoTracking()
             .Where(c => externalCompanyIds.Contains(c.ExternalCompanyId))
@@ -114,10 +117,12 @@ public sealed class EfCoreSymbolMetricLookupService(
             externalCompanyIds,
             derivedRows);
         var displayMetricCodes = ExpandDisplayMetricCodes(
+            requestedPairs,
             uniqueMetricCodes,
             useCyclicalWavesAverageLayout,
             includeSameMonthPreviousYearSales);
         var includeMarketContext = ShouldIncludeMarketContext(displayMetricCodes);
+        var displayNameOverrides = BuildDisplayNameOverrides(requestedPairs);
 
         var quoteBySymbol = new Dictionary<string, MarketQuoteObservation>(StringComparer.OrdinalIgnoreCase);
         if (includeMarketContext && companyRows.Count > 0)
@@ -145,7 +150,7 @@ public sealed class EfCoreSymbolMetricLookupService(
             }
         }
 
-        var columns = BuildLookupColumns(displayMetricCodes, includeMarketContext);
+        var columns = BuildLookupColumns(displayMetricCodes, includeMarketContext, displayNameOverrides);
         var rows = new List<ScannerTableRow>();
 
         foreach (var name in uniqueSymbolNames)
@@ -167,14 +172,14 @@ public sealed class EfCoreSymbolMetricLookupService(
                 displaySymbol,
                 companyName,
                 quote,
-                latestByCompanyMetric,
+                selectedByCompanyMetric,
                 derivedRows);
 
             LogPeLookupResult(
                 request.QueryText,
                 name,
                 resolved.ExternalCompanyId,
-                latestByCompanyMetric,
+                selectedByCompanyMetric,
                 cells);
 
             rows.Add(new ScannerTableRow(
@@ -208,6 +213,7 @@ public sealed class EfCoreSymbolMetricLookupService(
     }
 
     private static IReadOnlyCollection<string> ExpandDisplayMetricCodes(
+        IReadOnlyCollection<SymbolLookupRequestPair> requestPairs,
         IReadOnlyCollection<string> metricCodes,
         bool useAverage12MonthSales,
         bool includeSameMonthPreviousYearSales)
@@ -217,6 +223,16 @@ public sealed class EfCoreSymbolMetricLookupService(
         {
             if (string.Equals(code, MonthlySales, StringComparison.OrdinalIgnoreCase))
             {
+                var explicitSelector = requestPairs.Any(p =>
+                    string.Equals(p.MetricCode.Value, MonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                    p.PeriodSelector is not null);
+
+                if (explicitSelector)
+                {
+                    AddIfMissing(expanded, MonthlySales);
+                    continue;
+                }
+
                 AddIfMissing(expanded, MonthlySales);
                 AddIfMissing(expanded, useAverage12MonthSales && !includeSameMonthPreviousYearSales
                     ? Average12MonthMonthlySales
@@ -232,13 +248,25 @@ public sealed class EfCoreSymbolMetricLookupService(
         return expanded;
     }
 
-    private static IReadOnlyCollection<string> ExpandLookupMetricCodes(IReadOnlyCollection<string> metricCodes)
+    private static IReadOnlyCollection<string> ExpandLookupMetricCodes(
+        IReadOnlyCollection<SymbolLookupRequestPair> requestPairs,
+        IReadOnlyCollection<string> metricCodes)
     {
         var expanded = new List<string>();
         foreach (var code in metricCodes)
         {
             if (string.Equals(code, MonthlySales, StringComparison.OrdinalIgnoreCase))
             {
+                var explicitSelector = requestPairs.Any(p =>
+                    string.Equals(p.MetricCode.Value, MonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                    p.PeriodSelector is not null);
+
+                if (explicitSelector)
+                {
+                    AddIfMissing(expanded, MonthlySales);
+                    continue;
+                }
+
                 AddIfMissing(expanded, MonthlySales);
                 AddIfMissing(expanded, Average12MonthMonthlySales);
                 AddIfMissing(expanded, MonthlySalesYtd);
@@ -284,12 +312,127 @@ public sealed class EfCoreSymbolMetricLookupService(
         !string.IsNullOrWhiteSpace(value) &&
         value.Contains("CyclicalWaves", StringComparison.OrdinalIgnoreCase);
 
+    private static IReadOnlyDictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow> BuildSelectedMetricRows(
+        IReadOnlyCollection<DerivedMetricRow> derivedRows,
+        IReadOnlyCollection<string> externalCompanyIds,
+        IReadOnlyCollection<string> lookupMetricCodes,
+        IReadOnlyCollection<SymbolLookupRequestPair> requestPairs)
+    {
+        var selected = new Dictionary<(string ExternalCompanyId, string MetricCode), DerivedMetricRow>(
+            ExternalCompanyMetricKeyComparer.Instance);
+
+        foreach (var externalCompanyId in externalCompanyIds)
+        {
+            foreach (var metricCode in lookupMetricCodes)
+            {
+                var selector = requestPairs
+                    .FirstOrDefault(pair => string.Equals(pair.MetricCode.Value, metricCode, StringComparison.OrdinalIgnoreCase))
+                    ?.PeriodSelector;
+
+                var row = SelectMetricRow(derivedRows, externalCompanyId, metricCode, selector);
+                if (row is not null)
+                {
+                    selected[(externalCompanyId, metricCode)] = row;
+                }
+            }
+        }
+
+        return selected;
+    }
+
+    private static DerivedMetricRow? SelectMetricRow(
+        IReadOnlyCollection<DerivedMetricRow> derivedRows,
+        string externalCompanyId,
+        string metricCode,
+        SymbolLookupPeriodSelector? selector)
+    {
+        var candidates = derivedRows
+            .Where(row =>
+                string.Equals(row.ExternalCompanyId, externalCompanyId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(row.MetricCode, metricCode, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(row => row.PeriodEnd)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        var cyclicalCandidates = candidates
+            .Where(IsCyclicalWavesMetricRow)
+            .OrderByDescending(row => row.PeriodEnd)
+            .ToList();
+
+        if (selector is not null)
+        {
+            var selectedRows = cyclicalCandidates.Count > 0 ? cyclicalCandidates : candidates;
+            var index = selector switch
+            {
+                SymbolLookupPeriodSelector.LatestQuarter => 0,
+                SymbolLookupPeriodSelector.LatestMonth => 0,
+                SymbolLookupPeriodSelector.PreviousQuarter => 1,
+                SymbolLookupPeriodSelector.PreviousMonth => 1,
+                SymbolLookupPeriodSelector.SameQuarterLastYear => 2,
+                SymbolLookupPeriodSelector.SameMonthLastYear => 2,
+                SymbolLookupPeriodSelector.LastYearAverage12Month => 1,
+                _ => 0
+            };
+
+            return index < selectedRows.Count ? selectedRows[index] : null;
+        }
+
+        if (IsCyclicalWavesPeriodAwareMetric(metricCode) && cyclicalCandidates.Count > 0)
+        {
+            return cyclicalCandidates[0];
+        }
+
+        return candidates[0];
+    }
+
+    private static bool IsCyclicalWavesPeriodAwareMetric(string metricCode) =>
+        string.Equals(metricCode, MonthlySales, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, Average12MonthMonthlySales, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "NET_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "GROSS_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "OPERATING_PROFIT_MARGIN", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "PE_TTM", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(metricCode, "PS_TTM", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyDictionary<string, string> BuildDisplayNameOverrides(
+        IReadOnlyCollection<SymbolLookupRequestPair> requestPairs)
+    {
+        var overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in requestPairs)
+        {
+            if (pair.PeriodSelector is null &&
+                !string.Equals(pair.MetricCode.Value, Average12MonthMonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(pair.MetricCode.Value, "PE_TTM", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(pair.MetricCode.Value, "PS_TTM", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            overrides[pair.MetricCode.Value] = pair.DisplayLabel ??
+                directMetricRoutingRegistry.ResolveDisplayLabel(pair.MetricCode, pair.PeriodSelector);
+        }
+
+        return overrides;
+    }
+
     private static bool ShouldIncludeSameMonthPreviousYearSales(
+        IReadOnlyCollection<SymbolLookupRequestPair> requestPairs,
         IReadOnlyCollection<string> metricCodes,
         string? queryText)
     {
         if (metricCodes.Contains(MonthlySalesPriorFiscalYearSameMonth, StringComparer.OrdinalIgnoreCase))
             return true;
+
+        if (requestPairs.Any(p =>
+                string.Equals(p.MetricCode.Value, MonthlySales, StringComparison.OrdinalIgnoreCase) &&
+                p.PeriodSelector == SymbolLookupPeriodSelector.SameMonthLastYear))
+        {
+            return true;
+        }
 
         if (string.IsNullOrWhiteSpace(queryText))
             return false;
@@ -344,7 +487,8 @@ public sealed class EfCoreSymbolMetricLookupService(
 
     private static IReadOnlyCollection<ScannerTableColumn> BuildLookupColumns(
         IEnumerable<string> metricCodes,
-        bool includeMarketContext)
+        bool includeMarketContext,
+        IReadOnlyDictionary<string, string> displayNameOverrides)
     {
         var columns = new List<ScannerTableColumn>
         {
@@ -370,7 +514,13 @@ public sealed class EfCoreSymbolMetricLookupService(
             if (string.Equals(code, "MARKET_CAP", StringComparison.OrdinalIgnoreCase))
                 columns.Add(new ScannerTableColumn("MARKET_CAP", "ارزش بازار", ScannerColumnType.MarketCap));
             else
-                columns.Add(new ScannerTableColumn(code, FormatPersianMetricDisplayName(code), ScannerColumnType.Metric, code));
+                columns.Add(new ScannerTableColumn(
+                    code,
+                    displayNameOverrides.TryGetValue(code, out var displayName)
+                        ? displayName
+                        : FormatPersianMetricDisplayName(code),
+                    ScannerColumnType.Metric,
+                    code));
         }
 
         return columns;
@@ -613,12 +763,16 @@ public sealed class EfCoreSymbolMetricLookupService(
     {
         var endTime = timeProvider.GetUtcNow();
         var displayMetricCodes = ExpandDisplayMetricCodes(
+            [],
             metricCodes.ToList(),
             useAverage12MonthSales: false,
             includeSameMonthPreviousYearSales: false);
         return new SymbolLookupTableResult(
             lookupId,
-            BuildLookupColumns(displayMetricCodes, ShouldIncludeMarketContext(displayMetricCodes)),
+            BuildLookupColumns(
+                displayMetricCodes,
+                ShouldIncludeMarketContext(displayMetricCodes),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)),
             [],
             new ScannerExecutionFacts(
                 endTime,
@@ -757,13 +911,17 @@ public sealed class EfCoreSymbolMetricLookupService(
         IReadOnlyCollection<ScannerTableRow> rows,
         IReadOnlyCollection<string> metricCodes)
     {
-        if (!ContainsPeMetric(metricCodes)) return [];
+        var warnings = new List<string>();
+        foreach (var metricCode in metricCodes.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            warnings.AddRange(rows
+                .Where(row =>
+                    row.Cells.TryGetValue(metricCode, out var cell) &&
+                    (cell.Value is null || cell.FreshnessStatus == CellFreshnessStatus.Missing))
+                .Select(row => $"{metricCode} is missing for symbol '{row.SymbolCode}'."));
+        }
 
-        return rows
-            .Where(row =>
-                row.Cells.TryGetValue("PE_TTM", out var cell) &&
-                (cell.Value is null || cell.FreshnessStatus == CellFreshnessStatus.Missing))
-            .Select(row => $"PE_TTM is missing for symbol '{row.SymbolCode}'.")
+        return warnings
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }

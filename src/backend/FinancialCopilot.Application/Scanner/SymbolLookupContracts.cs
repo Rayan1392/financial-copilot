@@ -20,7 +20,19 @@ public sealed record LlmLookupParseOutput(
 public sealed record SymbolLookupParsedPair(
     string RawSymbolName,
     MetricCode? ResolvedMetricCode,
-    string OriginalMetricTerm);
+    string OriginalMetricTerm,
+    SymbolLookupPeriodSelector? PeriodSelector = null);
+
+public enum SymbolLookupPeriodSelector
+{
+    LatestQuarter,
+    PreviousQuarter,
+    SameQuarterLastYear,
+    LatestMonth,
+    PreviousMonth,
+    SameMonthLastYear,
+    LastYearAverage12Month
+}
 
 public enum LookupParseStatus
 {
@@ -43,10 +55,16 @@ public sealed record SymbolLookupParseRequest(
 // Input to ISymbolMetricLookupService.
 // SymbolName is the raw user string; the lookup service resolves it to a SymbolCode.
 public sealed record SymbolLookupRequest(
-    IReadOnlyCollection<(string SymbolName, MetricCode MetricCode)> Pairs,
+    IReadOnlyCollection<SymbolLookupRequestPair> Pairs,
     DateOnly AsOf,
     string? ActorId = null,
     string? QueryText = null);
+
+public sealed record SymbolLookupRequestPair(
+    string SymbolName,
+    MetricCode MetricCode,
+    SymbolLookupPeriodSelector? PeriodSelector = null,
+    string? DisplayLabel = null);
 
 // Result re-uses ScannerTableColumn/Row/Cell contracts so the frontend renders it identically.
 public sealed record SymbolLookupTableResult(

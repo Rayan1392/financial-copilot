@@ -211,7 +211,10 @@ public sealed class AiQueryOrchestrationService(
                     // Build request from resolved pairs (symbol name + metric code).
                     var lookupPairs = parseResult.Pairs
                         .Where(p => p.ResolvedMetricCode is not null)
-                        .Select(p => (p.RawSymbolName, p.ResolvedMetricCode!))
+                        .Select(p => new SymbolLookupRequestPair(
+                            p.RawSymbolName,
+                            p.ResolvedMetricCode!,
+                            p.PeriodSelector))
                         .ToList();
 
                     var lookupRequest = new SymbolLookupRequest(

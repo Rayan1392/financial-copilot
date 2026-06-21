@@ -79,7 +79,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             TryGetRequestedPrimaryColumn(table, metricColumns, out var requestedColumn))
         {
             var requestedMetricCode = requestedColumn.MetricCode ?? requestedColumn.Identifier;
-            var requestedMetricDisplay = displayNames.ResolveDisplayName(requestedMetricCode, persian);
+            var requestedMetricDisplay = requestedColumn.DisplayName;
             var requestedRow = table.Rows.First();
             var requestedSymbol = requestedRow.SymbolCode;
 

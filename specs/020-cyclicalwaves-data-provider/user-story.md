@@ -91,6 +91,7 @@ not raw Noavaran monthly line items.
 | `PE_RATIO` | `pe` | Q-0 only |
 | `PS_RATIO` | `ps` | Q-0 only |
 | `REVENUE` (monthly) | `last/penultimate/last_year_same_month_sale` | M-0, M-1, M-12 |
+| `AVG_12M_MONTHLY_SALES` | `average_12_month_sale`, `last_year_average_12_month_sale` | M-0, M-12 |
 | `REVENUE_GROWTH_QOQ` | derived: Q-0 vs Q-1 | Derived |
 | `REVENUE_GROWTH_YOY` | derived: Q-0 vs Q-4 | Derived |
 

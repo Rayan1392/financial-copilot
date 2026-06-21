@@ -586,6 +586,7 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CompositeMetricAliasResolver>());
         services.AddSingleton<IMetricAliasCacheInvalidator>(provider =>
             provider.GetRequiredService<CompositeMetricAliasResolver>());
+        services.AddSingleton<IDirectMetricRoutingRegistry, DirectMetricRoutingRegistry>();
 
         services
             .AddOptions<MetricAliasLearningOptions>()

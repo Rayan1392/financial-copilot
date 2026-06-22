@@ -8,6 +8,8 @@ public sealed class FinancialMetricDefinitionRow
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public string PersianTitle { get; set; } = string.Empty;
+
     public string Description { get; set; } = string.Empty;
 
     public string Category { get; set; } = string.Empty;
@@ -17,6 +19,45 @@ public sealed class FinancialMetricDefinitionRow
     public DateOnly EffectiveFrom { get; set; }
 
     public DateOnly? EffectiveTo { get; set; }
+
+    // Capability flags — drive routing and rendering decisions without code deployments
+    public bool LookupEligible { get; set; }
+
+    public bool ScannerEligible { get; set; }
+
+    public bool IsMonthlyActivityMetric { get; set; }
+
+    public bool IsValuationMetric { get; set; }
+
+    public bool IsGrowthMetric { get; set; }
+
+    public bool IsMarginMetric { get; set; }
+
+    public bool IsFundamentalMetric { get; set; }
+
+    public bool SuppressQuoteContext { get; set; }
+}
+
+public sealed class MetricPeriodAliasRow
+{
+    public Guid Id { get; set; }
+
+    public string AliasText { get; set; } = string.Empty;
+
+    public string NormalizedAliasText { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
+
+    // "Monthly", "ThreeMonths", "SixMonths", "NineMonths", "TwelveMonths"
+    public string PeriodType { get; set; } = string.Empty;
+
+    // "M0", "M1", "M12", "Q0", "Q1", "Q4", "Latest"
+    public string PeriodSelector { get; set; } = string.Empty;
+
+    public int Priority { get; set; }
+
+    // "Active" | "Inactive"
+    public string Status { get; set; } = string.Empty;
 }
 
 public sealed class MetricAliasRow

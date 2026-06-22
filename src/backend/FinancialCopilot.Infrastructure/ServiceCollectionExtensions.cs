@@ -586,6 +586,12 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CompositeMetricAliasResolver>());
         services.AddSingleton<IMetricAliasCacheInvalidator>(provider =>
             provider.GetRequiredService<CompositeMetricAliasResolver>());
+        services.AddSingleton<EfCoreMetricPeriodAliasResolver>();
+        services.AddSingleton<IMetricPeriodAliasResolver>(provider =>
+            provider.GetRequiredService<EfCoreMetricPeriodAliasResolver>());
+        services.AddSingleton<EfCoreMetricDefinitionCapabilityReader>();
+        services.AddSingleton<IMetricDefinitionCapabilityReader>(provider =>
+            provider.GetRequiredService<EfCoreMetricDefinitionCapabilityReader>());
         services.AddSingleton<IDirectMetricRoutingRegistry, DirectMetricRoutingRegistry>();
 
         services

@@ -6,6 +6,7 @@ using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace FinancialCopilot.Infrastructure.Financial.Semantics;
 
@@ -329,6 +330,142 @@ public sealed class CompositeMetricAliasResolver(
                 "Failed to load dynamic metric aliases for language {Language}; falling back to empty list.",
                 language);
             return Array.Empty<DynamicMetricAlias>();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Period alias resolver (singleton + per-language cache)
+// ---------------------------------------------------------------------------
+
+public sealed class EfCoreMetricPeriodAliasResolver(
+    IServiceScopeFactory scopeFactory,
+    IMetricAliasExpressionNormalizer normalizer,
+    ILogger<EfCoreMetricPeriodAliasResolver> logger)
+    : IMetricPeriodAliasResolver
+{
+    // Key = language, Value = (normalizedAlias -> ResolvedPeriodAlias) sorted by descending priority
+    private readonly ConcurrentDictionary<string, IReadOnlyList<(string Normalized, ResolvedPeriodAlias Resolved)>>
+        _cache = new();
+
+    public ResolvedPeriodAlias? ResolvePhrase(string normalizedPhrase, string language)
+    {
+        var langAliases = GetOrLoad(language);
+
+        // Longest-match first: iterate by priority order (already sorted desc)
+        foreach (var (norm, resolved) in langAliases)
+        {
+            if (string.Equals(norm, normalizedPhrase, StringComparison.Ordinal))
+                return resolved;
+        }
+
+        // Case-insensitive fuzzy fallback
+        foreach (var (norm, resolved) in langAliases)
+        {
+            if (string.Equals(norm, normalizedPhrase, StringComparison.OrdinalIgnoreCase))
+                return resolved;
+        }
+
+        return null;
+    }
+
+    public void InvalidateCache() => _cache.Clear();
+
+    private IReadOnlyList<(string, ResolvedPeriodAlias)> GetOrLoad(string language)
+    {
+        if (_cache.TryGetValue(language, out var cached))
+            return cached;
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<Persistence.SemanticCatalogDbContext>();
+            var rows = db.MetricPeriodAliases
+                .AsNoTracking()
+                .Where(r => r.Language == language && r.Status == "Active")
+                .OrderByDescending(r => r.Priority)
+                .ToList();
+
+            var entries = rows
+                .Select(r => (
+                    normalizer.Normalize(r.AliasText, language),
+                    new ResolvedPeriodAlias(r.PeriodType, r.PeriodSelector, r.AliasText, r.Priority)))
+                .ToList()
+                .AsReadOnly();
+
+            _cache[language] = entries;
+            return entries;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to load period aliases for language {Language}; returning empty list.",
+                language);
+            return Array.Empty<(string, ResolvedPeriodAlias)>();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Metric definition capability reader (singleton + cache)
+// ---------------------------------------------------------------------------
+
+public sealed class EfCoreMetricDefinitionCapabilityReader(
+    IServiceScopeFactory scopeFactory,
+    ILogger<EfCoreMetricDefinitionCapabilityReader> logger)
+    : IMetricDefinitionCapabilityReader
+{
+    private volatile IReadOnlyDictionary<string, MetricDefinitionCapabilities>? _cache;
+
+    public MetricDefinitionCapabilities? GetCapabilities(string metricCode) =>
+        EnsureLoaded().TryGetValue(metricCode, out var caps) ? caps : null;
+
+    public IReadOnlyList<MetricDefinitionCapabilities> GetAll() =>
+        EnsureLoaded().Values.ToList().AsReadOnly();
+
+    public void InvalidateCache() => _cache = null;
+
+    private IReadOnlyDictionary<string, MetricDefinitionCapabilities> EnsureLoaded()
+    {
+        if (_cache is not null)
+            return _cache;
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider
+                .GetRequiredService<Persistence.SemanticCatalogDbContext>();
+
+            // Latest version per MetricCode
+            var rows = db.MetricDefinitions
+                .AsNoTracking()
+                .Where(r => r.EffectiveTo == null)
+                .ToList()
+                .GroupBy(r => r.MetricCode)
+                .Select(g => g.OrderByDescending(r => r.EffectiveFrom).First());
+
+            _cache = rows.ToDictionary(
+                r => r.MetricCode,
+                r => new MetricDefinitionCapabilities(
+                    r.MetricCode,
+                    r.PersianTitle,
+                    r.DisplayName,
+                    r.Category,
+                    r.LookupEligible,
+                    r.ScannerEligible,
+                    r.IsMonthlyActivityMetric,
+                    r.IsValuationMetric,
+                    r.IsGrowthMetric,
+                    r.IsMarginMetric,
+                    r.IsFundamentalMetric,
+                    r.SuppressQuoteContext));
+
+            return _cache;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load metric definition capabilities; returning empty.");
+            return new Dictionary<string, MetricDefinitionCapabilities>();
         }
     }
 }

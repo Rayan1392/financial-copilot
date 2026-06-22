@@ -16,6 +16,8 @@ public sealed class SemanticCatalogDbContext(DbContextOptions<SemanticCatalogDbC
 
     public DbSet<MetricAliasCandidateRow> MetricAliasCandidates => Set<MetricAliasCandidateRow>();
 
+    public DbSet<MetricPeriodAliasRow> MetricPeriodAliases => Set<MetricPeriodAliasRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(SemanticCatalogDbContext).Assembly,

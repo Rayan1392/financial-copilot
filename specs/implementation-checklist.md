@@ -369,6 +369,8 @@ affected data is re-ingested from source providers after deployment.
 
 | [x] | 72b | [073](./073-cyclicalwaves-direct-period-metric-query-coverage/user-story.md) / [tasks](./073-cyclicalwaves-direct-period-metric-query-coverage/tasks.md) | CyclicalWaves Direct Period Metric Query Coverage | **Priority: High.** Depends on `020`, `045`, `070`, `071`, and `072`. Close the remaining AI direct-question gap for CyclicalWaves snapshot fields: period-aware lookup for Q0/Q1/Q4 margin metrics, M0/M1/M12 monthly sales, M0/M12 average 12-month sales, and PE/PS valuation ratios. Add aliases, parser period selectors, exact-period DerivedMetrics lookup by `ExternalCompanyId`, Persian display labels, Missing/null behavior without period substitution, and end-to-end AI regression tests. |
 
+| [ ] | 73 | [074](./074-database-backed-metric-definition-and-alias-registry/user-story.md) / [tasks](./074-database-backed-metric-definition-and-alias-registry/tasks.md) | Database-Backed Metric Definition and Alias Registry | **Priority: High.** Depends on `015`, `058`, `072`. Migrate the in-memory `PhaseOneFinancialSemanticCatalog` to a PostgreSQL-backed registry so metric definitions, bilingual aliases, routing capabilities, and intent phrases are governed data — editable by DataAdmin without code deployments. The in-process `IMetricAliasResolver` contract remains unchanged so no scanner, symbol-lookup, or AI orchestration code requires modification. Includes DataAdmin CRUD endpoints, EF migration, seed-on-startup from the existing catalog, and alias-resolution regression tests. |
+
 
 ## Supersession Notes
 

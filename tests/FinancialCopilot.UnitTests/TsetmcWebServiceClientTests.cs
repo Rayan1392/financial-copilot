@@ -96,8 +96,8 @@ public sealed class TsetmcWebServiceClientTests
         Assert.False(opts.Enabled);
         Assert.Equal("TsetmcWebService", opts.ProviderName);
         Assert.Equal("http://service.tsetmc.com/WebService/TsePublicV2.asmx", opts.ServiceUrl);
-        Assert.Equal([0, 1, 2, 3, 4, 5], opts.IntradayTradeFlows);
-        Assert.Equal([5, 6, 7], opts.InstrumentFlows);
+        Assert.Empty(opts.IntradayTradeFlows);
+        Assert.Empty(opts.InstrumentFlows);
     }
 
     [Fact]

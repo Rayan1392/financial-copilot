@@ -17,10 +17,10 @@ public sealed class TsetmcWebServiceOptions
     public int RetryCount { get; init; } = 3;
 
     /// <summary>Flows to request for TradeLastDay (intraday trades). Valid values: 0–5.</summary>
-    public byte[] IntradayTradeFlows { get; init; } = [0, 1, 2, 3, 4, 5];
+    public byte[] IntradayTradeFlows { get; init; } = [];
 
     /// <summary>Flows to request for Instrument dimension. Valid values: 5–7 (equity/ETF/rights).</summary>
-    public byte[] InstrumentFlows { get; init; } = [5, 6, 7];
+    public byte[] InstrumentFlows { get; init; } = [];
 
     /// <summary>Start date for daily trade backfill (yyyyMMdd format, e.g. "20200101").</summary>
     public string DailyTradeFromDate { get; init; } = "20200101";

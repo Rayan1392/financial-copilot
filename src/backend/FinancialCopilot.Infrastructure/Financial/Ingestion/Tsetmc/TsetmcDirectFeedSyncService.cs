@@ -96,7 +96,13 @@ public sealed class TsetmcDirectFeedSyncService(
         var totalFetched = 0;
         var totalPersisted = 0;
 
-        var fromDate = ParseConfigDate(_options.DailyTradeFromDate, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)));
+        var lasttradedDate = await dbContext.DailyInstrumentTrades
+            .Where(row => row.ProviderName == _options.ProviderName)
+            .MaxAsync(row => (DateOnly?)row.TradingDate, cancellationToken);
+
+        var fromDate = lasttradedDate.HasValue
+            ? lasttradedDate.Value.AddDays(1)
+            : ParseConfigDate(_options.DailyTradeFromDate, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)));
         var toDate = _options.DailyTradeToDate is not null
             ? ParseConfigDate(_options.DailyTradeToDate, DateOnly.FromDateTime(DateTime.UtcNow))
             : DateOnly.FromDateTime(DateTime.UtcNow);
@@ -138,7 +144,12 @@ public sealed class TsetmcDirectFeedSyncService(
         var totalFetched = 0;
         var totalPersisted = 0;
 
-        var fromDate = ParseConfigDate(_options.DailyIndexFromDate, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)));
+        var lastIndexedDate = await dbContext.DailyIndexSnapshots
+            .Where(row => row.ProviderName == _options.ProviderName)
+            .MaxAsync(row => (DateOnly?)row.TradingDate, cancellationToken);
+        var fromDate = lastIndexedDate.HasValue
+            ? lastIndexedDate.Value.AddDays(1)
+            : ParseConfigDate(_options.DailyIndexFromDate, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)));
         var toDate = _options.DailyIndexToDate is not null
             ? ParseConfigDate(_options.DailyIndexToDate, DateOnly.FromDateTime(DateTime.UtcNow))
             : DateOnly.FromDateTime(DateTime.UtcNow);

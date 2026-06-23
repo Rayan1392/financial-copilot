@@ -41,6 +41,7 @@ public sealed class AdminDataOperationsController(
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
     ICurrentApiGapReader currentApiGapReader,
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
+    IProductRevenueMixBackfillService productRevenueMixBackfillService,
     IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
@@ -441,6 +442,28 @@ public sealed class AdminDataOperationsController(
     {
         var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
         return Ok(ToMonthlyBackfillProgressResponse(progress));
+    }
+
+    // --- Spec 075: one-time backfill of persisted company product revenue mix rows (DataAdmin only) ---
+    // Reuses the existing calculator over already-normalized Noavaran ProductSales rows so
+    // historical periods are populated without re-ingesting source payloads.
+
+    [HttpPost("noavaran-current/product-revenue-mix-backfill")]
+    public async Task<ActionResult<AdminProductRevenueMixBackfillResponse>> RunProductRevenueMixBackfill(
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.Actor;
+        var result = await productRevenueMixBackfillService.RunAsync(
+            new ProductRevenueMixBackfillRequest($"{actor.ActorType}:{actor.ActorId}"),
+            cancellationToken);
+        return Ok(new AdminProductRevenueMixBackfillResponse(
+            result.Outcome,
+            result.RequestedBy,
+            result.CompaniesConsidered,
+            result.CompanyMonthsDiscovered,
+            result.CompanyMonthsProcessed,
+            result.CompanyMonthsSkippedNoSalesLineItems,
+            result.Duration));
     }
 
     private static AdminMonthlyActivityBackfillProgressResponse ToMonthlyBackfillProgressResponse(

@@ -34,18 +34,18 @@ public sealed class EfCoreCurrentApiGapReader(
             dbContext.FinancialStatements.AsNoTracking()
                 .Where(row => (row.ProviderName == ArchiveSource || row.ProviderName == CurrentSource) &&
                     row.PeriodEnd.Year >= minGregorianYear)
-                .Select(row => new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
+                .GroupBy(row => new { row.ProviderName, row.ExternalCompanyId, FiscalYear = row.PeriodEnd.Year })
+                .Select(g => new CoverageCount(g.Key.ProviderName, g.Key.ExternalCompanyId, g.Key.FiscalYear, g.Count())),
             ArchiveImportDataset.FinancialStatements.ToString(),
-            minGregorianYear,
             cancellationToken);
 
         var monthlyGaps = await BuildGapsAsync(
             dbContext.MonthlyReports.AsNoTracking()
                 .Where(row => (row.ProviderName == ArchiveSource || row.ProviderName == CurrentSource) &&
                     row.PeriodEnd.Year >= minGregorianYear)
-                .Select(row => new CoverageProjection(row.ProviderName, row.ExternalCompanyId, row.PeriodEnd.Year)),
+                .GroupBy(row => new { row.ProviderName, row.ExternalCompanyId, FiscalYear = row.PeriodEnd.Year })
+                .Select(g => new CoverageCount(g.Key.ProviderName, g.Key.ExternalCompanyId, g.Key.FiscalYear, g.Count())),
             ArchiveImportDataset.MonthlyActivity.ToString(),
-            minGregorianYear,
             cancellationToken);
 
         var gaps = statementGaps.Concat(monthlyGaps)
@@ -58,23 +58,11 @@ public sealed class EfCoreCurrentApiGapReader(
     }
 
     private static async Task<IReadOnlyList<CurrentApiCoverageGap>> BuildGapsAsync(
-        IQueryable<CoverageProjection> source,
+        IQueryable<CoverageCount> source,
         string dataset,
-        int minGregorianYear,
         CancellationToken cancellationToken)
     {
-        // Counts per (company, fiscalYear) split by archive vs current source, at/after the boundary.
-        // Filtering is applied by the caller on the raw entity before projection so EF can translate it.
-        var counts = await source
-            .GroupBy(row => new { row.ExternalCompanyId, row.FiscalYear, row.ProviderName })
-            .Select(group => new
-            {
-                group.Key.ExternalCompanyId,
-                group.Key.FiscalYear,
-                group.Key.ProviderName,
-                Count = group.Count()
-            })
-            .ToListAsync(cancellationToken);
+        var counts = await source.ToListAsync(cancellationToken);
 
         return counts
             .GroupBy(row => new { row.ExternalCompanyId, row.FiscalYear })
@@ -85,12 +73,11 @@ public sealed class EfCoreCurrentApiGapReader(
                 return new CurrentApiCoverageGap(
                     dataset, group.Key.ExternalCompanyId, group.Key.FiscalYear, current, archive);
             })
-            // A gap exists where the current API has rows the archive does not.
             .Where(gap => gap.CurrentApiRowCount > gap.ArchiveRowCount)
             .ToArray();
     }
 
-    private sealed record CoverageProjection(string ProviderName, string ExternalCompanyId, int FiscalYear);
+    private sealed record CoverageCount(string ProviderName, string ExternalCompanyId, int FiscalYear, int Count);
 }
 
 /// <summary>

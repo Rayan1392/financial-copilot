@@ -39,6 +39,14 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         IntentDetectionInput input,
         CancellationToken cancellationToken)
     {
+        if (LooksLikeProductRevenueMixQuery(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.ProductRevenueMix,
+                0.98,
+                "Deterministic product revenue mix phrase rule.");
+        }
+
         if (LooksLikePePointLookup(input.UserQuery))
         {
             return new IntentDetectionResult(
@@ -65,6 +73,31 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
 
         var result = await executionService.ExecuteAsync(selection, request, cancellationToken);
         return ParseIntentOutput(result.StructuredJson);
+    }
+
+    private static readonly string[] ProductRevenuePhrases =
+    [
+        "مهم‌ترین محصول", "مهم ترین محصول",
+        "محصول اصلی", "محصولات اصلی",
+        "بیشترین درآمد از چه محصول", "بیشتر از چه محصول",
+        "ترکیب فروش محصول", "ترکیب درآمد محصول",
+        "سهم فروش محصول", "سهم درآمد محصول",
+        "کدام محصول بیشترین فروش", "کدام محصول بیشترین درآمد",
+        "درآمد از محصول", "revenue mix", "product revenue",
+        "most important product", "top products",
+        "product composition", "product concentration"
+    ];
+
+    // Pre-normalized so the Contains check compares normalized-to-normalized on both sides.
+    private static readonly string[] NormalizedProductRevenuePhrases =
+        ProductRevenuePhrases.Select(NormalizeLookupText).ToArray();
+
+    private static bool LooksLikeProductRevenueMixQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return false;
+        var normalized = NormalizeLookupText(query);
+        return NormalizedProductRevenuePhrases.Any(phrase =>
+            normalized.Contains(phrase, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool LooksLikePePointLookup(string query)

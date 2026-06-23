@@ -144,11 +144,11 @@ public sealed class CompanyProductRevenueMix075Tests
     }
 
     // -----------------------------------------------------------------------
-    // Query use case: dominant vs top-N selection
+    // Query use case: all rows should be preserved; rendering decides emphasis
     // -----------------------------------------------------------------------
 
     [Fact]
-    public async Task QueryUseCase_ReturnsDominantProductsWhenPresent()
+    public async Task QueryUseCase_ReturnsAllProductsWhenPresent()
     {
         var products = new List<ProductRevenueMixProductItem>
         {
@@ -165,12 +165,15 @@ public sealed class CompanyProductRevenueMix075Tests
         var result = await useCase.ExecuteAsync(new ProductRevenueMixQuery(Symbol));
 
         Assert.NotNull(result);
-        Assert.Equal(2, result.Products.Count);
-        Assert.All(result.Products, p => Assert.True(p.IsDominantProduct));
+        Assert.Equal(3, result.Products.Count);
+        Assert.Equal(new[] { "محصول الف", "محصول ب", "محصول ج" }, result.Products.Select(p => p.ProductName));
+        Assert.True(result.Products[0].IsDominantProduct);
+        Assert.True(result.Products[1].IsDominantProduct);
+        Assert.False(result.Products[2].IsDominantProduct);
     }
 
     [Fact]
-    public async Task QueryUseCase_ReturnsTopNWhenNoDominantProducts()
+    public async Task QueryUseCase_ReturnsAllProductsWhenNoDominantProducts()
     {
         var products = new List<ProductRevenueMixProductItem>
         {
@@ -188,10 +191,9 @@ public sealed class CompanyProductRevenueMix075Tests
         var result = await useCase.ExecuteAsync(new ProductRevenueMixQuery(Symbol, TopN: 3));
 
         Assert.NotNull(result);
-        Assert.Equal(3, result.Products.Count);
-        Assert.Equal("محصول الف", result.Products[0].ProductName);
-        Assert.Equal("محصول ب", result.Products[1].ProductName);
-        Assert.Equal("محصول ج", result.Products[2].ProductName);
+        Assert.Equal(4, result.Products.Count);
+        Assert.Equal(new[] { "محصول الف", "محصول ب", "محصول ج", "محصول د" }, result.Products.Select(p => p.ProductName));
+        Assert.All(result.Products, p => Assert.False(p.IsDominantProduct));
     }
 
     [Fact]

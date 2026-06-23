@@ -31,12 +31,7 @@ internal sealed class ProductRevenueMixQueryUseCase(
 
         if (result is null) return null;
 
-        // Apply dominant-product or top-N selection.
-        var dominant = result.Products.Where(p => p.IsDominantProduct).ToList();
-        var products = dominant.Count > 0
-            ? dominant
-            : result.Products.Take(query.TopN).ToList();
-
-        return result with { Products = products };
+        // Keep the full persisted composition; rendering decides whether to emphasize dominant rows.
+        return result;
     }
 }

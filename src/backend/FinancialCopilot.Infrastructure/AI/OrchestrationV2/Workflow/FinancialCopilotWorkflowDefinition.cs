@@ -38,6 +38,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IAnswerConsistencyValidator consistencyValidator,
     IConfidenceScoringService confidenceScoringService,
     IDirectMetricRoutingRegistry directMetricRoutingRegistry,
+    IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -203,6 +204,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ScannerToolResult? scannerResult = null;
         SymbolLookupToolResult? lookupResult = null;
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult = null;
+        ProductRevenueMixResponse? productRevenueMixResult = null;
 
         var scannerTool = AIFunctionFactory.Create(
             async (string query) =>
@@ -249,6 +251,48 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
                          "limit: max results 1-5 (default 3).");
 
+        UsageAccountingResult? usage = null;
+
+        var isProductRevenueMix = ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message);
+        if (isProductRevenueMix)
+        {
+            var symbol = ProductRevenueMixIntentRules.ExtractCompanySymbol(request.Message);
+            if (symbol is null)
+            {
+                stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
+                return new AgentExecutedMessage(
+                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                    msg.MemoryContext, msg.Reservation,
+                    "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.",
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
+                    "ClarificationRequired", false, modelClient, usage);
+            }
+
+            productRevenueMixResult = await productRevenueMixUseCase.ExecuteAsync(
+                new ProductRevenueMixQuery(symbol),
+                ct);
+
+            if (productRevenueMixResult is null)
+            {
+                stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
+                return new AgentExecutedMessage(
+                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                    msg.MemoryContext, msg.Reservation,
+                    $"اطلاعات ترکیب درآمد محصولات برای نماد «{symbol}» در پایگاه داده یافت نشد.",
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
+                    "Completed", false, modelClient, usage);
+            }
+
+            var productRevenueMixText = BuildProductRevenueMixContent(productRevenueMixResult);
+            stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
+
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                productRevenueMixText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
+                "Completed", false, modelClient, usage);
+        }
+
         var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);
         var isDirectMetricFollowup = !isDirectMetricLookup &&
             IsDirectMetricLookupFollowup(request.Message, msg.EnrichedMessage);
@@ -279,7 +323,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
-                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult,
+                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
                 directCompletionStatus, false, modelClient, directUsage);
         }
 
@@ -288,7 +332,6 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         string agentResponseText;
         var completionStatus = "Completed";
         var fromCache = false;
-        UsageAccountingResult? usage = null;
 
         try
         {
@@ -330,7 +373,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return new AgentExecutedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult,
+            agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
             completionStatus, fromCache, modelClient, usage);
     }
 
@@ -339,7 +382,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
-        var detectedIntent = DetermineIntent(msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult);
+        var detectedIntent = DetermineIntent(msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult);
         var clarificationRequired =
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -369,7 +412,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return new ResultsComputedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult,
+            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult,
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
             explainableAnswer, confidenceScore, groundedAnswer, msg.Usage);
@@ -396,8 +439,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent == DetectedIntent.Unknown ? msg.AgentResponseText : null;
-        var responseTextAnswer = msg.DetectedIntent == DetectedIntent.SymbolLookup
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix
+            ? msg.AgentResponseText
+            : null;
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -410,7 +455,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ExplainableAnswer, msg.ConfidenceScore, msg.Usage,
             msg.MemoryContext, msg.GroundedAnswer,
             msg.CreateConversation, ct,
-            comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse);
+            comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
+            productRevenueMixResult: msg.ProductRevenueMixResult);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -418,7 +464,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request, msg.ConversationId,
             persistedExchange.UserMessageId, persistedExchange.AssistantMessageId,
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
-            msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult,
+            msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId);
@@ -449,7 +495,30 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             ProviderSelection: providerSelection,
             ProviderFallbackOccurred: false,
             WorkflowCorrelationId: msg.WorkflowCorrelationId,
-            ComprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse);
+            ComprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
+            ProductRevenueMixResult: msg.ProductRevenueMixResult);
+    }
+
+    private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)
+    {
+        var sb = new StringBuilder();
+        var companyLabel = result.CompanyName is not null
+            ? $"{result.CompanyName} ({result.CompanySymbol})"
+            : result.CompanySymbol;
+
+        sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine();
+        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("|------|-------|------------|---------|------|");
+
+        foreach (var product in result.Products)
+        {
+            var dominant = product.IsDominantProduct ? "✓" : "";
+            sb.AppendLine($"| {product.Rank} | {product.ProductName} | {product.SalesAmount:N0} | {product.RevenueSharePercentage:F1}٪ | {dominant} |");
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────
@@ -457,9 +526,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private static DetectedIntent DetermineIntent(
         ScannerToolResult? scannerResult,
         SymbolLookupToolResult? lookupResult,
-        ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult)
+        ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult,
+        ProductRevenueMixResponse? productRevenueMixResult)
     {
         if (scannerResult is not null) return DetectedIntent.Scanner;
+        if (productRevenueMixResult is not null) return DetectedIntent.ProductRevenueMix;
         if (lookupResult?.Table is not null && comprehensiveAnalysisResult?.Succeeded != true)
             return DetectedIntent.SymbolLookup;
         if (comprehensiveAnalysisResult?.Succeeded == true) return DetectedIntent.ComprehensiveAnalysis;
@@ -683,7 +754,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private static string BuildSystemInstructions() =>
         """
         You are a financial data assistant for the Iranian stock market (Tehran Stock Exchange).
-        You have three tools available:
+        You have four tools / routes available:
 
         - screen_stocks: Use when the user wants to screen or filter stocks by financial metric conditions (e.g., P/E below 10, high ROE, low debt).
         - lookup_symbol_metrics: Use when the user requests a specific financial metric value for a named stock.
@@ -694,6 +765,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
           For CyclicalWaves, include prior fiscal-year same-month sales instead of the 12-month average only when the user explicitly asks for same-month previous-period/year sales.
         - query_comprehensive_analysis: Searches the ComprehensiveAnalyses database for expert narrative analysis posts.
           Use ONLY for analysis/opinion/review/outlook requests — NOT for financial metric requests.
+        - ProductRevenueMix: handled by the workflow before tool execution; asks which product contributes the most revenue,
+          product mix/composition, dominant product, most important product, or similar monthly product-sales questions.
+          Do NOT route these to lookup_symbol_metrics.
 
         ── INTENT CLASSIFICATION (decide before calling any tool) ──
 
@@ -712,6 +786,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     "آخرین قیمت کگل", "قیمت امروز کچاد", "درصد تغییر قیمت کگل"
           Action: call lookup_symbol_metrics ONLY. Do NOT call query_comprehensive_analysis.
           Return the metric value directly. Do NOT summarize analyst reports.
+
+        PRODUCT REVENUE MIX INTENT → handled by the workflow before tool execution:
+          Triggers: پرفروش‌ترین/مهم‌ترین/بیشترین درآمد/ترکیب فروش محصولات/محصول اصلی/dominant product/most important product
+          Action: do NOT call lookup_symbol_metrics. Return the product revenue mix answer from Noavaran monthly sales data.
 
         SCREENING INTENT → call screen_stocks ONLY:
           Triggers: condition + threshold across many stocks ("P/E زیر ۵", "سهام با رشد بالا")

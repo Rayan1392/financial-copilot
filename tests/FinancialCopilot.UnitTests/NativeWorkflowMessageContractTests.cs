@@ -76,6 +76,7 @@ public sealed class NativeWorkflowMessageContractTests
             ScannerResult: null,
             LookupResult: null,
             ComprehensiveAnalysisResult: null,
+            ProductRevenueMixResult: null,
             CompletionStatus: "Completed",
             FromCache: false,
             ModelClient: modelClient,
@@ -105,6 +106,7 @@ public sealed class NativeWorkflowMessageContractTests
             ScannerResult: null,
             LookupResult: null,
             ComprehensiveAnalysisResult: null,
+            ProductRevenueMixResult: null,
             ExplainableAnswer: null,
             ConfidenceScore: null,
             TextAnswer: "answered",
@@ -140,13 +142,13 @@ public sealed class NativeWorkflowMessageContractTests
         var agent = new AgentExecutedMessage(
             billing.Request, billing.ConversationId, billing.CreateConversation,
             billing.Now, billing.MemoryContext, billing.Reservation,
-            "answer", null, null, null, "Completed", false, modelClient, null);
+            "answer", null, null, null, null, "Completed", false, modelClient, null);
 
         var results = new ResultsComputedMessage(
             agent.Request, agent.ConversationId, agent.CreateConversation, agent.Now,
             agent.MemoryContext, agent.Reservation,
             agent.AgentResponseText, agent.ScannerResult, agent.LookupResult,
-            agent.ComprehensiveAnalysisResult,
+            agent.ComprehensiveAnalysisResult, agent.ProductRevenueMixResult,
             agent.CompletionStatus, agent.FromCache, agent.ModelClient,
             DetectedIntent.Unknown, false, null, null, null, "answer", null);
 
@@ -154,7 +156,7 @@ public sealed class NativeWorkflowMessageContractTests
             results.Request, results.ConversationId,
             Guid.NewGuid(), Guid.NewGuid(),
             results.DetectedIntent, results.ClarificationRequired, results.ClarificationMessage,
-            results.ScannerResult, results.LookupResult, results.ComprehensiveAnalysisResult,
+            results.ScannerResult, results.LookupResult, results.ComprehensiveAnalysisResult, results.ProductRevenueMixResult,
             results.ExplainableAnswer, results.ConfidenceScore,
             "answer", null, null, results.ModelClient,
             results.Request.CorrelationId);

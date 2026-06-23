@@ -26,6 +26,28 @@ public sealed class AiIntentDetectorTests
     }
 
     [Theory]
+    [InlineData("پرفروش‌ترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروش ترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروشترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروش‌ترین محصولات کچاد؟", "کچاد")]
+    [InlineData("مهم‌ترین محصول کگل چیست؟", "کگل")]
+    [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
+    [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
+    [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
+    public async Task Detect_ProductRevenueMix_UsesDeterministicRouteAndExtractsSymbol(string query, string expectedSymbol)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.ProductRevenueMix, result.Intent);
+        Assert.True(result.Confidence >= 0.95);
+        Assert.Equal(expectedSymbol, ProductRevenueMixIntentRules.ExtractCompanySymbol(query));
+    }
+
+    [Theory]
     [InlineData("P/E کمتر از ۴")]
     [InlineData("P/E below 6")]
     public async Task Detect_PeFilterQuery_StillUsesModelClassification(string query)

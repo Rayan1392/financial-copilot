@@ -274,23 +274,37 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
             if (productRevenueMixResult is null)
             {
+                UsageAccountingResult? productRevenueMixUsage = null;
+                if (msg.Reservation is not null)
+                {
+                    productRevenueMixUsage = await billingFunctions.FinalizeAsync(
+                        msg.Reservation, "Completed", false, CancellationToken.None);
+                }
+
                 stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
                 return new AgentExecutedMessage(
                     msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                     msg.MemoryContext, msg.Reservation,
                     $"اطلاعات ترکیب درآمد محصولات برای نماد «{symbol}» در پایگاه داده یافت نشد.",
                     scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
-                    "Completed", false, modelClient, usage);
+                    "Completed", false, modelClient, productRevenueMixUsage);
             }
 
             var productRevenueMixText = BuildProductRevenueMixContent(productRevenueMixResult);
+            UsageAccountingResult? productRevenueMixUsageSuccess = null;
+            if (msg.Reservation is not null)
+            {
+                productRevenueMixUsageSuccess = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, "Completed", false, CancellationToken.None);
+            }
+
             stepActivity?.SetTag("workflow.intent", "ProductRevenueMix");
 
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
                 productRevenueMixText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult,
-                "Completed", false, modelClient, usage);
+                "Completed", false, modelClient, productRevenueMixUsageSuccess);
         }
 
         var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);

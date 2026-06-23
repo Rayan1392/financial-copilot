@@ -690,6 +690,332 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
         };
 }
 
+public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRevenueMixApiFactory>
+{
+    private readonly V2ProductRevenueMixApiFactory _factory;
+
+    public V2ProductRevenueMixEndpointTests(V2ProductRevenueMixApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("پرفروش‌ترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروش ترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروشترین محصول کچاد؟", "کچاد")]
+    [InlineData("پرفروش‌ترین محصولات کچاد؟", "کچاد")]
+    [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
+    [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
+    [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
+    public async Task V2AiQuery_ProductRevenueMixQueries_ReturnProductRevenueMixAndChargeCredits(
+        string message,
+        string expectedSymbol)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("ProductRevenueMix", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.True(root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal() > 0m);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains(expectedSymbol, textAnswer);
+        Assert.Contains("ترکیب درآمد محصولات", textAnswer);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-product-revenue-mix-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    public V2MonthlySalesRoutingFakeAiModelClient Fake { get; } = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(Fake);
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedProductRevenueMixData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedProductRevenueMixData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
+
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000003"),
+                Name = "معدنی و صنعتی چادرملو",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "3",
+                CompanySymbol = "کچاد",
+                TseSymbol = "کچاد",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000005"),
+                Name = "معدنی و صنعتی گل گهر",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "5",
+                CompanySymbol = "کگل",
+                TseSymbol = "کگل",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000001"),
+                Name = "ملی صنایع مس ایران",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "1",
+                CompanySymbol = "فملی",
+                TseSymbol = "فملی",
+                LastSynchronizedAt = now
+            });
+
+        db.CompanyProductRevenueMix.AddRange(
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "3",
+                CompanySymbol = "کچاد",
+                CompanyName = "معدنی و صنعتی چادرملو",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "گندله سنگ آهن",
+                ProductionQuantity = 900_000m,
+                SalesQuantity = 880_000m,
+                SalesRate = 68_000m,
+                SalesAmount = 60_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 60m,
+                ProductRank = 1,
+                IsDominantProduct = true,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "3",
+                CompanySymbol = "کچاد",
+                CompanyName = "معدنی و صنعتی چادرملو",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "کنسانتره سنگ آهن",
+                ProductionQuantity = 450_000m,
+                SalesQuantity = 430_000m,
+                SalesRate = 62_000m,
+                SalesAmount = 25_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 25m,
+                ProductRank = 2,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "3",
+                CompanySymbol = "کچاد",
+                CompanyName = "معدنی و صنعتی چادرملو",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "سنگ آهن دانه‌بندی",
+                ProductionQuantity = 250_000m,
+                SalesQuantity = 240_000m,
+                SalesRate = 58_000m,
+                SalesAmount = 15_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 15m,
+                ProductRank = 3,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "5",
+                CompanySymbol = "کگل",
+                CompanyName = "معدنی و صنعتی گل گهر",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "کنسانتره سنگ آهن",
+                ProductionQuantity = 1_100_000m,
+                SalesQuantity = 1_080_000m,
+                SalesRate = 52_000m,
+                SalesAmount = 55_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 55m,
+                ProductRank = 1,
+                IsDominantProduct = true,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "5",
+                CompanySymbol = "کگل",
+                CompanyName = "معدنی و صنعتی گل گهر",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "گندله",
+                ProductionQuantity = 600_000m,
+                SalesQuantity = 590_000m,
+                SalesRate = 49_000m,
+                SalesAmount = 30_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 30m,
+                ProductRank = 2,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "5",
+                CompanySymbol = "کگل",
+                CompanyName = "معدنی و صنعتی گل گهر",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "دانه‌بندی",
+                ProductionQuantity = 300_000m,
+                SalesQuantity = 295_000m,
+                SalesRate = 47_000m,
+                SalesAmount = 15_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 15m,
+                ProductRank = 3,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "1",
+                CompanySymbol = "فملی",
+                CompanyName = "ملی صنایع مس ایران",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "کاتد مس",
+                ProductionQuantity = 2_100_000m,
+                SalesQuantity = 2_080_000m,
+                SalesRate = 110_000m,
+                SalesAmount = 70_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 70m,
+                ProductRank = 1,
+                IsDominantProduct = true,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "1",
+                CompanySymbol = "فملی",
+                CompanyName = "ملی صنایع مس ایران",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "اسلب مس",
+                ProductionQuantity = 700_000m,
+                SalesQuantity = 690_000m,
+                SalesRate = 102_000m,
+                SalesAmount = 20_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 20m,
+                ProductRank = 2,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            },
+            new CompanyProductRevenueMixRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "1",
+                CompanySymbol = "فملی",
+                CompanyName = "ملی صنایع مس ایران",
+                ReportYear = 1403,
+                ReportMonth = 3,
+                FiscalEndDate = "1403/12/29",
+                ProductName = "آند مس",
+                ProductionQuantity = 300_000m,
+                SalesQuantity = 290_000m,
+                SalesRate = 98_000m,
+                SalesAmount = 10_000_000_000_000m,
+                TotalCompanySalesAmount = 100_000_000_000_000m,
+                RevenueSharePercentage = 10m,
+                ProductRank = 3,
+                IsDominantProduct = false,
+                SourceProviderName = "NoavaranCurrentApi",
+                CalculatedAtUtc = now
+            });
+    }
+}
+
 public sealed class V2ShgolDirectPriceRegressionApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-shgol-direct-price-{Guid.NewGuid():N}";

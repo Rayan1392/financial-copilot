@@ -740,6 +740,207 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     }
 }
 
+public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2MonthlyActivityTrendApiFactory>
+{
+    private readonly V2MonthlyActivityTrendApiFactory _factory;
+
+    public V2MonthlyActivityTrendEndpointTests(V2MonthlyActivityTrendApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
+    [InlineData("روند فروش ماهانه هماتیت را نشان بده")]
+    public async Task V2AiQuery_MonthlyActivityTrendQueries_ReturnChartPayloadWithoutToolLoop(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var trend = root.GetProperty("monthlyActivityTrendResult");
+        Assert.Equal("کهمدا", trend.GetProperty("companySymbol").GetString());
+        Assert.Equal("هماتیت", trend.GetProperty("companyName").GetString());
+        Assert.Equal("میلیون ریال", trend.GetProperty("unitLabelFa").GetString());
+        Assert.Equal("NoavaranCurrentApi", trend.GetProperty("sourceProviderName").GetString());
+
+        var chartPoints = trend.GetProperty("chartPoints").EnumerateArray().ToList();
+        Assert.Equal(12, chartPoints.Count);
+        Assert.Equal(950m, chartPoints[0].GetProperty("average12MonthSalesAmount").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, chartPoints[3].GetProperty("currentFiscalYearSalesAmount").ValueKind);
+
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("روند فروش ماهانه", textAnswer);
+        Assert.DoesNotContain("آخرین قیمت", textAnswer);
+        Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2MonthlyActivityTrendApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-monthly-activity-trend-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    public V2MonthlySalesRoutingFakeAiModelClient Fake { get; } = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(Fake);
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedTrendData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedTrendData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-24T08:00:00Z");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.Parse("56000000-0000-0000-0000-000000000001"),
+            Name = "هماتیت",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "EXT-001",
+            CompanySymbol = "کهمدا",
+            TseSymbol = "کهمدا",
+            LastSynchronizedAt = now
+        });
+
+        for (byte month = 1; month <= 12; month++)
+        {
+            db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "EXT-001",
+                CompanySymbol = "کهمدا",
+                CompanyName = "هماتیت",
+                ReportYear = 1403,
+                ReportMonth = month,
+                FiscalYear = 1403,
+                FiscalMonthIndex = month,
+                FiscalMonthNameFa = PersianMonthName(month),
+                MonthlySalesAmount = 800m + (month * 10m),
+                SameMonthPreviousYearSalesAmount = null,
+                Average12MonthSalesAmount = 900m,
+                Average12MonthPeriodCount = 12,
+                YtdSalesAmount = 5_000m,
+                YtdPreviousMonthSalesAmount = 4_100m,
+                SalesAmountYoYGrowthPercent = null,
+                SourceProviderName = "NoavaranCurrentApi",
+                IsComparablePreviousYearAvailable = false,
+                IsAverage12MonthComplete = true,
+                DataCompletenessScore = 1m,
+                CalculatedAtUtc = now
+            });
+        }
+
+        for (byte month = 1; month <= 3; month++)
+        {
+            var previousAmount = 800m + (month * 10m);
+            var currentAmount = month switch
+            {
+                1 => 910m,
+                2 => 940m,
+                _ => 1_000m
+            };
+
+            db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "EXT-001",
+                CompanySymbol = "کهمدا",
+                CompanyName = "هماتیت",
+                ReportYear = 1404,
+                ReportMonth = month,
+                FiscalYear = 1404,
+                FiscalMonthIndex = month,
+                FiscalMonthNameFa = PersianMonthName(month),
+                MonthlySalesAmount = currentAmount,
+                SameMonthPreviousYearSalesAmount = previousAmount,
+                Average12MonthSalesAmount = 950m,
+                Average12MonthPeriodCount = 12,
+                YtdSalesAmount = 2_850m,
+                YtdPreviousMonthSalesAmount = 1_850m,
+                SalesAmountYoYGrowthPercent = previousAmount == 0m
+                    ? null
+                    : (currentAmount - previousAmount) / previousAmount * 100m,
+                SourceProviderName = "NoavaranCurrentApi",
+                IsComparablePreviousYearAvailable = true,
+                IsAverage12MonthComplete = true,
+                DataCompletenessScore = 1m,
+                CalculatedAtUtc = now
+            });
+        }
+    }
+
+    private static string PersianMonthName(byte month) => month switch
+    {
+        1 => "فروردین",
+        2 => "اردیبهشت",
+        3 => "خرداد",
+        4 => "تیر",
+        5 => "مرداد",
+        6 => "شهریور",
+        7 => "مهر",
+        8 => "آبان",
+        9 => "آذر",
+        10 => "دی",
+        11 => "بهمن",
+        12 => "اسفند",
+        _ => throw new ArgumentOutOfRangeException(nameof(month))
+    };
+}
+
 public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-product-revenue-mix-{Guid.NewGuid():N}";

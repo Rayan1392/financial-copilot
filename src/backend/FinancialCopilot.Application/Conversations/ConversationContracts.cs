@@ -47,7 +47,8 @@ public sealed record AssistantMessagePayload(
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures,
     ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
-    ProductRevenueMixResponse? ProductRevenueMixResult = null);
+    ProductRevenueMixResponse? ProductRevenueMixResult = null,
+    MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

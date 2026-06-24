@@ -28,7 +28,8 @@ public sealed record AiQueryHttpResponse(
     string? ProviderSelection = null,
     bool? ProviderFallbackOccurred = null,
     string? WorkflowCorrelationId = null,
-    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null);
+    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
+    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -172,7 +173,8 @@ public sealed record AssistantMessageContentResponse(
     ConfidenceScoreResponse? ConfidenceScore,
     UsageAccountingResponse? Usage,
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures,
-    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null);
+    ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
+    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,
@@ -187,3 +189,46 @@ public sealed record ComprehensiveAnalysisItemResponse(
     string PlainTextSummary,
     IReadOnlyList<string> TagNames,
     DateTimeOffset SyncedAt);
+
+// ---------------------------------------------------------------------------
+// Monthly Activity Trend chart response (spec 077)
+// ---------------------------------------------------------------------------
+
+public sealed record MonthlyActivityTrendChartResponse(
+    string CompanySymbol,
+    string? CompanyName,
+    int LatestReportYear,
+    int LatestReportMonth,
+    string UnitLabelFa,
+    decimal? LatestMonthlySalesAmount,
+    decimal? SameMonthPreviousYearSalesAmount,
+    decimal? Average12MonthSalesAmount,
+    decimal? SalesAmountYoYGrowthPercent,
+    decimal? SalesVsAverage12MonthPercent,
+    decimal? YtdSalesAmount,
+    decimal? YtdPreviousMonthSalesAmount,
+    IReadOnlyList<MonthlyActivityTrendChartPointResponse> ChartPoints,
+    IReadOnlyList<MonthlyActivityTrendInsightResponse> Insights,
+    IReadOnlyList<MonthlyActivityTrendMissingDataPointResponse> MissingDataPoints,
+    string SourceProviderName,
+    DateTimeOffset CalculatedAtUtc);
+
+public sealed record MonthlyActivityTrendChartPointResponse(
+    int FiscalMonthIndex,
+    string FiscalMonthNameFa,
+    int? PreviousFiscalYear,
+    decimal? PreviousFiscalYearSalesAmount,
+    int? CurrentFiscalYear,
+    decimal? CurrentFiscalYearSalesAmount,
+    decimal? Average12MonthSalesAmount,
+    bool IsCurrentYearReported,
+    bool IsPreviousYearReported);
+
+public sealed record MonthlyActivityTrendInsightResponse(
+    string Kind,
+    string TextFa);
+
+public sealed record MonthlyActivityTrendMissingDataPointResponse(
+    int Year,
+    int Month,
+    string ReasonFa);

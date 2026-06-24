@@ -27,6 +27,7 @@ public sealed class AiQueryOrchestrationService(
     IComprehensiveAnalysisQueryParser comprehensiveAnalysisParser,
     IComprehensiveAnalysisQueryUseCase comprehensiveAnalysisUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
+    IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -76,6 +77,7 @@ public sealed class AiQueryOrchestrationService(
         SymbolLookupTableResult? symbolLookupTable = null;
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -347,6 +349,47 @@ public sealed class AiQueryOrchestrationService(
                     }
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.MonthlyActivityTrend)
+            {
+                var symbol = MonthlyActivityTrendIntentRules.ExtractCompanySymbol(request.Message);
+                if (symbol is null)
+                {
+                    clarificationRequired = true;
+                    clarificationMessage = "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.";
+                    completionStatus = "ClarificationRequired";
+                }
+                else
+                {
+                    monthlyActivityTrendResult = await monthlyActivityTrendUseCase.ExecuteAsync(
+                        new MonthlyActivityTrendQuery(request.Message, symbol),
+                        cancellationToken);
+
+                    clarificationRequired = false;
+                    clarificationMessage = null;
+
+                    if (monthlyActivityTrendResult is null)
+                    {
+                        textAnswer = $"اطلاعات روند فروش ماهانه برای نماد «{symbol}» در پایگاه داده یافت نشد.";
+
+                        try
+                        {
+                            await feedbackCollector.CollectAsync(
+                                new MissingAnswerFeedbackRequest(
+                                    ActorId: request.ActorId.ToString(),
+                                    QueryText: request.Message,
+                                    Classification: MissingAnswerFeedbackClassification.DataCoverageGap,
+                                    RequestedMetricCode: "MONTHLY_ACTIVITY_TREND",
+                                    AffectedDataCodeOrName: symbol,
+                                    SymbolCountTotal: 1,
+                                    SymbolCountMatched: 0,
+                                    SubmittedAt: now,
+                                    Context: $"MonthlyActivityTrend: no snapshot data for symbol [{symbol}]"),
+                                cancellationToken);
+                        }
+                        catch { /* fire-and-forget */ }
+                    }
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
@@ -419,14 +462,17 @@ public sealed class AiQueryOrchestrationService(
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-            consistencyContext, comprehensiveAnalysisResult, productRevenueMixResult);
+            consistencyContext, comprehensiveAnalysisResult, productRevenueMixResult,
+            monthlyActivityTrendResult);
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             assistantContent,
             scannerTable,
             symbolLookupTable,
             explainableAnswer);
-        var responseTextAnswer = detectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix
+        var responseTextAnswer = detectedIntent is DetectedIntent.SymbolLookup
+            or DetectedIntent.ProductRevenueMix
+            or DetectedIntent.MonthlyActivityTrend
             ? assistantContent
             : textAnswer;
 
@@ -454,7 +500,8 @@ public sealed class AiQueryOrchestrationService(
                     usage,
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
                     comprehensiveAnalysisResult,
-                    productRevenueMixResult)),
+                    productRevenueMixResult,
+                    monthlyActivityTrendResult)),
             createConversation,
             cancellationToken);
 
@@ -477,7 +524,8 @@ public sealed class AiQueryOrchestrationService(
             WorkflowVersion: "1",
             WorkflowCorrelationId: request.CorrelationId,
             ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
-            ProductRevenueMixResult: productRevenueMixResult);
+            ProductRevenueMixResult: productRevenueMixResult,
+            MonthlyActivityTrendResult: monthlyActivityTrendResult);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
@@ -629,10 +677,14 @@ public sealed class AiQueryOrchestrationService(
         string? clarificationMessage,
         AnswerConsistencyContext consistencyContext,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
-        ProductRevenueMixResponse? productRevenueMixResult = null)
+        ProductRevenueMixResponse? productRevenueMixResult = null,
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
+
+        if (monthlyActivityTrendResult is not null)
+            return BuildMonthlyActivityTrendContent(monthlyActivityTrendResult);
 
         if (productRevenueMixResult is not null)
             return BuildProductRevenueMixContent(productRevenueMixResult);
@@ -692,6 +744,97 @@ public sealed class AiQueryOrchestrationService(
             var dominant = p.IsDominantProduct ? "✓" : "";
             sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
         }
+        return sb.ToString().TrimEnd();
+    }
+
+    private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
+    {
+        var sb = new StringBuilder();
+        var companyLabel = result.CompanyName is not null
+            ? $"{result.CompanyName} ({result.CompanySymbol})"
+            : result.CompanySymbol;
+
+        sb.AppendLine($"### روند فروش ماهانه — {companyLabel}");
+        sb.AppendLine($"آخرین دوره گزارش: {result.LatestReportYear}/{result.LatestReportMonth:D2} | واحد: {result.UnitLabelFa}");
+        sb.AppendLine();
+
+        // Latest month summary
+        if (result.LatestMonthlySalesAmount.HasValue)
+            sb.AppendLine($"**خلاصه آخرین ماه:** فروش {result.LatestMonthlySalesAmount.Value:N0} {result.UnitLabelFa}");
+
+        // YoY comparison
+        if (result.SameMonthPreviousYearSalesAmount.HasValue)
+        {
+            if (result.SalesAmountYoYGrowthPercent.HasValue)
+            {
+                var sign = result.SalesAmountYoYGrowthPercent.Value >= 0 ? "+" : "";
+                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {result.SameMonthPreviousYearSalesAmount.Value:N0} {result.UnitLabelFa} ({sign}{result.SalesAmountYoYGrowthPercent.Value:F1}٪)");
+            }
+            else
+            {
+                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {result.SameMonthPreviousYearSalesAmount.Value:N0} {result.UnitLabelFa}");
+            }
+        }
+
+        // 12-month average comparison
+        if (result.Average12MonthSalesAmount.HasValue)
+        {
+            var vsAvgText = result.SalesVsAverage12MonthPercent.HasValue
+                ? $" ({(result.SalesVsAverage12MonthPercent.Value >= 0 ? "+" : "")}{result.SalesVsAverage12MonthPercent.Value:F1}٪ نسبت به میانگین)"
+                : "";
+            sb.AppendLine($"**میانگین ۱۲ ماهه:** {result.Average12MonthSalesAmount.Value:N0} {result.UnitLabelFa}{vsAvgText}");
+        }
+
+        // Insights
+        if (result.Insights.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**نکات تحلیلی:**");
+            foreach (var insight in result.Insights)
+                sb.AppendLine($"- {insight.TextFa}");
+        }
+
+        // Chart table
+        if (result.ChartPoints.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**داده نمودار ماهانه:**");
+            sb.AppendLine();
+
+            // Determine column headers from first point that has year values
+            var firstPoint = result.ChartPoints.First(p => p.PreviousFiscalYear.HasValue || p.CurrentFiscalYear.HasValue);
+            var prevYearLabel = firstPoint.PreviousFiscalYear.HasValue ? $"فروش {firstPoint.PreviousFiscalYear}" : "فروش سال قبل";
+            var currYearLabel = firstPoint.CurrentFiscalYear.HasValue ? $"فروش {firstPoint.CurrentFiscalYear}" : "فروش سال جاری";
+
+            sb.AppendLine($"| ماه | {prevYearLabel} | {currYearLabel} | میانگین ۱۲ ماهه |");
+            sb.AppendLine("|-----|------------:|-------------:|----------------:|");
+
+            foreach (var pt in result.ChartPoints)
+            {
+                var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
+                    ? pt.PreviousFiscalYearSalesAmount.Value.ToString("N0")
+                    : "—";
+                var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
+                    ? pt.CurrentFiscalYearSalesAmount.Value.ToString("N0")
+                    : "—";
+                var avgVal = pt.Average12MonthSalesAmount.HasValue
+                    ? pt.Average12MonthSalesAmount.Value.ToString("N0")
+                    : "—";
+                sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
+            }
+        }
+
+        // Missing data note
+        if (result.MissingDataPoints.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"*داده‌های ناقص: {result.MissingDataPoints.Count} دوره موجود نیست.*");
+        }
+
+        // Source note
+        sb.AppendLine();
+        sb.AppendLine($"*منبع: {result.SourceProviderName} | محاسبه: {result.CalculatedAtUtc:yyyy/MM/dd}*");
+
         return sb.ToString().TrimEnd();
     }
 

@@ -26,6 +26,20 @@ The scanner must answer questions such as:
 
 The React chat UI submits every message to `POST /api/ai/v1/query`. The backend AI Query Orchestrator detects intent and, for scanner questions, invokes an internal Scanner Tool that converts natural language into a validated financial query plan, executes it against normalized market/fundamental data, ranks the results, and returns an Explainable Answer with Data Citations and a Confidence Score.
 
+## AI Query Examples
+
+The same `POST /api/ai/v1/query` facade also supports deterministic direct-lookup and monthly-trend answers beyond scanner queries.
+
+- `P/E فولاد چقدر است؟`
+- `آخرین فروش کچاد چقدر بوده است؟`
+- `روند فروش ماهانه کهمدا را نشان بده`
+- `فروش امسال کچاد نسبت به پارسال چطور بوده؟`
+
+Monthly production/sales trend answers are chart-ready responses built from persisted
+`CompanyMonthlyActivityTrendSnapshots` data produced by spec `076-nadpco-monthly-activity-trend-snapshot`.
+The AI query path does not aggregate raw Noavaran product-sales line items at response time for these trend questions.
+Trend chart monetary values are returned in `میلیون ریال`.
+
 ## Core Principles
 
 - API-first backend.

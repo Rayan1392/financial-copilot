@@ -10,6 +10,7 @@ public enum DetectedIntent
     SymbolLookup,
     ComprehensiveAnalysis,
     ProductRevenueMix,
+    MonthlyActivityTrend,
     Clarification,
     Unknown
 }
@@ -64,7 +65,8 @@ public sealed record AiQueryResponse(
     bool? ProviderFallbackOccurred = null,
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
-    ProductRevenueMixResponse? ProductRevenueMixResult = null);
+    ProductRevenueMixResponse? ProductRevenueMixResult = null,
+    MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

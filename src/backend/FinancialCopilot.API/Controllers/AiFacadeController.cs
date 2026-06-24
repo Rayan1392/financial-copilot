@@ -208,7 +208,8 @@ public sealed class AiFacadeController(
             result.ProviderSelection,
             result.ProviderFallbackOccurred,
             result.WorkflowCorrelationId,
-            MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult));
+            MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult),
+            MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -389,7 +390,8 @@ public sealed class AiFacadeController(
                     payload.Usage.Cached),
                 payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                     d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
-                MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult));
+                MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult),
+                MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult));
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)
@@ -407,6 +409,45 @@ public sealed class AiFacadeController(
                 i.SyncedAt)).ToList(),
             result.UnresolvedSymbols,
             result.HasResults);
+    }
+
+    private static MonthlyActivityTrendChartResponse? MapMonthlyActivityTrendResult(
+        MonthlyActivityTrendResponse? result)
+    {
+        if (result is null) return null;
+
+        return new MonthlyActivityTrendChartResponse(
+            result.CompanySymbol,
+            result.CompanyName,
+            result.LatestReportYear,
+            result.LatestReportMonth,
+            result.UnitLabelFa,
+            result.LatestMonthlySalesAmount,
+            result.SameMonthPreviousYearSalesAmount,
+            result.Average12MonthSalesAmount,
+            result.SalesAmountYoYGrowthPercent,
+            result.SalesVsAverage12MonthPercent,
+            result.YtdSalesAmount,
+            result.YtdPreviousMonthSalesAmount,
+            result.ChartPoints.Select(p => new MonthlyActivityTrendChartPointResponse(
+                p.FiscalMonthIndex,
+                p.FiscalMonthNameFa,
+                p.PreviousFiscalYear,
+                p.PreviousFiscalYearSalesAmount,
+                p.CurrentFiscalYear,
+                p.CurrentFiscalYearSalesAmount,
+                p.Average12MonthSalesAmount,
+                p.IsCurrentYearReported,
+                p.IsPreviousYearReported)).ToList(),
+            result.Insights.Select(i => new MonthlyActivityTrendInsightResponse(
+                i.Kind.ToString(),
+                i.TextFa)).ToList(),
+            result.MissingDataPoints.Select(m => new MonthlyActivityTrendMissingDataPointResponse(
+                m.Year,
+                m.Month,
+                m.ReasonFa)).ToList(),
+            result.SourceProviderName,
+            result.CalculatedAtUtc);
     }
 
     private static ConfidenceScoreResponse? MapConfidenceScore(ConfidenceScoreResult? confidence)

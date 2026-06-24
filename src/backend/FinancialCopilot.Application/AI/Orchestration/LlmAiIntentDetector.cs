@@ -17,10 +17,14 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "(e.g. 'find companies where P/E < 10', 'سهام با رشد بالا').\n" +
         "- SymbolLookup: the user names one or more specific symbols or companies AND asks for the value of a " +
         "metric — with no threshold or filter (e.g. 'PE حفاری چقدر است؟', 'نسبت بدهی فملی را نشان بده', " +
-        "'what is the ROE of AAPL?').\n" +
+        "'what is the ROE of AAPL?'). Also use for single-number latest monthly sales questions.\n" +
         "- ProductRevenueMix: the user asks which product contributes the most revenue, asks for product revenue mix, " +
         "product composition, dominant product, most important product, or similar product-level monthly sales questions. " +
         "These are not metric lookups and must NOT fall through to SymbolLookup.\n" +
+        "- MonthlyActivityTrend: the user asks for a monthly sales or production TREND, CHART, or COMPARISON over " +
+        "multiple months or years (e.g. روند فروش, نمودار فروش ماهانه, مقایسه فروش سال جاری و سال قبل, " +
+        "فروش امسال نسبت به پارسال, میانگین ۱۲ ماهه فروش, گزارش تولید و فروش با نمودار). " +
+        "Must NOT be used for single-number monthly sales lookups or product mix questions.\n" +
         "- ComprehensiveAnalysis: the user is asking about a stock in a general or analytical way, OR asking about " +
         "analysis posts, reports, or market commentary. " +
         "Triggers include: تحلیل, بررسی, بررسی کن, وضعیت, ارزیابی, نظرت چیه, چطوره, گزارش, " +
@@ -30,19 +34,28 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "When a specific symbol name is mentioned alongside any of these words, always use ComprehensiveAnalysis. " +
         "Does NOT trigger when the user asks for a specific metric value only (use SymbolLookup) " +
         "or asks for stocks matching a condition (use Scanner).\n" +
-        "- Unknown: the intent is not related to stock screening, metric lookup, product revenue mix, or analysis posts.\n" +
+        "- Unknown: the intent is not related to stock screening, metric lookup, product revenue mix, trend, or analysis posts.\n" +
         "- Clarification: the message is too vague to classify AND no stock symbol is mentioned.\n" +
         "Key distinction: Scanner requires an operator+threshold (filter many); " +
         "SymbolLookup asks for a specific metric value for named symbol(s) with no threshold; " +
         "ProductRevenueMix asks for the dominant product / product mix of a specific company; " +
+        "MonthlyActivityTrend asks for a chart/trend/comparison of monthly sales over multiple periods; " +
         "ComprehensiveAnalysis = any general question about a named stock, or request for analysis/reports.\n" +
         "Respond ONLY with JSON matching this schema: " +
-        "{\"intent\":\"Scanner|SymbolLookup|ProductRevenueMix|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
+        "{\"intent\":\"Scanner|SymbolLookup|ProductRevenueMix|MonthlyActivityTrend|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
 
     public async Task<IntentDetectionResult> DetectAsync(
         IntentDetectionInput input,
         CancellationToken cancellationToken)
     {
+        if (MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.MonthlyActivityTrend,
+                0.98,
+                "Deterministic monthly activity trend phrase rule.");
+        }
+
         if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(input.UserQuery))
         {
             return new IntentDetectionResult(
@@ -183,6 +196,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
                 "Scanner" => DetectedIntent.Scanner,
                 "SymbolLookup" => DetectedIntent.SymbolLookup,
                 "ProductRevenueMix" => DetectedIntent.ProductRevenueMix,
+                "MonthlyActivityTrend" => DetectedIntent.MonthlyActivityTrend,
                 "ComprehensiveAnalysis" => DetectedIntent.ComprehensiveAnalysis,
                 "Clarification" => DetectedIntent.Clarification,
                 _ => DetectedIntent.Unknown

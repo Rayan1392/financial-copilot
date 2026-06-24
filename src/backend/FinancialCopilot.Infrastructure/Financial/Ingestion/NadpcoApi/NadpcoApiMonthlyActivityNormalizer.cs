@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
@@ -10,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public sealed class NadpcoApiMonthlyActivityNormalizer(
-    FinancialIngestionDbContext dbContext) : IFinancialPayloadNormalizer
+    FinancialIngestionDbContext dbContext,
+    ICompanyProductRevenueMixCalculator revenueMixCalculator) : IFinancialPayloadNormalizer
 {
     public string ProviderName => NadpcoApiCompanyNormalizer.NadpcoApiProviderName;
 
@@ -100,6 +102,25 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Recalculate product revenue mix for each single-month (OutputType=0) ProductSales group.
+        var singleMonthGroups = groupedReports
+            .Where(g => g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0)
+            .ToArray();
+
+        foreach (var group in singleMonthGroups)
+        {
+            var first = group.First();
+            await revenueMixCalculator.RecalculateAsync(
+                first.ExternalCompanyId,
+                first.JalaliYear,
+                first.JalaliMonth,
+                first.BourseSymbol,
+                first.CompanyTitle,
+                first.JalaliFiscalYearEnd,
+                cancellationToken);
+        }
+
         // ExternalCompanyId varies per report group (one company per request); use the first.
         var canonicalId = groupedReports.Length > 0 ? groupedReports[0].Key.ExternalCompanyId : null;
         return new NormalizationOutcome(groupedReports.Length, canonicalId);

@@ -26,6 +26,7 @@ public sealed class AiQueryOrchestrationService(
     IConfidenceScoringService confidenceScoringService,
     IComprehensiveAnalysisQueryParser comprehensiveAnalysisParser,
     IComprehensiveAnalysisQueryUseCase comprehensiveAnalysisUseCase,
+    IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -74,6 +75,7 @@ public sealed class AiQueryOrchestrationService(
         ScannerTableResult? scannerTable = null;
         SymbolLookupTableResult? symbolLookupTable = null;
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null;
+        ProductRevenueMixResponse? productRevenueMixResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -88,7 +90,7 @@ public sealed class AiQueryOrchestrationService(
         {
             var intentResult = await intentDetector.DetectAsync(
                 new IntentDetectionInput(
-                    enrichedMessage,
+                    request.Message,
                     "en",
                     request.CorrelationId,
                     request.TenantId),
@@ -302,6 +304,49 @@ public sealed class AiQueryOrchestrationService(
                     }
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.ProductRevenueMix)
+            {
+                // Extract company symbol from query using a simple heuristic:
+                // take the last Persian word or any 2-5-char uppercase token as the symbol.
+                var symbol = ExtractProductRevenueMixSymbol(request.Message);
+                if (symbol is null)
+                {
+                    clarificationRequired = true;
+                    clarificationMessage = "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.";
+                    completionStatus = "ClarificationRequired";
+                }
+                else
+                {
+                    productRevenueMixResult = await productRevenueMixUseCase.ExecuteAsync(
+                        new ProductRevenueMixQuery(symbol),
+                        cancellationToken);
+
+                    clarificationRequired = false;
+                    clarificationMessage = null;
+
+                    if (productRevenueMixResult is null)
+                    {
+                        textAnswer = $"اطلاعات ترکیب درآمد محصولات برای نماد «{symbol}» در پایگاه داده یافت نشد.";
+
+                        try
+                        {
+                            await feedbackCollector.CollectAsync(
+                                new MissingAnswerFeedbackRequest(
+                                    ActorId: request.ActorId.ToString(),
+                                    QueryText: request.Message,
+                                    Classification: MissingAnswerFeedbackClassification.DataCoverageGap,
+                                    RequestedMetricCode: "PRODUCT_REVENUE_MIX",
+                                    AffectedDataCodeOrName: symbol,
+                                    SymbolCountTotal: 1,
+                                    SymbolCountMatched: 0,
+                                    SubmittedAt: now,
+                                    Context: $"ProductRevenueMix: no data for symbol [{symbol}]"),
+                                cancellationToken);
+                        }
+                        catch { /* fire-and-forget */ }
+                    }
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.Clarification)
             {
                 clarificationRequired = true;
@@ -374,14 +419,14 @@ public sealed class AiQueryOrchestrationService(
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-            consistencyContext, comprehensiveAnalysisResult);
+            consistencyContext, comprehensiveAnalysisResult, productRevenueMixResult);
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             assistantContent,
             scannerTable,
             symbolLookupTable,
             explainableAnswer);
-        var responseTextAnswer = detectedIntent == DetectedIntent.SymbolLookup
+        var responseTextAnswer = detectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix
             ? assistantContent
             : textAnswer;
 
@@ -408,7 +453,8 @@ public sealed class AiQueryOrchestrationService(
                     confidenceScore,
                     usage,
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
-                    comprehensiveAnalysisResult)),
+                    comprehensiveAnalysisResult,
+                    productRevenueMixResult)),
             createConversation,
             cancellationToken);
 
@@ -430,7 +476,8 @@ public sealed class AiQueryOrchestrationService(
             AiOrchestrationMode: "V1",
             WorkflowVersion: "1",
             WorkflowCorrelationId: request.CorrelationId,
-            ComprehensiveAnalysisResult: comprehensiveAnalysisResult);
+            ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
+            ProductRevenueMixResult: productRevenueMixResult);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
@@ -581,10 +628,14 @@ public sealed class AiQueryOrchestrationService(
         bool clarificationRequired,
         string? clarificationMessage,
         AnswerConsistencyContext consistencyContext,
-        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
+        ProductRevenueMixResponse? productRevenueMixResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
+
+        if (productRevenueMixResult is not null)
+            return BuildProductRevenueMixContent(productRevenueMixResult);
 
         if (comprehensiveAnalysisResult is not null)
         {
@@ -623,6 +674,92 @@ public sealed class AiQueryOrchestrationService(
                 : $"Scanner plan created with {plan.Conditions.Count} condition(s).";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
+    }
+
+    private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)
+    {
+        var sb = new StringBuilder();
+        var companyLabel = result.CompanyName is not null
+            ? $"{result.CompanyName} ({result.CompanySymbol})"
+            : result.CompanySymbol;
+        sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine();
+        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("|------|-------|------------|---------|------|");
+        foreach (var p in result.Products)
+        {
+            var dominant = p.IsDominantProduct ? "✓" : "";
+            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
+        }
+        return sb.ToString().TrimEnd();
+    }
+
+    // Common Persian stop/question/verb words that are short but are never ticker symbols.
+    private static readonly HashSet<string> PersianNonTickerWords =
+    [
+        "از", "به", "در", "با", "که", "را", "تا", "یا", "هم", "هر", "این", "آن", "اگر",
+        "چه", "کی", "کو", "هم", "اما", "ولی", "پس", "نه", "بله", "خیر",
+        "چیست", "چیه", "هست", "است", "بود", "شد", "کرد", "داد", "برای",
+        "دارد", "دارم", "دارن", "دارند", "ندارد",
+        "بده", "بگو", "بگیر", "بزن", "نشان", "نده",
+        "می", "نمی", "هم", "فقط", "اول", "آخر", "کجا", "کدام",
+        "مهم", "اصلی", "ترین", "بیشتر", "کمتر", "بالا", "پایین",
+        "محصول", "فروش", "درآمد", "سهم", "ترکیب",
+    ];
+
+    // Extracts a company symbol from a product-revenue-mix query.
+    // Tries Persian tickers (2-5 Persian letters, not a stop word) then uppercase ASCII tokens.
+    private static string? ExtractProductRevenueMixSymbol(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return null;
+
+        // Normalize Arabic chars so ك/ي variants match Persian tickers.
+        var normalized = message.Replace('ك', 'ک').Replace('ي', 'ی').Replace('‌', ' ').Trim();
+
+        // Collect all 2–5-char Persian-letter runs that are not common stop/question words.
+        var candidateTokens = new List<string>();
+        var start = -1;
+        for (var i = 0; i < normalized.Length; i++)
+        {
+            var c = normalized[i];
+            var isPersian = c is >= '؀' and <= 'ۿ';
+            if (isPersian)
+            {
+                if (start < 0) start = i;
+            }
+            else
+            {
+                if (start >= 0)
+                {
+                    var len = i - start;
+                    var token = normalized.Substring(start, len);
+                    if (len is >= 2 and <= 5 && !PersianNonTickerWords.Contains(token))
+                        candidateTokens.Add(token);
+                    start = -1;
+                }
+            }
+        }
+        if (start >= 0)
+        {
+            var len = normalized.Length - start;
+            var token = normalized.Substring(start, len);
+            if (len is >= 2 and <= 5 && !PersianNonTickerWords.Contains(token))
+                candidateTokens.Add(token);
+        }
+
+        // Prefer the first candidate — tickers appear before question/verb words in Persian queries.
+        if (candidateTokens.Count > 0)
+            return candidateTokens[0];
+
+        // Fall back to uppercase ASCII tokens (e.g. "MSFT").
+        foreach (var token in normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (token.Length is >= 2 and <= 5 && token.All(char.IsUpper))
+                return token;
+        }
+
+        return null;
     }
 
     private static bool ContainsPersianText(string text) =>

@@ -18,6 +18,9 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "- SymbolLookup: the user names one or more specific symbols or companies AND asks for the value of a " +
         "metric — with no threshold or filter (e.g. 'PE حفاری چقدر است؟', 'نسبت بدهی فملی را نشان بده', " +
         "'what is the ROE of AAPL?').\n" +
+        "- ProductRevenueMix: the user asks which product contributes the most revenue, asks for product revenue mix, " +
+        "product composition, dominant product, most important product, or similar product-level monthly sales questions. " +
+        "These are not metric lookups and must NOT fall through to SymbolLookup.\n" +
         "- ComprehensiveAnalysis: the user is asking about a stock in a general or analytical way, OR asking about " +
         "analysis posts, reports, or market commentary. " +
         "Triggers include: تحلیل, بررسی, بررسی کن, وضعیت, ارزیابی, نظرت چیه, چطوره, گزارش, " +
@@ -27,18 +30,27 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "When a specific symbol name is mentioned alongside any of these words, always use ComprehensiveAnalysis. " +
         "Does NOT trigger when the user asks for a specific metric value only (use SymbolLookup) " +
         "or asks for stocks matching a condition (use Scanner).\n" +
-        "- Unknown: the intent is not related to stock screening, metric lookup, or analysis posts.\n" +
+        "- Unknown: the intent is not related to stock screening, metric lookup, product revenue mix, or analysis posts.\n" +
         "- Clarification: the message is too vague to classify AND no stock symbol is mentioned.\n" +
         "Key distinction: Scanner requires an operator+threshold (filter many); " +
         "SymbolLookup asks for a specific metric value for named symbol(s) with no threshold; " +
+        "ProductRevenueMix asks for the dominant product / product mix of a specific company; " +
         "ComprehensiveAnalysis = any general question about a named stock, or request for analysis/reports.\n" +
         "Respond ONLY with JSON matching this schema: " +
-        "{\"intent\":\"Scanner|SymbolLookup|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
+        "{\"intent\":\"Scanner|SymbolLookup|ProductRevenueMix|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
 
     public async Task<IntentDetectionResult> DetectAsync(
         IntentDetectionInput input,
         CancellationToken cancellationToken)
     {
+        if (ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.ProductRevenueMix,
+                0.98,
+                "Deterministic product revenue mix phrase rule.");
+        }
+
         if (LooksLikePePointLookup(input.UserQuery))
         {
             return new IntentDetectionResult(
@@ -65,6 +77,40 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
 
         var result = await executionService.ExecuteAsync(selection, request, cancellationToken);
         return ParseIntentOutput(result.StructuredJson);
+    }
+
+    private static readonly string[] ProductRevenuePhrases =
+    [
+        "مهم‌ترین محصول", "مهم ترین محصول",
+        "پرفروش‌ترین محصول", "پرفروش ترین محصول", "پرفروشترین محصول",
+        "پرفروش‌ترین محصولات", "پرفروش ترین محصولات", "پرفروشترین محصولات",
+        "محصول پرفروش", "محصولات پرفروش",
+        "محصول اصلی", "محصولات اصلی",
+        "بیشترین فروش محصول", "بیشترین فروش محصولات",
+        "بیشترین درآمد از چه محصول", "بیشترین درآمد از چه محصولی",
+        "بیشتر از چه محصول", "بیشتر از چه محصولی",
+        "بیشتر از چه محصول درآمد دارد", "بیشتر از چه محصولی درآمد دارد",
+        "ترکیب فروش محصول", "ترکیب فروش محصولات",
+        "ترکیب درآمد محصول", "ترکیب درآمد محصولات",
+        "سهم فروش محصول", "سهم فروش محصولات",
+        "سهم درآمد محصول", "سهم درآمد محصولات",
+        "کدام محصول بیشترین فروش", "کدام محصول بیشترین درآمد",
+        "بالاترین فروش محصول", "بالاترین درآمد محصول",
+        "revenue mix", "product revenue",
+        "most important product", "top products",
+        "product composition", "product concentration"
+    ];
+
+    // Pre-normalized so the Contains check compares normalized-to-normalized on both sides.
+    private static readonly string[] NormalizedProductRevenuePhrases =
+        ProductRevenuePhrases.Select(NormalizeLookupText).ToArray();
+
+    private static bool LooksLikeProductRevenueMixQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return false;
+        var normalized = NormalizeLookupText(query);
+        return NormalizedProductRevenuePhrases.Any(phrase =>
+            normalized.Contains(phrase, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool LooksLikePePointLookup(string query)
@@ -136,6 +182,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
             {
                 "Scanner" => DetectedIntent.Scanner,
                 "SymbolLookup" => DetectedIntent.SymbolLookup,
+                "ProductRevenueMix" => DetectedIntent.ProductRevenueMix,
                 "ComprehensiveAnalysis" => DetectedIntent.ComprehensiveAnalysis,
                 "Clarification" => DetectedIntent.Clarification,
                 _ => DetectedIntent.Unknown

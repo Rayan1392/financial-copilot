@@ -68,11 +68,11 @@ export function ConversationSidebar() {
           100,
       )
     : 0;
-  const [showAdmin, setShowAdmin] = useState(() => canAccessAdmin(getStoredAuthenticatedUser()));
-  useEffect(
-    () => subscribeToAuthChanges(() => setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser()))),
-    [],
-  );
+  const [showAdmin, setShowAdmin] = useState(false);
+  useEffect(() => {
+    setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser()));
+    return subscribeToAuthChanges(() => setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser())));
+  }, []);
 
   async function signOut() {
     await logout();

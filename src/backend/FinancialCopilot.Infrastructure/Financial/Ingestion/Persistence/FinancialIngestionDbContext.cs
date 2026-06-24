@@ -58,6 +58,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<MissingAnswerFeedbackRow> MissingAnswerFeedbacks => Set<MissingAnswerFeedbackRow>();
 
+    public DbSet<CompanyProductRevenueMixRow> CompanyProductRevenueMix => Set<CompanyProductRevenueMixRow>();
+
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
 
     public DbSet<FeatureDefinitionRow> FeatureDefinitions => Set<FeatureDefinitionRow>();

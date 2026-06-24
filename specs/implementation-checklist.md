@@ -369,6 +369,44 @@ affected data is re-ingested from source providers after deployment.
 
 | [x] | 72b | [073](./073-cyclicalwaves-direct-period-metric-query-coverage/user-story.md) / [tasks](./073-cyclicalwaves-direct-period-metric-query-coverage/tasks.md) | CyclicalWaves Direct Period Metric Query Coverage | **Priority: High.** Depends on `020`, `045`, `070`, `071`, and `072`. Close the remaining AI direct-question gap for CyclicalWaves snapshot fields: period-aware lookup for Q0/Q1/Q4 margin metrics, M0/M1/M12 monthly sales, M0/M12 average 12-month sales, and PE/PS valuation ratios. Add aliases, parser period selectors, exact-period DerivedMetrics lookup by `ExternalCompanyId`, Persian display labels, Missing/null behavior without period substitution, and end-to-end AI regression tests. |
 
+| [x] | 73 | [074](./074-database-backed-metric-definition-and-alias-registry/user-story.md) / [tasks](./074-database-backed-metric-definition-and-alias-registry/tasks.md) | Database-Backed Metric Definition and Alias Registry | **Priority: High.** Depends on `015`, `058`, `072`. Migrate the in-memory `PhaseOneFinancialSemanticCatalog` to a PostgreSQL-backed registry so metric definitions, bilingual aliases, routing capabilities, and intent phrases are governed data — editable by DataAdmin without code deployments. The in-process `IMetricAliasResolver` contract remains unchanged so no scanner, symbol-lookup, or AI orchestration code requires modification. Includes DataAdmin CRUD endpoints, EF migration, seed-on-startup from the existing catalog, and alias-resolution regression tests. |
+
+| [ ] | 74 | [075](./075-company-product-revenue-mix/user-story.md) / [tasks](./075-company-product-revenue-mix/tasks.md) | Company Product Revenue Mix | **Priority: Medium.** Depends on `068`, `072`. Enable AI queries about a company's most important products and revenue composition so users can understand which products generate the majority of revenue and evaluate business concentration risk. Current slice adds a DataAdmin one-time backfill over already-persisted Noavaran single-month `ProductSales` rows so historical `CompanyProductRevenueMix` data can be populated without re-ingestion. |
+
+
+### Stage 23 - Monthly Production and Sales Trend
+
+## Purpose
+
+Use this checklist to implement the production/sales trend capability in dependency order.
+
+## Ordered Checklist
+
+| Done | Order | Spec | User story | Dependency / intent |
+|---|---:|---|---|---|
+| [ ] | 76 | [076](./076-nadpco-monthly-activity-trend-snapshot/user-story.md) / [tasks](./076-nadpco-monthly-activity-trend-snapshot/tasks.md) | NADPCO Monthly Activity Trend Snapshot | Depends on Noavaran monthly activity ingestion and output-type segmentation. Builds the derived company-month trend table. |
+| [ ] | 77 | [077](./077-ai-monthly-production-sales-trend-query/user-story.md) / [tasks](./077-ai-monthly-production-sales-trend-query/tasks.md) | AI Monthly Production and Sales Trend Query | Depends on spec 076. Adds intent routing, provider, renderer, and chart-ready response contract. |
+
+## Completion Gate
+
+A checklist item may be marked complete only when:
+
+- Acceptance criteria in the corresponding `user-story.md` are satisfied.
+- Required tasks are implemented or explicitly deferred by scope.
+- AI query path does not aggregate raw monthly report line items.
+- No market quote columns leak into production/sales trend answers.
+- Unit/integration/API-boundary tests pass.
+- `dotnet build FinancialCopilot.sln -c Release` passes.
+- `dotnet test` passes.
+
+## Backfill Gate
+
+Before enabling the AI trend query in production:
+
+- [ ] Trend snapshots are rebuilt from 1403 onward.
+- [ ] At least 12 months of data exist for companies where a full 12-month average is expected.
+- [ ] Missing months are flagged, not backfilled with zero.
+- [ ] Sample companies are manually verified against Noavaran raw outputType 0 totals.
 
 ## Supersession Notes
 

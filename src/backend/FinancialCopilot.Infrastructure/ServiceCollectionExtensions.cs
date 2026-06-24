@@ -586,6 +586,12 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CompositeMetricAliasResolver>());
         services.AddSingleton<IMetricAliasCacheInvalidator>(provider =>
             provider.GetRequiredService<CompositeMetricAliasResolver>());
+        services.AddSingleton<EfCoreMetricPeriodAliasResolver>();
+        services.AddSingleton<IMetricPeriodAliasResolver>(provider =>
+            provider.GetRequiredService<EfCoreMetricPeriodAliasResolver>());
+        services.AddSingleton<EfCoreMetricDefinitionCapabilityReader>();
+        services.AddSingleton<IMetricDefinitionCapabilityReader>(provider =>
+            provider.GetRequiredService<EfCoreMetricDefinitionCapabilityReader>());
         services.AddSingleton<IDirectMetricRoutingRegistry, DirectMetricRoutingRegistry>();
 
         services
@@ -800,6 +806,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
+        // Spec 075 — product revenue mix: calculator + repository wired after monthly-activity ingestion.
+        services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
+        services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();
+        services.AddScoped<IProductRevenueMixQueryUseCase, ProductRevenueMixQueryUseCase>();
+        services.AddScoped<IProductRevenueMixBackfillService, ProductRevenueMixBackfillService>();
         // Spec 050 — all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>

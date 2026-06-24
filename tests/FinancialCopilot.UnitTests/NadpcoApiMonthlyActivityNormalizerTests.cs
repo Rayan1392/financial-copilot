@@ -598,7 +598,19 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     }
 
     private static NadpcoApiMonthlyActivityNormalizer CreateNormalizer(FinancialIngestionDbContext db) =>
-        new(db);
+        new(db, new NoOpRevenueMixCalculator());
+
+    private sealed class NoOpRevenueMixCalculator : ICompanyProductRevenueMixCalculator
+    {
+        public Task RecalculateAsync(
+            string externalCompanyId,
+            int jalaliYear,
+            byte jalaliMonth,
+            string? bourseSymbol,
+            string? companyTitle,
+            string? fiscalEndDate,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
 
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()

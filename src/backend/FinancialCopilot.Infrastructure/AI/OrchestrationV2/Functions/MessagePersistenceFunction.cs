@@ -29,7 +29,8 @@ internal sealed class MessagePersistenceFunction(
         string? agentResponseText,
         bool createConversation,
         CancellationToken cancellationToken,
-        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
+        ProductRevenueMixResponse? productRevenueMixResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -37,7 +38,7 @@ internal sealed class MessagePersistenceFunction(
             : BuildAssistantContent(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
                 explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-                comprehensiveAnalysisResult);
+                comprehensiveAnalysisResult, productRevenueMixResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -64,7 +65,8 @@ internal sealed class MessagePersistenceFunction(
                     confidenceScore,
                     usage,
                     disclosures,
-                    ComprehensiveAnalysisResult: comprehensiveAnalysisResult)),
+                    ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
+                    ProductRevenueMixResult: productRevenueMixResult)),
             createConversation,
             cancellationToken);
     }
@@ -87,7 +89,8 @@ internal sealed class MessagePersistenceFunction(
         string? textAnswer,
         bool clarificationRequired,
         string? clarificationMessage,
-        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null)
+        ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
+        ProductRevenueMixResponse? productRevenueMixResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -97,6 +100,9 @@ internal sealed class MessagePersistenceFunction(
 
         if (explainableAnswer?.ExplanationText is not null)
             return explainableAnswer.ExplanationText;
+
+        if (productRevenueMixResult is not null)
+            return BuildProductRevenueMixContent(productRevenueMixResult);
 
         if (table is not null)
             return plan?.Language?.StartsWith("fa", StringComparison.OrdinalIgnoreCase) == true
@@ -114,5 +120,24 @@ internal sealed class MessagePersistenceFunction(
                 : "تحلیل جامعی برای معیارهای درخواستی یافت نشد.";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
+    }
+
+    private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)
+    {
+        var sb = new System.Text.StringBuilder();
+        var companyLabel = result.CompanyName is not null
+            ? $"{result.CompanyName} ({result.CompanySymbol})"
+            : result.CompanySymbol;
+        sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine();
+        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("|------|-------|------------|---------|------|");
+        foreach (var p in result.Products)
+        {
+            var dominant = p.IsDominantProduct ? "✓" : "";
+            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
+        }
+        return sb.ToString().TrimEnd();
     }
 }

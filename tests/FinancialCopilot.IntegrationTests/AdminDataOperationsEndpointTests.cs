@@ -345,6 +345,41 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task ProductRevenueMixBackfill_AsDataAdmin_ReturnsSummary()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/noavaran-current/product-revenue-mix-backfill",
+            content: null,
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Completed", document.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(4, document.RootElement.GetProperty("companiesConsidered").GetInt32());
+        Assert.Equal(9, document.RootElement.GetProperty("companyMonthsDiscovered").GetInt32());
+        Assert.Single(_factory.ProductRevenueMixBackfill.Requests);
+        Assert.StartsWith("User:", _factory.ProductRevenueMixBackfill.Requests[0].RequestedBy);
+    }
+
+    [Fact]
+    public async Task ProductRevenueMixBackfill_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsync(
+            "/api/v1/admin/noavaran-current/product-revenue-mix-backfill",
+            content: null,
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.ProductRevenueMixBackfill.Requests);
+    }
+
+    [Fact]
     public async Task FundamentalIndexCatchUp_AsDataAdmin_DefaultsTo1403Through1405()
     {
         using var client = CreateDataAdminClient();
@@ -786,6 +821,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubArchiveImportCoordinator _archiveImport = new();
     private readonly StubCurrentApiIngestion _currentApi = new();
+    private readonly StubProductRevenueMixBackfill _productRevenueMixBackfill = new();
     private readonly StubFundamentalIndexCatchUp _fundamentalIndexCatchUp = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
     private readonly StubDataSyncActivityMonitor _activityMonitor = new();
@@ -793,6 +829,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
     public StubCurrentApiIngestion CurrentApi => _currentApi;
+    public StubProductRevenueMixBackfill ProductRevenueMixBackfill => _productRevenueMixBackfill;
     public StubFundamentalIndexCatchUp FundamentalIndexCatchUp => _fundamentalIndexCatchUp;
     public StubDataSyncActivityMonitor ActivityMonitor => _activityMonitor;
 
@@ -822,6 +859,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IArchiveImportRunReader>();
             services.RemoveAll<ICurrentApiBackfillCoordinator>();
             services.RemoveAll<ICurrentApiGapReader>();
+            services.RemoveAll<IProductRevenueMixBackfillService>();
             services.RemoveAll<IFundamentalIndexCatchUpCoordinator>();
             services.RemoveAll<IFundamentalIndexCatchUpRunReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
@@ -840,6 +878,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IArchiveImportRunReader>(_archiveImport);
             services.AddSingleton<ICurrentApiBackfillCoordinator>(_currentApi);
             services.AddSingleton<ICurrentApiGapReader>(_currentApi);
+            services.AddSingleton<IProductRevenueMixBackfillService>(_productRevenueMixBackfill);
             services.AddSingleton<IFundamentalIndexCatchUpCoordinator>(_fundamentalIndexCatchUp);
             services.AddSingleton<IFundamentalIndexCatchUpRunReader>(_fundamentalIndexCatchUp);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
@@ -855,6 +894,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _stockMarketDbSync.Reset();
         _archiveImport.Reset();
         _currentApi.Reset();
+        _productRevenueMixBackfill.Reset();
         _fundamentalIndexCatchUp.Reset();
         _missingAnswerFeedback.Reset();
         _activityMonitor.Reset();
@@ -1016,6 +1056,28 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 ]));
 
         public void Reset() => BackfillRequests.Clear();
+    }
+
+    public sealed class StubProductRevenueMixBackfill : IProductRevenueMixBackfillService
+    {
+        public List<ProductRevenueMixBackfillRequest> Requests { get; } = [];
+
+        public Task<ProductRevenueMixBackfillResult> RunAsync(
+            ProductRevenueMixBackfillRequest request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ProductRevenueMixBackfillResult(
+                "Completed",
+                request.RequestedBy,
+                CompaniesConsidered: 4,
+                CompanyMonthsDiscovered: 9,
+                CompanyMonthsProcessed: 8,
+                CompanyMonthsSkippedNoSalesLineItems: 1,
+                Duration: "0:00:01"));
+        }
+
+        public void Reset() => Requests.Clear();
     }
 
     public sealed class StubFundamentalIndexCatchUp

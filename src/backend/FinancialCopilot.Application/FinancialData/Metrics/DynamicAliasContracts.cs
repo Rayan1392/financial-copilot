@@ -50,3 +50,51 @@ public interface IMetricAliasCacheInvalidator
 {
     void InvalidateLanguage(string language);
 }
+
+// ---------------------------------------------------------------------------
+// Period alias resolution
+// ---------------------------------------------------------------------------
+
+public sealed record ResolvedPeriodAlias(
+    string PeriodType,
+    string PeriodSelector,
+    string MatchedAlias,
+    int Priority);
+
+public interface IMetricPeriodAliasResolver
+{
+    /// <summary>
+    /// Attempts to resolve a normalized user phrase to a period type + selector.
+    /// Returns null when no active alias matches.
+    /// </summary>
+    ResolvedPeriodAlias? ResolvePhrase(string normalizedPhrase, string language);
+
+    void InvalidateCache();
+}
+
+// ---------------------------------------------------------------------------
+// Metric definition registry (capability flags)
+// ---------------------------------------------------------------------------
+
+public sealed record MetricDefinitionCapabilities(
+    string MetricCode,
+    string PersianTitle,
+    string EnglishTitle,
+    string Category,
+    bool LookupEligible,
+    bool ScannerEligible,
+    bool IsMonthlyActivityMetric,
+    bool IsValuationMetric,
+    bool IsGrowthMetric,
+    bool IsMarginMetric,
+    bool IsFundamentalMetric,
+    bool SuppressQuoteContext);
+
+public interface IMetricDefinitionCapabilityReader
+{
+    MetricDefinitionCapabilities? GetCapabilities(string metricCode);
+
+    IReadOnlyList<MetricDefinitionCapabilities> GetAll();
+
+    void InvalidateCache();
+}

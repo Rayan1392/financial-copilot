@@ -276,3 +276,25 @@ Conversation persistence
 ```
 
 Payment gateway automation, invoice delivery automation, deep research, portfolio tools, Elasticsearch/OpenSearch, and vector retrieval remain later increments unless separately promoted into delivery scope.
+
+# Monthly Production and Sales Trend Specs
+
+This package adds two specs for turning Noavaran Amin monthly production/sales history into an AI-readable trend layer and a chart-ready AI response.
+
+## Specs
+
+| Spec | Purpose |
+|---|---|
+| `076-nadpco-monthly-activity-trend-snapshot` | Persist deterministic company-month production/sales trend snapshots from Noavaran monthly activity data. |
+| `077-ai-monthly-production-sales-trend-query` | Route Persian trend/chart questions to a dedicated AI provider and return chart-ready annual comparison data. |
+
+## Implementation Order
+
+1. Implement spec 076 first.
+2. Backfill snapshots from 1403 onward.
+3. Implement spec 077 after the snapshot table is available.
+4. Add frontend rendering later using the `monthlyActivityTrendChart` structured content block.
+
+## Core Rule
+
+The AI must not calculate historical production/sales trends from raw Noavaran line items at query time. It should read one derived trend table, plus company resolution if needed.

@@ -156,6 +156,17 @@ public sealed record AdminMonthlyActivityBackfillProgressResponse(
     IReadOnlyCollection<AdminMonthlyActivityBackfillMonthResponse> Months,
     IReadOnlyDictionary<int, int>? OutputTypeCounts = null);
 
+// --- Spec 075: one-time product revenue mix backfill ---
+
+public sealed record AdminProductRevenueMixBackfillResponse(
+    string Outcome,
+    string RequestedBy,
+    int CompaniesConsidered,
+    int CompanyMonthsDiscovered,
+    int CompanyMonthsProcessed,
+    int CompanyMonthsSkippedNoSalesLineItems,
+    string Duration);
+
 public sealed record AdminCurrentApiGapResponse(
     int CurrentApiBoundaryShamsiYear,
     int TotalGapRows,

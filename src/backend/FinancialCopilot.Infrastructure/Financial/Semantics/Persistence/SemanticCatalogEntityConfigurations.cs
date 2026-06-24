@@ -13,8 +13,36 @@ public sealed class FinancialMetricDefinitionRowConfiguration :
         builder.Property(row => row.MetricCode).HasMaxLength(128);
         builder.Property(row => row.MetricVersion).HasMaxLength(64);
         builder.Property(row => row.DisplayName).HasMaxLength(200);
+        builder.Property(row => row.PersianTitle).HasMaxLength(200);
         builder.Property(row => row.Category).HasMaxLength(64);
         builder.Property(row => row.UnitCode).HasMaxLength(32);
+        builder.Property(row => row.LookupEligible).HasDefaultValue(false);
+        builder.Property(row => row.ScannerEligible).HasDefaultValue(false);
+        builder.Property(row => row.IsMonthlyActivityMetric).HasDefaultValue(false);
+        builder.Property(row => row.IsValuationMetric).HasDefaultValue(false);
+        builder.Property(row => row.IsGrowthMetric).HasDefaultValue(false);
+        builder.Property(row => row.IsMarginMetric).HasDefaultValue(false);
+        builder.Property(row => row.IsFundamentalMetric).HasDefaultValue(false);
+        builder.Property(row => row.SuppressQuoteContext).HasDefaultValue(false);
+    }
+}
+
+public sealed class MetricPeriodAliasRowConfiguration : IEntityTypeConfiguration<MetricPeriodAliasRow>
+{
+    public void Configure(EntityTypeBuilder<MetricPeriodAliasRow> builder)
+    {
+        builder.ToTable("MetricPeriodAliases");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.Language, row.Status });
+        builder.HasIndex(row => new { row.NormalizedAliasText, row.Language })
+            .IsUnique()
+            .HasFilter("\"Status\" = 'Active'");
+        builder.Property(row => row.AliasText).HasMaxLength(200).IsRequired();
+        builder.Property(row => row.NormalizedAliasText).HasMaxLength(200).IsRequired();
+        builder.Property(row => row.Language).HasMaxLength(16).IsRequired();
+        builder.Property(row => row.PeriodType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.PeriodSelector).HasMaxLength(16).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(16).IsRequired();
     }
 }
 

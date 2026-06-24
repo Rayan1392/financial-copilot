@@ -384,7 +384,7 @@ Use this checklist to implement the production/sales trend capability in depende
 
 | Done | Order | Spec | User story | Dependency / intent |
 |---|---:|---|---|---|
-| [ ] | 76 | [076](./076-nadpco-monthly-activity-trend-snapshot/user-story.md) / [tasks](./076-nadpco-monthly-activity-trend-snapshot/tasks.md) | NADPCO Monthly Activity Trend Snapshot | Depends on Noavaran monthly activity ingestion and output-type segmentation. Builds the derived company-month trend table. |
+| [x] | 76 | [076](./076-nadpco-monthly-activity-trend-snapshot/user-story.md) / [tasks](./076-nadpco-monthly-activity-trend-snapshot/tasks.md) | NADPCO Monthly Activity Trend Snapshot | Depends on Noavaran monthly activity ingestion and output-type segmentation. Builds the derived company-month trend table. |
 | [ ] | 77 | [077](./077-ai-monthly-production-sales-trend-query/user-story.md) / [tasks](./077-ai-monthly-production-sales-trend-query/tasks.md) | AI Monthly Production and Sales Trend Query | Depends on spec 076. Adds intent routing, provider, renderer, and chart-ready response contract. |
 
 ## Completion Gate

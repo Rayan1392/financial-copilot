@@ -167,6 +167,20 @@ public sealed record AdminProductRevenueMixBackfillResponse(
     int CompanyMonthsSkippedNoSalesLineItems,
     string Duration);
 
+// --- Spec 076: company monthly activity trend snapshot backfill ---
+// No request body — date range and forceRebuild are read from appsettings "TrendSnapshotBackfill";
+// eligible companies are enumerated from NoavaranEligibleCompanies.
+
+public sealed record AdminTrendSnapshotBackfillResponse(
+    string Outcome,
+    string RequestedBy,
+    int CompaniesConsidered,
+    int CompanyMonthsDiscovered,
+    int CompanyMonthsProcessed,
+    int CompanyMonthsSkipped,
+    int CompanyMonthsFailed,
+    string Duration);
+
 public sealed record AdminCurrentApiGapResponse(
     int CurrentApiBoundaryShamsiYear,
     int TotalGapRows,

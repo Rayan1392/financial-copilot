@@ -811,6 +811,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();
         services.AddScoped<IProductRevenueMixQueryUseCase, ProductRevenueMixQueryUseCase>();
         services.AddScoped<IProductRevenueMixBackfillService, ProductRevenueMixBackfillService>();
+        // Spec 076 — company-month trend snapshot: calculated during ingestion and queryable for AI/chart.
+        services.AddOptions<TrendSnapshotBackfillOptions>()
+            .BindConfiguration(TrendSnapshotBackfillOptions.SectionName);
+        services.AddScoped<ICompanyMonthlyActivityTrendSnapshotRepository, EfCoreCompanyMonthlyActivityTrendSnapshotRepository>();
+        services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
+        services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         // Spec 050 — all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>

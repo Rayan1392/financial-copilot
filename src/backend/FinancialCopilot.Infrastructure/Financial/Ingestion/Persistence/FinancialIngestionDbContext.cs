@@ -60,6 +60,9 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CompanyProductRevenueMixRow> CompanyProductRevenueMix => Set<CompanyProductRevenueMixRow>();
 
+    public DbSet<CompanyMonthlyActivityTrendSnapshotRow> CompanyMonthlyActivityTrendSnapshots =>
+        Set<CompanyMonthlyActivityTrendSnapshotRow>();
+
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
 
     public DbSet<FeatureDefinitionRow> FeatureDefinitions => Set<FeatureDefinitionRow>();

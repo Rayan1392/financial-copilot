@@ -12,7 +12,8 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public sealed class NadpcoApiMonthlyActivityNormalizer(
     FinancialIngestionDbContext dbContext,
-    ICompanyProductRevenueMixCalculator revenueMixCalculator) : IFinancialPayloadNormalizer
+    ICompanyProductRevenueMixCalculator revenueMixCalculator,
+    ICompanyMonthlyActivityTrendSnapshotCalculator trendSnapshotCalculator) : IFinancialPayloadNormalizer
 {
     public string ProviderName => NadpcoApiCompanyNormalizer.NadpcoApiProviderName;
 
@@ -112,6 +113,20 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         {
             var first = group.First();
             await revenueMixCalculator.RecalculateAsync(
+                first.ExternalCompanyId,
+                first.JalaliYear,
+                first.JalaliMonth,
+                first.BourseSymbol,
+                first.CompanyTitle,
+                first.JalaliFiscalYearEnd,
+                cancellationToken);
+        }
+
+        // Recalculate trend snapshot for each single-month ProductSales group (spec 076).
+        foreach (var group in singleMonthGroups)
+        {
+            var first = group.First();
+            await trendSnapshotCalculator.RecalculateAsync(
                 first.ExternalCompanyId,
                 first.JalaliYear,
                 first.JalaliMonth,

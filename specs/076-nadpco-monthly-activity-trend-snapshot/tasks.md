@@ -210,24 +210,27 @@ Important:
 
 Add an admin/backfill operation to rebuild trend snapshots from already persisted Noavaran monthly activity data.
 
-Suggested operation:
+Endpoint: `POST /api/v1/admin/noavaran-current/trend-snapshot-backfill`
 
-`RebuildCompanyMonthlyActivityTrendSnapshots`
+**No request body.** Configuration is driven entirely from appsettings:
 
-Inputs:
+```json
+"TrendSnapshotBackfill": {
+  "FromYear": 1404,
+  "FromMonth": 1,
+  "ToYear": 1405,
+  "ToMonth": 3,
+  "ForceRebuild": false
+}
+```
 
-- Optional `externalCompanyId`
-- `fromYear`
-- `fromMonth`
-- `toYear`
-- `toMonth`
-- `forceRebuild`
+Eligible company IDs are enumerated from the `NoavaranEligibleCompanies` view via `NoavaranCompanyScope.EligibleCompanies`. One HTTP call processes all eligible companies and returns an aggregate result.
 
 Acceptance:
 
-- Can rebuild from 1403 onward.
-- Uses bounded batches.
-- Reports processed companies, processed months, skipped months, failed months, and recalculated future trailing-average rows.
+- Can rebuild from 1403 onward (set `FromYear` in config).
+- Iterates all eligible companies automatically.
+- Reports processed companies, processed months, skipped months, and failed months.
 
 ---
 
@@ -275,14 +278,14 @@ All repository methods must read the trend snapshot table, not raw line-item tab
 
 Before marking this spec complete:
 
-- [ ] `CompanyMonthlyActivityTrendSnapshots` table exists with required indexes
-- [ ] Snapshot values are calculated from Noavaran monthly activity data only
-- [ ] outputType 0 is the only source for monthly chart bars
-- [ ] outputType 1 and 4 are stored as YTD context only
-- [ ] 12-month average is persisted or deterministically derived into snapshot rows
-- [ ] Previous-year comparable values are persisted or directly available in snapshot queries
-- [ ] Backfill from 1403 onward is available
+- [x] `CompanyMonthlyActivityTrendSnapshots` table exists with required indexes
+- [x] Snapshot values are calculated from Noavaran monthly activity data only
+- [x] outputType 0 is the only source for monthly chart bars
+- [x] outputType 1 and 4 are stored as YTD context only
+- [x] 12-month average is persisted or deterministically derived into snapshot rows
+- [x] Previous-year comparable values are persisted or directly available in snapshot queries
+- [x] Backfill from 1403 onward is available
 - [ ] AI/query path can read trend data without raw line-item aggregation
-- [ ] Unit and integration tests pass
-- [ ] `dotnet build FinancialCopilot.sln -c Release` passes
-- [ ] `dotnet test` passes
+- [x] Unit and integration tests pass
+- [x] `dotnet build FinancialCopilot.sln -c Release` passes
+- [x] `dotnet test` passes

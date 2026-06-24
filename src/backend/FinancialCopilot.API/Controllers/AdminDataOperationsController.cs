@@ -42,6 +42,7 @@ public sealed class AdminDataOperationsController(
     ICurrentApiGapReader currentApiGapReader,
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
     IProductRevenueMixBackfillService productRevenueMixBackfillService,
+    ICompanyMonthlyActivityTrendSnapshotBackfillService trendSnapshotBackfillService,
     IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
@@ -463,6 +464,32 @@ public sealed class AdminDataOperationsController(
             result.CompanyMonthsDiscovered,
             result.CompanyMonthsProcessed,
             result.CompanyMonthsSkippedNoSalesLineItems,
+            result.Duration));
+    }
+
+    // Spec 076 — rebuild CompanyMonthlyActivityTrendSnapshots from already-persisted Noavaran
+    // monthly activity data. Accepts an optional company filter and a Jalali date range.
+
+    // Date range and forceRebuild are read from appsettings "TrendSnapshotBackfill".
+    // Eligible companies are enumerated from NoavaranEligibleCompanies — no body required.
+    [HttpPost("noavaran-current/trend-snapshot-backfill")]
+    public async Task<ActionResult<AdminTrendSnapshotBackfillResponse>> RunTrendSnapshotBackfill(
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.Actor;
+        var result = await trendSnapshotBackfillService.RunAsync(
+            new CompanyMonthlyActivityTrendSnapshotBackfillRequest(
+                RequestedBy: $"{actor.ActorType}:{actor.ActorId}"),
+            cancellationToken);
+
+        return Ok(new AdminTrendSnapshotBackfillResponse(
+            result.Outcome,
+            result.RequestedBy,
+            result.CompaniesConsidered,
+            result.CompanyMonthsDiscovered,
+            result.CompanyMonthsProcessed,
+            result.CompanyMonthsSkipped,
+            result.CompanyMonthsFailed,
             result.Duration));
     }
 

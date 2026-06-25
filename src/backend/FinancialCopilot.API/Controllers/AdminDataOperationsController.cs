@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using FinancialCopilot.API.Contracts;
@@ -43,6 +43,7 @@ public sealed class AdminDataOperationsController(
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
     IProductRevenueMixBackfillService productRevenueMixBackfillService,
     ICompanyMonthlyActivityTrendSnapshotBackfillService trendSnapshotBackfillService,
+    ISingleCompanyMonthlyIngestionService singleCompanyIngestion,
     IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
     ICurrentActorContext currentActor,
@@ -417,8 +418,8 @@ public sealed class AdminDataOperationsController(
     }
 
     // --- Spec 057: NADPCO monthly-activity reverse-chronological backfill (DataAdmin only) ---
-    // Walks Shamsi months newest-first (e.g. 1405/02 → … → 1404/01), one bounded company-month
-    // request per eligible company per month. Manual only — never scheduler-invoked. Re-invoking
+    // Walks Shamsi months newest-first (e.g. 1405/02 â†’ â€¦ â†’ 1404/01), one bounded company-month
+    // request per eligible company per month. Manual only â€” never scheduler-invoked. Re-invoking
     // resumes: completed company-months are skipped, failed ones retried.
 
     [HttpPost("noavaran-current/monthly-backfill")]
@@ -467,11 +468,11 @@ public sealed class AdminDataOperationsController(
             result.Duration));
     }
 
-    // Spec 076 — rebuild CompanyMonthlyActivityTrendSnapshots from already-persisted Noavaran
+    // Spec 076 â€” rebuild CompanyMonthlyActivityTrendSnapshots from already-persisted Noavaran
     // monthly activity data. Accepts an optional company filter and a Jalali date range.
 
     // Date range and forceRebuild are read from appsettings "TrendSnapshotBackfill".
-    // Eligible companies are enumerated from NoavaranEligibleCompanies — no body required.
+    // Eligible companies are enumerated from NoavaranEligibleCompanies â€” no body required.
     [HttpPost("noavaran-current/trend-snapshot-backfill")]
     public async Task<ActionResult<AdminTrendSnapshotBackfillResponse>> RunTrendSnapshotBackfill(
         CancellationToken cancellationToken)
@@ -493,6 +494,50 @@ public sealed class AdminDataOperationsController(
             result.Duration));
     }
 
+
+    [HttpPost("noavaran-current/single-company-monthly-ingestion")]
+    public async Task<ActionResult<AdminSingleCompanyMonthlyIngestionResponse>> RunSingleCompanyMonthlyIngestion(
+        [FromBody] AdminSingleCompanyMonthlyIngestionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ExternalCompanyId <= 0)
+        {
+            ModelState.AddModelError(nameof(request.ExternalCompanyId), "ExternalCompanyId must be a positive integer.");
+            return ValidationProblem(ModelState);
+        }
+        if (request.FromShamsiMonth is < 1 or > 12 || request.ToShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError("ShamsiMonth", "Shamsi month must be between 1 and 12.");
+            return ValidationProblem(ModelState);
+        }
+        var from = new ShamsiMonth(request.FromShamsiYear, (byte)request.FromShamsiMonth);
+        var to = new ShamsiMonth(request.ToShamsiYear, (byte)request.ToShamsiMonth);
+        if (from > to)
+        {
+            ModelState.AddModelError("DateRange", "FromShamsi must not be later than ToShamsi.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await singleCompanyIngestion.EnqueueAsync(
+            new SingleCompanyMonthlyIngestionRequest(
+                request.ExternalCompanyId,
+                request.FromShamsiYear,
+                request.FromShamsiMonth,
+                request.ToShamsiYear,
+                request.ToShamsiMonth,
+                $"{actor.ActorType}:{actor.ActorId}"),
+            cancellationToken);
+
+        return Ok(new AdminSingleCompanyMonthlyIngestionResponse(
+            result.Outcome,
+            result.ExternalCompanyId,
+            result.MonthsInRange,
+            result.RequestsEnqueued,
+            result.FirstMonth,
+            result.LastMonth,
+            result.RequestedBy));
+    }
     private static AdminMonthlyActivityBackfillProgressResponse ToMonthlyBackfillProgressResponse(
         MonthlyActivityBackfillProgress progress) =>
         new(
@@ -965,7 +1010,7 @@ public sealed class AdminDataOperationsController(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Client disconnected — normal exit.
+            // Client disconnected â€” normal exit.
         }
         finally
         {

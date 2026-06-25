@@ -2045,6 +2045,11 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("ProviderName", "ExternalReportId")
                         .IsUnique();
 
+                    b.HasIndex("ProviderName", "ExternalCompanyId", "PeriodStart", "OutputType", "ReportType")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MonthlyReports_LogicalPeriod")
+                        .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL");
+
                     b.ToTable("MonthlyReports", (string)null);
                 });
 

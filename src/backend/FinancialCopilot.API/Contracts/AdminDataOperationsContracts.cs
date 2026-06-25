@@ -301,6 +301,24 @@ public sealed record AdminMissingAnswerFeedbackItem(
     int FrequencyCount,
     DateTimeOffset? ResolvedAt);
 
+// --- Single-company monthly re-ingestion (bug fix helper) ---
+
+public sealed record AdminSingleCompanyMonthlyIngestionRequest(
+    int ExternalCompanyId,
+    int FromShamsiYear,
+    int FromShamsiMonth,
+    int ToShamsiYear,
+    int ToShamsiMonth);
+
+public sealed record AdminSingleCompanyMonthlyIngestionResponse(
+    string Outcome,
+    int ExternalCompanyId,
+    int MonthsInRange,
+    int RequestsEnqueued,
+    string FirstMonth,
+    string LastMonth,
+    string RequestedBy);
+
 // --- Spec 058: live data sync monitor ---
 
 public sealed record AdminDataSyncActivityItemResponse(

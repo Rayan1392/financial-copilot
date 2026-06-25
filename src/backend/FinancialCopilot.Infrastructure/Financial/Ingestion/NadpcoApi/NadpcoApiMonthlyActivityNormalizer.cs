@@ -76,29 +76,32 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
+            // Authoritative replace: remove all existing line items for this report before
+            // re-inserting from the current payload so stale rows from prior runs cannot accumulate.
+            var staleLineItems = await dbContext.MonthlyReportLineItems
+                .Where(li => li.MonthlyReportId == report.Id)
+                .ToListAsync(cancellationToken);
+            if (staleLineItems.Count > 0)
+            {
+                dbContext.MonthlyReportLineItems.RemoveRange(staleLineItems);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             foreach (var item in group)
             {
-                var lineItem = await dbContext.MonthlyReportLineItems.SingleOrDefaultAsync(
-                    row => row.MonthlyReportId == report.Id && row.ProductCode == item.LineItemCode,
-                    cancellationToken);
-
-                if (lineItem is null)
+                var lineItem = new NormalizedMonthlyReportLineItemRow
                 {
-                    lineItem = new NormalizedMonthlyReportLineItemRow
-                    {
-                        Id = Guid.NewGuid(),
-                        MonthlyReportId = report.Id,
-                        ProductCode = item.LineItemCode
-                    };
-                    dbContext.MonthlyReportLineItems.Add(lineItem);
-                }
-
-                lineItem.ProductionQuantity = item.ProductionQuantity;
-                lineItem.SalesQuantity = item.SalesQuantity;
-                lineItem.SalesAmount = item.SalesAmount;
-                lineItem.Title = item.Title;
-                lineItem.Unit = item.Unit;
-                lineItem.SalesRate = item.SalesRate;
+                    Id = Guid.NewGuid(),
+                    MonthlyReportId = report.Id,
+                    ProductCode = item.LineItemCode,
+                    ProductionQuantity = item.ProductionQuantity,
+                    SalesQuantity = item.SalesQuantity,
+                    SalesAmount = item.SalesAmount,
+                    Title = item.Title,
+                    Unit = item.Unit,
+                    SalesRate = item.SalesRate
+                };
+                dbContext.MonthlyReportLineItems.Add(lineItem);
             }
         }
 
@@ -229,8 +232,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             companyId,
             year,
             month,
-            outputType,
-            categoryId);
+            outputType);
 
         return new NadpcoApiMonthlyActivityItem(
             "ProductSales",
@@ -294,8 +296,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 companyId,
                 year,
                 month,
-                OutputType: null,
-                record.CategoryID);
+                OutputType: null);
 
             return new NadpcoApiMonthlyActivityItem(
                 "ServiceSales",
@@ -334,8 +335,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         int companyId,
         int year,
         byte month,
-        int? OutputType,
-        int? categoryId)
+        int? OutputType)
     {
         var outputPart = OutputType?.ToString(CultureInfo.InvariantCulture) ?? "none";
 
@@ -346,10 +346,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 $"{sourceKind}:{activityId.Value}:output-{outputPart}");
         }
 
-        var categoryPart = categoryId?.ToString(CultureInfo.InvariantCulture) ?? "none";
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"{sourceKind}:{companyId}:{year:D4}-{month:D2}:output-{outputPart}:category-{categoryPart}");
+            $"{sourceKind}:{companyId}:{year:D4}-{month:D2}:output-{outputPart}");
     }
 
     private static string BuildLineItemCode(

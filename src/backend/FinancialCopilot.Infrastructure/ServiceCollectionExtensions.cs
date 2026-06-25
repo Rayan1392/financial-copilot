@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Services;
@@ -455,7 +455,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IAiQueryOrchestrationService, AiQueryOrchestrationService>();
         }
 
-        // Evaluation framework — internal quality infrastructure, no public API surface.
+        // Evaluation framework â€” internal quality infrastructure, no public API surface.
         services.AddSingleton<IEvaluationDatasetRepository, SeedEvaluationDatasetRepository>();
         services.AddSingleton<IEvaluationRunRepository, InMemoryEvaluationRunRepository>();
         services.AddSingleton<IPromptVersionRegistry, NoOpPromptVersionRegistry>();
@@ -471,7 +471,7 @@ public static class ServiceCollectionExtensions
             new MetricCode("EBIT"),
             [new MetricCode("NET_PROFIT"), new MetricCode("FINANCE_COSTS"), new MetricCode("INCOME_TAX")]));
 
-        // Growth calculators — existing NET_PROFIT and MONTHLY_SALES.
+        // Growth calculators â€” existing NET_PROFIT and MONTHLY_SALES.
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(
             new MetricCode("NET_PROFIT_GROWTH_YOY"),
             new MetricCode("NET_PROFIT")));
@@ -488,10 +488,10 @@ public static class ServiceCollectionExtensions
             new MetricCode("TTM_SALES"),
             new MetricCode("MONTHLY_SALES"),
             requiredObservationCount: 12));
-        // Spec 057: identity persistence of monthly-activity aggregates — a single-component
+        // Spec 057: identity persistence of monthly-activity aggregates â€” a single-component
         // additive composite selects the source observation matching each monthly period, so one
         // DerivedMetrics row exists per company-month and the symbol lookup can answer
-        // «آخرین فروش / مقدار فروش / نرخ فروش / مقدار تولید» from the latest month.
+        // Â«Ø¢Ø®Ø±ÛŒÙ† ÙØ±ÙˆØ´ / Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´ / Ù†Ø±Ø® ÙØ±ÙˆØ´ / Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯Â» from the latest month.
         foreach (var monthlyCode in new[]
         {
             "MONTHLY_SALES", "MONTHLY_SALES_YTD", "MONTHLY_SALES_YTD_PREVIOUS_MONTH",
@@ -529,7 +529,7 @@ public static class ServiceCollectionExtensions
             new MetricCode("PS_TTM"),
             new MetricCode("PS_RATIO")));
 
-        // CyclicalWaves pre-computed average metrics — passthrough from line items → DerivedMetrics.
+        // CyclicalWaves pre-computed average metrics â€” passthrough from line items â†’ DerivedMetrics.
         services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
             new MetricCode("AVG_4Q_REVENUE"),
             new MetricCode("AVG_4Q_REVENUE")));
@@ -537,7 +537,7 @@ public static class ServiceCollectionExtensions
             new MetricCode("AVG_12M_MONTHLY_SALES"),
             new MetricCode("AVG_12M_MONTHLY_SALES")));
 
-        // CyclicalWaves margin snapshots — passthrough from FinancialStatementLineItems → DerivedMetrics.
+        // CyclicalWaves margin snapshots â€” passthrough from FinancialStatementLineItems â†’ DerivedMetrics.
         services.AddSingleton<IFinancialMetricCalculator>(_ => new SourceLineItemPassthroughMetricCalculator(
             new MetricCode("NET_PROFIT_MARGIN"),
             new MetricCode("NET_PROFIT_MARGIN")));
@@ -548,7 +548,7 @@ public static class ServiceCollectionExtensions
             new MetricCode("OPERATING_PROFIT_MARGIN"),
             new MetricCode("OPERATING_PROFIT_MARGIN")));
 
-        // CodalDB-derived YoY growth calculators (use cumulative ThreeMonths input, shifted −12 months).
+        // CodalDB-derived YoY growth calculators (use cumulative ThreeMonths input, shifted âˆ’12 months).
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("REVENUE_GROWTH_YOY"),          new MetricCode("REVENUE")));
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("GROSS_PROFIT_GROWTH_YOY"),     new MetricCode("GROSS_PROFIT")));
         services.AddSingleton<IFinancialMetricCalculator>(_ => new PercentageGrowthMetricCalculator(new MetricCode("OPERATING_PROFIT_GROWTH_YOY"), new MetricCode("OPERATING_PROFIT")));
@@ -656,7 +656,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
 
-        // CyclicalWaves blog — ComprehensiveAnalysis sync (spec 065).
+        // CyclicalWaves blog â€” ComprehensiveAnalysis sync (spec 065).
         // Reuses CyclicalWavesAuthHandler + CyclicalWavesTokenCache from above.
         services
             .AddOptions<ComprehensiveAnalysisBlogOptions>()
@@ -688,7 +688,7 @@ public static class ServiceCollectionExtensions
         services
             .AddOptions<NadpcoApiProviderOptions>()
             .BindConfiguration(NadpcoApiProviderOptions.SectionName);
-        // Spec 053 — per-run Shamsi start boundary override for current-API backfill (scoped; the
+        // Spec 053 â€” per-run Shamsi start boundary override for current-API backfill (scoped; the
         // provider client and the backfill coordinator share the same scope instance).
         services.AddScoped<NoavaranCurrentApiBoundaryOverride>();
         services.AddScoped<INoavaranCurrentApiBoundaryOverride>(provider =>
@@ -783,7 +783,7 @@ public static class ServiceCollectionExtensions
                 symbolProviders, statementProviders, monthlyProviders, ratioProviders);
         });
 
-        // Spec 051 — logical-vendor/physical-source model support: dataset source-priority policy
+        // Spec 051 â€” logical-vendor/physical-source model support: dataset source-priority policy
         // (pure config) and cross-source identity-conflict logging.
         services
             .AddOptions<SourcePriorityOptions>()
@@ -806,19 +806,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
-        // Spec 075 — product revenue mix: calculator + repository wired after monthly-activity ingestion.
+        // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
         services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();
         services.AddScoped<IProductRevenueMixQueryUseCase, ProductRevenueMixQueryUseCase>();
         services.AddScoped<IProductRevenueMixBackfillService, ProductRevenueMixBackfillService>();
-        // Spec 076 — company-month trend snapshot: calculated during ingestion and queryable for AI/chart.
+        // Spec 076 â€” company-month trend snapshot: calculated during ingestion and queryable for AI/chart.
         services.AddOptions<TrendSnapshotBackfillOptions>()
             .BindConfiguration(TrendSnapshotBackfillOptions.SectionName);
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotRepository, EfCoreCompanyMonthlyActivityTrendSnapshotRepository>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
-        // Spec 050 — all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
+        // Spec 050 â€” all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>
             sp.GetRequiredService<NadpcoApiDataProviderClient>());
@@ -827,14 +827,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICyclicalWavesCompanyMappingService, CyclicalWavesCompanyMappingService>();
         services.AddScoped<IBackfillCyclicalWavesCompanyIdService, BackfillCyclicalWavesCompanyIdService>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();
-        // LineItemMetricInputSource — one per source metric backed by NormalizedFinancialStatementLineItems.
+        // LineItemMetricInputSource â€” one per source metric backed by NormalizedFinancialStatementLineItems.
         // NET_PROFIT subsumes the legacy NetProfitMetricInputSource; MonthlyProductionSales uses its own table.
         foreach (var code in new[] { "NET_PROFIT", "REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT",
                                      "EPS", "TOTAL_EQUITY", "FINANCE_COSTS", "INCOME_TAX",
                                      "OPERATING_CASH_FLOW",
-                                     // Vendor ratio snapshots — triggers PE_TTM / PS_TTM passthrough.
+                                     // Vendor ratio snapshots â€” triggers PE_TTM / PS_TTM passthrough.
                                      "PE_RATIO", "PS_RATIO",
-                                     // CyclicalWaves margin snapshots — triggers passthrough calculators below.
+                                     // CyclicalWaves margin snapshots â€” triggers passthrough calculators below.
                                      "NET_PROFIT_MARGIN", "GROSS_PROFIT_MARGIN", "OPERATING_PROFIT_MARGIN",
                                      // CyclicalWaves pre-computed 4-quarter average revenue snapshot (Q0 only).
                                      "AVG_4Q_REVENUE" })
@@ -882,13 +882,14 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());
         services.AddScoped<INadpcoApiSyncStateReader>(provider =>
             provider.GetRequiredService<NadpcoApiScheduledSyncService>());
-        // Spec 057 — manual reverse-chronological monthly-activity backfill (DataAdmin-only) and
+        // Spec 057 â€” manual reverse-chronological monthly-activity backfill (DataAdmin-only) and
         // the backfill-complete marker that gates the steady-state previous-month refresh.
         services.AddScoped<MonthlyActivityBackfillCoordinator>();
         services.AddScoped<IMonthlyActivityBackfillCoordinator>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
         services.AddScoped<IMonthlyActivityBackfillStateReader>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
+        services.AddScoped<ISingleCompanyMonthlyIngestionService, SingleCompanyMonthlyIngestionService>();
         services
             .AddOptions<NadpcoScheduledSyncOptions>()
             .BindConfiguration(NadpcoScheduledSyncOptions.SectionName);
@@ -898,7 +899,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INadpcoScheduledSyncCoordinator, NadpcoScheduledSyncCoordinator>();
         services.AddSingleton<INadpcoScheduledSyncAlertSink, LoggingNadpcoScheduledSyncAlertSink>();
 
-        // Spec 052 — one-time Noavaran archive import (DataAdmin-triggered; no recurring worker).
+        // Spec 052 â€” one-time Noavaran archive import (DataAdmin-triggered; no recurring worker).
         services.AddScoped<EfCoreArchiveImportRunRepository>();
         services.AddScoped<IArchiveImportRunReader>(provider =>
             provider.GetRequiredService<EfCoreArchiveImportRunRepository>());
@@ -906,13 +907,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IArchiveCoverageReader, EfCoreArchiveCoverageReader>();
         services.AddScoped<IArchiveImportCoordinator, ArchiveImportCoordinator>();
 
-        // Spec 053 — Noavaran current-API ingestion: archive-vs-current gap report + DataAdmin
+        // Spec 053 â€” Noavaran current-API ingestion: archive-vs-current gap report + DataAdmin
         // backfill (one-off Shamsi boundary override) + separate current-API health. Reuses the
         // existing current-API scheduled-sync orchestration (single ingestion path).
         services.AddScoped<ICurrentApiGapReader, EfCoreCurrentApiGapReader>();
         services.AddScoped<ICurrentApiBackfillCoordinator, CurrentApiBackfillCoordinator>();
 
-        // Spec 050 — all-index fundamental-index catch-up coverage (DataAdmin-only; no recurring worker).
+        // Spec 050 â€” all-index fundamental-index catch-up coverage (DataAdmin-only; no recurring worker).
         services.AddScoped<EfCoreFundamentalIndexCatchUpRunRepository>();
         services.AddScoped<IFundamentalIndexCatchUpRunReader>(provider =>
             provider.GetRequiredService<EfCoreFundamentalIndexCatchUpRunRepository>());
@@ -929,7 +930,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStockMarketDbSyncStateReader>(provider =>
             provider.GetRequiredService<StockMarketDbSyncService>());
         services.AddScoped<IStockMarketHistoryRetentionService, StockMarketHistoryRetentionService>();
-        // Spec 054 Phase 2 — direct TSETMC web-service feed. When TsetmcWebService:Enabled=false
+        // Spec 054 Phase 2 â€” direct TSETMC web-service feed. When TsetmcWebService:Enabled=false
         // (or credentials absent), NullTsetmcDirectFeedSyncService is wired and all sync operations
         // are no-ops. Set Enabled=true + UserName/Password to activate the real adapter.
         services
@@ -1007,7 +1008,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFeatureRecalculationConsumer>(provider =>
             provider.GetRequiredService<RabbitMqFeatureBus>());
 
-        // Spec 058 — live data sync monitor: scoped reader aggregates all provider run states;
+        // Spec 058 â€” live data sync monitor: scoped reader aggregates all provider run states;
         // singleton polling monitor fan-outs SSE events to connected admin clients.
         services.AddScoped<IDataSyncActivityReader, EfCoreDataSyncActivityReader>();
         services

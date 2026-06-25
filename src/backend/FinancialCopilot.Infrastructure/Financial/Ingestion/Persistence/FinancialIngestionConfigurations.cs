@@ -135,6 +135,7 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         // Prevent duplicate report rows for the same logical period when activityId is absent.
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.OutputType, row.ReportType })
             .IsUnique()
+            .HasDatabaseName("IX_MonthlyReports_LogicalPeriod")
             .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL");
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);

@@ -1,16 +1,18 @@
 import {
   Bar,
-  BarChart,
   CartesianGrid,
-  Line,
   ComposedChart,
+  Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Legend,
 } from "recharts";
-import type { MonthlyActivityTrendResult, MonthlyActivityTrendChartPoint } from "@/lib/chat.functions";
+import type {
+  MonthlyActivityTrendChartPoint,
+  MonthlyActivityTrendResult,
+} from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
 
 interface Props {
@@ -23,6 +25,21 @@ const COLORS = {
   average: "#f59e0b",       // amber
 };
 
+const JALALI_MONTH_NAMES = [
+  "فروردین",
+  "اردیبهشت",
+  "خرداد",
+  "تیر",
+  "مرداد",
+  "شهریور",
+  "مهر",
+  "آبان",
+  "آذر",
+  "دی",
+  "بهمن",
+  "اسفند",
+] as const;
+
 function formatAmount(value: number | null | undefined): string {
   if (value == null) return "—";
   return toPersianDigits(
@@ -30,12 +47,16 @@ function formatAmount(value: number | null | undefined): string {
   );
 }
 
+function resolveMonthLabel(point: MonthlyActivityTrendChartPoint): string {
+  return JALALI_MONTH_NAMES[point.fiscalMonthIndex - 1] ?? point.fiscalMonthNameFa;
+}
+
 function buildChartData(points: MonthlyActivityTrendChartPoint[]) {
-  return points.map((p) => ({
-    label: p.fiscalMonthNameFa,
-    currentYear: p.isCurrentYearReported ? (p.currentFiscalYearSalesAmount ?? null) : null,
-    previousYear: p.isPreviousYearReported ? (p.previousFiscalYearSalesAmount ?? null) : null,
-    average: p.average12MonthSalesAmount ?? null,
+  return points.map((point) => ({
+    label: resolveMonthLabel(point),
+    currentYear: point.isCurrentYearReported ? (point.currentFiscalYearSalesAmount ?? null) : null,
+    previousYear: point.isPreviousYearReported ? (point.previousFiscalYearSalesAmount ?? null) : null,
+    average: point.average12MonthSalesAmount ?? null,
   }));
 }
 
@@ -45,8 +66,9 @@ function buildTitle(data: MonthlyActivityTrendResult): string {
 }
 
 function buildLegendLabels(points: MonthlyActivityTrendChartPoint[]) {
-  const currentYear = points.find((p) => p.currentFiscalYear != null)?.currentFiscalYear;
-  const previousYear = points.find((p) => p.previousFiscalYear != null)?.previousFiscalYear;
+  const currentYear = points.find((point) => point.currentFiscalYear != null)?.currentFiscalYear;
+  const previousYear = points.find((point) => point.previousFiscalYear != null)?.previousFiscalYear;
+
   return {
     currentYear: currentYear ? toPersianDigits(String(currentYear)) : "سال جاری",
     previousYear: previousYear ? toPersianDigits(String(previousYear)) : "سال قبل",
@@ -72,6 +94,7 @@ function CustomTooltip({
   unit: string;
 }) {
   if (!active || !payload?.length) return null;
+
   return (
     <div
       className="rounded-xl bg-surface ring-1 ring-hairline px-3 py-2 text-xs space-y-1 shadow-lg"
@@ -104,7 +127,7 @@ export function MonthlyActivityTrendChart({ data }: Props) {
 
       <div className="w-full h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+          <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
             <XAxis
               dataKey="label"
@@ -113,27 +136,24 @@ export function MonthlyActivityTrendChart({ data }: Props) {
               axisLine={false}
               angle={-45}
               interval={0}
-              height={48}
+              tickMargin={10}
+              height={64}
             />
             <YAxis
               tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
               axisLine={false}
-              width={80}
-              tickFormatter={(v: number) => toPersianDigits(v.toFixed(1))}
+              width={88}
+              tickFormatter={(value: number) => toPersianDigits(value.toFixed(1))}
               label={{
-                value: "میلیارد تومان",
+                value: data.unitLabelFa || "میلیارد تومان",
                 angle: -90,
                 position: "insideLeft",
                 offset: 12,
                 className: "chart-axis-label",
               }}
             />
-            <Tooltip
-              content={
-                <CustomTooltip unit={data.unitLabelFa} />
-              }
-            />
+            <Tooltip content={<CustomTooltip unit={data.unitLabelFa} />} />
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
               formatter={(value: string) => (
@@ -171,8 +191,8 @@ export function MonthlyActivityTrendChart({ data }: Props) {
 
       {data.insights.length > 0 && (
         <div className="flex flex-col gap-1">
-          {data.insights.map((insight, i) => (
-            <p key={i} className="text-[11px] text-muted-foreground">
+          {data.insights.map((insight, index) => (
+            <p key={index} className="text-[11px] text-muted-foreground">
               {insight.textFa}
             </p>
           ))}
@@ -181,9 +201,9 @@ export function MonthlyActivityTrendChart({ data }: Props) {
 
       {hasMissingNotes && (
         <div className="text-[10px] text-muted-foreground/70 space-y-0.5">
-          {data.missingDataPoints.map((pt, i) => (
-            <p key={i}>
-              ⚠ {pt.reasonFa}
+          {data.missingDataPoints.map((point, index) => (
+            <p key={index}>
+              ⚠ {point.reasonFa}
             </p>
           ))}
         </div>

@@ -314,7 +314,7 @@ public sealed class LlmSymbolLookupParser(
         string language,
         DateOnly asOf)
     {
-        var explicitMonthlyCompanionTerm = SelectExplicitMonthlySalesCompanionMetricTerm(userMessage);
+        var explicitMonthlyCompanionTerm = SelectExplicitMonthlyActivityMetricTerm(userMessage);
         if (explicitMonthlyCompanionTerm is not null)
         {
             return explicitMonthlyCompanionTerm;
@@ -379,9 +379,36 @@ public sealed class LlmSymbolLookupParser(
         return metricTerm;
     }
 
-    private static string? SelectExplicitMonthlySalesCompanionMetricTerm(string userMessage)
+    private static string? SelectExplicitMonthlyActivityMetricTerm(string userMessage)
     {
         var normalizedMessage = NormalizePersianText(userMessage);
+
+        if (normalizedMessage.Contains("نسبت فروش به تولید", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("نسبت مقدار فروش به تولید", StringComparison.OrdinalIgnoreCase))
+        {
+            return "نسبت فروش به تولید";
+        }
+
+        if (normalizedMessage.Contains("میزان رشد تولید", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("رشد تولید نسبت به سال قبل", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("رشد تولید ماهانه سالانه", StringComparison.OrdinalIgnoreCase))
+        {
+            return "میزان رشد تولید";
+        }
+
+        if (normalizedMessage.Contains("میزان رشد فروش", StringComparison.OrdinalIgnoreCase) ||
+            normalizedMessage.Contains("رشد فروش نسبت به سال قبل", StringComparison.OrdinalIgnoreCase))
+        {
+            return "میزان رشد فروش";
+        }
+
+        if (normalizedMessage.Contains("رشد فروش", StringComparison.OrdinalIgnoreCase) &&
+            !normalizedMessage.Contains("ماه قبل", StringComparison.OrdinalIgnoreCase) &&
+            !normalizedMessage.Contains("فصلی", StringComparison.OrdinalIgnoreCase) &&
+            !normalizedMessage.Contains("درآمد", StringComparison.OrdinalIgnoreCase))
+        {
+            return "میزان رشد فروش";
+        }
 
         if (normalizedMessage.Contains("فروش YTD تا ماه قبل", StringComparison.OrdinalIgnoreCase) ||
             normalizedMessage.Contains("فروش YTD تا ماه گذشته", StringComparison.OrdinalIgnoreCase))

@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
+import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
@@ -64,7 +65,7 @@ function AssistantBlock({
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
   const message = tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
     ? ""
-    : block.message;
+    : replaceProviderDisplayNames(block.message);
 
   return (
     <div className="flex gap-4" dir="ltr">

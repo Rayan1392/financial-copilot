@@ -122,6 +122,55 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         ]
         """;
 
+    private const string DuplicateNaturalKeyProductSalesJson = """
+        [
+          {
+            "companyId": 202,
+            "companyTitle": "Duplicate Test Co",
+            "companyTSESymbol": "دوبل",
+            "year": 1405,
+            "month": 3,
+            "outputTypeId": 0,
+            "categoryTitle": "مواد اولیه",
+            "productSales": [
+              {
+                "month": 3,
+                "year": 1405,
+                "productId": 0,
+                "productTitle": "محصول تکراری",
+                "productUnit": "تن",
+                "productProduceAmount": 120,
+                "productSaleAmount": 100,
+                "productSaleRate": 25000,
+                "productSaleValue": 2500000
+              }
+            ]
+          },
+          {
+            "companyId": 202,
+            "companyTitle": "Duplicate Test Co",
+            "companyTSESymbol": "دوبل",
+            "year": 1405,
+            "month": 3,
+            "outputTypeId": 0,
+            "categoryTitle": "مواد اولیه",
+            "productSales": [
+              {
+                "month": 3,
+                "year": 1405,
+                "productId": 0,
+                "productTitle": "محصول تکراری",
+                "productUnit": "تن",
+                "productProduceAmount": 120,
+                "productSaleAmount": 100,
+                "productSaleRate": 25000,
+                "productSaleValue": 2500000
+              }
+            ]
+          }
+        ]
+        """;
+
     [Fact]
     public async Task Normalize_ProductRows_CreatesOneReportWithLineItems()
     {
@@ -199,6 +248,26 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.StartsWith("PRODUCT:NATURAL:", item.ProductCode);
         Assert.Contains("not a fabricated vendor product/service id", report.WarningsJson);
         Assert.Contains("Uncoded Product", report.WarningsJson);
+    }
+
+    [Fact]
+    public async Task Normalize_DuplicateNaturalKeyRows_CollapsesToSingleLineItem()
+    {
+        await using var db = CreateDb();
+
+        await CreateNormalizer(db).NormalizeAsync(
+            MakePayload(DuplicateNaturalKeyProductSalesJson, "[]"),
+            CancellationToken.None);
+
+        var report = await db.MonthlyReports.SingleAsync();
+        var items = await db.MonthlyReportLineItems
+            .Where(row => row.MonthlyReportId == report.Id)
+            .ToListAsync();
+
+        var item = Assert.Single(items);
+        Assert.StartsWith("PRODUCT:NATURAL:", item.ProductCode);
+        Assert.Equal("محصول تکراری", item.Title);
+        Assert.Equal(2500000m, item.SalesAmount);
     }
 
     [Fact]

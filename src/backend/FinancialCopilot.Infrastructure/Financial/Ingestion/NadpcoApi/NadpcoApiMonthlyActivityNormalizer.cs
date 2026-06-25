@@ -47,7 +47,8 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
         foreach (var group in groupedReports)
         {
-            var first = group.First();
+            var normalizedItems = CollapseDuplicateLineItems(group);
+            var first = normalizedItems[0];
             var (periodStart, periodEnd) = JalaliDateResolver.ResolveMonth(first.JalaliYear, first.JalaliMonth);
 
             var report = await dbContext.MonthlyReports.SingleOrDefaultAsync(
@@ -72,7 +73,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             report.ReportType = first.SourceKind;
             report.SourcePayloadChecksum = payload.Checksum;
             report.LastSynchronizedAt = payload.ReceivedAt;
-            report.WarningsJson = BuildEvidenceJson(group.ToArray(), periodStart, periodEnd);
+            report.WarningsJson = BuildEvidenceJson(normalizedItems, periodStart, periodEnd);
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -87,7 +88,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            foreach (var item in group)
+            foreach (var item in normalizedItems)
             {
                 var lineItem = new NormalizedMonthlyReportLineItemRow
                 {
@@ -143,6 +144,13 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         var canonicalId = groupedReports.Length > 0 ? groupedReports[0].Key.ExternalCompanyId : null;
         return new NormalizationOutcome(groupedReports.Length, canonicalId);
     }
+
+    private static NadpcoApiMonthlyActivityItem[] CollapseDuplicateLineItems(
+        IEnumerable<NadpcoApiMonthlyActivityItem> items) =>
+        items
+            .GroupBy(item => item.LineItemCode, StringComparer.Ordinal)
+            .Select(group => group.Last())
+            .ToArray();
 
     // Deserializes the envelope payload. Tries the new 6-field shape (spec 059) first; falls back to
     // the legacy 2-field shape for payloads stored before the spec-059 migration. Legacy ProductSales

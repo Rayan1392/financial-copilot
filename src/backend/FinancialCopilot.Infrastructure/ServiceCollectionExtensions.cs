@@ -405,7 +405,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiIntentDetector, LlmAiIntentDetector>();
         services.AddScoped<IComprehensiveAnalysisQueryParser, LlmComprehensiveAnalysisQueryParser>();
         services.AddScoped<ISymbolLookupParser, LlmSymbolLookupParser>();
-        services.AddScoped<ISymbolMetricLookupService, EfCoreSymbolMetricLookupService>();
+        services
+            .AddOptions<MonthlyActivityLookupOptions>()
+            .BindConfiguration(MonthlyActivityLookupOptions.SectionName);
+        services.AddScoped<EfCoreSymbolMetricLookupService>();
+        services.AddScoped<ILegacySymbolMetricLookupService>(provider =>
+            provider.GetRequiredService<EfCoreSymbolMetricLookupService>());
+        services.AddScoped<SnapshotMonthlyActivitySymbolMetricLookupService>();
+        services.AddScoped<ISnapshotMonthlyActivitySymbolMetricLookupService>(provider =>
+            provider.GetRequiredService<SnapshotMonthlyActivitySymbolMetricLookupService>());
+        services.AddScoped<ISymbolMetricLookupService, SwitchableMonthlyActivitySymbolMetricLookupService>();
         services.AddScoped<IScannerQueryParser, LlmScannerQueryParser>();
         services.AddScoped<IScannerQueryPlanValidator, ScannerQueryPlanValidator>();
         services.AddScoped<IScannerResultColumnPolicy, ScannerResultColumnPolicy>();

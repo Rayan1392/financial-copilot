@@ -25,6 +25,9 @@ const COLORS = {
   average: "#f59e0b",       // amber
 };
 
+const AXIS_TICK_COLOR = "#9ca3af";
+const AXIS_LABEL_COLOR = "#a1a1aa";
+
 const JALALI_MONTH_NAMES = [
   "فروردین",
   "اردیبهشت",
@@ -49,6 +52,15 @@ function formatAmount(value: number | null | undefined): string {
 
 function resolveMonthLabel(point: MonthlyActivityTrendChartPoint): string {
   return JALALI_MONTH_NAMES[point.fiscalMonthIndex - 1] ?? point.fiscalMonthNameFa;
+}
+
+function formatAxisAmount(value: number): string {
+  return toPersianDigits(
+    value.toLocaleString("en", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+    }),
+  );
 }
 
 function buildChartData(points: MonthlyActivityTrendChartPoint[]) {
@@ -131,7 +143,7 @@ export function MonthlyActivityTrendChart({ data }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", textAnchor: "end" }}
+              tick={{ fontSize: 11, fill: AXIS_TICK_COLOR, textAnchor: "end" }}
               tickLine={false}
               axisLine={false}
               angle={-45}
@@ -140,17 +152,18 @@ export function MonthlyActivityTrendChart({ data }: Props) {
               height={64}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 11, fill: AXIS_TICK_COLOR }}
               tickLine={false}
               axisLine={false}
               width={88}
-              tickFormatter={(value: number) => toPersianDigits(value.toFixed(1))}
+              tickFormatter={formatAxisAmount}
               label={{
                 value: data.unitLabelFa || "میلیارد تومان",
                 angle: -90,
                 position: "insideLeft",
                 offset: 12,
-                className: "chart-axis-label",
+                fill: AXIS_LABEL_COLOR,
+                fontSize: 12,
               }}
             />
             <Tooltip content={<CustomTooltip unit={data.unitLabelFa} />} />

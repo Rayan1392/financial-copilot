@@ -34,6 +34,8 @@ public static class PhaseOneFinancialSemanticCatalog
              Alias("فروش آخرین ماه", "fa-IR", "MONTHLY_SALES"),
              Alias("فروش ماهانه", "fa-IR", "MONTHLY_SALES"),
              Alias("فروش ماهیانه", "fa-IR", "MONTHLY_SALES"),
+             Alias("فروش ماه مشابه سال قبل", "fa-IR", "MONTHLY_SALES"),
+             Alias("فروش ماه مشابه دوره قبل", "fa-IR", "MONTHLY_SALES"),
              Alias("آخرین فروش", "fa-IR", "MONTHLY_SALES"),
              Alias("آخرین فروش ماهانه", "fa-IR", "MONTHLY_SALES")],
             [Dependency("MONTHLY_SALES")]),
@@ -70,7 +72,8 @@ public static class PhaseOneFinancialSemanticCatalog
              Alias("production quantity", "en-US", "MONTHLY_PRODUCTION_QUANTITY"),
              Alias("تولید", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY"),
              Alias("مقدار تولید", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY"),
-             Alias("تولید ماهانه", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY")],
+             Alias("تولید ماهانه", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY"),
+             Alias("آخرین تولید ماهانه", "fa-IR", "MONTHLY_PRODUCTION_QUANTITY")],
             [Dependency("MONTHLY_PRODUCTION_QUANTITY")]),
         Define("MONTHLY_SALES_RATE", "Monthly Sales Rate", MetricCategory.SalesAndProduction, AmountPerUnit,
             [FiscalPeriodType.Monthly],
@@ -79,6 +82,11 @@ public static class PhaseOneFinancialSemanticCatalog
              Alias("نرخ فروش", "fa-IR", "MONTHLY_SALES_RATE"),
              Alias("نرخ فروش ماهانه", "fa-IR", "MONTHLY_SALES_RATE")],
             [Dependency("MONTHLY_SALES_RATE")]),
+        DefineRatio("MONTHLY_SALES_TO_PRODUCTION_RATIO", "Monthly Sales to Production Ratio", MetricCategory.SalesAndProduction, Ratio,
+            [Alias("monthly sales to production ratio", "en-US", "MONTHLY_SALES_TO_PRODUCTION_RATIO"),
+             Alias("sales to production ratio", "en-US", "MONTHLY_SALES_TO_PRODUCTION_RATIO"),
+             Alias("نسبت فروش به تولید", "fa-IR", "MONTHLY_SALES_TO_PRODUCTION_RATIO"),
+             Alias("نسبت مقدار فروش به تولید", "fa-IR", "MONTHLY_SALES_TO_PRODUCTION_RATIO")]),
         // CodalDB income-statement source metrics (cumulative 3/6/9/12-month periods).
         Define("REVENUE", "Revenue", MetricCategory.Profitability, Amount,
             [FiscalPeriodType.ThreeMonths, FiscalPeriodType.SixMonths, FiscalPeriodType.NineMonths, FiscalPeriodType.TwelveMonths],
@@ -257,7 +265,9 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.Monthly],
             [
                 Alias("monthly sales growth yoy", "en-US", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
-                Alias("رشد فروش ماهانه سالانه", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear)
+                Alias("رشد فروش ماهانه سالانه", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("رشد فروش نسبت به سال قبل", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("میزان رشد فروش", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear)
             ],
             [Dependency("MONTHLY_SALES")]),
         Define(
@@ -271,6 +281,16 @@ public static class PhaseOneFinancialSemanticCatalog
                 Alias("رشد فروش نسبت به ماه قبل", "fa-IR", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth)
             ],
             [Dependency("MONTHLY_SALES")]),
+        DefineGrowth("MONTHLY_PRODUCTION_GROWTH_YOY", "Monthly Production Growth YoY", "MONTHLY_PRODUCTION_QUANTITY",
+            [Alias("monthly production growth yoy", "en-US", "MONTHLY_PRODUCTION_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("production growth yoy", "en-US", "MONTHLY_PRODUCTION_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد تولید نسبت به سال قبل", "fa-IR", "MONTHLY_PRODUCTION_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد تولید ماهانه سالانه", "fa-IR", "MONTHLY_PRODUCTION_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("میزان رشد تولید", "fa-IR", "MONTHLY_PRODUCTION_GROWTH_YOY", GrowthComparison.YearOverYear)]),
+        DefineGrowth("MONTHLY_SALES_QUANTITY_GROWTH_YOY", "Monthly Sales Quantity Growth YoY", "MONTHLY_SALES_QUANTITY",
+            [Alias("monthly sales quantity growth yoy", "en-US", "MONTHLY_SALES_QUANTITY_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("sales quantity growth yoy", "en-US", "MONTHLY_SALES_QUANTITY_GROWTH_YOY", GrowthComparison.YearOverYear),
+             Alias("رشد مقدار فروش نسبت به سال قبل", "fa-IR", "MONTHLY_SALES_QUANTITY_GROWTH_YOY", GrowthComparison.YearOverYear)]),
         Define(
             "PE_TTM",
             "P/E (TTM)",
@@ -483,6 +503,8 @@ public static class PhaseOneFinancialSemanticCatalog
         GrowthPolicy("NET_PROFIT_GROWTH_QOQ", "qoq-quarterly-v1", GrowthComparison.QuarterOverQuarter, "NET_PROFIT", FiscalPeriodType.ThreeMonths),
         GrowthPolicy("MONTHLY_SALES_GROWTH_YOY", "yoy-monthly-sales-v1", GrowthComparison.YearOverYear, "MONTHLY_SALES", FiscalPeriodType.Monthly),
         GrowthPolicy("MONTHLY_SALES_GROWTH_MOM", "mom-monthly-sales-v1", GrowthComparison.MonthOverMonth, "MONTHLY_SALES", FiscalPeriodType.Monthly),
+        GrowthPolicy("MONTHLY_PRODUCTION_GROWTH_YOY", "yoy-monthly-production-v1", GrowthComparison.YearOverYear, "MONTHLY_PRODUCTION_QUANTITY", FiscalPeriodType.Monthly),
+        GrowthPolicy("MONTHLY_SALES_QUANTITY_GROWTH_YOY", "yoy-monthly-sales-quantity-v1", GrowthComparison.YearOverYear, "MONTHLY_SALES_QUANTITY", FiscalPeriodType.Monthly),
         // Spec 057: per-month identity persistence of the normalized monthly-activity aggregates so
         // the symbol lookup reads them from DerivedMetrics. MONTHLY_SALES_RATE is the
         // quantity-weighted average rate (Σ sales amount ÷ Σ sales quantity over the month's line

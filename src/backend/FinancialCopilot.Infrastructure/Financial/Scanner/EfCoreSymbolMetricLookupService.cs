@@ -8,13 +8,20 @@ using System.Globalization;
 
 namespace FinancialCopilot.Infrastructure.Financial.Scanner;
 
+public interface ILegacySymbolMetricLookupService
+{
+    Task<SymbolLookupTableResult> LookupAsync(
+        SymbolLookupRequest request,
+        CancellationToken cancellationToken);
+}
+
 public sealed class EfCoreSymbolMetricLookupService(
     FinancialIngestionDbContext dbContext,
     ICompanyResolverService companyResolver,
     IMarketQuoteResolver quoteResolver,
     IDirectMetricRoutingRegistry directMetricRoutingRegistry,
     TimeProvider timeProvider,
-    ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService
+    ILogger<EfCoreSymbolMetricLookupService> logger) : ISymbolMetricLookupService, ILegacySymbolMetricLookupService
 {
     private const string MonthlySales = "MONTHLY_SALES";
     private const string Average12MonthMonthlySales = "AVG_12M_MONTHLY_SALES";

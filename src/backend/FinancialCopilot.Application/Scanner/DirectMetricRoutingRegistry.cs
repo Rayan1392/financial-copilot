@@ -122,6 +122,31 @@ public sealed class DirectMetricRoutingRegistry(
                 DirectMetricRoutingCapabilities.DirectQuestionEligible |
                 DirectMetricRoutingCapabilities.MonthlyActivityMetric |
                 DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
+            ["MONTHLY_SALES_GROWTH_YOY"] =
+                DirectMetricRoutingCapabilities.LookupEligible |
+                DirectMetricRoutingCapabilities.DirectQuestionEligible |
+                DirectMetricRoutingCapabilities.MonthlyActivityMetric |
+                DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
+            ["MONTHLY_SALES_GROWTH_MOM"] =
+                DirectMetricRoutingCapabilities.LookupEligible |
+                DirectMetricRoutingCapabilities.DirectQuestionEligible |
+                DirectMetricRoutingCapabilities.MonthlyActivityMetric |
+                DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
+            ["MONTHLY_PRODUCTION_GROWTH_YOY"] =
+                DirectMetricRoutingCapabilities.LookupEligible |
+                DirectMetricRoutingCapabilities.DirectQuestionEligible |
+                DirectMetricRoutingCapabilities.MonthlyActivityMetric |
+                DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
+            ["MONTHLY_SALES_QUANTITY_GROWTH_YOY"] =
+                DirectMetricRoutingCapabilities.LookupEligible |
+                DirectMetricRoutingCapabilities.DirectQuestionEligible |
+                DirectMetricRoutingCapabilities.MonthlyActivityMetric |
+                DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
+            ["MONTHLY_SALES_TO_PRODUCTION_RATIO"] =
+                DirectMetricRoutingCapabilities.LookupEligible |
+                DirectMetricRoutingCapabilities.DirectQuestionEligible |
+                DirectMetricRoutingCapabilities.MonthlyActivityMetric |
+                DirectMetricRoutingCapabilities.SuppressInMonthlyActivityResponses,
             ["NET_PROFIT_MARGIN"] =
                 DirectMetricRoutingCapabilities.LookupEligible |
                 DirectMetricRoutingCapabilities.DirectQuestionEligible |
@@ -216,7 +241,7 @@ public sealed class DirectMetricRoutingRegistry(
 
         if (string.Equals(metricCode.Value, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase))
         {
-            if (ContainsAny(normalized, "ماه مشابه سال قبل"))
+            if (ContainsAny(normalized, "ماه مشابه سال قبل", "ماه مشابه دوره قبل", "مدت مشابه سال قبل"))
             {
                 return SymbolLookupPeriodSelector.SameMonthLastYear;
             }
@@ -253,6 +278,14 @@ public sealed class DirectMetricRoutingRegistry(
             ("AVG_12M_MONTHLY_SALES", SymbolLookupPeriodSelector.LastYearAverage12Month) => "متوسط فروش ۱۲ ماهه سال قبل",
             ("AVG_12M_MONTHLY_SALES", _) => "متوسط فروش ۱۲ ماهه",
             ("MONTHLY_SALES", _) => "فروش ماهانه",
+            ("MONTHLY_PRODUCTION_QUANTITY", _) => "تولید ماهانه",
+            ("MONTHLY_SALES_QUANTITY", _) => "مقدار فروش ماهانه",
+            ("MONTHLY_SALES_RATE", _) => "نرخ فروش ماهانه",
+            ("MONTHLY_SALES_GROWTH_YOY", _) => "رشد سالانه فروش",
+            ("MONTHLY_SALES_GROWTH_MOM", _) => "رشد ماهانه فروش",
+            ("MONTHLY_PRODUCTION_GROWTH_YOY", _) => "رشد سالانه تولید",
+            ("MONTHLY_SALES_QUANTITY_GROWTH_YOY", _) => "رشد سالانه مقدار فروش",
+            ("MONTHLY_SALES_TO_PRODUCTION_RATIO", _) => "نسبت فروش به تولید",
             ("PE_TTM", _) => "نسبت قیمت به سود",
             ("PS_TTM", _) => "نسبت قیمت به فروش",
             ("LATEST_PRICE", _) => "آخرین قیمت",

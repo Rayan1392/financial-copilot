@@ -598,18 +598,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         sb.AppendLine();
 
         if (result.LatestMonthlySalesAmount.HasValue)
-            sb.AppendLine($"**خلاصه آخرین ماه:** فروش {result.LatestMonthlySalesAmount.Value:N0} {result.UnitLabelFa}");
+            sb.AppendLine($"**خلاصه آخرین ماه:** فروش {FormatTrendAmount(result.LatestMonthlySalesAmount.Value)} {result.UnitLabelFa}");
 
         if (result.SameMonthPreviousYearSalesAmount.HasValue)
         {
             if (result.SalesAmountYoYGrowthPercent.HasValue)
             {
                 var sign = result.SalesAmountYoYGrowthPercent.Value >= 0 ? "+" : "";
-                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {result.SameMonthPreviousYearSalesAmount.Value:N0} {result.UnitLabelFa} ({sign}{result.SalesAmountYoYGrowthPercent.Value:F1}٪)");
+                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {FormatTrendAmount(result.SameMonthPreviousYearSalesAmount.Value)} {result.UnitLabelFa} ({sign}{result.SalesAmountYoYGrowthPercent.Value:F1}٪)");
             }
             else
             {
-                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {result.SameMonthPreviousYearSalesAmount.Value:N0} {result.UnitLabelFa}");
+                sb.AppendLine($"**مقایسه با ماه مشابه سال قبل:** {FormatTrendAmount(result.SameMonthPreviousYearSalesAmount.Value)} {result.UnitLabelFa}");
             }
         }
 
@@ -618,7 +618,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             var vsAvgText = result.SalesVsAverage12MonthPercent.HasValue
                 ? $" ({(result.SalesVsAverage12MonthPercent.Value >= 0 ? "+" : "")}{result.SalesVsAverage12MonthPercent.Value:F1}٪ نسبت به میانگین)"
                 : "";
-            sb.AppendLine($"**میانگین ۱۲ ماهه:** {result.Average12MonthSalesAmount.Value:N0} {result.UnitLabelFa}{vsAvgText}");
+            sb.AppendLine($"**میانگین ۱۲ ماهه:** {FormatTrendAmount(result.Average12MonthSalesAmount.Value)} {result.UnitLabelFa}{vsAvgText}");
         }
 
         if (result.Insights.Count > 0)
@@ -645,13 +645,13 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             foreach (var pt in result.ChartPoints)
             {
                 var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
-                    ? pt.PreviousFiscalYearSalesAmount.Value.ToString("N0")
+                    ? FormatTrendAmount(pt.PreviousFiscalYearSalesAmount.Value)
                     : "—";
                 var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
-                    ? pt.CurrentFiscalYearSalesAmount.Value.ToString("N0")
+                    ? FormatTrendAmount(pt.CurrentFiscalYearSalesAmount.Value)
                     : "—";
                 var avgVal = pt.Average12MonthSalesAmount.HasValue
-                    ? pt.Average12MonthSalesAmount.Value.ToString("N0")
+                    ? FormatTrendAmount(pt.Average12MonthSalesAmount.Value)
                     : "—";
                 sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
             }
@@ -668,6 +668,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return sb.ToString().TrimEnd();
     }
+
+    private static string FormatTrendAmount(decimal value) =>
+        value.ToString("#,##0.###");
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────
 

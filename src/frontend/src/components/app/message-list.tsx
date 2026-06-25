@@ -3,6 +3,7 @@ import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.f
 import { toPersianDigits } from "@/lib/format/persian";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
+import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 
 interface Props {
   messages: ChatMessage[];
@@ -92,6 +93,10 @@ function AssistantBlock({
             metadataLabel={tableMetadataLabel}
             onPageChange={onPageChange}
           />
+        )}
+
+        {block.monthlyActivityTrendResult && (
+          <MonthlyActivityTrendChart data={block.monthlyActivityTrendResult} />
         )}
 
         {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).

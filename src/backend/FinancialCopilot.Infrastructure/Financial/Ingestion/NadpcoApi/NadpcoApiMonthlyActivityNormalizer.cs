@@ -217,8 +217,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         var title = item.GetProductTitle() ?? parent.GetProductTitle();
         var unit = item.GetProductUnit() ?? parent.GetProductUnit();
         var categoryId = item.CategoryID ?? parent.CategoryID;
-        var category = item.CategoryTitle ?? parent.CategoryTitle ??
-            categoryId?.ToString(CultureInfo.InvariantCulture);
+        var category = item.CategoryTitle ?? parent.CategoryTitle;
         // Record-level outputType takes precedence; fall back to the envelope-slot hint (which is
         // authoritative for the new multi-type envelope) so legacy payloads still normalize.
         var outputType = item.GetOutputType() ?? parent.GetOutputType() ?? outputTypeHint;
@@ -286,7 +285,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             var month = RequireMonth(record.Month, "service-sales");
             var title = record.GetServiceTitle();
             var unit = record.GetServiceUnit();
-            var category = record.CategoryTitle ?? record.CategoryID?.ToString(CultureInfo.InvariantCulture);
+            var category = record.CategoryTitle;
             var vendorCode = record.GetServiceCode();
             var lineItemCode = BuildLineItemCode("SERVICE", vendorCode, title, category, unit, index);
             var externalReportId = BuildExternalReportId(

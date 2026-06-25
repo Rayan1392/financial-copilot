@@ -180,11 +180,11 @@ public sealed class MonthlyActivityTrend077Tests
     }
 
     // -----------------------------------------------------------------------
-    // Use case: unit label is always میلیون ریال
+    // Use case: unit label is always میلیارد تومان and values are converted from میلیون ریال
     // -----------------------------------------------------------------------
 
     [Fact]
-    public async Task UseCase_UnitLabel_IsMillionRial()
+    public async Task UseCase_UnitLabel_IsBillionTooman()
     {
         var snapshot = MakeSnapshot(1404, 3, 1404, 3, 1_000m, null, null);
         var useCase = new MonthlyActivityTrendQueryUseCaseForTest(
@@ -195,7 +195,25 @@ public sealed class MonthlyActivityTrend077Tests
             CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal("میلیون ریال", result.UnitLabelFa);
+        Assert.Equal("میلیارد تومان", result.UnitLabelFa);
+        Assert.Equal(0.1m, result.LatestMonthlySalesAmount);
+    }
+
+    [Fact]
+    public async Task UseCase_ConvertsMillionRialToBillionTooman()
+    {
+        var snapshot = MakeSnapshot(1404, 3, 1404, 3, 6_543_210m, 5_000_000m, 6_000_000m);
+        var useCase = new MonthlyActivityTrendQueryUseCaseForTest(
+            companyResolves: true, snapshots: [snapshot], latest: snapshot);
+
+        var result = await useCase.ExecuteAsync(
+            new MonthlyActivityTrendQuery("روند فروش کهمدا", "کهمدا"),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(654.3210m, result.LatestMonthlySalesAmount);
+        Assert.Equal(500.0000m, result.SameMonthPreviousYearSalesAmount);
+        Assert.Equal(600.0000m, result.Average12MonthSalesAmount);
     }
 
     // -----------------------------------------------------------------------
@@ -363,11 +381,11 @@ file sealed class InMemoryMonthlyActivityTrendQueryUseCase(
                 FiscalMonthIndex: idx,
                 FiscalMonthNameFa: PersianMonthNames[idx - 1],
                 PreviousFiscalYear: previousFiscalYear,
-                PreviousFiscalYearSalesAmount: previousSnap?.MonthlySalesAmount,
+                PreviousFiscalYearSalesAmount: ConvertMillionRialToBillionTooman(previousSnap?.MonthlySalesAmount),
                 CurrentFiscalYear: currentFiscalYear,
-                CurrentFiscalYearSalesAmount: currentYearSales,
-                Average12MonthSalesAmount: currentSnap?.Average12MonthSalesAmount
-                    ?? latest.Average12MonthSalesAmount,
+                CurrentFiscalYearSalesAmount: ConvertMillionRialToBillionTooman(currentYearSales),
+                Average12MonthSalesAmount: ConvertMillionRialToBillionTooman(
+                    currentSnap?.Average12MonthSalesAmount ?? latest.Average12MonthSalesAmount),
                 IsCurrentYearReported: isCurrentYearReported,
                 IsPreviousYearReported: previousSnap is not null));
         }
@@ -382,14 +400,14 @@ file sealed class InMemoryMonthlyActivityTrendQueryUseCase(
             CompanyName: latest.CompanyName,
             LatestReportYear: latest.ReportYear,
             LatestReportMonth: latest.ReportMonth,
-            UnitLabelFa: "میلیون ریال",
-            LatestMonthlySalesAmount: latest.MonthlySalesAmount,
-            SameMonthPreviousYearSalesAmount: latest.SameMonthPreviousYearSalesAmount,
-            Average12MonthSalesAmount: latest.Average12MonthSalesAmount,
+            UnitLabelFa: "میلیارد تومان",
+            LatestMonthlySalesAmount: ConvertMillionRialToBillionTooman(latest.MonthlySalesAmount),
+            SameMonthPreviousYearSalesAmount: ConvertMillionRialToBillionTooman(latest.SameMonthPreviousYearSalesAmount),
+            Average12MonthSalesAmount: ConvertMillionRialToBillionTooman(latest.Average12MonthSalesAmount),
             SalesAmountYoYGrowthPercent: latest.SalesAmountYoYGrowthPercent,
             SalesVsAverage12MonthPercent: salesVsAvg,
-            YtdSalesAmount: latest.YtdSalesAmount,
-            YtdPreviousMonthSalesAmount: latest.YtdPreviousMonthSalesAmount,
+            YtdSalesAmount: ConvertMillionRialToBillionTooman(latest.YtdSalesAmount),
+            YtdPreviousMonthSalesAmount: ConvertMillionRialToBillionTooman(latest.YtdPreviousMonthSalesAmount),
             ChartPoints: chartPoints,
             Insights: [],
             MissingDataPoints: [],
@@ -398,6 +416,11 @@ file sealed class InMemoryMonthlyActivityTrendQueryUseCase(
 
         return Task.FromResult<MonthlyActivityTrendResponse?>(response);
     }
+
+    private static decimal ConvertMillionRialToBillionTooman(decimal value) => value * 0.0001m;
+
+    private static decimal? ConvertMillionRialToBillionTooman(decimal? value) =>
+        value.HasValue ? ConvertMillionRialToBillionTooman(value.Value) : null;
 }
 
 file sealed class UnknownIntentExecutionService : FinancialCopilot.Application.AI.ModelProviders.IAiModelExecutionService

@@ -773,12 +773,12 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         var trend = root.GetProperty("monthlyActivityTrendResult");
         Assert.Equal("کهمدا", trend.GetProperty("companySymbol").GetString());
         Assert.Equal("هماتیت", trend.GetProperty("companyName").GetString());
-        Assert.Equal("میلیون ریال", trend.GetProperty("unitLabelFa").GetString());
+        Assert.Equal("میلیارد تومان", trend.GetProperty("unitLabelFa").GetString());
         Assert.Equal("NoavaranCurrentApi", trend.GetProperty("sourceProviderName").GetString());
 
         var chartPoints = trend.GetProperty("chartPoints").EnumerateArray().ToList();
         Assert.Equal(12, chartPoints.Count);
-        Assert.Equal(950m, chartPoints[0].GetProperty("average12MonthSalesAmount").GetDecimal());
+        Assert.Equal(0.095m, chartPoints[0].GetProperty("average12MonthSalesAmount").GetDecimal());
         Assert.Equal(JsonValueKind.Null, chartPoints[3].GetProperty("currentFiscalYearSalesAmount").ValueKind);
 
         var textAnswer = root.GetProperty("textAnswer").GetString();

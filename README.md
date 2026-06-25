@@ -38,7 +38,7 @@ The same `POST /api/ai/v1/query` facade also supports deterministic direct-looku
 Monthly production/sales trend answers are chart-ready responses built from persisted
 `CompanyMonthlyActivityTrendSnapshots` data produced by spec `076-nadpco-monthly-activity-trend-snapshot`.
 The AI query path does not aggregate raw Noavaran product-sales line items at response time for these trend questions.
-Trend chart monetary values are returned in `میلیون ریال`.
+Trend chart monetary values are returned in `میلیارد تومان`, converted in the backend from persisted `میلیون ریال` snapshot values using `value * 0.0001`.
 
 ## Core Principles
 

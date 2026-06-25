@@ -66,7 +66,7 @@ The response must include a chart-ready payload with:
 - `CompanyName`
 - `LatestReportYear`
 - `LatestReportMonth`
-- `UnitLabelFa = "میلیون ریال"`
+- `UnitLabelFa = "میلیارد تومان"`
 - `FiscalMonthLabelsFa[]`
 - `PreviousFiscalYearSalesSeries[]`
 - `CurrentFiscalYearSalesSeries[]`
@@ -99,7 +99,7 @@ The answer must not include market quote columns.
 For a sales trend question, the assistant should produce a response shape similar to:
 
 ```text
-فروش ماهانه کهمدا در آخرین گزارش ۳,۷۴۱,۰۰۶ میلیون ریال بوده است.
+فروش ماهانه کهمدا در آخرین گزارش ۳۷۴.۱۰۱ میلیارد تومان بوده است.
 این عدد نسبت به ماه مشابه سال قبل X٪ تغییر کرده و نسبت به میانگین ۱۲ ماهه Y٪ بالاتر/پایین‌تر است.
 
 نکته تحلیلی:

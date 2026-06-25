@@ -287,6 +287,7 @@ This package adds two specs for turning Noavaran Amin monthly production/sales h
 |---|---|
 | `076-nadpco-monthly-activity-trend-snapshot` | Persist deterministic company-month production/sales trend snapshots from Noavaran monthly activity data. |
 | `077-ai-monthly-production-sales-trend-query` | Route Persian trend/chart questions to a dedicated AI provider and return chart-ready annual comparison data. |
+| `078-frontend-monthly-activity-trend-chart` | Render `monthlyActivityTrendResult` in the chat UI as a chart using the existing AI facade payload. |
 
 ## Implementation Order
 
@@ -294,6 +295,7 @@ This package adds two specs for turning Noavaran Amin monthly production/sales h
 2. Backfill snapshots from 1403 onward.
 3. Implement spec 077 after the snapshot table is available.
 4. Add frontend rendering later using the `monthlyActivityTrendChart` structured content block.
+5. Implement spec 078 to render the returned trend payload in the frontend chat experience.
 
 ## Core Rule
 

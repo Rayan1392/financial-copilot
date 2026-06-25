@@ -28,6 +28,7 @@ export interface AssistantChatBlock {
   filters: Array<{ label: string; value: string }>;
   table?: ScannerTable;
   tableMetadataLabel?: string;
+  monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -41,6 +42,49 @@ export interface AssistantChatBlock {
     providerFallbackOccurred?: boolean;
     correlationId?: string;
   };
+}
+
+export interface MonthlyActivityTrendResult {
+  companySymbol: string;
+  companyName?: string;
+  latestReportYear: number;
+  latestReportMonth: number;
+  unitLabelFa: string;
+  latestMonthlySalesAmount?: number;
+  sameMonthPreviousYearSalesAmount?: number;
+  average12MonthSalesAmount?: number;
+  salesAmountYoYGrowthPercent?: number;
+  salesVsAverage12MonthPercent?: number;
+  ytdSalesAmount?: number;
+  ytdPreviousMonthSalesAmount?: number;
+  chartPoints: MonthlyActivityTrendChartPoint[];
+  insights: MonthlyActivityTrendInsight[];
+  missingDataPoints: MonthlyActivityTrendMissingDataPoint[];
+  sourceProviderName: string;
+  calculatedAtUtc: string;
+}
+
+export interface MonthlyActivityTrendChartPoint {
+  fiscalMonthIndex: number;
+  fiscalMonthNameFa: string;
+  previousFiscalYear?: number;
+  previousFiscalYearSalesAmount?: number;
+  currentFiscalYear?: number;
+  currentFiscalYearSalesAmount?: number;
+  average12MonthSalesAmount?: number;
+  isCurrentYearReported: boolean;
+  isPreviousYearReported: boolean;
+}
+
+export interface MonthlyActivityTrendInsight {
+  kind: string;
+  textFa: string;
+}
+
+export interface MonthlyActivityTrendMissingDataPoint {
+  year: number;
+  month: number;
+  reasonFa: string;
 }
 
 export interface ScannerTable {
@@ -95,6 +139,7 @@ interface AssistantContentResponse {
   textAnswer?: string;
   scannerTable?: ScannerTable;
   symbolLookupTable?: ScannerTable;
+  monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -249,6 +294,7 @@ function mapAssistantBlock(
       })) ?? [],
     table,
     tableMetadataLabel,
+    monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {

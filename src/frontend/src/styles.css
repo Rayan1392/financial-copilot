@@ -145,4 +145,10 @@
   .animate-fade-up {
     animation: fade-up 0.35s ease-out both;
   }
+
+  .chart-axis-label {
+    font-size: 10px;
+    fill: var(--color-muted-foreground);
+    text-anchor: middle;
+  }
 }

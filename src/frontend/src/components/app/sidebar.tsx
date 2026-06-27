@@ -80,8 +80,8 @@ export function ConversationSidebar() {
   }
 
   return (
-    <aside className="w-72 flex-shrink-0 border-l border-hairline bg-surface/50 flex flex-col hidden md:flex">
-      <div className="p-5">
+    <aside className="hidden h-screen w-72 flex-shrink-0 flex-col overflow-hidden border-l border-hairline bg-surface/50 md:flex">
+      <div className="flex min-h-0 flex-1 flex-col p-5">
         <Link to="/chat" className="flex items-center gap-3 mb-7">
           <div className="size-8 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center">
             <div className="size-3 bg-emerald rounded-full" />
@@ -98,43 +98,45 @@ export function ConversationSidebar() {
           <span>گفتگوی جدید</span>
           <Plus className="size-4" />
         </button>
-        <nav className="space-y-1 mb-7">
+        <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر
           </p>
-          {threads.length === 0 && (
-            <p className="text-xs text-muted-foreground px-3 py-2">گفتگویی نیست.</p>
-          )}
-          {threads.map((thread) => (
-            <div key={thread.id} className="group relative">
-              <Link
-                to="/c/$threadId"
-                params={{ threadId: thread.id }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${
-                  activeId === thread.id
-                    ? "bg-white/5 text-foreground"
-                    : "hover:bg-white/5 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <div
-                  className={`size-1.5 rounded-full ${activeId === thread.id ? "bg-emerald" : "bg-muted-foreground/40"}`}
-                />
-                <span className="text-sm truncate flex-1">{thread.title}</span>
-              </Link>
-              <button
-                onClick={(event) => {
-                  event.preventDefault();
-                  removeChat.mutate(thread.id);
-                }}
-                className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition"
-                aria-label="حذف"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          ))}
-        </nav>
-        <div className="space-y-3">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+            {threads.length === 0 && (
+              <p className="text-xs text-muted-foreground px-3 py-2">گفتگویی نیست.</p>
+            )}
+            {threads.map((thread) => (
+              <div key={thread.id} className="group relative">
+                <Link
+                  to="/c/$threadId"
+                  params={{ threadId: thread.id }}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${
+                    activeId === thread.id
+                      ? "bg-white/5 text-foreground"
+                      : "hover:bg-white/5 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <div
+                    className={`size-1.5 rounded-full ${activeId === thread.id ? "bg-emerald" : "bg-muted-foreground/40"}`}
+                  />
+                  <span className="text-sm truncate flex-1">{thread.title}</span>
+                </Link>
+                <button
+                  onClick={(event) => {
+                    event.preventDefault();
+                    removeChat.mutate(thread.id);
+                  }}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive"
+                  aria-label="حذف"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            ))}
+          </nav>
+        </div>
+        <div className="space-y-3 pt-6">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2">
             دیده‌بان من
           </p>
@@ -165,7 +167,7 @@ export function ConversationSidebar() {
           </div>
         </div>
       </div>
-      <div className="mt-auto p-5 border-t border-hairline space-y-4">
+      <div className="mt-auto shrink-0 border-t border-hairline p-5 space-y-4">
         {usageLoading && <p className="text-xs text-muted-foreground">در حال بارگذاری اعتبار...</p>}
         {usageError && <p className="text-xs text-rose">اعتبار در دسترس نیست.</p>}
         {usage && (

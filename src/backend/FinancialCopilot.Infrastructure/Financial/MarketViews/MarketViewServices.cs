@@ -199,22 +199,34 @@ public sealed class MarketSummaryService(
         // owned by StockMarketNamedIndices, in catalog order — not whatever index instruments
         // happen to exist in the dimension.
         var namedRefs = StockMarketNamedIndices.InstrumentRefs.ToArray();
-        var indexInstruments = await dbContext.TradingInstruments.AsNoTracking()
-            .Where(instrument => namedRefs.Contains(instrument.ExternalInstrumentId))
+        var latestIndexSnapshots = await (
+            from snapshot in dbContext.DailyIndexSnapshots.AsNoTracking()
+            join instrument in dbContext.TradingInstruments.AsNoTracking()
+                on snapshot.TradingInstrumentId equals instrument.Id
+            where namedRefs.Contains(instrument.ExternalInstrumentId)
+            select new
+            {
+                instrument.ExternalInstrumentId,
+                instrument.Symbol,
+                snapshot.Value,
+                snapshot.ChangePercent,
+                snapshot.ObservedAt,
+                snapshot.SourceKind
+            })
             .ToListAsync(cancellationToken);
+        var latestIndicesByRef = latestIndexSnapshots
+            .GroupBy(row => row.ExternalInstrumentId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(row => row.ObservedAt)
+                    .First());
         var indices = new List<MarketIndexObservation>(StockMarketNamedIndices.All.Count);
         foreach (var named in StockMarketNamedIndices.All)
         {
-            var instrument = indexInstruments
-                .FirstOrDefault(row => row.ExternalInstrumentId == named.InstrumentRef);
-            if (instrument is null) continue;
-            var snapshot = await dbContext.DailyIndexSnapshots.AsNoTracking()
-                .Where(row => row.TradingInstrumentId == instrument.Id)
-                .OrderByDescending(row => row.ObservedAt)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (snapshot is null) continue;
+            if (!latestIndicesByRef.TryGetValue(named.InstrumentRef, out var snapshot)) continue;
             indices.Add(new MarketIndexObservation(
-                instrument.Symbol,
+                snapshot.Symbol,
                 named.PersianName,
                 snapshot.Value,
                 snapshot.ChangePercent,

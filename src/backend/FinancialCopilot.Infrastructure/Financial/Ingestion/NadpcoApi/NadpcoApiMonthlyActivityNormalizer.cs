@@ -7,13 +7,16 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public sealed class NadpcoApiMonthlyActivityNormalizer(
     FinancialIngestionDbContext dbContext,
     ICompanyProductRevenueMixCalculator revenueMixCalculator,
-    ICompanyMonthlyActivityTrendSnapshotCalculator trendSnapshotCalculator) : IFinancialPayloadNormalizer
+    ICompanyMonthlyActivityTrendSnapshotCalculator trendSnapshotCalculator,
+    IRecalculateMonthlySalesQualityRankingUseCase monthlySalesQualityRankingUseCase,
+    ILogger<NadpcoApiMonthlyActivityNormalizer> logger) : IFinancialPayloadNormalizer
 {
     public string ProviderName => NadpcoApiCompanyNormalizer.NadpcoApiProviderName;
 
@@ -138,6 +141,29 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 first.CompanyTitle,
                 first.JalaliFiscalYearEnd,
                 cancellationToken);
+        }
+
+        var affectedPeriods = singleMonthGroups
+            .Select(group => new { group.Key.JalaliYear, group.Key.JalaliMonth })
+            .Distinct()
+            .ToArray();
+
+        foreach (var period in affectedPeriods)
+        {
+            try
+            {
+                await monthlySalesQualityRankingUseCase.ExecuteAsync(
+                    new RecalculateMonthlySalesQualityRankingRequest(period.JalaliYear, period.JalaliMonth),
+                    cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Monthly sales quality ranking recalculation failed for {ReportYear}/{ReportMonth:00} after NADPCO monthly activity ingestion.",
+                    period.JalaliYear,
+                    period.JalaliMonth);
+            }
         }
 
         // ExternalCompanyId varies per report group (one company per request); use the first.

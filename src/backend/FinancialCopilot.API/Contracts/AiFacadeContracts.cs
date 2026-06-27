@@ -29,7 +29,8 @@ public sealed record AiQueryHttpResponse(
     bool? ProviderFallbackOccurred = null,
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
-    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null);
+    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
+    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -174,7 +175,8 @@ public sealed record AssistantMessageContentResponse(
     UsageAccountingResponse? Usage,
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
-    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null);
+    MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
+    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

@@ -9,6 +9,7 @@ using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -564,6 +565,24 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     }
 
     [Fact]
+    public async Task Normalize_SingleMonthProductSales_RecalculatesMonthlySalesQualityRankingOncePerPeriod()
+    {
+        await using var db = CreateDb();
+        var rankingUseCase = new CapturingMonthlySalesQualityRankingUseCase();
+
+        await CreateNormalizer(
+                db,
+                rankingUseCase: rankingUseCase)
+            .NormalizeAsync(
+                MakePayload(SingleMonthProductSalesJson, "[]"),
+                CancellationToken.None);
+
+        var request = Assert.Single(rankingUseCase.Requests);
+        Assert.Equal(1402, request.ReportYear);
+        Assert.Equal((byte)1, request.ReportMonth);
+    }
+
+    [Fact]
     public async Task Normalize_LegacyEnvelope_BackwardCompat_OutputTypeNull()
     {
         await using var db = CreateDb();
@@ -666,8 +685,15 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             Now);
     }
 
-    private static NadpcoApiMonthlyActivityNormalizer CreateNormalizer(FinancialIngestionDbContext db) =>
-        new(db, new NoOpRevenueMixCalculator(), new NoOpTrendSnapshotCalculator());
+    private static NadpcoApiMonthlyActivityNormalizer CreateNormalizer(
+        FinancialIngestionDbContext db,
+        IRecalculateMonthlySalesQualityRankingUseCase? rankingUseCase = null) =>
+        new(
+            db,
+            new NoOpRevenueMixCalculator(),
+            new NoOpTrendSnapshotCalculator(),
+            rankingUseCase ?? new NoOpMonthlySalesQualityRankingUseCase(),
+            NullLogger<NadpcoApiMonthlyActivityNormalizer>.Instance);
 
     private sealed class NoOpRevenueMixCalculator : ICompanyProductRevenueMixCalculator
     {
@@ -699,6 +725,37 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             int toYear,
             int toMonth,
             CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class NoOpMonthlySalesQualityRankingUseCase : IRecalculateMonthlySalesQualityRankingUseCase
+    {
+        public Task<RecalculateMonthlySalesQualityRankingResult> ExecuteAsync(
+            RecalculateMonthlySalesQualityRankingRequest request,
+            CancellationToken ct = default) =>
+            Task.FromResult(new RecalculateMonthlySalesQualityRankingResult(
+                request.ReportYear ?? 0,
+                request.ReportMonth ?? (byte)0,
+                0,
+                0,
+                DateTimeOffset.UtcNow));
+    }
+
+    private sealed class CapturingMonthlySalesQualityRankingUseCase : IRecalculateMonthlySalesQualityRankingUseCase
+    {
+        public List<RecalculateMonthlySalesQualityRankingRequest> Requests { get; } = [];
+
+        public Task<RecalculateMonthlySalesQualityRankingResult> ExecuteAsync(
+            RecalculateMonthlySalesQualityRankingRequest request,
+            CancellationToken ct = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new RecalculateMonthlySalesQualityRankingResult(
+                request.ReportYear ?? 0,
+                request.ReportMonth ?? (byte)0,
+                0,
+                0,
+                DateTimeOffset.UtcNow));
+        }
     }
 
     private static FinancialIngestionDbContext CreateDb() =>

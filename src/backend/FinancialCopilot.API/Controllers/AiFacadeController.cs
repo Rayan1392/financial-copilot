@@ -209,7 +209,8 @@ public sealed class AiFacadeController(
             result.ProviderFallbackOccurred,
             result.WorkflowCorrelationId,
             MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult),
-            MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult));
+            MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
+            MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -391,7 +392,8 @@ public sealed class AiFacadeController(
                 payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                     d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
                 MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult),
-                MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult));
+                MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
+                MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult));
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)
@@ -448,6 +450,49 @@ public sealed class AiFacadeController(
                 m.ReasonFa)).ToList(),
             result.SourceProviderName,
             result.CalculatedAtUtc);
+    }
+
+    private static MonthlySalesQualityRankingHttpResponse? MapMonthlySalesQualityRankingResult(
+        MonthlySalesQualityRankingResponse? result)
+    {
+        if (result is null) return null;
+
+        return new MonthlySalesQualityRankingHttpResponse(
+            result.ReportYear,
+            result.ReportMonth,
+            result.Scope.ToString(),
+            result.Direction.ToString(),
+            result.TotalEligibleCompanies,
+            result.GeneratedAtUtc,
+            result.Items.Select(item => new MonthlySalesQualityRankingItemHttpResponse(
+                item.Rank,
+                item.Symbol,
+                item.CompanyName,
+                item.IndustryTitle,
+                item.QualityScore,
+                item.QualityLabel,
+                item.ConfidenceScore,
+                item.MonthlySalesAmount,
+                item.Avg12MonthSalesAmount,
+                item.SalesVsAvg12MPercent,
+                item.SalesMonthOverMonthPercent,
+                item.SalesYearOverYearPercent,
+                item.DimensionScores is null ? null : new MonthlySalesQualityDimensionScoresHttpResponse(
+                    item.DimensionScores.SalesGrowthVs12M,
+                    item.DimensionScores.QuantityGrowthQuality,
+                    item.DimensionScores.RateGrowthQuality,
+                    item.DimensionScores.ProductMixStrength,
+                    item.DimensionScores.PersistenceTrend,
+                    item.DimensionScores.IndustryRelativeStrength),
+                item.PositiveDrivers,
+                item.NegativeDrivers,
+                new MonthlySalesQualityDataCoverageHttpResponse(
+                    item.DataCoverage.HistoryMonths,
+                    item.DataCoverage.HasProductLineItems,
+                    item.DataCoverage.HasProductMix,
+                    item.DataCoverage.IndustryPeerCount),
+                item.SourceProviderName,
+                item.CalculatedAtUtc)).ToList());
     }
 
     private static ConfidenceScoreResponse? MapConfidenceScore(ConfidenceScoreResult? confidence)

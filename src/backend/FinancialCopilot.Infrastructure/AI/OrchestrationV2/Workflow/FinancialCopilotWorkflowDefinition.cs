@@ -40,6 +40,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IDirectMetricRoutingRegistry directMetricRoutingRegistry,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -207,6 +208,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
 
         var scannerTool = AIFunctionFactory.Create(
             async (string query) =>
@@ -255,6 +257,30 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         UsageAccountingResult? usage = null;
 
+        var isMonthlySalesQualityRanking = MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(request.Message);
+        if (isMonthlySalesQualityRanking)
+        {
+            var rankingQuery = MonthlySalesQualityRankingIntentRules.BuildQuery(request.Message);
+            monthlySalesQualityRankingResult = await monthlySalesQualityRankingUseCase.ExecuteAsync(rankingQuery, ct);
+
+            UsageAccountingResult? rankingUsage = null;
+            if (msg.Reservation is not null)
+            {
+                rankingUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, "Completed", false, CancellationToken.None);
+            }
+
+            stepActivity?.SetTag("workflow.intent", "MonthlySalesQualityRanking");
+
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                BuildMonthlySalesQualityRankingContent(monthlySalesQualityRankingResult),
+                scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, rankingUsage);
+        }
+
         var isMonthlyActivityTrend = MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message);
         if (isMonthlyActivityTrend)
         {
@@ -267,6 +293,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.MemoryContext, msg.Reservation,
                     "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.",
                     scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult,
                     "ClarificationRequired", false, modelClient, usage);
             }
 
@@ -290,6 +317,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     ? $"اطلاعات روند فروش ماهانه برای نماد «{symbol}» در پایگاه داده یافت نشد."
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
                 scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
                 monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage);
         }
 
@@ -305,6 +333,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.MemoryContext, msg.Reservation,
                     "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.",
                     scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult,
                     "ClarificationRequired", false, modelClient, usage);
             }
 
@@ -327,6 +356,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.MemoryContext, msg.Reservation,
                     $"اطلاعات ترکیب درآمد محصولات برای نماد «{symbol}» در پایگاه داده یافت نشد.",
                     scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    monthlySalesQualityRankingResult,
                     "Completed", false, modelClient, productRevenueMixUsage);
             }
 
@@ -344,6 +374,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
                 productRevenueMixText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
                 "Completed", false, modelClient, productRevenueMixUsageSuccess);
         }
 
@@ -378,6 +409,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
                 lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
                 directCompletionStatus, false, modelClient, directUsage);
         }
 
@@ -428,6 +460,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
             agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+            monthlySalesQualityRankingResult,
             completionStatus, fromCache, modelClient, usage);
     }
 
@@ -437,7 +470,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
         var detectedIntent =
-            msg.MonthlyActivityTrendResult is not null ||
+            msg.MonthlySalesQualityRankingResult is not null ||
+            MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(msg.Request.Message)
+                ? DetectedIntent.MonthlySalesQualityRanking
+                : msg.MonthlyActivityTrendResult is not null ||
             MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlyActivityTrend
                 : DetermineIntent(
@@ -445,7 +481,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.LookupResult,
                     msg.ComprehensiveAnalysisResult,
                     msg.ProductRevenueMixResult,
-                    msg.MonthlyActivityTrendResult);
+                    msg.MonthlyActivityTrendResult,
+                    msg.MonthlySalesQualityRankingResult);
         var clarificationRequired =
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -476,6 +513,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
             msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
+            msg.MonthlySalesQualityRankingResult,
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
             explainableAnswer, confidenceScore, groundedAnswer, msg.Usage);
@@ -502,10 +540,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -520,7 +558,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.CreateConversation, ct,
             comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
             productRevenueMixResult: msg.ProductRevenueMixResult,
-            monthlyActivityTrendResult: msg.MonthlyActivityTrendResult);
+            monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
+            monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -529,6 +568,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             persistedExchange.UserMessageId, persistedExchange.AssistantMessageId,
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
             msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
+            msg.MonthlySalesQualityRankingResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId);
@@ -561,7 +601,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             WorkflowCorrelationId: msg.WorkflowCorrelationId,
             ComprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
             ProductRevenueMixResult: msg.ProductRevenueMixResult,
-            MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult);
+            MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
+            MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
     }
 
     private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)
@@ -672,6 +713,31 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     private static string FormatTrendAmount(decimal value) =>
         value.ToString("#,##0.###");
 
+    private static string BuildMonthlySalesQualityRankingContent(MonthlySalesQualityRankingResponse result)
+    {
+        var sb = new StringBuilder();
+        var title = result.Direction == MonthlySalesQualityDirection.Bottom
+            ? "ضعیف‌ترین گزارش‌ها از نظر کیفیت تولید و فروش"
+            : "برترین گزارش‌ها از نظر کیفیت تولید و فروش";
+
+        sb.AppendLine($"### {title}");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2}");
+        sb.AppendLine("این رتبه‌بندی توصیه خرید/فروش نیست و فقط کیفیت داده‌های تولید و فروش را ارزیابی می‌کند.");
+        sb.AppendLine();
+        sb.AppendLine("| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |");
+        sb.AppendLine("|---:|---|---|---|---:|---|---|---:|");
+
+        foreach (var item in result.Items)
+        {
+            var mainDriver = item.PositiveDrivers.FirstOrDefault()
+                ?? item.NegativeDrivers.FirstOrDefault()
+                ?? "—";
+            sb.AppendLine($"| {item.Rank} | {item.Symbol} | {item.CompanyName ?? "—"} | {item.IndustryTitle ?? "—"} | {item.QualityScore:F1} | {item.QualityLabel} | {mainDriver} | {item.ConfidenceScore:F0} |");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────────────
 
     private static DetectedIntent DetermineIntent(
@@ -679,9 +745,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         SymbolLookupToolResult? lookupResult,
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult,
         ProductRevenueMixResponse? productRevenueMixResult,
-        MonthlyActivityTrendResponse? monthlyActivityTrendResult)
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult,
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult)
     {
         if (scannerResult is not null) return DetectedIntent.Scanner;
+        if (monthlySalesQualityRankingResult is not null) return DetectedIntent.MonthlySalesQualityRanking;
         if (monthlyActivityTrendResult is not null) return DetectedIntent.MonthlyActivityTrend;
         if (productRevenueMixResult is not null) return DetectedIntent.ProductRevenueMix;
         if (lookupResult?.Table is not null && comprehensiveAnalysisResult?.Succeeded != true)

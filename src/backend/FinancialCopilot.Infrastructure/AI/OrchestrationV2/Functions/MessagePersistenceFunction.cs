@@ -31,7 +31,8 @@ internal sealed class MessagePersistenceFunction(
         CancellationToken cancellationToken,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
-        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null)
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -39,7 +40,8 @@ internal sealed class MessagePersistenceFunction(
             : BuildAssistantContent(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
                 explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-                comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult);
+                comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -68,7 +70,8 @@ internal sealed class MessagePersistenceFunction(
                     disclosures,
                     ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
                     ProductRevenueMixResult: productRevenueMixResult,
-                    MonthlyActivityTrendResult: monthlyActivityTrendResult)),
+                    MonthlyActivityTrendResult: monthlyActivityTrendResult,
+                    MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult)),
             createConversation,
             cancellationToken);
     }
@@ -93,13 +96,17 @@ internal sealed class MessagePersistenceFunction(
         string? clarificationMessage,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
-        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null)
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
 
         if (monthlyActivityTrendResult is not null)
             return BuildMonthlyActivityTrendContent(monthlyActivityTrendResult);
+
+        if (monthlySalesQualityRankingResult is not null)
+            return BuildMonthlySalesQualityRankingContent(monthlySalesQualityRankingResult);
 
         if (lookupTable is not null)
             return symbolLookupProseBuilder.Build(lookupTable);
@@ -213,6 +220,29 @@ internal sealed class MessagePersistenceFunction(
 
     private static string FormatTrendAmount(decimal value) =>
         value.ToString("#,##0.###");
+
+    private static string BuildMonthlySalesQualityRankingContent(MonthlySalesQualityRankingResponse result)
+    {
+        var sb = new System.Text.StringBuilder();
+        var title = result.Direction == MonthlySalesQualityDirection.Bottom
+            ? "ضعیف‌ترین گزارش‌ها از نظر کیفیت تولید و فروش"
+            : "برترین گزارش‌ها از نظر کیفیت تولید و فروش";
+
+        sb.AppendLine($"### {title}");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2}");
+        sb.AppendLine("این رتبه‌بندی توصیه خرید/فروش نیست و فقط کیفیت داده‌های تولید و فروش را ارزیابی می‌کند.");
+        sb.AppendLine();
+        sb.AppendLine("| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |");
+        sb.AppendLine("|---:|---|---|---|---:|---|---|---:|");
+        foreach (var item in result.Items)
+        {
+            var mainDriver = item.PositiveDrivers.FirstOrDefault()
+                ?? item.NegativeDrivers.FirstOrDefault()
+                ?? "—";
+            sb.AppendLine($"| {item.Rank} | {item.Symbol} | {item.CompanyName ?? "—"} | {item.IndustryTitle ?? "—"} | {item.QualityScore:F1} | {item.QualityLabel} | {mainDriver} | {item.ConfidenceScore:F0} | ");
+        }
+        return sb.ToString().TrimEnd();
+    }
 
     private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)
     {

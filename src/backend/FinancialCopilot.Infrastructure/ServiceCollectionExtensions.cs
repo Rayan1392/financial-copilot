@@ -827,6 +827,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
+        // Spec 080 — deterministic monthly production/sales quality ranking snapshots.
+        services.AddSingleton<IMonthlySalesQualityScoreCalculator, MonthlySalesQualityScoreCalculator>();
+        services.AddScoped<IMonthlySalesQualityRankingRepository, MonthlySalesQualityRankingRepository>();
+        services.AddScoped<IRecalculateMonthlySalesQualityRankingUseCase, RecalculateMonthlySalesQualityRankingUseCase>();
+        services.AddScoped<IMonthlySalesQualityRankingQueryUseCase, MonthlySalesQualityRankingQueryUseCase>();
         // Spec 050 â€” all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>

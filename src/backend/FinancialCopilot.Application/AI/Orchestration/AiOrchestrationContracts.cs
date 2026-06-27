@@ -11,6 +11,7 @@ public enum DetectedIntent
     ComprehensiveAnalysis,
     ProductRevenueMix,
     MonthlyActivityTrend,
+    MonthlySalesQualityRanking,
     Clarification,
     Unknown
 }
@@ -66,7 +67,8 @@ public sealed record AiQueryResponse(
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
-    MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null);
+    MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
+    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

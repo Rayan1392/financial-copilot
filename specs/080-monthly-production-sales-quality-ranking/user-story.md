@@ -283,6 +283,13 @@ Then include:
 - ۳ هشدار/ریسک
 - explanation about confidence and missing data
 
+Presentation note:
+- The `دلیل اصلی` column is descriptive text and must render wider than compact numeric or label columns.
+- `رتبه`, `نماد`, `امتیاز کیفیت`, `برچسب`, and `اطمینان` should stay compact and preferably nowrap.
+- `شرکت` and `صنعت` may use normal medium width.
+- RTL table rendering must let `دلیل اصلی` wrap naturally instead of breaking after every 1–2 words.
+- On narrow screens, horizontal scrolling is preferred over compressing all columns to equal narrow widths.
+
 ## API Contract — Query
 
 Endpoint suggestion:

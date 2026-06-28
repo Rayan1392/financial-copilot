@@ -359,11 +359,19 @@ Generate a concise Persian explanation based only on returned ranking data.
 - دلیل اصلی
 - اطمینان
 
+### Table Layout Requirements
+- Treat `دلیل اصلی` as the descriptive column with a wider preferred width than compact columns.
+- Keep `رتبه`, `نماد`, `امتیاز کیفیت`, `برچسب`, and `اطمینان` compact and preferably nowrap.
+- Allow `شرکت` and `صنعت` to use medium width.
+- Preserve RTL readability and allow `دلیل اصلی` to wrap naturally, not word-by-word.
+- Prefer horizontal scrolling on small screens over forcing all columns into equally narrow widths.
+
 ### Acceptance Criteria
 - Response does not invent extra metrics.
 - Response does not recommend buy/sell.
 - Response explains whether ranking is market-wide or industry-filtered.
 - For bottom ranking, wording is «ضعیف‌ترین گزارش‌ها از نظر کیفیت تولید و فروش» not «بدترین سهم‌ها».
+- The rendered table keeps `دلیل اصلی` visually readable without wrapping after every 1–2 words.
 
 ---
 

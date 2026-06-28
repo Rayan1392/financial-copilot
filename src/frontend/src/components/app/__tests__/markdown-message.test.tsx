@@ -25,9 +25,7 @@ describe("MarkdownMessage", () => {
   });
 
   it("renders fenced code block inside <pre>", () => {
-    const { container } = render(
-      <MarkdownMessage content={"```\nblock code here\n```"} />,
-    );
+    const { container } = render(<MarkdownMessage content={"```\nblock code here\n```"} />);
     const pre = container.querySelector("pre");
     expect(pre).not.toBeNull();
     expect(pre?.textContent).toContain("block code here");
@@ -42,9 +40,7 @@ describe("MarkdownMessage", () => {
   });
 
   it("renders bullet list as <ul><li>", () => {
-    const { container } = render(
-      <MarkdownMessage content={"- item one\n- item two"} />,
-    );
+    const { container } = render(<MarkdownMessage content={"- item one\n- item two"} />);
     const ul = container.querySelector("ul");
     const items = container.querySelectorAll("li");
     expect(ul).not.toBeNull();
@@ -54,9 +50,7 @@ describe("MarkdownMessage", () => {
   });
 
   it("renders numbered list as <ol><li>", () => {
-    const { container } = render(
-      <MarkdownMessage content={"1. first\n2. second"} />,
-    );
+    const { container } = render(<MarkdownMessage content={"1. first\n2. second"} />);
     const ol = container.querySelector("ol");
     expect(ol).not.toBeNull();
     expect(container.querySelectorAll("li")).toHaveLength(2);
@@ -78,29 +72,52 @@ describe("MarkdownMessage", () => {
 
   it("renders malformed markdown gracefully as text", () => {
     // Unclosed bold — react-markdown renders ** as literal text
-    const { container } = render(
-      <MarkdownMessage content="**unclosed bold" />,
-    );
+    const { container } = render(<MarkdownMessage content="**unclosed bold" />);
     expect(container.textContent).toContain("unclosed bold");
     expect(container.querySelector("strong")).toBeNull();
   });
 
   it("XSS: does not render <script> tags from markdown input", () => {
-    const { container } = render(
-      <MarkdownMessage content="<script>alert('xss')</script>" />,
-    );
+    const { container } = render(<MarkdownMessage content="<script>alert('xss')</script>" />);
     expect(container.querySelector("script")).toBeNull();
     expect(container.innerHTML).not.toContain("<script>");
   });
 
   it("XSS: does not render <img onerror> payloads", () => {
-    const { container } = render(
-      <MarkdownMessage content='<img src="x" onerror="alert(1)">' />,
-    );
+    const { container } = render(<MarkdownMessage content='<img src="x" onerror="alert(1)">' />);
     const img = container.querySelector("img");
     if (img) {
       expect(img.getAttribute("onerror")).toBeNull();
     }
+  });
+
+  it("widens the monthly sales quality ranking table and keeps it RTL-friendly", () => {
+    const rankingTableMarkdown = [
+      "براساس آخرین گزارش های تولید و فروش موجود، رتبه بندی زیر فقط کیفیت داده را نشان می دهد.",
+      "",
+      "| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |",
+      "|---:|---|---|---|---:|---|---|---:|",
+      "| ۱ | فولاد | فولاد مبارکه اصفهان | فلزات اساسی | ۹۱ | بسیار قوی | فروش بالاتر از میانگین ۱۲ ماهه، رشد مقدار و ثبات نرخ فروش | ۸۸٪ |",
+    ].join("\n");
+
+    const { container } = render(<MarkdownMessage content={rankingTableMarkdown} />);
+
+    const outerWrapper = container.firstElementChild;
+    const tableWrapper = container.querySelector("table")?.parentElement;
+    const table = container.querySelector("table");
+    const reasonHeader = Array.from(container.querySelectorAll("th")).find((cell) =>
+      cell.textContent?.includes("دلیل اصلی"),
+    );
+    const reasonCell = Array.from(container.querySelectorAll("td")).find((cell) =>
+      cell.textContent?.includes("فروش بالاتر از میانگین ۱۲ ماهه"),
+    );
+
+    expect(outerWrapper?.className).toContain("max-w-none");
+    expect(tableWrapper?.getAttribute("dir")).toBe("rtl");
+    expect(table?.className).toContain("monthly-sales-quality-ranking-table");
+    expect(table?.querySelectorAll("colgroup col")).toHaveLength(8);
+    expect(reasonHeader).not.toBeNull();
+    expect(reasonCell).not.toBeNull();
   });
 
   it("XSS: strips javascript: links from anchor hrefs", () => {
@@ -117,9 +134,7 @@ describe("MarkdownMessage", () => {
   });
 
   it("renders links with target=_blank and rel=noopener", () => {
-    const { container } = render(
-      <MarkdownMessage content="[example](https://example.com)" />,
-    );
+    const { container } = render(<MarkdownMessage content="[example](https://example.com)" />);
     const link = container.querySelector("a");
     expect(link).not.toBeNull();
     expect(link?.getAttribute("target")).toBe("_blank");

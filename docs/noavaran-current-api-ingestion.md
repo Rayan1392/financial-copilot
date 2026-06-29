@@ -43,12 +43,21 @@ worker scope that performs the fetch. `FinancialDataSyncProcessor` applies it to
 `fromDate` query parameters (falling back to configured options when unset). The scheduled worker keeps
 using the configured boundary.
 
+### Monthly activity completion semantics
+
+For monthly production/sales ingestion, HTTP 200 from Noavaran is not sufficient to mark a company/month as complete. The durable completion signal is the presence of persisted `MonthlyReports` / `MonthlyReportLineItems` rows for that company-month.
+
+In practice this means:
+
+- a successful call that persists rows is completed;
+- a successful call that returns no persistable monthly data remains retryable;
+- manual/monthly backfill resume logic must skip only company-months with actual persisted monthly rows;
+- the aggregate row in `MonthlyActivityBackfillStates` is only a global marker and must be reopened / ignored when retryable company-month rows still exist;
+- `CompletedWithFailures` is resumable, not terminal; `AlreadyCompleted` is valid only when no retryable company-months remain.
+
 ### Separate current-API health (AC #9)
 
-`GET /api/v1/admin/noavaran-current/health` → `ICurrentApiBackfillCoordinator.GetHealthAsync` combines
-the current-API provider health (the `NoavaranCurrentApi` client, not the configured primary) with the
-latest scheduled-sync execution and next-due time. Reported separately from the archive freeze/import
-state (`/api/v1/admin/noavaran-archive/*`).
+`GET /api/v1/admin/noavaran-current/health` → `ICurrentApiBackfillCoordinator.GetHealthAsync` combines the current-API provider health (the `NoavaranCurrentApi` client, not the configured primary) with the latest scheduled-sync execution and next-due time. Reported separately from the archive freeze/import state (`/api/v1/admin/noavaran-archive/*`).
 
 ## Architecture
 

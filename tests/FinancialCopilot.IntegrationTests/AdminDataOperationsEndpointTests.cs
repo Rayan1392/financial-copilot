@@ -116,6 +116,51 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task DataAdmin_CanQueueEligibleFundamentalIndexesBulkSync()
+    {
+        _factory.EligibleCompanyReader.SetReferences(["4", "12"]);
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/data-sync/fundamental-indexes/eligible-companies",
+            new { idempotencyKey = "bulk-fi-sync" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("FundamentalIndexes", document.RootElement.GetProperty("dataset").GetString());
+        Assert.Equal("NoavaranEligibleCompanies", document.RootElement.GetProperty("source").GetString());
+        Assert.Equal(2, document.RootElement.GetProperty("eligibleCount").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("queuedCount").GetInt32());
+        Assert.Equal(0, document.RootElement.GetProperty("failedCount").GetInt32());
+        Assert.Equal(
+            ["4", "12"],
+            _factory.PublishedRequests.Select(request => request.ExternalReference).ToArray());
+        Assert.All(
+            _factory.PublishedRequests,
+            request => Assert.Equal(ProviderSources.NoavaranCurrentApiName, request.ProviderName));
+    }
+
+    [Fact]
+    public async Task DataAdmin_EligibleFundamentalIndexesDryRun_DoesNotEnqueueAnything()
+    {
+        _factory.EligibleCompanyReader.SetReferences(["4", "12"]);
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/data-sync/fundamental-indexes/eligible-companies",
+            new { dryRun = true, maxItems = 1 },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("DryRun", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal(1, document.RootElement.GetProperty("eligibleCount").GetInt32());
+        Assert.Equal(0, document.RootElement.GetProperty("queuedCount").GetInt32());
+        Assert.Empty(_factory.PublishedRequests);
+    }
+
+    [Fact]
     public async Task DataAdmin_CanRouteSymbolsSyncToCodalDbWithoutFullSyncFanOut()
     {
         using var client = CreateDataAdminClient();
@@ -825,6 +870,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubFundamentalIndexCatchUp _fundamentalIndexCatchUp = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
     private readonly StubDataSyncActivityMonitor _activityMonitor = new();
+    private readonly StubEligibleCompanyReferenceReader _eligibleCompanyReader = new();
 
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
@@ -832,6 +878,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public StubProductRevenueMixBackfill ProductRevenueMixBackfill => _productRevenueMixBackfill;
     public StubFundamentalIndexCatchUp FundamentalIndexCatchUp => _fundamentalIndexCatchUp;
     public StubDataSyncActivityMonitor ActivityMonitor => _activityMonitor;
+    public StubEligibleCompanyReferenceReader EligibleCompanyReader => _eligibleCompanyReader;
 
     public IReadOnlyCollection<DataSyncRequest> PublishedRequests => _publisher.Requests;
     public StubCodalDbScheduledSyncService CodalDbSync => _codalDbSync;
@@ -862,6 +909,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IProductRevenueMixBackfillService>();
             services.RemoveAll<IFundamentalIndexCatchUpCoordinator>();
             services.RemoveAll<IFundamentalIndexCatchUpRunReader>();
+            services.RemoveAll<INoavaranEligibleCompanyReferenceReader>();
             services.RemoveAll<IMissingAnswerFeedbackRepository>();
             services.AddSingleton<IDataSyncActivityMonitor>(_activityMonitor);
             services.AddSingleton<IDataSyncRequestPublisher>(_publisher);
@@ -881,6 +929,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IProductRevenueMixBackfillService>(_productRevenueMixBackfill);
             services.AddSingleton<IFundamentalIndexCatchUpCoordinator>(_fundamentalIndexCatchUp);
             services.AddSingleton<IFundamentalIndexCatchUpRunReader>(_fundamentalIndexCatchUp);
+            services.AddSingleton<INoavaranEligibleCompanyReferenceReader>(_eligibleCompanyReader);
             services.AddSingleton<IMissingAnswerFeedbackRepository>(_missingAnswerFeedback);
         });
     }
@@ -898,6 +947,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _fundamentalIndexCatchUp.Reset();
         _missingAnswerFeedback.Reset();
         _activityMonitor.Reset();
+        _eligibleCompanyReader.Reset();
     }
 
     public sealed class StubMissingAnswerFeedbackRepository : IMissingAnswerFeedbackRepository
@@ -1267,12 +1317,34 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private sealed class CapturingDataSyncPublisher : IDataSyncRequestPublisher
     {
         public List<DataSyncRequest> Requests { get; } = [];
+        public string? FailOnExternalReference { get; set; }
 
         public Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
         {
+            if (request.ExternalReference == FailOnExternalReference)
+            {
+                throw new InvalidOperationException("simulated enqueue failure");
+            }
+
             Requests.Add(request);
             return Task.CompletedTask;
         }
+    }
+
+    public sealed class StubEligibleCompanyReferenceReader : INoavaranEligibleCompanyReferenceReader
+    {
+        private readonly List<string> _references = [];
+
+        public Task<IReadOnlyCollection<string>> ReadExternalReferencesAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<string>>(_references.ToArray());
+
+        public void SetReferences(IEnumerable<string> references)
+        {
+            _references.Clear();
+            _references.AddRange(references);
+        }
+
+        public void Reset() => _references.Clear();
     }
 
     private sealed class StubDataSyncRunReader : IDataSyncRunReader

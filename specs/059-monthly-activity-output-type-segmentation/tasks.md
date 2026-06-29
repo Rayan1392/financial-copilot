@@ -60,6 +60,9 @@ Update `FinancialIngestionDbContextModelSnapshot.cs` to include `OutputType` in 
    - Old: `$"{sourceKind}:{activityId.Value}"`
    - New: `$"{sourceKind}:{activityId.Value}:output-{outputPart}"`
    - Rationale: the vendor assigns different `ActivityID` values per output type for the same company-month, but the previous format without output type can produce duplicate `ExternalReportId` values when two output types return the same `ActivityID` (edge case observed in the wild).
+   - Fallback path rule: when `activityId` is absent, the canonical key is
+     `"{sourceKind}:{companyId}:{year:D4}-{month:D2}:output-{outputPart}"`.
+     Do not append `categoryId`, category title, industry, or any grouping metadata.
 3. `ServiceSales` items already have `OutputType = null`; no change needed there.
 
 ### Task A-5 — Update `NadpcoApiDataProviderClient.FetchMonthlyReportsAsync` to call all 5 output types
@@ -121,6 +124,8 @@ Add test cases:
 2. `Normalize_OldEnvelope_BackwardCompat_OutputTypeNull` — given an old-shape envelope, verify rows are created with `OutputType = null` (no error).
 3. `Normalize_EmptyOutputTypeArray_NoRowCreated` — given a new-shape envelope where one output type returns `[]`, verify no row is created for that type.
 4. `BuildExternalReportId_IncludesOutputType_WhenActivityIdPresent` — verify the new key format includes output type suffix.
+5. `BuildExternalReportId_Fallback_DoesNotIncludeCategoryId` — verify a category-scoped payload still
+   produces the canonical key without any `:category-{id}` suffix.
 
 ---
 
@@ -205,6 +210,7 @@ Before marking this spec complete:
 - [ ] All 5 output types are fetched per company-month ingestion request
 - [ ] `OutputType` column exists in `MonthlyReports` table and is populated
 - [ ] `ExternalReportId` includes output type to prevent cross-type key collisions
+- [ ] `ExternalReportId` fallback remains canonical and never includes `categoryId`
 - [ ] Old stored payloads (two-field envelope) are normalized without error (`OutputType = null`)
 - [ ] Unit tests cover new-shape, old-shape, and empty-array cases
 - [ ] `AdminMonthlyActivityBackfillProgressResponse` includes `OutputTypeCounts`

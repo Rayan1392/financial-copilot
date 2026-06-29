@@ -9,6 +9,17 @@
 
 باگ ریشه‌ای در `BuildExternalReportId` داخل `NadpcoApiMonthlyActivityNormalizer` هست: وقتی API رکوردی بدون `activityId` برمی‌گرداند، `categoryId` بخشی از کلید شناسه گزارش می‌شود و برای هر دسته‌بندی یک ردیف جداگانه `MonthlyReport` ایجاد می‌کند. `CompanyProductRevenueMixCalculator` و `CompanyMonthlyActivityTrendSnapshotCalculator` همه ردیف‌های منطبق با شرکت/ماه/outputType=0 را جمع می‌زنند — از جمله محصولات دسته‌های مجزا.
 
+## Canonical identity contract (corrected 2026-06-29)
+
+- `categoryId` must never be part of `MonthlyReports.ExternalReportId`.
+- This prohibition applies in current API ingestion, backfill, fallback identity paths when
+  `activityId` is absent, and category-grouped product/service payloads.
+- Canonical product-sales fallback format:
+  `ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-{outputType}`.
+- Canonical service-sales fallback format:
+  `ServiceSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-none`.
+- Category remains line-item evidence only.
+
 مراحل این task به ترتیب اجرا باید انجام شوند.
 
 ---
@@ -81,44 +92,16 @@ WHERE mr."ProviderName" = 'NoavaranCurrentApi'
 ORDER BY mr."ExternalReportId", li."Title";
 ```
 
-### ۱-۴. حذف کامل MonthlyReportLineItems، MonthlyReports، CompanyProductRevenueMix، CompanyMonthlyActivityTrendSnapshots
+### ۱-۴. اجرای repair script انتخابی
 
-> ⚠️ این transaction همه دیتای مربوطه را پاک می‌کند. قبل از اجرا از صحت کوئری‌های بالا مطمئن شوید.
+به‌جای پاک‌کردن کل دیتای `NoavaranCurrentApi`، اسکریپت انتخابی زیر را اجرا کنید:
 
-```sql
-BEGIN;
+- `specs/bugs/repair-category-suffixed-monthly-reports-2026-06-29.sql`
 
--- حذف همه line item‌های NoavaranCurrentApi
-DELETE FROM "MonthlyReportLineItems"
-WHERE "MonthlyReportId" IN (
-    SELECT "Id" FROM "MonthlyReports"
-    WHERE "ProviderName" = 'NoavaranCurrentApi'
-);
-
--- حذف همه MonthlyReport‌های NoavaranCurrentApi
-DELETE FROM "MonthlyReports"
-WHERE "ProviderName" = 'NoavaranCurrentApi';
-
--- حذف همه CompanyProductRevenueMix‌های NoavaranCurrentApi
-DELETE FROM "CompanyProductRevenueMixes"
-WHERE "SourceProviderName" = 'NoavaranCurrentApi';
-
--- حذف همه CompanyMonthlyActivityTrendSnapshots
-DELETE FROM "CompanyMonthlyActivityTrendSnapshots";
-
-COMMIT;
-```
-
-### ۱-۵. ریست کردن وضعیت backfill (اختیاری — اگر می‌خواهید monthly-backfill از صفر شروع کند)
-
-```sql
--- ریست وضعیت backfill ماهانه
-DELETE FROM "MonthlyActivityBackfillStates";
-
--- حذف SyncRun‌های مربوط به monthly-backfill تا re-run صحیح انجام شود
-DELETE FROM "ProviderSyncRuns"
-WHERE "IdempotencyKey" LIKE 'nadpco-monthlybf:%';
-```
+این اسکریپت فقط زوج‌های `ExternalReportId` معیوبی را که یک ردیف canonical و یک ردیف
+`:category-{id}` دارند هدف می‌گیرد، ردیف canonical را نگه می‌دارد، line-itemهای ردیف
+معیوب را حذف می‌کند، سپس `CompanyProductRevenueMixes` و
+`CompanyMonthlyActivityTrendSnapshots` دوره‌های متاثر را برای recalculation پاک می‌کند.
 
 ---
 
@@ -542,6 +525,7 @@ WHERE "ProviderName" = 'NoavaranCurrentApi'
 - [ ] کوئری‌های مرحله ۱ (شناسایی) اجرا و نتایج بررسی شد
 - [ ] SQL حذف دیتا (مرحله ۱-۴) اجرا شد
 - [ ] کد فیکس مرحله ۲-۱ اعمال شد (`BuildExternalReportId` بدون categoryId)
+- [ ] قرارداد canonical identity در current ingestion / backfill / fallback path مستند شد
 - [ ] کد فیکس مرحله ۲-۲ اعمال شد (authoritative replace برای line items)
 - [ ] unique index مرحله ۲-۳ اضافه شد
 - [ ] EF migration ایجاد و اعمال شد

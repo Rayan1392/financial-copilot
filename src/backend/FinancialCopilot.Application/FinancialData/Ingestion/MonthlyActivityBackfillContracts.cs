@@ -49,12 +49,14 @@ public sealed record MonthlyActivityBackfillMonthProgress(
     int ShamsiMonth,
     int CompaniesPlanned,
     int CompaniesCompleted,
+    int CompaniesNoDataYet,
     int CompaniesFailed,
     string Status);
 
 public sealed record MonthlyActivityBackfillProgress(
     bool Started,
     bool IsCompleted,
+    string Status,
     DateTimeOffset? CompletedAt,
     DateTimeOffset? LastStartedAt,
     string? RequestedBy,

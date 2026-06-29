@@ -36,12 +36,18 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var state = await GetOrCreateStateAsync(providerName, cancellationToken);
         if (state.IsCompleted)
         {
-            return new MonthlyActivityBackfillStartResult(
-                "AlreadyCompleted",
-                MonthsPlanned: 0,
-                CompaniesPlanned: 0,
-                RequestsEnqueued: 0,
-                await GetProgressAsync(cancellationToken));
+            var progress = await GetProgressAsync(cancellationToken);
+            if (progress.IsCompleted)
+            {
+                return new MonthlyActivityBackfillStartResult(
+                    "AlreadyCompleted",
+                    MonthsPlanned: 0,
+                    CompaniesPlanned: 0,
+                    RequestsEnqueued: 0,
+                    progress);
+            }
+
+            await dbContext.Entry(state).ReloadAsync(cancellationToken);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -65,13 +71,9 @@ public sealed class MonthlyActivityBackfillCoordinator(
             months.Select(month => new PlannedMonth(month.Year, month.Month, companyIds.Count)).ToArray());
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Skip company-months whose deterministic run already completed: resume, don't re-enqueue.
-        var completedKeys = (await dbContext.SyncRuns.AsNoTracking()
-                .Where(run => run.IdempotencyKey.StartsWith(KeyPrefix) &&
-                    run.Status == DataSyncRunStatus.Completed.ToString())
-                .Select(run => run.IdempotencyKey)
-                .ToListAsync(cancellationToken))
-            .ToHashSet(StringComparer.Ordinal);
+        // Skip company-months only when a completed run also has persisted monthly report rows.
+        // Completed-but-empty runs remain retryable for gradually published months.
+        var completedKeys = await QueryCompletedKeysWithPersistedRowsAsync(providerName, cancellationToken);
 
         var enqueued = 0;
         foreach (var month in months)
@@ -127,13 +129,20 @@ public sealed class MonthlyActivityBackfillCoordinator(
             .SingleOrDefaultAsync(row => row.SourceName == providerName, cancellationToken);
         if (state is null)
         {
-            return new MonthlyActivityBackfillProgress(false, false, null, null, null, []);
+            return new MonthlyActivityBackfillProgress(false, false, "Pending", null, null, null, []);
         }
 
         var planned = ParsePlannedMonths(state.PlannedMonthsJson);
+        var persistedCompanyMonths = await QueryPersistedCompanyMonthKeysAsync(providerName, cancellationToken);
         var runs = await dbContext.SyncRuns.AsNoTracking()
             .Where(run => run.IdempotencyKey.StartsWith(KeyPrefix))
-            .Select(run => new { run.IdempotencyKey, run.Status })
+            .Select(run => new
+            {
+                run.IdempotencyKey,
+                run.Status,
+                run.ExternalReference,
+                run.ErrorMessage
+            })
             .ToListAsync(cancellationToken);
         var byMonthToken = runs
             .GroupBy(run => MonthTokenOf(run.IdempotencyKey))
@@ -142,28 +151,56 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var months = planned.Select(month =>
         {
             byMonthToken.TryGetValue(MonthToken(month.Year, month.Month), out var monthRuns);
-            var completed = monthRuns?.Count(run => run.Status == DataSyncRunStatus.Completed.ToString()) ?? 0;
-            var failed = monthRuns?.Count(run => run.Status == DataSyncRunStatus.Failed.ToString()) ?? 0;
+            var completed = monthRuns?.Count(run =>
+                run.Status == DataSyncRunStatus.Completed.ToString() &&
+                HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ?? 0;
+            var noDataYet = monthRuns?.Count(run =>
+                (run.Status == DataSyncRunStatus.Completed.ToString() &&
+                    !HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ||
+                (run.Status == DataSyncRunStatus.Failed.ToString() && IsNoDataYet(run.ErrorMessage))) ?? 0;
+            var failed = monthRuns?.Count(run =>
+                run.Status == DataSyncRunStatus.Failed.ToString() && !IsNoDataYet(run.ErrorMessage)) ?? 0;
+            var terminal = completed + noDataYet + failed;
             var status = completed >= month.Companies
                 ? "Completed"
-                : completed + failed >= month.Companies
-                    ? "CompletedWithFailures"
+                : terminal >= month.Companies
+                    ? completed > 0 && noDataYet > 0 && failed == 0
+                        ? "CompletedWithRetryables"
+                        : noDataYet > 0 && failed == 0
+                            ? "NoDataYet"
+                            : noDataYet == 0
+                                ? "CompletedWithFailures"
+                                : "CompletedWithRetryables"
                     : monthRuns is { Length: > 0 }
                         ? "InProgress"
                         : "Pending";
             return new MonthlyActivityBackfillMonthProgress(
-                month.Year, month.Month, month.Companies, completed, failed, status);
+                month.Year, month.Month, month.Companies, completed, noDataYet, failed, status);
         }).ToArray();
 
+        var started = state.LastStartedAt is not null;
+        var isCompleted = months.Length > 0 && months.All(month => month.Status == "Completed");
+        var status = DeriveBackfillStatus(started, isCompleted, months);
+
         // Durable completion marker (Phase B gate): every planned month fully completed.
-        if (!state.IsCompleted && months.Length > 0 && months.All(month => month.Status == "Completed"))
+        if (state.IsCompleted != isCompleted)
         {
-            state.IsCompleted = true;
-            state.CompletedAt = timeProvider.GetUtcNow();
+            state.IsCompleted = isCompleted;
+            state.CompletedAt = isCompleted ? timeProvider.GetUtcNow() : null;
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation(
-                "Monthly-activity backfill completed across {Months} months; steady-state previous-month refresh is now active.",
-                months.Length);
+
+            if (isCompleted)
+            {
+                logger.LogInformation(
+                    "Monthly-activity backfill completed across {Months} months; steady-state previous-month refresh is now active.",
+                    months.Length);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Monthly-activity backfill completion marker reopened because retryable company-months remain. Backfill status: {Status}.",
+                    status);
+            }
         }
 
         var outputTypeCounts = await dbContext.MonthlyReports.AsNoTracking()
@@ -176,8 +213,9 @@ public sealed class MonthlyActivityBackfillCoordinator(
             : null;
 
         return new MonthlyActivityBackfillProgress(
-            Started: state.LastStartedAt is not null,
-            state.IsCompleted,
+            Started: started,
+            isCompleted,
+            status,
             state.CompletedAt,
             state.LastStartedAt,
             state.RequestedBy,
@@ -186,10 +224,7 @@ public sealed class MonthlyActivityBackfillCoordinator(
     }
 
     public async Task<bool> IsBackfillCompletedAsync(CancellationToken cancellationToken) =>
-        await dbContext.MonthlyActivityBackfillStates.AsNoTracking()
-            .AnyAsync(
-                row => row.SourceName == providerOptions.Value.ProviderName && row.IsCompleted,
-                cancellationToken);
+        (await GetProgressAsync(cancellationToken)).IsCompleted;
 
     private async Task<MonthlyActivityBackfillStateRow> GetOrCreateStateAsync(
         string providerName,
@@ -225,6 +260,90 @@ public sealed class MonthlyActivityBackfillCoordinator(
     {
         var parts = idempotencyKey.Split('-');
         return parts.Length >= 3 ? parts[2] : string.Empty;
+    }
+
+    private async Task<HashSet<string>> QueryCompletedKeysWithPersistedRowsAsync(
+        string providerName,
+        CancellationToken cancellationToken)
+    {
+        var persistedCompanyMonths = await QueryPersistedCompanyMonthKeysAsync(providerName, cancellationToken);
+        var completedRuns = await dbContext.SyncRuns.AsNoTracking()
+            .Where(run => run.IdempotencyKey.StartsWith(KeyPrefix) &&
+                run.Status == DataSyncRunStatus.Completed.ToString())
+            .Select(run => new { run.IdempotencyKey, run.ExternalReference })
+            .ToListAsync(cancellationToken);
+
+        return completedRuns
+            .Where(run => HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths))
+            .Select(run => run.IdempotencyKey)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private async Task<HashSet<string>> QueryPersistedCompanyMonthKeysAsync(
+        string providerName,
+        CancellationToken cancellationToken)
+    {
+        var reports = await dbContext.MonthlyReports.AsNoTracking()
+            .Where(row => row.ProviderName == providerName)
+            .Select(row => new { row.ExternalCompanyId, row.PeriodStart })
+            .ToListAsync(cancellationToken);
+
+        return reports
+            .Where(row => !string.IsNullOrWhiteSpace(row.ExternalCompanyId))
+            .Select(row => CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart)))
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static bool HasPersistedRows(
+        string idempotencyKey,
+        string? externalReference,
+        HashSet<string> persistedCompanyMonths) =>
+        !string.IsNullOrWhiteSpace(externalReference) &&
+        persistedCompanyMonths.Contains(CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey)));
+
+    private static bool IsNoDataYet(string? errorMessage) =>
+        !string.IsNullOrWhiteSpace(errorMessage) &&
+        errorMessage.Contains("NoDataYet", StringComparison.OrdinalIgnoreCase);
+
+    private static string DeriveBackfillStatus(
+        bool started,
+        bool isCompleted,
+        IReadOnlyCollection<MonthlyActivityBackfillMonthProgress> months)
+    {
+        if (!started || months.Count == 0)
+        {
+            return "Pending";
+        }
+
+        if (isCompleted)
+        {
+            return "Completed";
+        }
+
+        if (months.Any(month => month.Status == "InProgress"))
+        {
+            return "InProgress";
+        }
+
+        var hasRetryable = months.Any(month => month.Status is "NoDataYet" or "CompletedWithFailures" or "CompletedWithRetryables");
+        var hasPending = months.Any(month => month.Status == "Pending");
+
+        if (hasRetryable)
+        {
+            return hasPending ? "Retryable" : "CompletedWithFailures";
+        }
+
+        return hasPending ? "Pending" : "InProgress";
+    }
+
+    private static string CompanyMonthToken(string externalCompanyId, string monthToken) =>
+        string.Create(CultureInfo.InvariantCulture, $"{monthToken}:{externalCompanyId}");
+
+    private static string JalaliMonthToken(DateOnly periodStart)
+    {
+        var dateTime = periodStart.ToDateTime(TimeOnly.MinValue);
+        var calendar = new PersianCalendar();
+        return MonthToken(calendar.GetYear(dateTime), calendar.GetMonth(dateTime));
     }
 
     private static IReadOnlyList<PlannedMonth> ParsePlannedMonths(string json)

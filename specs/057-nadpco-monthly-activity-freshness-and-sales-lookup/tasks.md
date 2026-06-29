@@ -1,12 +1,10 @@
 # Tasks — NADPCO Monthly Activity Freshness and Monthly Sales Lookup
 
-Implementation must keep dependency direction (domain → application → infrastructure), reuse the
-existing orchestration/recalculation paths, and introduce no query-time vendor calls.
+Implementation must keep dependency direction (domain → application → infrastructure), reuse the existing orchestration/recalculation paths, and introduce no query-time vendor calls.
 
 ## A. Shamsi month sequencing (shared)
 
-1. **Shamsi month calculator (Domain/Application).** Add a small pure utility that, given a
-   UTC "now":
+1. **Shamsi month calculator (Domain/Application).** Add a small pure utility that, given a UTC "now":
    - returns the latest fully published Shamsi month = previous month with year rollover
      (20 Khordad 1405 → `1405/02`; Farvardin 1405 → `1404/12`), and
    - enumerates the descending month sequence from that month down to the permitted floor
@@ -22,17 +20,23 @@ existing orchestration/recalculation paths, and introduce no query-time vendor c
 3. **Backfill operation contract (Application).** Define a monthly-activity backfill service
    contract (e.g. `IMonthlyActivityBackfillService`) that walks the descending month sequence
    from task 1, requesting one Shamsi month at a time (`fromDate = toDate = that month`) for
-   the known NADPCO company-id batches, through the existing monthly-activity
-   normalization pipeline. No new normalization path.
+   the known NADPCO company-id batches, through the existing monthly-activity normalization
+   pipeline. No new normalization path.
 4. **Per-month durable progress.** Persist backfill state per month (pending / completed /
    failed with diagnostics, row counts, started/completed timestamps) so an interrupted or
    failed run resumes from the next unfinished month — never restarting from `140502`.
-   Record a durable **backfill-complete marker** when every month down to `1404/01` is done.
+   The durable progress model must distinguish completed-with-rows from no-data-yet so a
+   successful HTTP 200 with zero persisted monthly report rows remains retryable. The global
+   `MonthlyActivityBackfillStates` marker must also be reopenable / ignorable when retryable
+   company-month rows still exist.
 5. **AdminDataOperations endpoint.** Expose the backfill behind the existing DataAdmin admin
    surface (consistent with the other `/api/v1/admin/...` sync operations): one endpoint to
-   start (idempotent — starting while complete or in-progress is a no-op with a clear
+   start (idempotent — starting while truly complete or in-progress is a no-op with a clear
    response), one to read progress (months completed/remaining, failures). DataAdmin policy,
-   audited, never scheduler-invoked.
+   audited, never scheduler-invoked. The progress payload must surface at least:
+   completed with rows, no data yet / retryable, failed, pending / not attempted, plus a
+   global/aggregate status that distinguishes `Completed`, `CompletedWithFailures`,
+   `InProgress`, `Pending`, and `Retryable`.
 6. **Throttling and failure isolation.** Reuse the existing NADPCO batching/concurrency limits;
    one failed month or company batch must not abort the whole backfill — it is recorded and
    retryable on the next manual invocation.

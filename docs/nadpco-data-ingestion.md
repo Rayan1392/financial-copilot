@@ -96,6 +96,14 @@ After normalization:
 No user query should call NADPCO directly. AI answers read persisted normalized tables and
 `DerivedMetrics`.
 
+For monthly production/sales specifically, manual backfill resume semantics are driven by
+persisted monthly rows plus deterministic run history:
+
+- completed-with-rows company/months are skipped;
+- failed / no-data-yet / never-attempted company/months are retried;
+- the global `MonthlyActivityBackfillStates` completed flag must not block reruns when retryable
+  company/month rows still exist.
+
 ## Manual Usage
 
 All endpoints require a `DataAdmin` actor.

@@ -13,6 +13,31 @@ public sealed record AdminDataSyncQueuedResponse(
     string IdempotencyKey,
     string Status);
 
+public sealed record AdminEligibleFundamentalIndexBulkSyncRequest(
+    string? ProviderName = null,
+    string? IdempotencyKey = null,
+    int? MaxItems = null,
+    bool DryRun = false);
+
+public sealed record AdminEligibleFundamentalIndexBulkSyncItemResponse(
+    string ExternalReference,
+    string Status,
+    string IdempotencyKey,
+    string? Error);
+
+public sealed record AdminEligibleFundamentalIndexBulkSyncResponse(
+    Guid RequestId,
+    string Dataset,
+    string Source,
+    DateTimeOffset RequestedAt,
+    string IdempotencyKey,
+    string Status,
+    int EligibleCount,
+    int QueuedCount,
+    int SkippedCount,
+    int FailedCount,
+    IReadOnlyCollection<AdminEligibleFundamentalIndexBulkSyncItemResponse> Items);
+
 public sealed record AdminDataSyncRunResponse(
     Guid RunId,
     string Dataset,
@@ -144,12 +169,14 @@ public sealed record AdminMonthlyActivityBackfillMonthResponse(
     int ShamsiMonth,
     int CompaniesPlanned,
     int CompaniesCompleted,
+    int CompaniesNoDataYet,
     int CompaniesFailed,
     string Status);
 
 public sealed record AdminMonthlyActivityBackfillProgressResponse(
     bool Started,
     bool IsCompleted,
+    string Status,
     DateTimeOffset? CompletedAt,
     DateTimeOffset? LastStartedAt,
     string? RequestedBy,

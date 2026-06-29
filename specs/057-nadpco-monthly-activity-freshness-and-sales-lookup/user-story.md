@@ -41,6 +41,20 @@ metric source.
   CyclicalWaves monthly/quarterly sales values are already provider-precomputed company-level
   facts in Rials.
 
+## Monthly Report Identity Contract
+
+- `MonthlyReports.ExternalReportId` is the identity of the logical report, not of a product
+  category.
+- `categoryId`, category title, industry, and similar grouping fields must never be part of
+  `MonthlyReports.ExternalReportId` in current ingestion, manual backfill, or the fallback path
+  used when `activityId` is absent.
+- Canonical fallback format for product sales:
+  `ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-{outputType}`.
+- Canonical fallback format for service sales:
+  `ServiceSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-none`.
+- Category remains line-item evidence only and may influence grouping in downstream views, but
+  never report identity.
+
 ## Shared Monthly Sales Routing Rule
 
 User intents containing `فروش`, `آخرین فروش`, `فروش ماه`, `فروش ماهانه`, `فروش این ماه`,
@@ -66,6 +80,10 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
 - **completion marker** recording that the backfill finished, after which
 - the **steady-state** refresh requests **only the previous Shamsi month** from the 1st of
   each new month (in Khordad → only `140502`; never re-sweeping back to `140401`).
+
+For this story, a company/month is not considered truly completed just because the vendor returned
+HTTP 200. It is completed only when monthly report rows were actually persisted. If the vendor
+returns an empty/no-report payload, the outcome remains retryable until rows exist.
 
 ### Gap 2 — Persian sales questions never reach monthly-activity data (read side)
 
@@ -98,8 +116,21 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
    Per-month progress is persisted, so an interrupted backfill resumes from the next
    unfinished month instead of restarting.
 4. Backfill run state is queryable from AdminDataOperations: months completed/remaining,
-   per-month row counts, failures. When all months down to `1404/01` have completed, a
-   durable **backfill-complete marker** is recorded.
+   per-month row counts, failures. When all months down to `1404/01` have completed with
+   persisted monthly rows, a durable **backfill-complete marker** is recorded. The progress view
+   must distinguish at least:
+   - completed with persisted monthly rows,
+   - no data yet / retryable,
+   - failed,
+   - pending / not attempted.
+   The aggregate/global status must also distinguish at least:
+   - `Completed`
+   - `CompletedWithFailures`
+   - `InProgress`
+   - `Pending`
+   - `Retryable`
+   `CompletedWithFailures` is resumable, not terminal, and must not make rerun return
+   `AlreadyCompleted` while retryable company-month rows still exist.
 5. The vendor date format actually accepted by `api/v2/MonthlyActivity/ProductSales` for
    month-granular bounds (`140502` year+month vs `1405/02/01`) is verified against the live
    API and documented; the client uses the verified format.
@@ -117,6 +148,9 @@ Today every scheduled run requests the static configured range `MonthlyActivityF
    request **only the previous Shamsi month** (from the 1st of each month onward). They must
    not re-request the full history back to `1404/01`. While the marker is absent, scheduled
    runs must not attempt the full sweep either — the backfill operation owns history.
+   For the manual backfill, resume logic is keyed off durable run history plus persisted
+   monthly report rows: completed-with-rows company/months are skipped; no-data-yet,
+   failed, and never-attempted company/months are retried.
 7. Re-running the previous-month refresh within the same month is idempotent: unchanged
    payloads cause zero row churn and no recalculation requests; changed values (late or
    corrected publications during the month) update rows in place and publish recalculation

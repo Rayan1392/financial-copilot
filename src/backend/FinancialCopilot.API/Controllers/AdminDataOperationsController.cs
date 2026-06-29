@@ -43,6 +43,7 @@ public sealed class AdminDataOperationsController(
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
     IProductRevenueMixBackfillService productRevenueMixBackfillService,
     ICompanyMonthlyActivityTrendSnapshotBackfillService trendSnapshotBackfillService,
+    IEligibleFundamentalIndexBulkSyncService eligibleFundamentalIndexBulkSyncService,
     ISingleCompanyMonthlyIngestionService singleCompanyIngestion,
     IFundamentalIndexCatchUpCoordinator fundamentalIndexCatchUpCoordinator,
     IFundamentalIndexCatchUpRunReader fundamentalIndexCatchUpRunReader,
@@ -87,6 +88,53 @@ public sealed class AdminDataOperationsController(
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.FundamentalIndexes, request, requiresReference: true, cancellationToken,
             providerName: ProviderSources.NoavaranCurrentApiName);
+
+    [HttpPost("data-sync/fundamental-indexes/eligible-companies")]
+    public async Task<ActionResult<AdminEligibleFundamentalIndexBulkSyncResponse>> QueueEligibleFundamentalIndexesSync(
+        [FromBody] AdminEligibleFundamentalIndexBulkSyncRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var providerName = ResolveCuratedFundamentalIndexProviderName(request?.ProviderName);
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (request?.MaxItems is <= 0)
+        {
+            ModelState.AddModelError(
+                nameof(AdminEligibleFundamentalIndexBulkSyncRequest.MaxItems),
+                "MaxItems must be greater than zero when provided.");
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await eligibleFundamentalIndexBulkSyncService.RunAsync(
+            new EligibleFundamentalIndexBulkSyncRequest(
+                $"{actor.ActorType}:{actor.ActorId}",
+                providerName,
+                request?.IdempotencyKey,
+                request?.MaxItems,
+                request?.DryRun ?? false),
+            cancellationToken);
+
+        return Ok(new AdminEligibleFundamentalIndexBulkSyncResponse(
+            result.RequestId,
+            result.Dataset.ToString(),
+            result.Source,
+            result.RequestedAt,
+            result.IdempotencyKey,
+            result.Status,
+            result.EligibleCount,
+            result.QueuedCount,
+            result.SkippedCount,
+            result.FailedCount,
+            result.Items.Select(item => new AdminEligibleFundamentalIndexBulkSyncItemResponse(
+                item.ExternalReference,
+                item.Status,
+                item.IdempotencyKey,
+                item.Error)).ToArray()));
+    }
 
     [HttpGet("data-sync/runs")]
     public async Task<ActionResult<IReadOnlyCollection<AdminDataSyncRunResponse>>> GetRuns(
@@ -543,6 +591,7 @@ public sealed class AdminDataOperationsController(
         new(
             progress.Started,
             progress.IsCompleted,
+            progress.Status,
             progress.CompletedAt,
             progress.LastStartedAt,
             progress.RequestedBy,
@@ -551,6 +600,7 @@ public sealed class AdminDataOperationsController(
                 month.ShamsiMonth,
                 month.CompaniesPlanned,
                 month.CompaniesCompleted,
+                month.CompaniesNoDataYet,
                 month.CompaniesFailed,
                 month.Status)).ToArray(),
             progress.OutputTypeCounts);
@@ -1119,6 +1169,22 @@ public sealed class AdminDataOperationsController(
             message.RequestedAt,
             message.IdempotencyKey,
             DataSyncRunStatus.Queued.ToString()));
+    }
+
+    private string ResolveCuratedFundamentalIndexProviderName(string? providerName)
+    {
+        var normalized = string.IsNullOrWhiteSpace(providerName)
+            ? ProviderSources.NoavaranCurrentApiName
+            : ProviderSources.NormalizeName(providerName.Trim());
+
+        if (!string.Equals(normalized, ProviderSources.NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(
+                nameof(AdminEligibleFundamentalIndexBulkSyncRequest.ProviderName),
+                $"ProviderName must be '{ProviderSources.NoavaranCurrentApiName}' for curated fundamental-index sync.");
+        }
+
+        return ProviderSources.NoavaranCurrentApiName;
     }
 
     private static AdminNadpcoScheduledSyncRunResponse ToScheduledSyncRunResponse(

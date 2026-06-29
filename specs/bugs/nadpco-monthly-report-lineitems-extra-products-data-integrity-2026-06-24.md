@@ -9,6 +9,20 @@
 
 For company **کسرا** (companyId=202, ExternalCompanyId="202"), period **1404/12**, outputTypeId=0, the `MonthlyReportLineItems` table contains **7 product rows that are absent from the Nadpco API response** plus the 6 rows that are present. The extra rows inflate the monthly sales total from the correct **2,119,732** million Rials to **3,019,385** million Rials — a difference of **899,653** million Rials (+42%). This happens because `BuildExternalReportId` in `NadpcoApiMonthlyActivityNormalizer` includes `categoryId` in the report identity key when the API record has no `activityId`, causing the same company/month/outputType ingestion to create **multiple separate `MonthlyReport` rows** (one per category). The `CompanyProductRevenueMixCalculator` and `CompanyMonthlyActivityTrendSnapshotCalculator` then query ALL matching reports and aggregate their line items together, summing products across categories that should never be combined.
 
+## Canonical Identity Correction (2026-06-29)
+
+The intended contract is now explicit:
+
+- `MonthlyReports.ExternalReportId` must never include `categoryId`, category title, industry, or
+  other line-item grouping metadata.
+- This applies in current API ingestion, manual/monthly backfill, fallback identity paths when
+  `activityId` is absent, and any grouping of product or service rows by category.
+- Canonical fallback key for product sales:
+  `ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-{outputType}`.
+- Canonical fallback key for service sales:
+  `ServiceSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-none`.
+- Category remains line-item evidence only.
+
 ---
 
 ## Business Impact
@@ -313,11 +327,16 @@ This is a mitigation, not a fix. In `CompanyProductRevenueMixCalculator` and `Co
 
 ### Database Cleanup Required
 
-After applying the fix, a migration or manual SQL script is needed to:
+After applying the fix, run a **selective** repair script that:
 
-1. Identify all `MonthlyReport` rows for the same company/month/outputType that share a `PeriodStart` (i.e., rows that should have been merged).
-2. For each such group, keep the most recent row (by `LastSynchronizedAt`) and re-assign all line items to it, then delete the duplicate `MonthlyReport` rows.
-3. Recalculate `CompanyProductRevenueMix` and `CompanyMonthlyActivityTrendSnapshots` for all affected company-months.
+1. Detects canonical/category-suffixed duplicate pairs for the same provider/company/month/outputType.
+2. Keeps the canonical report row.
+3. Deletes line items under the category-suffixed report row.
+4. Deletes the category-suffixed `MonthlyReports` row.
+5. Deletes affected `CompanyProductRevenueMixes` and `CompanyMonthlyActivityTrendSnapshots` rows so the
+   affected periods can be recalculated cleanly.
+
+See `specs/bugs/repair-category-suffixed-monthly-reports-2026-06-29.sql`.
 
 ---
 

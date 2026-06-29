@@ -35,7 +35,12 @@ var naturalKey = string.Join("|", [title, category, unit, index.ToString(...)]);
 return $"{prefix}:NATURAL:{HashShort(naturalKey)}";
 ```
 
-The `category` component is resolved in `BuildProductItem` (line 220-221) as:
+The `category` component is resolved in `BuildProductItem` from category title metadata. Numeric
+`CategoryID` must never be used as a distinguishing component for the natural key because it
+splits one logical product into multiple `ProductCode` values when parent records differ only by
+vendor category id.
+
+Historical buggy form:
 
 ```csharp
 var category = item.CategoryTitle ?? parent.CategoryTitle
@@ -97,7 +102,10 @@ Monthly sales charts and AI-reported revenue figures are incorrect
 
 The natural key should not include `CategoryID` (the numeric database/vendor ID) as a distinguishing component for products that share the same human-readable title. Options:
 
-1. **Prefer `CategoryTitle` over `CategoryID.ToString()` consistently** — only use the numeric ID as a last resort when there is genuinely no title. If two items have the same `title`, `unit`, and `CategoryTitle` (or both have no category), they are the same product and should hash to the same code.
+1. **Never use `CategoryID.ToString()` in the natural key.** Prefer `CategoryTitle` when present;
+   otherwise treat category as missing evidence rather than a logical identity component. If two
+   items have the same `title`, `unit`, and `CategoryTitle` (or both have no category), they are
+   the same product and should hash to the same code.
 
 2. **Deduplicate by `(title, unit, categoryTitle)` before upsert** — after building all items for a report group, merge items with identical `(title, unit, categoryTitle)` by summing quantities and amounts, then upsert the merged set.
 

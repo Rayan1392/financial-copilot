@@ -6,6 +6,11 @@
    required for service-sales facts or additional evidence fields.
 4. Add `NadpcoApiMonthlyActivityNormalizer` for product and service activity with stable
    external report and line-item keys.
+   - `MonthlyReports.ExternalReportId` must be canonical for the logical report and must never
+     include `categoryId`, category title, industry, or other line-item grouping metadata.
+   - Product fallback key: `ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-{outputType}`.
+   - Service fallback key: `ServiceSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-none`.
+   - Category remains line-item evidence only.
 5. Preserve unsupported vendor fields as evidence until a governed normalized column is
    justified.
 6. Ensure monthly aggregation remains provider-agnostic and publish recalculation requests.
@@ -25,4 +30,3 @@ Completed on 2026-06-03.
 - Added `NadpcoApiMonthlyActivityNormalizer` with idempotent report/line-item upserts,
   zero-period retention, natural-key fallback for missing product/service ids, and existing
   recalculation publication through the data-sync processor.
-

@@ -65,6 +65,8 @@ resolve to `MONTHLY_SALES` and the monthly-sales snapshot renderer, never generi
 2. Each response is normalized and stored separately with the `OutputType` value persisted as a column on `MonthlyReports`.
 3. Records from different `outputTypeId` values for the same company-month do **not** overwrite each other; they coexist as separate rows distinguished by `OutputType`.
 4. The unique index on `MonthlyReports` (currently `(ProviderName, ExternalReportId)`) continues to enforce row uniqueness; `ExternalReportId` must include the output type when the vendor does not provide a stable activity ID, so separate output types produce separate external IDs.
+   The fallback key must remain canonical to the logical report and must never include
+   `categoryId`, category title, industry, or other line-item grouping metadata.
 5. When the vendor returns an empty array for a given output type, no report row is created for that type (not an error).
 6. The `ServiceSales` endpoint (`api/v3/MonthlyActivity/ServiceSales`) does not accept `outputTypeId`; it continues to be called once per company-month without that parameter.
 7. Backfill and scheduled-sync orchestration remain unchanged in their scope/sequencing logic; they now implicitly fetch all five types because the underlying provider call fetches all five.
@@ -108,6 +110,7 @@ resolve to `MONTHLY_SALES` and the monthly-sales snapshot renderer, never generi
 1. `NormalizedMonthlyReportRow` — add `int? OutputType` column.
 2. `MonthlyReports` table — add `OutputType` column (nullable int).
 3. `ExternalReportId` uniqueness — already includes `output-{N}` in the fallback key when no vendor activity ID is present; vendor-assigned activity IDs may differ per output type (the vendor returns different `ActivityID` values per output type for the same company-month). The normalizer must always include output type in the external report ID.
+   `categoryId` must never be appended to the fallback key.
 4. EF migration required.
 
 ## Dependency on Existing Specs

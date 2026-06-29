@@ -148,8 +148,11 @@ the identity, role, or subscription administration panels.
     - Full error message if any.
     - For NADPCO scheduled runs: the `scheduleSnapshotJson` and `datasetSelectionJson` parsed
       into a readable table.
-    - For monthly-activity backfill: a table of per-month rows (planned / completed / failed)
-      from the existing `/api/v1/admin/noavaran-current/monthly-backfill` endpoint.
+    - For monthly-activity backfill: a table of per-month rows that distinguishes at least
+      completed with persisted rows, no data yet / retryable, failed, and pending / not
+      attempted; the backfill detail view should also surface the aggregate backfill state as
+      one of `Completed`, `CompletedWithFailures`, `InProgress`, `Pending`, or `Retryable`, and
+      must not imply that `CompletedWithFailures` is terminal.
 
 12. A **filter bar** above the activity feed allows filtering by:
     - Provider (multi-select, populated from known provider names).

@@ -10,6 +10,21 @@
    `DerivedMetricRow` persistence, evidence, and idempotency.
 7. Add tests for allowlisted and ignored indexes, scale handling, source policy evidence,
    variant selection, scanner filtering, and separation from engine-calculated metrics.
+8. Add a DataAdmin-only bulk curated-sync endpoint at
+   `POST /api/v1/admin/data-sync/fundamental-indexes/eligible-companies`.
+9. Read eligible companies from the `NoavaranEligibleCompanies` view, using
+   `ExternalCompanyId` as the per-company queued `externalReference`.
+10. Reuse the existing per-company `ProviderDataset.FundamentalIndexes` queue/request flow rather
+    than duplicating import logic or switching to `FundamentalIndexCoverage`.
+11. Add request/response DTOs for `providerName`, `idempotencyKey`, `maxItems`, `dryRun`,
+    aggregate counts, and item-level statuses.
+12. Implement deterministic child idempotency keys derived from the batch key and
+    `externalReference`.
+13. Support `dryRun=true` without publishing any `DataSyncRequest`.
+14. Support bounded `maxItems` processing in deterministic `ExternalCompanyId` order.
+15. Return partial-failure details instead of failing the whole batch on one enqueue error.
+16. Add tests for route/authorization, view-based eligible-company discovery, dry-run behavior,
+    `maxItems`, deterministic child keys, partial failure reporting, and empty eligible lists.
 
 ## Implementation Status
 
@@ -31,3 +46,7 @@ Implemented.
 - Added tests for allowlisted/ignored indexes, evidence, Jalali period mapping, variant
   selection, policy separation from engine rows, malformed dates, processor routing, bounded
   provider requests, and scanner filtering through the existing `DerivedMetrics` path.
+- Added a DataAdmin-only bulk curated fundamental-index endpoint that enumerates
+  `NoavaranEligibleCompanies.ExternalCompanyId`, supports `dryRun` and `maxItems`, generates
+  deterministic child idempotency keys, and publishes the same per-company
+  `ProviderDataset.FundamentalIndexes` requests as the single-company admin endpoint.

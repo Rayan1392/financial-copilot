@@ -172,6 +172,40 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         ]
         """;
 
+    private const string TargetMonth140503ProductSalesJson = """
+        [
+          {
+            "activityID": 5003,
+            "com_ID": 3,
+            "year": 1405,
+            "month": 3,
+            "outputType": 0,
+            "productID": 901,
+            "productTitle": "Target Month Product",
+            "productUnit": "ton",
+            "salesQuantity": 10,
+            "salesValue": 1000
+          }
+        ]
+        """;
+
+    private const string PreviousMonth140502ProductSalesJson = """
+        [
+          {
+            "activityID": 5002,
+            "com_ID": 3,
+            "year": 1405,
+            "month": 2,
+            "outputType": 0,
+            "productID": 902,
+            "productTitle": "Previous Month Product",
+            "productUnit": "ton",
+            "salesQuantity": 5,
+            "salesValue": 500
+          }
+        ]
+        """;
+
     [Fact]
     public async Task Normalize_ProductRows_CreatesOneReportWithLineItems()
     {
@@ -269,6 +303,108 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.StartsWith("PRODUCT:NATURAL:", item.ProductCode);
         Assert.Equal("محصول تکراری", item.Title);
         Assert.Equal(2500000m, item.SalesAmount);
+    }
+
+    [Fact]
+    public async Task Normalize_FallbackReportIdentity_DoesNotIncludeCategorySuffix()
+    {
+        await using var db = CreateDb();
+
+        const string json = """
+            [
+              {
+                "companyId": 14154,
+                "companyTitle": "Canonical Identity Co",
+                "companyTSESymbol": "CANON",
+                "year": 1405,
+                "month": 2,
+                "outputTypeId": 0,
+                "categoryId": 48,
+                "categoryTitle": "Products",
+                "productSales": [
+                  {
+                    "month": 2,
+                    "year": 1405,
+                    "productId": 0,
+                    "productTitle": "Sample Product",
+                    "productUnit": "تن",
+                    "productSaleAmount": 10,
+                    "productSaleValue": 1000
+                  }
+                ]
+              }
+            ]
+            """;
+
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(json, "[]"), CancellationToken.None);
+
+        var report = await db.MonthlyReports.SingleAsync();
+        Assert.Equal("ProductSales:14154:1405-02:output-0", report.ExternalReportId);
+        Assert.DoesNotContain(":category-", report.ExternalReportId, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Normalize_NaturalKey_DoesNotSplitByNumericCategoryId()
+    {
+        await using var db = CreateDb();
+
+        const string json = """
+            [
+              {
+                "activityID": 9100,
+                "companyId": 202,
+                "companyTitle": "Duplicate Test Co",
+                "companyTSESymbol": "دوبل",
+                "year": 1405,
+                "month": 3,
+                "outputTypeId": 0,
+                "categoryId": 48,
+                "productSales": [
+                  {
+                    "month": 3,
+                    "year": 1405,
+                    "productId": 0,
+                    "productTitle": "برگشت از فروش",
+                    "productUnit": "تن",
+                    "productSaleAmount": 0,
+                    "productSaleValue": 0
+                  }
+                ]
+              },
+              {
+                "activityID": 9100,
+                "companyId": 202,
+                "companyTitle": "Duplicate Test Co",
+                "companyTSESymbol": "دوبل",
+                "year": 1405,
+                "month": 3,
+                "outputTypeId": 0,
+                "categoryId": 99,
+                "productSales": [
+                  {
+                    "month": 3,
+                    "year": 1405,
+                    "productId": 0,
+                    "productTitle": "برگشت از فروش",
+                    "productUnit": "تن",
+                    "productSaleAmount": 0,
+                    "productSaleValue": 0
+                  }
+                ]
+              }
+            ]
+            """;
+
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(json, "[]"), CancellationToken.None);
+
+        var report = await db.MonthlyReports.SingleAsync();
+        var items = await db.MonthlyReportLineItems
+            .Where(row => row.MonthlyReportId == report.Id)
+            .ToListAsync();
+
+        Assert.Single(items);
+        Assert.StartsWith("PRODUCT:NATURAL:", items[0].ProductCode);
+        Assert.Equal("برگشت از فروش", items[0].Title);
     }
 
     [Fact]
@@ -406,6 +542,212 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         var request = await ingestionDb.MetricRecalculationRequests.SingleAsync();
         Assert.Equal(ProviderDataset.MonthlyProductionSales.ToString(), request.SourceDataset);
         Assert.Equal(CompanyId, request.ExternalReference);
+    }
+
+    [Fact]
+    public async Task Processor_MonthlyActivityWithoutPersistedRows_IsRetryableAndDoesNotPublishRecalculation()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDb();
+        var payload = MakePayload("[]", "[]");
+        var provider = new StubMonthlyProvider(payload);
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider>(),
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider> { [ProviderName] = provider });
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                CompanyId,
+                Now,
+                "nadpco-monthly-empty",
+                ProviderName),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
+        Assert.Equal(0, result.Run.ProcessedRecords);
+        Assert.Contains("NoDataYet", result.Run.ErrorMessage);
+        Assert.Single(await providerDb.ProviderRawPayloads.ToListAsync());
+        Assert.Empty(await ingestionDb.MonthlyReports.ToListAsync());
+        Assert.Empty(await ingestionDb.MetricRecalculationRequests.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Processor_CompletedMonthlyRunWithoutPersistedRows_DoesNotShortCircuitAlreadyProcessed()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDb();
+        ingestionDb.SyncRuns.Add(new DataSyncRunRow
+        {
+            Id = Guid.NewGuid(),
+            IdempotencyKey = "nadpco-monthly-v1",
+            Dataset = ProviderDataset.MonthlyProductionSales.ToString(),
+            Status = DataSyncRunStatus.Completed.ToString(),
+            RequestedAt = Now.AddMinutes(-10),
+            CompletedAt = Now.AddMinutes(-9),
+            ProcessedRecords = 0,
+            ProviderName = ProviderName,
+            ExternalReference = CompanyId,
+            SourceDateRangeStartJalali = "1405/02/01",
+            SourceDateRangeEndJalali = "1405/02/31"
+        });
+        await ingestionDb.SaveChangesAsync();
+
+        var payload = MakePayload(PreviousMonth140502ProductSalesJson, "[]");
+        var provider = new StubMonthlyProvider(payload);
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider>(),
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider> { [ProviderName] = provider });
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                CompanyId,
+                Now,
+                "nadpco-monthly-v1",
+                ProviderName,
+                SourceDateRangeStartJalali: "1405/02/01",
+                SourceDateRangeEndJalali: "1405/02/31"),
+            CancellationToken.None);
+
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.NotEmpty(await ingestionDb.MonthlyReports.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Processor_MonthlyActivityRowsOutsideRequestedMonth_IsRetryableAndDoesNotCompleteRun()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDb();
+        var payload = MakePayload(PreviousMonth140502ProductSalesJson, "[]");
+        var provider = new StubMonthlyProvider(payload);
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider>(),
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider> { [ProviderName] = provider });
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                CompanyId,
+                Now,
+                "nadpco-monthly-140503",
+                ProviderName,
+                SourceDateRangeStartJalali: "1405/03/01",
+                SourceDateRangeEndJalali: "1405/03/31"),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
+        Assert.Equal(1, result.Run.ProcessedRecords);
+        Assert.Contains("NoDataYet", result.Run.ErrorMessage);
+        Assert.Empty(await ingestionDb.MetricRecalculationRequests.ToListAsync());
+
+        var targetMonthStart = DateOnly.FromDateTime(new PersianCalendar().ToDateTime(1405, 3, 1, 0, 0, 0, 0));
+        Assert.DoesNotContain(
+            await ingestionDb.MonthlyReports.ToListAsync(),
+            report => report.PeriodStart == targetMonthStart);
+    }
+
+    [Fact]
+    public async Task Processor_FailedNoDataMonthlyRun_IsRetriedAndCompletesWhenTargetMonthRowsAppearLater()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDb();
+        ingestionDb.SyncRuns.Add(new DataSyncRunRow
+        {
+            Id = Guid.NewGuid(),
+            IdempotencyKey = "nadpco-monthly-140503-retry",
+            Dataset = ProviderDataset.MonthlyProductionSales.ToString(),
+            Status = DataSyncRunStatus.Failed.ToString(),
+            RequestedAt = Now.AddMinutes(-10),
+            CompletedAt = Now.AddMinutes(-9),
+            ProcessedRecords = 0,
+            ErrorCount = 1,
+            ErrorMessage = "NoDataYet - no monthly report rows were persisted for this company/month.",
+            ProviderName = ProviderName,
+            ExternalReference = CompanyId,
+            SourceDateRangeStartJalali = "1405/03/01",
+            SourceDateRangeEndJalali = "1405/03/31"
+        });
+        await ingestionDb.SaveChangesAsync();
+
+        var payload = MakePayload(TargetMonth140503ProductSalesJson, "[]");
+        var provider = new StubMonthlyProvider(payload);
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider>(),
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider> { [ProviderName] = provider });
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                CompanyId,
+                Now,
+                "nadpco-monthly-140503-retry",
+                ProviderName,
+                SourceDateRangeStartJalali: "1405/03/01",
+                SourceDateRangeEndJalali: "1405/03/31"),
+            CancellationToken.None);
+
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.Null(result.Run.ErrorMessage);
+        var targetMonthStart = DateOnly.FromDateTime(new PersianCalendar().ToDateTime(1405, 3, 1, 0, 0, 0, 0));
+        Assert.Contains(
+            await ingestionDb.MonthlyReports.ToListAsync(),
+            report => report.ExternalCompanyId == CompanyId && report.PeriodStart == targetMonthStart);
+        Assert.Single(await ingestionDb.MetricRecalculationRequests.ToListAsync());
     }
 
     // Exact live v2 ProductSales shape captured 2026-06-10: company parent + nested productSales

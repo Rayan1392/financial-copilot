@@ -15,7 +15,13 @@ As a data administrator, I want Noavaran Amin API services to provide the curren
 7. Current API ingestion supports company catalog updates, financial statements, fundamental indexes, and monthly activity as applicable.
 8. Cache invalidation and derived-metric recalculation run after successful normalized changes.
 9. DataAdmin exposes current API health separately from archive import state.
-10. Failures in current API ingestion do not change archive freeze/import state.
+10. Current-API monthly activity backfill is resumable and uses durable run history, but a company/month is considered completed only when monthly report rows were actually persisted.
+11. A successful Noavaran HTTP 200 response with zero persisted monthly report rows is not sufficient to mark the company/month as completed; that outcome remains retryable until report rows exist.
+12. The aggregate `MonthlyActivityBackfillStates` completed flag must not permanently block reruns; if retryable failed / no-data company-month rows exist, the backfill is resumable and must not return `AlreadyCompleted`.
+13. Failures in current API ingestion do not change archive freeze/import state.
+14. Current API monthly-activity ingestion and manual backfill reuse the same canonical monthly
+    report identity builder. `MonthlyReports.ExternalReportId` must never include `categoryId`;
+    category is line-item evidence only.
 
 ## Out of Scope
 

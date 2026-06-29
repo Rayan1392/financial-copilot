@@ -39,18 +39,21 @@ endpoints respond with HTTP 500. Therefore:
    before normalization.
 2. Normalize Jalali activity months to Gregorian period windows with the shared calendar
    resolver.
-3. Reuse normalized monthly reports where the existing model is sufficient. Extend the model
+3. Monthly report identity is canonical per logical report. For `ProductSales` and
+   `ServiceSales`, `MonthlyReports.ExternalReportId` must never include `categoryId`,
+   category title, industry, or other line-item grouping metadata. Category data is evidence on
+   line items only, not part of report identity.
+4. Reuse normalized monthly reports where the existing model is sufficient. Extend the model
    only when service-sales facts cannot be represented without data loss.
-4. Preserve product/service title, unit, quantity, rate, value, output type, category, and
+5. Preserve product/service title, unit, quantity, rate, value, output type, category, and
    publication metadata as normalized fields or provenance evidence.
-5. Retain valid zero-activity periods.
-6. Aggregate monthly sales provider-agnostically and publish recalculation requests so existing
+6. Retain valid zero-activity periods.
+7. Aggregate monthly sales provider-agnostically and publish recalculation requests so existing
    monthly growth metrics continue to work.
-7. Keep upserts idempotent and ensure `NadpcoApi` rows coexist with `CodalDb` monthly rows.
+8. Keep upserts idempotent and ensure `NadpcoApi` rows coexist with `CodalDb` monthly rows.
 
 ## Out Of Scope
 
 - Query-time remote calls.
 - Fabricating product IDs where the vendor omits them.
 - Replacing the deterministic monthly-growth engine.
-

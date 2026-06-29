@@ -292,10 +292,10 @@ public sealed class DataSyncActivityReaderTests
         public Task<MonthlyActivityBackfillStartResult> StartAsync(
             MonthlyActivityBackfillRequest request, CancellationToken ct) =>
             Task.FromResult(new MonthlyActivityBackfillStartResult("NoOp", 0, 0, 0,
-                new MonthlyActivityBackfillProgress(false, false, null, null, null, [])));
+                new MonthlyActivityBackfillProgress(false, false, "Pending", null, null, null, [])));
 
         public Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken ct) =>
-            Task.FromResult(new MonthlyActivityBackfillProgress(false, false, null, null, null, []));
+            Task.FromResult(new MonthlyActivityBackfillProgress(false, false, "Pending", null, null, null, []));
     }
 
     private sealed class StubFundamentalIndexCatchUpRunReader(

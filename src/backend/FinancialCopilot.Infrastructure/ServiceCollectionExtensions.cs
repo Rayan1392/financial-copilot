@@ -926,6 +926,8 @@ public static class ServiceCollectionExtensions
         // existing current-API scheduled-sync orchestration (single ingestion path).
         services.AddScoped<ICurrentApiGapReader, EfCoreCurrentApiGapReader>();
         services.AddScoped<ICurrentApiBackfillCoordinator, CurrentApiBackfillCoordinator>();
+        services.AddScoped<INoavaranEligibleCompanyReferenceReader, NoavaranEligibleCompanyViewReader>();
+        services.AddScoped<IEligibleFundamentalIndexBulkSyncService, EligibleFundamentalIndexBulkSyncService>();
 
         // Spec 050 â€” all-index fundamental-index catch-up coverage (DataAdmin-only; no recurring worker).
         services.AddScoped<EfCoreFundamentalIndexCatchUpRunRepository>();

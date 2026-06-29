@@ -53,7 +53,7 @@ public sealed class FinancialDataSyncProcessor(
             row => row.IdempotencyKey == request.IdempotencyKey,
             cancellationToken);
 
-        if (existing?.Status == DataSyncRunStatus.Completed.ToString())
+        if (existing is not null && await IsEffectivelyCompletedAsync(existing, cancellationToken))
         {
             return new DataSyncProcessingResult(Map(existing), AlreadyProcessed: true);
         }
@@ -117,6 +117,23 @@ public sealed class FinancialDataSyncProcessor(
 
             run.SourcePayloadChecksum = payload.Checksum;
             run.ProcessedRecords = outcome.ProcessedRecords;
+            run.ErrorCount = 0;
+            run.ErrorMessage = null;
+
+            if (request.Dataset == ProviderDataset.MonthlyProductionSales)
+            {
+                var hasRequestedCompanyMonthRows = await MonthlyReportExistsForRunAsync(run, cancellationToken);
+                if (!hasRequestedCompanyMonthRows)
+                {
+                    run.Status = DataSyncRunStatus.Failed.ToString();
+                    run.ErrorCount = 1;
+                    run.ErrorMessage = Limit("NoDataYet - vendor returned no monthly report rows for this company/month.");
+                    run.CompletedAt = timeProvider.GetUtcNow();
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
+                }
+            }
+
             run.Status = DataSyncRunStatus.Completed.ToString();
             run.CompletedAt = timeProvider.GetUtcNow();
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -204,6 +221,95 @@ public sealed class FinancialDataSyncProcessor(
     private IFundamentalIndexCoverageProvider ResolveCoverageProvider() =>
         coverageProvider ?? throw new InvalidOperationException(
             "No IFundamentalIndexCoverageProvider is registered for the FundamentalIndexCoverage dataset.");
+
+    private async Task<bool> IsEffectivelyCompletedAsync(
+        DataSyncRunRow run,
+        CancellationToken cancellationToken)
+    {
+        if (run.Status != DataSyncRunStatus.Completed.ToString())
+        {
+            return false;
+        }
+
+        if (run.Dataset != ProviderDataset.MonthlyProductionSales.ToString())
+        {
+            return true;
+        }
+
+        return await MonthlyReportExistsForRunAsync(run, cancellationToken);
+    }
+
+    private async Task<bool> MonthlyReportExistsForRunAsync(
+        DataSyncRunRow run,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(run.ExternalReference) ||
+            !TryResolveRunPeriod(run, out var periodStart, out var periodEnd))
+        {
+            return run.ProcessedRecords > 0;
+        }
+
+        var query = dbContext.MonthlyReports.AsNoTracking()
+            .Where(row => row.ExternalCompanyId == run.ExternalReference &&
+                row.PeriodStart == periodStart &&
+                row.PeriodEnd == periodEnd);
+
+        if (!string.IsNullOrWhiteSpace(run.ProviderName))
+        {
+            query = query.Where(row => row.ProviderName == run.ProviderName);
+        }
+
+        return await query.AnyAsync(cancellationToken);
+    }
+
+    private static bool TryResolveRunPeriod(
+        DataSyncRunRow run,
+        out DateOnly periodStart,
+        out DateOnly periodEnd)
+    {
+        periodStart = default;
+        periodEnd = default;
+
+        if (TryParseShamsiYearMonth(run.SourceDateRangeStartJalali, out var year, out var month) ||
+            TryParseMonthToken(run.IdempotencyKey, out year, out month))
+        {
+            var resolved = JalaliDateResolver.ResolveMonth(year, (byte)month);
+            periodStart = resolved.PeriodStart;
+            periodEnd = resolved.PeriodEnd;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseShamsiYearMonth(string? value, out int year, out int month)
+    {
+        year = 0;
+        month = 0;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var parts = value.Split('/');
+        return parts.Length >= 2 &&
+            int.TryParse(parts[0], out year) &&
+            int.TryParse(parts[1], out month);
+    }
+
+    private static bool TryParseMonthToken(string idempotencyKey, out int year, out int month)
+    {
+        year = 0;
+        month = 0;
+        var parts = idempotencyKey.Split('-');
+        if (parts.Length < 3 || parts[2].Length != 6)
+        {
+            return false;
+        }
+
+        return int.TryParse(parts[2][..4], out year) &&
+            int.TryParse(parts[2][4..6], out month);
+    }
 
     private static int ParseShamsiYear(string? value, int fallback) =>
         int.TryParse(value, out var year) ? year : fallback;

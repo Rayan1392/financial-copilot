@@ -38,6 +38,14 @@ Feature `029` already separates `StatementType` from `PeriodType`, and feature `
 
 This feature adds the AI query flow and deterministic financial analysis layer on top of those persisted statements.
 
+Follow-up dependency note:
+
+The current persisted current-API statement model does not yet guarantee full vendor line-item
+coverage or separate persistence of same-period standalone vs consolidated variants. Those storage
+guarantees are defined by spec `082-noavaran-financial-statement-full-item-and-variant-persistence`.
+Until that spec is implemented, this query feature can only reliably answer metrics backed by the
+currently governed statement item maps and only for the surviving persisted variant rows.
+
 ## Source Sample Note
 
 The attached sample for `غالبر` contains six income-statement records:
@@ -261,7 +269,8 @@ The answer describes financial-statement facts and computed ratios. It must not 
 
 ## Out of Scope
 
-- Provider ingestion changes unless missing fields are discovered.
+- Provider ingestion changes unless missing fields are discovered. Full vendor line-item
+  persistence and standalone/consolidated storage separation are owned by spec `082`.
 - Forecasting future profitability.
 - Valuation or target-price calculation.
 - Full deep research across text reports.

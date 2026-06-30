@@ -18,11 +18,15 @@ AI Financial Statement Period Analysis Query
 - Reused `WarningsJson` evidence emitted by the existing normalizers for `JalaliPeriodEnd`, `JalaliFiscalYearEnd`, `JalaliAnnouncementDate`, `AnnouncementDate`, `IsAudited`, `IsRepresented`, and `IsComposing`.
 - Reused governed statement metric codes already present in persisted line items: `REVENUE`, `GROSS_PROFIT`, `OPERATING_PROFIT`, `NET_PROFIT`, `EPS`, and `TOTAL_EQUITY`.
 - Current implementation can also read governed balance-sheet codes `TOTAL_ASSETS`, `TOTAL_LIABILITIES`, `CURRENT_ASSETS`, and `CURRENT_LIABILITIES` when they exist in persisted line items; NADPCO source-item coverage for those rows still needs a dedicated mapping pass if the provider feed does not already emit them through archive/current imports.
+- Current implementation depends on whatever statement variants survived ingestion. Separate
+  persistence of same-period `IsComposing=false` and `IsComposing=true` rows is a prerequisite for
+  complete standalone-vs-consolidated query correctness and is owned by spec `082`.
 
 ## Dependencies
 
 - `029-financial-statement-schema-fix`
 - `040-nadpco-api-financial-statement-sync`
+- `082-noavaran-financial-statement-full-item-and-variant-persistence`
 - `045-symbol-metric-point-lookup`
 - `047-microsoft-agent-framework-orchestration-v2`
 - `072-centralize-financial-metric-alias-and-intent-routing-registry`

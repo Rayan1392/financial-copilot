@@ -1,7 +1,7 @@
 # Noavaran Financial Statement Full-Item And Variant Persistence
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Story
 

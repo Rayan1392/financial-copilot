@@ -5,7 +5,29 @@ Noavaran Financial Statement Full-Item And Variant Persistence
 
 ## Status
 
-- [ ] Proposed
+- [x] Implemented
+
+## Implementation Status
+
+- [x] Current-API statement requests now send `items: []` for `IncomeStatement`,
+  `BalanceSheet`, and `CashFlow` while preserving bounded year / period / variant query
+  parameters.
+- [x] Added one shared persisted source-item catalog keyed by
+  `(ProviderName, StatementType, SourceItemId)` with `TitleFa`, `TitleEn`, `Unit`, and
+  synchronization timestamp.
+- [x] Added a separate persisted source-item-to-`MetricCode` mapping table so governed metric
+  resolution is no longer owned by hardcoded runtime write-path dictionaries.
+- [x] Current-API line-item persistence now retains unmapped vendor items instead of dropping
+  them, while mapped items still cache the governed `MetricCode` for efficient reads.
+- [x] Same-period statement variants differing by `IsComposing`, `IsAudited`, or
+  `IsRepresented` now persist as separate normalized statement rows with expanded unique/indexed
+  identity.
+- [x] Added EF migration `20260630154843_AddNoavaranFinancialStatementSourceCatalogAndVariants`
+  to introduce the new catalog/mapping tables and variant-aware statement indexes.
+- [x] Updated current statement-analysis reads to ignore null `MetricCode` rows when building
+  governed lookup dictionaries so existing deterministic readers remain stable.
+- [x] Added unit coverage for `items: []`, unmapped item retention, governed mapping resolution,
+  standalone vs consolidated persistence, audited variant persistence, and idempotent reruns.
 
 ## Dependencies
 

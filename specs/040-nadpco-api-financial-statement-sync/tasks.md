@@ -26,12 +26,14 @@ Implemented.
 - Added unit coverage for statement types, item allowlists, period mapping, audited selection,
   evidence, idempotency, malformed payloads, and recalculation routing.
 
-Known limitation documented after implementation:
+Original `040` delivery limitations, now superseded by `082`:
 
-- Current code posts curated `items` allowlists to the vendor and persists only governed mapped
-  line items into `FinancialStatementLineItems`.
-- Current code applies `NadpcoApiStatementSelectionPolicy.SelectAll(...)` before persistence, so
-  same-period standalone and consolidated statements do not both survive into normalized storage.
-- These limitations are intentionally addressed by
-  `082-noavaran-financial-statement-full-item-and-variant-persistence`, not retroactively folded
-  into the original scope of spec `040`.
+- The first `040` implementation posted curated `items` allowlists and persisted only governed
+  mapped line items into `FinancialStatementLineItems`.
+- The first `040` implementation applied
+  `NadpcoApiStatementSelectionPolicy.SelectAll(...)` before persistence, so same-period
+  standalone and consolidated statements did not both survive into normalized storage.
+- Those gaps are now implemented by
+  `082-noavaran-financial-statement-full-item-and-variant-persistence`, which widened the request
+  body to `items: []`, added full vendor-item persistence through a shared source-item catalog and
+  persisted mapping table, and kept statement variants structurally separate.

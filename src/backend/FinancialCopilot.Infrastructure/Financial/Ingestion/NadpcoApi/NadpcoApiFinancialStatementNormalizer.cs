@@ -28,10 +28,16 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         typed.AddRange(ReadStatements(envelope.BalanceSheet, FinancialStatementType.BalanceSheet));
         typed.AddRange(ReadStatements(envelope.CashFlow, FinancialStatementType.CashFlow));
 
-        var selected = NadpcoApiStatementSelectionPolicy.SelectAll(typed);
         string? canonicalExternalCompanyId = null;
 
-        foreach (var item in selected)
+        foreach (var item in typed
+                     .OrderBy(entry => entry.StatementType)
+                     .ThenBy(entry => entry.Record.ComID)
+                     .ThenBy(entry => entry.Record.PeriodEnd)
+                     .ThenBy(entry => entry.Record.IsComposing)
+                     .ThenBy(entry => entry.Record.IsRepresented)
+                     .ThenBy(entry => entry.Record.IsAudited)
+                     .ThenBy(entry => entry.Record.StatementID))
         {
             var statement = item.Record;
             var period = MapPeriod(statement);
@@ -43,7 +49,10 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             var row = await dbContext.FinancialStatements.SingleOrDefaultAsync(
                 candidate => candidate.ProviderName == ProviderName &&
                     candidate.ExternalStatementId == externalStatementId &&
-                    candidate.StatementType == statementTypeText,
+                    candidate.StatementType == statementTypeText &&
+                    candidate.IsAudited == statement.IsAudited &&
+                    candidate.IsRepresented == statement.IsRepresented &&
+                    candidate.IsComposing == statement.IsComposing,
                 cancellationToken);
 
             if (row is null)
@@ -60,19 +69,23 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
 
             row.ExternalCompanyId = externalCompanyId;
             row.StatementType = statementTypeText;
+            row.StatementTitle = statement.FullTitle;
             row.PeriodType = period.FiscalPeriodType.ToString();
             row.PeriodStart = period.PeriodStart;
             row.PeriodEnd = period.PeriodEnd;
             row.SourcePayloadChecksum = payload.Checksum;
             row.LastSynchronizedAt = payload.ReceivedAt;
+            row.IsAudited = statement.IsAudited;
+            row.IsRepresented = statement.IsRepresented;
+            row.IsComposing = statement.IsComposing;
             row.WarningsJson = BuildEvidenceJson(statement, item.StatementType);
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            await UpsertLineItemsAsync(row.Id, statement.Items, MapFor(item.StatementType), cancellationToken);
+            await UpsertLineItemsAsync(row, statement.Items, payload.ReceivedAt, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return new NormalizationOutcome(selected.Count, canonicalExternalCompanyId);
+        return new NormalizationOutcome(typed.Count, canonicalExternalCompanyId);
     }
 
     private static IReadOnlyList<NadpcoApiTypedStatement> ReadStatements(
@@ -98,21 +111,25 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
     }
 
     private async Task UpsertLineItemsAsync(
-        Guid statementId,
+        NormalizedFinancialStatementRow statementRow,
         IReadOnlyList<NadpcoApiStatementLineItem> sourceItems,
-        IReadOnlyDictionary<int, string> itemMap,
+        DateTimeOffset synchronizedAt,
         CancellationToken cancellationToken)
     {
         foreach (var source in sourceItems)
         {
-            if (!itemMap.TryGetValue(source.ItemID, out var metricCode))
-            {
-                continue;
-            }
+            var catalogRow = await UpsertSourceItemCatalogAsync(
+                statementRow.ProviderName,
+                statementRow.StatementType,
+                source,
+                synchronizedAt,
+                cancellationToken);
+            await EnsureKnownMappingAsync(catalogRow, cancellationToken);
+            var metricCode = await ResolveMetricCodeAsync(catalogRow.Id, cancellationToken);
 
             var row = await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(
-                candidate => candidate.FinancialStatementId == statementId &&
-                    candidate.MetricCode == metricCode,
+                candidate => candidate.FinancialStatementId == statementRow.Id &&
+                    candidate.SourceItemCatalogId == catalogRow.Id,
                 cancellationToken);
 
             if (row is null)
@@ -120,24 +137,17 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
                 row = new NormalizedFinancialStatementLineItemRow
                 {
                     Id = Guid.NewGuid(),
-                    FinancialStatementId = statementId,
-                    MetricCode = metricCode
+                    FinancialStatementId = statementRow.Id,
+                    SourceItemCatalogId = catalogRow.Id
                 };
                 dbContext.FinancialStatementLineItems.Add(row);
             }
 
+            row.SourceItemCatalogId = catalogRow.Id;
+            row.MetricCode = metricCode;
             row.Value = source.Amount;
         }
     }
-
-    private static IReadOnlyDictionary<int, string> MapFor(FinancialStatementType statementType) =>
-        statementType switch
-        {
-            FinancialStatementType.IncomeStatement => NadpcoApiStatementItemMaps.IncomeItemIdToMetricCode,
-            FinancialStatementType.BalanceSheet => NadpcoApiStatementItemMaps.BalanceSheetItemIdToMetricCode,
-            FinancialStatementType.CashFlow => NadpcoApiStatementItemMaps.CashFlowItemIdToMetricCode,
-            _ => throw new ArgumentOutOfRangeException(nameof(statementType), statementType, null)
-        };
 
     private static NadpcoApiMappedPeriod MapPeriod(NadpcoApiStatementRecord statement)
     {
@@ -179,6 +189,83 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         };
         return JsonSerializer.Serialize(new[] { evidence }, JsonOptions);
     }
+
+    private async Task<FinancialStatementSourceItemCatalogRow> UpsertSourceItemCatalogAsync(
+        string providerName,
+        string statementType,
+        NadpcoApiStatementLineItem sourceItem,
+        DateTimeOffset synchronizedAt,
+        CancellationToken cancellationToken)
+    {
+        var row = dbContext.FinancialStatementSourceItems.Local.FirstOrDefault(
+                      candidate => candidate.ProviderName == providerName &&
+                          candidate.StatementType == statementType &&
+                          candidate.SourceItemId == sourceItem.ItemID)
+                  ?? await dbContext.FinancialStatementSourceItems.SingleOrDefaultAsync(
+            candidate => candidate.ProviderName == providerName &&
+                candidate.StatementType == statementType &&
+                candidate.SourceItemId == sourceItem.ItemID,
+            cancellationToken);
+
+        if (row is null)
+        {
+            row = new FinancialStatementSourceItemCatalogRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = providerName,
+                StatementType = statementType,
+                SourceItemId = sourceItem.ItemID
+            };
+            dbContext.FinancialStatementSourceItems.Add(row);
+        }
+
+        row.TitleFa = sourceItem.ItemTitle;
+        row.Unit = sourceItem.AmountUnit;
+        row.LastSynchronizedAt = synchronizedAt;
+        return row;
+    }
+
+    private async Task EnsureKnownMappingAsync(
+        FinancialStatementSourceItemCatalogRow catalogRow,
+        CancellationToken cancellationToken)
+    {
+        var statementType = Enum.Parse<FinancialStatementType>(catalogRow.StatementType);
+        var metricCode = NadpcoApiStatementItemMaps.TryGetMetricCode(statementType, catalogRow.SourceItemId);
+        if (metricCode is null)
+        {
+            return;
+        }
+
+        var existing = dbContext.FinancialStatementSourceItemMetricMappings.Local.FirstOrDefault(
+                           candidate => candidate.SourceItemCatalogId == catalogRow.Id)
+                       ?? await dbContext.FinancialStatementSourceItemMetricMappings.SingleOrDefaultAsync(
+            candidate => candidate.SourceItemCatalogId == catalogRow.Id,
+            cancellationToken);
+
+        if (existing is null)
+        {
+            dbContext.FinancialStatementSourceItemMetricMappings.Add(
+                new FinancialStatementSourceItemMetricMappingRow
+                {
+                    Id = Guid.NewGuid(),
+                    SourceItemCatalogId = catalogRow.Id,
+                    MetricCode = metricCode
+                });
+            return;
+        }
+
+        existing.MetricCode = metricCode;
+    }
+
+    private async Task<string?> ResolveMetricCodeAsync(Guid sourceItemCatalogId, CancellationToken cancellationToken) =>
+        dbContext.FinancialStatementSourceItemMetricMappings.Local
+            .Where(row => row.SourceItemCatalogId == sourceItemCatalogId)
+            .Select(row => row.MetricCode)
+            .SingleOrDefault()
+        ?? await dbContext.FinancialStatementSourceItemMetricMappings
+            .Where(row => row.SourceItemCatalogId == sourceItemCatalogId)
+            .Select(row => row.MetricCode)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private sealed record NadpcoApiMappedPeriod(
         FiscalPeriodType FiscalPeriodType,

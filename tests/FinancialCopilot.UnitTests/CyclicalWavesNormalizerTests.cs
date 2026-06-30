@@ -409,7 +409,8 @@ public sealed class CyclicalWavesNormalizerTests
         var q0 = await db.FinancialStatements.FirstAsync(s => s.ExternalStatementId.EndsWith(":Q0"));
         var items = await db.FinancialStatementLineItems
             .Where(i => i.FinancialStatementId == q0.Id)
-            .ToDictionaryAsync(i => i.MetricCode);
+            .Where(i => i.MetricCode != null)
+            .ToDictionaryAsync(i => i.MetricCode!);
 
         Assert.Equal(53244165000000m, items["REVENUE"].Value);
         Assert.Equal(57549286500000m, items["AVG_4Q_REVENUE"].Value);

@@ -45,8 +45,10 @@ internal sealed class EfCoreFinancialStatementAnalysisRepository(FinancialIngest
             .GroupBy(item => item.FinancialStatementId)
             .ToDictionary(
                 group => group.Key,
-                group => (IReadOnlyDictionary<string, decimal?>)group.ToDictionary(
-                    item => item.MetricCode,
+                group => (IReadOnlyDictionary<string, decimal?>)group
+                    .Where(item => !string.IsNullOrWhiteSpace(item.MetricCode))
+                    .ToDictionary(
+                    item => item.MetricCode!,
                     item => item.Value,
                     StringComparer.OrdinalIgnoreCase));
 

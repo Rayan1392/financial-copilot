@@ -212,7 +212,7 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
-    public async Task DataProvider_FetchFinancialStatements_PostsBoundedCompanyAndItemAllowlists()
+    public async Task DataProvider_FetchFinancialStatements_PostsBoundedCompanyRequestsAndFetchesAllItems()
     {
         await using var dbContext = CreateProviderDbContext();
         var requests = new List<(string Uri, string Body)>();
@@ -246,10 +246,7 @@ public sealed class NadpcoApiProviderTests
 
         Assert.Equal(3, requests.Count);
         Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
-        Assert.All(requests, r => Assert.DoesNotContain("\"items\":[]", r.Body));
-        Assert.Contains(requests, r => r.Uri.Contains("IncomeStatement") && r.Body.Contains("143"));
-        Assert.Contains(requests, r => r.Uri.Contains("BalanceSheet") && r.Body.Contains("147"));
-        Assert.Contains(requests, r => r.Uri.Contains("CashFlow") && r.Body.Contains("\"items\":[1]"));
+        Assert.All(requests, r => Assert.Contains("\"items\":[]", r.Body));
         Assert.All(requests, r => Assert.Contains("fromYear=1401", r.Uri));
         Assert.All(requests, r => Assert.Contains("perTId=6", r.Uri));
         Assert.All(requests, r => Assert.Contains("isAudited=false", r.Uri));

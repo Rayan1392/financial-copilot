@@ -1,3 +1,5 @@
+using FinancialCopilot.Domain.Financial.Entities;
+
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public static class NadpcoApiStatementItemMaps
@@ -36,5 +38,17 @@ public static class NadpcoApiStatementItemMaps
         {
             // The attached sample identifies item 1 as operating cash flow.
             [1] = "OPERATING_CASH_FLOW"
+        };
+
+    public static string? TryGetMetricCode(FinancialStatementType statementType, int sourceItemId) =>
+        statementType switch
+        {
+            FinancialStatementType.IncomeStatement =>
+                IncomeItemIdToMetricCode.TryGetValue(sourceItemId, out var incomeMetricCode) ? incomeMetricCode : null,
+            FinancialStatementType.BalanceSheet =>
+                BalanceSheetItemIdToMetricCode.TryGetValue(sourceItemId, out var balanceMetricCode) ? balanceMetricCode : null,
+            FinancialStatementType.CashFlow =>
+                CashFlowItemIdToMetricCode.TryGetValue(sourceItemId, out var cashFlowMetricCode) ? cashFlowMetricCode : null,
+            _ => null
         };
 }

@@ -17,6 +17,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<NormalizedFinancialStatementLineItemRow> FinancialStatementLineItems =>
         Set<NormalizedFinancialStatementLineItemRow>();
 
+    public DbSet<FinancialStatementSourceItemCatalogRow> FinancialStatementSourceItems =>
+        Set<FinancialStatementSourceItemCatalogRow>();
+
+    public DbSet<FinancialStatementSourceItemMetricMappingRow> FinancialStatementSourceItemMetricMappings =>
+        Set<FinancialStatementSourceItemMetricMappingRow>();
+
     public DbSet<NormalizedMonthlyReportRow> MonthlyReports => Set<NormalizedMonthlyReportRow>();
 
     public DbSet<NormalizedMonthlyReportLineItemRow> MonthlyReportLineItems =>

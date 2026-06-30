@@ -56,19 +56,19 @@ public sealed class NadpcoApiDataProviderClient(
                 BuildStatementEndpoint("api/v2/FS/BalanceSheet/Values"),
                 new NadpcoApiStatementRequest(
                     companyIds,
-                    NadpcoApiStatementItemMaps.BalanceSheetItemIdToMetricCode.Keys.ToArray()),
+                    Array.Empty<int>()),
                 cancellationToken),
             await PostJsonForPayloadAsync(
                 BuildStatementEndpoint("api/v2/FS/IncomeStatement/Values"),
                 new NadpcoApiStatementRequest(
                     companyIds,
-                    NadpcoApiStatementItemMaps.IncomeItemIdToMetricCode.Keys.ToArray()),
+                    Array.Empty<int>()),
                 cancellationToken),
             await PostJsonForPayloadAsync(
                 BuildStatementEndpoint("api/v2/FS/CashFlow/Values"),
                 new NadpcoApiStatementRequest(
                     companyIds,
-                    NadpcoApiStatementItemMaps.CashFlowItemIdToMetricCode.Keys.ToArray()),
+                    Array.Empty<int>()),
                 cancellationToken));
         var json = JsonSerializer.Serialize(envelope, JsonOptions);
 

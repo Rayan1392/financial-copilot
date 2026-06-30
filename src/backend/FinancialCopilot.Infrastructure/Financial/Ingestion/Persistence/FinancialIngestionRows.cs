@@ -196,6 +196,8 @@ public sealed class NormalizedFinancialStatementRow
     /// </summary>
     public string StatementType { get; set; } = string.Empty;
 
+    public string? StatementTitle { get; set; }
+
     public string PeriodType { get; set; } = string.Empty;
 
     public DateOnly PeriodStart { get; set; }
@@ -205,6 +207,12 @@ public sealed class NormalizedFinancialStatementRow
     public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public DateTimeOffset LastSynchronizedAt { get; set; }
+
+    public bool IsAudited { get; set; }
+
+    public bool IsRepresented { get; set; }
+
+    public bool IsComposing { get; set; }
 
     public string WarningsJson { get; set; } = "[]";
 
@@ -227,13 +235,43 @@ public sealed class NormalizedFinancialStatementRow
     public Guid? CompanyId { get; set; }
 }
 
+public sealed class FinancialStatementSourceItemCatalogRow
+{
+    public Guid Id { get; set; }
+
+    public string ProviderName { get; set; } = string.Empty;
+
+    public string StatementType { get; set; } = string.Empty;
+
+    public int SourceItemId { get; set; }
+
+    public string? TitleFa { get; set; }
+
+    public string? TitleEn { get; set; }
+
+    public string? Unit { get; set; }
+
+    public DateTimeOffset LastSynchronizedAt { get; set; }
+}
+
+public sealed class FinancialStatementSourceItemMetricMappingRow
+{
+    public Guid Id { get; set; }
+
+    public Guid SourceItemCatalogId { get; set; }
+
+    public string MetricCode { get; set; } = string.Empty;
+}
+
 public sealed class NormalizedFinancialStatementLineItemRow
 {
     public Guid Id { get; set; }
 
     public Guid FinancialStatementId { get; set; }
 
-    public string MetricCode { get; set; } = string.Empty;
+    public Guid? SourceItemCatalogId { get; set; }
+
+    public string? MetricCode { get; set; }
 
     public decimal? Value { get; set; }
 }

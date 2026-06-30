@@ -119,19 +119,19 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         await using var db = CreateDb();
         var outcome = await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        Assert.Equal(3, outcome.ProcessedRecords);
-        Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "IncomeStatement");
+        Assert.Equal(4, outcome.ProcessedRecords);
+        Assert.Equal(2, await db.FinancialStatements.CountAsync(s => s.StatementType == "IncomeStatement"));
         Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "BalanceSheet");
         Assert.Contains(await db.FinancialStatements.ToListAsync(), s => s.StatementType == "CashFlow");
     }
 
     [Fact]
-    public async Task Normalize_MapsCuratedItemsAndIgnoresUnmappedItems()
+    public async Task Normalize_PersistsAllItemsAndResolvesMappedMetricsFromCatalog()
     {
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement");
+        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement" && s.IsAudited);
         var incomeItems = await db.FinancialStatementLineItems
             .Where(i => i.FinancialStatementId == income.Id)
             .ToListAsync();
@@ -140,11 +140,15 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
 
         Assert.Contains(incomeItems, i => i.MetricCode == "NET_PROFIT" && i.Value == 200m);
         Assert.Contains(incomeItems, i => i.MetricCode == "REVENUE" && i.Value == 600m);
-        Assert.DoesNotContain(incomeItems, i => i.MetricCode == "UNMAPPED");
+        Assert.Contains(incomeItems, i => i.MetricCode is null && i.Value == 1m);
         Assert.Contains(await db.FinancialStatementLineItems.ToListAsync(),
             i => i.FinancialStatementId == balance.Id && i.MetricCode == "TOTAL_EQUITY" && i.Value == 8000m);
         Assert.Contains(await db.FinancialStatementLineItems.ToListAsync(),
             i => i.FinancialStatementId == cashFlow.Id && i.MetricCode == "OPERATING_CASH_FLOW" && i.Value == 62864564m);
+        Assert.Equal(5, await db.FinancialStatementSourceItems.CountAsync());
+        Assert.Contains(
+            await db.FinancialStatementSourceItems.ToListAsync(),
+            i => i.StatementType == "IncomeStatement" && i.SourceItemId == 999 && i.TitleFa == "unmapped");
     }
 
     [Fact]
@@ -153,23 +157,79 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement");
+        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement" && s.IsAudited);
         Assert.Equal("SixMonths", income.PeriodType);
         Assert.Equal(new DateOnly(2022, 3, 21), income.PeriodStart);
         Assert.Equal(new DateOnly(2022, 9, 22), income.PeriodEnd);
     }
 
     [Fact]
-    public async Task Normalize_SelectionPolicy_PrefersAuditedVariant()
+    public async Task Normalize_PersistsAuditedVariantsSeparately()
     {
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement");
-        Assert.Equal("474148", income.ExternalStatementId);
-        var netProfit = await db.FinancialStatementLineItems.SingleAsync(
-            i => i.FinancialStatementId == income.Id && i.MetricCode == "NET_PROFIT");
-        Assert.Equal(200m, netProfit.Value);
+        Assert.Equal(2, await db.FinancialStatements.CountAsync(s => s.StatementType == "IncomeStatement"));
+        Assert.Contains(await db.FinancialStatements.ToListAsync(),
+            s => s.StatementType == "IncomeStatement" && !s.IsAudited && s.ExternalStatementId == "474147");
+        Assert.Contains(await db.FinancialStatements.ToListAsync(),
+            s => s.StatementType == "IncomeStatement" && s.IsAudited && s.ExternalStatementId == "474148");
+    }
+
+    [Fact]
+    public async Task Normalize_PersistsStandaloneAndConsolidatedVariantsSeparately()
+    {
+        await using var db = CreateDb();
+        var payload = MakePayload(
+            incomeJson: """
+                [
+                  {
+                    "statementID": 600001,
+                    "com_ID": 3,
+                    "bourseSymbol": "کچاد",
+                    "fullTitle": "نمونه اصلی",
+                    "periodType": 12,
+                    "fiscalYearEnd": "2023-03-20T00:00:00",
+                    "jalaliFiscalYearEnd": "1401/12/29",
+                    "periodEnd": "2023-03-20T00:00:00",
+                    "jalaliPeriodEnd": "1401/12/29",
+                    "anouncementDate": "2023-04-01T00:00:00",
+                    "jalaliAnouncementDate": "1402/01/12",
+                    "isAudited": false,
+                    "isRepresented": false,
+                    "isComposing": false,
+                    "items": [
+                      { "itemID": 143, "itemTitle": "سود خالص", "amount": 100, "amountUnit": "N/A" }
+                    ]
+                  },
+                  {
+                    "statementID": 600002,
+                    "com_ID": 3,
+                    "bourseSymbol": "کچاد",
+                    "fullTitle": "نمونه تلفیقی",
+                    "periodType": 12,
+                    "fiscalYearEnd": "2023-03-20T00:00:00",
+                    "jalaliFiscalYearEnd": "1401/12/29",
+                    "periodEnd": "2023-03-20T00:00:00",
+                    "jalaliPeriodEnd": "1401/12/29",
+                    "anouncementDate": "2023-04-01T00:00:00",
+                    "jalaliAnouncementDate": "1402/01/12",
+                    "isAudited": false,
+                    "isRepresented": false,
+                    "isComposing": true,
+                    "items": [
+                      { "itemID": 143, "itemTitle": "سود خالص", "amount": 150, "amountUnit": "N/A" }
+                    ]
+                  }
+                ]
+                """);
+
+        await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        Assert.Contains(await db.FinancialStatements.ToListAsync(),
+            s => s.StatementType == "IncomeStatement" && !s.IsComposing && s.ExternalStatementId == "600001");
+        Assert.Contains(await db.FinancialStatements.ToListAsync(),
+            s => s.StatementType == "IncomeStatement" && s.IsComposing && s.ExternalStatementId == "600002");
     }
 
     [Fact]
@@ -178,7 +238,7 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         await using var db = CreateDb();
         await CreateNormalizer(db).NormalizeAsync(MakePayload(), CancellationToken.None);
 
-        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement");
+        var income = await db.FinancialStatements.SingleAsync(s => s.StatementType == "IncomeStatement" && s.IsAudited);
         Assert.Contains("NadpcoApiStatementSelection", income.WarningsJson);
         Assert.Contains("1401/06/31", income.WarningsJson);
         Assert.Contains("MillionRials", income.WarningsJson);
@@ -195,8 +255,9 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         await normalizer.NormalizeAsync(payload, CancellationToken.None);
         await normalizer.NormalizeAsync(payload, CancellationToken.None);
 
-        Assert.Equal(3, await db.FinancialStatements.CountAsync());
-        Assert.Equal(4, await db.FinancialStatementLineItems.CountAsync());
+        Assert.Equal(4, await db.FinancialStatements.CountAsync());
+        Assert.Equal(7, await db.FinancialStatementLineItems.CountAsync());
+        Assert.Equal(5, await db.FinancialStatementSourceItems.CountAsync());
     }
 
     [Fact]

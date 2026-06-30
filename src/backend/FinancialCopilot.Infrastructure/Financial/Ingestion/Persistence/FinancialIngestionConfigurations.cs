@@ -91,17 +91,32 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
         builder.ToTable("FinancialStatements");
         builder.HasKey(row => row.Id);
         builder.Property(row => row.StatementType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.StatementTitle).HasMaxLength(512);
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);
-        // Spec 029: the natural key is now (Provider, ExternalStatementId, StatementType) so the
-        // same CodalDB statement can keep its native id while income and balance share it.
+        // Current-API financial statements may carry same-period variants that differ by
+        // consolidated/audited/represented flags; keep them structurally distinct.
         builder.HasIndex(row => new
         {
             row.ProviderName,
             row.ExternalStatementId,
-            row.StatementType
+            row.StatementType,
+            row.IsAudited,
+            row.IsRepresented,
+            row.IsComposing
         }).IsUnique();
-        // Support index for "all balance sheets from provider X" filtering.
+        // Support index for period/variant selection queries.
+        builder.HasIndex(row => new
+        {
+            row.ProviderName,
+            row.ExternalCompanyId,
+            row.StatementType,
+            row.PeriodType,
+            row.PeriodEnd,
+            row.IsComposing,
+            row.IsAudited,
+            row.IsRepresented
+        });
         builder.HasIndex(row => new { row.ProviderName, row.StatementType });
         builder.Property(row => row.VendorPeriodDate);
         // Spec 067: nullable FK to Companies for CyclicalWaves rows; company deletion leaves rows orphaned.
@@ -113,6 +128,39 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
     }
 }
 
+public sealed class FinancialStatementSourceItemCatalogRowConfiguration :
+    IEntityTypeConfiguration<FinancialStatementSourceItemCatalogRow>
+{
+    public void Configure(EntityTypeBuilder<FinancialStatementSourceItemCatalogRow> builder)
+    {
+        builder.ToTable("FinancialStatementSourceItems");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ProviderName).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.StatementType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.TitleFa).HasMaxLength(512);
+        builder.Property(row => row.TitleEn).HasMaxLength(512);
+        builder.Property(row => row.Unit).HasMaxLength(128);
+        builder.HasIndex(row => new { row.ProviderName, row.StatementType, row.SourceItemId }).IsUnique();
+    }
+}
+
+public sealed class FinancialStatementSourceItemMetricMappingRowConfiguration :
+    IEntityTypeConfiguration<FinancialStatementSourceItemMetricMappingRow>
+{
+    public void Configure(EntityTypeBuilder<FinancialStatementSourceItemMetricMappingRow> builder)
+    {
+        builder.ToTable("FinancialStatementSourceItemMetricMappings");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.MetricCode).HasMaxLength(128).IsRequired();
+        builder.HasIndex(row => row.SourceItemCatalogId).IsUnique();
+        builder.HasIndex(row => row.MetricCode);
+        builder.HasOne<FinancialStatementSourceItemCatalogRow>()
+            .WithMany()
+            .HasForeignKey(row => row.SourceItemCatalogId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public sealed class NormalizedFinancialStatementLineItemRowConfiguration :
     IEntityTypeConfiguration<NormalizedFinancialStatementLineItemRow>
 {
@@ -120,7 +168,16 @@ public sealed class NormalizedFinancialStatementLineItemRowConfiguration :
     {
         builder.ToTable("FinancialStatementLineItems");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.FinancialStatementId, row.MetricCode }).IsUnique();
+        builder.Property(row => row.MetricCode).HasMaxLength(128);
+        builder.HasIndex(row => new { row.FinancialStatementId, row.SourceItemCatalogId })
+            .IsUnique()
+            .HasFilter("\"SourceItemCatalogId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.FinancialStatementId, row.MetricCode })
+            .HasFilter("\"MetricCode\" IS NOT NULL");
+        builder.HasOne<FinancialStatementSourceItemCatalogRow>()
+            .WithMany()
+            .HasForeignKey(row => row.SourceItemCatalogId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
 

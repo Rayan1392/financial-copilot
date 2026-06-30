@@ -61,6 +61,22 @@ public sealed class AiIntentDetectorTests
         Assert.Equal(DetectedIntent.Scanner, result.Intent);
     }
 
+    [Theory]
+    [InlineData("صورت مالی غالبر را تحلیل کن")]
+    [InlineData("سود خالص غالبر چقدر شده؟")]
+    [InlineData("ROE غالبر چقدر است؟")]
+    public async Task Detect_FinancialStatementAnalysis_UsesDeterministicRoute(string query)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.FinancialStatementPeriodAnalysis, result.Intent);
+        Assert.True(result.Confidence >= 0.95);
+    }
+
     private sealed class UnknownIntentExecutionService : IAiModelExecutionService
     {
         public Task<AiModelResult> ExecuteAsync(

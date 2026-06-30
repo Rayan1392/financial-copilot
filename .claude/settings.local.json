@@ -56,7 +56,8 @@
       "Bash(dotnet.exe build *)",
       "Bash(dotnet.exe test *)",
       "Bash(git diff *)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(rtk wc *)"
     ]
   }
 }

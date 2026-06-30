@@ -76,6 +76,7 @@ public sealed class NativeWorkflowMessageContractTests
             ScannerResult: null,
             LookupResult: null,
             ComprehensiveAnalysisResult: null,
+            FinancialStatementAnalysisResult: null,
             ProductRevenueMixResult: null,
             MonthlyActivityTrendResult: null,
             MonthlySalesQualityRankingResult: null,
@@ -108,6 +109,7 @@ public sealed class NativeWorkflowMessageContractTests
             ScannerResult: null,
             LookupResult: null,
             ComprehensiveAnalysisResult: null,
+            FinancialStatementAnalysisResult: null,
             ProductRevenueMixResult: null,
             MonthlyActivityTrendResult: null,
             MonthlySalesQualityRankingResult: null,
@@ -146,13 +148,13 @@ public sealed class NativeWorkflowMessageContractTests
         var agent = new AgentExecutedMessage(
             billing.Request, billing.ConversationId, billing.CreateConversation,
             billing.Now, billing.MemoryContext, billing.Reservation,
-            "answer", null, null, null, null, null, null, "Completed", false, modelClient, null);
+            "answer", null, null, null, null, null, null, null, "Completed", false, modelClient, null);
 
         var results = new ResultsComputedMessage(
             agent.Request, agent.ConversationId, agent.CreateConversation, agent.Now,
             agent.MemoryContext, agent.Reservation,
             agent.AgentResponseText, agent.ScannerResult, agent.LookupResult,
-            agent.ComprehensiveAnalysisResult, agent.ProductRevenueMixResult, agent.MonthlyActivityTrendResult,
+            agent.ComprehensiveAnalysisResult, agent.FinancialStatementAnalysisResult, agent.ProductRevenueMixResult, agent.MonthlyActivityTrendResult,
             agent.MonthlySalesQualityRankingResult,
             agent.CompletionStatus, agent.FromCache, agent.ModelClient,
             DetectedIntent.Unknown, false, null, null, null, "answer", null);
@@ -161,7 +163,7 @@ public sealed class NativeWorkflowMessageContractTests
             results.Request, results.ConversationId,
             Guid.NewGuid(), Guid.NewGuid(),
             results.DetectedIntent, results.ClarificationRequired, results.ClarificationMessage,
-            results.ScannerResult, results.LookupResult, results.ComprehensiveAnalysisResult, results.ProductRevenueMixResult, results.MonthlyActivityTrendResult,
+            results.ScannerResult, results.LookupResult, results.ComprehensiveAnalysisResult, results.FinancialStatementAnalysisResult, results.ProductRevenueMixResult, results.MonthlyActivityTrendResult,
             results.MonthlySalesQualityRankingResult,
             results.ExplainableAnswer, results.ConfidenceScore,
             "answer", null, null, results.ModelClient,

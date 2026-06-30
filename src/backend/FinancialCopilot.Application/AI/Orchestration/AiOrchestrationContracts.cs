@@ -9,6 +9,7 @@ public enum DetectedIntent
     Scanner,
     SymbolLookup,
     ComprehensiveAnalysis,
+    FinancialStatementPeriodAnalysis,
     ProductRevenueMix,
     MonthlyActivityTrend,
     MonthlySalesQualityRanking,
@@ -66,6 +67,7 @@ public sealed record AiQueryResponse(
     bool? ProviderFallbackOccurred = null,
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
+    FinancialStatementAnalysisResponse? FinancialStatementAnalysisResult = null,
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null);

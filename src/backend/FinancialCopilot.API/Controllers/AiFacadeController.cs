@@ -209,6 +209,7 @@ public sealed class AiFacadeController(
             result.ProviderFallbackOccurred,
             result.WorkflowCorrelationId,
             MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult),
+            MapFinancialStatementAnalysisResult(result.FinancialStatementAnalysisResult),
             MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
             MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult));
 
@@ -392,6 +393,7 @@ public sealed class AiFacadeController(
                 payload.MemoryDisclosures?.Select(d => new MemoryDisclosureResponse(
                     d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
                 MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult),
+                MapFinancialStatementAnalysisResult(payload.FinancialStatementAnalysisResult),
                 MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
                 MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult));
 
@@ -411,6 +413,54 @@ public sealed class AiFacadeController(
                 i.SyncedAt)).ToList(),
             result.UnresolvedSymbols,
             result.HasResults);
+    }
+
+    private static FinancialStatementAnalysisHttpResponse? MapFinancialStatementAnalysisResult(
+        FinancialStatementAnalysisResponse? result)
+    {
+        if (result is null) return null;
+
+        return new FinancialStatementAnalysisHttpResponse(
+            result.CompanySymbol,
+            result.CompanyName,
+            result.SelectedPeriodMonths,
+            result.SelectedPeriodType,
+            result.JalaliPeriodEnd,
+            result.JalaliFiscalYearEnd,
+            result.SelectedVariant,
+            result.SelectedAuditedStatus,
+            result.SummaryBullets,
+            result.Sections.Select(section => new FinancialStatementAnalysisSectionResponse(
+                section.TitleFa,
+                section.SummaryBullets,
+                section.Metrics.Select(metric => new FinancialStatementMetricComparisonResponse(
+                    metric.MetricCode,
+                    metric.LabelFa,
+                    metric.CurrentValue,
+                    metric.CurrentFormattedValue,
+                    metric.PreviousValue,
+                    metric.PreviousFormattedValue,
+                    metric.ChangePercent,
+                    metric.ChangeDirectionFa,
+                    metric.Indicator,
+                    metric.IsUnavailable,
+                    metric.Warning)).ToList())).ToList(),
+            result.SourceReferences.Select(source => new FinancialStatementSourceReferenceResponse(
+                source.StatementType,
+                source.StatementId,
+                source.ExternalStatementId,
+                source.ProviderName,
+                source.PeriodType,
+                source.PeriodMonths,
+                source.JalaliPeriodEnd,
+                source.JalaliFiscalYearEnd,
+                source.JalaliAnnouncementDate,
+                source.IsAudited,
+                source.IsRepresented,
+                source.IsComposing)).ToList(),
+            result.Warnings,
+            result.ConfidenceScore,
+            result.GeneratedAtUtc);
     }
 
     private static MonthlyActivityTrendChartResponse? MapMonthlyActivityTrendResult(

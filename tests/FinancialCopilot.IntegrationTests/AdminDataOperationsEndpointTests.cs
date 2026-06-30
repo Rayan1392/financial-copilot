@@ -133,9 +133,10 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         Assert.Equal(2, document.RootElement.GetProperty("eligibleCount").GetInt32());
         Assert.Equal(2, document.RootElement.GetProperty("queuedCount").GetInt32());
         Assert.Equal(0, document.RootElement.GetProperty("failedCount").GetInt32());
-        Assert.Equal(
-            ["4", "12"],
-            _factory.PublishedRequests.Select(request => request.ExternalReference).ToArray());
+        var externalReferences = _factory.PublishedRequests
+            .Select(request => Assert.IsType<string>(request.ExternalReference))
+            .ToArray();
+        Assert.Equal(["4", "12"], externalReferences);
         Assert.All(
             _factory.PublishedRequests,
             request => Assert.Equal(ProviderSources.NoavaranCurrentApiName, request.ProviderName));
@@ -1321,7 +1322,8 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
 
         public Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
         {
-            if (request.ExternalReference == FailOnExternalReference)
+            if (FailOnExternalReference is not null &&
+                request.ExternalReference == FailOnExternalReference)
             {
                 throw new InvalidOperationException("simulated enqueue failure");
             }

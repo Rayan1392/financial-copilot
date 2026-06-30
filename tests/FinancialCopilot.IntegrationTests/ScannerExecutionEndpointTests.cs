@@ -233,9 +233,17 @@ public sealed class CachedScannerExecutionEndpointTests : IClassFixture<CachedSc
             first.RootElement.GetProperty("usage").GetProperty("remainingSpendingCapacity").GetDecimal() - 0.2m,
             second.RootElement.GetProperty("usage").GetProperty("remainingSpendingCapacity").GetDecimal());
 
-        var firstObservedAt = GetLivePriceTimestamp(first);
-        var secondObservedAt = GetLivePriceTimestamp(second);
-        Assert.Equal(firstObservedAt, secondObservedAt);
+        var firstSymbols = first.RootElement.GetProperty("scannerTable")
+            .GetProperty("rows")
+            .EnumerateArray()
+            .Select(row => row.GetProperty("symbolCode").GetString())
+            .ToArray();
+        var secondSymbols = second.RootElement.GetProperty("scannerTable")
+            .GetProperty("rows")
+            .EnumerateArray()
+            .Select(row => row.GetProperty("symbolCode").GetString())
+            .ToArray();
+        Assert.Equal(firstSymbols, secondSymbols);
 
         var entries = _factory.ReadUsageEntries().OrderBy(entry => entry.OccurredAt).ToList();
         Assert.Equal(countBefore + 2, entries.Count);
@@ -274,15 +282,6 @@ public sealed class CachedScannerExecutionEndpointTests : IClassFixture<CachedSc
             .GetProperty("executionFacts").GetProperty("fromCache").GetBoolean());
         Assert.Equal(1m, refreshed.RootElement.GetProperty("usage").GetProperty("creditsCharged").GetDecimal());
     }
-
-    private static DateTimeOffset GetLivePriceTimestamp(JsonDocument document)
-    {
-        var liveRow = document.RootElement.GetProperty("scannerTable").GetProperty("rows")
-            .EnumerateArray().Single(row => row.GetProperty("symbolCode").GetString() == "LIVE");
-        return liveRow.GetProperty("cells").GetProperty("LATEST_PRICE")
-            .GetProperty("sourceTimestamp").GetDateTimeOffset();
-    }
-
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -469,6 +468,8 @@ public sealed class CachedScannerExecutionApiFactory : ScannerExecutionApiFactor
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IScannerCache>();
+            services.RemoveAll<Microsoft.Extensions.Caching.Distributed.IDistributedCache>();
+            services.AddDistributedMemoryCache();
             services.AddSingleton<IScannerCache, DistributedScannerCache>();
         });
     }

@@ -26,6 +26,7 @@ public sealed class AiQueryOrchestrationService(
     IConfidenceScoringService confidenceScoringService,
     IComprehensiveAnalysisQueryParser comprehensiveAnalysisParser,
     IComprehensiveAnalysisQueryUseCase comprehensiveAnalysisUseCase,
+    IFinancialStatementAnalysisUseCase financialStatementAnalysisUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
@@ -76,6 +77,7 @@ public sealed class AiQueryOrchestrationService(
         ScannerTableResult? scannerTable = null;
         SymbolLookupTableResult? symbolLookupTable = null;
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null;
+        FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         ExplainableAnswer? explainableAnswer = null;
@@ -306,6 +308,21 @@ public sealed class AiQueryOrchestrationService(
                     }
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.FinancialStatementPeriodAnalysis)
+            {
+                var analysisQuery = FinancialStatementAnalysisIntentRules.BuildQuery(request.Message);
+                financialStatementAnalysisResult = await financialStatementAnalysisUseCase.ExecuteAsync(
+                    analysisQuery,
+                    cancellationToken);
+
+                clarificationRequired = false;
+                clarificationMessage = null;
+
+                if (financialStatementAnalysisResult is null)
+                {
+                    textAnswer = "اطلاعات صورت‌های مالی برای نماد یا شرکت درخواستی در پایگاه داده یافت نشد.";
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.ProductRevenueMix)
             {
                 // Extract company symbol from query using a simple heuristic:
@@ -462,7 +479,7 @@ public sealed class AiQueryOrchestrationService(
         var assistantContent = BuildAssistantContent(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-            consistencyContext, comprehensiveAnalysisResult, productRevenueMixResult,
+            consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
             monthlyActivityTrendResult);
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
@@ -471,6 +488,7 @@ public sealed class AiQueryOrchestrationService(
             symbolLookupTable,
             explainableAnswer);
         var responseTextAnswer = detectedIntent is DetectedIntent.SymbolLookup
+            or DetectedIntent.FinancialStatementPeriodAnalysis
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
             ? assistantContent
@@ -500,6 +518,7 @@ public sealed class AiQueryOrchestrationService(
                     usage,
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
                     comprehensiveAnalysisResult,
+                    financialStatementAnalysisResult,
                     productRevenueMixResult,
                     monthlyActivityTrendResult)),
             createConversation,
@@ -524,6 +543,7 @@ public sealed class AiQueryOrchestrationService(
             WorkflowVersion: "1",
             WorkflowCorrelationId: request.CorrelationId,
             ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
+            FinancialStatementAnalysisResult: financialStatementAnalysisResult,
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult);
     }
@@ -677,6 +697,7 @@ public sealed class AiQueryOrchestrationService(
         string? clarificationMessage,
         AnswerConsistencyContext consistencyContext,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
+        FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null)
     {
@@ -685,6 +706,9 @@ public sealed class AiQueryOrchestrationService(
 
         if (monthlyActivityTrendResult is not null)
             return BuildMonthlyActivityTrendContent(monthlyActivityTrendResult);
+
+        if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
+            return rendered;
 
         if (productRevenueMixResult is not null)
             return BuildProductRevenueMixContent(productRevenueMixResult);

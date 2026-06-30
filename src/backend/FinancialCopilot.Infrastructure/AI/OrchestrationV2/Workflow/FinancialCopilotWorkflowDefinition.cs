@@ -38,6 +38,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IAnswerConsistencyValidator consistencyValidator,
     IConfidenceScoringService confidenceScoringService,
     IDirectMetricRoutingRegistry directMetricRoutingRegistry,
+    IFinancialStatementAnalysisUseCase financialStatementAnalysisUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
@@ -206,6 +207,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ScannerToolResult? scannerResult = null;
         SymbolLookupToolResult? lookupResult = null;
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult = null;
+        FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
@@ -276,7 +278,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
                 BuildMonthlySalesQualityRankingContent(monthlySalesQualityRankingResult),
-                scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
                 "Completed", false, modelClient, rankingUsage);
         }
@@ -292,7 +294,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                     msg.MemoryContext, msg.Reservation,
                     "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.",
-                    scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                     monthlySalesQualityRankingResult,
                     "ClarificationRequired", false, modelClient, usage);
             }
@@ -316,7 +318,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 monthlyActivityTrendResult is null
                     ? $"اطلاعات روند فروش ماهانه برای نماد «{symbol}» در پایگاه داده یافت نشد."
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
-                scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
                 monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage);
         }
@@ -332,7 +334,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                     msg.MemoryContext, msg.Reservation,
                     "لطفاً نام نماد یا شرکت موردنظر را در پرسش خود مشخص کنید.",
-                    scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                     monthlySalesQualityRankingResult,
                     "ClarificationRequired", false, modelClient, usage);
             }
@@ -355,7 +357,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                     msg.MemoryContext, msg.Reservation,
                     $"اطلاعات ترکیب درآمد محصولات برای نماد «{symbol}» در پایگاه داده یافت نشد.",
-                    scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                    scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                     monthlySalesQualityRankingResult,
                     "Completed", false, modelClient, productRevenueMixUsage);
             }
@@ -373,9 +375,35 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
-                productRevenueMixText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                productRevenueMixText, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
                 "Completed", false, modelClient, productRevenueMixUsageSuccess);
+        }
+
+        var isFinancialStatementAnalysis = FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(request.Message);
+        if (isFinancialStatementAnalysis)
+        {
+            var analysisQuery = FinancialStatementAnalysisIntentRules.BuildQuery(request.Message);
+            financialStatementAnalysisResult = await financialStatementAnalysisUseCase.ExecuteAsync(analysisQuery, ct);
+
+            UsageAccountingResult? statementUsage = null;
+            if (msg.Reservation is not null)
+            {
+                statementUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, "Completed", false, CancellationToken.None);
+            }
+
+            stepActivity?.SetTag("workflow.intent", "FinancialStatementPeriodAnalysis");
+
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                financialStatementAnalysisResult?.RenderedAnswer ??
+                "اطلاعات صورت‌های مالی برای نماد یا شرکت درخواستی در پایگاه داده یافت نشد.",
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult,
+                productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, statementUsage);
         }
 
         var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);
@@ -408,7 +436,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
-                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
                 directCompletionStatus, false, modelClient, directUsage);
         }
@@ -459,7 +487,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return new AgentExecutedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+            agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
             monthlySalesQualityRankingResult,
             completionStatus, fromCache, modelClient, usage);
     }
@@ -476,10 +504,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 : msg.MonthlyActivityTrendResult is not null ||
             MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlyActivityTrend
+                : msg.FinancialStatementAnalysisResult is not null ||
+            FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(msg.Request.Message)
+                ? DetectedIntent.FinancialStatementPeriodAnalysis
                 : DetermineIntent(
                     msg.ScannerResult,
                     msg.LookupResult,
                     msg.ComprehensiveAnalysisResult,
+                    msg.FinancialStatementAnalysisResult,
                     msg.ProductRevenueMixResult,
                     msg.MonthlyActivityTrendResult,
                     msg.MonthlySalesQualityRankingResult);
@@ -512,7 +544,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return new ResultsComputedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
             msg.MemoryContext, msg.Reservation,
-            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
+            msg.AgentResponseText, msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.FinancialStatementAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
             msg.MonthlySalesQualityRankingResult,
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
@@ -540,10 +572,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -557,6 +589,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MemoryContext, msg.GroundedAnswer,
             msg.CreateConversation, ct,
             comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
+            financialStatementAnalysisResult: msg.FinancialStatementAnalysisResult,
             productRevenueMixResult: msg.ProductRevenueMixResult,
             monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
@@ -567,7 +600,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.Request, msg.ConversationId,
             persistedExchange.UserMessageId, persistedExchange.AssistantMessageId,
             msg.DetectedIntent, msg.ClarificationRequired, msg.ClarificationMessage,
-            msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
+            msg.ScannerResult, msg.LookupResult, msg.ComprehensiveAnalysisResult, msg.FinancialStatementAnalysisResult, msg.ProductRevenueMixResult, msg.MonthlyActivityTrendResult,
             msg.MonthlySalesQualityRankingResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
@@ -600,6 +633,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             ProviderFallbackOccurred: false,
             WorkflowCorrelationId: msg.WorkflowCorrelationId,
             ComprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
+            FinancialStatementAnalysisResult: msg.FinancialStatementAnalysisResult,
             ProductRevenueMixResult: msg.ProductRevenueMixResult,
             MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
@@ -744,6 +778,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ScannerToolResult? scannerResult,
         SymbolLookupToolResult? lookupResult,
         ComprehensiveAnalysisToolResult? comprehensiveAnalysisResult,
+        FinancialStatementAnalysisResponse? financialStatementAnalysisResult,
         ProductRevenueMixResponse? productRevenueMixResult,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult)
@@ -751,6 +786,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         if (scannerResult is not null) return DetectedIntent.Scanner;
         if (monthlySalesQualityRankingResult is not null) return DetectedIntent.MonthlySalesQualityRanking;
         if (monthlyActivityTrendResult is not null) return DetectedIntent.MonthlyActivityTrend;
+        if (financialStatementAnalysisResult is not null) return DetectedIntent.FinancialStatementPeriodAnalysis;
         if (productRevenueMixResult is not null) return DetectedIntent.ProductRevenueMix;
         if (lookupResult?.Table is not null && comprehensiveAnalysisResult?.Succeeded != true)
             return DetectedIntent.SymbolLookup;

@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -939,6 +940,230 @@ public sealed class V2MonthlyActivityTrendApiFactory : AiFacadeApiFactory
         12 => "اسفند",
         _ => throw new ArgumentOutOfRangeException(nameof(month))
     };
+}
+
+public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2FinancialStatementAnalysisApiFactory>
+{
+    private readonly V2FinancialStatementAnalysisApiFactory _factory;
+
+    public V2FinancialStatementAnalysisEndpointTests(V2FinancialStatementAnalysisApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("صورت مالی غالبر را تحلیل کن", false, "NonConsolidated")]
+    [InlineData("صورت مالی تلفیقی غالبر را تحلیل کن", true, "Consolidated")]
+    public async Task V2AiQuery_FinancialStatementQueries_SelectExpectedVariantWithoutToolLoop(
+        string message,
+        bool expectedComposing,
+        string expectedVariant)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementPeriodAnalysis", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var result = root.GetProperty("financialStatementAnalysisResult");
+        Assert.Equal("غالبر", result.GetProperty("companySymbol").GetString());
+        Assert.Equal(expectedVariant, result.GetProperty("selectedVariant").GetString());
+        Assert.Equal(12, result.GetProperty("selectedPeriodMonths").GetInt32());
+
+        var firstSource = result.GetProperty("sourceReferences").EnumerateArray().First();
+        Assert.Equal(expectedComposing, firstSource.GetProperty("isComposing").GetBoolean());
+
+        var textAnswer = root.GetProperty("textAnswer").GetString()!;
+        if (expectedComposing)
+            Assert.Contains("تلفیقی", textAnswer);
+        else
+            Assert.DoesNotContain("تلفیقی", textAnswer);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
+{
+    private readonly string _dbName = $"v2-financial-statement-analysis-{Guid.NewGuid():N}";
+    private bool _seeded;
+    private readonly object _seedLock = new();
+
+    public V2MonthlySalesRoutingFakeAiModelClient Fake { get; } = new();
+
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+            });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IAiModelClient>();
+            services.AddSingleton<IAiModelClient>(Fake);
+        });
+    }
+
+    public void EnsureSeeded()
+    {
+        EnsureBillingSeeded();
+        if (_seeded) return;
+
+        lock (_seedLock)
+        {
+            if (_seeded) return;
+
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            SeedFinancialStatementData(db);
+            db.SaveChanges();
+            _seeded = true;
+        }
+    }
+
+    private static void SeedFinancialStatementData(FinancialIngestionDbContext db)
+    {
+        var now = DateTimeOffset.Parse("2026-06-30T08:00:00Z");
+
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = Guid.Parse("57000000-0000-0000-0000-000000000001"),
+            Name = "غالبر",
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "FS-001",
+            CompanySymbol = "غالبر",
+            TseSymbol = "غالبر",
+            LastSynchronizedAt = now
+        });
+
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000001"), "inc-parent-1404", FinancialStatementType.IncomeStatement, false, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["REVENUE"] = 4_170_440m,
+            ["GROSS_PROFIT"] = 520_000m,
+            ["OPERATING_PROFIT"] = 454_967m,
+            ["NET_PROFIT"] = -189_548m,
+            ["EPS"] = -410m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000002"), "bs-parent-1404", FinancialStatementType.BalanceSheet, false, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["TOTAL_ASSETS"] = 7_500_000m,
+            ["TOTAL_LIABILITIES"] = 4_200_000m,
+            ["TOTAL_EQUITY"] = 3_300_000m,
+            ["CURRENT_ASSETS"] = 2_500_000m,
+            ["CURRENT_LIABILITIES"] = 1_100_000m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000003"), "inc-cons-1404", FinancialStatementType.IncomeStatement, true, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["REVENUE"] = 5_000_000m,
+            ["GROSS_PROFIT"] = 650_000m,
+            ["OPERATING_PROFIT"] = 600_000m,
+            ["NET_PROFIT"] = 100_000m,
+            ["EPS"] = 120m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000004"), "bs-cons-1404", FinancialStatementType.BalanceSheet, true, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["TOTAL_ASSETS"] = 9_000_000m,
+            ["TOTAL_LIABILITIES"] = 4_800_000m,
+            ["TOTAL_EQUITY"] = 4_200_000m,
+            ["CURRENT_ASSETS"] = 3_000_000m,
+            ["CURRENT_LIABILITIES"] = 1_400_000m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000005"), "inc-parent-1403", FinancialStatementType.IncomeStatement, false, "1403/12/29", "1404/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["REVENUE"] = 9_801_948m,
+            ["GROSS_PROFIT"] = 610_000m,
+            ["OPERATING_PROFIT"] = 346_086m,
+            ["NET_PROFIT"] = -6_130m,
+            ["EPS"] = -12m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000006"), "bs-parent-1403", FinancialStatementType.BalanceSheet, false, "1403/12/29", "1404/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["TOTAL_ASSETS"] = 6_800_000m,
+            ["TOTAL_LIABILITIES"] = 3_900_000m,
+            ["TOTAL_EQUITY"] = 2_900_000m,
+            ["CURRENT_ASSETS"] = 2_200_000m,
+            ["CURRENT_LIABILITIES"] = 1_000_000m
+        });
+    }
+
+    private static void AddStatement(
+        FinancialIngestionDbContext db,
+        Guid id,
+        string externalStatementId,
+        FinancialStatementType statementType,
+        bool isComposing,
+        string jalaliPeriodEnd,
+        string jalaliAnnouncementDate,
+        IReadOnlyDictionary<string, decimal?> lineItems)
+    {
+        var row = new NormalizedFinancialStatementRow
+        {
+            Id = id,
+            ProviderName = "NadpcoApi",
+            ExternalCompanyId = "FS-001",
+            ExternalStatementId = externalStatementId,
+            StatementType = statementType.ToString(),
+            PeriodType = "TwelveMonths",
+            PeriodStart = statementType == FinancialStatementType.BalanceSheet
+                ? new DateOnly(2025, 3, 21)
+                : new DateOnly(2025, 3, 21),
+            PeriodEnd = jalaliPeriodEnd == "1404/12/29" ? new DateOnly(2026, 3, 20) : new DateOnly(2025, 3, 20),
+            SourcePayloadChecksum = externalStatementId,
+            LastSynchronizedAt = DateTimeOffset.UtcNow,
+            WarningsJson = BuildWarningsJson(jalaliPeriodEnd, jalaliAnnouncementDate, isComposing)
+        };
+        db.FinancialStatements.Add(row);
+
+        foreach (var (metricCode, value) in lineItems)
+        {
+            db.FinancialStatementLineItems.Add(new NormalizedFinancialStatementLineItemRow
+            {
+                Id = Guid.NewGuid(),
+                FinancialStatementId = row.Id,
+                MetricCode = metricCode,
+                Value = value
+            });
+        }
+    }
+
+    private static string BuildWarningsJson(
+        string jalaliPeriodEnd,
+        string jalaliAnnouncementDate,
+        bool isComposing) =>
+        $$"""
+          [
+            { "code": "JalaliFiscalYearEnd", "evidence": "{{jalaliPeriodEnd}}" },
+            { "code": "JalaliPeriodEnd", "evidence": "{{jalaliPeriodEnd}}" },
+            { "code": "JalaliAnouncementDate", "evidence": "{{jalaliAnnouncementDate}}" },
+            { "code": "AnouncementDate", "evidence": "{{DateTimeOffset.Parse("2026-06-30T08:00:00Z"):O}}" },
+            { "code": "IsAudited", "evidence": false },
+            { "code": "IsRepresented", "evidence": false },
+            { "code": "IsComposing", "evidence": {{isComposing.ToString().ToLowerInvariant()}} }
+          ]
+          """;
 }
 
 public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory

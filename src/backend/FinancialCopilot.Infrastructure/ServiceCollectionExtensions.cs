@@ -815,6 +815,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
+        services.AddScoped<IFinancialStatementAnalysisRepository, EfCoreFinancialStatementAnalysisRepository>();
+        services.AddScoped<IFinancialStatementSelectionService, FinancialStatementSelectionService>();
+        services.AddScoped<IFinancialStatementAnalysisRenderer, FinancialStatementAnalysisRenderer>();
+        services.AddScoped<IFinancialStatementAnalysisUseCase, FinancialStatementAnalysisUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
         services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();

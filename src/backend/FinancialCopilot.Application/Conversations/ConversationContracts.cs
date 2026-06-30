@@ -47,6 +47,7 @@ public sealed record AssistantMessagePayload(
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures,
     ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
+    FinancialStatementAnalysisResponse? FinancialStatementAnalysisResult = null,
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null);

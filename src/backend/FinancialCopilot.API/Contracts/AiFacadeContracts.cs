@@ -29,6 +29,7 @@ public sealed record AiQueryHttpResponse(
     bool? ProviderFallbackOccurred = null,
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
+    FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
@@ -175,6 +176,7 @@ public sealed record AssistantMessageContentResponse(
     UsageAccountingResponse? Usage,
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
+    FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
@@ -191,6 +193,54 @@ public sealed record ComprehensiveAnalysisItemResponse(
     string PlainTextSummary,
     IReadOnlyList<string> TagNames,
     DateTimeOffset SyncedAt);
+
+public sealed record FinancialStatementAnalysisHttpResponse(
+    string CompanySymbol,
+    string? CompanyName,
+    int SelectedPeriodMonths,
+    string SelectedPeriodType,
+    string? JalaliPeriodEnd,
+    string? JalaliFiscalYearEnd,
+    string SelectedVariant,
+    bool? SelectedAuditedStatus,
+    IReadOnlyList<string> SummaryBullets,
+    IReadOnlyList<FinancialStatementAnalysisSectionResponse> Sections,
+    IReadOnlyList<FinancialStatementSourceReferenceResponse> SourceReferences,
+    IReadOnlyList<string> Warnings,
+    double ConfidenceScore,
+    DateTimeOffset GeneratedAtUtc);
+
+public sealed record FinancialStatementAnalysisSectionResponse(
+    string TitleFa,
+    IReadOnlyList<string> SummaryBullets,
+    IReadOnlyList<FinancialStatementMetricComparisonResponse> Metrics);
+
+public sealed record FinancialStatementMetricComparisonResponse(
+    string MetricCode,
+    string LabelFa,
+    decimal? CurrentValue,
+    string? CurrentFormattedValue,
+    decimal? PreviousValue,
+    string? PreviousFormattedValue,
+    decimal? ChangePercent,
+    string? ChangeDirectionFa,
+    string? Indicator,
+    bool IsUnavailable,
+    string? Warning);
+
+public sealed record FinancialStatementSourceReferenceResponse(
+    string StatementType,
+    Guid StatementId,
+    string ExternalStatementId,
+    string ProviderName,
+    string PeriodType,
+    int PeriodMonths,
+    string? JalaliPeriodEnd,
+    string? JalaliFiscalYearEnd,
+    string? JalaliAnnouncementDate,
+    bool IsAudited,
+    bool IsRepresented,
+    bool IsComposing);
 
 // ---------------------------------------------------------------------------
 // Monthly Activity Trend chart response (spec 077)

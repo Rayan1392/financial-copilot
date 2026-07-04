@@ -10,17 +10,19 @@ AI Financial Statement Period Analysis Query
 - [x] Added persisted-statement repository, selection policy, use case, and Persian renderer backed only by normalized `FinancialStatements` and `FinancialStatementLineItems`.
 - [x] Added API/conversation payload plumbing for `FinancialStatementAnalysisResult`.
 - [x] Added focused unit regressions for intent detection, query parsing, and workflow message contracts.
-- [~] Added V2 endpoint regression coverage for default non-consolidated vs explicit consolidated selection; compile is blocked by an unrelated existing integration-test error in `AdminDataOperationsEndpointTests.cs`.
+- [x] Added V2 endpoint regression coverage for default non-consolidated vs explicit consolidated selection.
+- [x] Aligned repository reads with spec `082`: variant flags come from structural statement columns, while Jalali source labels support the current NADPCO evidence-object shape.
 
 ## Reused Entities And Mappings
 
 - Reused `NormalizedFinancialStatementRow` and `NormalizedFinancialStatementLineItemRow` as the only query-time data sources.
-- Reused `WarningsJson` evidence emitted by the existing normalizers for `JalaliPeriodEnd`, `JalaliFiscalYearEnd`, `JalaliAnnouncementDate`, `AnnouncementDate`, `IsAudited`, `IsRepresented`, and `IsComposing`.
+- Reused `WarningsJson` evidence emitted by the existing normalizers for `JalaliPeriodEnd`, `JalaliFiscalYearEnd`, `JalaliAnnouncementDate`, and `AnnouncementDate`.
+- Reused structural statement columns from spec `082` for `IsAudited`, `IsRepresented`, and `IsComposing`, so query-time variant selection does not depend on evidence JSON parsing.
 - Reused governed statement metric codes already present in persisted line items: `REVENUE`, `GROSS_PROFIT`, `OPERATING_PROFIT`, `NET_PROFIT`, `EPS`, and `TOTAL_EQUITY`.
 - Current implementation can also read governed balance-sheet codes `TOTAL_ASSETS`, `TOTAL_LIABILITIES`, `CURRENT_ASSETS`, and `CURRENT_LIABILITIES` when they exist in persisted line items; NADPCO source-item coverage for those rows still needs a dedicated mapping pass if the provider feed does not already emit them through archive/current imports.
-- Current implementation depends on whatever statement variants survived ingestion. Separate
-  persistence of same-period `IsComposing=false` and `IsComposing=true` rows is a prerequisite for
-  complete standalone-vs-consolidated query correctness and is owned by spec `082`.
+- Spec `082` now guarantees separate persistence of same-period `IsComposing=false` and
+  `IsComposing=true` rows, so this feature can bind default standalone and explicit consolidated
+  queries to distinct persisted statement headers.
 
 ## Dependencies
 

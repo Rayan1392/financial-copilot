@@ -173,6 +173,7 @@ public sealed class NormalizedFinancialStatementLineItemRowConfiguration :
             .IsUnique()
             .HasFilter("\"SourceItemCatalogId\" IS NOT NULL");
         builder.HasIndex(row => new { row.FinancialStatementId, row.MetricCode })
+            .IsUnique()
             .HasFilter("\"MetricCode\" IS NOT NULL");
         builder.HasOne<FinancialStatementSourceItemCatalogRow>()
             .WithMany()

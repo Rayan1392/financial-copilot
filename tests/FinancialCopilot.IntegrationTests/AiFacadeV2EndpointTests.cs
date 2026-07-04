@@ -1133,6 +1133,9 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
             PeriodEnd = jalaliPeriodEnd == "1404/12/29" ? new DateOnly(2026, 3, 20) : new DateOnly(2025, 3, 20),
             SourcePayloadChecksum = externalStatementId,
             LastSynchronizedAt = DateTimeOffset.UtcNow,
+            IsAudited = false,
+            IsRepresented = false,
+            IsComposing = isComposing,
             WarningsJson = BuildWarningsJson(jalaliPeriodEnd, jalaliAnnouncementDate, isComposing)
         };
         db.FinancialStatements.Add(row);

@@ -47,10 +47,17 @@ internal sealed class EfCoreFinancialStatementAnalysisRepository(FinancialIngest
                 group => group.Key,
                 group => (IReadOnlyDictionary<string, decimal?>)group
                     .Where(item => !string.IsNullOrWhiteSpace(item.MetricCode))
+                    .GroupBy(item => item.MetricCode!, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(
-                    item => item.MetricCode!,
-                    item => item.Value,
-                    StringComparer.OrdinalIgnoreCase));
+                        metricGroup => metricGroup.Key,
+                        metricGroup => metricGroup
+                            .OrderByDescending(item => item.Value.HasValue)
+                            .ThenBy(item => item.SourceItemCatalogId.HasValue ? 0 : 1)
+                            .ThenBy(item => item.SourceItemCatalogId)
+                            .ThenBy(item => item.Id)
+                            .Select(item => item.Value)
+                            .FirstOrDefault(),
+                        StringComparer.OrdinalIgnoreCase));
 
         return rows.Select(row =>
         {
@@ -71,9 +78,9 @@ internal sealed class EfCoreFinancialStatementAnalysisRepository(FinancialIngest
                 metadata.JalaliPeriodEnd,
                 metadata.JalaliFiscalYearEnd,
                 metadata.JalaliAnnouncementDate,
-                metadata.IsAudited,
-                metadata.IsRepresented,
-                metadata.IsComposing,
+                row.IsAudited,
+                row.IsRepresented,
+                row.IsComposing,
                 lineItemLookup.TryGetValue(row.Id, out var items)
                     ? items
                     : new Dictionary<string, decimal?>(StringComparer.OrdinalIgnoreCase));
@@ -120,43 +127,34 @@ internal sealed class EfCoreFinancialStatementAnalysisRepository(FinancialIngest
 
                 foreach (var item in root.EnumerateArray())
                 {
-                    if (!item.TryGetProperty("code", out var codeProp))
-                        continue;
-
-                    var code = codeProp.GetString();
-                    if (!item.TryGetProperty("evidence", out var evidence))
-                        continue;
-
-                    switch (code)
+                    if (TryReadCodeEvidenceItem(
+                            item,
+                            ref jalaliPeriodEnd,
+                            ref jalaliFiscalYearEnd,
+                            ref jalaliAnnouncementDate,
+                            ref announcementDate,
+                            ref isAudited,
+                            ref isRepresented,
+                            ref isComposing))
                     {
-                        case "JalaliPeriodEnd":
-                            jalaliPeriodEnd = evidence.GetString();
-                            break;
-                        case "JalaliFiscalYearEnd":
-                            jalaliFiscalYearEnd = evidence.GetString();
-                            break;
-                        case "JalaliAnouncementDate":
-                        case "JalaliAnnouncementDate":
-                            jalaliAnnouncementDate = evidence.GetString();
-                            break;
-                        case "AnouncementDate":
-                        case "AnnouncementDate":
-                            if (evidence.ValueKind == JsonValueKind.String &&
-                                DateTimeOffset.TryParse(evidence.GetString(), out var parsed))
-                            {
-                                announcementDate = parsed;
-                            }
-                            break;
-                        case "IsAudited":
-                            isAudited = evidence.ValueKind == JsonValueKind.True;
-                            break;
-                        case "IsRepresented":
-                            isRepresented = evidence.ValueKind == JsonValueKind.True;
-                            break;
-                        case "IsComposing":
-                            isComposing = evidence.ValueKind == JsonValueKind.True;
-                            break;
+                        continue;
                     }
+
+                    jalaliPeriodEnd ??= TryGetString(item, "jalaliPeriodEnd", "JalaliPeriodEnd");
+                    jalaliFiscalYearEnd ??= TryGetString(item, "jalaliFiscalYearEnd", "JalaliFiscalYearEnd");
+                    jalaliAnnouncementDate ??= TryGetString(item, "jalaliAnouncementDate", "JalaliAnouncementDate", "jalaliAnnouncementDate", "JalaliAnnouncementDate");
+
+                    var announcementText = TryGetString(item, "anouncementDate", "AnouncementDate", "announcementDate", "AnnouncementDate");
+                    if (announcementDate is null &&
+                        !string.IsNullOrWhiteSpace(announcementText) &&
+                        DateTimeOffset.TryParse(announcementText, out var parsed))
+                    {
+                        announcementDate = parsed;
+                    }
+
+                    isAudited = TryGetBool(item, isAudited, "isAudited", "IsAudited");
+                    isRepresented = TryGetBool(item, isRepresented, "isRepresented", "IsRepresented");
+                    isComposing = TryGetBool(item, isComposing, "isComposing", "IsComposing");
                 }
 
                 return new StatementMetadata(
@@ -172,6 +170,84 @@ internal sealed class EfCoreFinancialStatementAnalysisRepository(FinancialIngest
             {
                 return new StatementMetadata(null, null, null, null, false, false, false);
             }
+        }
+
+        private static bool TryReadCodeEvidenceItem(
+            JsonElement item,
+            ref string? jalaliPeriodEnd,
+            ref string? jalaliFiscalYearEnd,
+            ref string? jalaliAnnouncementDate,
+            ref DateTimeOffset? announcementDate,
+            ref bool isAudited,
+            ref bool isRepresented,
+            ref bool isComposing)
+        {
+            if (!item.TryGetProperty("code", out var codeProp) ||
+                !item.TryGetProperty("evidence", out var evidence))
+            {
+                return false;
+            }
+
+            switch (codeProp.GetString())
+            {
+                case "JalaliPeriodEnd":
+                    jalaliPeriodEnd = evidence.GetString();
+                    break;
+                case "JalaliFiscalYearEnd":
+                    jalaliFiscalYearEnd = evidence.GetString();
+                    break;
+                case "JalaliAnouncementDate":
+                case "JalaliAnnouncementDate":
+                    jalaliAnnouncementDate = evidence.GetString();
+                    break;
+                case "AnouncementDate":
+                case "AnnouncementDate":
+                    if (evidence.ValueKind == JsonValueKind.String &&
+                        DateTimeOffset.TryParse(evidence.GetString(), out var parsed))
+                    {
+                        announcementDate = parsed;
+                    }
+                    break;
+                case "IsAudited":
+                    isAudited = evidence.ValueKind == JsonValueKind.True;
+                    break;
+                case "IsRepresented":
+                    isRepresented = evidence.ValueKind == JsonValueKind.True;
+                    break;
+                case "IsComposing":
+                    isComposing = evidence.ValueKind == JsonValueKind.True;
+                    break;
+            }
+
+            return true;
+        }
+
+        private static string? TryGetString(JsonElement item, params string[] propertyNames)
+        {
+            foreach (var propertyName in propertyNames)
+            {
+                if (item.TryGetProperty(propertyName, out var property) &&
+                    property.ValueKind == JsonValueKind.String)
+                {
+                    return property.GetString();
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryGetBool(JsonElement item, bool currentValue, params string[] propertyNames)
+        {
+            foreach (var propertyName in propertyNames)
+            {
+                if (item.TryGetProperty(propertyName, out var property))
+                {
+                    return property.ValueKind == JsonValueKind.True ||
+                           property.ValueKind != JsonValueKind.False && currentValue;
+                }
+            }
+
+            return currentValue;
         }
     }
 }

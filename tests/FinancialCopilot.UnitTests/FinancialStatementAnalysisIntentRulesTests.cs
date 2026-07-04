@@ -30,6 +30,7 @@ public sealed class FinancialStatementAnalysisIntentRulesTests
             "صورت مالی تلفیقی غالبر را تحلیل کن");
 
         Assert.Equal(FinancialStatementVariantPreference.ConsolidatedOnly, query.VariantPreference);
+        Assert.Equal("غالبر", query.SymbolOrCompanyName);
     }
 
     [Fact]

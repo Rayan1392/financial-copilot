@@ -241,7 +241,18 @@ public static class FinancialStatementAnalysisIntentRules
             .Replace("گزارش", " ", StringComparison.OrdinalIgnoreCase)
             .Replace("مالی", " ", StringComparison.OrdinalIgnoreCase)
             .Replace("تحلیل", " ", StringComparison.OrdinalIgnoreCase)
-            .Replace("خلاصه", " ", StringComparison.OrdinalIgnoreCase);
+            .Replace("خلاصه", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("تلفیقی", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("غیرتلفیقی", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("شرکت اصلی", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("اصلی", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("consolidated", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("standalone", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("parent", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("حسابرسی شده", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("حسابرسی‌شده", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("حسابرسی نشده", " ", StringComparison.OrdinalIgnoreCase)
+            .Replace("حسابرسی‌نشده", " ", StringComparison.OrdinalIgnoreCase);
 
         foreach (var ch in new[] { "؟", "?", "!", "،", ",", ":", ";", "(", ")", "«", "»" })
             normalized = normalized.Replace(ch, " ", StringComparison.OrdinalIgnoreCase);

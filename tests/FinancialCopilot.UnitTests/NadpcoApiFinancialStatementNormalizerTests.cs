@@ -261,6 +261,83 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
     }
 
     [Fact]
+    public async Task Normalize_UpsertsMappedLineItemsByMetricCodePerStatement()
+    {
+        await using var db = CreateDb();
+        var normalizer = CreateNormalizer(db);
+
+        await normalizer.NormalizeAsync(
+            MakePayload(
+                incomeJson: """
+                    [
+                      {
+                        "statementID": 700001,
+                        "com_ID": 3,
+                        "bourseSymbol": "Ú©Ú†Ø§Ø¯",
+                        "fullTitle": "Ù†Ù…ÙˆÙ†Ù‡",
+                        "periodType": 12,
+                        "fiscalYearEnd": "2023-03-20T00:00:00",
+                        "jalaliFiscalYearEnd": "1401/12/29",
+                        "periodEnd": "2023-03-20T00:00:00",
+                        "jalaliPeriodEnd": "1401/12/29",
+                        "anouncementDate": "2023-04-01T00:00:00",
+                        "jalaliAnouncementDate": "1402/01/12",
+                        "isAudited": false,
+                        "isRepresented": false,
+                        "isComposing": false,
+                        "items": [
+                          { "itemID": 12, "itemTitle": "Ù‡Ø²ÛŒÙ†Ù‡ Ù…Ø§Ù„ÛŒ", "amount": 10, "amountUnit": "N/A" }
+                        ]
+                      }
+                    ]
+                    """,
+                balanceJson: "[]",
+                cashFlowJson: "[]"),
+            CancellationToken.None);
+
+        await normalizer.NormalizeAsync(
+            MakePayload(
+                incomeJson: """
+                    [
+                      {
+                        "statementID": 700001,
+                        "com_ID": 3,
+                        "bourseSymbol": "Ú©Ú†Ø§Ø¯",
+                        "fullTitle": "Ù†Ù…ÙˆÙ†Ù‡",
+                        "periodType": 12,
+                        "fiscalYearEnd": "2023-03-20T00:00:00",
+                        "jalaliFiscalYearEnd": "1401/12/29",
+                        "periodEnd": "2023-03-20T00:00:00",
+                        "jalaliPeriodEnd": "1401/12/29",
+                        "anouncementDate": "2023-04-01T00:00:00",
+                        "jalaliAnouncementDate": "1402/01/12",
+                        "isAudited": false,
+                        "isRepresented": false,
+                        "isComposing": false,
+                        "items": [
+                          { "itemID": 12, "itemTitle": "Ù‡Ø²ÛŒÙ†Ù‡ Ù…Ø§Ù„ÛŒ", "amount": 20, "amountUnit": "N/A" },
+                          { "itemID": 300, "itemTitle": "Ù…Ø¬Ù…ÙˆØ¹ Ø¯Ø±Ø¢Ù…Ø¯", "amount": 30, "amountUnit": "N/A" }
+                        ]
+                      }
+                    ]
+                    """,
+                balanceJson: "[]",
+                cashFlowJson: "[]"),
+            CancellationToken.None);
+
+        var statement = await db.FinancialStatements.SingleAsync(s => s.ExternalStatementId == "700001");
+        var items = await db.FinancialStatementLineItems
+            .Where(i => i.FinancialStatementId == statement.Id)
+            .OrderBy(i => i.MetricCode)
+            .ToListAsync();
+
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, i => i.MetricCode == "FINANCE_COSTS" && i.Value == 20m);
+        Assert.Contains(items, i => i.MetricCode == "TOTAL_REVENUE" && i.Value == 30m);
+        Assert.Equal(1, items.Count(i => i.MetricCode == "FINANCE_COSTS"));
+    }
+
+    [Fact]
     public async Task Normalize_CoexistsWithCodalDbSameExternalStatementId()
     {
         await using var db = CreateDb();

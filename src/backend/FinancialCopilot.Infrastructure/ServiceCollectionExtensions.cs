@@ -819,6 +819,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialStatementSelectionService, FinancialStatementSelectionService>();
         services.AddScoped<IFinancialStatementAnalysisRenderer, FinancialStatementAnalysisRenderer>();
         services.AddScoped<IFinancialStatementAnalysisUseCase, FinancialStatementAnalysisUseCase>();
+        services.AddScoped<IFinancialStatementTableRepository, EfCoreFinancialStatementTableRepository>();
+        services.AddScoped<IFinancialStatementTableRenderer, FinancialStatementTableRenderer>();
+        services.AddScoped<IFinancialStatementTableQueryUseCase, FinancialStatementTableQueryUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
         services.AddScoped<ICompanyProductRevenueMixRepository, EfCoreProductRevenueMixRepository>();
         services.AddScoped<ICompanyProductRevenueMixCalculator, CompanyProductRevenueMixCalculator>();

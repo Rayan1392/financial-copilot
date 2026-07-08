@@ -990,6 +990,61 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             Assert.DoesNotContain("تلفیقی", textAnswer);
     }
 
+    [Fact]
+    public async Task V2AiQuery_FullIncomeStatementTable_ReturnsStructuredTableWithoutToolLoop()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "آخرین صورت سود و زیان غالبر را نشان بده" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var table = root.GetProperty("financialStatementTableResult");
+        Assert.Equal("غالبر", table.GetProperty("source").GetProperty("companySymbol").GetString());
+        Assert.Equal("IncomeStatement", table.GetProperty("source").GetProperty("statementType").GetString());
+        Assert.Equal("NadpcoApi", table.GetProperty("source").GetProperty("providerName").GetString());
+        Assert.True(table.GetProperty("lineItems").GetArrayLength() >= 5);
+        Assert.Contains("| ردیف | شرح | مبلغ |", root.GetProperty("textAnswer").GetString());
+    }
+
+    [Theory]
+    [InlineData("آخرین ترازنامه غالبر", "BalanceSheet")]
+    [InlineData("آخرین جریان وجه نقد غالبر را نمایش بده", "CashFlow")]
+    public async Task V2AiQuery_FullStatementTables_ReturnExpectedStatementTypeWithoutToolLoop(
+        string message,
+        string expectedStatementType)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var table = root.GetProperty("financialStatementTableResult");
+        Assert.Equal(expectedStatementType, table.GetProperty("source").GetProperty("statementType").GetString());
+        Assert.True(table.GetProperty("lineItems").GetArrayLength() > 0);
+
+        if (expectedStatementType == "BalanceSheet")
+            Assert.True(table.GetProperty("balanceSheetRows").GetArrayLength() > 0);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -1015,7 +1070,8 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+                ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2",
+                ["NoavaranCurrentApi:ProviderName"] = "NadpcoApi"
             });
         });
 
@@ -1090,6 +1146,13 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
             ["TOTAL_EQUITY"] = 4_200_000m,
             ["CURRENT_ASSETS"] = 3_000_000m,
             ["CURRENT_LIABILITIES"] = 1_400_000m
+        });
+        AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000007"), "cf-parent-1404", FinancialStatementType.CashFlow, false, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
+        {
+            ["OPERATING_CASH_FLOW"] = 350_000m,
+            ["INVESTING_CASH_FLOW"] = -120_000m,
+            ["FINANCING_CASH_FLOW"] = 75_000m,
+            ["NET_CASH_FLOW"] = 305_000m
         });
         AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000005"), "inc-parent-1403", FinancialStatementType.IncomeStatement, false, "1403/12/29", "1404/04/09 09:23:24", new Dictionary<string, decimal?>
         {

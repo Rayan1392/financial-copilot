@@ -31,6 +31,7 @@ internal sealed class MessagePersistenceFunction(
         CancellationToken cancellationToken,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
+        FinancialStatementTableResult? financialStatementTableResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
@@ -41,7 +42,7 @@ internal sealed class MessagePersistenceFunction(
             : BuildAssistantContent(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
                 explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
-                comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult, monthlyActivityTrendResult,
+                comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
@@ -71,6 +72,7 @@ internal sealed class MessagePersistenceFunction(
                     disclosures,
                     ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
                     FinancialStatementAnalysisResult: financialStatementAnalysisResult,
+                    FinancialStatementTableResult: financialStatementTableResult,
                     ProductRevenueMixResult: productRevenueMixResult,
                     MonthlyActivityTrendResult: monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult)),
@@ -98,6 +100,7 @@ internal sealed class MessagePersistenceFunction(
         string? clarificationMessage,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
+        FinancialStatementTableResult? financialStatementTableResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
@@ -113,6 +116,9 @@ internal sealed class MessagePersistenceFunction(
 
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
+
+        if (financialStatementTableResult?.RenderedAnswer is { Length: > 0 } renderedTable)
+            return renderedTable;
 
         if (lookupTable is not null)
             return symbolLookupProseBuilder.Build(lookupTable);

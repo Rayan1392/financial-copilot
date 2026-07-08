@@ -30,6 +30,7 @@ public sealed record AiQueryHttpResponse(
     string? WorkflowCorrelationId = null,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
     FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
+    FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
@@ -177,6 +178,7 @@ public sealed record AssistantMessageContentResponse(
     IReadOnlyCollection<MemoryDisclosureResponse>? MemoryDisclosures,
     ComprehensiveAnalysisResultResponse? ComprehensiveAnalysisResult = null,
     FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
+    FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
 
@@ -241,6 +243,49 @@ public sealed record FinancialStatementSourceReferenceResponse(
     bool IsAudited,
     bool IsRepresented,
     bool IsComposing);
+
+public sealed record FinancialStatementTableHttpResponse(
+    FinancialStatementTableSourceHttpResponse Source,
+    IReadOnlyList<FinancialStatementTableLineItemHttpResponse> LineItems,
+    IReadOnlyList<BalanceSheetTableRowHttpResponse> BalanceSheetRows,
+    IReadOnlyList<string> Warnings,
+    DateTimeOffset GeneratedAtUtc);
+
+public sealed record FinancialStatementTableSourceHttpResponse(
+    Guid StatementId,
+    string ExternalStatementId,
+    string ProviderName,
+    string ExternalCompanyId,
+    string CompanySymbol,
+    string? CompanyName,
+    string StatementType,
+    string PeriodType,
+    int PeriodMonths,
+    DateOnly PeriodStart,
+    DateOnly PeriodEnd,
+    DateTimeOffset? AnnouncementDate,
+    string? JalaliPeriodEnd,
+    string? JalaliFiscalYearEnd,
+    string? JalaliAnnouncementDate,
+    bool IsAudited,
+    bool IsRepresented,
+    bool IsComposing,
+    string? Unit);
+
+public sealed record FinancialStatementTableLineItemHttpResponse(
+    int RowNumber,
+    int? SourceItemId,
+    string? TitleFa,
+    string? TitleEn,
+    string? MetricCode,
+    decimal? Value,
+    string? FormattedValue,
+    string? Unit,
+    string Side);
+
+public sealed record BalanceSheetTableRowHttpResponse(
+    FinancialStatementTableLineItemHttpResponse? Asset,
+    FinancialStatementTableLineItemHttpResponse? LiabilityOrEquity);
 
 // ---------------------------------------------------------------------------
 // Monthly Activity Trend chart response (spec 077)

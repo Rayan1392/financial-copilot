@@ -127,6 +127,46 @@ public static class GoldenDatasets
             ProseRequirements: [],
             Notes: "Off-topic request must route to Unknown intent; scanner must not activate"),
 
+        // Financial statement full-table routing.
+        new(
+            QuestionId: new Guid("b3500001-0000-0000-0000-000000000001"),
+            DatasetId: datasetId,
+            Query: "آخرین صورت سود و زیان کگل را نشان بده",
+            Language: "fa",
+            Category: EvaluationCategory.TableSchema,
+            ExpectedIntent: DetectedIntent.FinancialStatementTableLookup,
+            ExpectedClarification: false,
+            ExpectedConditions: [],
+            EvidenceRequirements: [],
+            ProseRequirements: [],
+            Notes: "Full income-statement display request must not route to period analysis"),
+
+        new(
+            QuestionId: new Guid("b3500002-0000-0000-0000-000000000001"),
+            DatasetId: datasetId,
+            Query: "آخرین ترازنامه کگل",
+            Language: "fa",
+            Category: EvaluationCategory.TableSchema,
+            ExpectedIntent: DetectedIntent.FinancialStatementTableLookup,
+            ExpectedClarification: false,
+            ExpectedConditions: [],
+            EvidenceRequirements: [],
+            ProseRequirements: [],
+            Notes: "Full balance-sheet display request must route to table lookup"),
+
+        new(
+            QuestionId: new Guid("b3500003-0000-0000-0000-000000000001"),
+            DatasetId: datasetId,
+            Query: "جریان وجه نقد ۹ ماهه کگل را نمایش بده",
+            Language: "fa",
+            Category: EvaluationCategory.TableSchema,
+            ExpectedIntent: DetectedIntent.FinancialStatementTableLookup,
+            ExpectedClarification: false,
+            ExpectedConditions: [],
+            EvidenceRequirements: [],
+            ProseRequirements: [],
+            Notes: "Cash-flow table request with period filter must route deterministically"),
+
         // ── Evidence Completeness ─────────────────────────────────────────────────
         new(
             QuestionId: new Guid("b4000001-0000-0000-0000-000000000001"),

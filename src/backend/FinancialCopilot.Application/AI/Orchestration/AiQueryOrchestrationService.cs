@@ -27,6 +27,7 @@ public sealed class AiQueryOrchestrationService(
     IComprehensiveAnalysisQueryParser comprehensiveAnalysisParser,
     IComprehensiveAnalysisQueryUseCase comprehensiveAnalysisUseCase,
     IFinancialStatementAnalysisUseCase financialStatementAnalysisUseCase,
+    IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
@@ -78,6 +79,7 @@ public sealed class AiQueryOrchestrationService(
         SymbolLookupTableResult? symbolLookupTable = null;
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null;
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null;
+        FinancialStatementTableResult? financialStatementTableResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         ExplainableAnswer? explainableAnswer = null;
@@ -323,6 +325,21 @@ public sealed class AiQueryOrchestrationService(
                     textAnswer = "اطلاعات صورت‌های مالی برای نماد یا شرکت درخواستی در پایگاه داده یافت نشد.";
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.FinancialStatementTableLookup)
+            {
+                var tableQuery = FinancialStatementTableIntentRules.BuildQuery(request.Message);
+                financialStatementTableResult = await financialStatementTableQueryUseCase.ExecuteAsync(
+                    tableQuery,
+                    cancellationToken);
+
+                clarificationRequired = false;
+                clarificationMessage = null;
+
+                if (financialStatementTableResult is null)
+                {
+                    textAnswer = "اطلاعات صورت مالی برای نماد یا شرکت درخواستی با فیلترهای اعمال شده در پایگاه داده یافت نشد.";
+                }
+            }
             else if (intentResult.Intent == DetectedIntent.ProductRevenueMix)
             {
                 // Extract company symbol from query using a simple heuristic:
@@ -480,7 +497,8 @@ public sealed class AiQueryOrchestrationService(
             detectedIntent, scannerPlan, scannerTable, symbolLookupTable,
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
             consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
-            monthlyActivityTrendResult);
+            monthlyActivityTrendResult,
+            financialStatementTableResult);
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             assistantContent,
@@ -489,6 +507,7 @@ public sealed class AiQueryOrchestrationService(
             explainableAnswer);
         var responseTextAnswer = detectedIntent is DetectedIntent.SymbolLookup
             or DetectedIntent.FinancialStatementPeriodAnalysis
+            or DetectedIntent.FinancialStatementTableLookup
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
             ? assistantContent
@@ -519,6 +538,7 @@ public sealed class AiQueryOrchestrationService(
                     memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
                     comprehensiveAnalysisResult,
                     financialStatementAnalysisResult,
+                    financialStatementTableResult,
                     productRevenueMixResult,
                     monthlyActivityTrendResult)),
             createConversation,
@@ -544,6 +564,7 @@ public sealed class AiQueryOrchestrationService(
             WorkflowCorrelationId: request.CorrelationId,
             ComprehensiveAnalysisResult: comprehensiveAnalysisResult,
             FinancialStatementAnalysisResult: financialStatementAnalysisResult,
+            FinancialStatementTableResult: financialStatementTableResult,
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult);
     }
@@ -699,7 +720,8 @@ public sealed class AiQueryOrchestrationService(
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
-        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null)
+        MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
+        FinancialStatementTableResult? financialStatementTableResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -709,6 +731,9 @@ public sealed class AiQueryOrchestrationService(
 
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
+
+        if (financialStatementTableResult?.RenderedAnswer is { Length: > 0 } renderedTable)
+            return renderedTable;
 
         if (productRevenueMixResult is not null)
             return BuildProductRevenueMixContent(productRevenueMixResult);

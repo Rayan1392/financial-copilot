@@ -21,6 +21,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "- ProductRevenueMix: the user asks which product contributes the most revenue, asks for product revenue mix, " +
         "product composition, dominant product, most important product, or similar product-level monthly sales questions. " +
         "These are not metric lookups and must NOT fall through to SymbolLookup.\n" +
+        "- FinancialStatementTableLookup: the user asks to show/display the full income statement, balance sheet, or cash-flow statement table for a company.\n" +
         "- FinancialStatementPeriodAnalysis: the user asks about latest or requested 3/6/9/12-month financial statements, " +
         "income statement facts such as net profit/EPS/margins, balance-sheet facts such as assets/liabilities/equity/current ratio, " +
         "or return ratios such as ROA/ROE for a named company. Use this instead of SymbolLookup for financial-statement period analysis.\n" +
@@ -45,7 +46,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
         "MonthlyActivityTrend asks for a chart/trend/comparison of monthly sales over multiple periods; " +
         "ComprehensiveAnalysis = any general question about a named stock, or request for analysis/reports.\n" +
         "Respond ONLY with JSON matching this schema: " +
-        "{\"intent\":\"Scanner|SymbolLookup|FinancialStatementPeriodAnalysis|ProductRevenueMix|MonthlyActivityTrend|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
+        "{\"intent\":\"Scanner|SymbolLookup|FinancialStatementPeriodAnalysis|FinancialStatementTableLookup|ProductRevenueMix|MonthlyActivityTrend|ComprehensiveAnalysis|Unknown|Clarification\",\"confidence\":0.0}";
 
     public async Task<IntentDetectionResult> DetectAsync(
         IntentDetectionInput input,
@@ -65,6 +66,14 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
                 DetectedIntent.ProductRevenueMix,
                 0.98,
                 "Deterministic product revenue mix phrase rule.");
+        }
+
+        if (FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.FinancialStatementTableLookup,
+                0.98,
+                "Deterministic financial statement table phrase rule.");
         }
 
         if (FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(input.UserQuery))
@@ -207,6 +216,7 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
                 "Scanner" => DetectedIntent.Scanner,
                 "SymbolLookup" => DetectedIntent.SymbolLookup,
                 "FinancialStatementPeriodAnalysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
+                "FinancialStatementTableLookup" => DetectedIntent.FinancialStatementTableLookup,
                 "ProductRevenueMix" => DetectedIntent.ProductRevenueMix,
                 "MonthlyActivityTrend" => DetectedIntent.MonthlyActivityTrend,
                 "ComprehensiveAnalysis" => DetectedIntent.ComprehensiveAnalysis,

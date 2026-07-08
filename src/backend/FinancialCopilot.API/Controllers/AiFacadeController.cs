@@ -210,6 +210,7 @@ public sealed class AiFacadeController(
             result.WorkflowCorrelationId,
             MapComprehensiveAnalysisResult(result.ComprehensiveAnalysisResult),
             MapFinancialStatementAnalysisResult(result.FinancialStatementAnalysisResult),
+            MapFinancialStatementTableResult(result.FinancialStatementTableResult),
             MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
             MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult));
 
@@ -394,6 +395,7 @@ public sealed class AiFacadeController(
                     d.Type.ToString(), d.Purpose.ToString(), d.Explanation)).ToList(),
                 MapComprehensiveAnalysisResult(payload.ComprehensiveAnalysisResult),
                 MapFinancialStatementAnalysisResult(payload.FinancialStatementAnalysisResult),
+                MapFinancialStatementTableResult(payload.FinancialStatementTableResult),
                 MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
                 MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult));
 
@@ -462,6 +464,53 @@ public sealed class AiFacadeController(
             result.ConfidenceScore,
             result.GeneratedAtUtc);
     }
+
+    private static FinancialStatementTableHttpResponse? MapFinancialStatementTableResult(
+        FinancialStatementTableResult? result)
+    {
+        if (result is null) return null;
+
+        return new FinancialStatementTableHttpResponse(
+            new FinancialStatementTableSourceHttpResponse(
+                result.Source.StatementId,
+                result.Source.ExternalStatementId,
+                result.Source.ProviderName,
+                result.Source.ExternalCompanyId,
+                result.Source.CompanySymbol,
+                result.Source.CompanyName,
+                result.Source.StatementType.ToString(),
+                result.Source.PeriodType,
+                result.Source.PeriodMonths,
+                result.Source.PeriodStart,
+                result.Source.PeriodEnd,
+                result.Source.AnnouncementDate,
+                result.Source.JalaliPeriodEnd,
+                result.Source.JalaliFiscalYearEnd,
+                result.Source.JalaliAnnouncementDate,
+                result.Source.IsAudited,
+                result.Source.IsRepresented,
+                result.Source.IsComposing,
+                result.Source.Unit),
+            result.LineItems.Select(MapFinancialStatementTableLineItem).ToList(),
+            result.BalanceSheetRows.Select(row => new BalanceSheetTableRowHttpResponse(
+                row.Asset is null ? null : MapFinancialStatementTableLineItem(row.Asset),
+                row.LiabilityOrEquity is null ? null : MapFinancialStatementTableLineItem(row.LiabilityOrEquity))).ToList(),
+            result.Warnings,
+            result.GeneratedAtUtc);
+    }
+
+    private static FinancialStatementTableLineItemHttpResponse MapFinancialStatementTableLineItem(
+        FinancialStatementTableLineItem item) =>
+        new(
+            item.RowNumber,
+            item.SourceItemId,
+            item.TitleFa,
+            item.TitleEn,
+            item.MetricCode,
+            item.Value,
+            item.FormattedValue,
+            item.Unit,
+            item.Side.ToString());
 
     private static MonthlyActivityTrendChartResponse? MapMonthlyActivityTrendResult(
         MonthlyActivityTrendResponse? result)

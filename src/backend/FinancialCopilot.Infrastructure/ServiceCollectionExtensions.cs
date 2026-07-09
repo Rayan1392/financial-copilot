@@ -8,12 +8,14 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
+using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Billing;
@@ -37,6 +39,7 @@ using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
+using FinancialCopilot.Infrastructure.Financial.Insights;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
@@ -839,6 +842,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonthlySalesQualityRankingRepository, MonthlySalesQualityRankingRepository>();
         services.AddScoped<IRecalculateMonthlySalesQualityRankingUseCase, RecalculateMonthlySalesQualityRankingUseCase>();
         services.AddScoped<IMonthlySalesQualityRankingQueryUseCase, MonthlySalesQualityRankingQueryUseCase>();
+        // Spec 084 — proactive market event intelligence.
+        services.AddSingleton<IInsightScoringService, DeterministicInsightScoringService>();
+        services.AddSingleton<IInsightDeduplicationPolicy, InsightDeduplicationPolicy>();
+        services.AddScoped<IInsightEventRepository, InsightEventRepository>();
+        services.AddScoped<IInsightDetector, MonthlyReportPublishedDetector>();
+        services.AddScoped<IInsightDetector, MonthlySalesAnomalyDetector>();
+        services.AddScoped<IInsightDetector, MonthlyQualityRankingChangeDetector>();
+        services.AddScoped<IInsightDetector, PriceMovementDetector>();
+        services.AddScoped<IInsightDetector, ComprehensiveAnalysisPublishedDetector>();
+        services.AddScoped<IInsightDetector, FinancialStatementPublishedDetector>();
+        services.AddScoped<IInsightDetector, DataFreshnessDetector>();
+        services.AddScoped<IGenerateMarketInsightsUseCase, GenerateMarketInsightsUseCase>();
+        services.AddScoped<IGetMarketInsightFeedUseCase, GetMarketInsightFeedUseCase>();
         // Spec 050 â€” all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>

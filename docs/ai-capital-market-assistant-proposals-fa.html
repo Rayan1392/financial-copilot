@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>پیشنهادهای توسعه دستیار هوشمند بازار سرمایه</title>
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --paper: #ffffff;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --line: #e5e7eb;
+      --accent: #0f766e;
+      --accent-2: #2563eb;
+      --soft: #ecfeff;
+      --soft-2: #eff6ff;
+      --gold: #b7791f;
+      --success: #ecfdf5;
+      --warning: #fff7ed;
+      --shadow: 0 18px 45px rgba(15, 23, 42, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Vazirmatn", "IRANSans", "Segoe UI", Tahoma, Arial, sans-serif;
+      background: radial-gradient(circle at top right, #e0f2fe 0, transparent 32%), linear-gradient(180deg, #fbfaf7 0%, #f8fafc 100%);
+      color: var(--ink);
+      line-height: 1.9;
+    }
+    .page { max-width: 1120px; margin: 0 auto; padding: 36px 22px 64px; }
+    header.hero {
+      background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 50%, #eff6ff 100%);
+      border: 1px solid rgba(15, 118, 110, .16);
+      border-radius: 30px;
+      padding: 36px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero:before { content: ""; position: absolute; width: 280px; height: 280px; border-radius: 50%; background: rgba(37, 99, 235, .08); left: -70px; top: -90px; }
+    .eyebrow { display: inline-flex; gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; color: var(--accent); font-weight: 700; }
+    h1 { font-size: clamp(30px, 5vw, 54px); line-height: 1.25; margin: 18px 0 12px; letter-spacing: -1px; }
+    .lead { font-size: 18px; color: #334155; max-width: 900px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+    .pill { background: rgba(255,255,255,.8); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; color: #334155; }
+    .section { background: var(--paper); border: 1px solid var(--line); border-radius: 28px; padding: 30px; margin-top: 26px; box-shadow: 0 10px 30px rgba(15,23,42,.05); }
+    .section-kicker { color: var(--accent); font-weight: 800; margin-bottom: 4px; }
+    h2 { font-size: 30px; margin: 0 0 14px; }
+    h3 { font-size: 22px; margin: 26px 0 8px; color: #0f172a; }
+    h4 { margin: 0 0 6px; color: #0f766e; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+    .card { background: linear-gradient(180deg, #ffffff, #f8fafc); border: 1px solid var(--line); border-radius: 24px; padding: 22px; }
+    .card.priority { border-color: rgba(15,118,110,.35); background: linear-gradient(180deg, #f0fdfa, #ffffff); }
+    .badge { display: inline-block; background: var(--soft); color: var(--accent); padding: 5px 10px; border-radius: 999px; font-weight: 800; font-size: 13px; }
+    ul { padding-right: 20px; }
+    li { margin: 6px 0; }
+    .callout { border-radius: 22px; padding: 18px 20px; margin: 24px 0 6px; border: 1px solid; }
+    .success { background: var(--success); border-color: #bbf7d0; }
+    .warning { background: var(--warning); border-color: #fed7aa; }
+    .tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0 18px; }
+    .tech-grid > div { background: #f8fafc; border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 18px; margin: 18px 0; border: 1px solid var(--line); }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+    th { background: #f1f5f9; color: #0f172a; }
+    tr:last-child td { border-bottom: 0; }
+    pre { direction: ltr; text-align: left; background: #f8fafc; color: #0f172a; border: 1px solid var(--line); border-radius: 18px; padding: 18px; overflow-x: auto; line-height: 1.6; }
+    code { font-family: "Cascadia Code", Consolas, monospace; }
+    footer { color: var(--muted); text-align: center; margin-top: 30px; font-size: 14px; }
+    @media (max-width: 860px) { .cards, .tech-grid { grid-template-columns: 1fr; } header.hero, .section { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="eyebrow">TahlilApp-AI · پیشنهاد توسعه محصول</div>
+      <h1>سه پیشنهاد کلیدی برای ارتقای دستیار هوشمند بازار سرمایه</h1>
+      <p class="lead">هدف این گزارش تبدیل دستیار از یک ابزار پرسش‌وپاسخ مالی به یک لایه هوشمند کشف، اولویت‌بندی و توضیح رویدادهای مهم بازار است؛ بدون ورود زودهنگام به پیچیدگی پرتفو یا توصیه خرید و فروش.</p>
+      <div class="meta">
+        <div class="pill">نسخه پیشنهادی: 084 تا 086</div>
+        <div class="pill">سطح تغییرات: متوسط تا بزرگ مرحله‌ای</div>
+        <div class="pill">رویکرد: Light Theme · Evidence-first</div>
+      </div>
+    </header>
+    
+<section id="executive" class="section">
+  <div class="section-kicker">بخش اول — مدیریتی</div>
+  <h2>جمع‌بندی مدیریتی پیشنهادها</h2>
+  <p>
+    دستیار فعلی بازار سرمایه عمدتاً یک سیستم واکنشی است: کاربر سؤال می‌پرسد و سیستم بر اساس داده‌های مالی، گزارش‌های ماهانه، قیمت، نسبت‌ها و صورت‌های مالی پاسخ می‌دهد. پیشنهاد این گزارش تبدیل تدریجی محصول به یک <strong>دستیار هوشمند فعال</strong> است؛ یعنی سیستمی که بدون نیاز به سؤال مستقیم کاربر، اتفاقات مهم بازار را تشخیص دهد، اولویت‌بندی کند و با شواهد قابل اتکا نمایش دهد.
+  </p>
+  <div class="cards">
+    <article class="card priority">
+      <span class="badge">پیشنهاد ۱</span>
+      <h3>فید هوشمند رویدادهای مهم بازار</h3>
+      <p>سیستم به‌صورت خودکار تشخیص دهد امروز کدام نمادها یا صنایع اتفاق مهم داشته‌اند؛ مثل گزارش فروش ماهانه غیرعادی، تغییر شدید قیمت، انتشار تحلیل جدید یا انتشار صورت مالی جدید.</p>
+      <ul>
+        <li>افزایش مراجعه روزانه کاربر به محصول</li>
+        <li>ارزش افزوده فراتر از چت‌بات پرسش‌وپاسخ</li>
+        <li>قابل پیاده‌سازی با داده‌های فعلی</li>
+      </ul>
+    </article>
+    <article class="card">
+      <span class="badge">پیشنهاد ۲</span>
+      <h3>نمادهای دنبال‌شده به‌جای پرتفو کامل</h3>
+      <p>چون در محصول فعلی واچ‌لیست عملیاتی وجود ندارد، بهتر است ابتدا یک قابلیت سبک «دنبال‌کردن نماد» اضافه شود تا شخصی‌سازی بدون پیچیدگی پرتفو ممکن شود.</p>
+      <ul>
+        <li>ساده‌تر از تحلیل پرتفو</li>
+        <li>بستر لازم برای Watchlist AI</li>
+        <li>ریسک حقوقی و محصولی کمتر</li>
+      </ul>
+    </article>
+    <article class="card">
+      <span class="badge">پیشنهاد ۳</span>
+      <h3>پاسخ و Insight مبتنی بر شواهد</h3>
+      <p>هر پاسخ یا رویداد پیشنهادی باید دقیقاً نشان دهد چه اتفاقی افتاده، چرا مهم است، منبع چیست، داده چقدر تازه است و سطح اطمینان چقدر است.</p>
+      <ul>
+        <li>افزایش اعتماد کاربر</li>
+        <li>کاهش ریسک Hallucination</li>
+        <li>تمایز از ChatGPT عمومی</li>
+      </ul>
+    </article>
+  </div>
+  <div class="callout success">
+    <strong>پیشنهاد اجرایی:</strong>
+    شماره‌گذاری فیچرها با توجه به وجود فیچر ۰۸۳ در specs فعلی، از ۰۸۴ شروع شود: ۰۸۴ برای فید رویدادهای بازار، ۰۸۵ برای نمادهای دنبال‌شده، و ۰۸۶ برای فید شخصی‌سازی‌شده.
+  </div>
+</section>
+
+    
+<section id="technical" class="section">
+  <div class="section-kicker">بخش دوم — فنی</div>
+  <h2>جزئیات فنی پیشنهادی</h2>
+  <p>
+    معماری پیشنهادی باید به‌جای ساخت مستقیم یک Watchlist Feed، یک لایه عمومی به نام <strong>Market Insight Event Engine</strong> ایجاد کند. این لایه رویدادهای مهم را از داده‌های موجود استخراج، امتیازدهی، Deduplicate و برای UI یا AI Chat قابل مصرف می‌کند.
+  </p>
+
+  <h3>Feature 084 — Proactive Market Event Intelligence</h3>
+  <div class="tech-grid">
+    <div>
+      <h4>هدف</h4>
+      <p>تشخیص و نمایش مهم‌ترین رویدادهای بازار بدون وابستگی به واچ‌لیست یا پرتفو.</p>
+    </div>
+    <div>
+      <h4>خروجی نمونه</h4>
+      <p>«امروز ۸ اتفاق مهم در بازار شناسایی شد: کچاد فروش ماهانه بالاتر از میانگین ۱۲ ماهه داشت؛ فملی افت قیمت شدید با ارزش معاملات بالا داشت.»</p>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Detector</th><th>منبع داده</th><th>نمونه Insight</th></tr></thead>
+    <tbody>
+      <tr><td>Monthly Report Published</td><td>Noavaran Monthly Reports</td><td>گزارش ماهانه جدید منتشر شد.</td></tr>
+      <tr><td>Monthly Sales Anomaly</td><td>Monthly Sales + 12M Average</td><td>فروش آخرین ماه ۳۰٪ بالاتر از میانگین ۱۲ ماهه است.</td></tr>
+      <tr><td>Price Movement</td><td>LatestMarketQuotes / Daily Trades</td><td>افت یا رشد روزانه شدیدتر از حد معمول رخ داد.</td></tr>
+      <tr><td>Comprehensive Analysis Published</td><td>CyclicalWaves</td><td>تحلیل جدید برای نماد منتشر شد.</td></tr>
+      <tr><td>Financial Statement Published</td><td>Noavaran Financial Statements</td><td>صورت مالی دوره جدید منتشر شد.</td></tr>
+      <tr><td>Monthly Quality Ranking</td><td>Feature 080</td><td>کیفیت گزارش ماهانه نماد بهبود/افت داشت.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Feature 085 — Followed Symbols Foundation</h3>
+  <p>
+    این فیچر حداقل زیرساخت شخصی‌سازی را فراهم می‌کند. کاربر می‌تواند نماد را Follow یا Unfollow کند. این قابلیت نباید با پرتفو اشتباه شود؛ هیچ اطلاعاتی درباره تعداد سهم، قیمت خرید، سود و زیان یا ریسک پرتفو ذخیره نمی‌شود.
+  </p>
+  <pre><code>GET  /api/v1/followed-symbols/me
+PUT  /api/v1/followed-symbols/me
+POST /api/v1/followed-symbols/me/{companyId}
+DELETE /api/v1/followed-symbols/me/{companyId}</code></pre>
+
+  <h3>Feature 086 — Personalized Symbol Intelligence Feed</h3>
+  <p>
+    پس از ایجاد نمادهای دنبال‌شده، همان InsightEvent های عمومی برای کاربر فیلتر و رتبه‌بندی می‌شوند. خروجی باید جمله‌ای مانند «برای نمادهای دنبال‌شده شما امروز ۴ اتفاق مهم رخ داده است» تولید کند.
+  </p>
+  <pre><code>GET /api/v1/insights/followed-symbols/me
+POST /api/ai/v1/query
+Action: Ask AI about this insight</code></pre>
+
+  <h3>مدل داده پیشنهادی</h3>
+  <pre><code>InsightEvent
+- Id
+- ExternalCompanyId
+- Symbol
+- IndustryCode
+- InsightType
+- Severity
+- ImportanceScore
+- ConfidenceScore
+- Title
+- Summary
+- Reason
+- EvidenceJson
+- SourceProviderName
+- SourceEntityType
+- SourceEntityId
+- SourcePeriod
+- DetectedAtUtc
+- ExpiresAtUtc
+- DeduplicationKey</code></pre>
+
+  <h3>اصل کلیدی محصول</h3>
+  <div class="callout warning">
+    این قابلیت نباید توصیه خرید/فروش بدهد. زبان محصول باید «تشخیص رویداد مهم»، «خلاصه تغییرات» و «ارائه شواهد» باشد؛ نه «سیگنال معامله».
+  </div>
+</section>
+
+    <footer>تهیه‌شده برای برنامه‌ریزی فیچرهای بعدی دستیار هوشمند بازار سرمایه — بدون تغییر در کد محصول</footer>
+  </main>
+</body>
+</html>

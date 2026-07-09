@@ -393,6 +393,16 @@ Use this checklist to implement the production/sales trend capability in depende
 | [x] | 82 | [081](./081-ai-financial-statement-period-analysis-query/user-story.md) / [tasks](./081-ai-financial-statement-period-analysis-query/tasks.md) | AI Financial Statement Period Analysis Query | Depends on `029`, `040`, `045`, `047`, `072`, `074`, `009`, `010`, `082`; add AI support for Persian questions about latest or requested 3/6/9/12-month NADPCO financial statements, with deterministic statement selection, consolidated/non-consolidated and audited/unaudited variant binding, income-statement/balance-sheet/ratio calculations, YoY comparisons, Persian rendering, source metadata, and regression tests, after the statement storage model can distinguish variants and resolve metrics from persisted item mappings. |
 | [x] | 83 | [083](./083-ai-full-financial-statement-table-query/user-story.md) / [tasks](./083-ai-full-financial-statement-table-query/tasks.md) | AI Full Financial Statement Table Query | **Implemented 2026-07-08.** Adds deterministic `FinancialStatementTableLookup` routing for Persian full-table requests, provider-aware persisted statement selection, structured table result payloads, Persian markdown rendering for income statement/cash flow and two-sided balance sheet output, V1/V2 orchestration and conversation persistence wiring, golden routing prompts, and focused unit/integration coverage. |
 
+### Stage 24 - Proactive Market Intelligence
+
+These stories add the market-wide insight engine, the lightweight followed-symbol foundation, and the personalized insight feed in the proposal's intended order: `084` -> `085` -> `086`.
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 84 | [084](./084-proactive-market-event-intelligence/user-story.md) / [tasks](./084-proactive-market-event-intelligence/tasks.md) | Proactive Market Event Intelligence | Depends on `030`, `042`, `065`, `066`, `080`, `012`, `018`; add a persisted market-wide `InsightEvent` read model, deterministic insight detectors over existing projections, scoring/deduplication, and market/symbol/industry feed endpoints without buy/sell recommendation wording. |
+| [ ] | 85 | [085](./085-followed-symbols-foundation/user-story.md) / [tasks](./085-followed-symbols-foundation/tasks.md) | Followed Symbols Foundation | Depends on `031`, `002`, `084`; add the lightweight actor-scoped followed-symbols foundation with canonical company resolution, follow/unfollow/replace APIs, and UI entry points that deliberately stop short of portfolio modeling. |
+| [ ] | 86 | [086](./086-personalized-symbol-intelligence-feed/user-story.md) / [tasks](./086-personalized-symbol-intelligence-feed/tasks.md) | Personalized Symbol Intelligence Feed | Depends on `031`, `002`, `084`, `085`, `009`, `047`, `056`; add the personalized followed-symbol insight feed, optional seen/dismissed state, and AI explanation bridge over persisted `InsightEvent` evidence without duplicating detector logic or inventing advice. |
+
 ## Completion Gate
 
 A checklist item may be marked complete only when:

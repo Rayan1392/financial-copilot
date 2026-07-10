@@ -62,6 +62,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<MarketQuoteMismatchRow> MarketQuoteMismatches => Set<MarketQuoteMismatchRow>();
     public DbSet<WatchlistSymbolRow> WatchlistSymbols => Set<WatchlistSymbolRow>();
 
+    public DbSet<FollowedSymbolRow> FollowedSymbols => Set<FollowedSymbolRow>();
+
     public DbSet<MissingAnswerFeedbackRow> MissingAnswerFeedbacks => Set<MissingAnswerFeedbackRow>();
 
     public DbSet<CompanyProductRevenueMixRow> CompanyProductRevenueMix => Set<CompanyProductRevenueMixRow>();

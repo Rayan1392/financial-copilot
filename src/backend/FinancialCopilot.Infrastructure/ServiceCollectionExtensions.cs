@@ -7,6 +7,7 @@ using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
+using FinancialCopilot.Application.FinancialData.FollowedSymbols;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.MarketViews;
@@ -44,6 +45,7 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Tsetmc;
+using FinancialCopilot.Infrastructure.Financial.FollowedSymbols;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
@@ -1008,6 +1010,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMarketViewCache, MemoryMarketViewCache>();
         services.AddScoped<IWatchlistService, WatchlistService>();
         services.AddScoped<IMarketSummaryService, MarketSummaryService>();
+        services.AddScoped<IFollowedSymbolRepository, EfCoreFollowedSymbolRepository>();
+        services.AddScoped<IFollowedCompanyResolver, EfCoreFollowedCompanyResolver>();
+        services.AddScoped<IGetMyFollowedSymbolsUseCase, GetMyFollowedSymbolsUseCase>();
+        services.AddScoped<IFollowSymbolUseCase, FollowSymbolUseCase>();
+        services.AddScoped<IUnfollowSymbolUseCase, UnfollowSymbolUseCase>();
+        services.AddScoped<IReplaceMyFollowedSymbolsUseCase, ReplaceMyFollowedSymbolsUseCase>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<PersistedMarketDataProvider>());

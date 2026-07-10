@@ -60,6 +60,7 @@ public sealed class MetadataController(
 
         var symbols = await metadataService.SearchSymbolsAsync(search, limit, cancellationToken);
         return Ok(symbols.Select(symbol => new SymbolMetadataResponse(
+            symbol.ExternalCompanyId,
             symbol.SymbolCode,
             symbol.CompanyName,
             symbol.CompanyNameEnglish,

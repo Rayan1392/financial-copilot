@@ -35,6 +35,7 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
             from industry in industries.DefaultIfEmpty()
             select new
             {
+                company.ExternalCompanyId,
                 SymbolCode = company.TseSymbol ?? company.CompanySymbol ?? company.ExternalCompanyId,
                 company.Name,
                 company.NameEnglish,
@@ -61,6 +62,7 @@ public sealed class EfCoreAssistedQueryMetadataService(FinancialIngestionDbConte
             .Select(group => group.First())
             .Take(limit)
             .Select(row => new SymbolMetadataItem(
+                row.ExternalCompanyId,
                 row.SymbolCode,
                 row.Name,
                 row.NameEnglish,

@@ -6,6 +6,7 @@ public sealed record PeriodMetadataItem(
     string DisplayNameFa);
 
 public sealed record SymbolMetadataItem(
+    string ExternalCompanyId,
     string SymbolCode,
     string CompanyName,
     string? CompanyNameEnglish,

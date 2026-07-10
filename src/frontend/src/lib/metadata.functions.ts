@@ -19,6 +19,7 @@ export interface PeriodMetadata {
 }
 
 export interface SymbolMetadata {
+  externalCompanyId: string;
   symbolCode: string;
   companyName: string;
   companyNameEnglish?: string;

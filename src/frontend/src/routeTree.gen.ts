@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
 import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.stockmarket'
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppFollowedSymbolsRoute = AppFollowedSymbolsRouteImport.update({
+  id: '/followed-symbols',
+  path: '/followed-symbols',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppChatRoute = AppChatRouteImport.update({
   id: '/chat',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
+  '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
+  '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRoute
+  '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/chat'
+    | '/followed-symbols'
     | '/c/$threadId'
     | '/admin/data/archive'
     | '/admin/data/monitor'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/chat'
+    | '/followed-symbols'
     | '/c/$threadId'
     | '/admin/data/archive'
     | '/admin/data/monitor'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/_app/chat'
+    | '/_app/followed-symbols'
     | '/_app/c/$threadId'
     | '/admin_/data/archive'
     | '/admin_/data/monitor'
@@ -208,6 +220,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/followed-symbols': {
+      id: '/_app/followed-symbols'
+      path: '/followed-symbols'
+      fullPath: '/followed-symbols'
+      preLoaderRoute: typeof AppFollowedSymbolsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/chat': {
       id: '/_app/chat'
@@ -270,11 +289,13 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
+  AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
+  AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }
 

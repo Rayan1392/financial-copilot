@@ -22,6 +22,7 @@ public sealed record PeriodMetadataResponse(
     string DisplayNameFa);
 
 public sealed record SymbolMetadataResponse(
+    string ExternalCompanyId,
     string SymbolCode,
     string CompanyName,
     string? CompanyNameEnglish,

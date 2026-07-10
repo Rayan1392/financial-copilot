@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMarketSummary } from "@/lib/market-view.functions";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
+import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 
 export function ContextPanel() {
   const fetchSummary = useServerFn(getMarketSummary);
@@ -64,12 +65,17 @@ export function ContextPanel() {
             {[...(data?.topGainers ?? []), ...(data?.topLosers ?? [])].map((mover) => (
               <div
                 key={`${mover.symbol}-${mover.changePercent}`}
-                className="flex items-center justify-between p-2 rounded-lg"
+                className="flex items-center justify-between gap-2 p-2 rounded-lg"
               >
-                <span className="text-sm text-foreground">
-                  {mover.symbol}
-                  {mover.isStale ? " *" : ""}
-                </span>
+                <div>
+                  <span className="text-sm text-foreground">
+                    {mover.symbol}
+                    {mover.isStale ? " *" : ""}
+                  </span>
+                  <div className="mt-1">
+                    <FollowSymbolButton symbol={mover.symbol} compact />
+                  </div>
+                </div>
                 <span
                   className={`text-xs mono ${mover.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
                 >

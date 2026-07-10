@@ -5,6 +5,7 @@ import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
+import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 
 interface Props {
   messages: ChatMessage[];
@@ -222,6 +223,11 @@ function ScannerResultTable({
                       {shouldShowFreshnessStatus(cell?.freshnessStatus) && (
                         <span className="block text-[9px] text-muted-foreground">
                           {cell.freshnessStatus}
+                        </span>
+                      )}
+                      {column.identifier.toUpperCase() === "SYMBOL" && row.symbolCode && (
+                        <span className="mt-1 block">
+                          <FollowSymbolButton symbol={row.symbolCode} compact />
                         </span>
                       )}
                     </td>

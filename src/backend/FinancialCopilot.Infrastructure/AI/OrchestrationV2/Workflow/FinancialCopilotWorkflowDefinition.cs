@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.FinancialData.Ingestion;
@@ -43,6 +45,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
+    IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -213,6 +216,38 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
+
+        if (request.Context?.InsightEventId is Guid insightEventId)
+        {
+            var explanation = await explainInsightUseCase.ExecuteAsync(
+                new ExplainInsightQuery(
+                    new CurrentActor(
+                        request.ActorType,
+                        request.ActorId,
+                        request.TenantId,
+                        request.AuthenticationMode,
+                        request.UserId,
+                        request.ApiClientId),
+                    insightEventId),
+                ct);
+
+            UsageAccountingResult? insightUsage = null;
+            if (msg.Reservation is not null)
+            {
+                insightUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, "Completed", false, CancellationToken.None);
+            }
+
+            stepActivity?.SetTag("workflow.intent", "PersonalizedInsightExplanation");
+
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                explanation,
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult,
+                productRevenueMixResult, monthlyActivityTrendResult, monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, insightUsage);
+        }
 
         var scannerTool = AIFunctionFactory.Create(
             async (string query) =>
@@ -526,7 +561,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
         var detectedIntent =
-            msg.MonthlySalesQualityRankingResult is not null ||
+            msg.Request.Context?.InsightEventId is not null
+                ? DetectedIntent.PersonalizedInsightExplanation
+                : msg.MonthlySalesQualityRankingResult is not null ||
             MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlySalesQualityRanking
                 : msg.MonthlyActivityTrendResult is not null ||
@@ -604,10 +641,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
             ? msg.GroundedAnswer
             : textAnswer;
 

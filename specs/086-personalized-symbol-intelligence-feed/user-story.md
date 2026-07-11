@@ -1,7 +1,7 @@
 # User Story — Personalized Symbol Intelligence Feed
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented 2026-07-10
 
 ## Feature
 Personalized insight feed for the user's followed symbols, powered by the reusable market insight event engine.

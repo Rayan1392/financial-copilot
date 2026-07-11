@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
@@ -30,6 +32,7 @@ public sealed class AiQueryOrchestrationService(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IExplainInsightUseCase explainInsightUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
@@ -94,6 +97,25 @@ public sealed class AiQueryOrchestrationService(
 
         try
         {
+            if (request.Context?.InsightEventId is Guid insightEventId)
+            {
+                detectedIntent = DetectedIntent.PersonalizedInsightExplanation;
+                textAnswer = await explainInsightUseCase.ExecuteAsync(
+                    new ExplainInsightQuery(
+                        new CurrentActor(
+                            request.ActorType,
+                            request.ActorId,
+                            request.TenantId,
+                            request.AuthenticationMode,
+                            request.UserId,
+                            request.ApiClientId),
+                        insightEventId),
+                    cancellationToken);
+                clarificationRequired = false;
+                clarificationMessage = null;
+            }
+            else
+            {
             var intentResult = await intentDetector.DetectAsync(
                 new IntentDetectionInput(
                     request.Message,
@@ -440,6 +462,7 @@ public sealed class AiQueryOrchestrationService(
                     ? "می‌توانم نمادها را بر اساس معیارهای مالی بررسی و فیلتر کنم. لطفاً معیارهای موردنظر خود را توضیح دهید."
                     : "I can help you screen and filter stocks by financial metrics. Please describe your screening criteria.";
             }
+            }
 
             if (billingReservation is not null)
             {
@@ -510,6 +533,7 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.FinancialStatementTableLookup
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
+            or DetectedIntent.PersonalizedInsightExplanation
             ? assistantContent
             : textAnswer;
 

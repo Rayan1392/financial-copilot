@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
@@ -14,6 +15,7 @@ public enum DetectedIntent
     ProductRevenueMix,
     MonthlyActivityTrend,
     MonthlySalesQualityRanking,
+    PersonalizedInsightExplanation,
     Clarification,
     Unknown
 }
@@ -45,7 +47,13 @@ public sealed record AiQueryRequest(
     Guid? ApiClientId = null,
     string? ExternalUserId = null,
     int ScannerPage = 1,
-    int ScannerPageSize = 20);
+    int ScannerPageSize = 20,
+    ActorType ActorType = ActorType.User,
+    AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
+    AiQueryContext? Context = null);
+
+public sealed record AiQueryContext(
+    Guid? InsightEventId = null);
 
 public sealed record AiQueryResponse(
     Guid ConversationId,

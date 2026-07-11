@@ -1,7 +1,9 @@
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
@@ -25,6 +27,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     MissingAnswerFeedbackFunction feedbackFunction,
     IAnswerConsistencyValidator consistencyValidator,
     IConfidenceScoringService confidenceScoringService,
+    IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
 {
@@ -73,6 +76,62 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             request.CorrelationId,
             request.TenantId,
             AiWorkloadKind.ResearchTool);
+        UsageAccountingResult? usage = null;
+
+        if (request.Context?.InsightEventId is Guid insightEventId)
+        {
+            var explanation = await explainInsightUseCase.ExecuteAsync(
+                new ExplainInsightQuery(
+                    new CurrentActor(
+                        request.ActorType,
+                        request.ActorId,
+                        request.TenantId,
+                        request.AuthenticationMode,
+                        request.UserId,
+                        request.ApiClientId),
+                    insightEventId),
+                cancellationToken);
+
+            if (reservation is not null)
+                usage = await billingFunctions.FinalizeAsync(
+                    reservation, "Completed", false, cancellationToken);
+
+            await memoryAdapter.RecordAuditAsync(
+                memoryContext, request.TenantId, request.ActorId,
+                request.CorrelationId, now, CancellationToken.None);
+
+            var persistedInsightExchange = await persistenceFunction.PersistAsync(
+                conversationId, request,
+                DetectedIntent.PersonalizedInsightExplanation,
+                false, null,
+                explanation,
+                null, null, null,
+                null, null, usage,
+                memoryContext, explanation,
+                createConversation, cancellationToken);
+
+            var provider = $"{modelClient.Descriptor.ProviderKey}/{modelClient.Descriptor.ModelKey}";
+            return new AiQueryResponse(
+                conversationId,
+                persistedInsightExchange.UserMessageId,
+                persistedInsightExchange.AssistantMessageId,
+                DetectedIntent.PersonalizedInsightExplanation,
+                null,
+                null,
+                null,
+                null,
+                null,
+                explanation,
+                false,
+                null,
+                usage,
+                memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null,
+                AiOrchestrationMode: "MicrosoftAgentFrameworkV2",
+                WorkflowVersion: "2",
+                ProviderSelection: provider,
+                ProviderFallbackOccurred: false,
+                WorkflowCorrelationId: request.CorrelationId);
+        }
 
         var agent = agentFactory.Create(
             chatClientAdapter,
@@ -82,7 +141,6 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         AgentResponse agentResponse;
         var completionStatus = "Completed";
         var fromCache = false;
-        UsageAccountingResult? usage = null;
 
         // Step 5: Run the agent — billing finalization in all paths
         try

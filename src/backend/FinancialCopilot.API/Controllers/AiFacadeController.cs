@@ -50,7 +50,12 @@ public sealed class AiFacadeController(
                     actor.UserId,
                     actor.ApiClientId,
                     ScannerPage: Math.Max(1, httpRequest.ScannerPage),
-                    ScannerPageSize: Math.Clamp(httpRequest.ScannerPageSize, 1, 100)),
+                    ScannerPageSize: Math.Clamp(httpRequest.ScannerPageSize, 1, 100),
+                    ActorType: actor.ActorType,
+                    AuthenticationMode: actor.AuthenticationMode,
+                    Context: httpRequest.Context is null
+                        ? null
+                        : new AiQueryContext(httpRequest.Context.InsightEventId)),
                 cancellationToken);
         }
         catch (ConversationNotFoundException)

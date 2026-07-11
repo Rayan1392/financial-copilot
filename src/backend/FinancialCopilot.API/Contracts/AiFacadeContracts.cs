@@ -6,7 +6,11 @@ public sealed record AiQueryHttpRequest(
     string Message,
     Guid? ConversationId = null,
     int ScannerPage = 1,
-    int ScannerPageSize = 20);
+    int ScannerPageSize = 20,
+    AiQueryContextHttpRequest? Context = null);
+
+public sealed record AiQueryContextHttpRequest(
+    Guid? InsightEventId = null);
 
 public sealed record AiQueryHttpResponse(
     Guid ConversationId,

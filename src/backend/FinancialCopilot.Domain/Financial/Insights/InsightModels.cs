@@ -37,6 +37,97 @@ public enum InsightAction
     OpenSourceReport
 }
 
+public sealed record InsightUserActor
+{
+    public InsightUserActor(Guid tenantId, Guid actorId, string actorType)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("Tenant id is required.", nameof(tenantId));
+        if (actorId == Guid.Empty) throw new ArgumentException("Actor id is required.", nameof(actorId));
+        if (string.IsNullOrWhiteSpace(actorType)) throw new ArgumentException("Actor type is required.", nameof(actorType));
+
+        TenantId = tenantId;
+        ActorId = actorId;
+        ActorType = actorType.Trim();
+    }
+
+    public Guid TenantId { get; }
+
+    public Guid ActorId { get; }
+
+    public string ActorType { get; }
+}
+
+public sealed class UserInsightState
+{
+    private UserInsightState(
+        Guid id,
+        InsightUserActor actor,
+        Guid insightEventId,
+        DateTimeOffset? seenAtUtc,
+        DateTimeOffset? dismissedAtUtc,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset updatedAtUtc)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("State id is required.", nameof(id));
+        if (insightEventId == Guid.Empty) throw new ArgumentException("Insight event id is required.", nameof(insightEventId));
+
+        Id = id;
+        Actor = actor;
+        InsightEventId = insightEventId;
+        SeenAtUtc = seenAtUtc;
+        DismissedAtUtc = dismissedAtUtc;
+        CreatedAtUtc = createdAtUtc;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public Guid Id { get; }
+
+    public InsightUserActor Actor { get; }
+
+    public Guid InsightEventId { get; }
+
+    public DateTimeOffset? SeenAtUtc { get; private set; }
+
+    public DateTimeOffset? DismissedAtUtc { get; private set; }
+
+    public DateTimeOffset CreatedAtUtc { get; }
+
+    public DateTimeOffset UpdatedAtUtc { get; private set; }
+
+    public bool Seen => SeenAtUtc.HasValue;
+
+    public bool Dismissed => DismissedAtUtc.HasValue;
+
+    public static UserInsightState Create(
+        InsightUserActor actor,
+        Guid insightEventId,
+        DateTimeOffset now) =>
+        new(Guid.NewGuid(), actor, insightEventId, null, null, now, now);
+
+    public static UserInsightState Rehydrate(
+        Guid id,
+        InsightUserActor actor,
+        Guid insightEventId,
+        DateTimeOffset? seenAtUtc,
+        DateTimeOffset? dismissedAtUtc,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset updatedAtUtc) =>
+        new(id, actor, insightEventId, seenAtUtc, dismissedAtUtc, createdAtUtc, updatedAtUtc);
+
+    public void MarkSeen(DateTimeOffset seenAtUtc)
+    {
+        SeenAtUtc ??= seenAtUtc;
+        UpdatedAtUtc = seenAtUtc;
+    }
+
+    public void Dismiss(DateTimeOffset dismissedAtUtc)
+    {
+        SeenAtUtc ??= dismissedAtUtc;
+        DismissedAtUtc ??= dismissedAtUtc;
+        UpdatedAtUtc = dismissedAtUtc;
+    }
+}
+
 public sealed record InsightEvidenceItem(
     string Label,
     string Value,

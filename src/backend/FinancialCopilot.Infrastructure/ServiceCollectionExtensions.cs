@@ -848,6 +848,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInsightScoringService, DeterministicInsightScoringService>();
         services.AddSingleton<IInsightDeduplicationPolicy, InsightDeduplicationPolicy>();
         services.AddScoped<IInsightEventRepository, InsightEventRepository>();
+        services.AddScoped<IFollowedSymbolInsightFeedRepository, InsightEventRepository>();
+        services.AddScoped<IUserInsightStateRepository, UserInsightStateRepository>();
         services.AddScoped<IInsightDetector, MonthlyReportPublishedDetector>();
         services.AddScoped<IInsightDetector, MonthlySalesAnomalyDetector>();
         services.AddScoped<IInsightDetector, MonthlyQualityRankingChangeDetector>();
@@ -857,6 +859,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInsightDetector, DataFreshnessDetector>();
         services.AddScoped<IGenerateMarketInsightsUseCase, GenerateMarketInsightsUseCase>();
         services.AddScoped<IGetMarketInsightFeedUseCase, GetMarketInsightFeedUseCase>();
+        services.AddScoped<IGetMyFollowedSymbolInsightsUseCase, GetMyFollowedSymbolInsightsUseCase>();
+        services.AddScoped<IMarkUserInsightSeenUseCase, MarkUserInsightSeenUseCase>();
+        services.AddScoped<IDismissUserInsightUseCase, DismissUserInsightUseCase>();
+        services.AddScoped<IExplainInsightUseCase, ExplainInsightUseCase>();
         // Spec 050 â€” all-index coverage: provider fetch (empty companyIndexIds) + non-scannable
         // staging normalizer (does not touch DerivedMetrics or the curated 041 path).
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -63,6 +65,102 @@ public sealed class MarketInsightEndpointTests : IClassFixture<MarketInsightApiF
         Assert.Equal("MonthlySalesAnomaly", items[0].GetProperty("insightType").GetString());
     }
 
+    [Fact]
+    public async Task FollowedSymbolFeed_ReturnsOnlyFollowedInsights_AndRanksBySeverity()
+    {
+        using var admin = DataAdminClient();
+        using var user = UserClient();
+        await admin.PostAsJsonAsync("/api/v1/admin/insights/generate", new { lookbackDays = 7 }, CancellationToken.None);
+        await SeedManualInsightAsync("999", "BAR", InsightSeverity.Critical, 99m, "unfollowed-critical");
+
+        using var followResponse = await user.PostAsync("/api/v1/followed-symbols/me/13226", null, CancellationToken.None);
+        using var feedResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?take=20", CancellationToken.None);
+        using var document = await ReadJsonAsync(feedResponse);
+        var items = document.RootElement.GetProperty("items").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, followResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, feedResponse.StatusCode);
+        Assert.NotEmpty(items);
+        Assert.All(items, item => Assert.Equal("13226", item.GetProperty("insight").GetProperty("externalCompanyId").GetString()));
+        Assert.DoesNotContain(items, item => item.GetProperty("insight").GetProperty("symbol").GetString() == "BAR");
+    }
+
+    [Fact]
+    public async Task FollowedSymbolFeed_WhenNoFollowedSymbols_ReturnsEmptyState()
+    {
+        using var admin = DataAdminClient();
+        using var user = UserClient();
+        await admin.PostAsJsonAsync("/api/v1/admin/insights/generate", new { lookbackDays = 7 }, CancellationToken.None);
+
+        using var response = await user.GetAsync("/api/v1/insights/followed-symbols/me", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, root.GetProperty("totalCount").GetInt32());
+        Assert.Equal("NoFollowedSymbols", root.GetProperty("emptyState").GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public async Task DismissInsight_HidesItUnlessIncludeDismissed()
+    {
+        using var admin = DataAdminClient();
+        using var user = UserClient();
+        await admin.PostAsJsonAsync("/api/v1/admin/insights/generate", new { lookbackDays = 7 }, CancellationToken.None);
+        await user.PostAsync("/api/v1/followed-symbols/me/13226", null, CancellationToken.None);
+
+        using var initialResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?take=1", CancellationToken.None);
+        using var initialDocument = await ReadJsonAsync(initialResponse);
+        var insightId = initialDocument.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .First()
+            .GetProperty("insight")
+            .GetProperty("id")
+            .GetGuid();
+
+        using var dismissResponse = await user.PostAsync($"/api/v1/insights/{insightId}/dismiss", null, CancellationToken.None);
+        using var defaultFeedResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?take=20", CancellationToken.None);
+        using var dismissedFeedResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?includeDismissed=true&take=20", CancellationToken.None);
+        using var defaultFeed = await ReadJsonAsync(defaultFeedResponse);
+        using var dismissedFeed = await ReadJsonAsync(dismissedFeedResponse);
+
+        Assert.Equal(HttpStatusCode.OK, dismissResponse.StatusCode);
+        Assert.DoesNotContain(defaultFeed.RootElement.GetProperty("items").EnumerateArray(), item =>
+            item.GetProperty("insight").GetProperty("id").GetGuid() == insightId);
+        Assert.Contains(dismissedFeed.RootElement.GetProperty("items").EnumerateArray(), item =>
+            item.GetProperty("insight").GetProperty("id").GetGuid() == insightId &&
+            item.GetProperty("dismissed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AiInsightExplanation_PreservesPersistedEvidence_AndAvoidsAdviceWording()
+    {
+        using var admin = DataAdminClient();
+        using var user = UserClient();
+        await admin.PostAsJsonAsync("/api/v1/admin/insights/generate", new { lookbackDays = 7 }, CancellationToken.None);
+        await user.PostAsync("/api/v1/followed-symbols/me/13226", null, CancellationToken.None);
+
+        using var feedResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?take=1", CancellationToken.None);
+        using var feedDocument = await ReadJsonAsync(feedResponse);
+        var insight = feedDocument.RootElement.GetProperty("items").EnumerateArray().First().GetProperty("insight");
+        var insightId = insight.GetProperty("id").GetGuid();
+        var firstEvidence = insight.GetProperty("evidence").EnumerateArray().First().GetProperty("value").GetString()!;
+
+        using var aiResponse = await user.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "Explain this insight", context = new { insightEventId = insightId } },
+            CancellationToken.None);
+        using var aiDocument = await ReadJsonAsync(aiResponse);
+        var text = aiDocument.RootElement.GetProperty("textAnswer").GetString() ?? string.Empty;
+
+        Assert.Equal(HttpStatusCode.OK, aiResponse.StatusCode);
+        Assert.Contains(firstEvidence, text);
+        Assert.Contains("not a buy or sell recommendation", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("you should buy", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("you should sell", text, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("/api/v1/insights/market")]
     [InlineData("/api/v1/admin/insights/generate")]
@@ -93,6 +191,38 @@ public sealed class MarketInsightEndpointTests : IClassFixture<MarketInsightApiF
         return client;
     }
 
+    private async Task SeedManualInsightAsync(
+        string externalCompanyId,
+        string symbol,
+        InsightSeverity severity,
+        decimal importance,
+        string sourceEntityId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IInsightEventRepository>();
+        var insight = new InsightEvent(
+            Guid.NewGuid(),
+            externalCompanyId,
+            symbol,
+            "manual-industry",
+            InsightType.PriceMovement,
+            severity,
+            importance,
+            95m,
+            $"{symbol} manual insight",
+            "Manual test event from persisted evidence.",
+            "Manual test threshold crossed.",
+            [new InsightEvidenceItem("manual-value", "123.45", "ManualProvider", "1405/04", DateTimeOffset.Parse("2026-07-09T10:00:00Z"))],
+            "ManualProvider",
+            InsightSourceEntityType.MarketQuote,
+            sourceEntityId,
+            "1405/04",
+            DateTimeOffset.Parse("2026-07-09T10:00:00Z"),
+            DateTimeOffset.Parse("2026-07-10T10:00:00Z"),
+            $"manual:{externalCompanyId}:{sourceEntityId}");
+        await repository.UpsertAsync([insight], CancellationToken.None);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -109,6 +239,8 @@ public sealed class MarketInsightApiFactory : AiFacadeApiFactory
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
         db.Database.EnsureCreated();
+        db.UserInsightStates.RemoveRange(db.UserInsightStates);
+        db.FollowedSymbols.RemoveRange(db.FollowedSymbols);
         db.InsightEvents.RemoveRange(db.InsightEvents);
         db.MonthlyReports.RemoveRange(db.MonthlyReports);
         db.CompanyMonthlyActivityTrendSnapshots.RemoveRange(db.CompanyMonthlyActivityTrendSnapshots);

@@ -1,0 +1,27 @@
+# Implementation Checklist Amendment — Telegram Proactive Market Assistant
+
+## Stage 25 — Telegram Channel and Proactive Market Services
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 87 | [087](./087-telegram-account-linking-and-channel-identity/user-story.md) / [tasks](./087-telegram-account-linking-and-channel-identity/tasks.md) | Telegram Account Linking and Channel Identity | Link a Telegram user to a canonical TahlilApp actor without creating a second identity or billing model. |
+| [ ] | 88 | [088](./088-telegram-channel-membership-and-free-entitlement/user-story.md) / [tasks](./088-telegram-channel-membership-and-free-entitlement/tasks.md) | Telegram Channel Membership and Free Entitlement | Require membership in the configured Telegram channel for free bot access and grant five daily free AI credits. |
+| [ ] | 89 | [089](./089-telegram-ai-assistant-adapter/user-story.md) / [tasks](./089-telegram-ai-assistant-adapter/tasks.md) | Telegram AI Assistant Adapter | Expose the existing FinancialCopilot AI query experience through Telegram while preserving orchestration, explainability, citations, and credit accounting. |
+| [ ] | 90 | [090](./090-smart-codal-announcement-alerts/user-story.md) / [tasks](./090-smart-codal-announcement-alerts/tasks.md) | Smart Codal Announcement Alerts | Notify users immediately when a relevant Codal announcement is published and optionally provide an evidence-bound AI summary. |
+| [ ] | 91 | [091](./091-conditional-symbol-tracker/user-story.md) / [tasks](./091-conditional-symbol-tracker/tasks.md) | Conditional Symbol Tracker | Let users define price, volume, money-flow, fundamental, and Codal conditions and receive a notification when the condition becomes true. |
+| [ ] | 92 | [092](./092-market-microstructure-event-detectors/user-story.md) / [tasks](./092-market-microstructure-event-detectors/tasks.md) | Market Microstructure Event Detectors | Extend proactive insight detection with large trades, queue events, buyer-power anomalies, money flow, and volume anomalies. |
+| [ ] | 93 | [093](./093-personal-market-radar/user-story.md) / [tasks](./093-personal-market-radar/tasks.md) | Personal Market Radar | Continuously monitor followed symbols and deliver only material market events ranked by importance. |
+| [ ] | 94 | [094](./094-professional-scanners-and-ready-filters/user-story.md) / [tasks](./094-professional-scanners-and-ready-filters/tasks.md) | Professional Scanners and Ready Filters | Provide governed ready-made filters and professional-market menus with explainable, reproducible results. |
+| [ ] | 95 | [095](./095-market-pulse-and-key-statistics/user-story.md) / [tasks](./095-market-pulse-and-key-statistics/tasks.md) | Market Pulse and Key Statistics | Publish a canonical real-time market pulse containing turnover, money flow, queue values, breadth, and leading industries. |
+| [ ] | 96 | [096](./096-ai-market-report-and-personal-digest/user-story.md) / [tasks](./096-ai-market-report-and-personal-digest/tasks.md) | AI Market Report and Personal Digest | Generate evidence-bound market narratives and a personalized end-of-day digest for each user’s followed symbols. |
+| [ ] | 97 | [097](./097-notification-orchestration-and-noise-control/user-story.md) / [tasks](./097-notification-orchestration-and-noise-control/tasks.md) | Notification Orchestration and Noise Control | Deliver timely Telegram notifications without duplicates, spam, or repeated low-value alerts. |
+| [ ] | 98 | [098](./098-telegram-subscriptions-credit-purchases-and-entitlements/user-story.md) / [tasks](./098-telegram-subscriptions-credit-purchases-and-entitlements/tasks.md) | Telegram Subscriptions, Credit Purchases, and Entitlements | Allow Telegram users to buy plans or credits while keeping Billing as the single source of truth. |
+| [ ] | 99 | [099](./099-telegram-alert-history-and-explainability/user-story.md) / [tasks](./099-telegram-alert-history-and-explainability/tasks.md) | Telegram Alert History and Explainability | Let users review previous alerts, understand why each alert fired, and inspect its evidence and subsequent market reaction. |
+
+## Stage Gate
+
+- The Telegram adapter must remain a thin delivery-channel boundary over existing application use cases.
+- Feature 013 remains the only Billing and credit source of truth.
+- Features 084 and 092 remain the canonical market-event detector layer.
+- Feature 097 must own durable Telegram notification delivery, retries, suppression, and deduplication.
+- No item may be marked complete without actor-isolation, idempotency, Billing, evidence, and regression tests.

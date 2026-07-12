@@ -301,3 +301,39 @@ This package adds two specs for turning Noavaran Amin monthly production/sales h
 ## Core Rule
 
 The AI must not calculate historical production/sales trends from raw Noavaran line items at query time. It should read one derived trend table, plus company resolution if needed.
+
+
+# Telegram Proactive Market Assistant — Spec Pack
+
+This package defines the Telegram delivery channel and the proactive monitoring capabilities proposed after Features 084–086. It intentionally reuses the existing TahlilApp-AI Identity, Billing, AI orchestration, financial semantic layer, company identity, market data, Codal data, and persisted insight-event boundaries.
+
+## Proposed Features
+
+| Order | Spec | Purpose | Main dependencies |
+|---:|---|---|---|
+| 87 | [087-telegram-account-linking-and-channel-identity](./087-telegram-account-linking-and-channel-identity/user-story.md) | Link a Telegram user to a canonical TahlilApp actor without creating a second identity or billing model. | See story |
+| 88 | [088-telegram-channel-membership-and-free-entitlement](./088-telegram-channel-membership-and-free-entitlement/user-story.md) | Require membership in the configured Telegram channel for free bot access and grant five daily free AI credits. | See story |
+| 89 | [089-telegram-ai-assistant-adapter](./089-telegram-ai-assistant-adapter/user-story.md) | Expose the existing FinancialCopilot AI query experience through Telegram while preserving orchestration, explainability, citations, and credit accounting. | See story |
+| 90 | [090-smart-codal-announcement-alerts](./090-smart-codal-announcement-alerts/user-story.md) | Notify users immediately when a relevant Codal announcement is published and optionally provide an evidence-bound AI summary. | See story |
+| 91 | [091-conditional-symbol-tracker](./091-conditional-symbol-tracker/user-story.md) | Let users define price, volume, money-flow, fundamental, and Codal conditions and receive a notification when the condition becomes true. | See story |
+| 92 | [092-market-microstructure-event-detectors](./092-market-microstructure-event-detectors/user-story.md) | Extend proactive insight detection with large trades, queue events, buyer-power anomalies, money flow, and volume anomalies. | See story |
+| 93 | [093-personal-market-radar](./093-personal-market-radar/user-story.md) | Continuously monitor followed symbols and deliver only material market events ranked by importance. | See story |
+| 94 | [094-professional-scanners-and-ready-filters](./094-professional-scanners-and-ready-filters/user-story.md) | Provide governed ready-made filters and professional-market menus with explainable, reproducible results. | See story |
+| 95 | [095-market-pulse-and-key-statistics](./095-market-pulse-and-key-statistics/user-story.md) | Publish a canonical real-time market pulse containing turnover, money flow, queue values, breadth, and leading industries. | See story |
+| 96 | [096-ai-market-report-and-personal-digest](./096-ai-market-report-and-personal-digest/user-story.md) | Generate evidence-bound market narratives and a personalized end-of-day digest for each user’s followed symbols. | See story |
+| 97 | [097-notification-orchestration-and-noise-control](./097-notification-orchestration-and-noise-control/user-story.md) | Deliver timely Telegram notifications without duplicates, spam, or repeated low-value alerts. | See story |
+| 98 | [098-telegram-subscriptions-credit-purchases-and-entitlements](./098-telegram-subscriptions-credit-purchases-and-entitlements/user-story.md) | Allow Telegram users to buy plans or credits while keeping Billing as the single source of truth. | See story |
+| 99 | [099-telegram-alert-history-and-explainability](./099-telegram-alert-history-and-explainability/user-story.md) | Let users review previous alerts, understand why each alert fired, and inspect its evidence and subsequent market reaction. | See story |
+
+## Recommended Implementation Sequence
+
+1. **Channel foundation:** 087 → 088 → 089.
+2. **Notification foundation:** 097 should be implemented before any production alert delivery.
+3. **Canonical event generation:** 092.
+4. **User capabilities:** 090, 091, 093, and 094.
+5. **Market reporting:** 095 → 096.
+6. **Commercialization and trust:** 098 and 099.
+
+## Scope Boundary
+
+This pack does not introduce portfolio holdings, brokerage integration, order execution, or guaranteed trading signals. Followed symbols remain a lightweight interest list. Portfolio quantity, cost basis, P/L, allocation, and risk require a separate future bounded-context specification.

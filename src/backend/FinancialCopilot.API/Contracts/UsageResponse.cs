@@ -24,4 +24,6 @@ public sealed record UsageEntryResponse(
     int? PromptTokens = null,
     int? CompletionTokens = null,
     int? TotalTokens = null,
-    decimal? EstimatedCost = null);
+    decimal? EstimatedCost = null,
+    string? AllocationSource = null,
+    string? AllowanceDateKey = null);

@@ -1,67 +1,60 @@
 # Tasks — Market Microstructure Event Detectors
 
-## 1. Discovery and Compatibility
+## 1. Boundaries and Governed Definitions
 
-- [ ] Read `specs/README.md`, `specs/implementation-checklist.md`, this story, and all declared dependencies.
-- [ ] Inspect current code and uncommitted changes before implementation.
-- [ ] Reuse existing Identity, Billing, AI orchestration, provider ingestion, company resolution, and insight-event boundaries.
-- [ ] Record any conflict with an implemented spec before changing code.
+- [ ] Extend Feature 084 `InsightEvent` and detector contracts; do not create Telegram-specific detection or a parallel market-event table.
+- [ ] Reuse Features 030/054/064 canonical instruments, quotes, trades, market-session state, source priority, and freshness; document missing source fields before implementation.
+- [ ] Make this feature the owner of deterministic large-trade, queue, buyer-power, real-money-flow, volume, and trading-value event definitions used by 091/093/094/095/096.
+- [ ] Version every detector definition, input dataset contract, formula, baseline, threshold, session scope, and evidence schema.
 
-## 2. Domain and Contracts
+## 2. Metric and Event Semantics
 
-- [ ] Define governed entities, enums, commands, queries, DTOs, repository ports, and policy interfaces required by this story.
-- [ ] Reuse canonical `ExternalCompanyId` for symbol/company references.
-- [ ] Version detector, rule, filter, or rendering definitions where behavior affects historical explainability.
+- [ ] Define large-trade amount/value aggregation, side classification, minimum absolute/relative thresholds, aggregation window, and treatment of cancel/correction records.
+- [ ] Define real buyer/seller power from eligible real-person buy/sell count and volume, including zero-denominator and incomplete-client-type handling.
+- [ ] Define retail/institutional inflow/outflow and “smart money” only as a disclosed deterministic methodology; prohibit unsupported actor-intent claims.
+- [ ] Define buy/sell queue formation, strengthening, weakening, release, and collection using allowed price, queue value/volume, duration, and session transitions.
+- [ ] Define volume/trading-value anomaly baselines (lookback sessions, minimum observations, median/mean choice, corporate-action/outlier rules) and rarity score.
+- [ ] Define configurable thresholds by market segment/instrument class and a governed default; record the effective values with every event.
+- [ ] Define false-positive controls: minimum liquidity, minimum persistence, stale/incomplete snapshot rejection, repeated-event cooldown, and hysteresis.
 
-## 3. Persistence and Data Integrity
+## 3. Persistence and Evidence
 
-- [ ] Add additive EF Core migration only when persistence is required.
-- [ ] Add uniqueness/idempotency constraints for actor/entity/rule/delivery keys.
-- [ ] Add indexes for actor, company, status, event time, and expiry queries.
-- [ ] Preserve immutable evidence/provenance snapshots for anything sent to the user.
+- [ ] Persist results through `InsightEvent` with canonical company/instrument, event time/window, detector code/version, importance/severity/confidence, source freshness, and immutable evidence.
+- [ ] Include exact input values, units, thresholds, baseline window/statistics, sample size, market-session state, provider/source ids, calculation time, and formula version for reproducibility.
+- [ ] Use stable identity `(DetectorCode, Version, Instrument, TradingDate, Window, SourceEventIdentity)` and Feature 084 unique deduplication policy.
+- [ ] Add only indexes/extensions needed for detector queries; do not duplicate raw trade/quote history or user delivery state.
+- [ ] Represent provider corrections as a superseding/corrected event or versioned recomputation with audit link; never silently rewrite delivered evidence.
 
-## 4. Application Use Cases
+## 4. Detection Processing
 
-- [ ] Implement the primary use cases for Market Microstructure Event Detectors.
-- [ ] Validate actor ownership and entitlement before execution.
-- [ ] Return explicit Missing/Unavailable/Stale states instead of fabricated fallback values.
-- [ ] Keep rule evaluation and numeric calculations deterministic and unit-testable.
+- [ ] Implement one pure detector per governed event family behind `IInsightDetector`, with shared baseline/session/freshness readers.
+- [ ] Support market-wide execution and bounded company/watchlist scopes over the same detectors; user scope affects selection, never formulas.
+- [ ] Trigger from canonical trade/quote completion events where available and use bounded scheduled scans otherwise; prevent processing partial source batches as final.
+- [ ] Partition by instrument/trading window, apply bounded concurrency and distributed lease/queue ownership, retry transient reads, and dead-letter poison inputs.
+- [ ] Reject out-of-order/stale observations and make reruns idempotent; recomputation must reproduce identical evidence for identical inputs/version.
 
-## 5. API / Telegram Integration
+## 5. Contracts and Consumers
 
-- [ ] Add or extend protected backend endpoints using the project versioning conventions.
-- [ ] Add Telegram commands, callback actions, or deep links only through the Telegram adapter.
-- [ ] Render Persian messages within Telegram length limits and split safely when necessary.
-- [ ] Preserve correlation ids across Telegram update, application use case, AI workflow, Billing, and notification delivery.
+- [ ] Expose new event types through existing market/symbol insight feeds with filters; no detector-specific public execution endpoint unless an admin pattern requires it.
+- [ ] Provide deterministic contracts for Feature 091 conditions, Feature 093 radar selection, Feature 094 filter results, Feature 095 aggregation, and Feature 096 evidence bundles.
+- [ ] Keep event text informational and disclose methodology; never label an event a guaranteed signal or claim hidden institutional intent.
+- [ ] Ensure Feature 097 is the only notification handoff and Feature 099 is the only user alert-history projection.
 
-## 6. Billing, Entitlements, and Security
+## 6. Security and Observability
 
-- [ ] Map access to existing plan capabilities and entitlements.
-- [ ] Reserve/finalize credits only for metered AI operations; deterministic notifications must follow product policy.
-- [ ] Enforce replay protection and idempotency on Telegram updates, callbacks, payment callbacks, and writes.
-- [ ] Redact sensitive payload fields from logs and telemetry.
+- [ ] Protect admin/backfill triggers with existing policies and service authentication; market-wide detection contains no user identity.
+- [ ] Emit detector latency, source lag, eligible instruments, event rate, suppression reason, baseline insufficiency, duplicates, corrections, and failures by detector/version.
+- [ ] Trace source batch/observation to detector run and `InsightEvent`; alerting must detect stalled detectors, abnormal event spikes, stale inputs, and poison backlog.
 
-## 7. Observability and Operations
+## 7. Tests and Acceptance Scenarios
 
-- [ ] Add structured telemetry for received, evaluated, triggered, suppressed, delivered, failed, and retried operations as applicable.
-- [ ] Add health diagnostics for Telegram transport and dependent services.
-- [ ] Add admin visibility for failures and dead-letter items without exposing user message content unnecessarily.
-- [ ] Define retention and cleanup policies for transient delivery data.
+- [ ] Unit-test formulas with exact fixtures, zero denominators, missing client types, short baselines, outliers, corrections, session transitions, and threshold edges.
+- [ ] Reproducibility-test identical inputs/version produce identical identity, score, and evidence; changed version remains historically distinguishable.
+- [ ] Integration-test canonical source reads, Feature 084 persistence/feed filters, correction handling, retry/idempotency, and consumer contracts.
+- [ ] Concurrency-test duplicate source events/workers yield one persisted event.
+- [ ] Given sufficient fresh history and a threshold breach, when a detector runs, then one event contains the exact current value, baseline, threshold, formula version, and source evidence.
+- [ ] Given stale/incomplete data or insufficient history, when detection runs, then no positive event is invented and the skip/freshness reason is observable.
 
-## 8. Tests and Completion Gate
+## Completion Gate
 
-- [ ] Unit-test validation, rule/policy logic, deduplication, and deterministic rendering.
-- [ ] Integration-test actor isolation, authorization, entitlement, persistence constraints, and endpoint contracts.
-- [ ] Regression-test that existing web/API behavior remains unchanged.
-- [ ] Regression-test that no duplicate credit charge, alert, checkout fulfillment, or event is produced during retries.
-- [ ] Verify no buy/sell recommendation wording and no unsupported causal claims.
-- [ ] Update `implementation-checklist.md` to `[x]` only after build, tests, migration verification, and completion evidence pass.
-
-## Implementation Constraints
-
-- Do not introduce a second AI orchestration path for Telegram.
-- Do not access financial-provider databases directly from Telegram handlers.
-- Do not create Telegram-specific credits, balances, subscriptions, or usage ledgers outside Feature 013.
-- Do not present detections as guaranteed signals or investment advice.
-- Preserve deterministic evidence, source provenance, freshness, and confidence values.
-- Keep all write operations idempotent and actor-scoped.
+- [ ] Keep tasks unchecked until formulas are product-approved and deterministic, replay, correction, concurrency, and cross-feature contract tests pass.

@@ -1,14 +1,20 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { login, register } from "@/integrations/financial-copilot/auth";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect:
+      typeof search.redirect === "string" && search.redirect.startsWith("/") && !search.redirect.startsWith("//")
+        ? search.redirect
+        : "/chat",
+  }),
   head: () => ({ meta: [{ title: "ورود — دستیار هوشمند تحلیل بازار" }] }),
   component: AuthPage,
 });
 
 export function AuthPage() {
-  const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +27,7 @@ export function AuthPage() {
     setError(null);
     try {
       await (mode === "signin" ? login(email, password) : register(email, password));
-      navigate({ to: "/chat" });
+      window.location.assign(redirect);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "خطا");
     } finally {

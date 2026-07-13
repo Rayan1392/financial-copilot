@@ -21,6 +21,10 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<UserTenantRow> UserTenants => Set<UserTenantRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
     public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
+    public DbSet<TelegramAccountLinkRow> TelegramAccountLinks => Set<TelegramAccountLinkRow>();
+    public DbSet<TelegramLinkTokenRow> TelegramLinkTokens => Set<TelegramLinkTokenRow>();
+    public DbSet<TelegramLinkAuditRow> TelegramLinkAudits => Set<TelegramLinkAuditRow>();
+    public DbSet<TelegramChannelMembershipVerificationRow> TelegramChannelMembershipVerifications => Set<TelegramChannelMembershipVerificationRow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -87,6 +91,64 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.Before).HasMaxLength(2000);
             entity.Property(row => row.After).HasMaxLength(2000);
             entity.Property(row => row.IdempotencyKey).HasMaxLength(160);
+        });
+        builder.Entity<TelegramAccountLinkRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_account_links");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.ActorId, row.TenantId })
+                .IsUnique()
+                .HasFilter("\"RevokedAtUtc\" IS NULL");
+            entity.HasIndex(row => row.TelegramUserId)
+                .IsUnique()
+                .HasFilter("\"RevokedAtUtc\" IS NULL");
+            entity.Property(row => row.Username).HasMaxLength(64);
+            entity.Property(row => row.Version).IsRowVersion();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TelegramLinkTokenRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_link_tokens");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.TokenHash).IsUnique();
+            entity.HasIndex(row => new { row.ActorId, row.Status, row.ExpiresAtUtc });
+            entity.HasIndex(row => new { row.TelegramUserId, row.Status, row.ExpiresAtUtc });
+            entity.HasIndex(row => row.TelegramUpdateId).IsUnique().HasFilter("\"TelegramUpdateId\" IS NOT NULL");
+            entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.Username).HasMaxLength(64);
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Version).IsRowVersion();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TelegramLinkAuditRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_link_audits");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.TenantId, row.OccurredAtUtc });
+            entity.HasIndex(row => new { row.ActorId, row.OccurredAtUtc });
+            entity.Property(row => row.Action).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Reason).HasMaxLength(250);
+        });
+        builder.Entity<TelegramChannelMembershipVerificationRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_channel_membership_verifications");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.ActorId, row.TenantId, row.ChannelId, row.IsLatest })
+                .IsUnique()
+                .HasFilter("\"IsLatest\" = TRUE");
+            entity.HasIndex(row => new { row.ExpiresAtUtc, row.Status });
+            entity.HasIndex(row => new { row.TelegramUserId, row.ChannelId, row.VerifiedAtUtc });
+            entity.Property(row => row.ChannelId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.FailureCategory).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
         });
     }
 }

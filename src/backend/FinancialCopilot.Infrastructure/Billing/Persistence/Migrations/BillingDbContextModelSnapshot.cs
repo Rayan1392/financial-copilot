@@ -189,6 +189,68 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.ToTable("billing_customer_accounts", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.DailyFreeAllowanceGrantRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowanceDateKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ExpiredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ExpiredCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("GrantedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LedgerEntryId");
+
+                    b.HasIndex("ExpiresAtUtc", "ExpiredAtUtc");
+
+                    b.HasIndex("CustomerAccountId", "ActorId", "AllowanceDateKey", "PolicyVersion")
+                        .IsUnique();
+
+                    b.ToTable("billing_daily_free_allowance_grants", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.FinancialTransactionRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -578,6 +640,14 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<Guid>("ActorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AllocationSource")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("AllowanceDateKey")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<Guid?>("ApiClientId")
                         .HasColumnType("uuid");
 
@@ -604,25 +674,25 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<string>("ExternalUserId")
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
                     b.Property<decimal?>("EstimatedCost")
                         .HasPrecision(18, 8)
                         .HasColumnType("numeric(18,8)");
+
+                    b.Property<string>("ExternalUserId")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
 
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("ModelName")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OperationCode")
                         .IsRequired()
@@ -745,6 +815,21 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("SubscriptionPlanCode")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.DailyFreeAllowanceGrantRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PlanCapabilityRow", b =>

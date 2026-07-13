@@ -11,6 +11,7 @@ public sealed class AiFacadeBillingHook(
     ICreditReservationService reservationService,
     IUsageChargeCalculator chargeCalculator,
     IUsageFinalizationService finalizationService,
+    IDailyFreeAllowanceService dailyFreeAllowanceService,
     FinancialCopilot.Application.AI.ModelProviders.IAiExecutionUsageAccumulator usageAccumulator) : IBillingFacadeHook
 {
     private const string PricingPolicyVersion = "v1";
@@ -28,6 +29,21 @@ public sealed class AiFacadeBillingHook(
                 request.ExternalUserId),
             cancellationToken);
         var wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+        var actorContext = new BillableActorContext(
+            request.ActorId,
+            request.TenantId,
+            request.UserId,
+            request.ApiClientId,
+            request.ExternalUserId);
+        var allowance = await dailyFreeAllowanceService.EnsureAsync(
+            actorContext,
+            account,
+            request.CorrelationId,
+            cancellationToken);
+        if (allowance.Granted)
+        {
+            wallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+        }
         var maximumCharge = chargeCalculator.Calculate(
             CreateChargeRequest(request.OperationCode, "Completed", cached: false));
         var reservationKey = $"{request.CorrelationId}:reservation";
@@ -47,7 +63,9 @@ public sealed class AiFacadeBillingHook(
             request.ActorId,
             request.ApiClientId,
             request.ExternalUserId,
-            request.OperationCode);
+            request.OperationCode,
+            allowance.RemainingCredits > 0 ? "TelegramDailyFreeAllowance" : null,
+            string.IsNullOrWhiteSpace(allowance.AllowanceDateKey) ? null : allowance.AllowanceDateKey);
     }
 
     public async Task<UsageAccountingResult?> FinalizeAsync(
@@ -74,7 +92,9 @@ public sealed class AiFacadeBillingHook(
                 request.PromptTokens ?? usage?.InputTokens,
                 request.CompletionTokens ?? usage?.OutputTokens,
                 request.TotalTokens ?? usage?.TotalTokens,
-                request.EstimatedCost ?? usage?.ProviderReportedCost),
+                request.EstimatedCost ?? usage?.ProviderReportedCost,
+                handle.AllocationSource,
+                handle.AllowanceDateKey),
             cancellationToken);
         var account = await accounts.FindAsync(handle.CustomerAccountId, cancellationToken) ??
             throw new KeyNotFoundException("Billing account is not configured.");

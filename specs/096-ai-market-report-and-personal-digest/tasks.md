@@ -1,67 +1,51 @@
 # Tasks — AI Market Report and Personal Digest
 
-## 1. Discovery and Compatibility
+## 1. Boundaries and Report Model
 
-- [ ] Read `specs/README.md`, `specs/implementation-checklist.md`, this story, and all declared dependencies.
-- [ ] Inspect current code and uncommitted changes before implementation.
-- [ ] Reuse existing Identity, Billing, AI orchestration, provider ingestion, company resolution, and insight-event boundaries.
-- [ ] Record any conflict with an implemented spec before changing code.
+- [ ] Reuse Feature 095 immutable pulse snapshots, Features 084/090/092 events, Feature 085 followed symbols, existing AI provider/orchestration, Feature 013 Billing, and Feature 097 delivery.
+- [ ] Make deterministic fact/evidence assembly precede AI rendering; the LLM must never calculate market facts, select unsupported causes, or alter evidence.
+- [ ] Define report scopes `PublicMarket`, `IntradayMarket`, and `PersonalDigest`, lifecycle `Pending`, `Generated`, `Fallback`, `Failed`, `Superseded`, and publication version/revision.
+- [ ] Define `MarketReport` with optional actor/tenant, trading date/window, report version, referenced snapshot/event ids, immutable evidence bundle/hash, narrative, caveats/confidence, generated/published timestamps, and model/prompt metadata.
 
-## 2. Domain and Contracts
+## 2. Evidence and Narrative Policy
 
-- [ ] Define governed entities, enums, commands, queries, DTOs, repository ports, and policy interfaces required by this story.
-- [ ] Reuse canonical `ExternalCompanyId` for symbol/company references.
-- [ ] Version detector, rule, filter, or rendering definitions where behavior affects historical explainability.
+- [ ] Build a deterministic evidence bundle containing pulse facts, comparison windows, selected drivers/anomalies/Codal events, followed-symbol events, units, freshness, confidence, and source citations.
+- [ ] Rank/select evidence deterministically with governed limits; persist excluded/partial/stale reasons so the narrative cannot imply complete coverage.
+- [ ] Version prompt template, rendering policy, evidence schema, model/provider, and safety policy; prohibit price targets, instructions, unsupported causality, and portfolio claims.
+- [ ] Require every numeric sentence to map to an evidence item and qualify causal language unless the source explicitly establishes causality.
+- [ ] Generate a deterministic fallback report from the same facts when LLM is unavailable, times out, violates validation, or produces unsupported claims.
 
-## 3. Persistence and Data Integrity
+## 3. Persistence and Version History
 
-- [ ] Add additive EF Core migration only when persistence is required.
-- [ ] Add uniqueness/idempotency constraints for actor/entity/rule/delivery keys.
-- [ ] Add indexes for actor, company, status, event time, and expiry queries.
-- [ ] Preserve immutable evidence/provenance snapshots for anything sent to the user.
+- [ ] Persist reports and evidence immutably with unique generation idempotency key by scope/actor/trading date/window/evidence hash/policy version.
+- [ ] Create new report revision for intraday updates, corrected snapshots, or changed evidence; retain superseded versions and publication audit.
+- [ ] Index latest public report, actor latest digest, trading-date history, state, and publication time; define retention separately for evidence and transient model payloads.
+- [ ] Store no raw secret/provider credentials and minimize personal data in prompts, logs, and retained model metadata.
 
-## 4. Application Use Cases
+## 4. Use Cases and Scheduling
 
-- [ ] Implement the primary use cases for AI Market Report and Personal Digest.
-- [ ] Validate actor ownership and entitlement before execution.
-- [ ] Return explicit Missing/Unavailable/Stale states instead of fabricated fallback values.
-- [ ] Keep rule evaluation and numeric calculations deterministic and unit-testable.
+- [ ] Implement build evidence, generate/validate/fallback, publish latest public report, get history/version, generate personal digest, and get actor latest digest use cases.
+- [ ] Enforce actor ownership, subscription capability, daily/manual generation limits, and Billing reservation/commit/release for metered generation.
+- [ ] Schedule intraday reports only after eligible Feature 095 snapshots and final reports after the final snapshot/source-settlement window; use Tehran trading calendar.
+- [ ] Make scheduled/manual runs idempotent with distributed lease, bounded concurrency, retry/backoff, poison handling, and cancellation/timeout.
+- [ ] For personal digest, snapshot followed-symbol membership/event set at generation time and never infer holdings, exposure, P/L, or suitability.
+- [ ] Publish notification intents only through Feature 097; report regeneration must not automatically duplicate delivery.
 
-## 5. API / Telegram Integration
+## 5. API and Telegram Contracts
 
-- [ ] Add or extend protected backend endpoints using the project versioning conventions.
-- [ ] Add Telegram commands, callback actions, or deep links only through the Telegram adapter.
-- [ ] Render Persian messages within Telegram length limits and split safely when necessary.
-- [ ] Preserve correlation ids across Telegram update, application use case, AI workflow, Billing, and notification delivery.
+- [ ] Specify latest/history/version public report and actor-scoped digest endpoints with report status, revision, evidence/citations, confidence/caveats, freshness, and generated/published times.
+- [ ] Define Telegram report/digest commands, pagination/long-message splitting, source/open-web actions, and versioned callback ownership.
+- [ ] Clearly label partial intraday versus final report, fallback narrative, corrected revision, stale inputs, and unavailable personalized digest.
 
-## 6. Billing, Entitlements, and Security
+## 6. Observability and Tests
 
-- [ ] Map access to existing plan capabilities and entitlements.
-- [ ] Reserve/finalize credits only for metered AI operations; deterministic notifications must follow product policy.
-- [ ] Enforce replay protection and idempotency on Telegram updates, callbacks, payment callbacks, and writes.
-- [ ] Redact sensitive payload fields from logs and telemetry.
+- [ ] Trace pulse/event evidence through prompt, provider call, validator, Billing reservation, report revision, publication, notification, and alert history.
+- [ ] Measure evidence age/completeness, generation/validation/fallback rate, provider latency/tokens/cost, unsupported-claim rejection, publication lag, and delivery handoff.
+- [ ] Unit-test fact selection, comparison windows, evidence hashing, numeric-claim validation, caveats, fallback, report revision, and Persian rendering.
+- [ ] Integration-test actor isolation, entitlement/Billing rollback, schedule/idempotency, provider timeout/failure, corrected evidence revision, and Feature 097 handoff.
+- [ ] Given complete deterministic evidence, when generation succeeds, then all numeric claims map to persisted evidence and generated-at/confidence/caveats are shown.
+- [ ] Given LLM failure or invalid unsupported output, when generation runs, then a deterministic fallback is published without fabricated commentary and credits follow Billing failure policy.
 
-## 7. Observability and Operations
+## Completion Gate
 
-- [ ] Add structured telemetry for received, evaluated, triggered, suppressed, delivered, failed, and retried operations as applicable.
-- [ ] Add health diagnostics for Telegram transport and dependent services.
-- [ ] Add admin visibility for failures and dead-letter items without exposing user message content unnecessarily.
-- [ ] Define retention and cleanup policies for transient delivery data.
-
-## 8. Tests and Completion Gate
-
-- [ ] Unit-test validation, rule/policy logic, deduplication, and deterministic rendering.
-- [ ] Integration-test actor isolation, authorization, entitlement, persistence constraints, and endpoint contracts.
-- [ ] Regression-test that existing web/API behavior remains unchanged.
-- [ ] Regression-test that no duplicate credit charge, alert, checkout fulfillment, or event is produced during retries.
-- [ ] Verify no buy/sell recommendation wording and no unsupported causal claims.
-- [ ] Update `implementation-checklist.md` to `[x]` only after build, tests, migration verification, and completion evidence pass.
-
-## Implementation Constraints
-
-- Do not introduce a second AI orchestration path for Telegram.
-- Do not access financial-provider databases directly from Telegram handlers.
-- Do not create Telegram-specific credits, balances, subscriptions, or usage ledgers outside Feature 013.
-- Do not present detections as guaranteed signals or investment advice.
-- Preserve deterministic evidence, source provenance, freshness, and confidence values.
-- Keep all write operations idempotent and actor-scoped.
+- [ ] Keep tasks unchecked until evidence validation, fallback, versioning, provider/Billing failure, schedule, and notification tests pass.

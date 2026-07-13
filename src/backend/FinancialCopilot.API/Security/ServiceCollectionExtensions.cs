@@ -88,6 +88,22 @@ public static class ServiceCollectionExtensions
                 options,
                 AuthorizationPolicies.WatchlistWriteSelf,
                 FinancialCopilotPermissions.WatchlistWriteSelf);
+            options.AddPolicy(AuthorizationPolicies.TelegramLinkManageSelf, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                    HasValidActorContext(context.User) &&
+                    IsMode(context.User, AuthenticationMode.WebAppUser));
+                policy.AddRequirements(new PermissionRequirement(FinancialCopilotPermissions.TelegramLinkManageSelf));
+            });
+            options.AddPolicy(AuthorizationPolicies.TelegramMembershipReadSelf, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                    HasValidActorContext(context.User) &&
+                    IsMode(context.User, AuthenticationMode.WebAppUser));
+                policy.AddRequirements(new PermissionRequirement(FinancialCopilotPermissions.TelegramMembershipReadSelf));
+            });
             options.AddPolicy(AuthorizationPolicies.MarketSummaryRead, policy =>
             {
                 policy.RequireAuthenticatedUser();

@@ -67,6 +67,33 @@ public sealed class UsageLedgerEntryRowConfiguration : IEntityTypeConfiguration<
         builder.Property(row => row.ProviderName).HasMaxLength(80);
         builder.Property(row => row.ModelName).HasMaxLength(160);
         builder.Property(row => row.EstimatedCost).HasPrecision(18, 8);
+        builder.Property(row => row.AllocationSource).HasMaxLength(80);
+        builder.Property(row => row.AllowanceDateKey).HasMaxLength(32);
+    }
+}
+
+public sealed class DailyFreeAllowanceGrantRowConfiguration : IEntityTypeConfiguration<DailyFreeAllowanceGrantRow>
+{
+    public void Configure(EntityTypeBuilder<DailyFreeAllowanceGrantRow> builder)
+    {
+        builder.ToTable("billing_daily_free_allowance_grants");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => new { row.CustomerAccountId, row.ActorId, row.AllowanceDateKey, row.PolicyVersion })
+            .IsUnique();
+        builder.HasIndex(row => new { row.ExpiresAtUtc, row.ExpiredAtUtc });
+        builder.Property(row => row.AllowanceDateKey).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.PolicyVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.Amount).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.ExpiredCredits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+        builder.HasOne<CustomerAccountRow>()
+            .WithMany()
+            .HasForeignKey(row => row.CustomerAccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<UsageLedgerEntryRow>()
+            .WithMany()
+            .HasForeignKey(row => row.LedgerEntryId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

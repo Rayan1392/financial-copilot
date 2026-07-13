@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -201,7 +202,7 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
     }
 }
 
-public sealed class OwnedIdentityApiFactory : AuthenticationApiFactory
+public class OwnedIdentityApiFactory : AuthenticationApiFactory
 {
     private readonly string _authDatabaseName = $"owned-identity-{Guid.NewGuid():N}";
     private readonly string _billingDatabaseName = $"owned-identity-billing-{Guid.NewGuid():N}";
@@ -216,6 +217,16 @@ public sealed class OwnedIdentityApiFactory : AuthenticationApiFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Authentication:ApiKeys:Clients:0:TenantId"] = "11111111-1111-1111-1111-111111111111",
+                ["Telegram:AccountLinking:BotUsername"] = "financial_copilot_test_bot",
+                ["Telegram:AccountLinking:WebConfirmationBaseUrl"] = "https://app.example.test/telegram/link/confirm",
+                ["Telegram:AccountLinking:TokenLifetimeMinutes"] = "10"
+            });
+        });
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<AuthDbContext>();

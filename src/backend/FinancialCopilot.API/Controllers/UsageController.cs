@@ -125,6 +125,8 @@ public sealed class UsageController(
                     entry.PromptTokens,
                     entry.CompletionTokens,
                     entry.TotalTokens,
-                    entry.EstimatedCost))
+                    entry.EstimatedCost,
+                    entry.AllocationSource,
+                    entry.AllowanceDateKey))
                 .ToArray());
 }

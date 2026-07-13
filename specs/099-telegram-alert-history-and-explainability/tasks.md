@@ -1,67 +1,53 @@
 # Tasks — Telegram Alert History and Explainability
 
-## 1. Discovery and Compatibility
+## 1. Ownership and Immutable Record
 
-- [ ] Read `specs/README.md`, `specs/implementation-checklist.md`, this story, and all declared dependencies.
-- [ ] Inspect current code and uncommitted changes before implementation.
-- [ ] Reuse existing Identity, Billing, AI orchestration, provider ingestion, company resolution, and insight-event boundaries.
-- [ ] Record any conflict with an implemented spec before changing code.
+- [ ] Make this feature owner of the actor-visible immutable alert record, explanation projection, feedback/dismiss/mute actions, search, and post-alert reaction analytics.
+- [ ] Reference source `InsightEvent`, `AlertRule` trigger, report/announcement, Feature 097 intent/delivery attempts, and policy versions; do not duplicate detection or transport execution.
+- [ ] Define `UserAlertRecord` at notification-decision time (including suppressed where product-visible) with actor/tenant, canonical symbol, source ids, delivery status, timestamps, evidence snapshot/hash, thresholds/baselines, detector/rule/preference versions, and correlation id.
+- [ ] Distinguish detected event, rule trigger, notification intent, delivery attempt, delivered alert, dismissed alert, and muted future alerts in contracts and UI.
 
-## 2. Domain and Contracts
+## 2. Persistence and Reproducibility
 
-- [ ] Define governed entities, enums, commands, queries, DTOs, repository ports, and policy interfaces required by this story.
-- [ ] Reuse canonical `ExternalCompanyId` for symbol/company references.
-- [ ] Version detector, rule, filter, or rendering definitions where behavior affects historical explainability.
+- [ ] Persist alert facts/evidence immutably; mutable delivery status is an append-only attempt/status timeline or separate projection, never an overwrite of source evidence.
+- [ ] Enforce unique actor plus source-intent/decision identity so Feature 097 retries cannot create duplicate history records.
+- [ ] Snapshot exact source metrics, units, observation time/freshness, threshold/operator, comparison baseline/window/sample, importance/confidence, detector/rule version, and why-text inputs.
+- [ ] Add indexes for actor/time, symbol, category/type, delivery status, dismissed/muted/feedback state, source event, and cursor pagination.
+- [ ] Define retention and legal/privacy deletion behavior: evidence/audit retention, reaction/feedback retention, and redaction/tombstone without cross-actor leakage.
 
-## 3. Persistence and Data Integrity
+## 3. Explainability and Reaction Analytics
 
-- [ ] Add additive EF Core migration only when persistence is required.
-- [ ] Add uniqueness/idempotency constraints for actor/entity/rule/delivery keys.
-- [ ] Add indexes for actor, company, status, event time, and expiry queries.
-- [ ] Preserve immutable evidence/provenance snapshots for anything sent to the user.
+- [ ] Build deterministic “why this alert” from persisted evidence and policy: what changed, observed value, threshold/baseline, source/freshness, matched user preference/rule, and delivery/suppression reason.
+- [ ] If AI follow-up is offered, call the existing AI facade with actor-owned `alertId`, immutable evidence bundle, citations, and Billing reservation; forbid changed numbers or unsupported advice.
+- [ ] Define similar-event search methodology by detector/version, symbol/industry, magnitude band, and historical window; disclose sample and avoid success-rate claims without methodology.
+- [ ] Define post-alert price reaction horizons from canonical quotes/trades, anchor price/time, session/calendar adjustment, corporate-action handling, missing data, units, and calculation version.
+- [ ] Store reaction snapshots/version separately and allow later completion/correction without mutating original alert evidence; label them descriptive, not recommendation/performance marketing.
 
-## 4. Application Use Cases
+## 4. Use Cases, API, and Telegram UX
 
-- [ ] Implement the primary use cases for Telegram Alert History and Explainability.
-- [ ] Validate actor ownership and entitlement before execution.
-- [ ] Return explicit Missing/Unavailable/Stale states instead of fabricated fallback values.
-- [ ] Keep rule evaluation and numeric calculations deterministic and unit-testable.
+- [ ] Implement paginated/searchable history and detail, deterministic explanation, feedback, dismiss/restore, mute symbol/category handoff to Feature 097, similar events, and reaction refresh use cases.
+- [ ] Enforce actor/tenant ownership for every id and source reference; unauthorized/not-found responses must not reveal another actor's alert.
+- [ ] Specify cursor pagination with symbol/type/status/date/dismissed/delivery filters, stable ordering/tie-breaker, bounded date range/page size, and retention-aware results.
+- [ ] Specify alert detail with immutable evidence, source link/citations, detector/rule/preference versions, delivery timeline, why explanation, similar events, reaction availability, and correlation id.
+- [ ] Provide Telegram `/alerts`, filters/pagination, detail, why, source, dismiss, mute, feedback, and AI follow-up callbacks with version/replay/ownership checks.
+- [ ] Distinguish dismissing one record from muting future notifications and require confirmation for broader mute changes.
 
-## 5. API / Telegram Integration
+## 5. Background Processing, Security, and Observability
 
-- [ ] Add or extend protected backend endpoints using the project versioning conventions.
-- [ ] Add Telegram commands, callback actions, or deep links only through the Telegram adapter.
-- [ ] Render Persian messages within Telegram length limits and split safely when necessary.
-- [ ] Preserve correlation ids across Telegram update, application use case, AI workflow, Billing, and notification delivery.
+- [ ] Consume Feature 097 terminal/decision events idempotently; backfill reaction horizons on due schedules with distributed lease, bounded concurrency, retry/backoff, and poison handling.
+- [ ] Protect evidence/source links, actor feedback, and Telegram identifiers with actor isolation, authorization, rate limits, minimized logs, and retention controls.
+- [ ] Emit history creation lag, duplicate prevention, delivery outcome, explanation availability, reaction completion/missing/correction, search latency, feedback, dismiss, and mute metrics.
+- [ ] Trace detection/rule through notification decision/attempt to alert record, explanation, AI reservation, reaction version, and feedback.
 
-## 6. Billing, Entitlements, and Security
+## 6. Tests and Acceptance Scenarios
 
-- [ ] Map access to existing plan capabilities and entitlements.
-- [ ] Reserve/finalize credits only for metered AI operations; deterministic notifications must follow product policy.
-- [ ] Enforce replay protection and idempotency on Telegram updates, callbacks, payment callbacks, and writes.
-- [ ] Redact sensitive payload fields from logs and telemetry.
+- [ ] Unit-test why-text for every source type, threshold/baseline accuracy, delivery timeline, pagination ordering, similar-event criteria, and reaction horizons/session adjustment.
+- [ ] Integration-test Feature 097 outcome consumption, actor isolation, immutable evidence, search/filter/cursor pagination, dismiss versus mute, feedback, AI evidence faithfulness, and retention behavior.
+- [ ] Replay/concurrency-test duplicate delivery outcomes and reaction workers; one alert record and one version per reaction horizon/input revision result.
+- [ ] Given a delivered alert, when detail/why is requested, then exact source metrics, threshold, baseline, freshness, versions, and delivery status are returned reproducibly.
+- [ ] Given an unauthorized actor or expired/removed source link, when detail is requested, then no cross-actor evidence is disclosed and retained snapshots remain explainable per policy.
+- [ ] Given a reaction horizon is incomplete or market data is missing, when shown, then it is pending/unavailable with reason rather than calculated from guessed prices.
 
-## 7. Observability and Operations
+## Completion Gate
 
-- [ ] Add structured telemetry for received, evaluated, triggered, suppressed, delivered, failed, and retried operations as applicable.
-- [ ] Add health diagnostics for Telegram transport and dependent services.
-- [ ] Add admin visibility for failures and dead-letter items without exposing user message content unnecessarily.
-- [ ] Define retention and cleanup policies for transient delivery data.
-
-## 8. Tests and Completion Gate
-
-- [ ] Unit-test validation, rule/policy logic, deduplication, and deterministic rendering.
-- [ ] Integration-test actor isolation, authorization, entitlement, persistence constraints, and endpoint contracts.
-- [ ] Regression-test that existing web/API behavior remains unchanged.
-- [ ] Regression-test that no duplicate credit charge, alert, checkout fulfillment, or event is produced during retries.
-- [ ] Verify no buy/sell recommendation wording and no unsupported causal claims.
-- [ ] Update `implementation-checklist.md` to `[x]` only after build, tests, migration verification, and completion evidence pass.
-
-## Implementation Constraints
-
-- Do not introduce a second AI orchestration path for Telegram.
-- Do not access financial-provider databases directly from Telegram handlers.
-- Do not create Telegram-specific credits, balances, subscriptions, or usage ledgers outside Feature 013.
-- Do not present detections as guaranteed signals or investment advice.
-- Preserve deterministic evidence, source provenance, freshness, and confidence values.
-- Keep all write operations idempotent and actor-scoped.
+- [ ] Keep tasks unchecked until immutability, ownership, search/pagination, reaction methodology, replay, retention, Persian callbacks, and AI faithfulness tests pass.

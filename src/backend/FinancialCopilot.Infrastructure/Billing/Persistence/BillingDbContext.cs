@@ -11,6 +11,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     public DbSet<UsageReservationRow> UsageReservations => Set<UsageReservationRow>();
 
     public DbSet<UsageLedgerEntryRow> UsageLedgerEntries => Set<UsageLedgerEntryRow>();
+    public DbSet<DailyFreeAllowanceGrantRow> DailyFreeAllowanceGrants => Set<DailyFreeAllowanceGrantRow>();
 
     public DbSet<FinancialTransactionRow> FinancialTransactions => Set<FinancialTransactionRow>();
 

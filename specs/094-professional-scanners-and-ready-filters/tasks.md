@@ -1,67 +1,44 @@
 # Tasks — Professional Scanners and Ready Filters
 
-## 1. Discovery and Compatibility
+## 1. Catalog Ownership and Definitions
 
-- [ ] Read `specs/README.md`, `specs/implementation-checklist.md`, this story, and all declared dependencies.
-- [ ] Inspect current code and uncommitted changes before implementation.
-- [ ] Reuse existing Identity, Billing, AI orchestration, provider ingestion, company resolution, and insight-event boundaries.
-- [ ] Record any conflict with an implemented spec before changing code.
+- [ ] Reuse Features 007/008/009 scanner execution/explainability and Feature 015 governed metrics; this feature owns only the ready-filter catalog, saved-filter references, and professional result contracts.
+- [ ] Define stable filter `Code`, semantic `Version`, Persian title/aliases, category, parameters, conditions, required datasets, market-session policy, ranking, entitlement code, and active/deprecated state.
+- [ ] Cover governed technical, flow, volume, queue, large-trade, fundamental, industry, and composite filters only where canonical data/metrics exist; list unsupported requested filters explicitly.
+- [ ] Require deterministic condition/ranking definitions and exact explain-why fields; LLM may resolve aliases/parameters but cannot create SQL or executable formulas.
 
-## 2. Domain and Contracts
+## 2. Domain and Persistence
 
-- [ ] Define governed entities, enums, commands, queries, DTOs, repository ports, and policy interfaces required by this story.
-- [ ] Reuse canonical `ExternalCompanyId` for symbol/company references.
-- [ ] Version detector, rule, filter, or rendering definitions where behavior affects historical explainability.
+- [ ] Define typed parameter schemas with units, bounds, defaults, allowed operators, and Persian aliases; validate parameter combinations before execution.
+- [ ] Define `SavedFilter` as actor-owned reference to catalog code/version plus validated parameters/name; do not copy or mutate catalog logic.
+- [ ] Persist catalog governance/version history if definitions are database-managed; otherwise use the repository's governed catalog pattern and record effective version in every execution response.
+- [ ] Enforce unique active code/version, unique saved-filter name per actor if required, actor isolation, soft-delete, and indexes for catalog category/active and actor saved filters.
+- [ ] Define execution limits: maximum symbols/results/date range/complexity, timeout, pagination bounds, rate limit, and plan capability.
 
-## 3. Persistence and Data Integrity
+## 3. Execution and Result Contract
 
-- [ ] Add additive EF Core migration only when persistence is required.
-- [ ] Add uniqueness/idempotency constraints for actor/entity/rule/delivery keys.
-- [ ] Add indexes for actor, company, status, event time, and expiry queries.
-- [ ] Preserve immutable evidence/provenance snapshots for anything sent to the user.
+- [ ] Implement list/get catalog, execute ready filter, save/update/delete/run saved filter, and natural-language alias resolution through the existing scanner boundary.
+- [ ] Resolve market universe/industry/instrument class explicitly and apply market-session dependencies, latest complete observation, and freshness policy.
+- [ ] Rank deterministically with declared tie-breakers; response includes canonical company/symbol, rank, matched values/units/periods, thresholds, source freshness, filter version, and exact match reasons.
+- [ ] Return explicit unavailable/stale/partial status per required dataset; never silently omit a failed condition or substitute an AI estimate.
+- [ ] Make repeated execution with the same evidence snapshot/version/parameters reproducible and expose evidence/correlation hash.
 
-## 4. Application Use Cases
+## 4. API and Telegram UX
 
-- [ ] Implement the primary use cases for Professional Scanners and Ready Filters.
-- [ ] Validate actor ownership and entitlement before execution.
-- [ ] Return explicit Missing/Unavailable/Stale states instead of fabricated fallback values.
-- [ ] Keep rule evaluation and numeric calculations deterministic and unit-testable.
+- [ ] Specify paginated `GET /api/v1/scanners/catalog` with category/search/entitlement metadata and execute via the existing AI facade or internal scanner contract.
+- [ ] Specify saved-filter actor endpoints and Telegram menus for category, filter, parameters, run, save, rerun, and pagination with versioned replay-safe callbacks.
+- [ ] Render compact ranked results with explain-why, units, period, freshness, and deep link for full tables; split long output without altering order.
+- [ ] Localize Persian aliases, validation, unavailable data, market-closed status, rate/plan-limit errors, and deterministic empty results.
 
-## 5. API / Telegram Integration
+## 5. Security, Operations, and Tests
 
-- [ ] Add or extend protected backend endpoints using the project versioning conventions.
-- [ ] Add Telegram commands, callback actions, or deep links only through the Telegram adapter.
-- [ ] Render Persian messages within Telegram length limits and split safely when necessary.
-- [ ] Preserve correlation ids across Telegram update, application use case, AI workflow, Billing, and notification delivery.
+- [ ] Enforce entitlement/rate/execution limits server-side, actor isolation for saved filters, input bounds, and prohibition of arbitrary expressions/SQL.
+- [ ] Emit execution latency, dataset freshness, result count, timeout/limit, catalog/version usage, alias ambiguity, Billing outcome, and failures.
+- [ ] Unit-test each catalog definition, parameter bounds/aliases, ranking/tie breaks, industry scope, session policy, and explain-why fields.
+- [ ] Integration-test deterministic fixtures across all filter families, saved-filter isolation/version upgrades, entitlement, pagination, timeout, and stale/provider failure.
+- [ ] Given valid parameters and fresh evidence, when a ready filter runs twice on the same snapshot, then ordered results and explanations are identical.
+- [ ] Given missing/stale required data or unauthorized access, when execution is requested, then no fabricated matches appear and an explicit error/partial state is returned.
 
-## 6. Billing, Entitlements, and Security
+## Completion Gate
 
-- [ ] Map access to existing plan capabilities and entitlements.
-- [ ] Reserve/finalize credits only for metered AI operations; deterministic notifications must follow product policy.
-- [ ] Enforce replay protection and idempotency on Telegram updates, callbacks, payment callbacks, and writes.
-- [ ] Redact sensitive payload fields from logs and telemetry.
-
-## 7. Observability and Operations
-
-- [ ] Add structured telemetry for received, evaluated, triggered, suppressed, delivered, failed, and retried operations as applicable.
-- [ ] Add health diagnostics for Telegram transport and dependent services.
-- [ ] Add admin visibility for failures and dead-letter items without exposing user message content unnecessarily.
-- [ ] Define retention and cleanup policies for transient delivery data.
-
-## 8. Tests and Completion Gate
-
-- [ ] Unit-test validation, rule/policy logic, deduplication, and deterministic rendering.
-- [ ] Integration-test actor isolation, authorization, entitlement, persistence constraints, and endpoint contracts.
-- [ ] Regression-test that existing web/API behavior remains unchanged.
-- [ ] Regression-test that no duplicate credit charge, alert, checkout fulfillment, or event is produced during retries.
-- [ ] Verify no buy/sell recommendation wording and no unsupported causal claims.
-- [ ] Update `implementation-checklist.md` to `[x]` only after build, tests, migration verification, and completion evidence pass.
-
-## Implementation Constraints
-
-- Do not introduce a second AI orchestration path for Telegram.
-- Do not access financial-provider databases directly from Telegram handlers.
-- Do not create Telegram-specific credits, balances, subscriptions, or usage ledgers outside Feature 013.
-- Do not present detections as guaranteed signals or investment advice.
-- Preserve deterministic evidence, source provenance, freshness, and confidence values.
-- Keep all write operations idempotent and actor-scoped.
+- [ ] Keep tasks unchecked until catalog governance, deterministic contracts, all filter-family fixtures, limits, and existing scanner regressions pass.

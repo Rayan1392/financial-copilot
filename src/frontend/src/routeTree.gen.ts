@@ -13,9 +13,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
+import { Route as TelegramLinkConfirmRouteImport } from './routes/telegram.link.confirm'
 import { Route as AdminDataStockmarketRouteImport } from './routes/admin_.data.stockmarket'
 import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.data.reconciliation'
 import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
@@ -42,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
+  id: '/telegram-link',
+  path: '/telegram-link',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFollowedSymbolsRoute = AppFollowedSymbolsRouteImport.update({
   id: '/followed-symbols',
   path: '/followed-symbols',
@@ -55,6 +62,11 @@ const AppChatRoute = AppChatRouteImport.update({
 const AdminDataIndexRoute = AdminDataIndexRouteImport.update({
   id: '/admin_/data/',
   path: '/admin/data/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramLinkConfirmRoute = TelegramLinkConfirmRouteImport.update({
+  id: '/telegram/link/confirm',
+  path: '/telegram/link/confirm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDataStockmarketRoute = AdminDataStockmarketRouteImport.update({
@@ -94,12 +106,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data/': typeof AdminDataIndexRoute
 }
 export interface FileRoutesByTo {
@@ -108,12 +122,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin/data': typeof AdminDataIndexRoute
 }
 export interface FileRoutesById {
@@ -124,12 +140,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
   '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
   '/admin_/data/reconciliation': typeof AdminDataReconciliationRoute
   '/admin_/data/stockmarket': typeof AdminDataStockmarketRoute
+  '/telegram/link/confirm': typeof TelegramLinkConfirmRoute
   '/admin_/data/': typeof AdminDataIndexRoute
 }
 export interface FileRouteTypes {
@@ -140,12 +158,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/followed-symbols'
+    | '/telegram-link'
     | '/c/$threadId'
     | '/admin/data/archive'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/telegram/link/confirm'
     | '/admin/data/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,12 +174,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/followed-symbols'
+    | '/telegram-link'
     | '/c/$threadId'
     | '/admin/data/archive'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
     | '/admin/data/reconciliation'
     | '/admin/data/stockmarket'
+    | '/telegram/link/confirm'
     | '/admin/data'
   id:
     | '__root__'
@@ -169,12 +191,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/chat'
     | '/_app/followed-symbols'
+    | '/_app/telegram-link'
     | '/_app/c/$threadId'
     | '/admin_/data/archive'
     | '/admin_/data/monitor'
     | '/admin_/data/noavaran'
     | '/admin_/data/reconciliation'
     | '/admin_/data/stockmarket'
+    | '/telegram/link/confirm'
     | '/admin_/data/'
   fileRoutesById: FileRoutesById
 }
@@ -188,6 +212,7 @@ export interface RootRouteChildren {
   AdminDataNoavaranRoute: typeof AdminDataNoavaranRoute
   AdminDataReconciliationRoute: typeof AdminDataReconciliationRoute
   AdminDataStockmarketRoute: typeof AdminDataStockmarketRoute
+  TelegramLinkConfirmRoute: typeof TelegramLinkConfirmRoute
   AdminDataIndexRoute: typeof AdminDataIndexRoute
 }
 
@@ -221,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/telegram-link': {
+      id: '/_app/telegram-link'
+      path: '/telegram-link'
+      fullPath: '/telegram-link'
+      preLoaderRoute: typeof AppTelegramLinkRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/followed-symbols': {
       id: '/_app/followed-symbols'
       path: '/followed-symbols'
@@ -240,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/data'
       fullPath: '/admin/data/'
       preLoaderRoute: typeof AdminDataIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram/link/confirm': {
+      id: '/telegram/link/confirm'
+      path: '/telegram/link/confirm'
+      fullPath: '/telegram/link/confirm'
+      preLoaderRoute: typeof TelegramLinkConfirmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/data/stockmarket': {
@@ -290,12 +329,14 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
+  AppTelegramLinkRoute: typeof AppTelegramLinkRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
+  AppTelegramLinkRoute: AppTelegramLinkRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }
 
@@ -311,6 +352,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminDataNoavaranRoute: AdminDataNoavaranRoute,
   AdminDataReconciliationRoute: AdminDataReconciliationRoute,
   AdminDataStockmarketRoute: AdminDataStockmarketRoute,
+  TelegramLinkConfirmRoute: TelegramLinkConfirmRoute,
   AdminDataIndexRoute: AdminDataIndexRoute,
 }
 export const routeTree = rootRouteImport

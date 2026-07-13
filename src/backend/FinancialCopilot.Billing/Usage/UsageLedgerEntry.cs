@@ -21,7 +21,9 @@ public sealed record UsageLedgerEntry(
     int? PromptTokens = null,
     int? CompletionTokens = null,
     int? TotalTokens = null,
-    decimal? EstimatedCost = null)
+    decimal? EstimatedCost = null,
+    string? AllocationSource = null,
+    string? AllowanceDateKey = null)
 {
     public decimal BalanceImpact => EntryType switch
     {

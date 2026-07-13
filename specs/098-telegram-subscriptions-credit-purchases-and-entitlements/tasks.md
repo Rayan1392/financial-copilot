@@ -1,67 +1,52 @@
 # Tasks — Telegram Subscriptions, Credit Purchases, and Entitlements
 
-## 1. Discovery and Compatibility
+## 1. Billing Ownership and Product Decisions
 
-- [ ] Read `specs/README.md`, `specs/implementation-checklist.md`, this story, and all declared dependencies.
-- [ ] Inspect current code and uncommitted changes before implementation.
-- [ ] Reuse existing Identity, Billing, AI orchestration, provider ingestion, company resolution, and insight-event boundaries.
-- [ ] Record any conflict with an implemented spec before changing code.
+- [ ] Reuse Feature 013 `SubscriptionPlan`, plan capabilities, subscription, wallet projection, usage ledger, financial transactions, reservation/finalization, and Billing outbox; do not create Telegram-owned balances or ledgers.
+- [ ] Reuse Feature 035 admin authorization/audit and Feature 087 canonical actor link; Telegram only presents catalog, creates payment/receipt intents, and displays Billing status.
+- [ ] Govern plan entitlements/limits and credit-package catalog in Billing with stable product code/version, amount/currency, validity, active period, and channel visibility.
+- [ ] Select manual receipt review as the MVP flow unless a gateway is separately approved; keep a provider-neutral payment-attempt contract for future gateway callbacks.
 
-## 2. Domain and Contracts
+## 2. Lifecycle and Persistence
 
-- [ ] Define governed entities, enums, commands, queries, DTOs, repository ports, and policy interfaces required by this story.
-- [ ] Reuse canonical `ExternalCompanyId` for symbol/company references.
-- [ ] Version detector, rule, filter, or rendering definitions where behavior affects historical explainability.
+- [ ] Define `PaymentRequest/CheckoutIntent` lifecycle `Pending`, `AwaitingPayment`, `ReceiptSubmitted`, `UnderReview`, `Approved`, `Rejected`, `Expired`, `Cancelled`, `Failed`, `RefundPending`, `Refunded`, `Fulfilled` with valid transitions.
+- [ ] Persist actor/product/price snapshot/currency, unique payment reference, provider/reference hashes, receipt attachment metadata, expiry, reviewer/reason, fulfillment transaction id, and audit timestamps.
+- [ ] Protect receipt/payment data: store only required metadata/secure object reference, never card data; define malware/content validation, access control, encryption, and retention/redaction.
+- [ ] Enforce unique internal idempotency key, provider transaction/reference, and one fulfillment per request; index actor/status/created/expiry/reconciliation queries.
+- [ ] Fulfill approval/callback transactionally through existing Billing accounting/outbox so purchased credits or subscription activation occur exactly once.
 
-## 3. Persistence and Data Integrity
+## 3. Subscription and Credit Semantics
 
-- [ ] Add additive EF Core migration only when persistence is required.
-- [ ] Add uniqueness/idempotency constraints for actor/entity/rule/delivery keys.
-- [ ] Add indexes for actor, company, status, event time, and expiry queries.
-- [ ] Preserve immutable evidence/provenance snapshots for anything sent to the user.
+- [ ] Define purchased-credit wallet behavior, expiry if any, and interaction with Feature 088 free allowance and subscription allowance using the shared Billing allocation order.
+- [ ] Define subscription activation start, expiry, renewal, upgrade/downgrade overlap, cancellation/non-renewal, grace period, and entitlement cache invalidation.
+- [ ] Define duplicate/late payment, amount/currency mismatch, expired checkout, rejected receipt resubmission, and payment received after cancellation.
+- [ ] Define refund policy as explicit financial transaction/reversal and entitlement adjustment rules; never delete original ledger/payment records.
+- [ ] Define reconciliation states and operator report matching approved/received/fulfilled/refunded totals.
 
-## 4. Application Use Cases
+## 4. Application and API Contracts
 
-- [ ] Implement the primary use cases for Telegram Subscriptions, Credit Purchases, and Entitlements.
-- [ ] Validate actor ownership and entitlement before execution.
-- [ ] Return explicit Missing/Unavailable/Stale states instead of fabricated fallback values.
-- [ ] Keep rule evaluation and numeric calculations deterministic and unit-testable.
+- [ ] Implement list Billing catalog, create/get/cancel checkout, submit receipt, admin review approve/reject, provider callback placeholder/adapter, reconcile, and current entitlement projection use cases.
+- [ ] Validate actor ownership, active product/version, quoted amount/currency, request expiry, transition/version, reviewer permission, and fulfillment idempotency.
+- [ ] Specify Billing endpoints with idempotency header, correlation id, payment reference, expiry, available next actions, and sanitized status; callback uses provider authentication/signature/replay validation.
+- [ ] Require rejection/reconciliation/refund reasons and immutable audit; concurrent reviewers must produce one terminal decision.
 
-## 5. API / Telegram Integration
+## 5. Telegram UX
 
-- [ ] Add or extend protected backend endpoints using the project versioning conventions.
-- [ ] Add Telegram commands, callback actions, or deep links only through the Telegram adapter.
-- [ ] Render Persian messages within Telegram length limits and split safely when necessary.
-- [ ] Preserve correlation ids across Telegram update, application use case, AI workflow, Billing, and notification delivery.
+- [ ] Provide `/plans`, `/credits`, purchase type/catalog/detail/confirm, receipt upload/status/cancel, and entitlement refresh flows using versioned actor-owned callbacks.
+- [ ] Show exact product, amount/currency, allowance/limits, duration/expiry, payment reference, secure receipt instructions, review status, and support path in Persian.
+- [ ] Do not collect card/PIN data; gateway flow opens an approved secure link and manual flow accepts only configured receipt document/image types.
+- [ ] Publish approval/rejection/expiry/refund status through Feature 097; repeated callbacks/status checks must not re-fulfill.
 
-## 6. Billing, Entitlements, and Security
+## 6. Security, Observability, and Tests
 
-- [ ] Map access to existing plan capabilities and entitlements.
-- [ ] Reserve/finalize credits only for metered AI operations; deterministic notifications must follow product policy.
-- [ ] Enforce replay protection and idempotency on Telegram updates, callbacks, payment callbacks, and writes.
-- [ ] Redact sensitive payload fields from logs and telemetry.
+- [ ] Protect admin/payment endpoints with existing policies, service authentication, signature/timestamp/nonce verification, upload limits/scanning, rate limits, and actor/tenant isolation.
+- [ ] Store provider secrets outside source control and redact receipts, payment identifiers, actor/Telegram ids, and signatures from logs.
+- [ ] Measure checkout funnel, review age, approval/rejection, callback validation, duplicate prevention, fulfillment latency/failure, reconciliation mismatch, renewal/expiry, and refund.
+- [ ] Unit-test lifecycle, entitlement dates, consumption ordering, duplicates, refunds, mismatches, late payments, and renewal.
+- [ ] Integration/concurrency-test actor isolation, two reviewers/callback replays, one Billing fulfillment, ledger/wallet/subscription projection, outbox, expiry, and reconciliation.
+- [ ] Given a valid receipt is approved, when fulfillment runs/retries, then one immutable financial transaction activates exactly one entitlement/credit grant.
+- [ ] Given duplicate/invalid/expired payment evidence, when processed, then no duplicate fulfillment occurs and an auditable localized state is returned.
 
-## 7. Observability and Operations
+## Completion Gate
 
-- [ ] Add structured telemetry for received, evaluated, triggered, suppressed, delivered, failed, and retried operations as applicable.
-- [ ] Add health diagnostics for Telegram transport and dependent services.
-- [ ] Add admin visibility for failures and dead-letter items without exposing user message content unnecessarily.
-- [ ] Define retention and cleanup policies for transient delivery data.
-
-## 8. Tests and Completion Gate
-
-- [ ] Unit-test validation, rule/policy logic, deduplication, and deterministic rendering.
-- [ ] Integration-test actor isolation, authorization, entitlement, persistence constraints, and endpoint contracts.
-- [ ] Regression-test that existing web/API behavior remains unchanged.
-- [ ] Regression-test that no duplicate credit charge, alert, checkout fulfillment, or event is produced during retries.
-- [ ] Verify no buy/sell recommendation wording and no unsupported causal claims.
-- [ ] Update `implementation-checklist.md` to `[x]` only after build, tests, migration verification, and completion evidence pass.
-
-## Implementation Constraints
-
-- Do not introduce a second AI orchestration path for Telegram.
-- Do not access financial-provider databases directly from Telegram handlers.
-- Do not create Telegram-specific credits, balances, subscriptions, or usage ledgers outside Feature 013.
-- Do not present detections as guaranteed signals or investment advice.
-- Preserve deterministic evidence, source provenance, freshness, and confidence values.
-- Keep all write operations idempotent and actor-scoped.
+- [ ] Keep tasks unchecked until Billing owners approve lifecycle/refund decisions and security, concurrency, reconciliation, expiry, callback, and Telegram UX tests pass.

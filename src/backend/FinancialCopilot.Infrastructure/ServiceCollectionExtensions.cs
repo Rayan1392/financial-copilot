@@ -7,6 +7,7 @@ using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
+using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.FollowedSymbols;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -105,6 +106,36 @@ public static class ServiceCollectionExtensions
                 "Owned Identity tenant and token lifetime settings must be valid.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
+        services
+            .AddOptions<TelegramLinkOptions>()
+            .Bind(configuration.GetSection(TelegramLinkOptions.SectionName))
+            .Validate(options =>
+                !string.IsNullOrWhiteSpace(options.BotUsername) &&
+                Uri.TryCreate(options.WebConfirmationBaseUrl, UriKind.Absolute, out var confirmationUri) &&
+                confirmationUri.Scheme is "https" or "http" &&
+                options.TokenLifetimeMinutes is >= 1 and <= 60,
+                "Telegram account-linking options must contain a bot username, confirmation URL, and a 1-60 minute token lifetime.")
+            .ValidateOnStart();
+        services.AddScoped<ITelegramLinkService, TelegramLinkService>();
+        services.AddScoped<ITelegramIdentityLinkReader>(provider => provider.GetRequiredService<ITelegramLinkService>());
+        services
+            .AddOptions<TelegramMembershipOptions>()
+            .Bind(configuration.GetSection(TelegramMembershipOptions.SectionName))
+            .Validate(options =>
+                options.DailyFreeCredits > 0 &&
+                options.VerificationCacheMinutes > 0 &&
+                options.ProviderFailureCacheMinutes > 0 &&
+                !string.IsNullOrWhiteSpace(options.PolicyVersion),
+                "Telegram membership options must define a positive allowance, cache lifetime, and policy version.")
+            .ValidateOnStart();
+        services.AddHttpClient<ITelegramChannelMembershipProvider, TelegramBotMembershipProvider>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.telegram.org/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<TelegramMembershipService>();
+        services.AddScoped<ITelegramMembershipService>(provider => provider.GetRequiredService<TelegramMembershipService>());
+        services.AddScoped<IDailyFreeAllowanceService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 

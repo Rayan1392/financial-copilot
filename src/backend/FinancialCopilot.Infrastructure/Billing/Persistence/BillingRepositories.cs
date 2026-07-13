@@ -236,7 +236,9 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             PromptTokens = entry.PromptTokens,
             CompletionTokens = entry.CompletionTokens,
             TotalTokens = entry.TotalTokens,
-            EstimatedCost = entry.EstimatedCost
+            EstimatedCost = entry.EstimatedCost,
+            AllocationSource = entry.AllocationSource,
+            AllowanceDateKey = entry.AllowanceDateKey
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -341,7 +343,9 @@ public sealed class UsageLedgerRepository(BillingDbContext dbContext) :
             row.PromptTokens,
             row.CompletionTokens,
             row.TotalTokens,
-            row.EstimatedCost);
+            row.EstimatedCost,
+            row.AllocationSource,
+            row.AllowanceDateKey);
 
     private static FinancialTransaction Map(FinancialTransactionRow row) =>
         new(

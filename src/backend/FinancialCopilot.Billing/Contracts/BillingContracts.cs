@@ -212,7 +212,9 @@ public sealed record UsageCommitCommand(
     int? PromptTokens = null,
     int? CompletionTokens = null,
     int? TotalTokens = null,
-    decimal? EstimatedCost = null);
+    decimal? EstimatedCost = null,
+    string? AllocationSource = null,
+    string? AllowanceDateKey = null);
 
 public sealed record UsageReleaseCommand(
     Guid CustomerAccountId,
@@ -242,6 +244,36 @@ public interface IEntitlementService
     Task ValidateCanExecuteAsync(
         CustomerAccount account,
         string operationCode,
+        CancellationToken cancellationToken);
+}
+
+public sealed record DailyFreeAllowanceGrantResult(
+    bool Granted,
+    decimal Amount,
+    string AllowanceDateKey,
+    string PolicyVersion,
+    DateTimeOffset ExpiresAtUtc,
+    decimal RemainingCredits);
+
+public sealed record DailyFreeAllowanceBucket(
+    string AllowanceDateKey,
+    string PolicyVersion,
+    decimal TotalCredits,
+    decimal UsedCredits,
+    decimal RemainingCredits,
+    DateTimeOffset ExpiresAtUtc);
+
+public interface IDailyFreeAllowanceService
+{
+    Task<DailyFreeAllowanceGrantResult> EnsureAsync(
+        BillableActorContext actor,
+        CustomerAccount account,
+        string correlationId,
+        CancellationToken cancellationToken);
+
+    Task<DailyFreeAllowanceBucket> GetBucketAsync(
+        BillableActorContext actor,
+        CustomerAccount account,
         CancellationToken cancellationToken);
 }
 

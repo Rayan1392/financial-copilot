@@ -117,7 +117,9 @@ public sealed record BillingReservationHandle(
     Guid ActorId,
     Guid? ApiClientId,
     string? ExternalUserId,
-    string OperationCode);
+    string OperationCode,
+    string? AllocationSource = null,
+    string? AllowanceDateKey = null);
 
 public sealed record BillingFinalizationRequest(
     string CompletionStatus,

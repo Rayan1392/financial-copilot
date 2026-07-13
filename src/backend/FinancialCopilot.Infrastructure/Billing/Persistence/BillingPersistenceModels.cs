@@ -101,6 +101,27 @@ public sealed class UsageLedgerEntryRow
     public int? TotalTokens { get; set; }
 
     public decimal? EstimatedCost { get; set; }
+
+    public string? AllocationSource { get; set; }
+
+    public string? AllowanceDateKey { get; set; }
+}
+
+public sealed class DailyFreeAllowanceGrantRow
+{
+    public Guid Id { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public Guid ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public string AllowanceDateKey { get; set; } = string.Empty;
+    public string PolicyVersion { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTimeOffset GrantedAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public Guid LedgerEntryId { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+    public DateTimeOffset? ExpiredAtUtc { get; set; }
+    public decimal ExpiredCredits { get; set; }
 }
 
 public sealed class FinancialTransactionRow

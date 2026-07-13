@@ -1,7 +1,7 @@
 # User Story — Telegram Account Linking and Channel Identity
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented 2026-07-12
 
 ## Feature
 Link a Telegram user to a canonical TahlilApp actor without creating a second identity or billing model.

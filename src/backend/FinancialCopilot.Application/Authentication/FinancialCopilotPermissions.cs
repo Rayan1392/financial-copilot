@@ -16,6 +16,8 @@ public static class FinancialCopilotPermissions
     public const string ConversationWriteSelf = "conversation.write.self";
     public const string UsageReadSelf = "usage.read.self";
     public const string MemoryManageSelf = "memory.manage.self";
+    public const string TelegramLinkManageSelf = "telegram.link.manage.self";
+    public const string TelegramMembershipReadSelf = "telegram.membership.read.self";
     public const string DataSyncManage = "data.sync.manage";
     public const string BillingManage = "billing.manage";
     public const string AdminUsersRead = "admin.users.read";
@@ -51,6 +53,8 @@ public static class FinancialCopilotPermissions
         ConversationWriteSelf,
         UsageReadSelf,
         MemoryManageSelf,
+        TelegramLinkManageSelf,
+        TelegramMembershipReadSelf,
         DataSyncManage,
         BillingManage,
         AdminUsersRead,
@@ -102,6 +106,8 @@ public static class FinancialCopilotPermissions
         ConversationReadSelf,
         ConversationWriteSelf,
         UsageReadSelf,
-        MemoryManageSelf
+        MemoryManageSelf,
+        TelegramLinkManageSelf,
+        TelegramMembershipReadSelf
     ];
 }

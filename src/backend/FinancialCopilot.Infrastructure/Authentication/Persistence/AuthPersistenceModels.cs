@@ -67,3 +67,67 @@ public sealed class SecurityAdminAuditRow
     public string? After { get; set; }
     public string? IdempotencyKey { get; set; }
 }
+
+public sealed class TelegramAccountLinkRow
+{
+    public Guid Id { get; set; }
+    public Guid ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long TelegramUserId { get; set; }
+    public long TelegramChatId { get; set; }
+    public string? Username { get; set; }
+    public DateTimeOffset LinkedAtUtc { get; set; }
+    public DateTimeOffset LastVerifiedAtUtc { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
+    public uint Version { get; set; }
+}
+
+public sealed class TelegramLinkTokenRow
+{
+    public Guid Id { get; set; }
+    public Guid? ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long? TelegramUserId { get; set; }
+    public long? TelegramChatId { get; set; }
+    public string? Username { get; set; }
+    public string TokenHash { get; set; } = string.Empty;
+    public string Purpose { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public DateTimeOffset? ConsumedAtUtc { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
+    public long? ConsumedByTelegramUserId { get; set; }
+    public long? TelegramUpdateId { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+    public uint Version { get; set; }
+}
+
+public sealed class TelegramLinkAuditRow
+{
+    public Guid Id { get; set; }
+    public Guid? ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long? TelegramUserId { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public DateTimeOffset OccurredAtUtc { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+}
+
+public sealed class TelegramChannelMembershipVerificationRow
+{
+    public Guid Id { get; set; }
+    public Guid ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long TelegramUserId { get; set; }
+    public string ChannelId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public bool IsEligible { get; set; }
+    public DateTimeOffset ProviderObservedAtUtc { get; set; }
+    public DateTimeOffset VerifiedAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public string FailureCategory { get; set; } = string.Empty;
+    public string CorrelationId { get; set; } = string.Empty;
+    public bool IsLatest { get; set; }
+}

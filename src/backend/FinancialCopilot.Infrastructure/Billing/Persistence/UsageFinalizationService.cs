@@ -78,7 +78,9 @@ public sealed class UsageFinalizationService(
             PromptTokens: command.PromptTokens,
             CompletionTokens: command.CompletionTokens,
             TotalTokens: command.TotalTokens,
-            EstimatedCost: command.EstimatedCost);
+            EstimatedCost: command.EstimatedCost,
+            AllocationSource: command.AllocationSource,
+            AllowanceDateKey: command.AllowanceDateKey);
 
         reservationRow.Status = reservation.Status.ToString();
         reservationRow.CommittedCredits = reservation.CommittedCredits;
@@ -107,7 +109,9 @@ public sealed class UsageFinalizationService(
                 entry.PromptTokens,
                 entry.CompletionTokens,
                 entry.TotalTokens,
-                entry.EstimatedCost
+                entry.EstimatedCost,
+                entry.AllocationSource,
+                entry.AllowanceDateKey
             },
             now);
 
@@ -264,7 +268,9 @@ public sealed class UsageFinalizationService(
             ledger.PromptTokens != command.PromptTokens ||
             ledger.CompletionTokens != command.CompletionTokens ||
             ledger.TotalTokens != command.TotalTokens ||
-            ledger.EstimatedCost != command.EstimatedCost)
+            ledger.EstimatedCost != command.EstimatedCost ||
+            ledger.AllocationSource != command.AllocationSource ||
+            ledger.AllowanceDateKey != command.AllowanceDateKey)
         {
             throw new InvalidOperationException(
                 "A finalized usage reservation cannot be replayed with different charge data.");
@@ -309,7 +315,9 @@ public sealed class UsageFinalizationService(
             row.PromptTokens,
             row.CompletionTokens,
             row.TotalTokens,
-            row.EstimatedCost);
+            row.EstimatedCost,
+            row.AllocationSource,
+            row.AllowanceDateKey);
 
     private static UsageLedgerEntryRow MapLedgerRow(UsageLedgerEntry entry) =>
         new()
@@ -334,6 +342,8 @@ public sealed class UsageFinalizationService(
             PromptTokens = entry.PromptTokens,
             CompletionTokens = entry.CompletionTokens,
             TotalTokens = entry.TotalTokens,
-            EstimatedCost = entry.EstimatedCost
+            EstimatedCost = entry.EstimatedCost,
+            AllocationSource = entry.AllocationSource,
+            AllowanceDateKey = entry.AllowanceDateKey
         };
 }

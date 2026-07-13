@@ -55,6 +55,7 @@ using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Infrastructure.Administration;
 using FinancialCopilot.Infrastructure.AI.Consistency;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2;
@@ -136,6 +137,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<TelegramMembershipService>();
         services.AddScoped<ITelegramMembershipService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<IDailyFreeAllowanceService>(provider => provider.GetRequiredService<TelegramMembershipService>());
+        services.AddScoped<TelegramMembershipRevalidationProcessor>();
+        services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 

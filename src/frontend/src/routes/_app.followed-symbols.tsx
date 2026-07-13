@@ -90,12 +90,12 @@ function FollowedSymbolsPage() {
       <div className="mx-auto max-w-4xl space-y-8">
         <header className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald">
-            Followed symbols
+            نمادهای دنبال‌شده
           </p>
-          <h1 className="text-3xl font-bold text-foreground">Manage followed symbols</h1>
+          <h1 className="text-3xl font-bold text-foreground">مدیریت نمادهای دنبال‌شده</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Followed symbols are a personal attention list for future AI feeds. They are not
-            portfolio holdings and do not imply position size, cost basis, or exposure.
+            نمادهای دنبال‌شده یک فهرست شخصی برای پیگیری در قابلیت‌های آینده هوش مصنوعی هستند
+            و به‌معنای پرتفوی، اندازه موقعیت، بهای تمام‌شده یا میزان exposure نیستند.
           </p>
         </header>
 
@@ -103,9 +103,9 @@ function FollowedSymbolsPage() {
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald">
-                Intelligence feed
+                خوراک هوشمند
               </p>
-              <h2 className="mt-1 text-xl font-semibold">Followed-symbol events</h2>
+              <h2 className="mt-1 text-xl font-semibold">رویدادهای نمادهای دنبال‌شده</h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select
@@ -116,14 +116,14 @@ function FollowedSymbolsPage() {
                 }}
                 className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
               >
-                <option value="">All types</option>
-                <option value="MonthlyReportPublished">Monthly reports</option>
-                <option value="MonthlySalesAnomaly">Sales anomalies</option>
-                <option value="MonthlyQualityRankingChange">Quality changes</option>
-                <option value="PriceMovement">Price movement</option>
-                <option value="ComprehensiveAnalysisPublished">Analysis posts</option>
-                <option value="FinancialStatementPublished">Financial statements</option>
-                <option value="DataFreshnessWarning">Freshness warnings</option>
+                <option value="">همه نوع‌ها</option>
+                <option value="MonthlyReportPublished">گزارش‌های ماهانه</option>
+                <option value="MonthlySalesAnomaly">ناهنجاری‌های فروش</option>
+                <option value="MonthlyQualityRankingChange">تغییرات کیفیت</option>
+                <option value="PriceMovement">حرکت قیمت</option>
+                <option value="ComprehensiveAnalysisPublished">تحلیل‌های منتشرشده</option>
+                <option value="FinancialStatementPublished">صورت‌های مالی</option>
+                <option value="DataFreshnessWarning">هشدار تازگی داده</option>
               </select>
               <select
                 value={severityFilter}
@@ -133,11 +133,11 @@ function FollowedSymbolsPage() {
                 }}
                 className="rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-emerald/50"
               >
-                <option value="">All severities</option>
-                <option value="Critical">Critical</option>
-                <option value="Important">Important</option>
-                <option value="Notice">Notice</option>
-                <option value="Informational">Informational</option>
+                <option value="">همه سطح‌ها</option>
+                <option value="Critical">بحرانی</option>
+                <option value="Important">مهم</option>
+                <option value="Notice">قابل توجه</option>
+                <option value="Informational">اطلاع‌رسانی</option>
               </select>
               <label className="flex items-center gap-2 rounded-lg border border-hairline bg-background px-3 py-2 text-xs text-muted-foreground">
                 <input
@@ -149,13 +149,13 @@ function FollowedSymbolsPage() {
                   }}
                   className="accent-emerald"
                 />
-                Dismissed
+                حذف‌شده‌ها
               </label>
             </div>
           </div>
 
-          {insights.isLoading && <p className="text-sm text-muted-foreground">Loading insights...</p>}
-          {insights.isError && <p className="text-sm text-rose">Could not load personalized insights.</p>}
+          {insights.isLoading && <p className="text-sm text-muted-foreground">در حال بارگذاری رویدادها...</p>}
+          {insights.isError && <p className="text-sm text-rose">بارگذاری رویدادهای شخصی‌سازی‌شده انجام نشد.</p>}
           {!insights.isLoading && !insights.isError && insights.data?.emptyState && (
             <div className="rounded-lg border border-hairline bg-background/50 p-4">
               <p className="text-sm text-muted-foreground">{insights.data.emptyState.message}</p>
@@ -177,7 +177,7 @@ function FollowedSymbolsPage() {
           {!insights.isLoading && !insights.isError && (insights.data?.totalCount ?? 0) > 0 && (
             <div className="mt-4 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
-                {skip + 1}-{Math.min(skip + take, insights.data?.totalCount ?? 0)} of{" "}
+                {skip + 1}-{Math.min(skip + take, insights.data?.totalCount ?? 0)} از{" "}
                 {insights.data?.totalCount ?? 0}
               </span>
               <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ function FollowedSymbolsPage() {
                   onClick={() => setSkip(Math.max(0, skip - take))}
                   disabled={skip === 0}
                   className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  aria-label="Previous insights"
+                  aria-label="رویدادهای قبلی"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
@@ -195,7 +195,7 @@ function FollowedSymbolsPage() {
                   onClick={() => setSkip(skip + take)}
                   disabled={skip + take >= (insights.data?.totalCount ?? 0)}
                   className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  aria-label="Next insights"
+                  aria-label="رویدادهای بعدی"
                 >
                   <ChevronRight className="size-4" />
                 </button>
@@ -206,13 +206,13 @@ function FollowedSymbolsPage() {
 
         <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="symbol-search">
-            Add a symbol by company search
+            افزودن نماد با جستجوی شرکت
           </label>
           <input
             id="symbol-search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search symbol or company name"
+            placeholder="نام نماد یا شرکت را جستجو کنید"
             className="mt-2 w-full rounded-xl border border-hairline bg-background px-4 py-3 text-sm outline-none focus:border-emerald/50"
           />
           <div className="mt-4 grid gap-2 md:grid-cols-2">
@@ -228,15 +228,15 @@ function FollowedSymbolsPage() {
 
         <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">My followed symbols</h2>
+            <h2 className="text-lg font-semibold">نمادهای دنبال‌شده من</h2>
             <span className="text-xs text-muted-foreground">
-              {followed.data?.symbols.length ?? 0} symbols
+              {followed.data?.symbols.length ?? 0} نماد
             </span>
           </div>
-          {followed.isLoading && <p className="text-sm text-muted-foreground">Loading followed symbols...</p>}
-          {followed.isError && <p className="text-sm text-rose">Could not load followed symbols.</p>}
+          {followed.isLoading && <p className="text-sm text-muted-foreground">در حال بارگذاری نمادهای دنبال‌شده...</p>}
+          {followed.isError && <p className="text-sm text-rose">بارگذاری نمادهای دنبال‌شده انجام نشد.</p>}
           {!followed.isLoading && !followed.isError && followed.data?.symbols.length === 0 && (
-            <p className="text-sm text-muted-foreground">No followed symbols yet.</p>
+            <p className="text-sm text-muted-foreground">هنوز نمادی را دنبال نکرده‌اید.</p>
           )}
           <div className="grid gap-3">
             {followed.data?.symbols.map((item) => (
@@ -248,7 +248,7 @@ function FollowedSymbolsPage() {
                   <div className="font-semibold text-foreground">{item.symbol}</div>
                   <div className="text-xs text-muted-foreground">{item.companyName}</div>
                   <div className="mt-1 text-[10px] text-muted-foreground">
-                    External company id: {item.externalCompanyId}
+                    شناسه شرکت: {item.externalCompanyId}
                   </div>
                 </div>
                 <button
@@ -257,7 +257,7 @@ function FollowedSymbolsPage() {
                   disabled={remove.isPending}
                   className="rounded-lg border border-rose/30 px-3 py-1.5 text-xs text-rose hover:bg-rose/10 disabled:opacity-50"
                 >
-                  Unfollow
+                  لغو دنبال‌کردن
                 </button>
               </div>
             ))}
@@ -277,7 +277,7 @@ function SearchResult({ item, followed }: { item: SymbolMetadata; followed: bool
       </div>
       {followed ? (
         <span className="rounded-full border border-emerald/30 px-2 py-1 text-xs text-emerald">
-          Followed
+          دنبال می‌شود
         </span>
       ) : (
         <FollowSymbolButton
@@ -320,20 +320,20 @@ function InsightCard({
             <span className={severityClass(insight.severity)}>{insight.severity}</span>
             {item.dismissed && (
               <span className="rounded-md border border-rose/30 px-2 py-1 text-xs text-rose">
-                Dismissed
+                حذف‌شده
               </span>
             )}
             {item.seen && !item.dismissed && (
               <span className="rounded-md border border-hairline px-2 py-1 text-xs text-muted-foreground">
-                Seen
+                دیده‌شده
               </span>
             )}
           </div>
           <h3 className="mt-3 text-base font-semibold text-foreground">{insight.title}</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{insight.summary}</p>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
-            <span>Importance {formatScore(insight.importanceScore)}</span>
-            <span>Confidence {formatScore(insight.confidenceScore)}</span>
+            <span>اهمیت {formatScore(insight.importanceScore)}</span>
+            <span>اطمینان {formatScore(insight.confidenceScore)}</span>
             <span>{new Date(insight.detectedAtUtc).toLocaleDateString()}</span>
           </div>
         </div>
@@ -343,8 +343,8 @@ function InsightCard({
             onClick={onSeen}
             disabled={busy || item.seen}
             className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-            aria-label="Mark seen"
-            title="Mark seen"
+            aria-label="علامت‌گذاری به‌عنوان دیده‌شده"
+            title="علامت‌گذاری به‌عنوان دیده‌شده"
           >
             <Eye className="size-4" />
           </button>
@@ -353,8 +353,8 @@ function InsightCard({
             onClick={onAsk}
             disabled={busy}
             className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-            aria-label="Ask AI"
-            title="Ask AI"
+            aria-label="پرسش از هوش مصنوعی"
+            title="پرسش از هوش مصنوعی"
           >
             <Bot className="size-4" />
           </button>
@@ -362,8 +362,8 @@ function InsightCard({
             type="button"
             disabled={!insight.sourceEntityId}
             className="rounded-lg border border-hairline p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
-            aria-label="Open source"
-            title="Open source"
+            aria-label="باز کردن منبع"
+            title="باز کردن منبع"
           >
             <ExternalLink className="size-4" />
           </button>
@@ -372,8 +372,8 @@ function InsightCard({
             onClick={onDismiss}
             disabled={busy || item.dismissed}
             className="rounded-lg border border-rose/30 p-2 text-rose hover:bg-rose/10 disabled:opacity-40"
-            aria-label="Dismiss"
-            title="Dismiss"
+            aria-label="حذف"
+            title="حذف"
           >
             <X className="size-4" />
           </button>
@@ -397,9 +397,9 @@ function InsightCard({
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span>Source {insight.sourceProviderName}</span>
-        <span>Entity {insight.sourceEntityType}</span>
-        {insight.sourcePeriod && <span>Period {insight.sourcePeriod}</span>}
+        <span>منبع {insight.sourceProviderName}</span>
+        <span>موجودیت {insight.sourceEntityType}</span>
+        {insight.sourcePeriod && <span>دوره {insight.sourcePeriod}</span>}
       </div>
     </article>
   );

@@ -141,7 +141,7 @@ public sealed class TelegramLinkController(
         token = string.Empty;
         if (string.IsNullOrWhiteSpace(startParameter) ||
             !startParameter.StartsWith("link_", StringComparison.Ordinal) ||
-            startParameter.Length != 69)
+            startParameter.Length != 53)
         {
             return false;
         }

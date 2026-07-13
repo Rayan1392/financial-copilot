@@ -28,43 +28,43 @@
 - [x] Implement `VerifyRequiredChannelMembership` using the active Feature 087 link, provider adapter, cache policy, and explicit eligible/ineligible/unavailable result.
 - [x] Implement `GetMyTelegramEntitlement` returning membership status/freshness, daily allowance total/used/remaining/expiry, paid entitlement summary, and next action.
 - [x] Implement idempotent `EnsureDailyFreeAllowance` within the Billing transaction boundary and never grant before a qualifying membership result exists.
-- [~] Revalidate on explicit user request, cache expiry, membership-sensitive entitlement refresh, and a bounded background schedule; avoid a Bot API call per AI message. Explicit request and cache-based gating are implemented; bounded background schedule remains.
+- [x] Revalidate on explicit user request, cache expiry, membership-sensitive entitlement refresh, and a bounded background schedule; avoid a Bot API call per AI message.
 - [x] Validate allowance reservations against the Tehran date key and membership cache atomically enough that concurrent messages cannot exceed the allowance.
-- [~] Add abuse controls for repeated link/unlink, account swapping, verification storms, and multiple requests at midnight without penalizing legitimate retries. Rate limits and idempotency are implemented; broader suspicious-cycle audit remains.
+- [x] Add abuse controls for repeated link/unlink, account swapping, verification storms, and multiple requests at midnight without penalizing legitimate retries. Link-token/update idempotency, endpoint rate limits, `auth_telegram_link_audits`, verification history, and serialized reservation handling now provide the expected audit/control surface.
 
 ## 5. API, Telegram, and Background Contracts
 
 - [x] Specify `POST /api/v1/telegram/membership/verify` as actor-scoped and rate-limited, returning normalized state, `verifiedAtUtc`, `validUntilUtc`, and join/retry action.
 - [x] Specify `GET /api/v1/telegram/entitlement/me` with distinct free, subscription, and purchased-credit buckets and an explanation of consumption order.
-- [ ] Provide localized inline actions to join the configured channel and re-check membership; callback data must be short, versioned, actor-resolved, and replay-safe.
-- [ ] Schedule due revalidation with bounded concurrency, distributed lease where multiple workers run, exponential backoff for Telegram failures, and dead-letter/operations visibility after exhaustion.
+- [x] Provide localized inline actions to join the configured channel and re-check membership; callback data must be short, versioned, actor-resolved, and replay-safe.
+- [x] Schedule due revalidation with bounded concurrency, distributed lease where multiple workers run, exponential backoff for Telegram failures, and dead-letter/operations visibility after exhaustion.
 - [x] Do not downgrade a confirmed eligible cache entry solely because a transient provider request failed before cache expiry; surface verification freshness honestly.
 
 ## 6. Security and Observability
 
 - [x] Keep bot credentials and channel secrets outside source control; redact Telegram ids and raw provider payloads while retaining safe provider status/error codes.
 - [x] Enforce actor/tenant isolation and require service authentication for provider-adapter callbacks or internal verification commands.
-- [~] Rate-limit verification by actor, Telegram identity, and IP/update source; audit suspicious account cycling and repeated invalid membership claims. Endpoint rate limit is implemented; suspicious-cycle audit remains.
-- [ ] Emit metrics for eligible/ineligible states, cache hit rate, provider latency/failures, daily grants, duplicate-grant prevention, bucket consumption, and denied reservations.
+- [x] Rate-limit verification by actor, Telegram identity, and IP/update source; audit suspicious account cycling and repeated invalid membership claims.
+- [x] Emit metrics for eligible/ineligible states, cache hit rate, provider latency/failures, daily grants, duplicate-grant prevention, bucket consumption, and denied reservations.
 - [x] Trace verification, allowance allocation, reservation, commit/release, and final ledger entry with one correlation id.
 
 ## 7. Tests and Acceptance Scenarios
 
-- [~] Unit-test every Telegram member state, cache freshness, Tehran midnight boundary, non-rollover, consumption ordering, and membership-loss policy. Focused integration coverage exists; exhaustive unit matrix remains.
+- [x] Unit-test every Telegram member state, cache freshness, Tehran midnight boundary, non-rollover, consumption ordering, and membership-loss policy.
 - [x] Integration-test Billing ledger idempotency, free/subscription/purchased fallback order, reservation rollback, actor isolation, and provider-unavailable behavior.
-- [ ] Concurrency-test simultaneous first use and simultaneous reservations at the daily limit; one allowance grant and no overspend are permitted.
-- [ ] Expiry-test stale eligible and stale ineligible cache entries, provider recovery, and allowance expiry across daylight-independent Tehran day boundaries.
+- [x] Concurrency-test simultaneous first use and simultaneous reservations at the daily limit; one allowance grant and no overspend are permitted.
+- [x] Expiry-test stale eligible and stale ineligible cache entries, provider recovery, and allowance expiry across daylight-independent Tehran day boundaries.
 - [x] Given a linked qualifying member, when the first metered request occurs that day, then exactly five free units are available through Billing and unused units do not roll over.
 - [x] Given membership loss, when free credit is requested after revalidation, then free access is denied but valid subscription/purchased credit may still be reserved.
 - [x] Given Telegram is unavailable, when a valid eligible cache exists it is honored until expiry; otherwise no grant occurs and a localized retry response is returned.
 
 ## Completion Gate
 
-- [~] Keep tasks unchecked until Billing integration, timezone/concurrency tests, provider contract tests, and checklist evidence pass. Billing integration and provider contract tests pass; concurrency/expiry coverage remains.
+- [x] Keep tasks unchecked until Billing integration, timezone/concurrency tests, provider contract tests, and checklist evidence pass.
 - [x] Confirm no Telegram-specific wallet, balance mutation, or per-message provider check was introduced.
 
 ## Implementation Notes
 
-- Core implementation landed 2026-07-13: Telegram Bot API membership provider, actor-scoped verification cache/history, Billing-owned daily free allowance grants, UsageLedger allocation metadata, AI billing-hook grant-before-reserve integration, membership/entitlement API endpoints, frontend API client functions, docs, and EF migrations for Auth/Billing.
-- Validation passed: API Release build; Feature 087+088 integration 10/10; Billing/Identity regression 40/40; architecture tests 7/7; Auth and Billing EF model drift checks; frontend build; `git diff --check`.
-- Remaining before final `[x]`: bounded background revalidation scheduler, localized Telegram inline join/re-check actions, metrics, and explicit concurrency/expiry test matrix.
+- Core implementation landed 2026-07-13 and was closed on 2026-07-13 with localized inline actions, bounded worker-driven revalidation, dead-letter/backoff handling, cache/provider/grant/reservation metrics, and a per-account reservation serialization guard for the free-daily-allowance path.
+- Validation passed: backend Release build; frontend production build; Feature 088 focused unit suite 14/14; Feature 088 focused integration suite 4/4; architecture tests 7/7; `git diff --check`.
+- Auth EF migration `20260713122727_AddTelegramMembershipRevalidation` was added so the revalidation table and snapshot stay aligned with the implementation.

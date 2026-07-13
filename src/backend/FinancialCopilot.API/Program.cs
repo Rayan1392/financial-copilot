@@ -8,6 +8,45 @@ using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
 
+//var apiKey = "dev-telegram-worker-key";
+
+//var hash = Convert.ToHexString(
+//    System.Security.Cryptography.SHA256.HashData(
+//        System.Text.Encoding.UTF8.GetBytes(apiKey)
+//        )
+//  );
+
+//Environment.SetEnvironmentVariable(
+//     "Authentication__ApiKeys__Clients__0__ClientId",
+//    "22222222-2222-2222-2222-222222222222", EnvironmentVariableTarget.User
+//);
+
+//Environment.SetEnvironmentVariable(
+//    "Authentication__ApiKeys__Clients__0__TenantId",
+//    "11111111-1111-1111-1111-111111111111",
+//    EnvironmentVariableTarget.User
+//);
+
+//Environment.SetEnvironmentVariable(
+//     "Authentication__ApiKeys__Clients__0__Name",
+//    "Telegram Dev Poller",
+//    EnvironmentVariableTarget.User
+//);
+
+//Environment.SetEnvironmentVariable(
+//    "Authentication__ApiKeys__Clients__0__KeySha256",
+//    hash,
+//    EnvironmentVariableTarget.User
+//);
+
+//Environment.SetEnvironmentVariable(
+//  "Authentication__ApiKeys__Clients__0__IsActive",
+//    "true",
+//    EnvironmentVariableTarget.User
+//);
+
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));

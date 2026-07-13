@@ -25,6 +25,9 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<TelegramLinkTokenRow> TelegramLinkTokens => Set<TelegramLinkTokenRow>();
     public DbSet<TelegramLinkAuditRow> TelegramLinkAudits => Set<TelegramLinkAuditRow>();
     public DbSet<TelegramChannelMembershipVerificationRow> TelegramChannelMembershipVerifications => Set<TelegramChannelMembershipVerificationRow>();
+    public DbSet<TelegramMembershipRevalidationRow> TelegramMembershipRevalidations => Set<TelegramMembershipRevalidationRow>();
+    public DbSet<TelegramConversationBindingRow> TelegramConversationBindings => Set<TelegramConversationBindingRow>();
+    public DbSet<TelegramProcessedUpdateRow> TelegramProcessedUpdates => Set<TelegramProcessedUpdateRow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -146,6 +149,47 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.ChannelId).HasMaxLength(160).IsRequired();
             entity.Property(row => row.Status).HasMaxLength(64).IsRequired();
             entity.Property(row => row.FailureCategory).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TelegramMembershipRevalidationRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_membership_revalidations");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.ActorId, row.TenantId, row.ChannelId }).IsUnique();
+            entity.HasIndex(row => new { row.NextDueAtUtc, row.DeadLetteredAtUtc, row.LeaseExpiresAtUtc });
+            entity.Property(row => row.ChannelId).HasMaxLength(160).IsRequired();
+            entity.Property(row => row.LeaseOwner).HasMaxLength(160);
+            entity.Property(row => row.LastFailureCategory).HasMaxLength(64);
+            entity.Property(row => row.LastError).HasMaxLength(500);
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TelegramConversationBindingRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_conversation_bindings");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.ActorId, row.TenantId, row.TelegramChatId, row.MessageThreadKey, row.RevokedAtUtc });
+            entity.HasIndex(row => new { row.ActorId, row.TenantId, row.TelegramChatId, row.MessageThreadKey })
+                .IsUnique()
+                .HasFilter("\"RevokedAtUtc\" IS NULL");
+            entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
+            entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<TelegramProcessedUpdateRow>(entity =>
+        {
+            entity.ToTable("auth_telegram_processed_updates");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.IdempotencyKey).IsUnique();
+            entity.HasIndex(row => row.ExpiresAtUtc);
+            entity.HasIndex(row => new { row.ActorId, row.TenantId, row.TelegramChatId, row.ProcessedAtUtc });
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(200).IsRequired();
+            entity.Property(row => row.CallbackQueryId).HasMaxLength(160);
+            entity.Property(row => row.Status).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.ResponseJson).HasColumnType("jsonb").IsRequired();
             entity.Property(row => row.CorrelationId).HasMaxLength(160).IsRequired();
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.ActorId);
             entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);

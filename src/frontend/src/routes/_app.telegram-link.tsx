@@ -68,7 +68,7 @@ function TelegramLinkPage() {
         ) : challenge ? (
           <div className="mt-5 space-y-3">
             <p className="text-sm text-muted-foreground">این پیوند یک‌بارمصرف است و در {new Date(challenge.expiresAtUtc).toLocaleTimeString("fa-IR")} منقضی می‌شود.</p>
-            <a href={challenge.deepLink} rel="noreferrer" className="block rounded-lg bg-emerald px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">باز کردن ربات تلگرام</a>
+            <a href={challenge.deepLink} target="_blank" rel="noreferrer" className="block rounded-lg bg-emerald px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">باز کردن ربات تلگرام</a>
             <button onClick={createChallenge} disabled={loading} className="text-sm text-muted-foreground">ساخت پیوند جدید</button>
           </div>
         ) : (

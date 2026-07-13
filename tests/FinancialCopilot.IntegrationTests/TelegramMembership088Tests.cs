@@ -41,9 +41,11 @@ public sealed class TelegramMembership088Tests : IClassFixture<TelegramMembershi
         Assert.Equal(HttpStatusCode.OK, verify.StatusCode);
         Assert.True(verifyJson.RootElement.GetProperty("isEligible").GetBoolean());
         Assert.Equal((int)TelegramChannelMembershipStatus.Member, verifyJson.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal("بررسی دوباره عضویت", verifyJson.RootElement.GetProperty("actions")[0].GetProperty("label").GetString());
         Assert.Equal(HttpStatusCode.OK, entitlement.StatusCode);
         Assert.Equal("UsePaidEntitlement", entitlementJson.RootElement.GetProperty("nextAction").GetString());
         Assert.Equal(5m, entitlementJson.RootElement.GetProperty("freeDailyAllowance").GetProperty("totalCredits").GetDecimal());
+        Assert.Equal("بررسی دوباره عضویت", entitlementJson.RootElement.GetProperty("actions")[0].GetProperty("label").GetString());
 
         using var scope = _factory.Services.CreateScope();
         var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();

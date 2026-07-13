@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    partial class AuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713122727_AddTelegramMembershipRevalidation")]
+    partial class AddTelegramMembershipRevalidation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -384,58 +387,6 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.ToTable("auth_telegram_channel_membership_verifications", (string)null);
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramConversationBindingRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("LastMessageAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("MessageThreadId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MessageThreadKey")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("RevokedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("TelegramChatId")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ActorId", "TenantId", "TelegramChatId", "MessageThreadKey")
-                        .IsUnique()
-                        .HasFilter("\"RevokedAtUtc\" IS NULL");
-
-                    b.HasIndex("ActorId", "TenantId", "TelegramChatId", "MessageThreadKey", "RevokedAtUtc")
-                        .HasDatabaseName("IX_auth_telegram_conversation_bindings_ActorId_TenantId_Teleg~1");
-
-                    b.ToTable("auth_telegram_conversation_bindings", (string)null);
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramLinkAuditRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -623,76 +574,6 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.HasIndex("NextDueAtUtc", "DeadLetteredAtUtc", "LeaseExpiresAtUtc");
 
                     b.ToTable("auth_telegram_membership_revalidations", (string)null);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramProcessedUpdateRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CallbackQueryId")
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<Guid?>("ConversationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTimeOffset>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int?>("MessageThreadId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("ProcessedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResponseJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<long>("TelegramChatId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("TelegramUpdateId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("TelegramUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid?>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ActorId", "TenantId", "TelegramChatId", "ProcessedAtUtc");
-
-                    b.ToTable("auth_telegram_processed_updates", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TenantRow", b =>
@@ -886,21 +767,6 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramConversationBindingRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
-                        .WithMany()
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.TenantRow", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramLinkTokenRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
@@ -927,17 +793,6 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.TelegramProcessedUpdateRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
-                        .WithMany()
-                        .HasForeignKey("ActorId");
-
-                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.TenantRow", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId");
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.UserTenantRow", b =>

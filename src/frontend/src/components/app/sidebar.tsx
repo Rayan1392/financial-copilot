@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, LogOut, Settings } from "lucide-react";
+import { Plus, Trash2, LogOut, Settings, Send } from "lucide-react";
 import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
 import { getUsage, getWatchlist } from "@/lib/market-view.functions";
 import {
@@ -102,7 +102,7 @@ export function ConversationSidebar() {
           to="/followed-symbols"
           className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
         >
-          Followed symbols
+          نمادهای دنبال‌شده
         </Link>
         <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
@@ -194,6 +194,13 @@ export function ConversationSidebar() {
         )}
         <div className="flex items-center justify-between px-1">
           <span className="text-xs font-medium text-foreground">حساب کاربری</span>
+          <Link
+            to="/telegram-link"
+            className="p-1.5 text-muted-foreground hover:text-foreground transition"
+            aria-label="اتصال تلگرام"
+          >
+            <Send className="size-4" />
+          </Link>
           {showAdmin && (
             <Link
               to="/admin"

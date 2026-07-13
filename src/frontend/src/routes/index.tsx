@@ -1,11 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { isAuthenticated } from "@/integrations/financial-copilot/auth";
-import { AuthPage } from "./auth";
+import { AuthScreen } from "./auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
     if (await isAuthenticated()) throw redirect({ to: "/chat" });
   },
-  component: AuthPage,
+  component: IndexRoute,
 });
+
+function IndexRoute() {
+  return <AuthScreen redirect="/chat" />;
+}

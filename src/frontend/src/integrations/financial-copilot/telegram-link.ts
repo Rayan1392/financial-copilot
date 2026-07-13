@@ -28,6 +28,15 @@ export type TelegramMembershipVerification = {
   channelId: string;
   correlationId: string;
   failureCategory: number;
+  actions?: TelegramInlineAction[];
+};
+
+export type TelegramInlineAction = {
+  kind: string;
+  label: string;
+  url?: string | null;
+  callbackData?: string | null;
+  isPrimary: boolean;
 };
 
 export type TelegramDailyFreeAllowance = {
@@ -46,6 +55,7 @@ export type TelegramEntitlement = {
   paidAvailableSpendingCapacity: number;
   consumptionOrder: string;
   nextAction: string;
+  actions: TelegramInlineAction[];
   generatedAtUtc: string;
 };
 

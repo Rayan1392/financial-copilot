@@ -131,3 +131,55 @@ public sealed class TelegramChannelMembershipVerificationRow
     public string CorrelationId { get; set; } = string.Empty;
     public bool IsLatest { get; set; }
 }
+
+public sealed class TelegramMembershipRevalidationRow
+{
+    public Guid Id { get; set; }
+    public Guid ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long TelegramUserId { get; set; }
+    public string ChannelId { get; set; } = string.Empty;
+    public DateTimeOffset NextDueAtUtc { get; set; }
+    public DateTimeOffset? LeaseExpiresAtUtc { get; set; }
+    public string? LeaseOwner { get; set; }
+    public int AttemptCount { get; set; }
+    public DateTimeOffset? LastAttemptedAtUtc { get; set; }
+    public DateTimeOffset? DeadLetteredAtUtc { get; set; }
+    public string? LastFailureCategory { get; set; }
+    public string? LastError { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+}
+
+public sealed class TelegramConversationBindingRow
+{
+    public Guid Id { get; set; }
+    public Guid ActorId { get; set; }
+    public Guid TenantId { get; set; }
+    public long TelegramChatId { get; set; }
+    public int? MessageThreadId { get; set; }
+    public int MessageThreadKey { get; set; }
+    public Guid ConversationId { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset LastMessageAtUtc { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+}
+
+public sealed class TelegramProcessedUpdateRow
+{
+    public Guid Id { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public long TelegramUpdateId { get; set; }
+    public string? CallbackQueryId { get; set; }
+    public Guid? ActorId { get; set; }
+    public Guid? TenantId { get; set; }
+    public long TelegramUserId { get; set; }
+    public long TelegramChatId { get; set; }
+    public int? MessageThreadId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public Guid? ConversationId { get; set; }
+    public string ResponseJson { get; set; } = string.Empty;
+    public DateTimeOffset ProcessedAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+}

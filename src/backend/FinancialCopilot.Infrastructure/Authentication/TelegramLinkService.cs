@@ -411,7 +411,9 @@ public sealed class TelegramLinkService(
 
     private static (string Raw, string Hash) CreateToken()
     {
-        var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        // Telegram deep-link start parameters are limited to 64 characters.
+        // The public payload is "link_" + raw token, so keep the token at 48 hex chars.
+        var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
         return (raw, Hash(raw));
     }
 

@@ -9,7 +9,15 @@ public sealed record TelegramMembershipVerificationResult(
     DateTimeOffset ValidUntilUtc,
     string ChannelId,
     string CorrelationId,
-    TelegramMembershipFailureCategory FailureCategory = TelegramMembershipFailureCategory.None);
+    TelegramMembershipFailureCategory FailureCategory = TelegramMembershipFailureCategory.None,
+    IReadOnlyList<TelegramInlineAction>? Actions = null);
+
+public sealed record TelegramInlineAction(
+    string Kind,
+    string Label,
+    string? Url = null,
+    string? CallbackData = null,
+    bool IsPrimary = false);
 
 public sealed record TelegramDailyFreeAllowanceView(
     string AllowanceDateKey,
@@ -26,6 +34,7 @@ public sealed record TelegramEntitlementView(
     decimal PaidAvailableSpendingCapacity,
     string ConsumptionOrder,
     string NextAction,
+    IReadOnlyList<TelegramInlineAction> Actions,
     DateTimeOffset GeneratedAtUtc);
 
 public sealed record TelegramProviderMembershipObservation(

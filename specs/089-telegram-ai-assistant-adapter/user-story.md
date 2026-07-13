@@ -1,7 +1,15 @@
 # User Story — Telegram AI Assistant Adapter
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented 2026-07-13
+
+Implemented as a backend Telegram assistant adapter boundary: an API-client-authenticated
+Telegram service posts normalized updates to `POST /api/v1/telegram/assistant/updates`,
+the adapter resolves the canonical actor from Feature 087, reuses the existing
+`IAiQueryOrchestrationService` path for AI execution and Billing finalization, persists
+actor/chat conversation bindings, stores processed-update idempotency records, and returns
+Telegram-safe Persian rendered message parts to the caller. The bot-token send/queue layer
+remains outside this backend adapter boundary.
 
 ## Feature
 Expose the existing FinancialCopilot AI query experience through Telegram while preserving orchestration, explainability, citations, and credit accounting.

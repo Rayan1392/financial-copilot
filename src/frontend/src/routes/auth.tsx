@@ -15,6 +15,10 @@ export const Route = createFileRoute("/auth")({
 
 export function AuthPage() {
   const { redirect } = Route.useSearch();
+  return <AuthScreen redirect={redirect} />;
+}
+
+export function AuthScreen({ redirect }: { redirect: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -47,7 +47,7 @@ export function FollowSymbolButton({ symbol, externalCompanyId, compact = false 
           : "rounded-lg border border-emerald/30 px-3 py-1.5 text-xs font-medium text-emerald hover:bg-emerald/10 disabled:opacity-50"
       }
     >
-      {follow.isSuccess ? "Followed" : follow.isPending ? "Following..." : "Follow symbol"}
+      {follow.isSuccess ? "دنبال می‌شود" : follow.isPending ? "در حال افزودن..." : "دنبال کردن نماد"}
     </button>
   );
 }

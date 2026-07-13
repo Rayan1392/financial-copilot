@@ -26,6 +26,8 @@ public sealed class TelegramAccountLinking087Tests : IClassFixture<OwnedIdentity
         var deepLink = challenge.RootElement.GetProperty("deepLink").GetString()!;
         Assert.StartsWith("https://t.me/financial_copilot_test_bot?start=link_", deepLink, StringComparison.Ordinal);
         var startParameter = new Uri(deepLink).Query.Split("start=", 2)[1];
+        Assert.True(startParameter.Length <= 64, $"Telegram start payload must be <= 64 chars, actual: {startParameter.Length}.");
+        Assert.Equal(53, startParameter.Length);
 
         using var adapter = CreateAdapterClient();
         var request = new

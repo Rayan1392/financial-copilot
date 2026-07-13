@@ -3,6 +3,7 @@ using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Usage;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 
 namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 
@@ -12,6 +13,7 @@ public sealed class UsageReservationAuthorizationService(
     TimeProvider timeProvider) : ICreditReservationService
 {
     private static readonly TimeSpan DefaultReservationDuration = TimeSpan.FromMinutes(5);
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ReservationLocks = new();
 
     public async Task<UsageReservation> ReserveAsync(
         CustomerAccount account,
@@ -24,85 +26,94 @@ public sealed class UsageReservationAuthorizationService(
         ArgumentException.ThrowIfNullOrWhiteSpace(operationCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        var normalizedKey = idempotencyKey.Trim();
-        var existingRow = await dbContext.UsageReservations
-            .AsNoTracking()
-            .SingleOrDefaultAsync(row => row.IdempotencyKey == normalizedKey, cancellationToken);
-
-        if (existingRow is not null)
+        var reservationLock = ReservationLocks.GetOrAdd(account.Id, static _ => new SemaphoreSlim(1, 1));
+        await reservationLock.WaitAsync(cancellationToken);
+        try
         {
-            var existing = MapReservation(existingRow);
-            ValidateExisting(existing, account, operationCode, maximumCredits);
-            return existing;
-        }
+            var normalizedKey = idempotencyKey.Trim();
+            var existingRow = await dbContext.UsageReservations
+                .AsNoTracking()
+                .SingleOrDefaultAsync(row => row.IdempotencyKey == normalizedKey, cancellationToken);
 
-        var accountExists = await dbContext.CustomerAccounts.AnyAsync(
-            row => row.Id == account.Id && row.TenantId == account.TenantId,
-            cancellationToken);
-
-        if (!accountExists)
-        {
-            throw new KeyNotFoundException("Billing account is not configured in this tenant.");
-        }
-
-        var walletRow = await dbContext.WalletProjections.SingleOrDefaultAsync(
-            row => row.CustomerAccountId == account.Id,
-            cancellationToken) ??
-            throw new KeyNotFoundException("Wallet projection is not configured.");
-        var currentWallet = MapWallet(walletRow);
-
-        if (wallet.CustomerAccountId != currentWallet.CustomerAccountId ||
-            wallet.Revision != currentWallet.Revision)
-        {
-            throw new InvalidOperationException("Reservation request used a stale wallet snapshot.");
-        }
-
-        if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
-        {
-            throw new InsufficientCreditException();
-        }
-
-        var now = timeProvider.GetUtcNow();
-        var reservation = new UsageReservation(
-            Guid.NewGuid(),
-            account.Id,
-            normalizedKey,
-            operationCode,
-            maximumCredits,
-            now,
-            now.Add(DefaultReservationDuration));
-        var reservedWallet = currentWallet.Reserve(maximumCredits, now);
-
-        dbContext.UsageReservations.Add(new UsageReservationRow
-        {
-            Id = reservation.Id,
-            CustomerAccountId = reservation.CustomerAccountId,
-            IdempotencyKey = reservation.IdempotencyKey,
-            OperationCode = reservation.OperationCode,
-            ReservedCredits = reservation.ReservedCredits,
-            CreatedAt = reservation.CreatedAt,
-            ExpiresAt = reservation.ExpiresAt,
-            Status = reservation.Status.ToString()
-        });
-        ApplyWallet(walletRow, reservedWallet);
-        BillingOutboxWriter.Add(
-            dbContext,
-            "UsageReservation",
-            reservation.Id,
-            "Billing.UsageReservationCreated",
-            $"{reservation.IdempotencyKey}:created",
-            new
+            if (existingRow is not null)
             {
-                reservation.CustomerAccountId,
-                reservation.OperationCode,
-                reservation.ReservedCredits,
-                reservation.ExpiresAt
-            },
-            now);
+                var existing = MapReservation(existingRow);
+                ValidateExisting(existing, account, operationCode, maximumCredits);
+                return existing;
+            }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+            var accountExists = await dbContext.CustomerAccounts.AnyAsync(
+                row => row.Id == account.Id && row.TenantId == account.TenantId,
+                cancellationToken);
 
-        return reservation;
+            if (!accountExists)
+            {
+                throw new KeyNotFoundException("Billing account is not configured in this tenant.");
+            }
+
+            var walletRow = await dbContext.WalletProjections.SingleOrDefaultAsync(
+                row => row.CustomerAccountId == account.Id,
+                cancellationToken) ??
+                throw new KeyNotFoundException("Wallet projection is not configured.");
+            var currentWallet = MapWallet(walletRow);
+
+            if (wallet.CustomerAccountId != currentWallet.CustomerAccountId ||
+                wallet.Revision != currentWallet.Revision)
+            {
+                throw new InvalidOperationException("Reservation request used a stale wallet snapshot.");
+            }
+
+            if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
+            {
+                throw new InsufficientCreditException();
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var reservation = new UsageReservation(
+                Guid.NewGuid(),
+                account.Id,
+                normalizedKey,
+                operationCode,
+                maximumCredits,
+                now,
+                now.Add(DefaultReservationDuration));
+            var reservedWallet = currentWallet.Reserve(maximumCredits, now);
+
+            dbContext.UsageReservations.Add(new UsageReservationRow
+            {
+                Id = reservation.Id,
+                CustomerAccountId = reservation.CustomerAccountId,
+                IdempotencyKey = reservation.IdempotencyKey,
+                OperationCode = reservation.OperationCode,
+                ReservedCredits = reservation.ReservedCredits,
+                CreatedAt = reservation.CreatedAt,
+                ExpiresAt = reservation.ExpiresAt,
+                Status = reservation.Status.ToString()
+            });
+            ApplyWallet(walletRow, reservedWallet);
+            BillingOutboxWriter.Add(
+                dbContext,
+                "UsageReservation",
+                reservation.Id,
+                "Billing.UsageReservationCreated",
+                $"{reservation.IdempotencyKey}:created",
+                new
+                {
+                    reservation.CustomerAccountId,
+                    reservation.OperationCode,
+                    reservation.ReservedCredits,
+                    reservation.ExpiresAt
+                },
+                now);
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return reservation;
+        }
+        finally
+        {
+            reservationLock.Release();
+        }
     }
 
     public async Task<int> ExpireAbandonedAsync(

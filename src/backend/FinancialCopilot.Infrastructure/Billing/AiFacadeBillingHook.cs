@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
+using System.Diagnostics.Metrics;
 
 namespace FinancialCopilot.Infrastructure.Billing;
 
@@ -15,6 +16,9 @@ public sealed class AiFacadeBillingHook(
     FinancialCopilot.Application.AI.ModelProviders.IAiExecutionUsageAccumulator usageAccumulator) : IBillingFacadeHook
 {
     private const string PricingPolicyVersion = "v1";
+    private static readonly Meter Meter = new("FinancialCopilot.TelegramMembership");
+    private static readonly Counter<long> BucketConsumptionCounter = Meter.CreateCounter<long>("telegram.membership.bucket_consumptions");
+    private static readonly Counter<long> DeniedReservationCounter = Meter.CreateCounter<long>("telegram.membership.denied_reservations");
 
     public async Task<BillingReservationHandle?> TryReserveAsync(
         BillingReservationRequest request,
@@ -47,13 +51,33 @@ public sealed class AiFacadeBillingHook(
         var maximumCharge = chargeCalculator.Calculate(
             CreateChargeRequest(request.OperationCode, "Completed", cached: false));
         var reservationKey = $"{request.CorrelationId}:reservation";
-        var reservation = await reservationService.ReserveAsync(
-            account,
-            wallet,
-            request.OperationCode,
-            maximumCharge.CreditsCharged,
-            reservationKey,
-            cancellationToken);
+        FinancialCopilot.Billing.Usage.UsageReservation reservation;
+        try
+        {
+            reservation = await reservationService.ReserveAsync(
+                account,
+                wallet,
+                request.OperationCode,
+                maximumCharge.CreditsCharged,
+                reservationKey,
+                cancellationToken);
+        }
+        catch (FinancialCopilot.Billing.InsufficientCreditException)
+        {
+            DeniedReservationCounter.Add(
+                1,
+                new KeyValuePair<string, object?>("operationCode", request.OperationCode),
+                new KeyValuePair<string, object?>("hadTelegramAllowance", allowance.RemainingCredits > 0));
+            throw;
+        }
+
+        if (allowance.RemainingCredits > 0)
+        {
+            BucketConsumptionCounter.Add(
+                1,
+                new KeyValuePair<string, object?>("operationCode", request.OperationCode),
+                new KeyValuePair<string, object?>("allowanceDateKey", allowance.AllowanceDateKey));
+        }
 
         return new BillingReservationHandle(
             reservation.IdempotencyKey,

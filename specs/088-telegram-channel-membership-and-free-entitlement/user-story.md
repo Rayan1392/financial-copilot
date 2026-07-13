@@ -1,7 +1,7 @@
 # User Story — Telegram Channel Membership and Free Entitlement
 
 ## Status
-`[~]` Core implemented 2026-07-13; background revalidation and expanded concurrency/expiry coverage remain.
+`[x]` Implemented and checklist-validated on 2026-07-13.
 
 ## Feature
 Require membership in the configured Telegram channel for free bot access and grant five daily free AI credits.

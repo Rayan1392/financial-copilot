@@ -1,4 +1,5 @@
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Worker;
@@ -24,8 +25,28 @@ builder.Services
         "Derived-metric recalculation settings must be positive.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<TelegramMembershipRevalidationOptions>()
+    .BindConfiguration(TelegramMembershipRevalidationOptions.SectionName)
+    .Validate(
+        options =>
+            options.CadenceSeconds > 0 &&
+            options.BatchSize > 0 &&
+            options.MaxConcurrency > 0 &&
+            options.LeaseSeconds > 0 &&
+            options.RetryCount > 0 &&
+            options.InitialBackoffSeconds > 0 &&
+            options.MaxBackoffSeconds >= options.InitialBackoffSeconds,
+        "Telegram membership revalidation settings must be positive.")
+    .ValidateOnStart();
+builder.Services
+    .AddOptions<TelegramDevPollingOptions>()
+    .BindConfiguration(TelegramDevPollingOptions.SectionName);
+builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
+builder.Services.AddHostedService<TelegramDevPollingWorker>();
 builder.Services
     .AddOptions<NadpcoScheduledSyncOptions>()
     .BindConfiguration(NadpcoScheduledSyncOptions.SectionName)

@@ -32,6 +32,13 @@ builder.Services
         "Conditional tracker evaluation settings must be positive and bounded.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<MarketMicrostructureDetectionWorkerOptions>()
+    .BindConfiguration(MarketMicrostructureDetectionWorkerOptions.SectionName)
+    .Validate(
+        options => options.IntervalSeconds > 0 && options.LookbackDays is > 0 and <= 90 && options.RetryCount is > 0 and <= 10,
+        "Market microstructure detection worker settings must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<TelegramMembershipRevalidationOptions>()
     .BindConfiguration(TelegramMembershipRevalidationOptions.SectionName)
     .Validate(
@@ -86,6 +93,7 @@ builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
+builder.Services.AddHostedService<MarketMicrostructureDetectionWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();

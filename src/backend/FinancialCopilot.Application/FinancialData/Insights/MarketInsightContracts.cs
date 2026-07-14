@@ -5,7 +5,9 @@ namespace FinancialCopilot.Application.FinancialData.Insights;
 
 public sealed record InsightDetectionContext(
     DateTimeOffset DetectedAtUtc,
-    DateTimeOffset SinceUtc);
+    DateTimeOffset SinceUtc,
+    IReadOnlyCollection<string>? ExternalCompanyIds = null,
+    int? Take = null);
 
 public sealed record InsightFeedQuery(
     string? Symbol = null,
@@ -170,6 +172,13 @@ public interface IInsightDeduplicationPolicy
 }
 
 public interface IGenerateMarketInsightsUseCase
+{
+    Task<GenerateMarketInsightsResult> ExecuteAsync(
+        GenerateMarketInsightsRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IGenerateMarketMicrostructureInsightsUseCase
 {
     Task<GenerateMarketInsightsResult> ExecuteAsync(
         GenerateMarketInsightsRequest request,

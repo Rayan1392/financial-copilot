@@ -9,7 +9,13 @@ public enum InsightType
     ComprehensiveAnalysisPublished,
     FinancialStatementPublished,
     CodalAnnouncementMatched,
-    DataFreshnessWarning
+    DataFreshnessWarning,
+    LargeTradeDetected,
+    OrderQueueChanged,
+    BuyerSellerPowerChanged,
+    RealMoneyFlowChanged,
+    TradingVolumeAnomaly,
+    TradingValueAnomaly
 }
 
 public enum InsightSeverity
@@ -28,7 +34,8 @@ public enum InsightSourceEntityType
     MarketQuote,
     ComprehensiveAnalysis,
     FinancialStatement,
-    SyncState
+    SyncState,
+    MarketMicrostructureObservation
 }
 
 public enum InsightAction

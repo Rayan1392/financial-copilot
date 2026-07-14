@@ -1,7 +1,7 @@
 # User Story — Market Microstructure Event Detectors
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Extend proactive insight detection with large trades, queue events, buyer-power anomalies, money flow, and volume anomalies.

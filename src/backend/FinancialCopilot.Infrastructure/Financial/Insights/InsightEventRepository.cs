@@ -35,7 +35,33 @@ internal sealed class InsightEventRepository(
             }
         }
 
-        return await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            return await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (dbContext.ChangeTracker.Entries<InsightEventRow>()
+                   .Any(entry => entry.State == EntityState.Added))
+        {
+            // Another detector worker can win the unique DeduplicationKey race after the initial
+            // read. Detach only pending inserts, reload the winners, and apply the deterministic
+            // projection. This keeps reruns/concurrent workers idempotent without a second table.
+            foreach (var entry in dbContext.ChangeTracker.Entries<InsightEventRow>()
+                         .Where(entry => entry.State == EntityState.Added))
+                entry.State = EntityState.Detached;
+
+            var winners = await dbContext.InsightEvents
+                .Where(row => keys.Contains(row.DeduplicationKey))
+                .ToDictionaryAsync(row => row.DeduplicationKey, cancellationToken);
+            foreach (var insight in events)
+            {
+                if (winners.TryGetValue(insight.DeduplicationKey, out var winner))
+                    Apply(winner, insight, preserveId: true);
+                else
+                    dbContext.InsightEvents.Add(ToRow(insight));
+            }
+
+            return await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<InsightFeedResponse> QueryAsync(

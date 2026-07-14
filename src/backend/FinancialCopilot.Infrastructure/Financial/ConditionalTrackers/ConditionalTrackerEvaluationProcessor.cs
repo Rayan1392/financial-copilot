@@ -309,6 +309,9 @@ public sealed class ConditionalTrackerEvaluationProcessor(
 
     private async Task<ResolvedAlertObservation?> ResolveFeatureAsync(AlertRule rule, CancellationToken cancellationToken)
     {
+        var microstructure = await ResolveMicrostructureFeatureAsync(rule, cancellationToken);
+        if (microstructure is not null) return microstructure;
+
         var row = await dbContext.FeatureSnapshots.AsNoTracking()
             .Where(item => item.ExternalCompanyId == rule.ExternalCompanyId &&
                            item.FeatureCode == rule.Definition.MetricOrEventCode && item.Value != null)
@@ -322,6 +325,57 @@ public sealed class ConditionalTrackerEvaluationProcessor(
             $"feature:{row.FeatureCode}:{row.FeatureVersion}:{row.InputFingerprint}",
             new { value, row.FeatureCode, row.FeatureVersion, row.PolicyVersion, row.SourceEvidenceJson, row.ObservedAt },
             TimeSpan.FromHours(24));
+    }
+
+    private async Task<ResolvedAlertObservation?> ResolveMicrostructureFeatureAsync(
+        AlertRule rule,
+        CancellationToken cancellationToken)
+    {
+        var mapping = rule.Definition.MetricOrEventCode switch
+        {
+            "BUYER_POWER" => (InsightType.BuyerSellerPowerChanged, "buyer_power_ratio", (string?)null),
+            "REAL_MONEY_FLOW" => (InsightType.RealMoneyFlowChanged, "net_real_money_flow", (string?)null),
+            "BUY_QUEUE" => (InsightType.OrderQueueChanged, "queue_value", "Buy"),
+            "SELL_QUEUE" => (InsightType.OrderQueueChanged, "queue_value", "Sell"),
+            _ => ((InsightType?)null, string.Empty, (string?)null)
+        };
+        if (!mapping.Item1.HasValue) return null;
+
+        var type = mapping.Item1.Value.ToString();
+        var candidates = await dbContext.InsightEvents.AsNoTracking()
+            .Where(row => row.ExternalCompanyId == rule.ExternalCompanyId && row.InsightType == type)
+            .OrderByDescending(row => row.DetectedAtUtc)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in candidates)
+        {
+            var evidence = JsonSerializer.Deserialize<List<InsightEvidenceItem>>(row.EvidenceJson, JsonOptions) ?? [];
+            if (mapping.Item3 is not null &&
+                !evidence.Any(item => item.Label == "queue_side" && item.Value == mapping.Item3))
+                continue;
+            var valueText = evidence.FirstOrDefault(item => item.Label == mapping.Item2)?.Value;
+            if (!decimal.TryParse(valueText, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var rawValue))
+                continue;
+            var value = rule.Definition.Unit is AlertRuleUnit.Rial or AlertRuleUnit.Toman
+                ? ConvertMoney(rawValue, rule.Definition.Unit)
+                : rawValue;
+            return Build(rule, value, row.DetectedAtUtc, row.DetectedAtUtc, row.SourceProviderName, row.SourcePeriod,
+                row.DeduplicationKey,
+                new
+                {
+                    insightEventId = row.Id,
+                    detector = evidence.FirstOrDefault(item => item.Label == "detector_code")?.Value,
+                    detectorVersion = evidence.FirstOrDefault(item => item.Label == "detector_version")?.Value,
+                    metricOrEventCode = rule.Definition.MetricOrEventCode,
+                    value,
+                    evidence
+                },
+                TimeSpan.FromHours(24));
+        }
+
+        return null;
     }
 
     private async Task<ResolvedAlertObservation?> ResolveFinancialMetricAsync(AlertRule rule, CancellationToken cancellationToken)

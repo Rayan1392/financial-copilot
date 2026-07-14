@@ -20,6 +20,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Insights;
+using FinancialCopilot.Domain.Financial.Insights.Microstructure;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Billing;
@@ -898,6 +899,27 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInsightDetector, FinancialStatementPublishedDetector>();
         services.AddScoped<IInsightDetector, SubscribedCodalAnnouncementDetector>();
         services.AddScoped<IInsightDetector, DataFreshnessDetector>();
+        // Spec 092 — governed, deterministic market-microstructure detector policies.
+        services.AddOptions<MarketMicrostructureOptions>()
+            .BindConfiguration(MarketMicrostructureOptions.SectionName)
+            .Validate(options =>
+                    options.BatchSize is > 0 and <= 2_000 &&
+                    options.BaselineLookback is > 1 and <= 120 &&
+                    options.MinimumBaselineObservations is > 1 and <= 120 &&
+                    options.MaximumSourceAgeMinutes > 0 &&
+                    options.BuyerSellerPowerRatio > 1m &&
+                    options.AnomalyRatio > 1m,
+                "Market-microstructure detector settings must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddSingleton<IMicrostructureSignalDetector, LargeTradeSignalDetector>();
+        services.AddSingleton<IMicrostructureSignalDetector, BuyerSellerPowerSignalDetector>();
+        services.AddSingleton<IMicrostructureSignalDetector, RealMoneyFlowSignalDetector>();
+        services.AddSingleton<IMicrostructureSignalDetector, OrderQueueSignalDetector>();
+        services.AddSingleton<IMicrostructureSignalDetector, VolumeAnomalySignalDetector>();
+        services.AddSingleton<IMicrostructureSignalDetector, TradingValueAnomalySignalDetector>();
+        services.AddScoped<MarketMicrostructureInsightDetector>();
+        services.AddScoped<IInsightDetector>(provider => provider.GetRequiredService<MarketMicrostructureInsightDetector>());
+        services.AddScoped<IGenerateMarketMicrostructureInsightsUseCase, GenerateMarketMicrostructureInsightsUseCase>();
         services.AddScoped<IGenerateMarketInsightsUseCase, GenerateMarketInsightsUseCase>();
         services.AddScoped<IGetMarketInsightFeedUseCase, GetMarketInsightFeedUseCase>();
         services.AddScoped<IGetMyFollowedSymbolInsightsUseCase, GetMyFollowedSymbolInsightsUseCase>();

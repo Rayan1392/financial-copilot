@@ -182,7 +182,7 @@ public sealed class TelegramDevPollingWorker(
             update.UpdateId,
             (int)response.StatusCode,
             responseBody);
-        await SendMessageAsync(telegram, message.Chat.Id, text, null, cancellationToken);
+        await SendMessageAsync(telegram, message.Chat.Id, text, null, null, cancellationToken);
     }
 
     private async Task HandleCallbackAsync(
@@ -243,7 +243,7 @@ public sealed class TelegramDevPollingWorker(
     {
         foreach (var message in messages.OrderBy(item => item.PartNumber))
         {
-            await SendMessageAsync(telegram, chatId, message.Text, message.ParseMode, cancellationToken);
+            await SendMessageAsync(telegram, chatId, message.Text, message.ParseMode, message.Actions, cancellationToken);
         }
     }
 
@@ -252,11 +252,12 @@ public sealed class TelegramDevPollingWorker(
         long chatId,
         string text,
         string? parseMode,
+        IReadOnlyList<TelegramRenderedAction>? actions,
         CancellationToken cancellationToken)
     {
         using var response = await telegram.PostAsJsonAsync(
             "sendMessage",
-            TelegramSendMessageRequest.Create(chatId, text, parseMode),
+            TelegramSendMessageRequest.Create(chatId, text, parseMode, actions),
             cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -374,7 +375,10 @@ public sealed class TelegramDevPollingWorker(
         int PartNumber,
         int TotalParts,
         string Text,
-        string ParseMode);
+        string ParseMode,
+        IReadOnlyList<TelegramRenderedAction>? Actions);
+
+    private sealed record TelegramRenderedAction(string Text, string CallbackData);
 
     private sealed class TelegramSendMessageRequest
     {
@@ -388,14 +392,33 @@ public sealed class TelegramDevPollingWorker(
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ParseMode { get; init; }
 
-        public static TelegramSendMessageRequest Create(long chatId, string text, string? parseMode) =>
+        [JsonPropertyName("reply_markup")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public TelegramInlineKeyboardMarkup? ReplyMarkup { get; init; }
+
+        public static TelegramSendMessageRequest Create(
+            long chatId,
+            string text,
+            string? parseMode,
+            IReadOnlyList<TelegramRenderedAction>? actions) =>
             new()
             {
                 ChatId = chatId,
                 Text = text,
-                ParseMode = string.IsNullOrWhiteSpace(parseMode) ? null : parseMode
+                ParseMode = string.IsNullOrWhiteSpace(parseMode) ? null : parseMode,
+                ReplyMarkup = actions is { Count: > 0 }
+                    ? new TelegramInlineKeyboardMarkup(
+                        actions.Select(action => new[] { new TelegramInlineKeyboardButton(action.Text, action.CallbackData) }).ToArray())
+                    : null
             };
     }
+
+    private sealed record TelegramInlineKeyboardMarkup(
+        [property: JsonPropertyName("inline_keyboard")] IReadOnlyList<IReadOnlyList<TelegramInlineKeyboardButton>> InlineKeyboard);
+
+    private sealed record TelegramInlineKeyboardButton(
+        [property: JsonPropertyName("text")] string Text,
+        [property: JsonPropertyName("callback_data")] string CallbackData);
 
     private sealed record TelegramAnswerCallbackRequest(
         [property: JsonPropertyName("callback_query_id")] string CallbackQueryId);

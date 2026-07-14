@@ -88,6 +88,23 @@ public interface IFollowedCompanyResolver
     Task<IReadOnlyDictionary<string, CanonicalFollowedCompany>> ResolveManyAsync(
         IReadOnlyCollection<string> externalCompanyIds,
         CancellationToken cancellationToken);
+
+    async Task<CanonicalCompanyResolution> ResolveReferenceAsync(
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        var company = await ResolveAsync(reference, cancellationToken);
+        return company is null
+            ? new CanonicalCompanyResolution([], false)
+            : new CanonicalCompanyResolution([company], false);
+    }
+}
+
+public sealed record CanonicalCompanyResolution(
+    IReadOnlyCollection<CanonicalFollowedCompany> Candidates,
+    bool IsAmbiguous)
+{
+    public CanonicalFollowedCompany? Company => IsAmbiguous ? null : Candidates.SingleOrDefault();
 }
 
 public sealed class FollowedSymbolValidationException(string message) : InvalidOperationException(message);

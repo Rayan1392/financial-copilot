@@ -5,8 +5,10 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
+using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,6 +20,7 @@ public sealed class TelegramAiAssistantAdapter(
     ITelegramIdentityLinkReader linkReader,
     ITelegramMembershipService membershipService,
     IGenerateCodalAlertSummaryUseCase codalAlertSummaries,
+    IConditionalTrackerUseCases conditionalTrackers,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -179,6 +182,9 @@ public sealed class TelegramAiAssistantAdapter(
                 null,
                 update.CorrelationId,
                 "واچ‌لیست شما در وب‌اپ در مسیر /followed-symbols در دسترس است. برای تلگرام فعلاً فقط پرسش متنی و پاسخ دستیار فعال شده است."),
+            "/track" => await HandleTrackCommandAsync(text, update, actor, cancellationToken),
+            "/track_edit" => await HandleTrackEditCommandAsync(text, update, actor, cancellationToken),
+            "/trackers" => await HandleTrackersCommandAsync(text, update, actor, cancellationToken),
             "/codal_alerts" => BuildResult(
                 TelegramAssistantResultStatus.Accepted,
                 actor.ActorId,
@@ -203,6 +209,284 @@ public sealed class TelegramAiAssistantAdapter(
         };
     }
 
+    private async Task<TelegramAssistantResult> HandleTrackCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 3)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "Usage: /track <company-id> <condition>. Example: /track 123 price above 5000 toman");
+        }
+
+        try
+        {
+            var rule = await conditionalTrackers.ParseAsync(
+                new ParseNaturalLanguageAlertRuleCommand(
+                    actor,
+                    parts[1],
+                    parts[2],
+                    $"telegram:{update.TelegramUpdateId.ToString(CultureInfo.InvariantCulture)}"),
+                cancellationToken);
+            return BuildTrackerResult(rule, actor, update.CorrelationId, "Rule parsed. Confirm before it expires.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleTrackersCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var rules = await conditionalTrackers.GetAsync(new GetMyAlertRulesQuery(actor), cancellationToken);
+        if (rules.Count == 0)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.Accepted,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "You have no conditional trackers. Use /track <company-id> <condition> to create one.");
+        }
+
+        var commandParts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var page = commandParts.Length == 1
+            ? 1
+            : int.TryParse(commandParts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPage) && parsedPage > 0
+                ? parsedPage
+                : 0;
+        if (page == 0)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "Usage: /trackers [page-number]");
+        }
+
+        const int pageSize = 10;
+        var visible = rules.OrderByDescending(item => item.UpdatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToArray();
+        if (visible.Length == 0)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                $"Tracker page {page} does not exist.");
+        }
+        var lines = visible.Select((rule, index) => $"{index + 1}. {FormatRule(rule)}");
+        var actions = visible.SelectMany(BuildTrackerActions).ToArray();
+        var totalPages = (int)Math.Ceiling(rules.Count / (decimal)pageSize);
+        var suffix = $"\nPage {page} of {totalPages}; {rules.Count} rules total.";
+        return BuildResult(
+            TelegramAssistantResultStatus.Accepted,
+            actor.ActorId,
+            actor.TenantId,
+            null,
+            update.CorrelationId,
+            string.Join("\n", lines) + suffix,
+            actions);
+    }
+
+    private async Task<TelegramAssistantResult> HandleTrackEditCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 4 ||
+            !Guid.TryParseExact(parts[1], "N", out var ruleId) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var version) ||
+            version <= 0)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "Usage: /track_edit <rule-id> <version> <new-condition>");
+        }
+
+        try
+        {
+            var rule = await conditionalTrackers.ParseUpdateAsync(
+                new ParseNaturalLanguageAlertRuleUpdateCommand(actor, ruleId, version, parts[3]),
+                cancellationToken);
+            return BuildTrackerResult(rule, actor, update.CorrelationId, "Rule updated. Confirm the new version before it expires.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleTrackerCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = data.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3 ||
+            !Guid.TryParseExact(parts[1], "N", out var ruleId) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var version) ||
+            version <= 0)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "The tracker callback is malformed or stale.");
+        }
+
+        try
+        {
+            if (string.Equals(parts[0], "tr.c1", StringComparison.OrdinalIgnoreCase) && parts.Length == 4)
+            {
+                var confirmed = await conditionalTrackers.ConfirmAsync(
+                    new ConfirmAlertRuleCommand(actor, ruleId, version, parts[3]),
+                    cancellationToken);
+                return BuildTrackerResult(confirmed, actor, update.CorrelationId, "Tracker activated.");
+            }
+
+            if (string.Equals(parts[0], "tr.e1", StringComparison.OrdinalIgnoreCase) && parts.Length == 3)
+            {
+                var editable = await conditionalTrackers.GetAsync(actor, ruleId, cancellationToken)
+                    ?? throw new AlertRuleValidationException("Alert rule was not found.");
+                if (editable.Version != version || editable.State != AlertRuleState.Draft)
+                    throw new AlertRuleValidationException("Only the current draft version can be edited.");
+                return BuildResult(
+                    TelegramAssistantResultStatus.Accepted,
+                    actor.ActorId,
+                    actor.TenantId,
+                    null,
+                    update.CorrelationId,
+                    $"Send /track_edit {ruleId:N} {version} <new-condition>. The edited rule remains Draft and requires a new confirmation.");
+            }
+
+            if (parts.Length != 3)
+            {
+                throw new AlertRuleValidationException("The tracker callback is malformed or stale.");
+            }
+
+            if (string.Equals(parts[0], "tr.p1", StringComparison.OrdinalIgnoreCase))
+            {
+                var paused = await conditionalTrackers.UpdateAsync(
+                    new UpdateAlertRuleCommand(actor, ruleId, version, null, AlertRuleState.Paused),
+                    cancellationToken);
+                return BuildTrackerResult(paused, actor, update.CorrelationId, "Tracker paused.");
+            }
+
+            if (string.Equals(parts[0], "tr.r1", StringComparison.OrdinalIgnoreCase))
+            {
+                var resumed = await conditionalTrackers.UpdateAsync(
+                    new UpdateAlertRuleCommand(actor, ruleId, version, null, AlertRuleState.Active),
+                    cancellationToken);
+                return BuildTrackerResult(resumed, actor, update.CorrelationId, "Tracker resumed.");
+            }
+
+            if (string.Equals(parts[0], "tr.x1", StringComparison.OrdinalIgnoreCase))
+            {
+                await conditionalTrackers.RemoveAsync(new RemoveAlertRuleCommand(actor, ruleId, version), cancellationToken);
+                return BuildResult(
+                    TelegramAssistantResultStatus.Accepted,
+                    actor.ActorId,
+                    actor.TenantId,
+                    null,
+                    update.CorrelationId,
+                    "Tracker removed.");
+            }
+
+            throw new AlertRuleValidationException("The tracker callback operation is not supported.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(
+                TelegramAssistantResultStatus.ValidationError,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                exception.Message);
+        }
+    }
+
+    private static TelegramAssistantResult BuildTrackerResult(
+        AlertRuleDto rule,
+        CurrentActor actor,
+        string correlationId,
+        string heading) =>
+        BuildResult(
+            TelegramAssistantResultStatus.Accepted,
+            actor.ActorId,
+            actor.TenantId,
+            null,
+            correlationId,
+            $"{heading}\n{FormatRule(rule)}" +
+            (rule.State == AlertRuleState.Draft
+                ? $"\nConfirmation expires: {rule.ConfirmationExpiresAtUtc:O}"
+                : string.Empty),
+            BuildTrackerActions(rule));
+
+    private static string FormatRule(AlertRuleDto rule) =>
+        $"{rule.Symbol} | {rule.RuleType}/{rule.MetricOrEventCode} {rule.Operator} {FormatDecimal(rule.Threshold)} {rule.Unit} | {rule.State} | v{rule.Version}";
+
+    private static IReadOnlyList<TelegramAssistantAction> BuildTrackerActions(AlertRuleDto rule)
+    {
+        var id = rule.Id.ToString("N");
+        var version = rule.Version.ToString(CultureInfo.InvariantCulture);
+        return rule.State switch
+        {
+            AlertRuleState.Draft =>
+                [
+                    new TelegramAssistantAction("Confirm", $"tr.c1:{id}:{version}:{rule.ConfirmationToken}"),
+                    new TelegramAssistantAction("Edit", $"tr.e1:{id}:{version}"),
+                    new TelegramAssistantAction("Cancel", $"tr.x1:{id}:{version}")
+                ],
+            AlertRuleState.Active =>
+                [new TelegramAssistantAction("Pause", $"tr.p1:{id}:{version}"), new TelegramAssistantAction("Remove", $"tr.x1:{id}:{version}")],
+            AlertRuleState.Paused =>
+                [new TelegramAssistantAction("Resume", $"tr.r1:{id}:{version}"), new TelegramAssistantAction("Remove", $"tr.x1:{id}:{version}")],
+            _ => []
+        };
+    }
+
     private async Task<TelegramAssistantResult> HandleCallbackAsync(
         TelegramAssistantUpdate update,
         CurrentActor actor,
@@ -213,6 +497,11 @@ public sealed class TelegramAiAssistantAdapter(
         {
             var entitlement = await membershipService.GetMyTelegramEntitlementAsync(actor, update.CorrelationId, cancellationToken);
             return BuildCreditsResult(actor, update.CorrelationId, entitlement);
+        }
+
+        if (data is not null && data.StartsWith("tr.", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleTrackerCallbackAsync(data, update, actor, cancellationToken);
         }
 
         const string codalSummaryPrefix = "calert.summary.v1:";
@@ -539,10 +828,13 @@ public sealed class TelegramAiAssistantAdapter(
         Guid? tenantId,
         Guid? conversationId,
         string correlationId,
-        string text) =>
-        new(status, actorId, tenantId, conversationId, Split(EscapeMarkdownV2(text)), correlationId);
+        string text,
+        IReadOnlyList<TelegramAssistantAction>? actions = null) =>
+        new(status, actorId, tenantId, conversationId, Split(EscapeMarkdownV2(text), actions), correlationId);
 
-    private static IReadOnlyList<TelegramAssistantRenderedMessage> Split(string text)
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> Split(
+        string text,
+        IReadOnlyList<TelegramAssistantAction>? actions = null)
     {
         var parts = new List<string>();
         var remaining = text;
@@ -573,6 +865,9 @@ public sealed class TelegramAiAssistantAdapter(
                 index + 1,
                 parts.Count,
                 parts.Count == 1 ? part : EscapeMarkdownV2($"بخش {index + 1}/{parts.Count}") + "\n" + part))
+            .Select((message, index) => index == parts.Count - 1
+                ? message with { Actions = actions }
+                : message)
             .ToArray();
     }
 

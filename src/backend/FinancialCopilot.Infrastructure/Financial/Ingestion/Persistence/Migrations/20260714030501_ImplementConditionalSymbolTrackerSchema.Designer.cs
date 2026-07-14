@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714030501_ImplementConditionalSymbolTrackerSchema")]
+    partial class ImplementConditionalSymbolTrackerSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,6 +28,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleEvaluationStateRow", b =>
                 {
                     b.Property<Guid>("RuleId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<bool>("Armed")
@@ -88,9 +92,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                     b.Property<int?>("BaselineWindow")
                         .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("ConfirmationExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ConfirmationNonce")
                         .IsRequired()
@@ -3084,29 +3085,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsUnique();
 
                     b.ToTable("WatchlistSymbols", (string)null);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleEvaluationStateRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleRow", null)
-                        .WithOne()
-                        .HasForeignKey("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleEvaluationStateRow", "RuleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleTriggerRow", b =>
-                {
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NotificationIntentRow", null)
-                        .WithMany()
-                        .HasForeignKey("NotificationIntentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleRow", null)
-                        .WithMany()
-                        .HasForeignKey("RuleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisCategoryRow", b =>

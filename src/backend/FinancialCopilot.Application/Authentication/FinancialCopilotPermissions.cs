@@ -8,6 +8,8 @@ public static class FinancialCopilotPermissions
     public const string FinancialReportsRead = "financial-reports.read";
     public const string WatchlistReadSelf = "watchlist.read.self";
     public const string WatchlistWriteSelf = "watchlist.write.self";
+    public const string TrackerReadSelf = "tracker.read.self";
+    public const string TrackerWriteSelf = "tracker.write.self";
     public const string PortfolioReadSelf = "portfolio.read.self";
     public const string PortfolioWriteSelf = "portfolio.write.self";
     public const string AiPortfolioAnalysisExecute = "ai.portfolio-analysis.execute";
@@ -45,6 +47,8 @@ public static class FinancialCopilotPermissions
         FinancialReportsRead,
         WatchlistReadSelf,
         WatchlistWriteSelf,
+        TrackerReadSelf,
+        TrackerWriteSelf,
         PortfolioReadSelf,
         PortfolioWriteSelf,
         AiPortfolioAnalysisExecute,
@@ -103,6 +107,8 @@ public static class FinancialCopilotPermissions
         FinancialReportsRead,
         WatchlistReadSelf,
         WatchlistWriteSelf,
+        TrackerReadSelf,
+        TrackerWriteSelf,
         ConversationReadSelf,
         ConversationWriteSelf,
         UsageReadSelf,

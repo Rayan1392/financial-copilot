@@ -9,6 +9,7 @@ using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
+using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.FollowedSymbols;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -48,6 +49,7 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Tsetmc;
 using FinancialCopilot.Infrastructure.Financial.CodalAlerts;
+using FinancialCopilot.Infrastructure.Financial.ConditionalTrackers;
 using FinancialCopilot.Infrastructure.Financial.FollowedSymbols;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Features;
@@ -1068,6 +1070,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDeleteCodalAlertSubscriptionUseCase, DeleteCodalAlertSubscriptionUseCase>();
         services.AddScoped<IGenerateCodalAlertSummaryUseCase, GenerateCodalAlertSummaryUseCase>();
         services.AddScoped<INotificationIntentPublisher, EfCoreNotificationIntentPublisher>();
+        services.AddScoped<IAlertRuleRepository, EfCoreAlertRuleRepository>();
+        services.AddScoped<IGovernedAlertRuleParser, GovernedAlertRuleParser>();
+        services.AddScoped<IConditionalTrackerEntitlementPolicy, ConditionalTrackerEntitlementPolicy>();
+        services.AddScoped<IConditionalTrackerUseCases, ConditionalTrackerUseCases>();
+        services.AddScoped<IConditionalTrackerEvaluationProcessor, ConditionalTrackerEvaluationProcessor>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<PersistedMarketDataProvider>());

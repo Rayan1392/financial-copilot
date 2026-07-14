@@ -1,7 +1,7 @@
 # User Story — Conditional Symbol Tracker
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Let users define price, volume, money-flow, fundamental, and Codal conditions and receive a notification when the condition becomes true.
@@ -80,3 +80,20 @@ AlertRule { Id; ActorId; ExternalCompanyId; RuleType; Operator; Threshold; Unit;
 - Never place secrets, bot tokens, payment credentials, or provider credentials in source-controlled configuration.
 - Treat Telegram usernames as display metadata, never as stable identity.
 - Avoid financial-advice wording; state that outputs are informational and evidence-based.
+
+## Implementation Notes
+
+- The domain owns a typed `AlertRule` aggregate and `AlertRuleEvaluationState`; user text is retained only as audit metadata and is parsed into governed fields before persistence.
+- REST delivery uses actor-scoped `/api/v1/trackers/me` endpoints with dedicated read/write permissions, authenticated-actor rate limiting, plan capability `Tracker.Rules`, canonical company/alias resolution, optimistic versions, and expiring confirmation tokens.
+- Telegram reuses the same application use cases. `/track`, `/track_edit`, and paginated `/trackers` commands expose compact versioned confirm/edit/cancel/pause/resume/remove callbacks with update replay protection.
+- Evaluation reads canonical persisted quotes, trades, Feature 092 snapshots, derived financial metrics, and Feature 084 Codal events. The worker polls every 60 seconds in bounded batches of 100; freshness limits are 20 minutes for quotes, 24 hours for trade/Feature snapshots, 45 days for financial metrics, and 7 days for Codal events.
+- Per-rule transactions, evaluation-state concurrency tokens, immutable trigger evidence, and unique deduplication keys suppress concurrent/replayed crossings. Notification delivery is delegated to Feature 097 through `NotificationIntent`; the trigger retains the notification-intent link for Feature 099 history.
+- Observability covers active rules by type, evaluation lag, skip reason (including stale/missing/entitlement), crossings, resets, cooldown suppression, duplicates, failures, and notification handoff.
+
+## Validation Evidence
+
+- Release solution build: succeeded with zero warnings.
+- Tracker/Telegram unit tests: 30 passed.
+- Tracker integration tests: 6 passed, including actor isolation, plan limits, alias resolution, concurrent evaluation, replay suppression, and notification handoff.
+- Architecture tests: 7 passed.
+- Financial-ingestion and billing EF models: no pending model changes.

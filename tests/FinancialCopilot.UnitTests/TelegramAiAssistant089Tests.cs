@@ -2,7 +2,9 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
+using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Identity.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -91,17 +93,78 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Contains("سهمیه", result.Messages[0].Text);
     }
 
+    [Fact]
+    public async Task Track_command_returns_compact_expiring_confirmation_callback()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var trackers = new FakeConditionalTrackerUseCases();
+        var adapter = CreateAdapter(
+            db,
+            new FakeTelegramIdentityLinkReader(actor),
+            trackers: trackers);
+
+        var result = await adapter.HandleAsync(
+            Update("/track 123 price above 5000 toman", telegramUserId: 1001),
+            CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
+        Assert.Equal(1, trackers.ParseCallCount);
+        var action = Assert.Single(Assert.Single(result.Messages).Actions!, item => item.Text == "Confirm");
+        Assert.StartsWith("tr.c1:", action.CallbackData, StringComparison.Ordinal);
+        Assert.True(action.CallbackData.Length <= 64);
+        Assert.Contains("Confirmation expires", result.Messages[0].Text);
+    }
+
+    [Fact]
+    public async Task Tracker_confirmation_callback_passes_actor_version_and_token_to_use_case()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var trackers = new FakeConditionalTrackerUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), trackers: trackers);
+        var draft = await adapter.HandleAsync(
+            Update("/track 123 price above 5000 toman", telegramUserId: 1001),
+            CancellationToken.None);
+        var callbackData = Assert.Single(
+            Assert.Single(draft.Messages).Actions!, item => item.Text == "Confirm").CallbackData;
+
+        var confirmed = await adapter.HandleAsync(
+            new TelegramAssistantUpdate(
+                124,
+                TelegramAssistantUpdateKind.CallbackQuery,
+                1001,
+                1001,
+                null,
+                11,
+                "callback-124",
+                callbackData,
+                null,
+                "fa-IR",
+                DateTimeOffset.UtcNow,
+                "corr-124"),
+            CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, confirmed.Status);
+        Assert.Equal(1, trackers.ConfirmCallCount);
+        Assert.Equal(actor.ActorId, trackers.LastConfirmation?.Actor.ActorId);
+        Assert.Equal(1, trackers.LastConfirmation?.ExpectedVersion);
+        Assert.Equal("abc123def456", trackers.LastConfirmation?.ConfirmationToken);
+    }
+
     private static TelegramAiAssistantAdapter CreateAdapter(
         AuthDbContext db,
         ITelegramIdentityLinkReader? linkReader = null,
         IConversationRepository? conversations = null,
         IAiQueryOrchestrationService? ai = null,
-        ITelegramMembershipService? membership = null) =>
+        ITelegramMembershipService? membership = null,
+        IConditionalTrackerUseCases? trackers = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
             membership ?? new FakeTelegramMembershipService(),
             new FakeCodalAlertSummaryUseCase(),
+            trackers ?? new FakeConditionalTrackerUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -245,6 +308,76 @@ public sealed class TelegramAiAssistant089Tests
                 null,
                 "Not configured in this unit test.",
                 DateTimeOffset.UtcNow));
+    }
+
+    private sealed class FakeConditionalTrackerUseCases : IConditionalTrackerUseCases
+    {
+        private readonly AlertRuleDto rule = new(
+            Id: Guid.NewGuid(),
+            ExternalCompanyId: "123",
+            Symbol: "TEST",
+            CompanyName: "Test Company",
+            RuleType: AlertRuleType.Price,
+            MetricOrEventCode: "LATEST_PRICE",
+            Operator: AlertRuleOperator.GreaterThan,
+            Threshold: 5000m,
+            Unit: AlertRuleUnit.Toman,
+            BaselineWindow: null,
+            Recurrence: AlertRuleRecurrence.OneShot,
+            CooldownMinutes: 0,
+            ResetPolicy: AlertRuleResetPolicy.CrossBack,
+            SessionPolicy: AlertRuleSessionPolicy.Any,
+            Hysteresis: null,
+            State: AlertRuleState.Draft,
+            Version: 1,
+            ConfirmationToken: "abc123def456",
+            ConfirmationExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(15),
+            ConfirmationText: "Confirm test rule",
+            OriginalText: "price above 5000 toman",
+            ParserVersion: "test-v1",
+            LastObservedValue: null,
+            LastObservedAtUtc: null,
+            LastTriggeredAtUtc: null,
+            NextEligibleAtUtc: null,
+            TriggerSequence: 0,
+            CreatedAtUtc: DateTimeOffset.UtcNow,
+            UpdatedAtUtc: DateTimeOffset.UtcNow);
+
+        public int ParseCallCount { get; private set; }
+        public int ConfirmCallCount { get; private set; }
+        public ConfirmAlertRuleCommand? LastConfirmation { get; private set; }
+
+        public Task<IReadOnlyCollection<AlertRuleDto>> GetAsync(GetMyAlertRulesQuery query, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<AlertRuleDto>>([rule]);
+
+        public Task<AlertRuleDto?> GetAsync(CurrentActor actor, Guid ruleId, CancellationToken cancellationToken) =>
+            Task.FromResult<AlertRuleDto?>(rule.Id == ruleId ? rule : null);
+
+        public Task<AlertRuleDto> CreateAsync(CreateAlertRuleCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult(rule);
+
+        public Task<AlertRuleDto> ParseAsync(ParseNaturalLanguageAlertRuleCommand command, CancellationToken cancellationToken)
+        {
+            ParseCallCount++;
+            return Task.FromResult(rule);
+        }
+
+        public Task<AlertRuleDto> ConfirmAsync(ConfirmAlertRuleCommand command, CancellationToken cancellationToken)
+        {
+            ConfirmCallCount++;
+            LastConfirmation = command;
+            return Task.FromResult(rule with { State = AlertRuleState.Active, Version = rule.Version + 1 });
+        }
+
+        public Task<AlertRuleDto> ParseUpdateAsync(
+            ParseNaturalLanguageAlertRuleUpdateCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(rule with { Version = rule.Version + 1, OriginalText = command.Text });
+
+        public Task<AlertRuleDto> UpdateAsync(UpdateAlertRuleCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult(rule with { State = command.State ?? rule.State, Version = rule.Version + 1 });
+
+        public Task RemoveAsync(RemoveAlertRuleCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

@@ -25,6 +25,13 @@ builder.Services
         "Derived-metric recalculation settings must be positive.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<ConditionalTrackerEvaluationOptions>()
+    .BindConfiguration(ConditionalTrackerEvaluationOptions.SectionName)
+    .Validate(
+        options => options.IntervalSeconds > 0 && options.BatchSize is > 0 and <= 1000,
+        "Conditional tracker evaluation settings must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<TelegramMembershipRevalidationOptions>()
     .BindConfiguration(TelegramMembershipRevalidationOptions.SectionName)
     .Validate(
@@ -78,6 +85,7 @@ builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
+builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();

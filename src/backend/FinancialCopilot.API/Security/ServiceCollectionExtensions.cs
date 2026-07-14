@@ -88,6 +88,14 @@ public static class ServiceCollectionExtensions
                 options,
                 AuthorizationPolicies.WatchlistWriteSelf,
                 FinancialCopilotPermissions.WatchlistWriteSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.TrackerReadSelf,
+                FinancialCopilotPermissions.TrackerReadSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.TrackerWriteSelf,
+                FinancialCopilotPermissions.TrackerWriteSelf);
             options.AddPolicy(AuthorizationPolicies.TelegramLinkManageSelf, policy =>
             {
                 policy.RequireAuthenticatedUser();

@@ -36,7 +36,10 @@ public sealed record TelegramAssistantRenderedMessage(
     int PartNumber,
     int TotalParts,
     string Text,
-    string ParseMode = "MarkdownV2");
+    string ParseMode = "MarkdownV2",
+    IReadOnlyList<TelegramAssistantAction>? Actions = null);
+
+public sealed record TelegramAssistantAction(string Text, string CallbackData);
 
 public sealed record TelegramAssistantResult(
     TelegramAssistantResultStatus Status,

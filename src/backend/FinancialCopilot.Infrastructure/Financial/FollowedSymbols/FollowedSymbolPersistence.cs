@@ -150,6 +150,48 @@ public sealed class EfCoreFollowedSymbolRepository(
 public sealed class EfCoreFollowedCompanyResolver(
     FinancialIngestionDbContext dbContext) : IFollowedCompanyResolver
 {
+    public async Task<CanonicalCompanyResolution> ResolveReferenceAsync(
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        var normalized = reference.Trim();
+        if (normalized.Length == 0) return new CanonicalCompanyResolution([], false);
+        var rows = await dbContext.Companies
+            .AsNoTracking()
+            .Where(row => row.ExternalCompanyId == normalized ||
+                          row.Ticker == normalized ||
+                          row.TseSymbol == normalized ||
+                          row.CompanySymbol == normalized ||
+                          row.CompanyCode == normalized)
+            .Select(row => new
+            {
+                row.ExternalCompanyId,
+                row.Ticker,
+                row.TseSymbol,
+                row.CompanySymbol,
+                row.CompanyCode,
+                row.Name,
+                row.NameEnglish,
+                row.LastSynchronizedAt
+            })
+            .ToArrayAsync(cancellationToken);
+        var candidates = rows
+            .GroupBy(row => row.ExternalCompanyId, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var row = group.OrderByDescending(item => item.LastSynchronizedAt).First();
+                return new CanonicalFollowedCompany(
+                    row.ExternalCompanyId,
+                    FirstNonBlank(row.Ticker, row.TseSymbol, row.CompanySymbol, row.CompanyCode, row.ExternalCompanyId)
+                        ?? row.ExternalCompanyId,
+                    row.Name,
+                    row.NameEnglish);
+            })
+            .OrderBy(item => item.Symbol, StringComparer.Ordinal)
+            .ToArray();
+        return new CanonicalCompanyResolution(candidates, candidates.Length > 1);
+    }
+
     public async Task<CanonicalFollowedCompany?> ResolveAsync(
         string externalCompanyId,
         CancellationToken cancellationToken)

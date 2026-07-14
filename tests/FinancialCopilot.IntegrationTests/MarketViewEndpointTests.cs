@@ -90,9 +90,66 @@ public sealed class MarketViewEndpointTests : IClassFixture<MarketViewApiFactory
         Assert.Equal(JsonValueKind.Null, root.GetProperty("insight").ValueKind);
     }
 
+    [Fact]
+    public async Task MarketPulse_LatestIsIdempotentAndHistoryExposesEvidenceBoundSnapshot()
+    {
+        using var client = UserClient();
+
+        using var firstResponse = await client.GetAsync("/api/v1/market-pulse/latest", CancellationToken.None);
+        using var first = await ReadJsonAsync(firstResponse);
+        using var secondResponse = await client.GetAsync("/api/v1/market-pulse/latest", CancellationToken.None);
+        using var second = await ReadJsonAsync(secondResponse);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            var quote = db.LatestMarketQuotes.Single(row => row.PriceChangePercentage == 5m);
+            quote.PriceChangePercentage = 6m;
+            quote.AsOf = quote.AsOf.AddSeconds(1);
+            db.SaveChanges();
+        }
+
+        using var correctedResponse = await client.GetAsync("/api/v1/market-pulse/latest", CancellationToken.None);
+        using var corrected = await ReadJsonAsync(correctedResponse);
+        using var historyResponse = await client.GetAsync("/api/v1/market-pulse/history?page=1&pageSize=10", CancellationToken.None);
+        using var history = await ReadJsonAsync(historyResponse);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, correctedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
+        Assert.Equal(first.RootElement.GetProperty("id").GetGuid(), second.RootElement.GetProperty("id").GetGuid());
+        Assert.Equal(1, first.RootElement.GetProperty("revision").GetInt32());
+        Assert.Equal(2, corrected.RootElement.GetProperty("revision").GetInt32());
+        Assert.Equal(first.RootElement.GetProperty("id").GetGuid(),
+            corrected.RootElement.GetProperty("supersedesSnapshotId").GetGuid());
+        Assert.Contains(first.RootElement.GetProperty("facts").EnumerateArray(), fact =>
+            fact.GetProperty("code").GetString() == "SMALL_TRADE_VALUE" &&
+            fact.GetProperty("status").GetString() == "Unavailable" &&
+            fact.GetProperty("value").ValueKind == JsonValueKind.Null);
+        Assert.NotEmpty(first.RootElement.GetProperty("evidence").EnumerateArray());
+        Assert.Contains(history.RootElement.GetProperty("items").EnumerateArray(), item =>
+            item.GetProperty("id").GetGuid() == corrected.RootElement.GetProperty("id").GetGuid());
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            var revisions = db.MarketPulseSnapshots
+                .Where(row => row.TradingDate == DateOnly.FromDateTime(DateTime.UtcNow) && row.Segment == "all")
+                .OrderBy(row => row.Revision)
+                .ToArray();
+            Assert.Contains(revisions, row => row.Id == first.RootElement.GetProperty("id").GetGuid() && !row.IsCurrent);
+            Assert.Contains(revisions, row => row.Id == corrected.RootElement.GetProperty("id").GetGuid() && row.IsCurrent);
+            var quote = db.LatestMarketQuotes.Single(row => row.PriceChangePercentage == 6m);
+            quote.PriceChangePercentage = 5m;
+            db.SaveChanges();
+        }
+    }
+
     [Theory]
     [InlineData("/api/v1/watchlists/me")]
     [InlineData("/api/v1/market/summary")]
+    [InlineData("/api/v1/market-pulse/latest")]
+    [InlineData("/api/v1/market-pulse/history")]
     public async Task MarketViewEndpoints_WithoutCredentials_ReturnUnauthorized(string path)
     {
         using var client = _factory.CreateClient();
@@ -172,7 +229,7 @@ public sealed class MarketViewApiFactory : AiFacadeApiFactory
         new()
         {
             Id = Guid.NewGuid(),
-            ProviderName = "StockMarketDb",
+            ProviderName = "TsetmcWebService",
             ExternalInstrumentId = Guid.NewGuid(),
             InstrumentCode = Random.Shared.NextInt64(1, long.MaxValue),
             InstrumentIsin = $"IRO1{symbol}0001",
@@ -189,12 +246,12 @@ public sealed class MarketViewApiFactory : AiFacadeApiFactory
         new()
         {
             Id = Guid.NewGuid(),
-            ProviderName = "StockMarketDb",
+            ProviderName = "TsetmcWebService",
             TradingInstrumentId = instrumentId,
             LatestPrice = price,
             PriceChangePercentage = change,
             SourceKind = "Intraday",
-            AsOf = DateTimeOffset.Parse("2026-06-01T12:30:00Z")
+            TradingDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            AsOf = DateTimeOffset.UtcNow
         };
 }
-

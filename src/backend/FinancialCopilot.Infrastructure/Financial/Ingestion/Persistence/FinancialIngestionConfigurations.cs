@@ -500,6 +500,44 @@ public sealed class WatchlistSymbolRowConfiguration : IEntityTypeConfiguration<W
     }
 }
 
+public sealed class MarketPulseSnapshotRowConfiguration : IEntityTypeConfiguration<MarketPulseSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<MarketPulseSnapshotRow> builder)
+    {
+        builder.ToTable("MarketPulseSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Segment).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.SessionState).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.CadenceSlot).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.DefinitionVersion).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.InputHash).HasMaxLength(64).IsRequired();
+        builder.HasIndex(row => new
+        {
+            row.TradingDate,
+            row.Segment,
+            row.SessionState,
+            row.CadenceSlot,
+            row.DefinitionVersion,
+            row.Revision
+        }).IsUnique();
+        builder.HasIndex(row => new
+        {
+            row.TradingDate,
+            row.Segment,
+            row.SessionState,
+            row.CadenceSlot,
+            row.DefinitionVersion
+        }).IsUnique().HasFilter("\"IsCurrent\"");
+        builder.HasIndex(row => new { row.Segment, row.IsCurrent, row.GeneratedAtUtc });
+        builder.HasIndex(row => new { row.TradingDate, row.Segment, row.IsCurrent });
+        builder.HasIndex(row => new { row.Segment, row.IsFinal, row.IsCurrent, row.TradingDate });
+        builder.HasOne<MarketPulseSnapshotRow>()
+            .WithMany()
+            .HasForeignKey(row => row.SupersedesSnapshotId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class MissingAnswerFeedbackRowConfiguration : IEntityTypeConfiguration<MissingAnswerFeedbackRow>
 {
     public void Configure(EntityTypeBuilder<MissingAnswerFeedbackRow> builder)

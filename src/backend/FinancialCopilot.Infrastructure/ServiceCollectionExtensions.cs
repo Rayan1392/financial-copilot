@@ -1079,10 +1079,21 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMarketQuoteSourcePriority, ConfiguredMarketQuoteSourcePriority>();
         services
             .AddOptions<MarketViewOptions>()
-            .BindConfiguration(MarketViewOptions.SectionName);
+            .BindConfiguration(MarketViewOptions.SectionName)
+            .Validate(options =>
+                    options.StaleAfterMinutes > 0 &&
+                    options.PulseCadenceMinutes > 0 &&
+                    options.PulseIndustryDriverCount > 0 &&
+                    options.PulseHistoryPageSize > 0 &&
+                    options.PulseSegments.Length > 0,
+                "Market view and market-pulse settings must be positive and include at least one segment.")
+            .ValidateOnStart();
         services.AddSingleton<IMarketViewCache, MemoryMarketViewCache>();
         services.AddScoped<IWatchlistService, WatchlistService>();
         services.AddScoped<IMarketSummaryService, MarketSummaryService>();
+        services.AddScoped<MarketPulseService>();
+        services.AddScoped<IMarketPulseService>(provider => provider.GetRequiredService<MarketPulseService>());
+        services.AddScoped<IMarketPulseSnapshotGenerator>(provider => provider.GetRequiredService<MarketPulseService>());
         services.AddScoped<IFollowedSymbolRepository, EfCoreFollowedSymbolRepository>();
         services.AddScoped<IFollowedCompanyResolver, EfCoreFollowedCompanyResolver>();
         services.AddScoped<IGetMyFollowedSymbolsUseCase, GetMyFollowedSymbolsUseCase>();

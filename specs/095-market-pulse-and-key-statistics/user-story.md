@@ -1,7 +1,7 @@
 # User Story — Market Pulse and Key Statistics
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Publish a canonical real-time market pulse containing turnover, money flow, queue values, breadth, and leading industries.
@@ -73,3 +73,15 @@ MarketPulseSnapshot { Id; TradingDate; CapturedAtUtc; RetailTradeValue; EquityRe
 - Never place secrets, bot tokens, payment credentials, or provider credentials in source-controlled configuration.
 - Treat Telegram usernames as display metadata, never as stable identity.
 - Avoid financial-advice wording; state that outputs are informational and evidence-based.
+
+## Implemented Canonical Definitions
+
+- Scope is `all` active instruments from Feature 054's configured primary market source, or an explicitly configured `MarketCode` from `MarketViews:PulseSegments`; unknown segments are rejected.
+- Transaction value is the sum of canonical TSETMC `QTotCap` (`TotalCapital`) at one capture cutoff. Intraday snapshots use the latest fresh observation per instrument; final snapshots use the completed daily row.
+- Small-trade value, equity/fixed-income real-money flow, and queue count/value remain explicit `Unavailable` facts because normalized storage does not contain per-trade classification, client-type, or order-book evidence. They are never returned as zero.
+- Breadth uses fresh canonical quote change percentages: positive is advancing, negative is declining, and zero is unchanged. Missing/stale instruments are reported as excluded.
+- Industry scores are equal-weight averages of fresh constituent change percentages. Ties are stable by industry code.
+- Weekly and monthly baselines use the preceding 5 and 20 completed trading sessions, with minimum samples of 3 and 10 respectively.
+- Iran session states are `PreOpen` before 09:00, `Open` from 09:00 through 12:30, `Intermission` until the established end-of-day ingest cutoff, `Closed` afterward, and `Holiday` on Thursday/Friday. Unknown data is never inferred as a session fact.
+- Snapshots are definition-versioned and revision-linked. A changed input hash creates a new immutable revision and designates it current; identical input in the same cadence slot is idempotent.
+- Generation is scheduled at a configurable cadence, serialized per slot with a PostgreSQL transaction advisory lock, retried with bounded backoff, and never reserves or consumes credits.

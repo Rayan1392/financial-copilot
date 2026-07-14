@@ -20,6 +20,16 @@ public sealed class MarketViewOptions
     public int SummaryCacheSeconds { get; init; } = 30;
 
     public int TopMoverCount { get; init; } = 3;
+
+    public bool PulseEnabled { get; init; } = true;
+
+    public int PulseCadenceMinutes { get; init; } = 5;
+
+    public int PulseIndustryDriverCount { get; init; } = 3;
+
+    public int PulseHistoryPageSize { get; init; } = 20;
+
+    public string[] PulseSegments { get; init; } = ["all"];
 }
 
 public sealed class MemoryMarketViewCache(

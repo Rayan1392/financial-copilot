@@ -820,6 +820,39 @@ public sealed class WatchlistSymbolRow
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class MarketPulseSnapshotRow
+{
+    public Guid Id { get; set; }
+    public DateOnly TradingDate { get; set; }
+    public DateTimeOffset CapturedAtUtc { get; set; }
+    public DateTimeOffset GeneratedAtUtc { get; set; }
+    public string Segment { get; set; } = string.Empty;
+    public string SessionState { get; set; } = string.Empty;
+    public string CadenceSlot { get; set; } = string.Empty;
+    public bool IsPartial { get; set; }
+    public bool IsFinal { get; set; }
+    public bool IsCurrent { get; set; }
+    public int Revision { get; set; }
+    public Guid? SupersedesSnapshotId { get; set; }
+    public string DefinitionVersion { get; set; } = string.Empty;
+    public DateTimeOffset? SourceWatermarkUtc { get; set; }
+    public decimal? TransactionValue { get; set; }
+    public decimal? RetailTradeValue { get; set; }
+    public decimal? EquityRealMoneyFlow { get; set; }
+    public decimal? FixedIncomeFundRealMoneyFlow { get; set; }
+    public int? BuyQueueCount { get; set; }
+    public decimal? BuyQueueValue { get; set; }
+    public int? SellQueueCount { get; set; }
+    public decimal? SellQueueValue { get; set; }
+    public string FactsJson { get; set; } = "[]";
+    public string BreadthJson { get; set; } = "{}";
+    public string LeadingIndustriesJson { get; set; } = "[]";
+    public string LaggingIndustriesJson { get; set; } = "[]";
+    public string ComparisonsJson { get; set; } = "[]";
+    public string EvidenceJson { get; set; } = "[]";
+    public string InputHash { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// Persisted form of <c>MissingAnswerFeedback</c> (spec 028). Coalesced on
 /// <c>(ActorId, QueryHashSha256, Classification, DateBucket)</c>.

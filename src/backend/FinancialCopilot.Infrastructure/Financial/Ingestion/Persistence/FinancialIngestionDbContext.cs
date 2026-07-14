@@ -90,6 +90,14 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<UserInsightStateRow> UserInsightStates => Set<UserInsightStateRow>();
 
+    public DbSet<RadarProfileRow> RadarProfiles => Set<RadarProfileRow>();
+
+    public DbSet<RadarSymbolOverrideRow> RadarSymbolOverrides => Set<RadarSymbolOverrideRow>();
+
+    public DbSet<RadarEventMatchRow> RadarEventMatches => Set<RadarEventMatchRow>();
+
+    public DbSet<RadarPreferenceAuditRow> RadarPreferenceAudits => Set<RadarPreferenceAuditRow>();
+
     public DbSet<DerivedMetricRow> DerivedMetrics => Set<DerivedMetricRow>();
 
     public DbSet<FeatureDefinitionRow> FeatureDefinitions => Set<FeatureDefinitionRow>();

@@ -179,6 +179,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Free", "Reports.Read", 100),
         Enabled("Free", "Watchlist.Symbols", 5),
         Enabled("Free", "Tracker.Rules", 3),
+        Enabled("Free", "Radar.Symbols", 5),
         Enabled("Pro", "AiQuery.Scanner"),
         Enabled("Pro", "AiQuery.StockAnalysis"),
         Enabled("Pro", "AiQuery.FinancialComparison"),
@@ -188,6 +189,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Pro", "Watchlist.Symbols", 20),
         Enabled("Pro", "Portfolio.Records", 10),
         Enabled("Pro", "Tracker.Rules", 20),
+        Enabled("Pro", "Radar.Symbols", 20),
         Enabled("Plus", "AiQuery.Scanner"),
         Enabled("Plus", "AiQuery.StockAnalysis"),
         Enabled("Plus", "AiQuery.FinancialComparison"),
@@ -198,6 +200,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Plus", "Watchlist.Symbols", 50),
         Enabled("Plus", "Portfolio.Records", 50),
         Enabled("Plus", "Tracker.Rules", 50),
+        Enabled("Plus", "Radar.Symbols", 50),
         Enabled("Premium", "AiQuery.Scanner"),
         Enabled("Premium", "AiQuery.StockAnalysis"),
         Enabled("Premium", "AiQuery.FinancialComparison"),
@@ -207,7 +210,8 @@ internal static class BaselinePlanCapabilities
         Enabled("Premium", "Reports.Read"),
         Enabled("Premium", "Watchlist.Symbols", 100),
         Enabled("Premium", "Portfolio.Records", 100),
-        Enabled("Premium", "Tracker.Rules", 100)
+        Enabled("Premium", "Tracker.Rules", 100),
+        Enabled("Premium", "Radar.Symbols", 100)
     ];
 
     private static PlanCapabilityRow Enabled(string planCode, string capabilityCode, decimal? limit = null) =>

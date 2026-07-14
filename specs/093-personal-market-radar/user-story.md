@@ -1,7 +1,7 @@
 # User Story — Personal Market Radar
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Continuously monitor followed symbols and deliver only material market events ranked by importance.

@@ -11,6 +11,8 @@ public static class AuthorizationPolicies
     public const string WatchlistWriteSelf = "WatchlistWriteSelf";
     public const string TrackerReadSelf = "TrackerReadSelf";
     public const string TrackerWriteSelf = "TrackerWriteSelf";
+    public const string RadarReadSelf = "RadarReadSelf";
+    public const string RadarWriteSelf = "RadarWriteSelf";
     public const string MarketSummaryRead = "MarketSummaryRead";
     public const string TelegramLinkManageSelf = "TelegramLinkManageSelf";
     public const string TelegramMembershipReadSelf = "TelegramMembershipReadSelf";

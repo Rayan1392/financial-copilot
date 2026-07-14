@@ -6,9 +6,12 @@ using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
+using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
+using FinancialCopilot.Domain.Financial.Insights;
+using FinancialCopilot.Domain.Financial.Radar;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -21,6 +24,7 @@ public sealed class TelegramAiAssistantAdapter(
     ITelegramMembershipService membershipService,
     IGenerateCodalAlertSummaryUseCase codalAlertSummaries,
     IConditionalTrackerUseCases conditionalTrackers,
+    IRadarUseCases radar,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -185,6 +189,8 @@ public sealed class TelegramAiAssistantAdapter(
             "/track" => await HandleTrackCommandAsync(text, update, actor, cancellationToken),
             "/track_edit" => await HandleTrackEditCommandAsync(text, update, actor, cancellationToken),
             "/trackers" => await HandleTrackersCommandAsync(text, update, actor, cancellationToken),
+            "/radar" => await HandleRadarCommandAsync(text, update, actor, cancellationToken),
+            "/radar_override" => await HandleRadarOverrideCommandAsync(text, update, actor, cancellationToken),
             "/codal_alerts" => BuildResult(
                 TelegramAssistantResultStatus.Accepted,
                 actor.ActorId,
@@ -248,6 +254,198 @@ public sealed class TelegramAiAssistantAdapter(
                 update.CorrelationId,
                 exception.Message);
         }
+    }
+
+    private async Task<TelegramAssistantResult> HandleRadarCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var page = parts.Length == 1
+            ? 1
+            : parts.Length == 2 && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+                ? parsed
+                : 0;
+        if (page == 0)
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /radar [page-number]");
+
+        var profile = await radar.GetAsync(new GetMyRadarQuery(actor), cancellationToken);
+        return BuildRadarResult(profile, actor, update.CorrelationId, page, "Personal market radar");
+    }
+
+    private async Task<TelegramAssistantResult> HandleRadarOverrideCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 3)
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /radar_override <company-id> <broad|balanced|focused|paused|inherit>");
+
+        try
+        {
+            var current = await radar.GetAsync(new GetMyRadarQuery(actor), cancellationToken);
+            var existing = current.SymbolOverrides.SingleOrDefault(item =>
+                item.ExternalCompanyId.Equals(parts[1], StringComparison.OrdinalIgnoreCase));
+            RadarProfileDto result;
+            if (parts[2].Equals("inherit", StringComparison.OrdinalIgnoreCase))
+            {
+                if (existing is null) throw new RadarValidationException("No override exists for that followed symbol.");
+                result = await radar.RemoveOverrideAsync(new RemoveRadarSymbolOverrideCommand(
+                    actor, existing.ExternalCompanyId, existing.Version, "Telegram"), cancellationToken);
+            }
+            else
+            {
+                var paused = parts[2].Equals("paused", StringComparison.OrdinalIgnoreCase);
+                if (!paused && !Enum.TryParse<RadarSensitivity>(parts[2], true, out _))
+                    throw new RadarValidationException("Sensitivity must be broad, balanced, focused, paused, or inherit.");
+                RadarSensitivity? sensitivity = paused ? null : Enum.Parse<RadarSensitivity>(parts[2], true);
+                result = await radar.UpsertOverrideAsync(new UpsertRadarSymbolOverrideCommand(
+                    actor, parts[1], existing?.Version ?? 0,
+                    new RadarSymbolOverrideInput(paused ? RadarState.Paused : RadarState.Active,
+                        null, null, null, sensitivity), "Telegram"), cancellationToken);
+            }
+            return BuildRadarResult(result, actor, update.CorrelationId, 1, "Radar symbol override updated.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleRadarCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = data.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        try
+        {
+            var profile = await radar.GetAsync(new GetMyRadarQuery(actor), cancellationToken);
+            if (parts.Length == 3 && int.TryParse(parts[1], out var version) && profile.Version == version)
+            {
+                RadarProfileInput input;
+                if (parts[0].Equals("rd.s1", StringComparison.OrdinalIgnoreCase))
+                {
+                    var state = parts[2] == "a" ? RadarState.Active : parts[2] == "p" ? RadarState.Paused
+                        : throw new RadarValidationException("The radar state callback is malformed.");
+                    input = ProfileInput(profile, state: state);
+                }
+                else if (parts[0].Equals("rd.n1", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sensitivity = parts[2] == "b" ? RadarSensitivity.Broad : parts[2] == "f"
+                        ? RadarSensitivity.Focused : parts[2] == "m" ? RadarSensitivity.Balanced
+                        : throw new RadarValidationException("The radar sensitivity callback is malformed.");
+                    input = ProfileInput(profile, sensitivity: sensitivity);
+                }
+                else if (parts[0].Equals("rd.c1", StringComparison.OrdinalIgnoreCase) &&
+                         int.TryParse(parts[2], out var eventTypeValue) &&
+                         Enum.IsDefined(typeof(InsightType), eventTypeValue))
+                {
+                    var eventType = (InsightType)eventTypeValue;
+                    var categories = profile.EventTypes.Contains(eventType)
+                        ? profile.EventTypes.Where(item => item != eventType).ToArray()
+                        : profile.EventTypes.Append(eventType).ToArray();
+                    if (categories.Length == 0) throw new RadarValidationException("At least one radar category must remain enabled.");
+                    input = ProfileInput(profile, eventTypes: categories);
+                }
+                else throw new RadarValidationException("The radar callback is malformed or stale.");
+
+                var changed = await radar.UpdateAsync(new UpdateMyRadarCommand(actor, version, input, "Telegram"), cancellationToken);
+                return BuildRadarResult(changed, actor, update.CorrelationId, 1, "Radar preferences updated.");
+            }
+
+            if (parts.Length == 4 && parts[0].Equals("rd.o1", StringComparison.OrdinalIgnoreCase) &&
+                Guid.TryParseExact(parts[1], "N", out var overrideId) && int.TryParse(parts[2], out var overrideVersion))
+            {
+                var symbolOverride = profile.SymbolOverrides.SingleOrDefault(item => item.Id == overrideId)
+                    ?? throw new RadarValidationException("The radar override callback is stale.");
+                if (symbolOverride.Version != overrideVersion) throw new RadarValidationException("The radar override callback is stale.");
+                RadarProfileDto changed;
+                if (parts[3] == "x")
+                    changed = await radar.RemoveOverrideAsync(new RemoveRadarSymbolOverrideCommand(
+                        actor, symbolOverride.ExternalCompanyId, overrideVersion, "Telegram"), cancellationToken);
+                else
+                {
+                    var state = parts[3] == "p" ? RadarState.Paused : parts[3] == "r" ? RadarState.Active
+                        : throw new RadarValidationException("The radar override callback is malformed.");
+                    changed = await radar.UpsertOverrideAsync(new UpsertRadarSymbolOverrideCommand(
+                        actor, symbolOverride.ExternalCompanyId, overrideVersion,
+                        new RadarSymbolOverrideInput(state, symbolOverride.EventTypes, symbolOverride.MinimumSeverity,
+                            symbolOverride.MinimumImportance, symbolOverride.Sensitivity), "Telegram"), cancellationToken);
+                }
+                return BuildRadarResult(changed, actor, update.CorrelationId, 1, "Radar symbol override updated.");
+            }
+
+            throw new RadarValidationException("The radar callback is malformed or stale.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private static RadarProfileInput ProfileInput(
+        RadarProfileDto profile,
+        RadarState? state = null,
+        RadarSensitivity? sensitivity = null,
+        IReadOnlyCollection<InsightType>? eventTypes = null) =>
+        new(eventTypes ?? profile.EventTypes, profile.MinimumSeverity, profile.MinimumImportance,
+            sensitivity ?? profile.Sensitivity, profile.DeliveryMode, state ?? profile.State);
+
+    private static TelegramAssistantResult BuildRadarResult(
+        RadarProfileDto profile,
+        CurrentActor actor,
+        string correlationId,
+        int page,
+        string heading)
+    {
+        const int pageSize = 5;
+        var overrides = profile.SymbolOverrides.OrderBy(item => item.Symbol).Skip((page - 1) * pageSize).Take(pageSize).ToArray();
+        var text = $"{heading}\nState: {profile.State} | sensitivity: {profile.Sensitivity} | minimum: {profile.MinimumSeverity}/{profile.MinimumImportance} | v{profile.Version}\n" +
+                   $"Categories: {string.Join(", ", profile.EventTypes)}\n{profile.FreshnessDisclosure}";
+        if (overrides.Length > 0)
+            text += "\nOverrides:\n" + string.Join("\n", overrides.Select(item =>
+                $"- {item.Symbol} ({item.ExternalCompanyId}): {item.State}/{item.Sensitivity?.ToString() ?? "inherit"} v{item.Version}"));
+        if (profile.SymbolOverrides.Count > pageSize)
+            text += $"\nOverride page {page} of {(int)Math.Ceiling(profile.SymbolOverrides.Count / (decimal)pageSize)}.";
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            correlationId, text, BuildRadarActions(profile, overrides));
+    }
+
+    private static IReadOnlyList<TelegramAssistantAction> BuildRadarActions(
+        RadarProfileDto profile,
+        IReadOnlyCollection<RadarSymbolOverrideDto> overrides)
+    {
+        var version = profile.Version.ToString(CultureInfo.InvariantCulture);
+        var actions = new List<TelegramAssistantAction>
+        {
+            new(profile.State == RadarState.Active ? "Pause radar" : "Enable radar",
+                $"rd.s1:{version}:{(profile.State == RadarState.Active ? "p" : "a")}"),
+            new("Broad", $"rd.n1:{version}:b"),
+            new("Balanced", $"rd.n1:{version}:m"),
+            new("Focused", $"rd.n1:{version}:f")
+        };
+        actions.AddRange(Enum.GetValues<InsightType>().Select(type =>
+            new TelegramAssistantAction($"{(profile.EventTypes.Contains(type) ? "✓" : "+")} {type}",
+                $"rd.c1:{version}:{(int)type}")));
+        foreach (var item in overrides)
+        {
+            var id = item.Id.ToString("N");
+            var overrideVersion = item.Version.ToString(CultureInfo.InvariantCulture);
+            actions.Add(new TelegramAssistantAction(item.State == RadarState.Active ? $"Pause {item.Symbol}" : $"Resume {item.Symbol}",
+                $"rd.o1:{id}:{overrideVersion}:{(item.State == RadarState.Active ? "p" : "r")}"));
+            actions.Add(new TelegramAssistantAction($"Inherit {item.Symbol}", $"rd.o1:{id}:{overrideVersion}:x"));
+        }
+        return actions;
     }
 
     private async Task<TelegramAssistantResult> HandleTrackersCommandAsync(
@@ -502,6 +700,11 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("tr.", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleTrackerCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("rd.", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleRadarCallbackAsync(data, update, actor, cancellationToken);
         }
 
         const string codalSummaryPrefix = "calert.summary.v1:";

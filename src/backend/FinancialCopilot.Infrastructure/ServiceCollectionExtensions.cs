@@ -13,6 +13,7 @@ using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.FollowedSymbols;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
@@ -53,6 +54,7 @@ using FinancialCopilot.Infrastructure.Financial.CodalAlerts;
 using FinancialCopilot.Infrastructure.Financial.ConditionalTrackers;
 using FinancialCopilot.Infrastructure.Financial.FollowedSymbols;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
+using FinancialCopilot.Infrastructure.Financial.Radar;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
@@ -1097,6 +1099,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConditionalTrackerEntitlementPolicy, ConditionalTrackerEntitlementPolicy>();
         services.AddScoped<IConditionalTrackerUseCases, ConditionalTrackerUseCases>();
         services.AddScoped<IConditionalTrackerEvaluationProcessor, ConditionalTrackerEvaluationProcessor>();
+        services.AddOptions<RadarOptions>()
+            .BindConfiguration(RadarOptions.SectionName);
+        services.AddScoped<IRadarRepository, RadarRepository>();
+        services.AddScoped<IRadarEntitlementPolicy, RadarEntitlementPolicy>();
+        services.AddScoped<IRadarNotificationPolicyGate, AllowRadarNotificationPolicyGate>();
+        services.AddScoped<IRadarUseCases, RadarUseCases>();
+        services.AddScoped<IRadarEvaluationProcessor, RadarEvaluationProcessor>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<PersistedMarketDataProvider>());

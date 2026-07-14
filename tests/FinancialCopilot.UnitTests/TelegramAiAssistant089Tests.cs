@@ -3,8 +3,11 @@ using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
+using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
+using FinancialCopilot.Domain.Financial.Insights;
+using FinancialCopilot.Domain.Financial.Radar;
 using FinancialCopilot.Domain.Identity.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -152,19 +155,58 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal("abc123def456", trackers.LastConfirmation?.ConfirmationToken);
     }
 
+    [Fact]
+    public async Task Radar_command_exposes_versioned_inline_controls()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var radar = new FakeRadarUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), radar: radar);
+
+        var result = await adapter.HandleAsync(Update("/radar", 1001, 201), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
+        Assert.Contains(result.Messages.SelectMany(message => message.Actions ?? []),
+            action => action.CallbackData == "rd.s1:0:a");
+        Assert.Contains(result.Messages.SelectMany(message => message.Actions ?? []),
+            action => action.CallbackData.StartsWith("rd.c1:0:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Radar_callback_replay_updates_preferences_once()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var radar = new FakeRadarUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), radar: radar);
+        var update = new TelegramAssistantUpdate(
+            202, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 12,
+            "callback-202", "rd.s1:0:a", null, "en", DateTimeOffset.UtcNow, "corr-202");
+
+        var first = await adapter.HandleAsync(update, CancellationToken.None);
+        var replay = await adapter.HandleAsync(update, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(1, radar.UpdateCallCount);
+        Assert.Equal(RadarState.Active, radar.LastUpdate?.Input.State);
+    }
+
     private static TelegramAiAssistantAdapter CreateAdapter(
         AuthDbContext db,
         ITelegramIdentityLinkReader? linkReader = null,
         IConversationRepository? conversations = null,
         IAiQueryOrchestrationService? ai = null,
         ITelegramMembershipService? membership = null,
-        IConditionalTrackerUseCases? trackers = null) =>
+        IConditionalTrackerUseCases? trackers = null,
+        IRadarUseCases? radar = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
             membership ?? new FakeTelegramMembershipService(),
             new FakeCodalAlertSummaryUseCase(),
             trackers ?? new FakeConditionalTrackerUseCases(),
+            radar ?? new FakeRadarUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -378,6 +420,39 @@ public sealed class TelegramAiAssistant089Tests
             Task.FromResult(rule with { State = command.State ?? rule.State, Version = rule.Version + 1 });
 
         public Task RemoveAsync(RemoveAlertRuleCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class FakeRadarUseCases : IRadarUseCases
+    {
+        public int UpdateCallCount { get; private set; }
+        public UpdateMyRadarCommand? LastUpdate { get; private set; }
+
+        private static RadarProfileDto Profile => new(
+            Guid.Empty, RadarState.Paused, [InsightType.PriceMovement], InsightSeverity.Notice,
+            50, RadarSensitivity.Balanced, RadarDeliveryMode.Immediate, 0, [], 30,
+            null, null, "Radar evaluates every 30 seconds; source freshness is unavailable.",
+            DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+
+        public Task<RadarProfileDto> GetAsync(GetMyRadarQuery query, CancellationToken cancellationToken) =>
+            Task.FromResult(Profile);
+
+        public Task<RadarProfileDto> UpdateAsync(UpdateMyRadarCommand command, CancellationToken cancellationToken)
+        {
+            UpdateCallCount++;
+            LastUpdate = command;
+            return Task.FromResult(Profile with { State = command.Input.State, Version = command.ExpectedVersion + 1 });
+        }
+
+        public Task RemoveAsync(RemoveMyRadarCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<RadarProfileDto> UpsertOverrideAsync(
+            UpsertRadarSymbolOverrideCommand command, CancellationToken cancellationToken) => Task.FromResult(Profile);
+
+        public Task<RadarProfileDto> RemoveOverrideAsync(
+            RemoveRadarSymbolOverrideCommand command, CancellationToken cancellationToken) => Task.FromResult(Profile);
+
+        public Task<Guid> SendTestNotificationAsync(
+            SendRadarTestNotificationCommand command, CancellationToken cancellationToken) => Task.FromResult(Guid.NewGuid());
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

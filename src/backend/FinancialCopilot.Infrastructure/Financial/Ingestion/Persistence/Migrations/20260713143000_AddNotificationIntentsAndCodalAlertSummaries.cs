@@ -1,4 +1,6 @@
 using System;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,6 +8,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(FinancialIngestionDbContext))]
+    [Migration("20260713143000_AddNotificationIntentsAndCodalAlertSummaries")]
     public partial class AddNotificationIntentsAndCodalAlertSummaries : Migration
     {
         /// <inheritdoc />

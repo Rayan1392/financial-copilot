@@ -32,6 +32,18 @@ builder.Services
         "Conditional tracker evaluation settings must be positive and bounded.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<FinancialCopilot.Infrastructure.Financial.Radar.RadarOptions>()
+    .BindConfiguration(FinancialCopilot.Infrastructure.Financial.Radar.RadarOptions.SectionName)
+    .Validate(
+        options => options.EvaluationCadenceSeconds is >= 10 and <= 3600 &&
+                   options.BatchSize is > 0 and <= 1000 &&
+                   options.MaximumEventsPerProfile is > 0 and <= 2000 &&
+                   options.InitialLookbackHours is > 0 and <= 168 &&
+                   options.LeaseSeconds is >= 30 and <= 600 &&
+                   options.RetryCount is > 0 and <= 10,
+        "Radar evaluation settings must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<MarketMicrostructureDetectionWorkerOptions>()
     .BindConfiguration(MarketMicrostructureDetectionWorkerOptions.SectionName)
     .Validate(
@@ -93,6 +105,7 @@ builder.Services.AddHostedService<DataSyncConsumerWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
+builder.Services.AddHostedService<RadarEvaluationWorker>();
 builder.Services.AddHostedService<MarketMicrostructureDetectionWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();

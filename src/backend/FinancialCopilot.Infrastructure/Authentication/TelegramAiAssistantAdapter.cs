@@ -7,6 +7,7 @@ using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.Radar;
+using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
@@ -25,6 +26,7 @@ public sealed class TelegramAiAssistantAdapter(
     IGenerateCodalAlertSummaryUseCase codalAlertSummaries,
     IConditionalTrackerUseCases conditionalTrackers,
     IRadarUseCases radar,
+    IProfessionalScannerUseCases professionalScanners,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -174,6 +176,10 @@ public sealed class TelegramAiAssistantAdapter(
                 /credits وضعیت اعتبار و سهمیه تلگرام
                 /followed لینک واچ‌لیست در وب‌اپ
                 /market لینک نمای بازار در وب‌اپ
+                /scanners - professional filter catalog
+                /scanner FILTER_CODE key=value - run a filter
+                /save_scanner name | FILTER_CODE | key=value - save a filter
+                /saved_scanners - saved filters
                 """),
             "/credits" => BuildCreditsResult(
                 actor,
@@ -191,6 +197,10 @@ public sealed class TelegramAiAssistantAdapter(
             "/trackers" => await HandleTrackersCommandAsync(text, update, actor, cancellationToken),
             "/radar" => await HandleRadarCommandAsync(text, update, actor, cancellationToken),
             "/radar_override" => await HandleRadarOverrideCommandAsync(text, update, actor, cancellationToken),
+            "/scanners" => HandleScannersCommand(text, update, actor),
+            "/scanner" => await HandleProfessionalScannerCommandAsync(text, update, actor, cancellationToken),
+            "/save_scanner" => await HandleSaveScannerCommandAsync(text, update, actor, cancellationToken),
+            "/saved_scanners" => await HandleSavedScannersCommandAsync(text, update, actor, cancellationToken),
             "/codal_alerts" => BuildResult(
                 TelegramAssistantResultStatus.Accepted,
                 actor.ActorId,
@@ -213,6 +223,116 @@ public sealed class TelegramAiAssistantAdapter(
                 update.CorrelationId,
                 "این فرمان پشتیبانی نمی‌شود. برای راهنما /help را ارسال کنید یا سؤال مالی خود را به‌صورت متن بفرستید.")
         };
+    }
+
+    private TelegramAssistantResult HandleScannersCommand(string text, TelegramAssistantUpdate update, CurrentActor actor)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        ProfessionalFilterCategory? category = null;
+        var page = 1;
+        if (parts.Length > 1 && !int.TryParse(parts[1], out page) &&
+            Enum.TryParse<ProfessionalFilterCategory>(parts[1], true, out var parsed)) category = parsed;
+        if (parts.Length > 2) int.TryParse(parts[2], out page);
+        page = Math.Max(1, page);
+        var catalogPage = professionalScanners.ListCatalog(new ProfessionalCatalogQuery(category, null, page, 8));
+        var builder = new StringBuilder($"فیلترهای حرفه‌ای — صفحه {catalogPage.Page} از {catalogPage.TotalPages}\n");
+        foreach (var item in catalogPage.Items)
+            builder.AppendLine($"{item.Code} — {item.TitleFa} ({item.Category})");
+        builder.AppendLine("اجرا: /scanner FILTER_CODE key=value");
+        var actions = new List<TelegramAssistantAction>();
+        if (catalogPage.Page > 1) actions.Add(new("قبلی", $"pf.cat.v1:{category?.ToString() ?? "all"}:{catalogPage.Page - 1}"));
+        if (catalogPage.Page < catalogPage.TotalPages) actions.Add(new("بعدی", $"pf.cat.v1:{category?.ToString() ?? "all"}:{catalogPage.Page + 1}"));
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            update.CorrelationId, builder.ToString(), actions);
+    }
+
+    private async Task<TelegramAssistantResult> HandleProfessionalScannerCommandAsync(
+        string text, TelegramAssistantUpdate update, CurrentActor actor, CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "کاربرد: /scanner FILTER_CODE key=value");
+        try
+        {
+            var parameters = ParseKeyValues(parts.Skip(2));
+            var result = await professionalScanners.ExecuteAsync(new ProfessionalExecuteCommand(actor, parts[1], null,
+                parameters, null, null, new ProfessionalScannerScope(), 1, 8, update.CorrelationId, "Telegram"), cancellationToken);
+            return RenderProfessionalScanner(result, actor, update.CorrelationId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleSaveScannerCommandAsync(
+        string text, TelegramAssistantUpdate update, CurrentActor actor, CancellationToken cancellationToken)
+    {
+        var body = text[(text.IndexOf(' ') + 1)..].Split('|', StringSplitOptions.TrimEntries);
+        if (body.Length < 2 || string.IsNullOrWhiteSpace(body[0]) || string.IsNullOrWhiteSpace(body[1]))
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "کاربرد: /save_scanner نام | FILTER_CODE | key=value");
+        try
+        {
+            var saved = await professionalScanners.SaveAsync(new SaveProfessionalFilterCommand(actor, body[0], body[1], null,
+                body.Length > 2 ? ParseKeyValues(body[2].Split(' ', StringSplitOptions.RemoveEmptyEntries)) : null), cancellationToken);
+            return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, $"فیلتر «{saved.Name}» با نسخه {saved.FilterVersion} ذخیره شد.",
+                [new TelegramAssistantAction("اجرا", $"pf.saved.v1:{saved.Id:N}:1")]);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleSavedScannersCommandAsync(
+        string text, TelegramAssistantUpdate update, CurrentActor actor, CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var page = parts.Length > 1 && int.TryParse(parts[1], out var parsed) ? Math.Max(1, parsed) : 1;
+        var items = await professionalScanners.ListSavedAsync(actor, page, 8, cancellationToken);
+        var builder = new StringBuilder($"فیلترهای ذخیره‌شده — صفحه {page}\n");
+        foreach (var item in items) builder.AppendLine($"{item.Name} — {item.FilterCode}/{item.FilterVersion} — {item.Id:N}");
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            update.CorrelationId, builder.ToString());
+    }
+
+    private static Dictionary<string, string> ParseKeyValues(IEnumerable<string> values)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var token in values)
+        {
+            var separator = token.IndexOf('=');
+            if (separator <= 0 || separator == token.Length - 1)
+                throw new ProfessionalScannerValidationException($"پارامتر نامعتبر است: {token}. قالب key=value را استفاده کنید.");
+            result[token[..separator]] = token[(separator + 1)..];
+        }
+        return result;
+    }
+
+    private static TelegramAssistantResult RenderProfessionalScanner(
+        ProfessionalScannerExecutionResult result, CurrentActor actor, string correlationId)
+    {
+        var builder = new StringBuilder($"{result.FilterCode}/{result.FilterVersion} — {result.Status}\n");
+        foreach (var row in result.Rows.Take(8))
+        {
+            builder.AppendLine($"{row.Rank}. {row.Symbol}");
+            foreach (var reason in row.Reasons) builder.AppendLine($"  {reason.Text}");
+            builder.AppendLine($"  freshness: {row.SourceFreshnessUtc:O}");
+        }
+        if (result.Rows.Count == 0) builder.AppendLine(string.Join("\n", result.DatasetMessages.DefaultIfEmpty("نتیجه‌ای مطابق شرایط یافت نشد.")));
+        builder.AppendLine($"evidence: {result.EvidenceHash}");
+        builder.AppendLine($"جدول کامل: /scanners/{result.FilterCode}");
+        var actions = new List<TelegramAssistantAction>();
+        if (result.Page > 1) actions.Add(new("قبلی", $"pf.run.v1:{result.FilterCode}:{result.Page - 1}"));
+        if (result.Page < result.TotalPages) actions.Add(new("بعدی", $"pf.run.v1:{result.FilterCode}:{result.Page + 1}"));
+        actions.Add(new("اجرای دوباره", $"pf.run.v1:{result.FilterCode}:{result.Page}"));
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            correlationId, builder.ToString(), actions);
     }
 
     private async Task<TelegramAssistantResult> HandleTrackCommandAsync(
@@ -705,6 +825,56 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("rd.", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleRadarCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("pf.cat.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = data.Split(':');
+            if (parts.Length == 3 && int.TryParse(parts[2], out var page))
+            {
+                var category = parts[1].Equals("all", StringComparison.OrdinalIgnoreCase) ? string.Empty : parts[1];
+                return HandleScannersCommand($"/scanners {category} {page}", update, actor);
+            }
+        }
+
+        if (data is not null && data.StartsWith("pf.run.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = data.Split(':');
+            if (parts.Length == 3 && int.TryParse(parts[2], out var page))
+            {
+                try
+                {
+                    var result = await professionalScanners.ExecuteAsync(new ProfessionalExecuteCommand(actor, parts[1], null,
+                        null, null, null, new ProfessionalScannerScope(), Math.Max(1, page), 8,
+                        update.CorrelationId, "TelegramCallback"), cancellationToken);
+                    return RenderProfessionalScanner(result, actor, update.CorrelationId);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                        null, update.CorrelationId, exception.Message);
+                }
+            }
+        }
+
+        if (data is not null && data.StartsWith("pf.saved.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = data.Split(':');
+            if (parts.Length == 3 && Guid.TryParseExact(parts[1], "N", out var savedId) && int.TryParse(parts[2], out var page))
+            {
+                try
+                {
+                    var result = await professionalScanners.RunSavedAsync(new RunSavedProfessionalFilterCommand(actor,
+                        savedId, null, null, new ProfessionalScannerScope(), Math.Max(1, page), 8,
+                        update.CorrelationId, "TelegramCallback"), cancellationToken);
+                    return RenderProfessionalScanner(result, actor, update.CorrelationId);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                        null, update.CorrelationId, exception.Message);
+                }
+            }
         }
 
         const string codalSummaryPrefix = "calert.summary.v1:";

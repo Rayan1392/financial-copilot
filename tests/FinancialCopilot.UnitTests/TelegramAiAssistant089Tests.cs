@@ -4,6 +4,7 @@ using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.Radar;
+using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
@@ -199,7 +200,8 @@ public sealed class TelegramAiAssistant089Tests
         IAiQueryOrchestrationService? ai = null,
         ITelegramMembershipService? membership = null,
         IConditionalTrackerUseCases? trackers = null,
-        IRadarUseCases? radar = null) =>
+        IRadarUseCases? radar = null,
+        IProfessionalScannerUseCases? professionalScanners = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -207,6 +209,7 @@ public sealed class TelegramAiAssistant089Tests
             new FakeCodalAlertSummaryUseCase(),
             trackers ?? new FakeConditionalTrackerUseCases(),
             radar ?? new FakeRadarUseCases(),
+            professionalScanners ?? new FakeProfessionalScannerUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -453,6 +456,20 @@ public sealed class TelegramAiAssistant089Tests
 
         public Task<Guid> SendTestNotificationAsync(
             SendRadarTestNotificationCommand command, CancellationToken cancellationToken) => Task.FromResult(Guid.NewGuid());
+    }
+
+    private sealed class FakeProfessionalScannerUseCases : IProfessionalScannerUseCases
+    {
+        public ProfessionalCatalogPage ListCatalog(ProfessionalCatalogQuery query) =>
+            new([], [], 1, Math.Clamp(query.PageSize, 1, 100), 0, 1);
+        public ProfessionalFilterDefinition GetFilter(string code, string? version = null) => throw new NotSupportedException();
+        public ProfessionalAliasResolution ResolveAlias(string text) => new(false, false, null, [], null);
+        public Task<ProfessionalScannerExecutionResult> ExecuteAsync(ProfessionalExecuteCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyCollection<SavedFilterDto>> ListSavedAsync(CurrentActor actor, int page, int pageSize, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<SavedFilterDto>>([]);
+        public Task<SavedFilterDto> SaveAsync(SaveProfessionalFilterCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<SavedFilterDto> UpdateAsync(UpdateProfessionalFilterCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task DeleteAsync(DeleteProfessionalFilterCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<ProfessionalScannerExecutionResult> RunSavedAsync(RunSavedProfessionalFilterCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

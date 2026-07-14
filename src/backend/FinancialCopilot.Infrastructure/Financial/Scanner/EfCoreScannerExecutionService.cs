@@ -43,8 +43,26 @@ public sealed class EfCoreScannerExecutionService(
         var allRequiredCodes = conditionCodes.Union(displayMetricCodes, StringComparer.OrdinalIgnoreCase).ToList();
 
         // Use Companies as the universe — each company with an ExternalCompanyId is a candidate
-        var companyRows = await dbContext.Companies.AsNoTracking()
-            .Where(c => c.ExternalCompanyId != null && c.ExternalCompanyId != string.Empty)
+        var companyQuery = dbContext.Companies.AsNoTracking()
+            .Where(c => c.ExternalCompanyId != null && c.ExternalCompanyId != string.Empty);
+        if (!string.IsNullOrWhiteSpace(request.Universe?.IndustryCode))
+        {
+            var industryCode = request.Universe.IndustryCode.Trim();
+            companyQuery = companyQuery.Where(company => company.IndustryId.HasValue &&
+                dbContext.Industries.Any(industry => industry.Id == company.IndustryId.Value &&
+                    (industry.ExternalId == industryCode || industry.Name == industryCode)));
+        }
+        if (!string.IsNullOrWhiteSpace(request.Universe?.InstrumentClass))
+        {
+            var instrumentClass = request.Universe.InstrumentClass.Trim();
+            companyQuery = companyQuery.Where(company => dbContext.TradingInstruments.Any(instrument =>
+                instrument.NormalizedCompanyId == company.Id && instrument.IsActive &&
+                instrument.InstrumentKind == instrumentClass));
+        }
+        var maximumSymbols = Math.Clamp(request.Universe?.MaximumSymbols ?? 5_000, 1, 5_000);
+        var companyRows = await companyQuery
+            .OrderBy(company => company.ExternalCompanyId)
+            .Take(maximumSymbols)
             .ToListAsync(cancellationToken);
         var totalCompanyCount = companyRows.Count;
 
@@ -142,7 +160,8 @@ public sealed class EfCoreScannerExecutionService(
                 cells,
                 Score: 0.0,
                 conditionMetricCodes,
-                SourceProvider: company.ProviderName);
+                SourceProvider: company.ProviderName,
+                ExternalCompanyId: company.ExternalCompanyId);
         }).ToList();
 
         foreach (var unavailable in quoteResult.UnavailableSymbols)

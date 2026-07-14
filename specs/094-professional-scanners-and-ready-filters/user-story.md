@@ -1,7 +1,7 @@
 # User Story — Professional Scanners and Ready Filters
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Provide governed ready-made filters and professional-market menus with explainable, reproducible results.

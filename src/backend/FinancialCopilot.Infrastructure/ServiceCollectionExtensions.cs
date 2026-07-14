@@ -14,6 +14,7 @@ using FinancialCopilot.Application.FinancialData.FollowedSymbols;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Radar;
+using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
@@ -55,6 +56,7 @@ using FinancialCopilot.Infrastructure.Financial.ConditionalTrackers;
 using FinancialCopilot.Infrastructure.Financial.FollowedSymbols;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
 using FinancialCopilot.Infrastructure.Financial.Radar;
+using FinancialCopilot.Infrastructure.Financial.ProfessionalScanners;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
@@ -1106,6 +1108,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRadarNotificationPolicyGate, AllowRadarNotificationPolicyGate>();
         services.AddScoped<IRadarUseCases, RadarUseCases>();
         services.AddScoped<IRadarEvaluationProcessor, RadarEvaluationProcessor>();
+        services.AddSingleton<IProfessionalFilterCatalog, GovernedProfessionalFilterCatalog>();
+        services.AddScoped<ISavedFilterRepository, SavedFilterRepository>();
+        services.AddScoped<IProfessionalScannerEntitlementPolicy, ProfessionalScannerEntitlementPolicy>();
+        services.AddScoped<IProfessionalScannerUseCases, ProfessionalScannerUseCases>();
         services.AddScoped<PersistedMarketDataProvider>();
         services.AddScoped<IMarketDataProvider>(provider =>
             provider.GetRequiredService<PersistedMarketDataProvider>());

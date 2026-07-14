@@ -1,5 +1,11 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Application.Notifications;
+using FinancialCopilot.Domain.Financial.CodalAlerts;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -489,6 +495,258 @@ internal sealed class FinancialStatementPublishedDetector(
             })
             .ToList();
     }
+}
+
+internal sealed class SubscribedCodalAnnouncementDetector(
+    FinancialIngestionDbContext dbContext,
+    IInsightScoringService scoring,
+    IInsightDeduplicationPolicy deduplication,
+    ICodalAlertSubscriptionRepository subscriptions,
+    INotificationIntentPublisher notificationPublisher)
+    : InsightDetectorBase(dbContext, scoring, deduplication)
+{
+    public override string DetectorName => nameof(SubscribedCodalAnnouncementDetector);
+
+    public override async Task<IReadOnlyCollection<InsightEvent>> DetectAsync(
+        InsightDetectionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var statementRows = await (
+            from statement in DbContext.FinancialStatements.AsNoTracking()
+            where statement.LastSynchronizedAt >= context.SinceUtc
+            join company in DbContext.Companies.AsNoTracking()
+                on statement.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
+            from company in companyJoin.DefaultIfEmpty()
+            select new { statement, company })
+            .ToArrayAsync(cancellationToken);
+
+        var monthlyRows = await (
+            from report in DbContext.MonthlyReports.AsNoTracking()
+            where report.LastSynchronizedAt >= context.SinceUtc
+                  && (report.OutputType == null || report.OutputType == 0)
+            join company in DbContext.Companies.AsNoTracking()
+                on report.ExternalCompanyId equals company.ExternalCompanyId into companyJoin
+            from company in companyJoin.DefaultIfEmpty()
+            select new { report, company })
+            .ToArrayAsync(cancellationToken);
+
+        var companyIds = statementRows.Select(row => row.statement.ExternalCompanyId)
+            .Concat(monthlyRows.Select(row => row.report.ExternalCompanyId))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var activeSubscriptions = await subscriptions.GetActiveForCompaniesAsync(companyIds, cancellationToken);
+        if (activeSubscriptions.Count == 0) return [];
+
+        var subscriptionLookup = activeSubscriptions
+            .GroupBy(item => item.ExternalCompanyId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        var events = new List<InsightEvent>();
+
+        foreach (var row in statementRows)
+        {
+            var score = ScoreStatement(row.statement);
+            var matching = MatchingSubscriptions(
+                subscriptionLookup,
+                row.statement.ExternalCompanyId,
+                CodalAnnouncementType.FinancialStatement,
+                score.Severity);
+            if (matching.Count == 0)
+            {
+                continue;
+            }
+
+            var period = Period(row.statement.PeriodEnd);
+            var symbol = DisplaySymbol(row.company, row.statement.ExternalCompanyId);
+            var insight = CreateInsight(
+                row.statement.ExternalCompanyId,
+                symbol,
+                IndustryCode(row.company),
+                InsightType.CodalAnnouncementMatched,
+                score,
+                $"Codal announcement matched for {symbol}",
+                $"{row.statement.StatementType} announcement for period ending {period} matched an active Codal alert subscription.",
+                "A subscribed Codal financial-statement announcement was synchronized from the authoritative ingestion boundary.",
+                [
+                    new InsightEvidenceItem("Announcement type", CodalAnnouncementType.FinancialStatement.ToString(), row.statement.ProviderName, period, row.statement.LastSynchronizedAt),
+                    new InsightEvidenceItem("Statement type", row.statement.StatementType, row.statement.ProviderName, period, row.statement.LastSynchronizedAt),
+                    new InsightEvidenceItem("Period type", row.statement.PeriodType, row.statement.ProviderName, period, row.statement.LastSynchronizedAt),
+                    new InsightEvidenceItem("Source checksum", row.statement.SourcePayloadChecksum, row.statement.ProviderName, period, row.statement.LastSynchronizedAt)
+                ],
+                row.statement.ProviderName,
+                InsightSourceEntityType.FinancialStatement,
+                row.statement.ExternalStatementId,
+                period,
+                context.DetectedAtUtc,
+                context.DetectedAtUtc.AddDays(30));
+            events.Add(insight);
+            await PublishIntentsAsync(
+                matching,
+                insight,
+                CodalAnnouncementType.FinancialStatement,
+                row.statement.ProviderName,
+                row.statement.ExternalStatementId,
+                period,
+                context,
+                cancellationToken);
+        }
+
+        foreach (var row in monthlyRows)
+        {
+            var score = Scoring.Score(new InsightScoringInput(55m, 92m, 90m, 95m, 45m));
+            var matching = MatchingSubscriptions(
+                subscriptionLookup,
+                row.report.ExternalCompanyId,
+                CodalAnnouncementType.MonthlyActivity,
+                score.Severity);
+            if (matching.Count == 0)
+            {
+                continue;
+            }
+
+            var period = Period(row.report.PeriodEnd);
+            var symbol = DisplaySymbol(row.company, row.report.ExternalCompanyId);
+            var insight = CreateInsight(
+                row.report.ExternalCompanyId,
+                symbol,
+                IndustryCode(row.company),
+                InsightType.CodalAnnouncementMatched,
+                score,
+                $"Codal monthly announcement matched for {symbol}",
+                $"Monthly activity announcement for period ending {period} matched an active Codal alert subscription.",
+                "A subscribed Codal monthly activity announcement was synchronized from the authoritative ingestion boundary.",
+                [
+                    new InsightEvidenceItem("Announcement type", CodalAnnouncementType.MonthlyActivity.ToString(), row.report.ProviderName, period, row.report.LastSynchronizedAt),
+                    new InsightEvidenceItem("Report type", row.report.ReportType ?? "MonthlyActivity", row.report.ProviderName, period, row.report.LastSynchronizedAt),
+                    new InsightEvidenceItem("Source checksum", row.report.SourcePayloadChecksum, row.report.ProviderName, period, row.report.LastSynchronizedAt)
+                ],
+                row.report.ProviderName,
+                InsightSourceEntityType.MonthlyReport,
+                row.report.ExternalReportId,
+                period,
+                context.DetectedAtUtc,
+                context.DetectedAtUtc.AddDays(30));
+            events.Add(insight);
+            await PublishIntentsAsync(
+                matching,
+                insight,
+                CodalAnnouncementType.MonthlyActivity,
+                row.report.ProviderName,
+                row.report.ExternalReportId,
+                period,
+                context,
+                cancellationToken);
+        }
+
+        return events
+            .GroupBy(item => item.DeduplicationKey, StringComparer.Ordinal)
+            .Select(group => group.OrderByDescending(item => item.ImportanceScore).First())
+            .ToArray();
+    }
+
+    private InsightScore ScoreStatement(NormalizedFinancialStatementRow statement)
+    {
+        var magnitude = statement.PeriodType.Equals("TwelveMonths", StringComparison.OrdinalIgnoreCase) ? 75m : 60m;
+        var rarity = statement.IsAudited ? 70m : 50m;
+        return Scoring.Score(new InsightScoringInput(magnitude, 92m, 90m, 95m, rarity));
+    }
+
+    private async Task PublishIntentsAsync(
+        IReadOnlyCollection<CodalAlertSubscription> subscriptions,
+        InsightEvent insight,
+        CodalAnnouncementType type,
+        string providerName,
+        string sourceEntityId,
+        string sourcePeriod,
+        InsightDetectionContext context,
+        CancellationToken cancellationToken)
+    {
+        foreach (var subscription in subscriptions)
+        {
+            var dedup = $"codal-alert:v1:{subscription.Id}:{type}:{providerName}:{sourceEntityId}:{sourcePeriod}:raw";
+            var payload = JsonSerializer.Serialize(new
+            {
+                insightEventId = insight.Id,
+                insightDeduplicationKey = insight.DeduplicationKey,
+                subscriptionId = subscription.Id,
+                externalCompanyId = insight.ExternalCompanyId,
+                symbol = insight.Symbol,
+                announcementType = type.ToString(),
+                title = insight.Title,
+                summary = insight.Summary,
+                evidence = insight.Evidence,
+                sourceProvider = providerName,
+                sourceEntityId,
+                sourcePeriod,
+                sourceFreshnessUtc = insight.DetectedAtUtc,
+                correlationId = insight.Id.ToString()
+            }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+            var notification = await notificationPublisher.EnqueueAsync(
+                new NotificationIntentRequest(
+                    new NotificationActor(subscription.Actor.TenantId, subscription.Actor.ActorId, subscription.Actor.ActorType),
+                    NotificationChannel.Telegram,
+                    "CodalAnnouncementMatched",
+                    $"{insight.ExternalCompanyId}:{sourceEntityId}:{sourcePeriod}",
+                    dedup,
+                    insight.Severity,
+                    payload,
+                    context.DetectedAtUtc,
+                    insight.ExpiresAtUtc,
+                    insight.Id.ToString()),
+                cancellationToken);
+
+            if (subscription.AiSummaryEnabled)
+            {
+                await EnsurePendingSummaryAsync(subscription, insight, notification.Id, cancellationToken);
+            }
+        }
+    }
+
+    private async Task EnsurePendingSummaryAsync(
+        CodalAlertSubscription subscription,
+        InsightEvent insight,
+        Guid notificationIntentId,
+        CancellationToken cancellationToken)
+    {
+        var exists = await DbContext.CodalAlertSummaries.AnyAsync(row =>
+            row.TenantId == subscription.Actor.TenantId &&
+            row.ActorId == subscription.Actor.ActorId &&
+            row.ActorType == subscription.Actor.ActorType &&
+            row.InsightEventId == insight.Id,
+            cancellationToken);
+        if (exists) return;
+
+        DbContext.CodalAlertSummaries.Add(new CodalAlertSummaryRow
+        {
+            Id = Guid.NewGuid(),
+            TenantId = subscription.Actor.TenantId,
+            ActorId = subscription.Actor.ActorId,
+            ActorType = subscription.Actor.ActorType,
+            InsightEventId = insight.Id,
+            NotificationIntentId = notificationIntentId,
+            Status = "Pending",
+            EvidenceHash = HashEvidence(insight),
+            PromptPolicyVersion = "codal-alert-summary-v1",
+            CreatedAtUtc = insight.DetectedAtUtc,
+            UpdatedAtUtc = insight.DetectedAtUtc
+        });
+        await DbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string HashEvidence(InsightEvent insight)
+    {
+        var input = JsonSerializer.Serialize(new { insight.SourceProviderName, insight.SourceEntityId, insight.SourcePeriod, insight.Evidence });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input))).ToLowerInvariant();
+    }
+
+    private static IReadOnlyCollection<CodalAlertSubscription> MatchingSubscriptions(
+        IReadOnlyDictionary<string, CodalAlertSubscription[]> subscriptions,
+        string externalCompanyId,
+        CodalAnnouncementType type,
+        InsightSeverity severity) =>
+        subscriptions.TryGetValue(externalCompanyId, out var rows)
+            ? rows.Where(subscription => subscription.RawAlertEnabled && subscription.Matches(type, severity)).ToArray()
+            : [];
 }
 
 internal sealed class DataFreshnessDetector(

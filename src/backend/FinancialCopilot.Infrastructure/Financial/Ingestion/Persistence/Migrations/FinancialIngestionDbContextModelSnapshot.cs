@@ -1048,6 +1048,145 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("FinancialStatementSourceItemMetricMappings", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CodalAlertSubscriptionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("AnnouncementTypesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("AiSummaryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MinimumImportance")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("RawAlertEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalCompanyId", "State")
+                        .HasDatabaseName("IX_CodalAlertSubscriptions_Company_State");
+
+                    b.HasIndex("TenantId", "ActorId", "ActorType")
+                        .HasDatabaseName("IX_CodalAlertSubscriptions_Actor");
+
+                    b.HasIndex("TenantId", "ActorId", "ActorType", "ExternalCompanyId")
+                        .IsUnique()
+                        .HasDatabaseName("UIX_CodalAlertSubscriptions_Actor_Company");
+
+                    b.ToTable("CodalAlertSubscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CodalAlertSummaryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("InsightEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ModelName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("NotificationIntentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PromptPolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProviderName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ReservationIdempotencyKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SummaryText")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationIntentId")
+                        .HasDatabaseName("IX_CodalAlertSummaries_NotificationIntentId");
+
+                    b.HasIndex("TenantId", "ActorId", "ActorType", "InsightEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UIX_CodalAlertSummaries_Actor_Insight");
+
+                    b.ToTable("CodalAlertSummaries", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FollowedSymbolRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2110,6 +2249,85 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsUnique();
 
                     b.ToTable("Companies", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NotificationIntentRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeduplicationKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NotBeforeUtc", "ExpiresAtUtc")
+                        .HasDatabaseName("IX_NotificationIntents_Due");
+
+                    b.HasIndex("TenantId", "ActorId", "ActorType", "CreatedAtUtc")
+                        .HasDatabaseName("IX_NotificationIntents_Actor_History");
+
+                    b.HasIndex("TenantId", "ActorId", "ActorType", "Channel", "DeduplicationKey")
+                        .IsUnique()
+                        .HasDatabaseName("UIX_NotificationIntents_Actor_Channel_Dedup");
+
+                    b.ToTable("NotificationIntents", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedFinancialStatementLineItemRow", b =>

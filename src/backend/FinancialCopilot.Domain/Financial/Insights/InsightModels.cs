@@ -8,6 +8,7 @@ public enum InsightType
     PriceMovement,
     ComprehensiveAnalysisPublished,
     FinancialStatementPublished,
+    CodalAnnouncementMatched,
     DataFreshnessWarning
 }
 

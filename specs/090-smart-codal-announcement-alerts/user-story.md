@@ -1,7 +1,7 @@
 # User Story — Smart Codal Announcement Alerts
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented
 
 ## Feature
 Notify users immediately when a relevant Codal announcement is published and optionally provide an evidence-bound AI summary.
@@ -62,7 +62,9 @@ Raw notification is deterministic and may be entitlement-based; AI summary is se
 ```text
 POST /api/v1/codal-alerts/me/subscriptions
 GET /api/v1/codal-alerts/me/subscriptions
+PUT /api/v1/codal-alerts/me/subscriptions/{id}
 DELETE /api/v1/codal-alerts/me/subscriptions/{id}
+POST /api/v1/codal-alerts/me/insights/{insightEventId}/summary
 ```
 
 ## Data Model Proposal
@@ -70,6 +72,11 @@ DELETE /api/v1/codal-alerts/me/subscriptions/{id}
 ```csharp
 CodalAlertSubscription { Id; ActorId; ExternalCompanyId; AnnouncementTypesJson; MinimumImportance; AiSummaryEnabled; CreatedAtUtc; }
 ```
+
+## Implementation Evidence
+
+- Implemented on 2026-07-13 with actor-scoped subscription CRUD, followed-symbol ownership validation, `CodalAnnouncementMatched` insight events, idempotent raw notification intents, Billing-backed AI summaries, correlated summary-ready intents, and Telegram assistant summary callback handling.
+- Validation passed: API Release build, `MarketInsight084Tests` unit slice, `MarketInsightEndpointTests` integration slice, and architecture tests.
 
 ## Security, Billing, and Compliance Rules
 

@@ -4,6 +4,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -16,6 +17,7 @@ public sealed class TelegramAiAssistantAdapter(
     AuthDbContext authDbContext,
     ITelegramIdentityLinkReader linkReader,
     ITelegramMembershipService membershipService,
+    IGenerateCodalAlertSummaryUseCase codalAlertSummaries,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -177,6 +179,13 @@ public sealed class TelegramAiAssistantAdapter(
                 null,
                 update.CorrelationId,
                 "واچ‌لیست شما در وب‌اپ در مسیر /followed-symbols در دسترس است. برای تلگرام فعلاً فقط پرسش متنی و پاسخ دستیار فعال شده است."),
+            "/codal_alerts" => BuildResult(
+                TelegramAssistantResultStatus.Accepted,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                "Codal alerts are managed from the web app at /codal-alerts. AI summary buttons use callback data calert.summary.v1:{insightEventId}."),
             "/market" => BuildResult(
                 TelegramAssistantResultStatus.Unsupported,
                 actor.ActorId,
@@ -204,6 +213,26 @@ public sealed class TelegramAiAssistantAdapter(
         {
             var entitlement = await membershipService.GetMyTelegramEntitlementAsync(actor, update.CorrelationId, cancellationToken);
             return BuildCreditsResult(actor, update.CorrelationId, entitlement);
+        }
+
+        const string codalSummaryPrefix = "calert.summary.v1:";
+        if (data is not null &&
+            data.StartsWith(codalSummaryPrefix, StringComparison.OrdinalIgnoreCase) &&
+            Guid.TryParse(data[codalSummaryPrefix.Length..], out var insightEventId))
+        {
+            var summary = await codalAlertSummaries.ExecuteAsync(
+                new GenerateCodalAlertSummaryCommand(actor, insightEventId, update.CorrelationId),
+                cancellationToken);
+            var text = summary.Status == "Completed"
+                ? $"AI summary is ready:\n\n{summary.SummaryText}\n\nEvidence hash: {summary.EvidenceHash}"
+                : $"AI summary is unavailable. Status: {summary.Status}. Reason: {summary.FailureReason ?? "not provided"}";
+            return BuildResult(
+                TelegramAssistantResultStatus.Accepted,
+                actor.ActorId,
+                actor.TenantId,
+                null,
+                update.CorrelationId,
+                text);
         }
 
         return BuildResult(

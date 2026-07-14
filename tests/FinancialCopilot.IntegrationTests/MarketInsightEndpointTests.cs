@@ -102,6 +102,92 @@ public sealed class MarketInsightEndpointTests : IClassFixture<MarketInsightApiF
     }
 
     [Fact]
+    public async Task CodalAlertSubscriptionCrud_RequiresFollowedSymbol_AndReturnsActorScopedSubscription()
+    {
+        using var user = UserClient();
+
+        using var rejected = await user.PostAsJsonAsync(
+            "/api/v1/codal-alerts/me/subscriptions",
+            new
+            {
+                externalCompanyId = "13226",
+                announcementTypes = new[] { "FinancialStatement" },
+                minimumImportance = "Notice",
+                rawAlertEnabled = true,
+                aiSummaryEnabled = false
+            },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+
+        await user.PostAsync("/api/v1/followed-symbols/me/13226", null, CancellationToken.None);
+        using var created = await user.PostAsJsonAsync(
+            "/api/v1/codal-alerts/me/subscriptions",
+            new
+            {
+                externalCompanyId = "13226",
+                announcementTypes = new[] { "FinancialStatement", "MonthlyActivity" },
+                minimumImportance = "Important",
+                rawAlertEnabled = true,
+                aiSummaryEnabled = false
+            },
+            CancellationToken.None);
+        using var createdDocument = await ReadJsonAsync(created);
+        var subscriptionId = createdDocument.RootElement.GetProperty("id").GetGuid();
+
+        using var list = await user.GetAsync("/api/v1/codal-alerts/me/subscriptions", CancellationToken.None);
+        using var listDocument = await ReadJsonAsync(list);
+        var items = listDocument.RootElement.GetProperty("items").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Single(items);
+        Assert.Equal(subscriptionId, items[0].GetProperty("id").GetGuid());
+        Assert.Equal("13226", items[0].GetProperty("externalCompanyId").GetString());
+        Assert.Equal("Important", items[0].GetProperty("minimumImportance").GetString());
+    }
+
+    [Fact]
+    public async Task CodalAlertSummary_GeneratesBillingBackedSummary_AndQueuesSummaryReadyIntent()
+    {
+        using var admin = DataAdminClient();
+        using var user = UserClient();
+        await user.PostAsync("/api/v1/followed-symbols/me/13226", null, CancellationToken.None);
+        await user.PostAsJsonAsync(
+            "/api/v1/codal-alerts/me/subscriptions",
+            new
+            {
+                externalCompanyId = "13226",
+                announcementTypes = new[] { "FinancialStatement" },
+                minimumImportance = "Notice",
+                rawAlertEnabled = true,
+                aiSummaryEnabled = true
+            },
+            CancellationToken.None);
+        await admin.PostAsJsonAsync("/api/v1/admin/insights/generate", new { lookbackDays = 7 }, CancellationToken.None);
+
+        using var feedResponse = await user.GetAsync("/api/v1/insights/followed-symbols/me?type=CodalAnnouncementMatched&take=1", CancellationToken.None);
+        using var feedDocument = await ReadJsonAsync(feedResponse);
+        var insightId = feedDocument.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .First()
+            .GetProperty("insight")
+            .GetProperty("id")
+            .GetGuid();
+
+        using var summaryResponse = await user.PostAsync($"/api/v1/codal-alerts/me/insights/{insightId}/summary", null, CancellationToken.None);
+        using var summaryDocument = await ReadJsonAsync(summaryResponse);
+
+        Assert.Equal(HttpStatusCode.OK, summaryResponse.StatusCode);
+        Assert.Equal("Completed", summaryDocument.RootElement.GetProperty("status").GetString());
+        Assert.NotEmpty(summaryDocument.RootElement.GetProperty("evidenceHash").GetString() ?? string.Empty);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        Assert.Contains(db.NotificationIntents, row => row.EventType == "CodalAlertSummaryReady");
+    }
+
+    [Fact]
     public async Task DismissInsight_HidesItUnlessIncludeDismissed()
     {
         using var admin = DataAdminClient();
@@ -240,6 +326,9 @@ public sealed class MarketInsightApiFactory : AiFacadeApiFactory
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
         db.Database.EnsureCreated();
         db.UserInsightStates.RemoveRange(db.UserInsightStates);
+        db.CodalAlertSummaries.RemoveRange(db.CodalAlertSummaries);
+        db.NotificationIntents.RemoveRange(db.NotificationIntents);
+        db.CodalAlertSubscriptions.RemoveRange(db.CodalAlertSubscriptions);
         db.FollowedSymbols.RemoveRange(db.FollowedSymbols);
         db.InsightEvents.RemoveRange(db.InsightEvents);
         db.MonthlyReports.RemoveRange(db.MonthlyReports);

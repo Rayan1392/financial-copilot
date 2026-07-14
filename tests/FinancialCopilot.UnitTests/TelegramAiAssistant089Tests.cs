@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
+using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Identity.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
@@ -100,6 +101,7 @@ public sealed class TelegramAiAssistant089Tests
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
             membership ?? new FakeTelegramMembershipService(),
+            new FakeCodalAlertSummaryUseCase(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -225,6 +227,24 @@ public sealed class TelegramAiAssistant089Tests
                 null,
                 new UsageAccountingResult("AiQuery.StockAnalysis", "Completed", 1, 9, "v1", false)));
         }
+    }
+
+    private sealed class FakeCodalAlertSummaryUseCase : IGenerateCodalAlertSummaryUseCase
+    {
+        public Task<CodalAlertSummaryDto> ExecuteAsync(
+            GenerateCodalAlertSummaryCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new CodalAlertSummaryDto(
+                Guid.NewGuid(),
+                command.InsightEventId,
+                "Unavailable",
+                null,
+                "stub",
+                "codal-alert-summary-v1",
+                null,
+                null,
+                "Not configured in this unit test.",
+                DateTimeOffset.UtcNow));
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

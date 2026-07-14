@@ -1,7 +1,10 @@
 using FinancialCopilot.Application.FinancialData.Insights;
+using FinancialCopilot.Domain.Financial.CodalAlerts;
 using FinancialCopilot.Domain.Financial.Insights;
+using FinancialCopilot.Infrastructure.Financial.CodalAlerts;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Insights;
+using FinancialCopilot.Infrastructure.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -68,15 +71,18 @@ public sealed class MarketInsight084Tests
         var second = await useCase.ExecuteAsync(new GenerateMarketInsightsRequest(LookbackDays: 7));
         var feed = await repository.QueryAsync(new InsightFeedQuery(Take: 20));
 
-        Assert.Equal(7, first.DetectorsRun);
-        Assert.Equal(7, second.DetectorsRun);
-        Assert.Equal(7, feed.TotalCount);
+        Assert.Equal(8, first.DetectorsRun);
+        Assert.Equal(8, second.DetectorsRun);
+        Assert.Equal(8, feed.TotalCount);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.MonthlyReportPublished);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.MonthlySalesAnomaly);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.MonthlyQualityRankingChange);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.PriceMovement);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.ComprehensiveAnalysisPublished);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.FinancialStatementPublished);
+        Assert.Contains(feed.Items, item => item.InsightType == InsightType.CodalAnnouncementMatched);
+        Assert.Single(db.NotificationIntents);
+        Assert.Equal("CodalAnnouncementMatched", db.NotificationIntents.Single().EventType);
         Assert.Contains(feed.Items, item => item.InsightType == InsightType.DataFreshnessWarning);
         Assert.All(feed.Items, item => Assert.NotEmpty(item.Evidence));
         Assert.All(feed.Items, item => Assert.DoesNotContain("buy", item.Summary, StringComparison.OrdinalIgnoreCase));
@@ -118,6 +124,12 @@ public sealed class MarketInsight084Tests
             new PriceMovementDetector(db, scoring, policy),
             new ComprehensiveAnalysisPublishedDetector(db, scoring, policy),
             new FinancialStatementPublishedDetector(db, scoring, policy),
+            new SubscribedCodalAnnouncementDetector(
+                db,
+                scoring,
+                policy,
+                new EfCoreCodalAlertSubscriptionRepository(db),
+                new EfCoreNotificationIntentPublisher(db, new FixedTimeProvider(Now))),
             new DataFreshnessDetector(db, scoring, policy)
         ];
     }
@@ -317,6 +329,22 @@ public sealed class MarketInsight084Tests
             IsAudited = false,
             IsRepresented = false,
             IsComposing = false
+        });
+
+        db.CodalAlertSubscriptions.Add(new CodalAlertSubscriptionRow
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            ActorId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+            ActorType = "User",
+            ExternalCompanyId = "13226",
+            AnnouncementTypesJson = """["FinancialStatement"]""",
+            MinimumImportance = CodalAnnouncementImportance.Notice.ToString(),
+            RawAlertEnabled = true,
+            AiSummaryEnabled = false,
+            State = CodalAlertSubscriptionState.Active.ToString(),
+            CreatedAtUtc = Now,
+            UpdatedAtUtc = Now
         });
 
         db.NadpcoApiSyncStates.Add(new NadpcoApiSyncStateRow

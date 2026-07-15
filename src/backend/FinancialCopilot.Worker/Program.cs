@@ -74,6 +74,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
 builder.Services.AddHostedService<TelegramDevPollingWorker>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
+builder.Services.AddHostedService<AlertHistoryHandoffWorker>();
 builder.Services
     .AddOptions<NadpcoScheduledSyncOptions>()
     .BindConfiguration(NadpcoScheduledSyncOptions.SectionName)

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Notifications;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -61,6 +62,54 @@ public sealed class NotificationEndpointTests : IClassFixture<FollowedSymbolsApi
         Assert.Equal("Delivered", item.GetProperty("status").GetString());
         Assert.Equal("evidence:actor", item.GetProperty("evidenceReference").GetString());
         Assert.False(body.RootElement.GetProperty("hasMore").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Alert_history_endpoint_consumes_handoff_and_preserves_actor_isolation()
+    {
+        Guid alertId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            var intent = Intent(AuthenticationApiFactory.UserId, "evidence:alert-history");
+            db.NotificationIntents.Add(intent);
+            db.NotificationOutcomeHandoffs.Add(new NotificationOutcomeHandoffRow
+            {
+                Id = Guid.NewGuid(),
+                NotificationIntentId = intent.Id,
+                Sequence = 1,
+                TenantId = intent.TenantId,
+                ActorId = intent.ActorId,
+                ActorType = intent.ActorType,
+                TerminalStatus = "Delivered",
+                Reason = "None",
+                EvidenceReference = intent.EvidenceReference,
+                CorrelationId = intent.CorrelationId ?? "corr-alert-history",
+                Status = "Pending",
+                CreatedAtUtc = DateTimeOffset.Parse("2026-07-10T08:00:00Z")
+            });
+            db.SaveChanges();
+            var processor = scope.ServiceProvider.GetRequiredService<IAlertOutcomeHandoffProcessor>();
+            var processed = await processor.ProcessPendingAsync(10, CancellationToken.None);
+            Assert.Equal(1, processed.Created);
+            alertId = db.UserAlertRecords.Single().Id;
+        }
+
+        using var client = UserClient();
+        using var history = await client.GetAsync("/api/v1/alerts/me/history?pageSize=10", CancellationToken.None);
+        using var historyBody = await Json(history);
+        using var detail = await client.GetAsync($"/api/v1/alerts/me/{alertId:D}", CancellationToken.None);
+        using var detailBody = await Json(detail);
+        using var notFound = await client.GetAsync($"/api/v1/alerts/me/{Guid.NewGuid():D}", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, history.StatusCode);
+        var item = Assert.Single(historyBody.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(alertId, item.GetProperty("id").GetGuid());
+        Assert.Equal("Delivered", item.GetProperty("deliveryStatus").GetString());
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("evidence:alert-history", detailBody.RootElement.GetProperty("evidenceReference").GetString());
+        Assert.NotEmpty(detailBody.RootElement.GetProperty("evidenceSnapshotJson").GetString()!);
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
     }
 
     [Fact]
@@ -136,6 +185,9 @@ public sealed class NotificationEndpointTests : IClassFixture<FollowedSymbolsApi
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
         db.NotificationOperationAudits.RemoveRange(db.NotificationOperationAudits);
+        db.UserAlertReactionSnapshots.RemoveRange(db.UserAlertReactionSnapshots);
+        db.UserAlertDeliveryTimeline.RemoveRange(db.UserAlertDeliveryTimeline);
+        db.UserAlertRecords.RemoveRange(db.UserAlertRecords);
         db.NotificationIntents.AddRange(
             Intent(AuthenticationApiFactory.UserId, "evidence:actor"),
             Intent(Guid.NewGuid(), "evidence:other"));
@@ -161,6 +213,9 @@ public sealed class NotificationEndpointTests : IClassFixture<FollowedSymbolsApi
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
         db.NotificationOutcomeHandoffs.RemoveRange(db.NotificationOutcomeHandoffs);
+        db.UserAlertReactionSnapshots.RemoveRange(db.UserAlertReactionSnapshots);
+        db.UserAlertDeliveryTimeline.RemoveRange(db.UserAlertDeliveryTimeline);
+        db.UserAlertRecords.RemoveRange(db.UserAlertRecords);
         db.NotificationDeliveryAttempts.RemoveRange(db.NotificationDeliveryAttempts);
         db.NotificationCategoryPreferences.RemoveRange(db.NotificationCategoryPreferences);
         db.NotificationSymbolPreferences.RemoveRange(db.NotificationSymbolPreferences);

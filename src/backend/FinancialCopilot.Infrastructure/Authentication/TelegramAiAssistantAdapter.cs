@@ -34,6 +34,7 @@ public sealed class TelegramAiAssistantAdapter(
     IProfessionalScannerUseCases professionalScanners,
     IMarketReportService marketReports,
     INotificationUseCases notificationUseCases,
+    IAlertHistoryUseCases alertHistoryUseCases,
     IBillingPurchaseUseCases billingPurchases,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
@@ -191,6 +192,8 @@ public sealed class TelegramAiAssistantAdapter(
                 /report - latest published market report
                 /digest - generate your evidence-bound followed-symbol digest
                 /notifications - notification mode, quiet hours, severity, categories, symbols and daily cap
+                /alerts - alert history and explanations
+                /alert ALERT_ID - alert detail
                 /plans - Telegram subscription and credit products
                 /buy PRODUCT_CODE - create a manual receipt checkout
                 /receipt CHECKOUT_ID VERSION Image|Document RECEIPT_REFERENCE - submit receipt metadata
@@ -232,6 +235,8 @@ public sealed class TelegramAiAssistantAdapter(
             "/digest" => await HandlePersonalDigestCommandAsync(update, actor, cancellationToken),
             "/notifications" or "/settings" => await HandleNotificationSettingsCommandAsync(
                 text, update, actor, cancellationToken),
+            "/alerts" => await HandleAlertsCommandAsync(text, update, actor, cancellationToken),
+            "/alert" => await HandleAlertDetailCommandAsync(text, update, actor, cancellationToken),
             "/market" => BuildResult(
                 TelegramAssistantResultStatus.Unsupported,
                 actor.ActorId,
@@ -594,6 +599,80 @@ public sealed class TelegramAiAssistantAdapter(
         if (message.Contains("plan", StringComparison.OrdinalIgnoreCase))
             return "طرح اشتراک فعال اجازه مدیریت یا ارسال اعلان تلگرام را نمی‌دهد.";
         return $"تنظیمات اعلان نامعتبر است: {message}";
+    }
+
+    private async Task<TelegramAssistantResult> HandleAlertsCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var symbol = parts.Length >= 2 ? parts[1] : null;
+        var page = await alertHistoryUseCases.GetHistoryAsync(new AlertHistoryQuery(
+            actor, PageSize: 5, SymbolKey: symbol), cancellationToken);
+        if (page.Items.Count == 0)
+            return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+                null, update.CorrelationId, "No alert history records were found for your account.");
+
+        var builder = new StringBuilder("Alert history:\n");
+        foreach (var item in page.Items)
+        {
+            builder.AppendLine($"- {item.CreatedAtUtc:yyyy-MM-dd HH:mm} {item.SymbolKey} {item.EventType} [{item.DeliveryStatus}]");
+            builder.AppendLine($"  id: {item.Id:N}");
+            builder.AppendLine($"  why: {BoundedTelegram(item.WhyText, 220)}");
+        }
+        builder.AppendLine("Use /alert ALERT_ID for immutable evidence, why text, reactions, dismiss and mute actions.");
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+            null, update.CorrelationId, builder.ToString(),
+            page.Items.Take(5).Select(item => new TelegramAssistantAction(
+                $"{item.SymbolKey} details", $"ah.detail.v1:{item.Id:N}")).ToArray());
+    }
+
+    private async Task<TelegramAssistantResult> HandleAlertDetailCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 || !Guid.TryParse(parts[1], out var alertId))
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                null, update.CorrelationId, "Usage: /alert ALERT_ID");
+        return await RenderAlertDetailAsync(alertId, update, actor, cancellationToken);
+    }
+
+    private async Task<TelegramAssistantResult> RenderAlertDetailAsync(
+        Guid alertId,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var detail = await alertHistoryUseCases.GetDetailAsync(actor, alertId, cancellationToken);
+        if (detail is null)
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                null, update.CorrelationId, "Alert was not found for your account.");
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"{detail.Record.SymbolKey} {detail.Record.EventType}");
+        builder.AppendLine($"Status: {detail.Record.DeliveryStatus}; reason: {detail.Record.DeliveryReason}");
+        builder.AppendLine($"Created: {detail.Record.CreatedAtUtc:O}");
+        builder.AppendLine($"Evidence hash: {detail.Record.EvidenceHash}");
+        builder.AppendLine($"Why: {BoundedTelegram(detail.Record.WhyText, 900)}");
+        foreach (var reaction in detail.Reactions)
+            builder.AppendLine($"Reaction {reaction.HorizonCode}: {reaction.Status} - {reaction.Reason}");
+        builder.AppendLine("Dismiss affects this record only. Mute changes future notifications and requires confirmation.");
+
+        var id = detail.Record.Id.ToString("N");
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+            null, update.CorrelationId, builder.ToString(),
+            [
+                new TelegramAssistantAction("Why", $"ah.why.v1:{id}"),
+                new TelegramAssistantAction("Dismiss", $"ah.dismiss.v1:{id}"),
+                new TelegramAssistantAction("Mute symbol", $"ah.mute.symbol.v1:{id}"),
+                new TelegramAssistantAction("Helpful", $"ah.feedback.v1:{id}:helpful"),
+                new TelegramAssistantAction("Not useful", $"ah.feedback.v1:{id}:not_useful")
+            ]);
     }
 
     private async Task<TelegramAssistantResult> HandleLatestMarketReportCommandAsync(
@@ -1236,6 +1315,64 @@ public sealed class TelegramAiAssistantAdapter(
         };
     }
 
+    private async Task<TelegramAssistantResult> HandleAlertHistoryCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = data.Split(':');
+        if (parts.Length < 2 || !Guid.TryParseExact(parts[1], "N", out var alertId))
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                null, update.CorrelationId, "Alert callback is malformed or stale.");
+
+        if (data.StartsWith("ah.detail.v1:", StringComparison.OrdinalIgnoreCase))
+            return await RenderAlertDetailAsync(alertId, update, actor, cancellationToken);
+        if (data.StartsWith("ah.why.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var why = await alertHistoryUseCases.GetWhyAsync(actor, alertId, cancellationToken);
+            return why is null
+                ? BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert was not found for your account.")
+                : BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId,
+                    $"{why.WhyText}\n\nEvidence hash: {why.EvidenceHash}\nMethodology: {why.Methodology}");
+        }
+        if (data.StartsWith("ah.dismiss.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var detail = await alertHistoryUseCases.DismissAsync(new DismissAlertCommand(
+                actor, alertId, update.CorrelationId), cancellationToken);
+            return detail is null
+                ? BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert was not found for your account.")
+                : BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert dismissed. This does not mute future notifications.");
+        }
+        if (data.StartsWith("ah.mute.symbol.v1:", StringComparison.OrdinalIgnoreCase))
+        {
+            var detail = await alertHistoryUseCases.MuteAsync(new MuteAlertCommand(
+                actor, alertId, "Symbol", Confirmed: true, update.CorrelationId), cancellationToken);
+            return detail is null
+                ? BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert was not found for your account.")
+                : BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, $"Future notifications for {detail.Record.SymbolKey} were muted.");
+        }
+        if (data.StartsWith("ah.feedback.v1:", StringComparison.OrdinalIgnoreCase) && parts.Length == 3)
+        {
+            var detail = await alertHistoryUseCases.RecordFeedbackAsync(new FeedbackAlertCommand(
+                actor, alertId, parts[2], update.CorrelationId), cancellationToken);
+            return detail is null
+                ? BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert was not found for your account.")
+                : BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+                    null, update.CorrelationId, "Alert feedback recorded.");
+        }
+
+        return BuildResult(TelegramAssistantResultStatus.Unsupported, actor.ActorId, actor.TenantId,
+            null, update.CorrelationId, "Alert callback operation is not supported.");
+    }
+
     private async Task<TelegramAssistantResult> HandleCallbackAsync(
         TelegramAssistantUpdate update,
         CurrentActor actor,
@@ -1261,6 +1398,11 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("nt.", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleNotificationSettingsCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("ah.", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleAlertHistoryCallbackAsync(data, update, actor, cancellationToken);
         }
 
         if (data is not null && data.StartsWith("pf.cat.v1:", StringComparison.OrdinalIgnoreCase))
@@ -1289,9 +1431,9 @@ public sealed class TelegramAiAssistantAdapter(
                 {
                     return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
                         null, update.CorrelationId, exception.Message);
-                }
             }
         }
+    }
 
         if (data is not null && data.StartsWith("pf.saved.v1:", StringComparison.OrdinalIgnoreCase))
         {
@@ -1752,6 +1894,12 @@ public sealed class TelegramAiAssistantAdapter(
         >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
         _ => ch
     };
+
+    private static string BoundedTelegram(string value, int maximumLength)
+    {
+        if (value.Length <= maximumLength) return value;
+        return value[..Math.Max(0, maximumLength - 1)] + "…";
+    }
 
     private static string FormatDecimal(decimal value) =>
         value.ToString("0.##", CultureInfo.InvariantCulture);

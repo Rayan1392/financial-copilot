@@ -96,6 +96,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CodalAlertSummaryRow> CodalAlertSummaries => Set<CodalAlertSummaryRow>();
 
+    public DbSet<UserAlertRecordRow> UserAlertRecords => Set<UserAlertRecordRow>();
+
+    public DbSet<UserAlertDeliveryTimelineRow> UserAlertDeliveryTimeline => Set<UserAlertDeliveryTimelineRow>();
+
+    public DbSet<UserAlertReactionSnapshotRow> UserAlertReactionSnapshots => Set<UserAlertReactionSnapshotRow>();
+
     public DbSet<MissingAnswerFeedbackRow> MissingAnswerFeedbacks => Set<MissingAnswerFeedbackRow>();
 
     public DbSet<CompanyProductRevenueMixRow> CompanyProductRevenueMix => Set<CompanyProductRevenueMixRow>();

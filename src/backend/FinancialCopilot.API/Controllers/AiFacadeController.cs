@@ -6,6 +6,7 @@ using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
+using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Application.Scanner;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +22,8 @@ public sealed class AiFacadeController(
     ICurrentActorContext actorContext,
     IAiQueryOrchestrationService orchestrationService,
     IConversationRepository conversationRepository,
-    IMessageRepository messageRepository) : ControllerBase
+    IMessageRepository messageRepository,
+    IAlertHistoryUseCases alertHistory) : ControllerBase
 {
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(
@@ -37,12 +39,20 @@ public sealed class AiFacadeController(
         var actor = actorContext.Actor;
         var correlationId = HttpContext.TraceIdentifier;
 
+        var message = httpRequest.Message;
+        if (httpRequest.Context?.AlertId is Guid alertId)
+        {
+            var alertContext = await alertHistory.BuildAiContextAsync(actor, alertId, cancellationToken);
+            if (alertContext is null) return NotFound();
+            message = $"{alertContext}\n\nUser question:\n{httpRequest.Message}";
+        }
+
         AiQueryResponse result;
         try
         {
             result = await orchestrationService.ExecuteAsync(
                 new AiQueryRequest(
-                    httpRequest.Message,
+                    message,
                     actor.TenantId,
                     actor.ActorId,
                     correlationId,
@@ -55,7 +65,7 @@ public sealed class AiFacadeController(
                     AuthenticationMode: actor.AuthenticationMode,
                     Context: httpRequest.Context is null
                         ? null
-                        : new AiQueryContext(httpRequest.Context.InsightEventId)),
+                        : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId)),
                 cancellationToken);
         }
         catch (ConversationNotFoundException)

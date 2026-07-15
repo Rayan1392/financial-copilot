@@ -171,3 +171,77 @@ public sealed class CodalAlertSummaryRow
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }
+
+public sealed class UserAlertRecordRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ActorId { get; set; }
+    public string ActorType { get; set; } = string.Empty;
+    public Guid NotificationIntentId { get; set; }
+    public Guid OutcomeHandoffId { get; set; }
+    public int OutcomeSequence { get; set; }
+    public Guid? SourceEventId { get; set; }
+    public Guid? AlertRuleId { get; set; }
+    public Guid? AlertRuleTriggerId { get; set; }
+    public string SymbolKey { get; set; } = string.Empty;
+    public string EventType { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Severity { get; set; } = string.Empty;
+    public string DeliveryStatus { get; set; } = string.Empty;
+    public string DeliveryReason { get; set; } = string.Empty;
+    public DateTimeOffset? DeliveredAtUtc { get; set; }
+    public DateTimeOffset? SuppressedAtUtc { get; set; }
+    public DateTimeOffset? DeadLetteredAtUtc { get; set; }
+    public DateTimeOffset TerminalAtUtc { get; set; }
+    public string? EvidenceReference { get; set; }
+    public string EvidenceSnapshotJson { get; set; } = "{}";
+    public string EvidenceHash { get; set; } = string.Empty;
+    public string DetectorVersion { get; set; } = string.Empty;
+    public int? RuleVersion { get; set; }
+    public int? PreferenceVersion { get; set; }
+    public string PolicyVersion { get; set; } = string.Empty;
+    public string WhyText { get; set; } = string.Empty;
+    public string SimilarityKey { get; set; } = string.Empty;
+    public DateTimeOffset? DismissedAtUtc { get; set; }
+    public DateTimeOffset? RestoredAtUtc { get; set; }
+    public DateTimeOffset? MutedAtUtc { get; set; }
+    public string? MutedScope { get; set; }
+    public string? Feedback { get; set; }
+    public DateTimeOffset? FeedbackAtUtc { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset RetainEvidenceUntilUtc { get; set; }
+    public DateTimeOffset RetainFeedbackUntilUtc { get; set; }
+    public DateTimeOffset? RedactedAtUtc { get; set; }
+}
+
+public sealed class UserAlertDeliveryTimelineRow
+{
+    public Guid Id { get; set; }
+    public Guid UserAlertRecordId { get; set; }
+    public Guid NotificationIntentId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public int? AttemptNumber { get; set; }
+    public string? ProviderMessageId { get; set; }
+    public string? ErrorCode { get; set; }
+    public DateTimeOffset OccurredAtUtc { get; set; }
+}
+
+public sealed class UserAlertReactionSnapshotRow
+{
+    public Guid Id { get; set; }
+    public Guid UserAlertRecordId { get; set; }
+    public string HorizonCode { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string CalculationVersion { get; set; } = string.Empty;
+    public decimal? AnchorPrice { get; set; }
+    public DateTimeOffset? AnchorAtUtc { get; set; }
+    public decimal? ReactionPercent { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public DateTimeOffset? CalculatedAtUtc { get; set; }
+    public string InputRevision { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+}

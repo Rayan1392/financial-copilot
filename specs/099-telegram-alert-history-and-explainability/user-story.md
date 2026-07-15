@@ -1,7 +1,7 @@
 # User Story — Telegram Alert History and Explainability
 
 ## Status
-`[ ]` Proposed
+`[x] Implemented`
 
 ## Feature
 Let users review previous alerts, understand why each alert fired, and inspect its evidence and subsequent market reaction.

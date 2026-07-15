@@ -10,7 +10,8 @@ public sealed record AiQueryHttpRequest(
     AiQueryContextHttpRequest? Context = null);
 
 public sealed record AiQueryContextHttpRequest(
-    Guid? InsightEventId = null);
+    Guid? InsightEventId = null,
+    Guid? AlertId = null);
 
 public sealed record AiQueryHttpResponse(
     Guid ConversationId,

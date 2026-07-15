@@ -53,7 +53,8 @@ public sealed record AiQueryRequest(
     AiQueryContext? Context = null);
 
 public sealed record AiQueryContext(
-    Guid? InsightEventId = null);
+    Guid? InsightEventId = null,
+    Guid? AlertId = null);
 
 public sealed record AiQueryResponse(
     Guid ConversationId,

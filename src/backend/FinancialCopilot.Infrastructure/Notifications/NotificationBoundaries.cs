@@ -76,3 +76,15 @@ public sealed class TelegramNotificationOptions
     public string BaseUrl { get; set; } = "https://api.telegram.org";
     public int RequestTimeoutSeconds { get; set; } = 30;
 }
+
+public sealed class AlertHistoryOptions
+{
+    public const string SectionName = "Alerts:History";
+    public bool Enabled { get; set; } = true;
+    public int IntervalSeconds { get; set; } = 15;
+    public int HandoffBatchSize { get; set; } = 100;
+    public int EvidenceRetentionDays { get; set; } = 730;
+    public int FeedbackRetentionDays { get; set; } = 365;
+    public int MaximumPageSize { get; set; } = 100;
+    public int MaximumQueryRangeDays { get; set; } = 730;
+}

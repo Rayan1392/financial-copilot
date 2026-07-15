@@ -288,6 +288,7 @@ public sealed class TelegramAiAssistant089Tests
         IProfessionalScannerUseCases? professionalScanners = null,
         IMarketReportService? marketReports = null,
         INotificationUseCases? notificationUseCases = null,
+        IAlertHistoryUseCases? alertHistoryUseCases = null,
         IBillingPurchaseUseCases? billingPurchases = null) =>
         new(
             db,
@@ -299,6 +300,7 @@ public sealed class TelegramAiAssistant089Tests
             professionalScanners ?? new FakeProfessionalScannerUseCases(),
             marketReports ?? new FakeMarketReportService(),
             notificationUseCases ?? new FakeNotificationUseCases(),
+            alertHistoryUseCases ?? new FakeAlertHistoryUseCases(),
             billingPurchases ?? new FakeBillingPurchaseUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
@@ -618,6 +620,38 @@ public sealed class TelegramAiAssistant089Tests
             NotificationDeliveryMode.Immediate, new TimeOnly(23, 0), new TimeOnly(7, 0),
             InsightSeverity.Notice, 20, new TimeOnly(18, 0), 30, 0, [], [],
             NotificationPreferencePolicy.Version, "test", DateTimeOffset.UtcNow);
+    }
+
+    private sealed class FakeAlertHistoryUseCases : IAlertHistoryUseCases
+    {
+        public Task<AlertHistoryPage> GetHistoryAsync(AlertHistoryQuery query, CancellationToken cancellationToken) =>
+            Task.FromResult(new AlertHistoryPage([], null, query.PageSize, false, "test retention"));
+
+        public Task<UserAlertDetailDto?> GetDetailAsync(CurrentActor actor, Guid alertId, CancellationToken cancellationToken) =>
+            Task.FromResult<UserAlertDetailDto?>(null);
+
+        public Task<AlertWhyDto?> GetWhyAsync(CurrentActor actor, Guid alertId, CancellationToken cancellationToken) =>
+            Task.FromResult<AlertWhyDto?>(null);
+
+        public Task<UserAlertDetailDto?> DismissAsync(DismissAlertCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult<UserAlertDetailDto?>(null);
+
+        public Task<UserAlertDetailDto?> RestoreAsync(RestoreAlertCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult<UserAlertDetailDto?>(null);
+
+        public Task<UserAlertDetailDto?> RecordFeedbackAsync(FeedbackAlertCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult<UserAlertDetailDto?>(null);
+
+        public Task<UserAlertDetailDto?> MuteAsync(MuteAlertCommand command, CancellationToken cancellationToken) =>
+            Task.FromResult<UserAlertDetailDto?>(null);
+
+        public Task<IReadOnlyCollection<AlertReactionDto>> RefreshReactionAsync(
+            RefreshAlertReactionCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<AlertReactionDto>>([]);
+
+        public Task<string?> BuildAiContextAsync(CurrentActor actor, Guid alertId, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
     }
 
     private sealed class FakeBillingPurchaseUseCases : IBillingPurchaseUseCases

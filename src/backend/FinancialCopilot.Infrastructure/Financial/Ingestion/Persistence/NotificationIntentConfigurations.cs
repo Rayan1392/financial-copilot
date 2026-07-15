@@ -197,3 +197,100 @@ public sealed class CodalAlertSummaryRowConfiguration : IEntityTypeConfiguration
             .HasDatabaseName("IX_CodalAlertSummaries_NotificationIntentId");
     }
 }
+
+public sealed class UserAlertRecordRowConfiguration : IEntityTypeConfiguration<UserAlertRecordRow>
+{
+    public void Configure(EntityTypeBuilder<UserAlertRecordRow> builder)
+    {
+        builder.ToTable("UserAlertRecords");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ActorType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.SymbolKey).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.EventType).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.Category).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.Severity).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.DeliveryStatus).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.DeliveryReason).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.EvidenceReference).HasMaxLength(512);
+        builder.Property(row => row.EvidenceSnapshotJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(row => row.EvidenceHash).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.DetectorVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.PolicyVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.WhyText).HasMaxLength(4000).IsRequired();
+        builder.Property(row => row.SimilarityKey).HasMaxLength(512).IsRequired();
+        builder.Property(row => row.MutedScope).HasMaxLength(32);
+        builder.Property(row => row.Feedback).HasMaxLength(1000);
+        builder.Property(row => row.CorrelationId).HasMaxLength(128).IsRequired();
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.CreatedAtUtc, row.Id })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Cursor");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.SymbolKey, row.CreatedAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Symbol");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.Category, row.EventType })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Category_Type");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.DeliveryStatus, row.CreatedAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Delivery");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.DismissedAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Dismissed");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.MutedAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Muted");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.FeedbackAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Actor_Feedback");
+        builder.HasIndex(row => row.SourceEventId)
+            .HasDatabaseName("IX_UserAlertRecords_SourceEventId");
+        builder.HasIndex(row => new { row.NotificationIntentId, row.OutcomeSequence })
+            .IsUnique()
+            .HasDatabaseName("UIX_UserAlertRecords_Intent_Sequence");
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ActorType, row.SimilarityKey, row.CreatedAtUtc })
+            .HasDatabaseName("IX_UserAlertRecords_Similarity");
+        builder.HasOne<NotificationIntentRow>().WithMany().HasForeignKey(row => row.NotificationIntentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<NotificationOutcomeHandoffRow>().WithMany().HasForeignKey(row => row.OutcomeHandoffId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<InsightEventRow>().WithMany().HasForeignKey(row => row.SourceEventId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<AlertRuleRow>().WithMany().HasForeignKey(row => row.AlertRuleId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<AlertRuleTriggerRow>().WithMany().HasForeignKey(row => row.AlertRuleTriggerId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+public sealed class UserAlertDeliveryTimelineRowConfiguration : IEntityTypeConfiguration<UserAlertDeliveryTimelineRow>
+{
+    public void Configure(EntityTypeBuilder<UserAlertDeliveryTimelineRow> builder)
+    {
+        builder.ToTable("UserAlertDeliveryTimeline");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Reason).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.ProviderMessageId).HasMaxLength(128);
+        builder.Property(row => row.ErrorCode).HasMaxLength(64);
+        builder.HasIndex(row => new { row.UserAlertRecordId, row.OccurredAtUtc })
+            .HasDatabaseName("IX_UserAlertDeliveryTimeline_Record_Time");
+        builder.HasOne<UserAlertRecordRow>().WithMany().HasForeignKey(row => row.UserAlertRecordId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<NotificationIntentRow>().WithMany().HasForeignKey(row => row.NotificationIntentId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class UserAlertReactionSnapshotRowConfiguration : IEntityTypeConfiguration<UserAlertReactionSnapshotRow>
+{
+    public void Configure(EntityTypeBuilder<UserAlertReactionSnapshotRow> builder)
+    {
+        builder.ToTable("UserAlertReactionSnapshots");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.HorizonCode).HasMaxLength(16).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.CalculationVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.Reason).HasMaxLength(512).IsRequired();
+        builder.Property(row => row.InputRevision).HasMaxLength(128).IsRequired();
+        builder.HasIndex(row => new { row.UserAlertRecordId, row.HorizonCode, row.InputRevision })
+            .IsUnique()
+            .HasDatabaseName("UIX_UserAlertReactionSnapshots_Record_Horizon_Input");
+        builder.HasIndex(row => new { row.Status, row.UpdatedAtUtc })
+            .HasDatabaseName("IX_UserAlertReactionSnapshots_Status_Updated");
+        builder.HasOne<UserAlertRecordRow>().WithMany().HasForeignKey(row => row.UserAlertRecordId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

@@ -1142,6 +1142,16 @@ public static class ServiceCollectionExtensions
                                  options.DeliveryAuditRetentionDays >= options.TransportErrorRetentionDays,
                 "Notification dispatcher settings must be positive and bounded.")
             .ValidateOnStart();
+        services.AddOptions<AlertHistoryOptions>()
+            .BindConfiguration(AlertHistoryOptions.SectionName)
+            .Validate(options => options.IntervalSeconds is > 0 and <= 3600 &&
+                                 options.HandoffBatchSize is > 0 and <= 1000 &&
+                                 options.EvidenceRetentionDays is >= 30 and <= 3650 &&
+                                 options.FeedbackRetentionDays is >= 30 and <= 3650 &&
+                                 options.MaximumPageSize is > 0 and <= 500 &&
+                                 options.MaximumQueryRangeDays is > 0 and <= 3650,
+                "Alert history settings must be positive and bounded.")
+            .ValidateOnStart();
         services.AddOptions<TelegramNotificationOptions>()
             .BindConfiguration(TelegramNotificationOptions.SectionName);
         services.AddScoped<INotificationEntitlementPolicy, NotificationEntitlementPolicy>();
@@ -1149,6 +1159,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationUseCases, NotificationUseCases>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<INotificationOperations, NotificationOperations>();
+        services.AddScoped<AlertHistoryUseCases>();
+        services.AddScoped<IAlertHistoryUseCases>(provider => provider.GetRequiredService<AlertHistoryUseCases>());
+        services.AddScoped<IAlertOutcomeHandoffProcessor>(provider => provider.GetRequiredService<AlertHistoryUseCases>());
         services.AddScoped<ITelegramNotificationTransport, TelegramNotificationTransport>();
         services.AddScoped<IAlertRuleRepository, EfCoreAlertRuleRepository>();
         services.AddScoped<IGovernedAlertRuleParser, GovernedAlertRuleParser>();

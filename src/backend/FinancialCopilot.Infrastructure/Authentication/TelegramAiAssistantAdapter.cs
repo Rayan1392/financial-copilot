@@ -12,6 +12,8 @@ using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Purchases;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Radar;
@@ -32,6 +34,7 @@ public sealed class TelegramAiAssistantAdapter(
     IProfessionalScannerUseCases professionalScanners,
     IMarketReportService marketReports,
     INotificationUseCases notificationUseCases,
+    IBillingPurchaseUseCases billingPurchases,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -188,11 +191,20 @@ public sealed class TelegramAiAssistantAdapter(
                 /report - latest published market report
                 /digest - generate your evidence-bound followed-symbol digest
                 /notifications - notification mode, quiet hours, severity, categories, symbols and daily cap
+                /plans - Telegram subscription and credit products
+                /buy PRODUCT_CODE - create a manual receipt checkout
+                /receipt CHECKOUT_ID VERSION Image|Document RECEIPT_REFERENCE - submit receipt metadata
+                /checkout CHECKOUT_ID - view checkout status
                 """),
             "/credits" => BuildCreditsResult(
                 actor,
                 update.CorrelationId,
                 await membershipService.GetMyTelegramEntitlementAsync(actor, update.CorrelationId, cancellationToken)),
+            "/plans" => await HandlePlansCommandAsync(update, actor, cancellationToken),
+            "/buy" => await HandleBuyCommandAsync(text, update, actor, cancellationToken),
+            "/receipt" => await HandleReceiptCommandAsync(text, update, actor, cancellationToken),
+            "/checkout" => await HandleCheckoutCommandAsync(text, update, actor, cancellationToken),
+            "/cancel_checkout" => await HandleCancelCheckoutCommandAsync(text, update, actor, cancellationToken),
             "/followed" => BuildResult(
                 TelegramAssistantResultStatus.Unsupported,
                 actor.ActorId,
@@ -309,6 +321,186 @@ public sealed class TelegramAiAssistantAdapter(
                 actor.TenantId, null, update.CorrelationId, LocalizeNotificationError(exception.Message));
         }
     }
+
+    private async Task<TelegramAssistantResult> HandlePlansCommandAsync(
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var catalog = await billingPurchases.GetCatalogAsync("Telegram", cancellationToken);
+        var builder = new StringBuilder("Telegram purchase catalog\n\n");
+        foreach (var product in catalog.Products)
+        {
+            builder.AppendLine($"{product.Code} - {product.DisplayName}");
+            builder.AppendLine(product.ProductType == BillingPurchaseProductType.CreditPack
+                ? $"Credits: {FormatDecimal(product.Credits)}"
+                : $"Plan: {product.PlanCode}; duration: {product.DurationDays} days");
+            builder.AppendLine($"Amount: {FormatDecimal(product.Amount)} {product.Currency}");
+            builder.AppendLine();
+        }
+        builder.AppendLine("Create checkout: /buy PRODUCT_CODE");
+        builder.AppendLine("Manual MVP: pay externally, then submit receipt metadata. Do not send card or PIN data.");
+        var actions = catalog.Products.Take(4)
+            .Select(product => new TelegramAssistantAction(product.Code, $"bp.buy.v1:{product.Code}"))
+            .ToArray();
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            update.CorrelationId, builder.ToString(), actions);
+    }
+
+    private async Task<TelegramAssistantResult> HandleBuyCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /buy PRODUCT_CODE");
+        return await CreateTelegramCheckoutAsync(parts[1], update, actor, cancellationToken);
+    }
+
+    private async Task<TelegramAssistantResult> HandleReceiptCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', 5, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5 ||
+            !Guid.TryParse(parts[1], out var checkoutId) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var version))
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /receipt CHECKOUT_ID VERSION Image|Document RECEIPT_REFERENCE");
+        }
+
+        try
+        {
+            var checkout = await billingPurchases.SubmitReceiptAsync(
+                new SubmitBillingReceiptCommand(
+                    ToBillableActor(actor),
+                    checkoutId,
+                    version,
+                    parts[3],
+                    parts[4],
+                    ProviderReference: null,
+                    IdempotencyKey: $"telegram:{update.TelegramUpdateId}:receipt:{checkoutId:N}",
+                    update.CorrelationId),
+                cancellationToken);
+            return RenderCheckout(checkout, actor, update.CorrelationId,
+                "Receipt metadata received. It is now under manual review.");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleCheckoutCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 || !Guid.TryParse(parts[1], out var checkoutId))
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /checkout CHECKOUT_ID");
+        var checkout = await billingPurchases.GetCheckoutAsync(ToBillableActor(actor), checkoutId, cancellationToken);
+        return checkout is null
+            ? BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Checkout was not found for this account.")
+            : RenderCheckout(checkout, actor, update.CorrelationId, "Checkout status");
+    }
+
+    private async Task<TelegramAssistantResult> HandleCancelCheckoutCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var parts = text.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 4 ||
+            !Guid.TryParse(parts[1], out var checkoutId) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var version))
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "Usage: /cancel_checkout CHECKOUT_ID VERSION reason");
+        }
+
+        try
+        {
+            var checkout = await billingPurchases.CancelCheckoutAsync(
+                new CancelBillingCheckoutCommand(
+                    ToBillableActor(actor),
+                    checkoutId,
+                    version,
+                    parts[3],
+                    update.CorrelationId),
+                cancellationToken);
+            return RenderCheckout(checkout, actor, update.CorrelationId, "Checkout cancelled");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private async Task<TelegramAssistantResult> CreateTelegramCheckoutAsync(
+        string productCode,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var checkout = await billingPurchases.CreateCheckoutAsync(
+                new CreateBillingCheckoutCommand(
+                    ToBillableActor(actor),
+                    productCode,
+                    $"telegram:{update.TelegramUpdateId}:checkout:{productCode}",
+                    update.CorrelationId),
+                cancellationToken);
+            return RenderCheckout(checkout, actor, update.CorrelationId,
+                "Checkout created. Pay using the approved external payment path, then submit receipt metadata.");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private static TelegramAssistantResult RenderCheckout(
+        BillingCheckoutView checkout,
+        CurrentActor actor,
+        string correlationId,
+        string title)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(title);
+        builder.AppendLine($"Product: {checkout.ProductDisplayName} ({checkout.ProductCode})");
+        builder.AppendLine($"Amount: {FormatDecimal(checkout.Amount)} {checkout.Currency}");
+        builder.AppendLine($"Payment reference: {checkout.PaymentReference}");
+        builder.AppendLine($"Status: {checkout.Status}; version: {checkout.Version}");
+        builder.AppendLine($"Expires: {checkout.ExpiresAtUtc:O}");
+        builder.AppendLine($"Checkout id: {checkout.Id:D}");
+        builder.AppendLine("Do not send card number, PIN, CVV, or bank credentials.");
+        if (checkout.Status == BillingCheckoutStatus.AwaitingPayment)
+            builder.AppendLine($"Submit receipt: /receipt {checkout.Id:D} {checkout.Version} Image RECEIPT_REFERENCE");
+        if (checkout.Status == BillingCheckoutStatus.UnderReview)
+            builder.AppendLine("Review status: under manual Billing review.");
+        if (checkout.Status == BillingCheckoutStatus.Fulfilled)
+            builder.AppendLine("Fulfillment: completed once in Billing.");
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+            correlationId, builder.ToString());
+    }
+
+    private static BillableActorContext ToBillableActor(CurrentActor actor) =>
+        new(actor.ActorId, actor.TenantId, actor.UserId, actor.ApiClientId, ExternalUserId: null);
 
     private async Task<TelegramAssistantResult> HandleNotificationSettingsCallbackAsync(
         string data,
@@ -1119,6 +1311,12 @@ public sealed class TelegramAiAssistantAdapter(
                         null, update.CorrelationId, exception.Message);
                 }
             }
+        }
+
+        const string buyPrefix = "bp.buy.v1:";
+        if (data is not null && data.StartsWith(buyPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return await CreateTelegramCheckoutAsync(data[buyPrefix.Length..], update, actor, cancellationToken);
         }
 
         const string reportSourcesPrefix = "mreport.sources.v1:";

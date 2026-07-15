@@ -7,6 +7,8 @@ using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Purchases;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
@@ -219,6 +221,62 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal(NotificationDeliveryMode.Digest, notifications.Current.DeliveryMode);
     }
 
+    [Fact]
+    public async Task Plans_command_renders_billing_catalog_without_ai_call()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var purchases = new FakeBillingPurchaseUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai,
+            billingPurchases: purchases);
+
+        var result = await adapter.HandleAsync(Update("/plans", 1001, 401), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
+        Assert.Equal(0, ai.CallCount);
+        Assert.Equal(1, purchases.CatalogCallCount);
+        Assert.Contains("TG\\-CREDITS\\-50", result.Messages[0].Text);
+        Assert.Contains(result.Messages.SelectMany(message => message.Actions ?? []),
+            action => action.CallbackData == "bp.buy.v1:TG-CREDITS-50");
+    }
+
+    [Fact]
+    public async Task Buy_command_creates_actor_owned_checkout()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var purchases = new FakeBillingPurchaseUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), billingPurchases: purchases);
+
+        var result = await adapter.HandleAsync(Update("/buy TG-CREDITS-50", 1001, 402), CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, result.Status);
+        Assert.Equal(1, purchases.CreateCallCount);
+        Assert.Equal(actor.ActorId, purchases.LastCreate?.Actor.ActorId);
+        Assert.Equal("TG-CREDITS-50", purchases.LastCreate?.ProductCode);
+        Assert.Contains("Payment reference", result.Messages[0].Text);
+    }
+
+    [Fact]
+    public async Task Buy_callback_replays_without_second_checkout()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var purchases = new FakeBillingPurchaseUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), billingPurchases: purchases);
+        var update = new TelegramAssistantUpdate(
+            403, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 12,
+            "callback-403", "bp.buy.v1:TG-CREDITS-50", null, "fa-IR", DateTimeOffset.UtcNow, "corr-403");
+
+        var first = await adapter.HandleAsync(update, CancellationToken.None);
+        var replay = await adapter.HandleAsync(update, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(1, purchases.CreateCallCount);
+    }
+
     private static TelegramAiAssistantAdapter CreateAdapter(
         AuthDbContext db,
         ITelegramIdentityLinkReader? linkReader = null,
@@ -229,7 +287,8 @@ public sealed class TelegramAiAssistant089Tests
         IRadarUseCases? radar = null,
         IProfessionalScannerUseCases? professionalScanners = null,
         IMarketReportService? marketReports = null,
-        INotificationUseCases? notificationUseCases = null) =>
+        INotificationUseCases? notificationUseCases = null,
+        IBillingPurchaseUseCases? billingPurchases = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -240,6 +299,7 @@ public sealed class TelegramAiAssistant089Tests
             professionalScanners ?? new FakeProfessionalScannerUseCases(),
             marketReports ?? new FakeMarketReportService(),
             notificationUseCases ?? new FakeNotificationUseCases(),
+            billingPurchases ?? new FakeBillingPurchaseUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -558,6 +618,106 @@ public sealed class TelegramAiAssistant089Tests
             NotificationDeliveryMode.Immediate, new TimeOnly(23, 0), new TimeOnly(7, 0),
             InsightSeverity.Notice, 20, new TimeOnly(18, 0), 30, 0, [], [],
             NotificationPreferencePolicy.Version, "test", DateTimeOffset.UtcNow);
+    }
+
+    private sealed class FakeBillingPurchaseUseCases : IBillingPurchaseUseCases
+    {
+        public int CatalogCallCount { get; private set; }
+        public int CreateCallCount { get; private set; }
+        public CreateBillingCheckoutCommand? LastCreate { get; private set; }
+        private readonly Guid checkoutId = Guid.NewGuid();
+
+        public Task<BillingCatalogView> GetCatalogAsync(string channel, CancellationToken cancellationToken)
+        {
+            CatalogCallCount++;
+            return Task.FromResult(new BillingCatalogView(
+                [
+                    new BillingCatalogProductView("TG-CREDITS-50", BillingPurchaseProductType.CreditPack,
+                        "v1", "Telegram 50 AI credits", 250000m, "IRR", 50m, null, null, "Telegram")
+                ],
+                DateTimeOffset.UtcNow));
+        }
+
+        public Task<BillingCheckoutView> CreateCheckoutAsync(
+            CreateBillingCheckoutCommand command,
+            CancellationToken cancellationToken)
+        {
+            CreateCallCount++;
+            LastCreate = command;
+            return Task.FromResult(Checkout(command.Actor.ActorId, command.Actor.TenantId));
+        }
+
+        public Task<BillingCheckoutView?> GetCheckoutAsync(
+            BillableActorContext actor,
+            Guid checkoutId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<BillingCheckoutView?>(Checkout(actor.ActorId, actor.TenantId));
+
+        public Task<BillingCheckoutPage> GetMyCheckoutsAsync(
+            BillableActorContext actor,
+            int offset,
+            int pageSize,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new BillingCheckoutPage([Checkout(actor.ActorId, actor.TenantId)], offset, pageSize, false));
+
+        public Task<BillingCheckoutView> SubmitReceiptAsync(
+            SubmitBillingReceiptCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Checkout(command.Actor.ActorId, command.Actor.TenantId) with
+            {
+                Status = BillingCheckoutStatus.UnderReview,
+                Version = command.ExpectedVersion + 2
+            });
+
+        public Task<BillingCheckoutView> CancelCheckoutAsync(
+            CancelBillingCheckoutCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Checkout(command.Actor.ActorId, command.Actor.TenantId) with
+            {
+                Status = BillingCheckoutStatus.Cancelled,
+                Version = command.ExpectedVersion + 1
+            });
+
+        public Task<BillingCheckoutView> ReviewReceiptAsync(
+            ReviewBillingReceiptCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Checkout(command.ReviewerActorId, command.TenantId) with
+            {
+                Status = command.Approved ? BillingCheckoutStatus.Fulfilled : BillingCheckoutStatus.Rejected,
+                Version = command.ExpectedVersion + 2
+            });
+
+        public Task<PaymentCallbackResult> ProcessPaymentCallbackAsync(
+            PaymentCallbackCommand command,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new PaymentCallbackResult("NotConfigured", null, false, "test"));
+
+        public Task<BillingReconciliationSummary> ReconcileAsync(Guid tenantId, CancellationToken cancellationToken) =>
+            Task.FromResult(new BillingReconciliationSummary(1, 0, 0, 0, 0, 0, 0, DateTimeOffset.UtcNow));
+
+        private BillingCheckoutView Checkout(Guid actorId, Guid tenantId) =>
+            new(
+                checkoutId,
+                Guid.NewGuid(),
+                actorId,
+                tenantId,
+                BillingPurchaseProductType.CreditPack,
+                "TG-CREDITS-50",
+                "v1",
+                "Telegram 50 AI credits",
+                250000m,
+                "IRR",
+                "TG202607150001",
+                BillingCheckoutStatus.AwaitingPayment,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow.AddHours(48),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                1);
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

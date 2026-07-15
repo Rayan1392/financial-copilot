@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
+using FinancialCopilot.Domain.Notifications;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -298,6 +300,84 @@ public sealed class BillingEndpointTests : IClassFixture<BillingApiFactory>
         Assert.Equal(100.5m, repeatedDocument.RootElement.GetProperty("updatedBalance").GetDecimal());
     }
 
+    [Fact]
+    public async Task CheckoutReceiptApproval_FulfillsPurchasedCreditsOnce()
+    {
+        await _factory.ResetBillingDataAsync();
+        using var userClient = _factory.CreateClient();
+        userClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+        userClient.DefaultRequestHeaders.Add("Idempotency-Key", "integration-checkout-98");
+
+        using var catalogResponse = await userClient.GetAsync("/api/v1/billing/catalog", CancellationToken.None);
+        using var catalogDocument = await ReadJsonAsync(catalogResponse);
+        Assert.Equal(HttpStatusCode.OK, catalogResponse.StatusCode);
+        Assert.Contains(catalogDocument.RootElement.GetProperty("products").EnumerateArray(),
+            item => item.GetProperty("code").GetString() == "TG-CREDITS-50");
+
+        using var checkoutResponse = await userClient.PostAsJsonAsync(
+            "/api/v1/billing/checkouts",
+            new { productCode = "TG-CREDITS-50" },
+            CancellationToken.None);
+        using var checkoutDocument = await ReadJsonAsync(checkoutResponse);
+        Assert.Equal(HttpStatusCode.OK, checkoutResponse.StatusCode);
+        var checkoutId = checkoutDocument.RootElement.GetProperty("id").GetGuid();
+        var checkoutVersion = checkoutDocument.RootElement.GetProperty("version").GetInt32();
+        Assert.Equal("AwaitingPayment", checkoutDocument.RootElement.GetProperty("status").GetString());
+
+        userClient.DefaultRequestHeaders.Remove("Idempotency-Key");
+        userClient.DefaultRequestHeaders.Add("Idempotency-Key", "integration-receipt-98");
+        using var receiptResponse = await userClient.PostAsJsonAsync(
+            $"/api/v1/billing/checkouts/{checkoutId}/receipt",
+            new
+            {
+                expectedVersion = checkoutVersion,
+                attachmentKind = "Image",
+                attachmentReference = "secure-object://receipt-98",
+                providerReference = "bank-reference-98"
+            },
+            CancellationToken.None);
+        using var receiptDocument = await ReadJsonAsync(receiptResponse);
+        Assert.Equal(HttpStatusCode.OK, receiptResponse.StatusCode);
+        var reviewVersion = receiptDocument.RootElement.GetProperty("version").GetInt32();
+        Assert.Equal("UnderReview", receiptDocument.RootElement.GetProperty("status").GetString());
+
+        using var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                _factory.CreateWebAppToken(includeTenant: true, billingAdmin: true));
+        adminClient.DefaultRequestHeaders.Add("Idempotency-Key", "integration-review-98");
+        var reviewBody = new
+        {
+            expectedVersion = reviewVersion,
+            approved = true,
+            reason = "Receipt matched the checkout payment reference."
+        };
+        using var reviewResponse = await adminClient.PostAsJsonAsync(
+            $"/api/v1/admin/billing/receipt-reviews/{checkoutId}",
+            reviewBody,
+            CancellationToken.None);
+        using var reviewDocument = await ReadJsonAsync(reviewResponse);
+        using var replayResponse = await adminClient.PostAsJsonAsync(
+            $"/api/v1/admin/billing/receipt-reviews/{checkoutId}",
+            reviewBody,
+            CancellationToken.None);
+        using var replayDocument = await ReadJsonAsync(replayResponse);
+
+        Assert.Equal(HttpStatusCode.OK, reviewResponse.StatusCode);
+        Assert.Equal("Fulfilled", reviewDocument.RootElement.GetProperty("status").GetString());
+        Assert.False(reviewDocument.RootElement.GetProperty("alreadyApplied").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        Assert.True(replayDocument.RootElement.GetProperty("alreadyApplied").GetBoolean());
+
+        using var usageResponse = await userClient.GetAsync("/api/v1/usage/me", CancellationToken.None);
+        using var usageDocument = await ReadJsonAsync(usageResponse);
+        Assert.Equal(HttpStatusCode.OK, usageResponse.StatusCode);
+        Assert.Equal(60m, usageDocument.RootElement.GetProperty("balance").GetDecimal());
+        Assert.Equal(58m, usageDocument.RootElement.GetProperty("availableSpendingCapacity").GetDecimal());
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -329,6 +409,8 @@ public sealed class BillingApiFactory : AuthenticationApiFactory
             services.RemoveAll<IDbContextOptionsConfiguration<ConversationDbContext>>();
             services.AddDbContext<ConversationDbContext>(options =>
                 options.UseInMemoryDatabase(_conversationDatabaseName));
+            services.RemoveAll<INotificationIntentPublisher>();
+            services.AddSingleton<INotificationIntentPublisher, TestNotificationIntentPublisher>();
         });
     }
 
@@ -433,4 +515,23 @@ public sealed class BillingApiFactory : AuthenticationApiFactory
             IdempotencyKey = idempotencyKey,
             OccurredAt = DateTimeOffset.UtcNow.AddMinutes(-1)
         };
+
+    private sealed class TestNotificationIntentPublisher : INotificationIntentPublisher
+    {
+        public Task<NotificationIntentDto> EnqueueAsync(
+            NotificationIntentRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new NotificationIntentDto(
+                Guid.NewGuid(),
+                request.Actor,
+                request.Channel,
+                request.EventType,
+                request.EntityKey,
+                request.DeduplicationKey,
+                request.Severity,
+                NotificationIntentState.Pending,
+                DateTimeOffset.UtcNow,
+                request.NotBeforeUtc,
+                request.ExpiresAtUtc));
+    }
 }

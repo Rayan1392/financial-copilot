@@ -23,6 +23,8 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
     public DbSet<BillingOutboxMessageRow> OutboxMessages => Set<BillingOutboxMessageRow>();
     public DbSet<BillingAdminAuditRow> AdminAudits => Set<BillingAdminAuditRow>();
+    public DbSet<BillingPurchaseProductRow> PurchaseProducts => Set<BillingPurchaseProductRow>();
+    public DbSet<BillingCheckoutIntentRow> CheckoutIntents => Set<BillingCheckoutIntentRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(

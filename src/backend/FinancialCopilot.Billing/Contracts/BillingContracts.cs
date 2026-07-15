@@ -1,5 +1,6 @@
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Pricing;
+using FinancialCopilot.Billing.Purchases;
 using FinancialCopilot.Billing.Usage;
 
 namespace FinancialCopilot.Billing.Contracts;
@@ -397,4 +398,151 @@ public interface IPaymentGatewayService
 public interface IPaymentReconciliationService
 {
     Task ReconcileAsync(string callbackId, CancellationToken cancellationToken);
+}
+
+public sealed record BillingCatalogProductView(
+    string Code,
+    BillingPurchaseProductType ProductType,
+    string Version,
+    string DisplayName,
+    decimal Amount,
+    string Currency,
+    decimal Credits,
+    string? PlanCode,
+    int? DurationDays,
+    string Channel);
+
+public sealed record BillingCatalogView(
+    IReadOnlyCollection<BillingCatalogProductView> Products,
+    DateTimeOffset GeneratedAtUtc);
+
+public sealed record BillingCheckoutView(
+    Guid Id,
+    Guid CustomerAccountId,
+    Guid ActorId,
+    Guid TenantId,
+    BillingPurchaseProductType ProductType,
+    string ProductCode,
+    string ProductVersion,
+    string ProductDisplayName,
+    decimal Amount,
+    string Currency,
+    string PaymentReference,
+    BillingCheckoutStatus Status,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    DateTimeOffset? ReceiptSubmittedAtUtc,
+    DateTimeOffset? ReviewedAtUtc,
+    DateTimeOffset? FulfilledAtUtc,
+    string? ReceiptAttachmentKind,
+    string? ReceiptAttachmentReference,
+    string? ReviewReason,
+    int Version,
+    bool AlreadyApplied = false);
+
+public sealed record BillingCheckoutPage(
+    IReadOnlyCollection<BillingCheckoutView> Items,
+    int Offset,
+    int PageSize,
+    bool HasMore);
+
+public sealed record CreateBillingCheckoutCommand(
+    BillableActorContext Actor,
+    string ProductCode,
+    string IdempotencyKey,
+    string CorrelationId,
+    string Channel = "Telegram");
+
+public sealed record SubmitBillingReceiptCommand(
+    BillableActorContext Actor,
+    Guid CheckoutId,
+    int ExpectedVersion,
+    string AttachmentKind,
+    string AttachmentReference,
+    string? ProviderReference,
+    string IdempotencyKey,
+    string CorrelationId);
+
+public sealed record CancelBillingCheckoutCommand(
+    BillableActorContext Actor,
+    Guid CheckoutId,
+    int ExpectedVersion,
+    string Reason,
+    string CorrelationId);
+
+public sealed record ReviewBillingReceiptCommand(
+    Guid ReviewerActorId,
+    Guid TenantId,
+    Guid CheckoutId,
+    int ExpectedVersion,
+    bool Approved,
+    string Reason,
+    string IdempotencyKey,
+    string CorrelationId);
+
+public sealed record PaymentCallbackCommand(
+    string Provider,
+    string ProviderReference,
+    string PaymentReference,
+    decimal Amount,
+    string Currency,
+    string Signature,
+    DateTimeOffset TimestampUtc,
+    string Nonce,
+    string CorrelationId);
+
+public sealed record PaymentCallbackResult(
+    string Status,
+    Guid? CheckoutId,
+    bool Fulfilled,
+    string Reason);
+
+public sealed record BillingReconciliationSummary(
+    int AwaitingPayment,
+    int UnderReview,
+    int Fulfilled,
+    int Rejected,
+    int Expired,
+    decimal FulfilledAmount,
+    decimal RefundedAmount,
+    DateTimeOffset GeneratedAtUtc);
+
+public interface IBillingPurchaseUseCases
+{
+    Task<BillingCatalogView> GetCatalogAsync(string channel, CancellationToken cancellationToken);
+
+    Task<BillingCheckoutView> CreateCheckoutAsync(
+        CreateBillingCheckoutCommand command,
+        CancellationToken cancellationToken);
+
+    Task<BillingCheckoutView?> GetCheckoutAsync(
+        BillableActorContext actor,
+        Guid checkoutId,
+        CancellationToken cancellationToken);
+
+    Task<BillingCheckoutPage> GetMyCheckoutsAsync(
+        BillableActorContext actor,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken);
+
+    Task<BillingCheckoutView> SubmitReceiptAsync(
+        SubmitBillingReceiptCommand command,
+        CancellationToken cancellationToken);
+
+    Task<BillingCheckoutView> CancelCheckoutAsync(
+        CancelBillingCheckoutCommand command,
+        CancellationToken cancellationToken);
+
+    Task<BillingCheckoutView> ReviewReceiptAsync(
+        ReviewBillingReceiptCommand command,
+        CancellationToken cancellationToken);
+
+    Task<PaymentCallbackResult> ProcessPaymentCallbackAsync(
+        PaymentCallbackCommand command,
+        CancellationToken cancellationToken);
+
+    Task<BillingReconciliationSummary> ReconcileAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
 }

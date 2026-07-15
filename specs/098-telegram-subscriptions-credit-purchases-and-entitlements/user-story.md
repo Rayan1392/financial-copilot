@@ -1,7 +1,7 @@
 # User Story — Telegram Subscriptions, Credit Purchases, and Entitlements
 
 ## Status
-`[ ]` Proposed
+`[x] Implemented`
 
 ## Feature
 Allow Telegram users to buy plans or credits while keeping Billing as the single source of truth.

@@ -214,6 +214,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<IApiUsageReportService, ApiUsageReportService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<IBillingPurchaseUseCases, BillingPurchaseUseCases>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(new PricingPolicy(

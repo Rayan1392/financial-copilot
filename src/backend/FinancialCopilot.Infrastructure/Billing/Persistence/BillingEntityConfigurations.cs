@@ -264,3 +264,113 @@ public sealed class BillingOutboxMessageRowConfiguration : IEntityTypeConfigurat
         builder.Property(row => row.LastError).HasMaxLength(1000);
     }
 }
+
+public sealed class BillingPurchaseProductRowConfiguration : IEntityTypeConfiguration<BillingPurchaseProductRow>
+{
+    public void Configure(EntityTypeBuilder<BillingPurchaseProductRow> builder)
+    {
+        builder.ToTable("billing_purchase_products");
+        builder.HasKey(row => row.Code);
+        builder.HasIndex(row => new { row.Channel, row.IsActive, row.SortOrder });
+        builder.Property(row => row.Code).HasMaxLength(96);
+        builder.Property(row => row.ProductType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Version).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.DisplayName).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.Amount).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.Currency).HasMaxLength(8).IsRequired();
+        builder.Property(row => row.Credits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.PlanCode).HasMaxLength(64);
+        builder.Property(row => row.Channel).HasMaxLength(32).IsRequired();
+        builder.HasOne<SubscriptionPlanRow>()
+            .WithMany()
+            .HasForeignKey(row => row.PlanCode)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasData(
+            Product("TG-CREDITS-50", "CreditPack", "v1", "Telegram 50 AI credits", 250000m, "IRR", 50m, null, null, 10),
+            Product("TG-CREDITS-150", "CreditPack", "v1", "Telegram 150 AI credits", 690000m, "IRR", 150m, null, null, 20),
+            Product("TG-PRO-30D", "Subscription", "v1", "Telegram Pro 30 days", 1200000m, "IRR", 0m, "Pro", 30, 30),
+            Product("TG-PLUS-30D", "Subscription", "v1", "Telegram Plus 30 days", 2200000m, "IRR", 0m, "Plus", 30, 40),
+            Product("TG-PREMIUM-30D", "Subscription", "v1", "Telegram Premium 30 days", 3900000m, "IRR", 0m, "Premium", 30, 50));
+    }
+
+    private static BillingPurchaseProductRow Product(
+        string code,
+        string productType,
+        string version,
+        string displayName,
+        decimal amount,
+        string currency,
+        decimal credits,
+        string? planCode,
+        int? durationDays,
+        int sortOrder) =>
+        new()
+        {
+            Code = code,
+            ProductType = productType,
+            Version = version,
+            DisplayName = displayName,
+            Amount = amount,
+            Currency = currency,
+            Credits = credits,
+            PlanCode = planCode,
+            DurationDays = durationDays,
+            Channel = "Telegram",
+            IsActive = true,
+            SortOrder = sortOrder,
+            CreatedAtUtc = new DateTimeOffset(2026, 7, 15, 0, 0, 0, TimeSpan.Zero)
+        };
+}
+
+public sealed class BillingCheckoutIntentRowConfiguration : IEntityTypeConfiguration<BillingCheckoutIntentRow>
+{
+    public void Configure(EntityTypeBuilder<BillingCheckoutIntentRow> builder)
+    {
+        builder.ToTable("billing_checkout_intents");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => row.IdempotencyKey).IsUnique();
+        builder.HasIndex(row => row.PaymentReference).IsUnique();
+        builder.HasIndex(row => row.ProviderReferenceHash).IsUnique();
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.Status, row.CreatedAtUtc });
+        builder.HasIndex(row => new { row.Status, row.ExpiresAtUtc });
+        builder.HasIndex(row => row.FulfillmentLedgerEntryId).IsUnique();
+        builder.HasIndex(row => row.FulfillmentFinancialTransactionId).IsUnique();
+        builder.Property(row => row.ProductType).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.ProductCode).HasMaxLength(96).IsRequired();
+        builder.Property(row => row.ProductVersion).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.ProductDisplayName).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.Amount).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.Currency).HasMaxLength(8).IsRequired();
+        builder.Property(row => row.Credits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.PlanCode).HasMaxLength(64);
+        builder.Property(row => row.Channel).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.PaymentReference).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.ReceiptIdempotencyKey).HasMaxLength(160);
+        builder.Property(row => row.ReviewIdempotencyKey).HasMaxLength(160);
+        builder.Property(row => row.ProviderName).HasMaxLength(80);
+        builder.Property(row => row.ProviderReferenceHash).HasMaxLength(128);
+        builder.Property(row => row.ReceiptAttachmentKind).HasMaxLength(32);
+        builder.Property(row => row.ReceiptAttachmentReference).HasMaxLength(500);
+        builder.Property(row => row.ReceiptContentHash).HasMaxLength(128);
+        builder.Property(row => row.ReviewReason).HasMaxLength(500);
+        builder.Property(row => row.ConcurrencyToken).IsConcurrencyToken();
+        builder.HasOne<CustomerAccountRow>()
+            .WithMany()
+            .HasForeignKey(row => row.CustomerAccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<BillingPurchaseProductRow>()
+            .WithMany()
+            .HasForeignKey(row => row.ProductCode)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<UsageLedgerEntryRow>()
+            .WithMany()
+            .HasForeignKey(row => row.FulfillmentLedgerEntryId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<FinancialTransactionRow>()
+            .WithMany()
+            .HasForeignKey(row => row.FulfillmentFinancialTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

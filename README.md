@@ -221,3 +221,10 @@ deduplication, digest scheduling, Telegram delivery attempts, retry/dead-letter 
 Feature 099 outcome handoff. Apply the Financial ingestion and Billing migrations, configure the
 bot token through secrets, and enable the dispatcher only after both schemas are current. See
 [docs/notification-orchestration.md](docs/notification-orchestration.md).
+
+## Telegram Billing Purchases
+
+Feature 098 adds Telegram-visible Billing products, checkout intents, manual receipt review,
+exactly-once credit/subscription fulfillment, reconciliation, and Telegram status notifications.
+Apply the Billing migration before enabling `/plans`, `/buy`, or receipt review. See
+[docs/telegram-billing-purchases.md](docs/telegram-billing-purchases.md).

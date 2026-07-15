@@ -197,7 +197,11 @@ public sealed class ConditionalTrackerEvaluationProcessor(
                 payload,
                 now,
                 now.AddDays(1),
-                triggerRow.Id.ToString("N")),
+                triggerRow.Id.ToString("N"),
+                SourceEventId: triggerRow.Id,
+                EvidenceReference: trigger.EvidenceIdentity,
+                Category: "ConditionalTracker",
+                CooldownKey: $"ConditionalTracker:{rule.Id:N}"),
             cancellationToken);
         triggerRow.NotificationIntentId = intent.Id;
         NotificationHandoffs.Add(1, tags);

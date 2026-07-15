@@ -5,6 +5,7 @@ using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Radar;
+using FinancialCopilot.Domain.Notifications;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Radar;
@@ -141,7 +142,9 @@ public sealed class RadarUseCases(
             NotificationChannel.Telegram, "RadarTestNotification", $"radar:{profile.Profile.Id:N}",
             $"RADAR-TEST:{profile.Profile.Id:N}:{command.IdempotencyKey.Trim().ToUpperInvariant()}",
             InsightSeverity.Informational, payload, timeProvider.GetUtcNow(), timeProvider.GetUtcNow().AddMinutes(15),
-            command.CorrelationId), cancellationToken);
+            command.CorrelationId,
+            Category: "PersonalRadar",
+            CooldownKey: $"RadarTest:{profile.Profile.Id:N}"), cancellationToken);
         return intent.Id;
     }
 
@@ -187,7 +190,8 @@ public sealed class AllowRadarNotificationPolicyGate : IRadarNotificationPolicyG
         RadarActor actor, InsightSeverity severity, RadarDeliveryMode deliveryMode,
         DateTimeOffset now, CancellationToken cancellationToken) =>
         Task.FromResult(new RadarNotificationGateDecision(
-            true, RadarSuppressionReason.None, now, "notification-precedence-097-pending-v1"));
+            true, RadarSuppressionReason.None, now,
+            $"{NotificationPreferencePolicy.Version}/dispatcher-owned"));
 }
 
 public sealed class RadarOptions

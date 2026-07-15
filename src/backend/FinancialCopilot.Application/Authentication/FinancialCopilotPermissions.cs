@@ -12,6 +12,8 @@ public static class FinancialCopilotPermissions
     public const string TrackerWriteSelf = "tracker.write.self";
     public const string RadarReadSelf = "radar.read.self";
     public const string RadarWriteSelf = "radar.write.self";
+    public const string NotificationReadSelf = "notification.read.self";
+    public const string NotificationManageSelf = "notification.manage.self";
     public const string PortfolioReadSelf = "portfolio.read.self";
     public const string PortfolioWriteSelf = "portfolio.write.self";
     public const string AiPortfolioAnalysisExecute = "ai.portfolio-analysis.execute";
@@ -53,6 +55,8 @@ public static class FinancialCopilotPermissions
         TrackerWriteSelf,
         RadarReadSelf,
         RadarWriteSelf,
+        NotificationReadSelf,
+        NotificationManageSelf,
         PortfolioReadSelf,
         PortfolioWriteSelf,
         AiPortfolioAnalysisExecute,
@@ -115,6 +119,8 @@ public static class FinancialCopilotPermissions
         TrackerWriteSelf,
         RadarReadSelf,
         RadarWriteSelf,
+        NotificationReadSelf,
+        NotificationManageSelf,
         ConversationReadSelf,
         ConversationWriteSelf,
         UsageReadSelf,

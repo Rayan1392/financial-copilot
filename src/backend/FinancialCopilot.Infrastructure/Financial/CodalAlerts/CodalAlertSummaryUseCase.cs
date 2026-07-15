@@ -161,7 +161,11 @@ public sealed class GenerateCodalAlertSummaryUseCase(
                     JsonSerializer.Serialize(new { insightEventId = insight.Id, summaryId = row.Id, summary, evidenceHash }, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
                     timeProvider.GetUtcNow(),
                     insight.ExpiresAtUtc,
-                    command.CorrelationId),
+                    command.CorrelationId,
+                    SourceEventId: insight.Id,
+                    EvidenceReference: evidenceHash,
+                    Category: "Codal",
+                    CooldownKey: $"CodalSummary:{insight.ExternalCompanyId}"),
                 cancellationToken);
 
             return Map(row);

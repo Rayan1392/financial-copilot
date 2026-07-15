@@ -1128,6 +1128,27 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDeleteCodalAlertSubscriptionUseCase, DeleteCodalAlertSubscriptionUseCase>();
         services.AddScoped<IGenerateCodalAlertSummaryUseCase, GenerateCodalAlertSummaryUseCase>();
         services.AddScoped<INotificationIntentPublisher, EfCoreNotificationIntentPublisher>();
+        services.AddOptions<NotificationDispatcherOptions>()
+            .BindConfiguration(NotificationDispatcherOptions.SectionName)
+            .Validate(options => options.IntervalSeconds > 0 && options.BatchSize is > 0 and <= 1000 &&
+                                 options.LeaseSeconds is >= 30 and <= 600 &&
+                                 options.MaximumAttempts is > 0 and <= 20 &&
+                                 options.InitialBackoffSeconds > 0 &&
+                                 options.MaximumBackoffSeconds >= options.InitialBackoffSeconds &&
+                                 options.DigestMaximumItems is > 0 and <= 100 &&
+                                 options.MessagePartLength is >= 500 and <= 4000 &&
+                                 options.TransportErrorRetentionDays is > 0 and <= 365 &&
+                                 options.DeliveryAuditRetentionDays >= options.TransportErrorRetentionDays,
+                "Notification dispatcher settings must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddOptions<TelegramNotificationOptions>()
+            .BindConfiguration(TelegramNotificationOptions.SectionName);
+        services.AddScoped<INotificationEntitlementPolicy, NotificationEntitlementPolicy>();
+        services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
+        services.AddScoped<INotificationUseCases, NotificationUseCases>();
+        services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+        services.AddScoped<INotificationOperations, NotificationOperations>();
+        services.AddScoped<ITelegramNotificationTransport, TelegramNotificationTransport>();
         services.AddScoped<IAlertRuleRepository, EfCoreAlertRuleRepository>();
         services.AddScoped<IGovernedAlertRuleParser, GovernedAlertRuleParser>();
         services.AddScoped<IConditionalTrackerEntitlementPolicy, ConditionalTrackerEntitlementPolicy>();

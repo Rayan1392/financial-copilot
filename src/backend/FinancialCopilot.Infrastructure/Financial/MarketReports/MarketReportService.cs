@@ -308,7 +308,11 @@ internal sealed class MarketReportService(
                         JsonSerializer.Serialize(new { reportId = row.Id, row.EvidenceHash, row.TradingDate, row.Revision }, JsonOptions),
                         timeProvider.GetUtcNow(),
                         timeProvider.GetUtcNow().AddDays(2),
-                        correlationId),
+                        correlationId,
+                        SourceEventId: row.Id,
+                        EvidenceReference: row.EvidenceHash,
+                        Category: "MarketReport",
+                        CooldownKey: $"PersonalMarketDigest:{row.TradingDate:yyyy-MM-dd}"),
                     cancellationToken);
                 NotificationHandoffs.Add(1);
             }

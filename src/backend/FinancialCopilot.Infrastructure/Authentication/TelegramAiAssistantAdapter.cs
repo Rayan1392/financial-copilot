@@ -10,10 +10,12 @@ using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Radar;
+using FinancialCopilot.Domain.Notifications;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -29,6 +31,7 @@ public sealed class TelegramAiAssistantAdapter(
     IRadarUseCases radar,
     IProfessionalScannerUseCases professionalScanners,
     IMarketReportService marketReports,
+    INotificationUseCases notificationUseCases,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -184,6 +187,7 @@ public sealed class TelegramAiAssistantAdapter(
                 /saved_scanners - saved filters
                 /report - latest published market report
                 /digest - generate your evidence-bound followed-symbol digest
+                /notifications - notification mode, quiet hours, severity, categories, symbols and daily cap
                 """),
             "/credits" => BuildCreditsResult(
                 actor,
@@ -214,6 +218,8 @@ public sealed class TelegramAiAssistantAdapter(
                 "Codal alerts are managed from the web app at /codal-alerts. AI summary buttons use callback data calert.summary.v1:{insightEventId}."),
             "/report" => await HandleLatestMarketReportCommandAsync(update, actor, cancellationToken),
             "/digest" => await HandlePersonalDigestCommandAsync(update, actor, cancellationToken),
+            "/notifications" or "/settings" => await HandleNotificationSettingsCommandAsync(
+                text, update, actor, cancellationToken),
             "/market" => BuildResult(
                 TelegramAssistantResultStatus.Unsupported,
                 actor.ActorId,
@@ -229,6 +235,173 @@ public sealed class TelegramAiAssistantAdapter(
                 update.CorrelationId,
                 "این فرمان پشتیبانی نمی‌شود. برای راهنما /help را ارسال کنید یا سؤال مالی خود را به‌صورت متن بفرستید.")
         };
+    }
+
+    private async Task<TelegramAssistantResult> HandleNotificationSettingsCommandAsync(
+        string text,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var current = await notificationUseCases.GetPreferencesAsync(actor, cancellationToken);
+            var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1) return RenderNotificationSettings(current, actor, update.CorrelationId);
+
+            var input = ToInput(current);
+            switch (parts[1].ToLowerInvariant())
+            {
+                case "mode" when parts.Length == 3 && Enum.TryParse<NotificationDeliveryMode>(parts[2], true, out var mode):
+                    input = input with { DeliveryMode = mode };
+                    break;
+                case "timezone" when parts.Length == 3:
+                    input = input with { TimeZoneId = parts[2] };
+                    break;
+                case "quiet" when parts.Length == 3 && parts[2].Equals("off", StringComparison.OrdinalIgnoreCase):
+                    input = input with { QuietHoursStart = null, QuietHoursEnd = null };
+                    break;
+                case "quiet" when parts.Length == 4 && TimeOnly.TryParse(parts[2], out var start) &&
+                                                        TimeOnly.TryParse(parts[3], out var end):
+                    input = input with { QuietHoursStart = start, QuietHoursEnd = end };
+                    break;
+                case "severity" when parts.Length == 3 && Enum.TryParse<InsightSeverity>(parts[2], true, out var severity):
+                    input = input with { MinimumSeverity = severity };
+                    break;
+                case "cap" when parts.Length == 3 && int.TryParse(parts[2], out var cap):
+                    input = input with { DailyCap = cap };
+                    break;
+                case "category" when parts.Length == 4 &&
+                    (parts[3].Equals("on", StringComparison.OrdinalIgnoreCase) ||
+                     parts[3].Equals("off", StringComparison.OrdinalIgnoreCase)):
+                    var categories = input.Categories.Where(item =>
+                        !item.EventType.Equals(parts[2], StringComparison.OrdinalIgnoreCase)).ToList();
+                    categories.Add(new NotificationCategoryPreferenceInput(parts[2],
+                        parts[3].Equals("on", StringComparison.OrdinalIgnoreCase)));
+                    input = input with { Categories = categories };
+                    break;
+                case "mute" when parts.Length == 3:
+                case "unmute" when parts.Length == 3:
+                    var symbols = input.Symbols.Where(item => item.ExternalCompanyId != parts[2]).ToList();
+                    symbols.Add(new NotificationSymbolPreferenceInput(parts[2],
+                        parts[1].Equals("mute", StringComparison.OrdinalIgnoreCase)));
+                    input = input with { Symbols = symbols };
+                    break;
+                case "reset" when parts.Length == 2:
+                    input = new NotificationPreferenceInput(NotificationPreferencePolicy.DefaultTimeZoneId,
+                        NotificationDeliveryMode.Immediate, new TimeOnly(23, 0), new TimeOnly(7, 0),
+                        InsightSeverity.Notice, 20, new TimeOnly(18, 0), 30, [], []);
+                    break;
+                default:
+                    return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId,
+                        actor.TenantId, null, update.CorrelationId,
+                        "تنظیم اعلان نامعتبر است. برای دیدن فرمان‌های پشتیبانی‌شده /notifications را اجرا کنید.");
+            }
+
+            var updated = await notificationUseCases.UpdatePreferencesAsync(
+                new UpdateNotificationPreferenceCommand(actor, current.Version, input,
+                    "Telegram", update.CorrelationId), cancellationToken);
+            return RenderNotificationSettings(updated, actor, update.CorrelationId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId,
+                actor.TenantId, null, update.CorrelationId, LocalizeNotificationError(exception.Message));
+        }
+    }
+
+    private async Task<TelegramAssistantResult> HandleNotificationSettingsCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var parts = data.Split(':');
+            if (parts.Length != 3 || !int.TryParse(parts[2], out var expectedVersion))
+                throw new NotificationValidationException("callback-malformed");
+            var current = await notificationUseCases.GetPreferencesAsync(actor, cancellationToken);
+            if (current.Version != expectedVersion)
+                throw new NotificationValidationException("callback-stale");
+            var input = ToInput(current);
+            if (parts[0].Equals("nt.mode.v1", StringComparison.OrdinalIgnoreCase) &&
+                Enum.TryParse<NotificationDeliveryMode>(parts[1], true, out var mode))
+                input = input with { DeliveryMode = mode };
+            else if (parts[0].Equals("nt.sev.v1", StringComparison.OrdinalIgnoreCase) &&
+                     Enum.TryParse<InsightSeverity>(parts[1], true, out var severity))
+                input = input with { MinimumSeverity = severity };
+            else if (parts[0].Equals("nt.reset.v1", StringComparison.OrdinalIgnoreCase))
+                input = new NotificationPreferenceInput(NotificationPreferencePolicy.DefaultTimeZoneId,
+                    NotificationDeliveryMode.Immediate, new TimeOnly(23, 0), new TimeOnly(7, 0),
+                    InsightSeverity.Notice, 20, new TimeOnly(18, 0), 30, [], []);
+            else
+                throw new NotificationValidationException("callback-unsupported");
+            var updated = await notificationUseCases.UpdatePreferencesAsync(
+                new UpdateNotificationPreferenceCommand(actor, expectedVersion, input,
+                    "TelegramCallback", update.CorrelationId), cancellationToken);
+            return RenderNotificationSettings(updated, actor, update.CorrelationId);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId,
+                actor.TenantId, null, update.CorrelationId, LocalizeNotificationError(exception.Message));
+        }
+    }
+
+    private static NotificationPreferenceInput ToInput(NotificationPreferenceDto value) => new(
+        value.TimeZoneId, value.DeliveryMode, value.QuietHoursStart, value.QuietHoursEnd,
+        value.MinimumSeverity, value.DailyCap, value.DigestTime, value.CooldownMinutes,
+        value.Categories.Select(item => new NotificationCategoryPreferenceInput(
+            item.EventType, item.Enabled, item.MinimumSeverity, item.CooldownMinutes)).ToArray(),
+        value.Symbols.Select(item => new NotificationSymbolPreferenceInput(
+            item.ExternalCompanyId, item.Muted)).ToArray());
+
+    private static TelegramAssistantResult RenderNotificationSettings(
+        NotificationPreferenceDto value,
+        CurrentActor actor,
+        string correlationId)
+    {
+        var quiet = value.QuietHoursStart is null
+            ? "off" : $"{value.QuietHoursStart:HH\\:mm}-{value.QuietHoursEnd:HH\\:mm}";
+        var text = $"تنظیمات اعلان نسخه {value.Version}\n" +
+                   $"حالت: {value.DeliveryMode}؛ منطقه زمانی: {value.TimeZoneId}؛ ساعات سکوت: {quiet}\n" +
+                   $"حداقل شدت: {value.MinimumSeverity}؛ سقف روزانه: {value.DailyCap}؛ زمان خلاصه: {value.DigestTime:HH\\:mm}\n" +
+                   $"دسته‌های بی‌صدا: {string.Join(", ", value.Categories.Where(item => !item.Enabled).Select(item => item.EventType))}\n" +
+                   $"نمادهای بی‌صدا: {string.Join(", ", value.Symbols.Where(item => item.Muted).Select(item => item.ExternalCompanyId))}\n\n" +
+                   "فرمان‌ها: /notifications mode Immediate|Digest; timezone ZONE; quiet HH:mm HH:mm|off; " +
+                   "severity Informational|Notice|Important|Critical; cap N; category EVENT on|off; " +
+                   "mute COMPANY_ID; unmute COMPANY_ID; reset.";
+        var version = value.Version.ToString(CultureInfo.InvariantCulture);
+        return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+            null, correlationId, text,
+            [
+                new TelegramAssistantAction("Immediate", $"nt.mode.v1:Immediate:{version}"),
+                new TelegramAssistantAction("Digest", $"nt.mode.v1:Digest:{version}"),
+                new TelegramAssistantAction("Notice+", $"nt.sev.v1:Notice:{version}"),
+                new TelegramAssistantAction("Important+", $"nt.sev.v1:Important:{version}"),
+                new TelegramAssistantAction("Reset", $"nt.reset.v1:default:{version}")
+            ]);
+    }
+
+    private static string LocalizeNotificationError(string message)
+    {
+        if (message.Contains("callback-malformed", StringComparison.OrdinalIgnoreCase))
+            return "دکمه تنظیمات اعلان نامعتبر است. دوباره /notifications را باز کنید.";
+        if (message.Contains("callback-stale", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("version", StringComparison.OrdinalIgnoreCase))
+            return "تنظیمات اعلان تغییر کرده است. دوباره /notifications را باز کنید.";
+        if (message.Contains("timezone", StringComparison.OrdinalIgnoreCase))
+            return "منطقه زمانی معتبر نیست. یک شناسه مانند Asia/Tehran وارد کنید.";
+        if (message.Contains("Quiet-hours", StringComparison.OrdinalIgnoreCase))
+            return "بازه ساعات سکوت معتبر نیست؛ زمان شروع و پایان باید متفاوت و هر دو مشخص باشند.";
+        if (message.Contains("Daily cap", StringComparison.OrdinalIgnoreCase))
+            return "سقف روزانه باید بین ۱ تا ۱۰۰ باشد.";
+        if (message.Contains("Cooldown", StringComparison.OrdinalIgnoreCase))
+            return "فاصله تکرار اعلان باید بین صفر تا ۱۴۴۰ دقیقه باشد.";
+        if (message.Contains("plan", StringComparison.OrdinalIgnoreCase))
+            return "طرح اشتراک فعال اجازه مدیریت یا ارسال اعلان تلگرام را نمی‌دهد.";
+        return $"تنظیمات اعلان نامعتبر است: {message}";
     }
 
     private async Task<TelegramAssistantResult> HandleLatestMarketReportCommandAsync(
@@ -891,6 +1064,11 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("rd.", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleRadarCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("nt.", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleNotificationSettingsCallbackAsync(data, update, actor, cancellationToken);
         }
 
         if (data is not null && data.StartsWith("pf.cat.v1:", StringComparison.OrdinalIgnoreCase))

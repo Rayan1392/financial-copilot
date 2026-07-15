@@ -13,6 +13,8 @@ public static class AuthorizationPolicies
     public const string TrackerWriteSelf = "TrackerWriteSelf";
     public const string RadarReadSelf = "RadarReadSelf";
     public const string RadarWriteSelf = "RadarWriteSelf";
+    public const string NotificationReadSelf = "NotificationReadSelf";
+    public const string NotificationManageSelf = "NotificationManageSelf";
     public const string MarketSummaryRead = "MarketSummaryRead";
     public const string TelegramLinkManageSelf = "TelegramLinkManageSelf";
     public const string TelegramMembershipReadSelf = "TelegramMembershipReadSelf";

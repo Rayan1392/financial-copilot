@@ -213,3 +213,11 @@ capability override the fallback limit.
 Apply the Auth and Billing migrations before using the permission-protected Admin Management
 API. The route catalog, permission codes, `SuperAdmin` bootstrap rule, audit policy, and update
 commands are documented in [docs/admin-management-api.md](docs/admin-management-api.md).
+
+## Telegram Notification Orchestration
+
+Features 090–096 publish durable notification intents; Feature 097 owns preference evaluation,
+deduplication, digest scheduling, Telegram delivery attempts, retry/dead-letter handling, and
+Feature 099 outcome handoff. Apply the Financial ingestion and Billing migrations, configure the
+bot token through secrets, and enable the dispatcher only after both schemas are current. See
+[docs/notification-orchestration.md](docs/notification-orchestration.md).

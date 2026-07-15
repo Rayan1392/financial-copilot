@@ -72,6 +72,22 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<NotificationIntentRow> NotificationIntents => Set<NotificationIntentRow>();
 
+    public DbSet<NotificationPreferenceRow> NotificationPreferences => Set<NotificationPreferenceRow>();
+
+    public DbSet<NotificationCategoryPreferenceRow> NotificationCategoryPreferences => Set<NotificationCategoryPreferenceRow>();
+
+    public DbSet<NotificationSymbolPreferenceRow> NotificationSymbolPreferences => Set<NotificationSymbolPreferenceRow>();
+
+    public DbSet<NotificationPreferenceAuditRow> NotificationPreferenceAudits => Set<NotificationPreferenceAuditRow>();
+
+    public DbSet<NotificationBatchRow> NotificationBatches => Set<NotificationBatchRow>();
+
+    public DbSet<NotificationDeliveryAttemptRow> NotificationDeliveryAttempts => Set<NotificationDeliveryAttemptRow>();
+
+    public DbSet<NotificationOutcomeHandoffRow> NotificationOutcomeHandoffs => Set<NotificationOutcomeHandoffRow>();
+
+    public DbSet<NotificationOperationAuditRow> NotificationOperationAudits => Set<NotificationOperationAuditRow>();
+
     public DbSet<AlertRuleRow> AlertRules => Set<AlertRuleRow>();
 
     public DbSet<AlertRuleEvaluationStateRow> AlertRuleEvaluationStates => Set<AlertRuleEvaluationStateRow>();

@@ -407,6 +407,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
+                            PlanCode = "Free",
+                            CapabilityCode = "Notifications.Telegram",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
                             PlanCode = "Pro",
                             CapabilityCode = "AiQuery.Scanner",
                             PolicyVersion = "v1",
@@ -495,6 +502,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                             PolicyVersion = "v1",
                             IsEnabled = true,
                             Limit = 30m
+                        },
+                        new
+                        {
+                            PlanCode = "Pro",
+                            CapabilityCode = "Notifications.Telegram",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
                         },
                         new
                         {
@@ -595,6 +609,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         },
                         new
                         {
+                            PlanCode = "Plus",
+                            CapabilityCode = "Notifications.Telegram",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
                             PlanCode = "Premium",
                             CapabilityCode = "AiQuery.Scanner",
                             PolicyVersion = "v1",
@@ -685,6 +706,13 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         {
                             PlanCode = "Premium",
                             CapabilityCode = "AiQuery.PersonalDigest",
+                            PolicyVersion = "v1",
+                            IsEnabled = true
+                        },
+                        new
+                        {
+                            PlanCode = "Premium",
+                            CapabilityCode = "Notifications.Telegram",
                             PolicyVersion = "v1",
                             IsEnabled = true
                         });

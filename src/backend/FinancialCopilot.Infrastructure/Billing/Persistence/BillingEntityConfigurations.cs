@@ -181,6 +181,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Free", "Tracker.Rules", 3),
         Enabled("Free", "Radar.Symbols", 5),
         Enabled("Free", "MarketPulse.Read"),
+        Enabled("Free", "Notifications.Telegram"),
         Enabled("Pro", "AiQuery.Scanner"),
         Enabled("Pro", "AiQuery.StockAnalysis"),
         Enabled("Pro", "AiQuery.FinancialComparison"),
@@ -193,6 +194,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Pro", "Radar.Symbols", 20),
         Enabled("Pro", "MarketPulse.Read"),
         Enabled("Pro", "AiQuery.PersonalDigest", 30),
+        Enabled("Pro", "Notifications.Telegram"),
         Enabled("Plus", "AiQuery.Scanner"),
         Enabled("Plus", "AiQuery.StockAnalysis"),
         Enabled("Plus", "AiQuery.FinancialComparison"),
@@ -206,6 +208,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Plus", "Radar.Symbols", 50),
         Enabled("Plus", "MarketPulse.Read"),
         Enabled("Plus", "AiQuery.PersonalDigest"),
+        Enabled("Plus", "Notifications.Telegram"),
         Enabled("Premium", "AiQuery.Scanner"),
         Enabled("Premium", "AiQuery.StockAnalysis"),
         Enabled("Premium", "AiQuery.FinancialComparison"),
@@ -218,7 +221,8 @@ internal static class BaselinePlanCapabilities
         Enabled("Premium", "Tracker.Rules", 100),
         Enabled("Premium", "Radar.Symbols", 100),
         Enabled("Premium", "MarketPulse.Read"),
-        Enabled("Premium", "AiQuery.PersonalDigest")
+        Enabled("Premium", "AiQuery.PersonalDigest"),
+        Enabled("Premium", "Notifications.Telegram")
     ];
 
     private static PlanCapabilityRow Enabled(string planCode, string capabilityCode, decimal? limit = null) =>

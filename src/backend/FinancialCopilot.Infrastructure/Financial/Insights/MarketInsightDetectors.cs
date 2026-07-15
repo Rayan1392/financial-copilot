@@ -692,7 +692,11 @@ internal sealed class SubscribedCodalAnnouncementDetector(
                     payload,
                     context.DetectedAtUtc,
                     insight.ExpiresAtUtc,
-                    insight.Id.ToString()),
+                    insight.Id.ToString(),
+                    SourceEventId: insight.Id,
+                    EvidenceReference: insight.DeduplicationKey,
+                    Category: "Codal",
+                    CooldownKey: $"Codal:{insight.ExternalCompanyId}:{type}"),
                 cancellationToken);
 
             if (subscription.AiSummaryEnabled)

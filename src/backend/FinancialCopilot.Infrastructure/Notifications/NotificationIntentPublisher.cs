@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.Insights;
+using FinancialCopilot.Domain.Notifications;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,7 @@ public sealed class EfCoreNotificationIntentPublisher(
         NotificationIntentRequest request,
         CancellationToken cancellationToken)
     {
+        Validate(request);
         var existing = await dbContext.NotificationIntents
             .SingleOrDefaultAsync(row =>
                 row.TenantId == request.Actor.TenantId &&
@@ -38,16 +40,37 @@ public sealed class EfCoreNotificationIntentPublisher(
             EntityKey = request.EntityKey,
             DeduplicationKey = request.DeduplicationKey,
             Severity = request.Severity.ToString(),
-            Status = NotificationIntentStatus.Pending.ToString(),
+            Status = NotificationIntentState.Pending.ToString(),
+            Category = Normalize(request.Category) ?? request.EventType.Trim(),
             PayloadJson = request.PayloadJson,
+            SourceEventId = request.SourceEventId,
+            EvidenceReference = Normalize(request.EvidenceReference),
+            CooldownKey = Normalize(request.CooldownKey) ?? $"{request.EventType.Trim()}:{request.EntityKey.Trim()}",
+            ConcurrencyToken = Guid.NewGuid(),
             CreatedAtUtc = now,
             NotBeforeUtc = request.NotBeforeUtc,
             ExpiresAtUtc = request.ExpiresAtUtc,
             CorrelationId = request.CorrelationId
         };
         dbContext.NotificationIntents.Add(row);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return Map(row);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Map(row);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.Entry(row).State = EntityState.Detached;
+            var concurrent = await dbContext.NotificationIntents.SingleOrDefaultAsync(candidate =>
+                candidate.TenantId == request.Actor.TenantId &&
+                candidate.ActorId == request.Actor.ActorId &&
+                candidate.ActorType == request.Actor.ActorType &&
+                candidate.Channel == request.Channel.ToString() &&
+                candidate.DeduplicationKey == request.DeduplicationKey,
+                cancellationToken);
+            if (concurrent is null) throw;
+            return Map(concurrent);
+        }
     }
 
     private static NotificationIntentDto Map(NotificationIntentRow row) =>
@@ -59,8 +82,28 @@ public sealed class EfCoreNotificationIntentPublisher(
             row.EntityKey,
             row.DeduplicationKey,
             Enum.Parse<InsightSeverity>(row.Severity),
-            Enum.Parse<NotificationIntentStatus>(row.Status),
+            Enum.Parse<NotificationIntentState>(row.Status),
             row.CreatedAtUtc,
             row.NotBeforeUtc,
-            row.ExpiresAtUtc);
+            row.ExpiresAtUtc,
+            row.DecisionReason,
+            row.DeliveredAtUtc);
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static void Validate(NotificationIntentRequest request)
+    {
+        _ = new NotificationOwner(request.Actor.TenantId, request.Actor.ActorId, request.Actor.ActorType);
+        if (string.IsNullOrWhiteSpace(request.EventType) || request.EventType.Trim().Length > 128)
+            throw new NotificationValidationException("A bounded event type is required.");
+        if (string.IsNullOrWhiteSpace(request.EntityKey) || request.EntityKey.Trim().Length > 256)
+            throw new NotificationValidationException("A bounded entity key is required.");
+        if (string.IsNullOrWhiteSpace(request.DeduplicationKey) || request.DeduplicationKey.Trim().Length > 512)
+            throw new NotificationValidationException("A bounded producer deduplication key is required.");
+        if (string.IsNullOrWhiteSpace(request.PayloadJson))
+            throw new NotificationValidationException("An immutable notification payload is required.");
+        if (request.ExpiresAtUtc is not null && request.ExpiresAtUtc <= request.NotBeforeUtc)
+            throw new NotificationValidationException("Notification expiry must be later than its earliest delivery time.");
+    }
 }

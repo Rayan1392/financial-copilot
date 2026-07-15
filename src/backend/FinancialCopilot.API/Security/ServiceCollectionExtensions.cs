@@ -104,6 +104,14 @@ public static class ServiceCollectionExtensions
                 options,
                 AuthorizationPolicies.RadarWriteSelf,
                 FinancialCopilotPermissions.RadarWriteSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.NotificationReadSelf,
+                FinancialCopilotPermissions.NotificationReadSelf);
+            AddActorPermissionPolicy(
+                options,
+                AuthorizationPolicies.NotificationManageSelf,
+                FinancialCopilotPermissions.NotificationManageSelf);
             options.AddPolicy(AuthorizationPolicies.TelegramLinkManageSelf, policy =>
             {
                 policy.RequireAuthenticatedUser();

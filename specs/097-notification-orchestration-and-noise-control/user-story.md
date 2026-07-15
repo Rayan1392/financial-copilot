@@ -1,7 +1,7 @@
 # User Story — Notification Orchestration and Noise Control
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented — 2026-07-15
 
 ## Feature
 Deliver timely Telegram notifications without duplicates, spam, or repeated low-value alerts.
@@ -17,6 +17,8 @@ so that I receive useful notifications without spam, duplicates, or interruption
 ## Business Context
 
 All alert-producing features publish notification intents into a durable outbox. Delivery workers own Telegram transport and retry behavior.
+
+The implementation now provides domain-owned lifecycle and preference policy, durable actor-isolated preferences and intents, digest batching, leased multipart delivery with retry/dead-letter handling, REST and Telegram settings, terminal outcome handoff to Feature 099, Billing capability seeding, retention/redaction, operational metrics, and DataAdmin recovery operations.
 
 ## Dependencies
 

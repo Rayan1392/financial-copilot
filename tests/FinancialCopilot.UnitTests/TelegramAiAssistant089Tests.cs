@@ -7,9 +7,11 @@ using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Radar;
+using FinancialCopilot.Domain.Notifications;
 using FinancialCopilot.Domain.Identity.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -194,6 +196,29 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal(RadarState.Active, radar.LastUpdate?.Input.State);
     }
 
+    [Fact]
+    public async Task Notification_settings_callback_is_localized_versioned_and_replayed_once()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var notifications = new FakeNotificationUseCases();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor),
+            notificationUseCases: notifications);
+        var menu = await adapter.HandleAsync(Update("/notifications", 1001, 301), CancellationToken.None);
+        var callback = new TelegramAssistantUpdate(
+            302, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 12,
+            "callback-302", "nt.mode.v1:Digest:0", null, "fa-IR", DateTimeOffset.UtcNow, "corr-302");
+
+        var first = await adapter.HandleAsync(callback, CancellationToken.None);
+        var replay = await adapter.HandleAsync(callback, CancellationToken.None);
+
+        Assert.Contains("تنظیمات اعلان", menu.Messages[0].Text);
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(1, notifications.UpdateCallCount);
+        Assert.Equal(NotificationDeliveryMode.Digest, notifications.Current.DeliveryMode);
+    }
+
     private static TelegramAiAssistantAdapter CreateAdapter(
         AuthDbContext db,
         ITelegramIdentityLinkReader? linkReader = null,
@@ -203,7 +228,8 @@ public sealed class TelegramAiAssistant089Tests
         IConditionalTrackerUseCases? trackers = null,
         IRadarUseCases? radar = null,
         IProfessionalScannerUseCases? professionalScanners = null,
-        IMarketReportService? marketReports = null) =>
+        IMarketReportService? marketReports = null,
+        INotificationUseCases? notificationUseCases = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -213,6 +239,7 @@ public sealed class TelegramAiAssistant089Tests
             radar ?? new FakeRadarUseCases(),
             professionalScanners ?? new FakeProfessionalScannerUseCases(),
             marketReports ?? new FakeMarketReportService(),
+            notificationUseCases ?? new FakeNotificationUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -493,6 +520,44 @@ public sealed class TelegramAiAssistant089Tests
             Task.FromResult<MarketReportView?>(null);
         public Task<MarketReportView> GeneratePersonalAsync(GeneratePersonalDigestCommand command, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class FakeNotificationUseCases : INotificationUseCases
+    {
+        public int UpdateCallCount { get; private set; }
+        public NotificationPreferenceDto Current { get; private set; } = Default();
+
+        public Task<NotificationPreferenceDto> GetPreferencesAsync(CurrentActor actor, CancellationToken cancellationToken) =>
+            Task.FromResult(Current);
+
+        public Task<NotificationPreferenceDto> UpdatePreferencesAsync(
+            UpdateNotificationPreferenceCommand command,
+            CancellationToken cancellationToken)
+        {
+            UpdateCallCount++;
+            Current = new NotificationPreferenceDto(Guid.NewGuid(), command.Input.TimeZoneId,
+                command.Input.DeliveryMode, command.Input.QuietHoursStart, command.Input.QuietHoursEnd,
+                command.Input.MinimumSeverity, command.Input.DailyCap, command.Input.DigestTime,
+                command.Input.CooldownMinutes, command.ExpectedVersion + 1,
+                command.Input.Categories.Select(item => new NotificationCategoryPreferenceDto(
+                    item.EventType, item.Enabled, item.MinimumSeverity, item.CooldownMinutes)).ToArray(),
+                command.Input.Symbols.Select(item => new NotificationSymbolPreferenceDto(
+                    item.ExternalCompanyId, item.Muted)).ToArray(), NotificationPreferencePolicy.Version,
+                "test", DateTimeOffset.UtcNow);
+            return Task.FromResult(Current);
+        }
+
+        public Task<NotificationHistoryPage> GetHistoryAsync(
+            CurrentActor actor,
+            int offset,
+            int pageSize,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new NotificationHistoryPage([], offset, pageSize, false));
+
+        private static NotificationPreferenceDto Default() => new(Guid.Empty, "Asia/Tehran",
+            NotificationDeliveryMode.Immediate, new TimeOnly(23, 0), new TimeOnly(7, 0),
+            InsightSeverity.Notice, 20, new TimeOnly(18, 0), 30, 0, [], [],
+            NotificationPreferencePolicy.Version, "test", DateTimeOffset.UtcNow);
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

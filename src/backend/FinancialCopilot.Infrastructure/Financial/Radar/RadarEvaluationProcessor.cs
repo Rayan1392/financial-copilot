@@ -242,7 +242,11 @@ public sealed class RadarEvaluationProcessor(
             NotificationChannel.Telegram,
             decision.Evaluation.Decision == RadarMatchDecision.CompositeMatched ? "RadarCompositeMatched" : "RadarEventMatched",
             decision.Fact.ExternalCompanyId, decision.DeduplicationKey,
-            decision.Fact.Severity, payload, gate.NotBeforeUtc, now.AddDays(2), decision.Fact.InsightEventId.ToString("N")),
+            decision.Fact.Severity, payload, gate.NotBeforeUtc, now.AddDays(2), decision.Fact.InsightEventId.ToString("N"),
+            SourceEventId: decision.Fact.InsightEventId,
+            EvidenceReference: decision.Fact.EvidenceIdentity,
+            Category: "PersonalRadar",
+            CooldownKey: $"Radar:{decision.Fact.ExternalCompanyId}:{decision.Fact.InsightType}"),
             cancellationToken);
         row.NotificationIntentId = intent.Id;
         await dbContext.SaveChangesAsync(cancellationToken);

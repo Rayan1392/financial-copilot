@@ -8,6 +8,7 @@ using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Domain.Financial.FollowedSymbols;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Radar;
+using FinancialCopilot.Domain.Notifications;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Radar;
 using Microsoft.EntityFrameworkCore;
@@ -287,7 +288,7 @@ public sealed class PersonalMarketRadar093Tests
             Requests.Add(request);
             return Task.FromResult(new NotificationIntentDto(Guid.NewGuid(), request.Actor, request.Channel,
                 request.EventType, request.EntityKey, request.DeduplicationKey, request.Severity,
-                NotificationIntentStatus.Pending, Now, request.NotBeforeUtc, request.ExpiresAtUtc));
+                NotificationIntentState.Pending, Now, request.NotBeforeUtc, request.ExpiresAtUtc));
         }
     }
 

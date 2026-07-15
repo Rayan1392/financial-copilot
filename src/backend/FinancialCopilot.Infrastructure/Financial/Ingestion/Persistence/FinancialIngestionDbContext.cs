@@ -64,6 +64,8 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<MarketPulseSnapshotRow> MarketPulseSnapshots => Set<MarketPulseSnapshotRow>();
 
+    public DbSet<MarketReportRow> MarketReports => Set<MarketReportRow>();
+
     public DbSet<FollowedSymbolRow> FollowedSymbols => Set<FollowedSymbolRow>();
 
     public DbSet<CodalAlertSubscriptionRow> CodalAlertSubscriptions => Set<CodalAlertSubscriptionRow>();

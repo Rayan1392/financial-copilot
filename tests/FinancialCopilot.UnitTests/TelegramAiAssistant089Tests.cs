@@ -5,6 +5,7 @@ using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
+using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
 using FinancialCopilot.Domain.Financial.Insights;
@@ -201,7 +202,8 @@ public sealed class TelegramAiAssistant089Tests
         ITelegramMembershipService? membership = null,
         IConditionalTrackerUseCases? trackers = null,
         IRadarUseCases? radar = null,
-        IProfessionalScannerUseCases? professionalScanners = null) =>
+        IProfessionalScannerUseCases? professionalScanners = null,
+        IMarketReportService? marketReports = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -210,6 +212,7 @@ public sealed class TelegramAiAssistant089Tests
             trackers ?? new FakeConditionalTrackerUseCases(),
             radar ?? new FakeRadarUseCases(),
             professionalScanners ?? new FakeProfessionalScannerUseCases(),
+            marketReports ?? new FakeMarketReportService(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
             TimeProvider.System,
@@ -470,6 +473,26 @@ public sealed class TelegramAiAssistant089Tests
         public Task<SavedFilterDto> UpdateAsync(UpdateProfessionalFilterCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task DeleteAsync(DeleteProfessionalFilterCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<ProfessionalScannerExecutionResult> RunSavedAsync(RunSavedProfessionalFilterCommand command, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class FakeMarketReportService : IMarketReportService
+    {
+        public Task<MarketReportView?> GetLatestPublicAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<MarketReportView?>(null);
+        public Task<MarketReportHistoryPage> GetPublicHistoryAsync(MarketReportHistoryQuery query, CancellationToken cancellationToken) =>
+            Task.FromResult(new MarketReportHistoryPage([], 1, 20, 0));
+        public Task<MarketReportView?> GetPublicVersionAsync(Guid reportId, CancellationToken cancellationToken) =>
+            Task.FromResult<MarketReportView?>(null);
+        public Task<MarketReportView> GeneratePublicAsync(GeneratePublicMarketReportCommand command, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public Task<MarketReportView?> GetLatestPersonalAsync(CurrentActor actor, CancellationToken cancellationToken) =>
+            Task.FromResult<MarketReportView?>(null);
+        public Task<MarketReportHistoryPage> GetPersonalHistoryAsync(CurrentActor actor, MarketReportHistoryQuery query, CancellationToken cancellationToken) =>
+            Task.FromResult(new MarketReportHistoryPage([], 1, 20, 0));
+        public Task<MarketReportView?> GetPersonalVersionAsync(CurrentActor actor, Guid reportId, CancellationToken cancellationToken) =>
+            Task.FromResult<MarketReportView?>(null);
+        public Task<MarketReportView> GeneratePersonalAsync(GeneratePersonalDigestCommand command, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeConversationRepository : IConversationRepository

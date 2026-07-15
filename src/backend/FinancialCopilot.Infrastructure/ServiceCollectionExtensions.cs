@@ -16,6 +16,7 @@ using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketViews;
+using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
@@ -55,6 +56,7 @@ using FinancialCopilot.Infrastructure.Financial.CodalAlerts;
 using FinancialCopilot.Infrastructure.Financial.ConditionalTrackers;
 using FinancialCopilot.Infrastructure.Financial.FollowedSymbols;
 using FinancialCopilot.Infrastructure.Financial.MarketViews;
+using FinancialCopilot.Infrastructure.Financial.MarketReports;
 using FinancialCopilot.Infrastructure.Financial.Radar;
 using FinancialCopilot.Infrastructure.Financial.ProfessionalScanners;
 using FinancialCopilot.Infrastructure.Financial.Features;
@@ -226,6 +228,7 @@ public static class ServiceCollectionExtensions
                 ["AiQuery.PortfolioAnalysis"] = 6m,
                 ["AiQuery.CodalAnalysis"] = 8m,
                 ["AiQuery.Summarization"] = 4m,
+                ["AiQuery.PersonalDigest"] = 4m,
                 ["AiQuery.Embeddings"] = 0.5m,
                 ["AiQuery.RagSearch"] = 2m,
                 ["AiQuery.BackgroundJob"] = 6m
@@ -1094,6 +1097,24 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MarketPulseService>();
         services.AddScoped<IMarketPulseService>(provider => provider.GetRequiredService<MarketPulseService>());
         services.AddScoped<IMarketPulseSnapshotGenerator>(provider => provider.GetRequiredService<MarketPulseService>());
+        services
+            .AddOptions<MarketReportOptions>()
+            .BindConfiguration(MarketReportOptions.SectionName)
+            .Validate(options =>
+                    options.ScheduleCadenceMinutes > 0 &&
+                    options.MaximumPublicInsights > 0 &&
+                    options.MaximumPersonalInsights > 0 &&
+                    options.PersonalDailyGenerationLimit > 0 &&
+                    options.LeaseMinutes > 0 &&
+                    options.MaximumAttempts > 0 &&
+                    options.Segments.Length > 0,
+                "Market report limits, lease, attempts, and segments must be configured with positive values.")
+            .ValidateOnStart();
+        services.AddScoped<MarketReportEvidenceAssembler>();
+        services.AddScoped<MarketReportNarrativePolicy>();
+        services.AddScoped<MarketReportService>();
+        services.AddScoped<IMarketReportService>(provider => provider.GetRequiredService<MarketReportService>());
+        services.AddScoped<IMarketReportScheduler>(provider => provider.GetRequiredService<MarketReportService>());
         services.AddScoped<IFollowedSymbolRepository, EfCoreFollowedSymbolRepository>();
         services.AddScoped<IFollowedCompanyResolver, EfCoreFollowedCompanyResolver>();
         services.AddScoped<IGetMyFollowedSymbolsUseCase, GetMyFollowedSymbolsUseCase>();

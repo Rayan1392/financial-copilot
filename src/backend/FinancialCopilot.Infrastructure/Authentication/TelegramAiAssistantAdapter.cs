@@ -8,6 +8,7 @@ using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
+using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Domain.Financial.ConditionalTrackers;
@@ -27,6 +28,7 @@ public sealed class TelegramAiAssistantAdapter(
     IConditionalTrackerUseCases conditionalTrackers,
     IRadarUseCases radar,
     IProfessionalScannerUseCases professionalScanners,
+    IMarketReportService marketReports,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     TimeProvider timeProvider,
@@ -180,6 +182,8 @@ public sealed class TelegramAiAssistantAdapter(
                 /scanner FILTER_CODE key=value - run a filter
                 /save_scanner name | FILTER_CODE | key=value - save a filter
                 /saved_scanners - saved filters
+                /report - latest published market report
+                /digest - generate your evidence-bound followed-symbol digest
                 """),
             "/credits" => BuildCreditsResult(
                 actor,
@@ -208,6 +212,8 @@ public sealed class TelegramAiAssistantAdapter(
                 null,
                 update.CorrelationId,
                 "Codal alerts are managed from the web app at /codal-alerts. AI summary buttons use callback data calert.summary.v1:{insightEventId}."),
+            "/report" => await HandleLatestMarketReportCommandAsync(update, actor, cancellationToken),
+            "/digest" => await HandlePersonalDigestCommandAsync(update, actor, cancellationToken),
             "/market" => BuildResult(
                 TelegramAssistantResultStatus.Unsupported,
                 actor.ActorId,
@@ -223,6 +229,66 @@ public sealed class TelegramAiAssistantAdapter(
                 update.CorrelationId,
                 "این فرمان پشتیبانی نمی‌شود. برای راهنما /help را ارسال کنید یا سؤال مالی خود را به‌صورت متن بفرستید.")
         };
+    }
+
+    private async Task<TelegramAssistantResult> HandleLatestMarketReportCommandAsync(
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        var report = await marketReports.GetLatestPublicAsync(cancellationToken);
+        return report is null
+            ? BuildResult(TelegramAssistantResultStatus.Unsupported, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "No published market report is available yet. Open /market-reports in the web app and try again later.")
+            : RenderMarketReport(report, actor, update.CorrelationId);
+    }
+
+    private async Task<TelegramAssistantResult> HandlePersonalDigestCommandAsync(
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await marketReports.GeneratePersonalAsync(
+                new GeneratePersonalDigestCommand(actor, update.CorrelationId, PublishNotification: false),
+                cancellationToken);
+            return RenderMarketReport(report, actor, update.CorrelationId);
+        }
+        catch (MarketReportValidationException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+        catch (MarketReportAccessDeniedException exception)
+        {
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, exception.Message);
+        }
+    }
+
+    private static TelegramAssistantResult RenderMarketReport(
+        MarketReportView report,
+        CurrentActor actor,
+        string correlationId)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(report.Scope == FinancialCopilot.Domain.Financial.Reports.MarketReportScope.PersonalDigest
+            ? "Personal market digest"
+            : "Market report");
+        builder.AppendLine($"Status: {report.Status}; revision: {report.Revision}; trading date: {report.TradingDate:yyyy-MM-dd}");
+        builder.AppendLine(report.Narrative ?? "The report narrative is not available.");
+        builder.AppendLine($"Evidence freshness: {report.Evidence.SourceFreshnessUtc?.ToString("O") ?? "unavailable"}");
+        builder.AppendLine($"Confidence: {report.Confidence:P0}");
+        builder.AppendLine("Open web: /market-reports/" + report.Id.ToString("N"));
+        return BuildResult(
+            TelegramAssistantResultStatus.Accepted,
+            actor.ActorId,
+            actor.TenantId,
+            null,
+            correlationId,
+            builder.ToString(),
+            [new TelegramAssistantAction("Sources", $"mreport.sources.v1:{report.Id:N}")]);
     }
 
     private TelegramAssistantResult HandleScannersCommand(string text, TelegramAssistantUpdate update, CurrentActor actor)
@@ -874,6 +940,24 @@ public sealed class TelegramAiAssistantAdapter(
                     return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId,
                         null, update.CorrelationId, exception.Message);
                 }
+            }
+        }
+
+        const string reportSourcesPrefix = "mreport.sources.v1:";
+        if (data is not null &&
+            data.StartsWith(reportSourcesPrefix, StringComparison.OrdinalIgnoreCase) &&
+            Guid.TryParseExact(data[reportSourcesPrefix.Length..], "N", out var reportId))
+        {
+            var report = await marketReports.GetPersonalVersionAsync(actor, reportId, cancellationToken)
+                ?? await marketReports.GetPublicVersionAsync(reportId, cancellationToken);
+            if (report is not null)
+            {
+                var sources = new StringBuilder("Report evidence sources:\n");
+                foreach (var item in report.Evidence.Items.Take(12))
+                    sources.AppendLine($"- {item.Id}: {item.Source}; freshness {item.FreshnessUtc?.ToString("O") ?? "unavailable"}");
+                sources.AppendLine($"Evidence hash: {report.EvidenceHash}");
+                return BuildResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId, null,
+                    update.CorrelationId, sources.ToString());
             }
         }
 

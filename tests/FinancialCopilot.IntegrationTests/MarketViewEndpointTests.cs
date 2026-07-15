@@ -174,7 +174,7 @@ public sealed class MarketViewEndpointTests : IClassFixture<MarketViewApiFactory
     }
 }
 
-public sealed class MarketViewApiFactory : AiFacadeApiFactory
+public class MarketViewApiFactory : AiFacadeApiFactory
 {
     private bool _marketSeeded;
     private readonly object _marketSeedLock = new();

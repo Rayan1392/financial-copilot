@@ -1,7 +1,7 @@
 # User Story — AI Market Report and Personal Digest
 
 ## Status
-`[ ]` Proposed
+`[x]` Implemented 2026-07-14
 
 ## Feature
 Generate evidence-bound market narratives and a personalized end-of-day digest for each user’s followed symbols.

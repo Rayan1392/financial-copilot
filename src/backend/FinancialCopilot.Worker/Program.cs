@@ -108,6 +108,7 @@ builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
 builder.Services.AddHostedService<RadarEvaluationWorker>();
 builder.Services.AddHostedService<MarketMicrostructureDetectionWorker>();
 builder.Services.AddHostedService<MarketPulseWorker>();
+builder.Services.AddHostedService<MarketReportWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();
 builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();

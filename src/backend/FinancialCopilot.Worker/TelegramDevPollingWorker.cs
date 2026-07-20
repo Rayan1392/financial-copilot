@@ -1,5 +1,11 @@
+using System.Globalization;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using FinancialCopilot.Application.Telegram;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Worker;
@@ -127,6 +133,8 @@ public sealed class TelegramDevPollingWorker(
             return;
         }
 
+        await SendTypingActionAsync(telegram, message.Chat.Id, cancellationToken);
+
         if (text.StartsWith("/start link_", StringComparison.Ordinal))
         {
             await ConfirmLinkAsync(update, message, text["/start ".Length..], telegram, backend, cancellationToken);
@@ -197,6 +205,8 @@ public sealed class TelegramDevPollingWorker(
             return;
         }
 
+        await SendTypingActionAsync(telegram, callback.Message.Chat.Id, cancellationToken);
+
         var result = await PostBackendAsync<TelegramAssistantResult>(
             backend,
             "api/v1/telegram/assistant/updates",
@@ -225,17 +235,24 @@ public sealed class TelegramDevPollingWorker(
         object payload,
         CancellationToken cancellationToken)
     {
-        using var response = await backend.PostAsJsonAsync(path, payload, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"Backend POST {path} failed with status {(int)response.StatusCode}: {body}");
-        }
+            using var response = await backend.PostAsJsonAsync(path, payload, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException($"Backend POST {path} failed with status {(int)response.StatusCode}: {body}");
+            }
 
-        return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+            return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
-    private static async Task SendAssistantMessagesAsync(
+    private async Task SendAssistantMessagesAsync(
         HttpClient telegram,
         long chatId,
         IReadOnlyList<TelegramRenderedMessage> messages,
@@ -243,7 +260,83 @@ public sealed class TelegramDevPollingWorker(
     {
         foreach (var message in messages.OrderBy(item => item.PartNumber))
         {
+            if (message.Media is not null)
+            {
+                try
+                {
+                    await SendPhotoAsync(
+                        telegram,
+                        chatId,
+                        message.Text,
+                        message.ParseMode,
+                        message.Actions,
+                        message.Media,
+                        cancellationToken);
+                    continue;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    logger.LogWarning(
+                        exception,
+                        "Telegram photo delivery failed for chat {ChatId}; sending the persisted caption as text.",
+                        chatId);
+                }
+            }
+
             await SendMessageAsync(telegram, chatId, message.Text, message.ParseMode, message.Actions, cancellationToken);
+        }
+    }
+
+    internal static async Task SendPhotoAsync(
+        HttpClient telegram,
+        long chatId,
+        string caption,
+        string? parseMode,
+        IReadOnlyList<TelegramAssistantAction>? actions,
+        TelegramAssistantMediaAttachment media,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(media.Kind, "photo", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(media.ContentType, "image/png", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Telegram media attachment must be a PNG photo.");
+        }
+
+        var bytes = Convert.FromBase64String(media.ContentBase64);
+        if (bytes.Length == 0 || bytes.Length > 10 * 1024 * 1024)
+        {
+            throw new InvalidOperationException($"Telegram photo size {bytes.Length} is outside the supported range.");
+        }
+
+        var actualHash = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        if (!string.Equals(actualHash, media.Sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Telegram photo attachment hash validation failed.");
+        }
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(chatId.ToString(CultureInfo.InvariantCulture)), "chat_id");
+        form.Add(new StringContent(caption, Encoding.UTF8), "caption");
+        if (!string.IsNullOrWhiteSpace(parseMode))
+        {
+            form.Add(new StringContent(parseMode, Encoding.UTF8), "parse_mode");
+        }
+
+        var replyMarkup = TelegramSendMessageRequest.Create(chatId, caption, parseMode, actions).ReplyMarkup;
+        if (replyMarkup is not null)
+        {
+            form.Add(new StringContent(JsonSerializer.Serialize(replyMarkup), Encoding.UTF8), "reply_markup");
+        }
+
+        var photo = new ByteArrayContent(bytes);
+        photo.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
+        form.Add(photo, "photo", media.FileName);
+
+        using var response = await telegram.PostAsync("sendPhoto", form, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"Telegram sendPhoto failed with status {(int)response.StatusCode}: {body}");
         }
     }
 
@@ -252,7 +345,7 @@ public sealed class TelegramDevPollingWorker(
         long chatId,
         string text,
         string? parseMode,
-        IReadOnlyList<TelegramRenderedAction>? actions,
+        IReadOnlyList<TelegramAssistantAction>? actions,
         CancellationToken cancellationToken)
     {
         using var response = await telegram.PostAsJsonAsync(
@@ -263,6 +356,33 @@ public sealed class TelegramDevPollingWorker(
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException($"Telegram sendMessage failed with status {(int)response.StatusCode}: {body}");
+        }
+    }
+
+    private async Task SendTypingActionAsync(
+        HttpClient telegram,
+        long chatId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await telegram.PostAsJsonAsync(
+                "sendChatAction",
+                new TelegramSendChatActionRequest(chatId, "typing"),
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogWarning(
+                    "Telegram sendChatAction failed for chat {ChatId} with status {StatusCode}: {ResponseBody}",
+                    chatId,
+                    (int)response.StatusCode,
+                    body);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Telegram typing indicator failed for chat {ChatId}.", chatId);
         }
     }
 
@@ -364,7 +484,7 @@ public sealed class TelegramDevPollingWorker(
         string CorrelationId);
 
     private sealed record TelegramAssistantResult(
-        string Status,
+        TelegramAssistantResultStatus Status,
         Guid? ActorId,
         Guid? TenantId,
         Guid? ConversationId,
@@ -376,9 +496,8 @@ public sealed class TelegramDevPollingWorker(
         int TotalParts,
         string Text,
         string ParseMode,
-        IReadOnlyList<TelegramRenderedAction>? Actions);
-
-    private sealed record TelegramRenderedAction(string Text, string CallbackData);
+        IReadOnlyList<TelegramAssistantAction>? Actions,
+        TelegramAssistantMediaAttachment? Media = null);
 
     private sealed class TelegramSendMessageRequest
     {
@@ -400,7 +519,7 @@ public sealed class TelegramDevPollingWorker(
             long chatId,
             string text,
             string? parseMode,
-            IReadOnlyList<TelegramRenderedAction>? actions) =>
+            IReadOnlyList<TelegramAssistantAction>? actions) =>
             new()
             {
                 ChatId = chatId,
@@ -422,4 +541,8 @@ public sealed class TelegramDevPollingWorker(
 
     private sealed record TelegramAnswerCallbackRequest(
         [property: JsonPropertyName("callback_query_id")] string CallbackQueryId);
+
+    private sealed record TelegramSendChatActionRequest(
+        [property: JsonPropertyName("chat_id")] long ChatId,
+        [property: JsonPropertyName("action")] string Action);
 }

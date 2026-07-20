@@ -80,6 +80,13 @@ Rules:
 - Previous-year missing months must be null and flagged.
 - The 12-month average line must reflect persisted snapshot values.
 - The chart payload must be usable by the frontend without additional financial calculation.
+- The same canonical chart payload may be consumed by channel-specific presentation adapters. A
+  Telegram adapter may render a deterministic image from these values, but it must not recalculate
+  or replace the canonical monthly-trend result.
+- User-facing web/API and channel renderers display `NoavaranCurrentApi` as `نوآوران امین`; the
+  internal provider identifier remains unchanged for provenance, persistence, and diagnostics.
+- User-facing calculation dates use the zero-padded Jalali `yyyy/MM/dd` format; the canonical
+  `CalculatedAtUtc` timestamp remains unchanged for machine consumers.
 
 ### AI Answer Rendering
 
@@ -111,7 +118,9 @@ For a sales trend question, the assistant should produce a response shape simila
 
 ## Out of Scope
 
-- Rendering the final chart image inside the backend.
+- Rendering the final chart image inside the core monthly-trend query/orchestration path. A
+  Telegram-specific image renderer is owned by spec 089 and consumes this story's canonical
+  chart-ready payload after orchestration.
 - Forecasting months not yet reported.
 - Product-level contribution/waterfall chart.
 - Peer or industry chart comparison.

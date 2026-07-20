@@ -151,6 +151,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelegramMembershipService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<IDailyFreeAllowanceService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<TelegramMembershipRevalidationProcessor>();
+        services.AddSingleton<ITelegramMonthlyTrendChartRenderer, TelegramMonthlyTrendChartRenderer>();
+        services.AddSingleton<ITelegramAssistantResponseRenderer, TelegramAssistantResponseRenderer>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();

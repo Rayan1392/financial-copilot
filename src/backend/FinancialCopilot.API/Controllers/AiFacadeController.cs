@@ -5,6 +5,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Application.Scanner;
@@ -302,7 +303,7 @@ public sealed class AiFacadeController(
                     cell.SourceTimestamp,
                     cell.TradingDate,
                     cell.TradingDatePersian,
-                    cell.SourceLabel);
+                    cell.SourceLabel is null ? null : ProviderSources.GetDisplayName(cell.SourceLabel));
             });
 
     private static ScannerTableCell NormalizeDisplayCell(
@@ -353,7 +354,7 @@ public sealed class AiFacadeController(
                 c.MetricCode,
                 c.ObservedAt,
                 c.FreshnessStatus,
-                c.SourceProvider)).ToList(),
+                c.SourceProvider is null ? null : ProviderSources.GetDisplayName(c.SourceProvider))).ToList(),
             new ConfidenceScoreResponse(
                 answer.Confidence.Score,
                 new ConfidenceFactorsResponse(
@@ -466,7 +467,7 @@ public sealed class AiFacadeController(
                 source.StatementType,
                 source.StatementId,
                 source.ExternalStatementId,
-                source.ProviderName,
+                ProviderSources.GetDisplayName(source.ProviderName),
                 source.PeriodType,
                 source.PeriodMonths,
                 source.JalaliPeriodEnd,
@@ -489,7 +490,7 @@ public sealed class AiFacadeController(
             new FinancialStatementTableSourceHttpResponse(
                 result.Source.StatementId,
                 result.Source.ExternalStatementId,
-                result.Source.ProviderName,
+                ProviderSources.GetDisplayName(result.Source.ProviderName),
                 result.Source.ExternalCompanyId,
                 result.Source.CompanySymbol,
                 result.Source.CompanyName,
@@ -562,7 +563,7 @@ public sealed class AiFacadeController(
                 m.Year,
                 m.Month,
                 m.ReasonFa)).ToList(),
-            result.SourceProviderName,
+            ProviderSources.GetDisplayName(result.SourceProviderName),
             result.CalculatedAtUtc);
     }
 
@@ -605,7 +606,7 @@ public sealed class AiFacadeController(
                     item.DataCoverage.HasProductLineItems,
                     item.DataCoverage.HasProductMix,
                     item.DataCoverage.IndustryPeerCount),
-                item.SourceProviderName,
+                ProviderSources.GetDisplayName(item.SourceProviderName),
                 item.CalculatedAtUtc)).ToList());
     }
 

@@ -38,6 +38,7 @@ public sealed class TelegramAiAssistantAdapter(
     IBillingPurchaseUseCases billingPurchases,
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
+    ITelegramAssistantResponseRenderer responseRenderer,
     TimeProvider timeProvider,
     ILogger<TelegramAiAssistantAdapter> logger) : ITelegramAiAssistantAdapter
 {
@@ -156,9 +157,10 @@ public sealed class TelegramAiAssistantAdapter(
             actor.ActorId,
             actor.TenantId,
             response.ConversationId,
-            Render(response),
+            responseRenderer.Render(response, update.Locale),
             update.CorrelationId,
-            response);
+            response,
+            responseRenderer.Version);
     }
 
     private async Task<TelegramAssistantResult> HandleCommandAsync(
@@ -1598,114 +1600,6 @@ public sealed class TelegramAiAssistantAdapter(
             text);
     }
 
-    private static IReadOnlyList<TelegramAssistantRenderedMessage> Render(AiQueryResponse response)
-    {
-        var builder = new StringBuilder();
-        if (response.ClarificationRequired && !string.IsNullOrWhiteSpace(response.ClarificationMessage))
-        {
-            builder.AppendLine(response.ClarificationMessage);
-        }
-        else if (!string.IsNullOrWhiteSpace(response.TextAnswer))
-        {
-            builder.AppendLine(response.TextAnswer);
-        }
-
-        AppendAnalysis(builder, response);
-        AppendTable(builder, "جدول نمادها", response.SymbolLookupTable);
-        AppendTable(builder, "نتایج فیلتر", response.ScannerTable);
-
-        if (response.ConfidenceScore is not null)
-        {
-            builder.AppendLine();
-            builder.AppendLine($"اطمینان پاسخ: {response.ConfidenceScore.Score:P0}");
-        }
-
-        if (response.Usage is not null)
-        {
-            builder.AppendLine();
-            builder.AppendLine($"اعتبار مصرف‌شده: {FormatDecimal(response.Usage.CreditsCharged)}");
-            builder.AppendLine($"اعتبار باقی‌مانده: {FormatDecimal(response.Usage.RemainingSpendingCapacity)}");
-        }
-
-        if (response.ExplainableAnswer?.DataCitations.Count > 0)
-        {
-            builder.AppendLine();
-            builder.AppendLine("استناد داده:");
-            foreach (var citation in response.ExplainableAnswer.DataCitations.Take(5))
-            {
-                builder.AppendLine($"- {citation.SymbolCode} / {citation.MetricCode}: {citation.FreshnessStatus}");
-            }
-        }
-
-        var text = builder.ToString().Trim();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            text = "پاسخ دستیار آماده شد، اما متن قابل نمایش برای تلگرام تولید نشد.";
-        }
-
-        return Split(EscapeMarkdownV2(text));
-    }
-
-    private static void AppendAnalysis(StringBuilder builder, AiQueryResponse response)
-    {
-        var items = response.ComprehensiveAnalysisResult?.Items;
-        if (items is null || items.Count == 0)
-        {
-            return;
-        }
-
-        builder.AppendLine();
-        builder.AppendLine("تحلیل‌های یافت‌شده:");
-        foreach (var item in items.Take(3))
-        {
-            builder.AppendLine($"{item.Title} — {item.PersianCreatedAt}");
-            builder.AppendLine(item.PlainTextSummary);
-            builder.AppendLine($"منبع: ComprehensiveAnalyses | نویسنده: {item.AuthorName}");
-            builder.AppendLine();
-        }
-    }
-
-    private static void AppendTable(StringBuilder builder, string title, SymbolLookupTableResult? table)
-    {
-        if (table is null)
-        {
-            return;
-        }
-
-        AppendRows(builder, title, table.Rows);
-    }
-
-    private static void AppendTable(StringBuilder builder, string title, ScannerTableResult? table)
-    {
-        if (table is null)
-        {
-            return;
-        }
-
-        AppendRows(builder, title, table.Rows);
-    }
-
-    private static void AppendRows(
-        StringBuilder builder,
-        string title,
-        IReadOnlyCollection<ScannerTableRow> rows)
-    {
-        if (rows.Count == 0)
-        {
-            return;
-        }
-
-        builder.AppendLine();
-        builder.AppendLine(title + ":");
-        foreach (var row in rows.Take(8))
-        {
-            var cells = row.Cells
-                .Take(4)
-                .Select(cell => $"{cell.Key}: {cell.Value.FormattedValue ?? cell.Value.Value?.ToString(CultureInfo.InvariantCulture) ?? "-"}");
-            builder.AppendLine($"- {row.SymbolCode}: {string.Join(" | ", cells)}");
-        }
-    }
-
     private async Task<TelegramAssistantResult?> TryReplayAsync(
         TelegramAssistantUpdate update,
         string idempotencyKey,
@@ -1734,7 +1628,8 @@ public sealed class TelegramAiAssistantAdapter(
             persisted.TenantId,
             persisted.ConversationId,
             persisted.Messages,
-            update.CorrelationId);
+            update.CorrelationId,
+            RenderVersion: persisted.RenderVersion);
     }
 
     private async Task PersistProcessedAsync(
@@ -1749,7 +1644,8 @@ public sealed class TelegramAiAssistantAdapter(
             result.ActorId,
             result.TenantId,
             result.ConversationId,
-            result.Messages);
+            result.Messages,
+            result.RenderVersion);
 
         authDbContext.TelegramProcessedUpdates.Add(new TelegramProcessedUpdateRow
         {
@@ -1925,5 +1821,6 @@ public sealed class TelegramAiAssistantAdapter(
         Guid? ActorId,
         Guid? TenantId,
         Guid? ConversationId,
-        IReadOnlyList<TelegramAssistantRenderedMessage> Messages);
+        IReadOnlyList<TelegramAssistantRenderedMessage> Messages,
+        string RenderVersion = "telegram-render-v1");
 }

@@ -8,6 +8,7 @@ using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
@@ -810,7 +811,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         sb.AppendLine();
-        sb.AppendLine($"*منبع: {result.SourceProviderName} | محاسبه: {result.CalculatedAtUtc:yyyy/MM/dd}*");
+        sb.AppendLine($"*منبع: {ProviderSources.GetDisplayName(result.SourceProviderName)} | محاسبه: {ShamsiMonthCalculator.FormatJalaliDate(result.CalculatedAtUtc)}*");
 
         return sb.ToString().TrimEnd();
     }

@@ -18,4 +18,8 @@
     <ProjectReference Include="..\FinancialCopilot.Application\FinancialCopilot.Application.csproj" />
     <ProjectReference Include="..\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FinancialCopilot.UnitTests" />
+  </ItemGroup>
 </Project>

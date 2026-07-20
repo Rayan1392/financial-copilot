@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.Application.Telegram;
 
@@ -37,7 +38,16 @@ public sealed record TelegramAssistantRenderedMessage(
     int TotalParts,
     string Text,
     string ParseMode = "MarkdownV2",
-    IReadOnlyList<TelegramAssistantAction>? Actions = null);
+    IReadOnlyList<TelegramAssistantAction>? Actions = null,
+    TelegramAssistantMediaAttachment? Media = null);
+
+public sealed record TelegramAssistantMediaAttachment(
+    string Kind,
+    string ContentType,
+    string FileName,
+    string ContentBase64,
+    string Sha256,
+    string RenderVersion);
 
 public sealed record TelegramAssistantAction(string Text, string CallbackData);
 
@@ -48,11 +58,26 @@ public sealed record TelegramAssistantResult(
     Guid? ConversationId,
     IReadOnlyList<TelegramAssistantRenderedMessage> Messages,
     string CorrelationId,
-    AiQueryResponse? AiResponse = null);
+    AiQueryResponse? AiResponse = null,
+    string RenderVersion = "telegram-render-v2");
 
 public interface ITelegramAiAssistantAdapter
 {
     Task<TelegramAssistantResult> HandleAsync(
         TelegramAssistantUpdate update,
         CancellationToken cancellationToken);
+}
+
+public interface ITelegramAssistantResponseRenderer
+{
+    string Version { get; }
+
+    IReadOnlyList<TelegramAssistantRenderedMessage> Render(
+        AiQueryResponse response,
+        string locale);
+}
+
+public interface ITelegramMonthlyTrendChartRenderer
+{
+    TelegramAssistantMediaAttachment Render(MonthlyActivityTrendResponse trend);
 }

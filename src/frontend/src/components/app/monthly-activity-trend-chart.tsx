@@ -3,6 +3,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Legend,
+  LabelList,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -47,6 +48,19 @@ function formatAmount(value: number | null | undefined): string {
   if (value == null) return "—";
   return toPersianDigits(
     value.toLocaleString("en", { maximumFractionDigits: 1 }),
+  );
+}
+
+function formatBarAmount(value: number | string | null | undefined): string {
+  if (value == null || value === "") return "";
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return "";
+
+  return toPersianDigits(
+    Math.round(numericValue).toLocaleString("en-US", {
+      maximumFractionDigits: 0,
+    }),
   );
 }
 
@@ -139,7 +153,7 @@ export function MonthlyActivityTrendChart({ data }: Props) {
 
       <div className="w-full h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
+          <ComposedChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
             <XAxis
               dataKey="label"
@@ -180,7 +194,15 @@ export function MonthlyActivityTrendChart({ data }: Props) {
               radius={[3, 3, 0, 0]}
               maxBarSize={28}
               connectNulls={false}
-            />
+            >
+              <LabelList
+                dataKey="previousYear"
+                position="top"
+                formatter={formatBarAmount}
+                fill={AXIS_LABEL_COLOR}
+                fontSize={10}
+              />
+            </Bar>
             <Bar
               dataKey="currentYear"
               name={labels.currentYear}
@@ -188,7 +210,15 @@ export function MonthlyActivityTrendChart({ data }: Props) {
               radius={[3, 3, 0, 0]}
               maxBarSize={28}
               connectNulls={false}
-            />
+            >
+              <LabelList
+                dataKey="currentYear"
+                position="top"
+                formatter={formatBarAmount}
+                fill={AXIS_LABEL_COLOR}
+                fontSize={10}
+              />
+            </Bar>
             <Line
               type="monotone"
               dataKey="average"

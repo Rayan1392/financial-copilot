@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.Metrics;
 
 namespace FinancialCopilot.Application.Scanner;
@@ -137,8 +138,8 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
         }
 
         return persian
-            ? $"{sentence} تاریخ معامله: {cell.TradingDatePersian}. منبع: {cell.SourceLabel ?? cell.FreshnessStatus.ToString()}."
-            : $"{sentence} Trading date: {cell.TradingDatePersian}. Source: {cell.SourceLabel ?? cell.FreshnessStatus.ToString()}.";
+            ? $"{sentence} تاریخ معامله: {cell.TradingDatePersian}. منبع: {ProviderSources.GetDisplayName(cell.SourceLabel ?? cell.FreshnessStatus.ToString())}."
+            : $"{sentence} Trading date: {cell.TradingDatePersian}. Source: {ProviderSources.GetDisplayName(cell.SourceLabel ?? cell.FreshnessStatus.ToString())}.";
     }
 
     private static string MetricDisplayForPersianSentence(string metricCode, string metricDisplay) =>

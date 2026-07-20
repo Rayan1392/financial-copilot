@@ -65,4 +65,11 @@ public sealed class ShamsiMonthCalculatorTests
     [Fact]
     public void FirstDayJalali_FormatsAsPaddedJalaliDate() =>
         Assert.Equal("1405/02/01", new ShamsiMonth(1405, 2).FirstDayJalali);
+
+    [Fact]
+    public void FormatJalaliDate_ConvertsUtcCalculationDateWithZeroPadding() =>
+        Assert.Equal(
+            "1405/04/16",
+            ShamsiMonthCalculator.FormatJalaliDate(
+                new DateTimeOffset(2026, 7, 7, 0, 0, 0, TimeSpan.Zero)));
 }

@@ -775,7 +775,7 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Equal("کهمدا", trend.GetProperty("companySymbol").GetString());
         Assert.Equal("هماتیت", trend.GetProperty("companyName").GetString());
         Assert.Equal("میلیارد تومان", trend.GetProperty("unitLabelFa").GetString());
-        Assert.Equal("NoavaranCurrentApi", trend.GetProperty("sourceProviderName").GetString());
+        Assert.Equal("نوآوران امین", trend.GetProperty("sourceProviderName").GetString());
 
         var chartPoints = trend.GetProperty("chartPoints").EnumerateArray().ToList();
         Assert.Equal(12, chartPoints.Count);
@@ -784,6 +784,10 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
 
         var textAnswer = root.GetProperty("textAnswer").GetString();
         Assert.Contains("روند فروش ماهانه", textAnswer);
+        Assert.Contains("منبع: نوآوران امین", textAnswer);
+        Assert.Contains("محاسبه: 1405/04/03", textAnswer);
+        Assert.DoesNotContain("NoavaranCurrentApi", textAnswer);
+        Assert.DoesNotContain("محاسبه: 2026/07/07", textAnswer);
         Assert.DoesNotContain("آخرین قیمت", textAnswer);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
     }

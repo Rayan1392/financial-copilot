@@ -13,6 +13,17 @@ namespace FinancialCopilot.UnitTests;
 /// </summary>
 public sealed class NoavaranSourceStrategyTests
 {
+    [Theory]
+    [InlineData("NoavaranCurrentApi", "نوآوران امین")]
+    [InlineData("NadpcoApi", "نوآوران امین")]
+    [InlineData("CyclicalWaves", "CyclicalWaves")]
+    public void DisplayName_MapsCurrentApiWithoutChangingOtherProviderIdentifiers(
+        string sourceName,
+        string expected)
+    {
+        Assert.Equal(expected, ProviderSources.GetDisplayName(sourceName));
+    }
+
     [Fact]
     public void Catalog_MapsBothArchiveAndCurrentToTheSameLogicalVendor()
     {

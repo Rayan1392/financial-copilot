@@ -70,7 +70,9 @@ Example user-visible outcomes:
 
 ## Out of Scope
 
-- Generating a PNG/image server-side.
+- Generating a PNG/image in the frontend or changing the canonical payload for Telegram. The
+  server-side Telegram PNG renderer is independently owned by spec 089 and must consume the same
+  `monthlyActivityTrendResult` used by this interactive web chart.
 - Recomputing monthly trend data in the frontend.
 - Product-level trend charts.
 - Industry/peer benchmark overlays.

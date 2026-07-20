@@ -78,7 +78,33 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
         Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
         Assert.Equal(1, ai.CallCount);
+        Assert.Equal(first.RenderVersion, replay.RenderVersion);
         Assert.Single(await db.TelegramProcessedUpdates.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Duplicate_update_replays_the_persisted_photo_without_rerendering()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeAiQueryOrchestrationService();
+        var renderer = new FakeMediaResponseRenderer();
+        var adapter = CreateAdapter(
+            db,
+            new FakeTelegramIdentityLinkReader(actor),
+            ai: ai,
+            responseRenderer: renderer);
+        var update = Update("روند فروش ماهانه سکرد", telegramUserId: 1001, updateId: 901);
+
+        var first = await adapter.HandleAsync(update, CancellationToken.None);
+        var replay = await adapter.HandleAsync(update, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, first.Status);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(1, ai.CallCount);
+        Assert.Equal(1, renderer.CallCount);
+        Assert.Equal(first.Messages[0].Media, replay.Messages[0].Media);
+        Assert.Equal("persisted-base64", replay.Messages[0].Media?.ContentBase64);
     }
 
     [Fact]
@@ -289,7 +315,8 @@ public sealed class TelegramAiAssistant089Tests
         IMarketReportService? marketReports = null,
         INotificationUseCases? notificationUseCases = null,
         IAlertHistoryUseCases? alertHistoryUseCases = null,
-        IBillingPurchaseUseCases? billingPurchases = null) =>
+        IBillingPurchaseUseCases? billingPurchases = null,
+        ITelegramAssistantResponseRenderer? responseRenderer = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -304,6 +331,9 @@ public sealed class TelegramAiAssistant089Tests
             billingPurchases ?? new FakeBillingPurchaseUseCases(),
             ai ?? new FakeAiQueryOrchestrationService(),
             conversations ?? new FakeConversationRepository(),
+            responseRenderer ?? new TelegramAssistantResponseRenderer(
+                new TelegramMonthlyTrendChartRenderer(),
+                NullLogger<TelegramAssistantResponseRenderer>.Instance),
             TimeProvider.System,
             NullLogger<TelegramAiAssistantAdapter>.Instance);
 
@@ -426,6 +456,31 @@ public sealed class TelegramAiAssistant089Tests
                 false,
                 null,
                 new UsageAccountingResult("AiQuery.StockAnalysis", "Completed", 1, 9, "v1", false)));
+        }
+    }
+
+    private sealed class FakeMediaResponseRenderer : ITelegramAssistantResponseRenderer
+    {
+        public int CallCount { get; private set; }
+        public string Version => "telegram-media-test-v1";
+
+        public IReadOnlyList<TelegramAssistantRenderedMessage> Render(AiQueryResponse response, string locale)
+        {
+            CallCount++;
+            return
+            [
+                new TelegramAssistantRenderedMessage(
+                    1,
+                    1,
+                    "caption",
+                    Media: new TelegramAssistantMediaAttachment(
+                        "photo",
+                        "image/png",
+                        "trend.png",
+                        "persisted-base64",
+                        "persisted-hash",
+                        "monthly-trend-chart-test-v1"))
+            ];
         }
     }
 

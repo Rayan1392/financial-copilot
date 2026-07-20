@@ -71,4 +71,13 @@ public static class ShamsiMonthCalculator
         return string.Create(
             CultureInfo.InvariantCulture, $"{month.Year:D4}/{month.Month:D2}/{days:D2}");
     }
+
+    /// <summary>Formats a UTC timestamp as a zero-padded Jalali calendar date.</summary>
+    public static string FormatJalaliDate(DateTimeOffset utcTimestamp)
+    {
+        var utcDate = utcTimestamp.UtcDateTime;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Calendar.GetYear(utcDate):D4}/{Calendar.GetMonth(utcDate):D2}/{Calendar.GetDayOfMonth(utcDate):D2}");
+    }
 }

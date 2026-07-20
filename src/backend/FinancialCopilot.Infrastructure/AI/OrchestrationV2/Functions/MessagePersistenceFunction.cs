@@ -2,6 +2,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 
@@ -225,7 +226,7 @@ internal sealed class MessagePersistenceFunction(
         }
 
         sb.AppendLine();
-        sb.AppendLine($"*منبع: {result.SourceProviderName} | محاسبه: {result.CalculatedAtUtc:yyyy/MM/dd}*");
+        sb.AppendLine($"*منبع: {ProviderSources.GetDisplayName(result.SourceProviderName)} | محاسبه: {ShamsiMonthCalculator.FormatJalaliDate(result.CalculatedAtUtc)}*");
 
         return sb.ToString().TrimEnd();
     }

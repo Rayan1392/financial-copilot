@@ -80,6 +80,8 @@ public sealed record ProviderSourceDescriptor(
 /// </summary>
 public static class ProviderSources
 {
+    public const string NoavaranAminDisplayNameFa = "نوآوران امین";
+
     /// <summary>Noavaran Amin frozen archive (legacy CodalDB SQL snapshot). Imported once, then frozen.</summary>
     public const string NoavaranArchiveSqlName = "NoavaranArchiveSql";
 
@@ -141,6 +143,15 @@ public static class ProviderSources
         string.IsNullOrWhiteSpace(sourceName)
             ? sourceName
             : LegacyNameAliases.TryGetValue(sourceName, out var current) ? current : sourceName;
+
+    /// <summary>
+    /// Returns the governed user-facing label for a stored provider identifier. Internal provider
+    /// names remain unchanged for persistence, configuration, filtering, and diagnostics.
+    /// </summary>
+    public static string GetDisplayName(string sourceName) =>
+        string.Equals(NormalizeName(sourceName), NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase)
+            ? NoavaranAminDisplayNameFa
+            : sourceName;
 
     /// <summary>
     /// Resolves a stored source name (current or legacy) to its descriptor, or <c>null</c> when the

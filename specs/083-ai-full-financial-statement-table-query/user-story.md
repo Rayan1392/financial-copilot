@@ -166,15 +166,16 @@ Render all selected statement line items in persisted display order.
 
 Required columns:
 
-| ردیف | شرح | مبلغ | کد/شناسه آیتم منبع |
-|---|---|---:|---|
+| ردیف | شرح | مبلغ |
+|---|---|---:|
 
 Optional columns when available:
 
-- metric code
 - prior period amount
 - period-over-period change
 - notes / source unit
+
+Do not display source item identifiers or metric codes in the user-facing financial statement table.
 
 ### Cash-flow statement table
 
@@ -182,10 +183,11 @@ Render all selected cash-flow line items in persisted display order.
 
 Required columns:
 
-| ردیف | شرح | مبلغ | کد/شناسه آیتم منبع |
-|---|---|---:|---|
+| ردیف | شرح | مبلغ |
+|---|---|---:|
 
 The renderer must preserve signs for cash outflows and avoid converting negative cash-flow rows into absolute values.
+Do not display source item identifiers or metric codes in the user-facing cash-flow table.
 
 ### Balance sheet two-sided table
 
@@ -204,6 +206,7 @@ Rules:
 
 - The left side contains assets.
 - The right side contains liabilities and equity.
+- Do not display source item identifiers or metric codes in the user-facing balance-sheet table.
 - Preserve provider item titles when a governed classification is unavailable.
 - Use governed mapping/classification when available to place rows under assets, liabilities, or equity.
 - If a row cannot be classified reliably, place it in an "سایر اقلام" section and add a warning.

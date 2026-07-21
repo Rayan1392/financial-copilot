@@ -306,9 +306,9 @@ Example:
 ### Income Statement / Cash Flow Table Format
 
 ```markdown
-| ردیف | شرح | مبلغ | شناسه آیتم منبع |
-|---|---|---:|---|
-| ۱ | درآمدهای عملیاتی | ... | ... |
+| ردیف | شرح | مبلغ |
+|---|---|---:|
+| ۱ | درآمدهای عملیاتی | ... |
 ```
 
 ### Balance Sheet Table Format
@@ -324,6 +324,7 @@ Example:
 - Persian labels are clear and financial-domain appropriate.
 - Numeric values are formatted consistently with existing product conventions.
 - Negative values remain visible.
+- Source item identifiers and metric codes are not displayed in financial statement tables.
 - Large tables remain readable in chat.
 - Warnings are displayed after the table when needed.
 

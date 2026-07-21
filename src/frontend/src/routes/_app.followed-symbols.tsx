@@ -92,7 +92,7 @@ function FollowedSymbolsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald">
             نمادهای دنبال‌شده
           </p>
-          <h1 className="text-3xl font-bold text-foreground">مدیریت نمادهای دنبال‌شده</h1>
+          <h1 className="text-3xl font-bold text-foreground">مدیریت دیده‌بان</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             نمادهای دنبال‌شده یک فهرست شخصی برای پیگیری در قابلیت‌های آینده هوش مصنوعی هستند
             و به‌معنای پرتفوی، اندازه موقعیت، بهای تمام‌شده یا میزان exposure نیستند.
@@ -105,7 +105,7 @@ function FollowedSymbolsPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald">
                 خوراک هوشمند
               </p>
-              <h2 className="mt-1 text-xl font-semibold">رویدادهای نمادهای دنبال‌شده</h2>
+              <h2 className="mt-1 text-xl font-semibold">رویدادهای نمادهای دیده‌بان</h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select
@@ -228,7 +228,7 @@ function FollowedSymbolsPage() {
 
         <section className="rounded-2xl border border-hairline bg-surface/60 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">نمادهای دنبال‌شده من</h2>
+            <h2 className="text-lg font-semibold">نمادهای دیده‌بان</h2>
             <span className="text-xs text-muted-foreground">
               {followed.data?.symbols.length ?? 0} نماد
             </span>

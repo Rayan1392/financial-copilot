@@ -4,6 +4,7 @@ using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -76,6 +77,116 @@ public sealed class FinancialStatementTable083Tests
     }
 
     [Fact]
+    public async Task Repository_UsesPersianFallbackTitlesForLegacyMetricOnlyLineItems()
+    {
+        await using var db = CreateDb();
+        var statementId = Guid.NewGuid();
+        SeedCompany(db, "NoavaranCurrentApi");
+        SeedStatement(db, statementId, "NoavaranCurrentApi", FinancialStatementType.IncomeStatement, "TwelveMonths", false);
+        SeedLegacyLineItem(db, statementId, "REVENUE", 1000m);
+        SeedLegacyLineItem(db, statementId, "NET_PROFIT", 250m);
+        await db.SaveChangesAsync();
+
+        var repository = new EfCoreFinancialStatementTableRepository(
+            db,
+            Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }));
+
+        var items = await repository.GetStatementLineItemsAsync(statementId, CancellationToken.None);
+
+        Assert.Collection(
+            items,
+            item =>
+            {
+                Assert.Equal(15, item.SourceItemId);
+                Assert.Equal("درآمدهای عملیاتی", item.TitleFa);
+                Assert.Equal("REVENUE", item.MetricCode);
+            },
+            item =>
+            {
+                Assert.Equal(143, item.SourceItemId);
+                Assert.Equal("سود خالص", item.TitleFa);
+                Assert.Equal("NET_PROFIT", item.MetricCode);
+            });
+    }
+
+    [Fact]
+    public async Task Repository_UsesTranslatableSqlBeforeApplyingLegacyFallbackOrdering()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateSqliteDb(connection);
+        await db.Database.EnsureCreatedAsync();
+        var statementId = Guid.NewGuid();
+        SeedCompany(db, "NoavaranCurrentApi");
+        SeedStatement(db, statementId, "NoavaranCurrentApi", FinancialStatementType.IncomeStatement, "TwelveMonths", false);
+        SeedLegacyLineItem(db, statementId, "NET_PROFIT", 250m);
+        SeedLegacyLineItem(db, statementId, "REVENUE", 1000m);
+        await db.SaveChangesAsync();
+
+        var repository = new EfCoreFinancialStatementTableRepository(
+            db,
+            Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }));
+
+        var items = await repository.GetStatementLineItemsAsync(statementId, CancellationToken.None);
+
+        Assert.Collection(
+            items,
+            item => Assert.Equal("REVENUE", item.MetricCode),
+            item => Assert.Equal("NET_PROFIT", item.MetricCode));
+    }
+
+    [Fact]
+    public void Renderer_DoesNotRenderSourceItemIdentifierColumn()
+    {
+        var renderer = new FinancialStatementTableRenderer();
+        var source = new FinancialStatementTableSource(
+            Guid.NewGuid(),
+            "legacy",
+            "NoavaranCurrentApi",
+            "30",
+            "کگل",
+            "گل گهر",
+            FinancialStatementType.IncomeStatement,
+            "TwelveMonths",
+            12,
+            new DateOnly(2025, 3, 21),
+            new DateOnly(2026, 3, 20),
+            DateTimeOffset.Parse("2026-06-18T00:00:00Z"),
+            "1404/12/29",
+            "1404/12/29",
+            "1405/03/28",
+            false,
+            false,
+            false,
+            null);
+        var result = new FinancialStatementTableResult(
+            source,
+            [
+                new FinancialStatementTableLineItem(
+                    1,
+                    null,
+                    null,
+                    null,
+                    "UNKNOWN_METRIC",
+                    10m,
+                    "10",
+                    null,
+                    FinancialStatementTableSide.Unclassified)
+            ],
+            [],
+            [],
+            null,
+            DateTimeOffset.Parse("2026-06-18T00:00:00Z"));
+
+        var rendered = renderer.Render(result);
+
+        Assert.Contains("| ردیف | شرح | مبلغ |", rendered);
+        Assert.Contains("| 1 | UNKNOWN_METRIC | 10 |", rendered);
+        Assert.DoesNotContain("شناسه آیتم منبع", rendered);
+        Assert.DoesNotContain("| 1 | UNKNOWN_METRIC | 10 | - |", rendered);
+    }
+
+    [Fact]
     public async Task Repository_ClassifiesBalanceSheetSidesFromMetricCodeAndTitle()
     {
         await using var db = CreateDb();
@@ -99,6 +210,11 @@ public sealed class FinancialStatementTable083Tests
     private static FinancialIngestionDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+
+    private static FinancialIngestionDbContext CreateSqliteDb(SqliteConnection connection) =>
+        new(new DbContextOptionsBuilder<FinancialIngestionDbContext>()
+            .UseSqlite(connection)
             .Options);
 
     private static void SeedCompany(FinancialIngestionDbContext db, string providerName)
@@ -173,6 +289,22 @@ public sealed class FinancialStatementTable083Tests
             Id = Guid.NewGuid(),
             FinancialStatementId = statementId,
             SourceItemCatalogId = catalogId,
+            MetricCode = metricCode,
+            Value = value
+        });
+    }
+
+    private static void SeedLegacyLineItem(
+        FinancialIngestionDbContext db,
+        Guid statementId,
+        string metricCode,
+        decimal value)
+    {
+        db.FinancialStatementLineItems.Add(new NormalizedFinancialStatementLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            FinancialStatementId = statementId,
+            SourceItemCatalogId = null,
             MetricCode = metricCode,
             Value = value
         });

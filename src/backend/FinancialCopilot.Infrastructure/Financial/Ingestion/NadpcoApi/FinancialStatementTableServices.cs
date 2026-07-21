@@ -88,6 +88,12 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         Guid statementId,
         CancellationToken ct = default)
     {
+        var statementType = await dbContext.FinancialStatements
+            .AsNoTracking()
+            .Where(statement => statement.Id == statementId)
+            .Select(statement => statement.StatementType)
+            .FirstOrDefaultAsync(ct);
+
         var rows = await dbContext.FinancialStatementLineItems
             .AsNoTracking()
             .Where(item => item.FinancialStatementId == statementId)
@@ -96,18 +102,25 @@ internal sealed class EfCoreFinancialStatementTableRepository(
                 item => item.SourceItemCatalogId,
                 catalog => catalog.Id,
                 (item, catalogs) => new { Item = item, Catalog = catalogs.FirstOrDefault() })
-            .OrderBy(row => row.Catalog == null ? int.MaxValue : row.Catalog.SourceItemId)
-            .ThenBy(row => row.Item.MetricCode)
-            .ThenBy(row => row.Item.Id)
             .ToListAsync(ct);
 
-        return rows.Select((row, index) =>
+        var orderedRows = rows
+            .OrderBy(row => row.Catalog == null
+                ? InferSourceItemId(statementType, row.Item.MetricCode) ?? int.MaxValue
+                : row.Catalog.SourceItemId)
+            .ThenBy(row => row.Item.MetricCode)
+            .ThenBy(row => row.Item.Id)
+            .ToList();
+
+        return orderedRows.Select((row, index) =>
         {
-            var title = row.Catalog?.TitleFa ?? row.Catalog?.TitleEn ?? row.Item.MetricCode;
+            var titleFa = FirstNonEmpty(row.Catalog?.TitleFa, PersianTitleFromMetricCode(row.Item.MetricCode));
+            var sourceItemId = row.Catalog?.SourceItemId ?? InferSourceItemId(statementType, row.Item.MetricCode);
+            var title = FirstNonEmpty(titleFa, row.Catalog?.TitleEn, row.Item.MetricCode);
             return new FinancialStatementTableLineItem(
                 index + 1,
-                row.Catalog?.SourceItemId,
-                row.Catalog?.TitleFa,
+                sourceItemId,
+                titleFa,
                 row.Catalog?.TitleEn,
                 row.Item.MetricCode,
                 row.Item.Value,
@@ -146,6 +159,54 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         }
 
         return FinancialStatementTableSide.Unclassified;
+    }
+
+    private static int? InferSourceItemId(string? statementType, string? metricCode)
+    {
+        if (string.IsNullOrWhiteSpace(statementType) || string.IsNullOrWhiteSpace(metricCode))
+            return null;
+
+        var map = statementType switch
+        {
+            nameof(FinancialStatementType.IncomeStatement) => NadpcoApiStatementItemMaps.IncomeItemIdToMetricCode,
+            nameof(FinancialStatementType.BalanceSheet) => NadpcoApiStatementItemMaps.BalanceSheetItemIdToMetricCode,
+            nameof(FinancialStatementType.CashFlow) => NadpcoApiStatementItemMaps.CashFlowItemIdToMetricCode,
+            _ => null
+        };
+
+        if (map is null)
+            return null;
+
+        foreach (var pair in map)
+        {
+            if (string.Equals(pair.Value, metricCode, StringComparison.OrdinalIgnoreCase))
+                return pair.Key;
+        }
+
+        return null;
+    }
+
+    private static string? PersianTitleFromMetricCode(string? metricCode)
+    {
+        if (string.IsNullOrWhiteSpace(metricCode))
+            return null;
+
+        return metricCode.ToUpperInvariant() switch
+        {
+            "REVENUE" => "درآمدهای عملیاتی",
+            "TOTAL_REVENUE" => "جمع درآمدها",
+            "GROSS_PROFIT" => "سود ناخالص",
+            "OPERATING_PROFIT" => "سود عملیاتی",
+            "NET_PROFIT" => "سود خالص",
+            "EPS" => "سود هر سهم",
+            "EPS_CONSOLIDATED" => "سود هر سهم تلفیقی",
+            "FINANCE_COSTS" => "هزینه‌های مالی",
+            "INCOME_TAX" => "مالیات بر درآمد",
+            "TOTAL_EQUITY" => "جمع حقوق مالکانه",
+            "CAPITAL" => "سرمایه",
+            "OPERATING_CASH_FLOW" => "جریان نقد عملیاتی",
+            _ => null
+        };
     }
 
     private static string? PeriodTypeFromMonths(int months) => months switch
@@ -388,11 +449,11 @@ internal sealed class FinancialStatementTableRenderer : IFinancialStatementTable
 
     private static void AppendOneSidedTable(StringBuilder sb, IReadOnlyList<FinancialStatementTableLineItem> items)
     {
-        sb.AppendLine("| ردیف | شرح | مبلغ | شناسه آیتم منبع |");
-        sb.AppendLine("|---:|---|---:|---|");
+        sb.AppendLine("| ردیف | شرح | مبلغ |");
+        sb.AppendLine("|---:|---|---:|");
         foreach (var item in items)
         {
-            sb.AppendLine($"| {item.RowNumber} | {Escape(item.TitleFa ?? item.TitleEn ?? item.MetricCode ?? "-")} | {item.FormattedValue ?? "-"} | {item.SourceItemId?.ToString(CultureInfo.InvariantCulture) ?? item.MetricCode ?? "-"} |");
+            sb.AppendLine($"| {item.RowNumber} | {Escape(item.TitleFa ?? item.TitleEn ?? item.MetricCode ?? "-")} | {item.FormattedValue ?? "-"} |");
         }
     }
 

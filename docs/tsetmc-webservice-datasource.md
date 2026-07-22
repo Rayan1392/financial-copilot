@@ -105,7 +105,7 @@ Returns today's intraday index snapshots.
 | DEven | int | Date (yyyyMMdd) |
 | HEven | int | Time (HHmmss) |
 | XDrNivJIdx004 | decimal | Current index value |
-| XVarIdxJ | decimal | Change percent |
+| XVarIdxJRfV | decimal | Close-to-close change percent |
 
 ---
 

@@ -60,6 +60,33 @@ public sealed class MarketViewEndpointTests : IClassFixture<MarketViewApiFactory
     }
 
     [Fact]
+    public async Task Watchlist_Read_PrefersFollowedSymbolsAndReturnsQuotes()
+    {
+        using var client = UserClient();
+
+        using var legacyResponse = await client.PutAsJsonAsync(
+            "/api/v1/watchlists/me",
+            new { symbols = new[] { "LOSS" } },
+            CancellationToken.None);
+        using var followResponse = await client.PostAsync(
+            "/api/v1/followed-symbols/me/gain-company",
+            null,
+            CancellationToken.None);
+        using var readResponse = await client.GetAsync("/api/v1/watchlists/me", CancellationToken.None);
+        using var document = await ReadJsonAsync(readResponse);
+        var symbols = document.RootElement.GetProperty("symbols").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, legacyResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, followResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        var symbol = Assert.Single(symbols);
+        Assert.Equal("GAIN", symbol.GetProperty("symbol").GetString());
+        Assert.Equal(105m, symbol.GetProperty("latestPrice").GetDecimal());
+        Assert.Equal(5m, symbol.GetProperty("changePercent").GetDecimal());
+    }
+
+
+    [Fact]
     public async Task Watchlist_Update_RejectsUnknownSymbol()
     {
         using var client = UserClient();
@@ -191,13 +218,15 @@ public class MarketViewApiFactory : AiFacadeApiFactory
             var gain = Instrument("GAIN", "Gain Co");
             var loss = Instrument("LOSS", "Loss Co");
             var noQuote = Instrument("NOQUOTE", "No Quote Co");
-            // The market summary only surfaces the governed named indices, matched by the
-            // source InstrumentRef (ExternalInstrumentId) — use the شاخص کل catalog entry.
+            // The active direct-feed path persists index rows under TSETMC instrument codes;
+            // the summary must still recognize the governed شاخص کل catalog entry.
             var index = Instrument("TEDPIX", "Total Index");
-            index.ExternalInstrumentId =
-                FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb
-                    .StockMarketNamedIndices.All[0].InstrumentRef;
+            index.InstrumentCode = 32097828799138957;
             db.TradingInstruments.AddRange(gain, loss, noQuote, index);
+            db.Companies.AddRange(
+                Company("gain-company", "GAIN", "Gain Co"),
+                Company("loss-company", "LOSS", "Loss Co"),
+                Company("noquote-company", "NOQUOTE", "No Quote Co"));
             db.LatestMarketQuotes.AddRange(
                 Quote(gain.Id, 105m, 5m),
                 Quote(loss.Id, 95m, -5m));
@@ -222,6 +251,7 @@ public class MarketViewApiFactory : AiFacadeApiFactory
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
         db.WatchlistSymbols.RemoveRange(db.WatchlistSymbols);
+        db.FollowedSymbols.RemoveRange(db.FollowedSymbols);
         db.SaveChanges();
     }
 
@@ -239,6 +269,19 @@ public class MarketViewApiFactory : AiFacadeApiFactory
             InstrumentKind = "A",
             IsActive = true,
             SourceChangedAt = DateTimeOffset.Parse("2026-06-01T12:30:00Z"),
+            LastSynchronizedAt = DateTimeOffset.Parse("2026-06-01T12:30:00Z")
+        };
+
+    private static NormalizedCompanyRow Company(string externalCompanyId, string symbol, string name) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "TsetmcWebService",
+            ExternalCompanyId = externalCompanyId,
+            CompanySymbol = symbol,
+            TseSymbol = symbol,
+            Ticker = symbol,
+            Name = name,
             LastSynchronizedAt = DateTimeOffset.Parse("2026-06-01T12:30:00Z")
         };
 

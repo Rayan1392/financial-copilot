@@ -78,7 +78,8 @@ public sealed class NadpcoApiTokenProvider(
                     "NADPCO token response included an expired token.");
             }
 
-            tokenCache.SetToken(token, expiresAt.AddSeconds(-30));
+            var cacheExpiresAt = GetTehranDayEndUtc(now);
+            tokenCache.SetToken(token, now, cacheExpiresAt);
             return token;
         }
         finally
@@ -101,4 +102,27 @@ public sealed class NadpcoApiTokenProvider(
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private static DateTimeOffset GetTehranDayEndUtc(DateTimeOffset now)
+    {
+        var tehranTimeZone = GetTehranTimeZone();
+        var tehranNow = TimeZoneInfo.ConvertTime(now, tehranTimeZone);
+        var tehranDayEnd = new DateTimeOffset(
+            tehranNow.Date.AddDays(1).AddSeconds(-1),
+            tehranNow.Offset);
+
+        return tehranDayEnd.ToUniversalTime();
+    }
+
+    private static TimeZoneInfo GetTehranTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Iran Standard Time");
+        }
+    }
 }

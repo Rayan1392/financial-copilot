@@ -51,6 +51,13 @@ builder.Services
         "Market microstructure detection worker settings must be positive and bounded.")
     .ValidateOnStart();
 builder.Services
+    .AddOptions<MarketInsightGenerationWorkerOptions>()
+    .BindConfiguration(MarketInsightGenerationWorkerOptions.SectionName)
+    .Validate(
+        options => options.IntervalSeconds > 0 && options.LookbackDays is > 0 and <= 90 && options.RetryCount is > 0 and <= 10,
+        "Market insight generation worker settings must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<TelegramMembershipRevalidationOptions>()
     .BindConfiguration(TelegramMembershipRevalidationOptions.SectionName)
     .Validate(
@@ -109,6 +116,7 @@ builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();
 builder.Services.AddHostedService<RadarEvaluationWorker>();
 builder.Services.AddHostedService<MarketMicrostructureDetectionWorker>();
+builder.Services.AddHostedService<MarketInsightGenerationWorker>();
 builder.Services.AddHostedService<MarketPulseWorker>();
 builder.Services.AddHostedService<MarketReportWorker>();
 builder.Services.AddHostedService<StockMarketDbPollingWorker>();

@@ -21,6 +21,7 @@ export function FollowSymbolButton({ symbol, externalCompanyId, compact = false 
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["followed-symbols"] });
+      qc.invalidateQueries({ queryKey: ["watchlist"] });
     },
   });
 

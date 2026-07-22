@@ -52,6 +52,38 @@ public sealed class TradingInstrumentUnificationTests
     }
 
     [Fact]
+    public async Task IntradayTrades_StubLinksToNormalizedCompanyBeforeInstrumentSync()
+    {
+        await using var db = CreateDb();
+        var companyId = Guid.NewGuid();
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId,
+            ProviderName = "CodalDb",
+            ExternalCompanyId = "company-1",
+            Name = "Test Company",
+            InstrumentCode = InsCode.ToString(),
+            LastSynchronizedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var client = new FakeTsetmcClient
+        {
+            IntradayTrades = [new TsetmcIntradayTradeRecord(
+                InsCode,
+                DateOnly.FromDateTime(Now.UtcDateTime),
+                new TimeOnly(10, 0),
+                5, 10_000, 5_000_000,
+                2500, 2490, 10, 2480, 2520, 2460, 2400)]
+        };
+
+        await TsetmcService(db, client).SynchronizeIntradayTradesAsync(CancellationToken.None);
+
+        var stub = await db.TradingInstruments.SingleAsync();
+        Assert.Equal(companyId, stub.NormalizedCompanyId);
+    }
+
+    [Fact]
     public async Task IntradayTrades_StubIsReusedAcrossMultipleCallsForSameInsCode()
     {
         await using var db = CreateDb();

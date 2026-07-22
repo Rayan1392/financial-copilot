@@ -93,6 +93,22 @@ public sealed class TelegramAssistantResponseRenderer089Tests
     }
 
     [Fact]
+    public void Single_symbol_average_12_month_sales_uses_localized_telegram_label()
+    {
+        var response = CreateAverage12MonthSalesResponse();
+
+        var text = string.Join("\n", CreateRenderer().Render(response, "fa-IR").Select(message => message.Text));
+
+        Assert.Contains("سکرد", text);
+        Assert.Contains("سیمان کردستان", text);
+        Assert.Contains("متوسط فروش ۱۲ ماهه: ۱٬۴۲۱٬۳۶۳ میلیون ریال", text);
+        Assert.Contains("منبع: نوآوران امین", text);
+        Assert.Contains("تازگی: ذخیره‌شده", text);
+        Assert.DoesNotContain("AVG_12M_MONTHLY_SALES", text);
+        Assert.DoesNotContain("AVG\\_12M\\_MONTHLY\\_SALES", text);
+    }
+
+    [Fact]
     public void Monthly_trend_is_rendered_as_a_deterministic_png_with_a_concise_caption()
     {
         var response = CreateMonthlyTrendResponse();
@@ -291,5 +307,51 @@ public sealed class TelegramAssistantResponseRenderer089Tests
             ClarificationRequired: false,
             ClarificationMessage: null,
             Usage: new UsageAccountingResult("AiQuery.StockAnalysis", "Completed", 1, 998569, "v1", false));
+    }
+
+    private static AiQueryResponse CreateAverage12MonthSalesResponse()
+    {
+        var columns = new[]
+        {
+            new ScannerTableColumn("SYMBOL", "SYMBOL", ScannerColumnType.Symbol),
+            new ScannerTableColumn("COMPANY_NAME", "COMPANY_NAME", ScannerColumnType.CompanyName),
+            new ScannerTableColumn(
+                "AVG_12M_MONTHLY_SALES",
+                "AVG_12M_MONTHLY_SALES",
+                ScannerColumnType.Metric,
+                "AVG_12M_MONTHLY_SALES")
+        };
+        var row = new ScannerTableRow("سکرد", "سیمان کردستان", new Dictionary<string, ScannerTableCell>
+        {
+            ["AVG_12M_MONTHLY_SALES"] = new(
+                1_421_363m,
+                "1,421,363",
+                CellFreshnessStatus.Persisted,
+                DateTimeOffset.UtcNow,
+                SourceLabel: "NoavaranCurrentApi")
+        }, 1, []);
+        var table = new SymbolLookupTableResult(
+            Guid.NewGuid(),
+            columns,
+            [row],
+            new ScannerExecutionFacts(DateTimeOffset.UtcNow, TimeSpan.Zero, 1, 1, false),
+            [],
+            [],
+            ["AVG_12M_MONTHLY_SALES"]);
+
+        return new AiQueryResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.SymbolLookup,
+            ScannerPlan: null,
+            ScannerTable: null,
+            SymbolLookupTable: table,
+            ExplainableAnswer: null,
+            ConfidenceScore: new ConfidenceScoreResult(
+                0.92,
+                new ConfidenceFactors(1, 1, 1, 0),
+                "test-v1"),
+            TextAnswer: "متوسط فروش ۱۲ ماهه نماد سکرد برابر با 1,421,363 میلیون ریال است.",
+            ClarificationRequired: false,
+            ClarificationMessage: null,
+            Usage: new UsageAccountingResult("AiQuery.SymbolLookup", "Completed", 1, 998499, "v1", false));
     }
 }

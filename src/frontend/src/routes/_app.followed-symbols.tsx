@@ -14,6 +14,20 @@ import {
 } from "@/lib/followed-symbols.functions";
 import { searchSymbolMetadata, type SymbolMetadata } from "@/lib/metadata.functions";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import {
+  formatInsightScore,
+  formatShamsiDate,
+  localizeEvidenceLabel,
+  localizeEmptyStateMessage,
+  localizeInsightSummary,
+  localizeInsightTitle,
+  localizeInsightType,
+  localizeInsightValue,
+  localizePeriod,
+  localizeProviderName,
+  localizeSeverity,
+  localizeSourceEntityType,
+} from "@/lib/insight-localization";
 
 export const Route = createFileRoute("/_app/followed-symbols")({
   component: FollowedSymbolsPage,
@@ -68,7 +82,10 @@ function FollowedSymbolsPage() {
   });
   const remove = useMutation({
     mutationFn: (externalCompanyId: string) => unfollow({ data: { externalCompanyId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["followed-symbols"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["followed-symbols"] });
+      qc.invalidateQueries({ queryKey: ["watchlist"] });
+    },
   });
   const mark = useMutation({
     mutationFn: (insightEventId: string) => markSeen({ data: { insightEventId } }),
@@ -94,8 +111,8 @@ function FollowedSymbolsPage() {
           </p>
           <h1 className="text-3xl font-bold text-foreground">مدیریت دیده‌بان</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            نمادهای دنبال‌شده یک فهرست شخصی برای پیگیری در قابلیت‌های آینده هوش مصنوعی هستند
-            و به‌معنای پرتفوی، اندازه موقعیت، بهای تمام‌شده یا میزان exposure نیستند.
+            نمادهای دنبال‌شده یک فهرست شخصی برای پیگیری در قابلیت‌های آینده هوش مصنوعی هستند و
+            به‌معنای پرتفوی، اندازه موقعیت، بهای تمام‌شده یا میزان exposure نیستند.
           </p>
         </header>
 
@@ -154,11 +171,17 @@ function FollowedSymbolsPage() {
             </div>
           </div>
 
-          {insights.isLoading && <p className="text-sm text-muted-foreground">در حال بارگذاری رویدادها...</p>}
-          {insights.isError && <p className="text-sm text-rose">بارگذاری رویدادهای شخصی‌سازی‌شده انجام نشد.</p>}
+          {insights.isLoading && (
+            <p className="text-sm text-muted-foreground">در حال بارگذاری رویدادها...</p>
+          )}
+          {insights.isError && (
+            <p className="text-sm text-rose">بارگذاری رویدادهای شخصی‌سازی‌شده انجام نشد.</p>
+          )}
           {!insights.isLoading && !insights.isError && insights.data?.emptyState && (
             <div className="rounded-lg border border-hairline bg-background/50 p-4">
-              <p className="text-sm text-muted-foreground">{insights.data.emptyState.message}</p>
+              <p className="text-sm text-muted-foreground">
+                {localizeEmptyStateMessage(insights.data.emptyState.message)}
+              </p>
             </div>
           )}
           <div className="grid gap-3">
@@ -233,8 +256,12 @@ function FollowedSymbolsPage() {
               {followed.data?.symbols.length ?? 0} نماد
             </span>
           </div>
-          {followed.isLoading && <p className="text-sm text-muted-foreground">در حال بارگذاری نمادهای دنبال‌شده...</p>}
-          {followed.isError && <p className="text-sm text-rose">بارگذاری نمادهای دنبال‌شده انجام نشد.</p>}
+          {followed.isLoading && (
+            <p className="text-sm text-muted-foreground">در حال بارگذاری نمادهای دنبال‌شده...</p>
+          )}
+          {followed.isError && (
+            <p className="text-sm text-rose">بارگذاری نمادهای دنبال‌شده انجام نشد.</p>
+          )}
           {!followed.isLoading && !followed.isError && followed.data?.symbols.length === 0 && (
             <p className="text-sm text-muted-foreground">هنوز نمادی را دنبال نکرده‌اید.</p>
           )}
@@ -315,9 +342,11 @@ function InsightCard({
               {insight.symbol}
             </span>
             <span className="rounded-md border border-hairline px-2 py-1 text-xs text-muted-foreground">
-              {insight.insightType}
+              {localizeInsightType(insight.insightType)}
             </span>
-            <span className={severityClass(insight.severity)}>{insight.severity}</span>
+            <span className={severityClass(insight.severity)}>
+              {localizeSeverity(insight.severity)}
+            </span>
             {item.dismissed && (
               <span className="rounded-md border border-rose/30 px-2 py-1 text-xs text-rose">
                 حذف‌شده
@@ -329,12 +358,16 @@ function InsightCard({
               </span>
             )}
           </div>
-          <h3 className="mt-3 text-base font-semibold text-foreground">{insight.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{insight.summary}</p>
+          <h3 className="mt-3 text-base font-semibold text-foreground">
+            {localizeInsightTitle(insight.title, insight.symbol, insight.insightType)}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {localizeInsightSummary(insight.summary, insight.symbol, insight.insightType)}
+          </p>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
-            <span>اهمیت {formatScore(insight.importanceScore)}</span>
-            <span>اطمینان {formatScore(insight.confidenceScore)}</span>
-            <span>{new Date(insight.detectedAtUtc).toLocaleDateString()}</span>
+            <span>اهمیت {formatInsightScore(insight.importanceScore)}</span>
+            <span>اطمینان {formatInsightScore(insight.confidenceScore)}</span>
+            <span>{formatShamsiDate(insight.detectedAtUtc)}</span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -381,12 +414,19 @@ function InsightCard({
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {insight.evidence.slice(0, 4).map((evidence) => (
-          <div key={`${evidence.label}-${evidence.value}`} className="rounded-md border border-hairline px-3 py-2">
-            <div className="text-xs text-muted-foreground">{evidence.label}</div>
-            <div className="mt-1 text-sm font-medium text-foreground">{evidence.value}</div>
+          <div
+            key={`${evidence.label}-${evidence.value}`}
+            className="rounded-md border border-hairline px-3 py-2"
+          >
+            <div className="text-xs text-muted-foreground">
+              {localizeEvidenceLabel(evidence.label)}
+            </div>
+            <div className="mt-1 text-sm font-medium text-foreground">
+              {localizeInsightValue(evidence.value, evidence.label)}
+            </div>
             <div className="mt-1 text-[11px] text-muted-foreground">
-              {evidence.sourceProvider}
-              {evidence.sourcePeriod ? ` | ${evidence.sourcePeriod}` : ""}
+              {localizeProviderName(evidence.sourceProvider)}
+              {evidence.sourcePeriod ? ` | ${localizePeriod(evidence.sourcePeriod)}` : ""}
             </div>
           </div>
         ))}
@@ -397,9 +437,9 @@ function InsightCard({
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span>منبع {insight.sourceProviderName}</span>
-        <span>موجودیت {insight.sourceEntityType}</span>
-        {insight.sourcePeriod && <span>دوره {insight.sourcePeriod}</span>}
+        <span>منبع {localizeProviderName(insight.sourceProviderName)}</span>
+        <span>موجودیت {localizeSourceEntityType(insight.sourceEntityType)}</span>
+        {insight.sourcePeriod && <span>دوره {localizePeriod(insight.sourcePeriod)}</span>}
       </div>
     </article>
   );
@@ -411,8 +451,4 @@ function severityClass(severity: string) {
   if (severity === "Important") return `${base} border-amber-400/30 text-amber-300`;
   if (severity === "Notice") return `${base} border-sky-400/30 text-sky-300`;
   return `${base} border-hairline text-muted-foreground`;
-}
-
-function formatScore(score: number) {
-  return Number.isInteger(score) ? score.toString() : score.toFixed(1);
 }

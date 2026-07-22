@@ -64,4 +64,5 @@
 - Added `GET`, `POST`, `DELETE`, and `PUT` endpoints under `/api/v1/followed-symbols/me`, reusing watchlist read/write-self authorization policies.
 - Extended symbol metadata with `externalCompanyId` so frontend follow actions resolve canonical company identity instead of persisting raw symbol text.
 - Added frontend server functions, `/followed-symbols` management view, sidebar entry point, AI table follow action, and market-mover follow action. UI copy uses "followed symbols" and explicitly avoids portfolio/holding semantics.
+- 2026-07-22: The main chat context panel now uses the followed-symbol list as the actor's watchlist source for quote display. The quote-enriched `/api/v1/watchlists/me` read path prefers `FollowedSymbols` and falls back to legacy `WatchlistSymbols` only when no followed symbols exist.
 - Validation passed: API Release build, `FollowedSymbols085Tests` 3/3, `FollowedSymbolsEndpointTests` 6/6, frontend `npm run build`, and architecture tests 7/7.

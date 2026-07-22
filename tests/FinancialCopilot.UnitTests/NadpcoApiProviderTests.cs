@@ -16,8 +16,9 @@ namespace FinancialCopilot.UnitTests;
 public sealed class NadpcoApiProviderTests
 {
     [Fact]
-    public async Task TokenProvider_ReusesCachedTokenUntilExpiry()
+    public async Task TokenProvider_ReusesCachedTokenUntilTehranDayEnds()
     {
+        var time = new MutableTimeProvider(DateTimeOffset.Parse("2026-06-03T10:00:00Z"));
         var tokenRequestCount = 0;
         using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
         {
@@ -28,9 +29,10 @@ public sealed class NadpcoApiProviderTests
         {
             BaseAddress = new Uri("https://data3.nadpco.com/")
         };
-        var provider = CreateTokenProvider(httpClient);
+        var provider = CreateTokenProvider(httpClient, timeProvider: time);
 
         var first = await provider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
+        time.Advance(TimeSpan.FromHours(10));
         var second = await provider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
 
         Assert.Equal("token-1", first);
@@ -39,14 +41,14 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
-    public async Task TokenProvider_RefreshesExpiredToken()
+    public async Task TokenProvider_RefreshesTokenAfterTehranDayEnds()
     {
-        var time = new MutableTimeProvider(DateTimeOffset.Parse("2026-06-03T10:00:00Z"));
+        var time = new MutableTimeProvider(DateTimeOffset.Parse("2026-06-03T20:29:58Z"));
         var tokenRequestCount = 0;
         using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
         {
             tokenRequestCount++;
-            return JsonResponse(new { access_token = $"token-{tokenRequestCount}", expires_in = 60 });
+            return JsonResponse(new { access_token = $"token-{tokenRequestCount}", expires_in = 86400 });
         }))
         {
             BaseAddress = new Uri("https://data3.nadpco.com/")
@@ -54,7 +56,7 @@ public sealed class NadpcoApiProviderTests
         var provider = CreateTokenProvider(httpClient, timeProvider: time);
 
         var first = await provider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
-        time.Advance(TimeSpan.FromMinutes(2));
+        time.Advance(TimeSpan.FromSeconds(2));
         var second = await provider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
 
         Assert.Equal("token-1", first);
@@ -95,6 +97,63 @@ public sealed class NadpcoApiProviderTests
             dataRequestCount++;
             capturedTokens.Add(request.Headers.Authorization?.Parameter ?? string.Empty);
             return new HttpResponseMessage(dataRequestCount == 1 ? HttpStatusCode.Unauthorized : HttpStatusCode.OK);
+        });
+        using var client = new HttpClient(new NadpcoApiAuthHandler(tokenProvider) { InnerHandler = inner })
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+
+        using var response = await client.PostAsync(
+            "api/v2/CompanyFundamentalIndex/Values",
+            new StringContent("{}", Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["expired-token", "fresh-token"], capturedTokens);
+        Assert.Equal(1, tokenProvider.Invalidations);
+    }
+
+    [Fact]
+    public async Task AuthHandler_RetriesOnceAfter403()
+    {
+        var tokenProvider = new SequenceTokenProvider("expired-token", "fresh-token");
+        var dataRequestCount = 0;
+        var capturedTokens = new List<string>();
+        var inner = new StubHttpMessageHandler(request =>
+        {
+            dataRequestCount++;
+            capturedTokens.Add(request.Headers.Authorization?.Parameter ?? string.Empty);
+            return new HttpResponseMessage(dataRequestCount == 1 ? HttpStatusCode.Forbidden : HttpStatusCode.OK);
+        });
+        using var client = new HttpClient(new NadpcoApiAuthHandler(tokenProvider) { InnerHandler = inner })
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+
+        using var response = await client.PostAsync(
+            "api/v2/CompanyFundamentalIndex/Values",
+            new StringContent("{}", Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["expired-token", "fresh-token"], capturedTokens);
+        Assert.Equal(1, tokenProvider.Invalidations);
+    }
+
+    [Fact]
+    public async Task AuthHandler_RetriesOnceAfterInvalidTokenBody()
+    {
+        var tokenProvider = new SequenceTokenProvider("expired-token", "fresh-token");
+        var dataRequestCount = 0;
+        var capturedTokens = new List<string>();
+        var inner = new StubHttpMessageHandler(request =>
+        {
+            dataRequestCount++;
+            capturedTokens.Add(request.Headers.Authorization?.Parameter ?? string.Empty);
+            return dataRequestCount == 1
+                ? new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent("{\"message\":\"توکن صحیح نیست\"}", Encoding.UTF8, "application/json")
+                }
+                : new HttpResponseMessage(HttpStatusCode.OK);
         });
         using var client = new HttpClient(new NadpcoApiAuthHandler(tokenProvider) { InnerHandler = inner })
         {

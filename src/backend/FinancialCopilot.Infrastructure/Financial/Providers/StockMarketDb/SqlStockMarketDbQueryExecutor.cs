@@ -106,6 +106,8 @@ public sealed class SqlStockMarketDbQueryExecutor(
     public Task<IReadOnlyList<StockMarketIntradayIndexRecord>> QueryIntradayIndicesAsync(
         StockMarketPageCursor cursor, int take, CancellationToken cancellationToken) =>
         QueryAsync(
+            // XVarIdxJRfV is the intraday close-to-close percentage change. XVarIdxJ
+            // is a separate vendor variation field and is not the UI percentage.
             """
             SELECT TOP (@take) Id, InstrumentRef, InsCode, IndexDate, IndexTime, XDrNivJIdx004,
                    XVarIdxJRfV, ChangeTime

@@ -67,6 +67,21 @@ public sealed class WatchlistService(
 
     public async Task<WatchlistView> GetAsync(CurrentActor actor, CancellationToken cancellationToken)
     {
+        var followedSymbols = await dbContext.FollowedSymbols
+            .AsNoTracking()
+            .Where(row =>
+                row.TenantId == actor.TenantId &&
+                row.ActorId == actor.ActorId &&
+                row.ActorType == actor.ActorType.ToString())
+            .OrderBy(row => row.FollowedAtUtc)
+            .Select(row => row.Symbol)
+            .ToArrayAsync(cancellationToken);
+
+        if (followedSymbols.Length > 0)
+        {
+            return await BuildViewAsync(followedSymbols, cancellationToken);
+        }
+
         var symbols = await dbContext.WatchlistSymbols
             .AsNoTracking()
             .Where(row =>
@@ -209,14 +224,17 @@ public sealed class MarketSummaryService(
         // owned by StockMarketNamedIndices, in catalog order — not whatever index instruments
         // happen to exist in the dimension.
         var namedRefs = StockMarketNamedIndices.InstrumentRefs.ToArray();
+        var namedTsetmcCodes = StockMarketNamedIndices.TsetmcInstrumentCodes.ToArray();
         var latestIndexSnapshots = await (
             from snapshot in dbContext.DailyIndexSnapshots.AsNoTracking()
             join instrument in dbContext.TradingInstruments.AsNoTracking()
                 on snapshot.TradingInstrumentId equals instrument.Id
-            where namedRefs.Contains(instrument.ExternalInstrumentId)
+            where namedRefs.Contains(instrument.ExternalInstrumentId) ||
+                namedTsetmcCodes.Contains(instrument.InstrumentCode)
             select new
             {
                 instrument.ExternalInstrumentId,
+                instrument.InstrumentCode,
                 instrument.Symbol,
                 snapshot.Value,
                 snapshot.ChangePercent,
@@ -234,7 +252,15 @@ public sealed class MarketSummaryService(
         var indices = new List<MarketIndexObservation>(StockMarketNamedIndices.All.Count);
         foreach (var named in StockMarketNamedIndices.All)
         {
-            if (!latestIndicesByRef.TryGetValue(named.InstrumentRef, out var snapshot)) continue;
+            var snapshot = latestIndicesByRef.TryGetValue(named.InstrumentRef, out var stockMarketDbSnapshot)
+                ? stockMarketDbSnapshot
+                : named.TsetmcInstrumentCode.HasValue
+                    ? latestIndexSnapshots
+                        .Where(row => row.InstrumentCode == named.TsetmcInstrumentCode.Value)
+                        .OrderByDescending(row => row.ObservedAt)
+                        .FirstOrDefault()
+                    : null;
+            if (snapshot is null) continue;
             indices.Add(new MarketIndexObservation(
                 snapshot.Symbol,
                 named.PersianName,

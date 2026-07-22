@@ -19,6 +19,8 @@ but no web-facing watchlist or market-summary API exists.
 - Add authoritative watchlist persistence and enriched quote reads.
 - Add a market-summary read model and endpoint backed by normalized PostgreSQL projections.
 - Replace `STOCK_DB` sidebar lookups and `MARKET_SNAPSHOT` context-panel imports.
+- Show the user's followed-symbol watchlist, not market-wide top movers, in the main chat
+  context panel next to the chatbot.
 - Return explicit unavailable fields when current normalized data does not support a widget.
 
 ## Acceptance Criteria
@@ -33,11 +35,13 @@ but no web-facing watchlist or market-summary API exists.
    until a governed source is ingested; no fabricated values are returned.
 6. Sidebar and context panel show loading, empty, stale, and error states.
 7. Cache invalidation follows StockMarketDB projection updates.
-8. Tenant isolation, quote fallback, unavailable fields, and frontend lint/build checks pass.
+8. The main chat context panel renders watchlist/followed symbols with latest price and
+   change percentage; when more than six symbols are present, the symbol list scrolls
+   vertically instead of expanding the whole panel.
+9. Tenant isolation, quote fallback, unavailable fields, and frontend lint/build checks pass.
 
 ## Out Of Scope
 
 - Portfolio valuation.
 - User-facing watchlist editing controls in the first UI patch.
 - Inventing money-flow or industry analytics without a normalized source.
-

@@ -164,9 +164,15 @@ public static class ServiceCollectionExtensions
             .Get<ScannerCacheOptions>() ?? new ScannerCacheOptions();
         if (scannerCacheSettings.UseRedis)
         {
+            var redisConfiguration = configuration.GetConnectionString("Redis");
+            if (string.IsNullOrWhiteSpace(redisConfiguration))
+            {
+                redisConfiguration = scannerCacheSettings.RedisConfiguration;
+            }
+
             services.AddStackExchangeRedisCache(options =>
             {
-                options.Configuration = scannerCacheSettings.RedisConfiguration;
+                options.Configuration = redisConfiguration;
                 options.InstanceName = scannerCacheSettings.InstanceName;
             });
         }

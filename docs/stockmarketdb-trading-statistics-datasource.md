@@ -77,6 +77,10 @@ but stopped updating on `2024-06-08`. Use `IndexNew2` for historical backfill on
 daily index closes, derive one row per `(InstrumentRef, IndexDate)` from the last
 `IndexB1LastDay` snapshot of the trading day.
 
+For `Tse.IndexB1LastDay`, map `XDrNivJIdx004` to the index value and `XVarIdxJRfV` to the
+close-to-close percentage-change field. `XVarIdxJ` is a separate vendor variation field and
+must not populate the UI's percentage-change slot.
+
 ## PostgreSQL Normalized Model
 
 Add provider-scoped tables:

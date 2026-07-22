@@ -282,7 +282,7 @@ public sealed class TsetmcWebServiceClient(
                 IndexDate: ParseDateInt(r, "DEven"),
                 IndexTime: ParseTimeInt(r, "HEven"),
                 Value: ParseDecimal(r, "XDrNivJIdx004"),
-                ChangePercent: ParseNullableDecimal(r, "XVarIdxJ")));
+                ChangePercent: ParseNullableDecimal(r, "XVarIdxJRfV")));
         }
         return result;
     }

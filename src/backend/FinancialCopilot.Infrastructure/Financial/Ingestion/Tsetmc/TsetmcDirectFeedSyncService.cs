@@ -501,11 +501,56 @@ public sealed class TsetmcDirectFeedSyncService(
         // TradingInstruments is a provider-neutral dimension: do not filter by ProviderName.
         // Rows inserted by StockMarketDbSyncService (bridge phase) or by any prior TSETMC sync
         // are all valid lookup targets.
-        return await dbContext.TradingInstruments
+        var instruments = await dbContext.TradingInstruments
             .Where(row => codes.Contains(row.InstrumentCode))
             .GroupBy(row => row.InstrumentCode)
             .Select(g => g.OrderByDescending(r => r.LastSynchronizedAt).First())
             .ToDictionaryAsync(row => row.InstrumentCode, cancellationToken);
+
+        // Intraday polling can create instrument stubs before the scheduled full
+        // instruments sync runs. Resolve those stubs against the normalized company
+        // catalog now so insight detection can associate fresh trades with symbols.
+        var codeStrings = codes
+            .Select(code => code.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        var companyIdsByCode = (await dbContext.Companies.AsNoTracking()
+                .Where(row => row.InstrumentCode != null && codeStrings.Contains(row.InstrumentCode))
+                .ToListAsync(cancellationToken))
+            .GroupBy(row => row.InstrumentCode!, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderByDescending(row => row.LastSynchronizedAt).ThenBy(row => row.Id).First().Id,
+                StringComparer.Ordinal);
+
+        var now = timeProvider.GetUtcNow();
+        foreach (var code in codes)
+        {
+            if (!instruments.TryGetValue(code, out var instrument))
+            {
+                instrument = new TradingInstrumentRow
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderName = _options.ProviderName,
+                    ExternalInstrumentId = BuildInstrumentGuid(code),
+                    InstrumentCode = code,
+                    Symbol = code.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    LastSynchronizedAt = now,
+                    SourceChangedAt = now
+                };
+                dbContext.TradingInstruments.Add(instrument);
+                instruments[code] = instrument;
+            }
+
+            if (!instrument.NormalizedCompanyId.HasValue &&
+                companyIdsByCode.TryGetValue(
+                    code.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out var companyId))
+            {
+                instrument.NormalizedCompanyId = companyId;
+            }
+        }
+
+        return instruments;
     }
 
     private async Task<Dictionary<Guid, LatestMarketQuoteRow>> LatestQuoteMapAsync(

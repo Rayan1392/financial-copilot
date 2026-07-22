@@ -378,7 +378,8 @@ export function generateMockReply(prompt: string, deepResearch: boolean): ChatBl
       "ترکیب فروش محصول کچاد را بگو",
       "میانگین فروش ۱۲ ماهه شگل",
       "آخرین صورت سود و زیان فولاژ",
-      "شرکت دسبحان را تحلیل کن"
+      "تحلیل بنیادی دسبحان؟",
+      "تحلیل بنیادی شگل"
     ],
     creditsUsed: 1,
   };

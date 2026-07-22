@@ -1,14 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMarketSummary } from "@/lib/market-view.functions";
+import { getMarketSummary, getWatchlist } from "@/lib/market-view.functions";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
-import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 
 export function ContextPanel() {
   const fetchSummary = useServerFn(getMarketSummary);
+  const fetchWatchlist = useServerFn(getWatchlist);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["market-summary"],
     queryFn: () => fetchSummary(),
+    retry: false,
+    throwOnError: false,
+    refetchOnWindowFocus: false,
+  });
+  const {
+    data: watchlist,
+    isLoading: watchlistLoading,
+    isError: watchlistError,
+  } = useQuery({
+    queryKey: ["watchlist"],
+    queryFn: () => fetchWatchlist(),
     retry: false,
     throwOnError: false,
     refetchOnWindowFocus: false,
@@ -53,38 +64,46 @@ export function ContextPanel() {
         </section>
         <section>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            نمادهای برتر
+            دیده‌بان
           </h3>
-          {!isLoading &&
-            !isError &&
-            data &&
-            data.topGainers.length + data.topLosers.length === 0 && (
-              <p className="text-xs text-muted-foreground">داده نمادها در دسترس نیست.</p>
-            )}
-          <div className="space-y-1.5">
-            {[...(data?.topGainers ?? []), ...(data?.topLosers ?? [])].map((mover) => (
+          {watchlistLoading && (
+            <p className="text-xs text-muted-foreground">در حال بارگذاری دیده‌بان...</p>
+          )}
+          {watchlistError && (
+            <p className="text-xs text-rose">داده دیده‌بان در دسترس نیست.</p>
+          )}
+          {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
+            <p className="text-xs text-muted-foreground">دیده‌بان خالی است.</p>
+          )}
+          <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
+            {watchlist?.symbols.map((quote) => (
               <div
-                key={`${mover.symbol}-${mover.changePercent}`}
+                key={quote.symbol}
                 className="flex items-center justify-between gap-2 p-2 rounded-lg"
               >
                 <div>
-                  <span className="text-sm text-foreground">
-                    {mover.symbol}
-                    {mover.isStale ? " *" : ""}
-                  </span>
-                  <div className="mt-1">
-                    <FollowSymbolButton symbol={mover.symbol} compact />
+                  <div className="text-sm text-foreground">
+                    {quote.symbol}
+                    {quote.isStale ? " *" : ""}
+                  </div>
+                  <div className="mt-1 text-[11px] mono text-muted-foreground">
+                    {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
                   </div>
                 </div>
                 <span
-                  className={`text-xs mono ${mover.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
+                  className={`text-xs mono ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
                 >
-                  {formatPercent(mover.changePercent)}
+                  {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
                 </span>
               </div>
             ))}
           </div>
-          {data && [...data.topGainers, ...data.topLosers].some((mover) => mover.isStale) && (
+          {watchlist?.asOf && (
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              بروزرسانی {relativeTime(watchlist.asOf)}
+            </p>
+          )}
+          {watchlist?.symbols.some((quote) => quote.isStale) && (
             <p className="text-[10px] text-gold mt-2">* داده قدیمی</p>
           )}
         </section>

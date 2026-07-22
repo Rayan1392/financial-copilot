@@ -5,9 +5,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 
 /// <summary>
 /// Persists the NADPCO bearer token in <see cref="IDistributedCache"/> (Redis when configured,
-/// in-memory otherwise) so that application restarts do not consume the vendor's daily token
-/// quota. The cache key is scoped to the provider so Worker and API share the same token when
-/// both point at the same Redis instance.
+/// in-memory otherwise) until the end of the current Tehran business day. This prevents API and
+/// Worker processes from consuming more than one vendor token per day unless the remote API
+/// explicitly rejects the cached token.
 /// </summary>
 public sealed class NadpcoApiTokenCache(IDistributedCache distributedCache)
 {
@@ -59,7 +59,7 @@ public sealed class NadpcoApiTokenCache(IDistributedCache distributedCache)
         return false;
     }
 
-    public void SetToken(string token, DateTimeOffset expiresAt)
+    public void SetToken(string token, DateTimeOffset now, DateTimeOffset expiresAt)
     {
         lock (_gate)
         {
@@ -67,7 +67,7 @@ public sealed class NadpcoApiTokenCache(IDistributedCache distributedCache)
             _localExpiresAt = expiresAt;
         }
 
-        var ttl = expiresAt - DateTimeOffset.UtcNow;
+        var ttl = expiresAt - now;
         if (ttl <= TimeSpan.Zero)
         {
             return;

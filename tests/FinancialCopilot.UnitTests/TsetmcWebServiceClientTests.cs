@@ -76,6 +76,31 @@ public sealed class TsetmcWebServiceClientTests
     }
 
     [Fact]
+    public void ParseIntradayIndices_UsesCloseToClosePercentageField()
+    {
+        var table = new DataTable();
+        table.Columns.Add("InsCode", typeof(long));
+        table.Columns.Add("DEven", typeof(int));
+        table.Columns.Add("HEven", typeof(int));
+        table.Columns.Add("XDrNivJIdx004", typeof(decimal));
+        table.Columns.Add("XVarIdxJ", typeof(decimal));
+        table.Columns.Add("XVarIdxJRfV", typeof(decimal));
+        table.Rows.Add(32097828799138957L, 20260722, 101000, 4886260.99m, 0m, -0.0264m);
+
+        var dataSet = new DataSet();
+        dataSet.Tables.Add(table);
+        var parser = typeof(TsetmcWebServiceClient).GetMethod(
+            "ParseIntradayIndices",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(parser);
+        var records = (IReadOnlyList<TsetmcIntradayIndexRecord>)parser!.Invoke(null, [dataSet])!;
+
+        var record = Assert.Single(records);
+        Assert.Equal(-0.0264m, record.ChangePercent);
+    }
+
+    [Fact]
     public void NullTsetmcDirectFeedSyncService_IsOperational_IsFalse()
     {
         var svc = new Infrastructure.Financial.Ingestion.Tsetmc.NullTsetmcDirectFeedSyncService();

@@ -321,6 +321,7 @@ public sealed class TelegramAssistantResponseRenderer(
         "MONTHLY_SALES_GROWTH_YOY" => "رشد فروش ماهانه نسبت به سال قبل",
         "MONTHLY_PRODUCTION_QUANTITY" => "تولید ماهانه",
         "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH" => "فروش ماه مشابه سال قبل",
+        "AVG_12M_MONTHLY_SALES" => "متوسط فروش ۱۲ ماهه",
         "MONTHLY_SALES_YTD" => "فروش تجمیعی از ابتدای سال",
         "MONTHLY_SALES_YTD_PREVIOUS_MONTH" => "فروش تجمیعی تا ماه قبل",
         _ => metricCode
@@ -339,6 +340,7 @@ public sealed class TelegramAssistantResponseRenderer(
     {
         var metricCode = column.MetricCode ?? column.Identifier;
         return metricCode is "MONTHLY_SALES"
+            or "AVG_12M_MONTHLY_SALES"
             or "MONTHLY_SALES_PRIOR_FISCAL_YEAR_SAME_MONTH"
             or "MONTHLY_SALES_YTD"
             or "MONTHLY_SALES_YTD_PREVIOUS_MONTH";

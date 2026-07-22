@@ -75,4 +75,4 @@ public sealed record TsetmcIntradayIndexRecord(
     DateOnly IndexDate,          // DEven
     TimeOnly IndexTime,          // HEven
     decimal Value,               // XDrNivJIdx004 (current value)
-    decimal? ChangePercent);     // XVarIdxJ
+    decimal? ChangePercent);     // XVarIdxJRfV (close-to-close percentage change)

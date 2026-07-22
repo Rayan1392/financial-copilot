@@ -18,12 +18,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { label: "Overview", to: "/admin_/data", icon: LayoutGrid },
-  { label: "Archive Import", to: "/admin_/data/archive", icon: Archive },
-  { label: "Noavaran Current API", to: "/admin_/data/noavaran", icon: BarChart2 },
-  { label: "StockMarketDB Bridge", to: "/admin_/data/stockmarket", icon: Database, badge: "Bridge" },
-  { label: "Live Monitor", to: "/admin_/data/monitor", icon: Activity },
-  { label: "Reconciliation", to: "/admin_/data/reconciliation", icon: GitCompare },
+  { label: "Overview", to: "/admin/data", icon: LayoutGrid },
+  { label: "Archive Import", to: "/admin/data/archive", icon: Archive },
+  { label: "Noavaran Current API", to: "/admin/data/noavaran", icon: BarChart2 },
+  { label: "StockMarketDB Bridge", to: "/admin/data/stockmarket", icon: Database, badge: "Bridge" },
+  { label: "Live Monitor", to: "/admin/data/monitor", icon: Activity },
+  { label: "Reconciliation", to: "/admin/data/reconciliation", icon: GitCompare },
 ];
 
 export function DataManagementShell({ children }: { children: React.ReactNode }) {
@@ -48,7 +48,7 @@ export function DataManagementShell({ children }: { children: React.ReactNode })
       <div className="flex flex-1 min-h-0">
         <nav className="w-56 shrink-0 border-r border-border bg-surface/40 py-4 px-3 flex flex-col gap-1">
           {navItems.map(({ label, to, icon: Icon, badge }) => {
-            const isActive = currentPath === to || (to !== "/admin_/data" && currentPath.startsWith(to));
+            const isActive = currentPath === to || (to !== "/admin/data" && currentPath.startsWith(to));
             return (
               <Link
                 key={to}

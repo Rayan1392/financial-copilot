@@ -19,7 +19,7 @@ const sources: SourceCard[] = [
     source: "NoavaranArchiveSql",
     mode: "ArchiveOneTime",
     description: "Frozen CodalDB SQL snapshot. Import once, validate, and freeze. Never scheduled.",
-    to: "/admin_/data/archive",
+    to: "/admin/data/archive",
     icon: Archive,
     badge: { label: "Archive", cls: "bg-blue-500/15 text-blue-600" },
   },
@@ -29,7 +29,7 @@ const sources: SourceCard[] = [
     source: "NoavaranCurrentApi",
     mode: "CurrentIncremental",
     description: "Recurring incremental sync from Shamsi 1403 onward via NADPCO HTTP API.",
-    to: "/admin_/data/noavaran",
+    to: "/admin/data/noavaran",
     icon: BarChart2,
     badge: { label: "Live", cls: "bg-emerald-500/15 text-emerald-600" },
   },
@@ -39,7 +39,7 @@ const sources: SourceCard[] = [
     source: "CyclicalWavesApi",
     mode: "ExternalSnapshot",
     description: "Independent fundamentals vendor. Periodic full snapshot sync.",
-    to: "/admin_/data/noavaran",
+    to: "/admin/data/noavaran",
     icon: BarChart2,
     badge: { label: "Snapshot", cls: "bg-purple-500/15 text-purple-600" },
   },
@@ -49,7 +49,7 @@ const sources: SourceCard[] = [
     source: "StockMarketDb",
     mode: "MigrationBridge",
     description: "Market trading data via read-only StockMarketDB SQL Server bridge. Transitional — will be replaced by direct TSETMC feed.",
-    to: "/admin_/data/stockmarket",
+    to: "/admin/data/stockmarket",
     icon: Database,
     badge: { label: "Bridge", cls: "bg-amber-500/15 text-amber-600" },
   },
@@ -59,7 +59,7 @@ const sources: SourceCard[] = [
     source: "TsetmcWebService",
     mode: "CurrentIncremental",
     description: "Direct TSETMC ASMX web-service ingestion. Not yet operational — Phase 2 of spec 054.",
-    to: "/admin_/data/stockmarket",
+    to: "/admin/data/stockmarket",
     icon: Database,
     badge: { label: "Planned", cls: "bg-muted text-muted-foreground" },
   },
@@ -111,7 +111,7 @@ export function DataManagementOverviewPage() {
       {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
-          to="/admin_/data/monitor"
+          to="/admin/data/monitor"
           className="group rounded-xl border border-border bg-surface/60 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center gap-4"
         >
           <div className="rounded-lg bg-emerald-500/10 p-3">
@@ -125,7 +125,7 @@ export function DataManagementOverviewPage() {
         </Link>
 
         <Link
-          to="/admin_/data/reconciliation"
+          to="/admin/data/reconciliation"
           className="group rounded-xl border border-border bg-surface/60 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center gap-4"
         >
           <div className="rounded-lg bg-purple-500/10 p-3">

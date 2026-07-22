@@ -1,7 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import { MessageList } from "../message-list";
 import type { AssistantChatBlock, ChatMessage } from "@/lib/chat.functions";
+
+function renderMessageList(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 describe("MessageList", () => {
   it("renders monthly-sales unit as localized table metadata for آخرین فروش کچاد چقدر بوده؟", () => {
@@ -58,12 +68,13 @@ describe("MessageList", () => {
       },
     ];
 
-    const { container } = render(
+    const { container } = renderMessageList(
       <MessageList
         messages={messages}
         loading={false}
         streaming={false}
         onSuggested={vi.fn()}
+        followedSymbols={new Set(["کچاد"])}
       />,
     );
 
@@ -73,6 +84,8 @@ describe("MessageList", () => {
     expect(screen.getByRole("columnheader", { name: "متوسط فروش ۱۲ ماهه" })).toBeInTheDocument();
     expect(container).not.toHaveTextContent("AVG_12M_MONTHLY_SALES");
     expect(container).not.toHaveTextContent("Average 12 Month Sales");
+    expect(container).toHaveTextContent("دنبال می‌شود");
+    expect(container).not.toHaveTextContent("دنبال کردن نماد");
 
     const tableContainer = metadata.closest("[dir='rtl']");
     expect(tableContainer).not.toBeNull();
@@ -99,7 +112,7 @@ describe("MessageList", () => {
       },
     ];
 
-    render(
+    renderMessageList(
       <MessageList
         messages={messages}
         loading={false}
@@ -138,7 +151,7 @@ describe("MessageList", () => {
       },
     };
 
-    render(
+    renderMessageList(
       <MessageList
         messages={[
           {

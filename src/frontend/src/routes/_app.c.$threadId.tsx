@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages, sendChatMessage } from "@/lib/chat.functions";
+import { getFollowedSymbols } from "@/lib/followed-symbols.functions";
 import { MessageList } from "@/components/app/message-list";
 import { PromptInput } from "@/components/app/prompt-input";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +23,7 @@ function ChatThreadPage() {
   const { threadId } = Route.useParams();
   const qc = useQueryClient();
   const fetchMessages = useServerFn(getThreadMessages);
+  const fetchFollowed = useServerFn(getFollowedSymbols);
   const send = useServerFn(sendChatMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -37,6 +39,13 @@ function ChatThreadPage() {
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["messages", threadId],
     queryFn: () => fetchMessages({ data: { threadId } }),
+    retry: false,
+    throwOnError: false,
+    refetchOnWindowFocus: false,
+  });
+  const { data: followed } = useQuery({
+    queryKey: ["followed-symbols"],
+    queryFn: () => fetchFollowed(),
     retry: false,
     throwOnError: false,
     refetchOnWindowFocus: false,
@@ -80,6 +89,7 @@ function ChatThreadPage() {
           onSuggested={submit}
           onPageChange={handlePageChange}
           showDiagnostics={showDiagnostics}
+          followedSymbols={new Set(followed?.symbols.map((item) => item.symbol) ?? [])}
         />
       </div>
       {queryError && (

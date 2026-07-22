@@ -14,9 +14,18 @@ interface Props {
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
   showDiagnostics?: boolean;
+  followedSymbols?: ReadonlySet<string>;
 }
 
-export function MessageList({ messages, loading, streaming, onSuggested, onPageChange, showDiagnostics }: Props) {
+export function MessageList({
+  messages,
+  loading,
+  streaming,
+  onSuggested,
+  onPageChange,
+  showDiagnostics,
+  followedSymbols,
+}: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   return (
     <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
@@ -30,6 +39,7 @@ export function MessageList({ messages, loading, streaming, onSuggested, onPageC
               onSuggested={onSuggested}
               onPageChange={onPageChange}
               showDiagnostics={showDiagnostics}
+              followedSymbols={followedSymbols}
             />
           )}
         </div>
@@ -57,11 +67,13 @@ function AssistantBlock({
   onSuggested,
   onPageChange,
   showDiagnostics,
+  followedSymbols,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
   showDiagnostics?: boolean;
+  followedSymbols?: ReadonlySet<string>;
 }) {
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
   const message = tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
@@ -94,6 +106,7 @@ function AssistantBlock({
             table={block.table}
             metadataLabel={tableMetadataLabel}
             onPageChange={onPageChange}
+            followedSymbols={followedSymbols}
           />
         )}
 
@@ -168,10 +181,12 @@ function ScannerResultTable({
   table,
   metadataLabel,
   onPageChange,
+  followedSymbols,
 }: {
   table: ScannerTable;
   metadataLabel?: string;
   onPageChange?: (page: number) => void;
+  followedSymbols?: ReadonlySet<string>;
 }) {
   const isPersianTable = isRtlFinancialTable(table);
   const { page, pageSize, totalPages, matchingSymbolCount } = table.executionFacts;
@@ -227,7 +242,11 @@ function ScannerResultTable({
                       )}
                       {column.identifier.toUpperCase() === "SYMBOL" && row.symbolCode && (
                         <span className="mt-1 block">
-                          <FollowSymbolButton symbol={row.symbolCode} compact />
+                          <FollowSymbolButton
+                            symbol={row.symbolCode}
+                            compact
+                            followed={followedSymbols?.has(row.symbolCode) ?? false}
+                          />
                         </span>
                       )}
                     </td>

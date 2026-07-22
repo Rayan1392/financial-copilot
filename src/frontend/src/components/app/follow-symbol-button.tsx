@@ -7,9 +7,15 @@ type FollowSymbolButtonProps = {
   symbol?: string;
   externalCompanyId?: string;
   compact?: boolean;
+  followed?: boolean;
 };
 
-export function FollowSymbolButton({ symbol, externalCompanyId, compact = false }: FollowSymbolButtonProps) {
+export function FollowSymbolButton({
+  symbol,
+  externalCompanyId,
+  compact = false,
+  followed = false,
+}: FollowSymbolButtonProps) {
   const qc = useQueryClient();
   const followById = useServerFn(followSymbolByExternalId);
   const searchSymbols = useServerFn(searchSymbolMetadata);
@@ -33,6 +39,20 @@ export function FollowSymbolButton({ symbol, externalCompanyId, compact = false 
   }
 
   if (!symbol && !externalCompanyId) return null;
+
+  if (followed) {
+    return (
+      <span
+        className={
+          compact
+            ? "inline-block rounded-full border border-emerald/30 px-2 py-0.5 text-[10px] text-emerald"
+            : "inline-block rounded-lg border border-emerald/30 px-3 py-1.5 text-xs font-medium text-emerald"
+        }
+      >
+        دنبال می‌شود
+      </span>
+    );
+  }
 
   return (
     <button

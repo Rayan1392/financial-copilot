@@ -155,7 +155,9 @@ const valueNames: Record<string, string> = {
   BalanceSheet: "ترازنامه",
   CashFlowStatement: "صورت جریان وجوه نقد",
   MonthlyProduction: "تولید ماهانه",
+  ProductSales: "تولید و فروش ماهانه",
   TwelveMonths: "۱۲ ماهه",
+  ThreeMonths: "سه‌ماهه",
   Monthly: "ماهانه",
   "Strong report": "گزارش قوی",
   "Weak report": "گزارش ضعیف",
@@ -251,6 +253,9 @@ export function localizeInsightValue(value: string, label?: string) {
 }
 
 export function localizePeriod(value: string) {
+  const localized = localizeToken(value);
+  if (localized !== value) return localized;
+
   const [datePart, ...suffix] = value.split("/");
   if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
     const formatted = formatShamsiDate(`${datePart}T12:00:00Z`);

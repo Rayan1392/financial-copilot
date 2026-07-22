@@ -80,12 +80,12 @@ export function AdminPage({ user }: { user: AuthUser }) {
             {hasPermission(user, adminPermissions.dataSyncManage) && (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/admin_/data/">
+                  <Link to="/admin/data/">
                     <Database className="size-4 mr-1.5" /> Data Console
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/admin_/data/monitor">
+                  <Link to="/admin/data/monitor">
                     <Activity className="size-4 mr-1.5" /> Live Monitor
                   </Link>
                 </Button>

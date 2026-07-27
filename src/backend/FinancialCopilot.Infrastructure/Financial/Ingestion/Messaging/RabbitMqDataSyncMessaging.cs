@@ -26,6 +26,12 @@ public sealed class RabbitMqDataSyncOptions
 
     public string RequestQueue { get; init; } = "financialcopilot.data-sync.requests";
 
+    /// <summary>
+    /// Number of competing data-sync consumers started by a Worker instance.
+    /// Keep this bounded to avoid overwhelming the upstream provider or database.
+    /// </summary>
+    public int ConsumerCount { get; init; } = 4;
+
     public ushort PrefetchCount { get; init; } = 1;
 
     public int? ConsumerTimeoutMilliseconds { get; init; }
@@ -88,23 +94,27 @@ public sealed class RabbitMqDataSyncRequestBus(
                 return;
             }
 
-            if (!await RabbitMqConsumerAcknowledgement.TryAckAsync(
+            try
+            {
+                await handler(request, cancellationToken);
+
+                await RabbitMqConsumerAcknowledgement.TryAckAsync(
                     channel,
                     args.DeliveryTag,
                     logger,
                     "data synchronization",
-                    cancellationToken))
-            {
-                return;
-            }
-
-            try
-            {
-                await handler(request, cancellationToken);
+                    cancellationToken);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 logger.LogError(exception, "Data synchronization message processing failed.");
+                await RabbitMqConsumerAcknowledgement.TryNackAsync(
+                    channel,
+                    args.DeliveryTag,
+                    logger,
+                    "data synchronization",
+                    cancellationToken,
+                    requeue: true);
             }
         };
 

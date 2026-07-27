@@ -1212,7 +1212,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDataSyncRunReader>(provider =>
             provider.GetRequiredService<FinancialDataSyncProcessor>());
         services.AddOptions<RabbitMqDataSyncOptions>()
-            .BindConfiguration(RabbitMqDataSyncOptions.SectionName);
+            .BindConfiguration(RabbitMqDataSyncOptions.SectionName)
+            .Validate(
+                options => options.ConsumerCount is > 0 and <= 32,
+                "DataSyncMessaging:ConsumerCount must be between 1 and 32.")
+            .ValidateOnStart();
         services.AddSingleton<RabbitMqDataSyncRequestBus>();
         services.AddSingleton<IDataSyncRequestPublisher>(provider =>
             provider.GetRequiredService<RabbitMqDataSyncRequestBus>());

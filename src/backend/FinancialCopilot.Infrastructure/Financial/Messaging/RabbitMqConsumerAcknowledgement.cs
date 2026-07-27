@@ -33,14 +33,15 @@ internal static class RabbitMqConsumerAcknowledgement
         ulong deliveryTag,
         ILogger logger,
         string operationName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requeue = false)
     {
         try
         {
             await channel.BasicNackAsync(
                 deliveryTag,
                 multiple: false,
-                requeue: false,
+                requeue,
                 cancellationToken);
             return true;
         }

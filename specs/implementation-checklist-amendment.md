@@ -24,6 +24,12 @@
 |---|---:|---|---|---|
 | [x] | 112 | [112](./112-company-disclosure-feed-and-telegram-listing/user-story.md) / [tasks](./112-company-disclosure-feed-and-telegram-listing/tasks.md) | Company Disclosure Feed and Telegram Listing | Implemented canonical, provider-neutral read model over persisted monthly production/sales and financial-statement disclosures. Includes deterministic filtered pagination in the Persian RTL web UI, the shared `DisclosureListing` AI contract, compact Telegram pages with actor-bound opaque continuation callbacks, Jalali title presentation, nullable persisted publication dates, authorization, freshness/coverage metadata, revision selection, and focused API/web/AI/Telegram/end-to-end tests. Does not change ingestion schedules or generate financial advice. |
 
+## Stage 27 — Monthly Sales Trend Sharing
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [ ] | 113 | [113](./113-monthly-sales-trend-chart-export-and-query-aliases/user-story.md) / [tasks](./113-monthly-sales-trend-chart-export-and-query-aliases/tasks.md) | Monthly Sales Trend Chart Export and Query Aliases | Add deterministic Persian phrase aliases for the existing monthly sales-trend workflow and a web-only PNG export that includes every bar value plus the chart explanation. Reuses the persisted `monthlyActivityTrendResult`; no raw-data aggregation, direct database/LLM access, or Telegram change. |
+
 ## Stage Gate
 
 - The Telegram adapter must remain a thin delivery-channel boundary over existing application use cases.

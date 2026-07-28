@@ -5,6 +5,7 @@ using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
@@ -164,16 +165,74 @@ public sealed class FinancialDataSyncProcessor(
 
             return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
         }
+        catch (DbUpdateException exception) when (TryGetUniqueConstraintViolation(exception, out var postgresException))
+        {
+            var externalCompanyId = DetachPendingDerivedMetricRows() ?? request.ExternalReference;
+            await MarkRunFailedAsync(
+                run,
+                $"DERIVED_METRIC_UNIQUE_CONSTRAINT_VIOLATION: {postgresException.MessageText}",
+                cancellationToken);
+
+            logger.LogError(
+                exception,
+                "Financial data sync failed permanently due to a unique constraint violation. " +
+                "SyncRunId: {SyncRunId}, Provider: {Provider}, ExternalCompanyId: {ExternalCompanyId}, " +
+                "SqlState: {SqlState}, Constraint: {Constraint}, OriginalMessage: {OriginalMessage}",
+                run.Id,
+                run.ProviderName,
+                externalCompanyId,
+                postgresException.SqlState,
+                postgresException.ConstraintName,
+                postgresException.Message);
+
+            // A normal return deliberately ACKs this permanent failure at the RabbitMQ boundary.
+            return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Financial data synchronization failed for {Dataset}.", request.Dataset);
-            run.Status = DataSyncRunStatus.Failed.ToString();
-            run.ErrorCount = 1;
-            run.ErrorMessage = Limit(exception.Message);
-            run.CompletedAt = timeProvider.GetUtcNow();
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await MarkRunFailedAsync(run, exception.Message, cancellationToken);
             return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
         }
+    }
+
+    private async Task MarkRunFailedAsync(
+        DataSyncRunRow run,
+        string failureMessage,
+        CancellationToken cancellationToken)
+    {
+        run.Status = DataSyncRunStatus.Failed.ToString();
+        run.ErrorCount = 1;
+        run.ErrorMessage = Limit(failureMessage);
+        run.CompletedAt = timeProvider.GetUtcNow();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private string? DetachPendingDerivedMetricRows()
+    {
+        var entries = dbContext.ChangeTracker.Entries<DerivedMetricRow>()
+            .Where(entry => entry.State == EntityState.Added)
+            .ToList();
+        var externalCompanyId = entries.Select(entry => entry.Entity.ExternalCompanyId)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+        foreach (var entry in entries)
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        return externalCompanyId;
+    }
+
+    private static bool TryGetUniqueConstraintViolation(
+        DbUpdateException exception,
+        out PostgresException postgresException)
+    {
+        postgresException = exception.GetBaseException() as PostgresException
+            ?? exception.InnerException as PostgresException
+            ?? null!;
+        return postgresException is not null &&
+            postgresException.SqlState == PostgresErrorCodes.UniqueViolation;
     }
 
     public async Task<IReadOnlyCollection<DataSyncRun>> QueryRecentAsync(

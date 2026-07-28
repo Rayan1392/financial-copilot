@@ -1137,6 +1137,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         - ProductRevenueMix: handled by the workflow before tool execution; asks which product contributes the most revenue,
           product mix/composition, dominant product, most important product, or similar monthly product-sales questions.
           Do NOT route these to lookup_symbol_metrics.
+        - Monthly sales trend: handled by the workflow before tool execution. The equivalent Persian
+          requests `روند فروش ماهانه`, `چارت فروش ماهانه`, `روند فروش`, `روند تولید و فروش`,
+          `نمودار تولید و فروش ماهانه`, `نمودار فروش`, and `نمودار فروش ماهانه` with a symbol
+          return the canonical monthly sales-trend chart result. Do NOT call a tool, generate a
+          chart yourself, or infer a separate production series for these requests.
 
         ── INTENT CLASSIFICATION (decide before calling any tool) ──
 

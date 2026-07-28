@@ -753,7 +753,12 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
 
     [Theory]
     [InlineData("روند فروش ماهانه کهمدا را نشان بده")]
-    [InlineData("روند فروش ماهانه هماتیت را نشان بده")]
+    [InlineData("چارت فروش ماهانه کهمدا")]
+    [InlineData("روند فروش کهمدا")]
+    [InlineData("روند تولید و فروش کهمدا")]
+    [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
+    [InlineData("نمودار فروش کهمدا")]
+    [InlineData("نمودار فروش ماهانه کهمدا")]
     public async Task V2AiQuery_MonthlyActivityTrendQueries_ReturnChartPayloadWithoutToolLoop(string message)
     {
         using var client = _factory.CreateClient();
@@ -790,6 +795,40 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.DoesNotContain("محاسبه: 2026/07/07", textAnswer);
         Assert.DoesNotContain("آخرین قیمت", textAnswer);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
+    }
+
+    [Theory]
+    [InlineData("چارت فروش ماهانه کهمدا")]
+    [InlineData("روند فروش کهمدا")]
+    [InlineData("روند تولید و فروش کهمدا")]
+    [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
+    [InlineData("نمودار فروش کهمدا")]
+    [InlineData("نمودار فروش ماهانه کهمدا")]
+    public async Task V2AiQuery_CanonicalAliases_ReturnTheSameMonthlyTrendPayload(string aliasMessage)
+    {
+        var canonicalPayload = await GetMonthlyTrendPayloadAsync("روند فروش ماهانه کهمدا");
+        var aliasPayload = await GetMonthlyTrendPayloadAsync(aliasMessage);
+
+        Assert.Equal(canonicalPayload, aliasPayload);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
+    private async Task<string> GetMonthlyTrendPayloadAsync(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        return root.GetProperty("monthlyActivityTrendResult").GetRawText();
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

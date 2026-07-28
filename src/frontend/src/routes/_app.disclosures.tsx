@@ -6,7 +6,7 @@ import {
   type DisclosureScope,
   type DisclosureType,
 } from "@/integrations/financial-copilot/disclosures";
-import { disclosureTypeLabels, formatDisclosurePublicationDate, formatDisclosureReceiptDate, consolidationLabel } from "@/lib/format/disclosure";
+import { disclosureTypeLabels, formatDisclosurePeriod, formatDisclosurePeriodType, formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 import { normalizeDisclosureSearch, patchDisclosureSearch } from "@/lib/disclosure-search";
 
 const disclosureTypes: Array<[DisclosureType, string]> = [
@@ -98,9 +98,9 @@ function DisclosuresPage() {
           {hasStaleData && <Notice>بخشی از داده‌ها ممکن است به‌روز نباشند؛ زمان تازگی منبع در نتیجه لحاظ شده است.</Notice>}
           {query.data.coverageStatus !== "Complete" && <Notice>بخشی از اطلاعیه‌ها هنوز به نماد یا شرکت نگاشت نشده‌اند؛ پوشش فهرست کامل نیست.</Notice>}
           <div className="overflow-x-auto rounded-xl border border-hairline">
-            <table className="w-full min-w-[960px] text-right text-sm">
-              <thead className="bg-background"><tr><Header>نماد</Header><Header>شرکت</Header><Header>عنوان اطلاعیه</Header><Header>نوع</Header><Header>ارائه‌دهنده</Header><Header>انتشار</Header><Header>دریافت سیستم</Header><Header>وضعیت</Header></tr></thead>
-              <tbody>{query.data.items.map((item) => <tr key={item.disclosureId} className="border-t border-hairline"><Cell><bdi>{item.symbol ?? "—"}</bdi></Cell><Cell>{item.companyName ?? "—"}</Cell><Cell>{item.title}</Cell><Cell>{disclosureTypeLabels[item.type]}</Cell><Cell><bdi>{item.providerName}</bdi></Cell><Cell>{formatDisclosurePublicationDate(item.publishedAt)}</Cell><Cell>{formatDisclosureReceiptDate(item.receivedAt)}</Cell><Cell>{item.isRevised ? "اصلاحی" : "عادی"} · {consolidationLabel(item.isComposing)}</Cell></tr>)}</tbody>
+            <table className="w-full min-w-[900px] text-right text-sm">
+              <thead className="bg-background"><tr><Header>نماد</Header><Header>شرکت</Header><Header>عنوان اطلاعیه</Header><Header>نوع</Header><Header>دوره</Header><Header>نوع دوره</Header><Header>دریافت سیستم</Header></tr></thead>
+              <tbody>{query.data.items.map((item) => <tr key={item.disclosureId} className="border-t border-hairline"><Cell><bdi>{item.symbol ?? "—"}</bdi></Cell><Cell>{item.companyName ?? "—"}</Cell><Cell>{item.title}</Cell><Cell>{disclosureTypeLabels[item.type]}</Cell><Cell>{formatDisclosurePeriod(item)}</Cell><Cell>{formatDisclosurePeriodType(item)}</Cell><Cell>{formatDisclosureReceiptDate(item.receivedAt)}</Cell></tr>)}</tbody>
             </table>
           </div>
           {query.data.items.length === 0 && <p className="rounded border border-hairline p-4">اطلاعیه‌ای با این فیلترها یافت نشد.</p>}

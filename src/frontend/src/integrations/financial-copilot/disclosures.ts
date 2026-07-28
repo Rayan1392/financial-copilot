@@ -2,7 +2,7 @@ import { financialCopilotApi } from "./api-client";
 
 export type DisclosureType = "MonthlyProductionSales" | "IncomeStatement" | "BalanceSheet" | "CashFlowStatement";
 export type DisclosureScope = "NonConsolidated" | "Consolidated" | "Both";
-export type DisclosureItem = { disclosureId: string; symbol?: string; companyName?: string; type: DisclosureType; title: string; publishedAt?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean };
+export type DisclosureItem = { disclosureId: string; symbol?: string; companyName?: string; type: DisclosureType; title: string; publishedAt?: string; reportingPeriodEnd?: string; reportingPeriodType?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean };
 export type DisclosureListingResult = { items: DisclosureItem[]; page: number; pageSize: number; hasPreviousPage: boolean; hasNextPage: boolean; totalCount: number; totalPages: number; coverageStatus: string; freshnessReasonCode: string };
 
 export async function getDisclosures(filters: { page: number; search?: string; types?: DisclosureType[]; scope?: DisclosureScope; providers?: string[]; publishedFrom?: string; publishedTo?: string; receivedFrom?: string; receivedTo?: string }) {

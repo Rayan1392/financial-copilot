@@ -44,12 +44,12 @@ export function ContextPanel() {
                   <div className="text-[11px] text-muted-foreground">
                     {index.name || index.symbol}
                   </div>
-                  <div className="text-lg mono mt-1 text-foreground">
+                  <div className="text-lg mt-1 text-foreground">
                     {index.value == null ? "-" : formatNumber(index.value)}
                   </div>
                 </div>
                 <div
-                  className={`text-sm mono ${index.changePercent == null ? "text-muted-foreground" : index.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
+                  className={`text-sm ${index.changePercent == null ? "text-muted-foreground" : index.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
                 >
                   {index.changePercent == null ? "-" : formatPercent(index.changePercent)}
                 </div>
@@ -86,12 +86,12 @@ export function ContextPanel() {
                     {quote.symbol}
                     {quote.isStale ? " *" : ""}
                   </div>
-                  <div className="mt-1 text-[11px] mono text-muted-foreground">
+                  <div className="mt-1 text-[11px] text-muted-foreground">
                     {quote.latestPrice == null ? "-" : formatNumber(quote.latestPrice)}
                   </div>
                 </div>
                 <span
-                  className={`text-xs mono ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
+                  className={`text-xs ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
                 >
                   {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
                 </span>

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/telegram/link/confirm")({
   validateSearch: (search: Record<string, unknown>) => ({
     token: typeof search.token === "string" ? search.token : "",
   }),
-  head: () => ({ meta: [{ title: "تأیید اتصال تلگرام — دستیار هوشمند تحلیل بازار" }] }),
+  head: () => ({ meta: [{ title: "تأیید اتصال تلگرام — ساپیو - دستیار هوشمند بازار" }] }),
   component: TelegramLinkConfirmationPage,
 });
 

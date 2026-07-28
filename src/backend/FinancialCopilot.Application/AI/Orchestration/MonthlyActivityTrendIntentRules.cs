@@ -2,14 +2,23 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 
 public static class MonthlyActivityTrendIntentRules
 {
-    private static readonly string[] TrendPhrases =
+    // Feature 113 canonical aliases. Each describes the same persisted monthly sales-trend result;
+    // production wording is an established alias, not a request for a new production series.
+    private static readonly string[] CanonicalMonthlySalesTrendPhrases =
     [
+        "روند فروش ماهانه",
+        "چارت فروش ماهانه",
         "روند فروش",
         "روند تولید و فروش",
-        "روند تولید",
-        "نمودار فروش ماهانه",
+        "نمودار تولید و فروش ماهانه",
         "نمودار فروش",
-        "نمودار تولید و فروش",
+        "نمودار فروش ماهانه"
+    ];
+
+    // Existing supported comparison/report phrases remain part of the same governed intent.
+    private static readonly string[] SupportedTrendPhrases =
+    [
+        "روند تولید",
         "نمودار تولید",
         "مقایسه فروش سال جاری و سال گذشته",
         "مقایسه فروش سال جاری",
@@ -32,7 +41,11 @@ public static class MonthlyActivityTrendIntentRules
     ];
 
     private static readonly string[] NormalizedTrendPhrases =
-        TrendPhrases.Select(NormalizeText).ToArray();
+        CanonicalMonthlySalesTrendPhrases
+            .Concat(SupportedTrendPhrases)
+            .Select(NormalizeText)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
     public static bool LooksLikeMonthlyActivityTrendQuery(string? query)
     {

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/auth")({
         ? search.redirect
         : "/chat",
   }),
-  head: () => ({ meta: [{ title: "ورود — دستیار هوشمند تحلیل بازار" }] }),
+  head: () => ({ meta: [{ title: "ورود — ساپیو - دستیار هوشمند بازار" }] }),
   component: AuthPage,
 });
 
@@ -46,7 +46,7 @@ export function AuthScreen({ redirect }: { redirect: string }) {
           <div className="size-10 rounded-xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center">
             <div className="size-3.5 bg-emerald rounded-full" />
           </div>
-          <h1 className="text-lg font-bold text-foreground">دستیار هوشمند تحلیل بازار</h1>
+          <h1 className="text-lg font-bold text-foreground">ساپیو - دستیار هوشمند بازار</h1>
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-6">

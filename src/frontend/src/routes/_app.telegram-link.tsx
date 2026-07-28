@@ -9,7 +9,7 @@ import {
 } from "@/integrations/financial-copilot/telegram-link";
 
 export const Route = createFileRoute("/_app/telegram-link")({
-  head: () => ({ meta: [{ title: "اتصال تلگرام — دستیار هوشمند تحلیل بازار" }] }),
+  head: () => ({ meta: [{ title: "اتصال تلگرام — ساپیو - دستیار هوشمند بازار" }] }),
   component: TelegramLinkPage,
 });
 

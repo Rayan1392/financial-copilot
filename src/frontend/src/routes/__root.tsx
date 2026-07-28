@@ -10,6 +10,7 @@ import {
 import { useEffect } from "react";
 import { subscribeToAuthChanges } from "@/integrations/financial-copilot/auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { ThemeInitializer } from "@/components/app/theme-toggle";
 
 import appCss from "../styles.css?url";
 
@@ -56,11 +57,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "دستیار هوشمند تحلیل بازار" },
+      { title: "ساپیو - دستیار هوشمند بازار" },
       { name: "description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
       { name: "theme-color", content: "#09090b" },
-      { property: "og:title", content: "دستیار هوشمند تحلیل بازار" },
-      { name: "twitter:title", content: "دستیار هوشمند تحلیل بازار" },
+      { property: "og:title", content: "ساپیو - دستیار هوشمند بازار" },
+      { name: "twitter:title", content: "ساپیو - دستیار هوشمند بازار" },
       { property: "og:description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
       { name: "twitter:description", content: "کوپایلوت هوش مصنوعی بازار سرمایه ایران" },
       {
@@ -123,6 +124,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeInitializer />
       <AuthSync />
       <Outlet />
     </QueryClientProvider>

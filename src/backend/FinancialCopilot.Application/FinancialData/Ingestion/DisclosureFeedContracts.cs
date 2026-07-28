@@ -60,7 +60,8 @@ public sealed record CompanyDisclosureFeedItem(
     string FreshnessReasonCode,
     bool IsAudited = false,
     bool IsRepresented = false,
-    bool IsComposing = false);
+    bool IsComposing = false,
+    string? ReportingPeriodType = null);
 
 public sealed record CompanyDisclosureFeedPage(
     IReadOnlyList<CompanyDisclosureFeedItem> Items,

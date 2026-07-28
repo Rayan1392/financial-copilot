@@ -13,7 +13,7 @@ public sealed class CompanyDisclosureFeed112Tests
         await using var db = CreateDb();
         var company = AddCompany(db, "1", "FOOLAD", "Foolad Mobarakeh");
         AddMonthly(db, "monthly", company: company);
-        AddStatement(db, "income", "IncomeStatement", company);
+        AddStatement(db, "income", "IncomeStatement", company, statementTitle: "Foolad Mobarakeh income statement");
         AddStatement(db, "balance", "BalanceSheet", company);
         AddStatement(db, "cash", "CashFlow", company);
         await db.SaveChangesAsync();
@@ -33,8 +33,12 @@ public sealed class CompanyDisclosureFeed112Tests
             Assert.Equal(DisclosureCoverageStatus.Complete, item.CoverageStatus);
         });
         var monthly = Assert.Single(page.Items, item => item.Type == CompanyDisclosureType.MonthlyProductionSales);
-        Assert.Contains("1405/05/09", monthly.Title);
+        Assert.Contains("دوره منتهی به", monthly.Title);
         Assert.DoesNotContain("2026/07/31", monthly.Title);
+        var incomeStatement = Assert.Single(page.Items, item => item.Type == CompanyDisclosureType.IncomeStatement);
+        Assert.StartsWith("صورت مالی دوره منتهی به ", incomeStatement.Title);
+        Assert.DoesNotContain("Foolad Mobarakeh", incomeStatement.Title);
+        Assert.Equal("Quarterly", incomeStatement.ReportingPeriodType);
     }
 
     [Fact]
@@ -219,12 +223,12 @@ public sealed class CompanyDisclosureFeed112Tests
     });
 
     private static void AddStatement(FinancialIngestionDbContext db, string id, string type, NormalizedCompanyRow company,
-        string provider = "Provider", bool isComposing = false) => db.FinancialStatements.Add(new NormalizedFinancialStatementRow
+        string provider = "Provider", bool isComposing = false, string? statementTitle = null) => db.FinancialStatements.Add(new NormalizedFinancialStatementRow
     {
         Id = Guid.NewGuid(), ProviderName = provider, ExternalCompanyId = company.ExternalCompanyId,
         ExternalStatementId = id, CompanyId = company.Id, StatementType = type, PeriodType = "Quarterly",
         PeriodStart = new DateOnly(2026, 4, 1), PeriodEnd = new DateOnly(2026, 6, 30),
-        SourcePayloadChecksum = id, LastSynchronizedAt = At(1), IsComposing = isComposing
+        SourcePayloadChecksum = id, LastSynchronizedAt = At(1), IsComposing = isComposing, StatementTitle = statementTitle
     });
 
     private static DateTimeOffset At(int day) => new(2026, 8, day, 0, 0, 0, TimeSpan.FromHours(3.5));

@@ -76,7 +76,7 @@ function NewChatPage() {
             <div className="size-5 rounded-full bg-emerald" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">
-            دستیار هوشمند تحلیل بازار
+            ساپیو - دستیار هوشمند بازار
           </h1>
           <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto text-pretty">
             یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و

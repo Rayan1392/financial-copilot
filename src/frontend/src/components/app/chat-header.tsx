@@ -1,3 +1,5 @@
+import { ThemeToggle } from "@/components/app/theme-toggle";
+
 export function ChatHeader() {
   return (
     <header className="h-14 border-b border-hairline flex items-center justify-between px-6 flex-shrink-0">
@@ -11,6 +13,7 @@ export function ChatHeader() {
 
         </div>
       </div>
+      <ThemeToggle />
     </header>
   );
 }

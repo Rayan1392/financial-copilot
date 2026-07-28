@@ -10,39 +10,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useEffect, useState } from "react";
 import type {
-  MonthlyActivityTrendChartPoint,
   MonthlyActivityTrendResult,
 } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
+import { createMonthlyTrendChartCardViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
+import { downloadMonthlyTrendChartImage } from "@/components/app/monthly-activity-trend-chart-image";
 
 interface Props {
   data: MonthlyActivityTrendResult;
 }
-
-const COLORS = {
-  currentYear: "#10b981",   // emerald
-  previousYear: "#6366f1",  // indigo
-  average: "#f59e0b",       // amber
-};
-
-const AXIS_TICK_COLOR = "#9ca3af";
-const AXIS_LABEL_COLOR = "#a1a1aa";
-
-const JALALI_MONTH_NAMES = [
-  "فروردین",
-  "اردیبهشت",
-  "خرداد",
-  "تیر",
-  "مرداد",
-  "شهریور",
-  "مهر",
-  "آبان",
-  "آذر",
-  "دی",
-  "بهمن",
-  "اسفند",
-] as const;
 
 function formatAmount(value: number | null | undefined): string {
   if (value == null) return "—";
@@ -64,10 +42,6 @@ function formatBarAmount(value: number | string | null | undefined): string {
   );
 }
 
-function resolveMonthLabel(point: MonthlyActivityTrendChartPoint): string {
-  return JALALI_MONTH_NAMES[point.fiscalMonthIndex - 1] ?? point.fiscalMonthNameFa;
-}
-
 function formatAxisAmount(value: number): string {
   return toPersianDigits(
     value.toLocaleString("en", {
@@ -75,31 +49,6 @@ function formatAxisAmount(value: number): string {
       maximumFractionDigits: 3,
     }),
   );
-}
-
-function buildChartData(points: MonthlyActivityTrendChartPoint[]) {
-  return points.map((point) => ({
-    label: resolveMonthLabel(point),
-    currentYear: point.isCurrentYearReported ? (point.currentFiscalYearSalesAmount ?? null) : null,
-    previousYear: point.isPreviousYearReported ? (point.previousFiscalYearSalesAmount ?? null) : null,
-    average: point.average12MonthSalesAmount ?? null,
-  }));
-}
-
-function buildTitle(data: MonthlyActivityTrendResult): string {
-  const name = data.companyName ?? data.companySymbol;
-  return `روند فروش ماهانه ${name}`;
-}
-
-function buildLegendLabels(points: MonthlyActivityTrendChartPoint[]) {
-  const currentYear = points.find((point) => point.currentFiscalYear != null)?.currentFiscalYear;
-  const previousYear = points.find((point) => point.previousFiscalYear != null)?.previousFiscalYear;
-
-  return {
-    currentYear: currentYear ? toPersianDigits(String(currentYear)) : "سال جاری",
-    previousYear: previousYear ? toPersianDigits(String(previousYear)) : "سال قبل",
-    average: "میانگین ۱۲ ماهه",
-  };
 }
 
 interface TooltipPayloadEntry {
@@ -138,92 +87,131 @@ function CustomTooltip({
   );
 }
 
+function useInteractiveChartTheme() {
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setTheme(root.classList.contains("light") ? "light" : "dark");
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
 export function MonthlyActivityTrendChart({ data }: Props) {
-  const chartData = buildChartData(data.chartPoints);
-  const labels = buildLegendLabels(data.chartPoints);
-  const title = buildTitle(data);
+  const theme = useInteractiveChartTheme();
+  const viewModel = createMonthlyTrendChartCardViewModel(data, theme);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const chartData = viewModel.points.map((point) => ({
+    label: point.fiscalMonthLabel,
+    currentYear: point.currentYear,
+    previousYear: point.previousYear,
+    average: point.average,
+  }));
   const hasMissingNotes = data.missingDataPoints.length > 0;
+  const hasChartData = viewModel.points.some((point) =>
+    point.currentYear !== null || point.previousYear !== null || point.average !== null,
+  );
+
+  async function downloadImage() {
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      const theme = document.documentElement.classList.contains("light") ? "light" : "dark";
+      await downloadMonthlyTrendChartImage(createMonthlyTrendChartCardViewModel(data, theme));
+    } catch {
+      setDownloadError("دریافت تصویر نمودار با خطا مواجه شد. لطفاً دوباره تلاش کنید.");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl ring-1 ring-hairline bg-surface/40 p-4 space-y-3" dir="rtl">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
-        <p className="text-[11px] text-muted-foreground">{`واحد: ${data.unitLabelFa}`}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-0.5">
+          <h3 className="text-sm font-medium text-foreground">{viewModel.title} {viewModel.companyLabel}</h3>
+          <p className="text-[11px] text-muted-foreground">{`واحد: ${viewModel.unitLabel}`}</p>
+        </div>
+        {hasChartData && (
+          <button
+            type="button"
+            onClick={downloadImage}
+            disabled={isDownloading}
+            aria-busy={isDownloading}
+            className="shrink-0 rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-wait disabled:opacity-60"
+          >
+            {isDownloading ? "در حال آماده‌سازی…" : "دانلود تصویر"}
+          </button>
+        )}
       </div>
 
-      <div className="w-full h-72">
+      <div className="h-64 w-full sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 12 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+          <ComposedChart data={chartData} margin={{ top: 20, right: 8, left: 4, bottom: 12 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={viewModel.palette.grid} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: AXIS_TICK_COLOR, textAnchor: "end" }}
+              tick={{ fontSize: 10, fill: viewModel.palette.mutedForeground, textAnchor: "end" }}
               tickLine={false}
               axisLine={false}
               angle={-45}
               interval={0}
               tickMargin={10}
-              height={64}
+              height={56}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: AXIS_TICK_COLOR }}
+              tick={{ fontSize: 10, fill: viewModel.palette.mutedForeground }}
               tickLine={false}
               axisLine={false}
-              width={88}
+              width={76}
               tickFormatter={formatAxisAmount}
               label={{
                 value: data.unitLabelFa || "میلیارد تومان",
                 angle: -90,
                 position: "insideLeft",
                 offset: 12,
-                fill: AXIS_LABEL_COLOR,
-                fontSize: 12,
+                fill: viewModel.palette.mutedForeground,
+                fontSize: 11,
               }}
             />
             <Tooltip content={<CustomTooltip unit={data.unitLabelFa} />} />
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
               formatter={(value: string) => (
-                <span style={{ color: "hsl(var(--muted-foreground))" }}>{value}</span>
+                <span style={{ color: viewModel.palette.mutedForeground }}>{value}</span>
               )}
             />
             <Bar
               dataKey="previousYear"
-              name={labels.previousYear}
-              fill={COLORS.previousYear}
+              name={viewModel.previousYearLegend}
+              fill={viewModel.palette.previousYear}
               radius={[3, 3, 0, 0]}
-              maxBarSize={28}
+              maxBarSize={22}
               connectNulls={false}
             >
-              <LabelList
-                dataKey="previousYear"
-                position="top"
-                formatter={formatBarAmount}
-                fill={AXIS_LABEL_COLOR}
-                fontSize={10}
-              />
+              <LabelList dataKey="previousYear" position="top" formatter={formatBarAmount} fill={viewModel.palette.mutedForeground} fontSize={10} className="hidden sm:block" />
             </Bar>
             <Bar
               dataKey="currentYear"
-              name={labels.currentYear}
-              fill={COLORS.currentYear}
+              name={viewModel.currentYearLegend}
+              fill={viewModel.palette.currentYear}
               radius={[3, 3, 0, 0]}
-              maxBarSize={28}
+              maxBarSize={22}
               connectNulls={false}
             >
-              <LabelList
-                dataKey="currentYear"
-                position="top"
-                formatter={formatBarAmount}
-                fill={AXIS_LABEL_COLOR}
-                fontSize={10}
-              />
+              <LabelList dataKey="currentYear" position="top" formatter={formatBarAmount} fill={viewModel.palette.mutedForeground} fontSize={10} className="hidden sm:block" />
             </Bar>
             <Line
               type="monotone"
               dataKey="average"
-              name={labels.average}
-              stroke={COLORS.average}
+              name={viewModel.averageLegend}
+              stroke={viewModel.palette.average}
               strokeWidth={2}
               dot={false}
               connectNulls
@@ -251,6 +239,8 @@ export function MonthlyActivityTrendChart({ data }: Props) {
           ))}
         </div>
       )}
+
+      {downloadError && <p role="alert" className="text-[11px] text-rose">{downloadError}</p>}
     </div>
   );
 }

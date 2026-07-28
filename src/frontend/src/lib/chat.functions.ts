@@ -46,7 +46,7 @@ export interface AssistantChatBlock {
 }
 
 export interface DisclosureListingResult {
-  items: Array<{ disclosureId: string; symbol?: string; companyName?: string; type: string; title: string; publishedAt?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean }>;
+  items: Array<{ disclosureId: string; symbol?: string; companyName?: string; type: string; title: string; publishedAt?: string; reportingPeriodEnd?: string; reportingPeriodType?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean }>;
   page: number;
   totalPages: number;
   hasPreviousPage: boolean;

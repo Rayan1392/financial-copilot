@@ -87,7 +87,7 @@ export function ConversationSidebar() {
             <div className="size-3 bg-emerald rounded-full" />
           </div>
           <h1 className="text-[15px] font-bold tracking-tight text-foreground leading-tight">
-            دستیار هوشمند تحلیل بازار
+            ساپیو - دستیار هوشمند بازار
           </h1>
         </Link>
         <button
@@ -170,7 +170,7 @@ export function ConversationSidebar() {
                   {quote.isStale ? " *" : ""}
                 </div>
                 <div
-                  className={`text-xs mono ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
+                  className={`text-xs ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
                 >
                   {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
                 </div>
@@ -186,7 +186,7 @@ export function ConversationSidebar() {
           <div className="p-3 rounded-xl bg-background/50 ring-1 ring-hairline">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] text-muted-foreground">اعتبار هوش مصنوعی</span>
-              <span className="text-[11px] mono text-foreground">
+              <span className="text-[11px] text-foreground">
                 {toPersianDigits(usage.availableSpendingCapacity)}
               </span>
             </div>

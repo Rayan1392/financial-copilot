@@ -101,7 +101,7 @@ internal sealed class CompanyDisclosureFeedRepository(FinancialIngestionDbContex
                     company?.Id,
                     company?.Symbol,
                     company?.Name,
-                    string.IsNullOrWhiteSpace(row.StatementTitle) ? StatementTitle(type.Value, row.VendorPeriodDate ?? row.PeriodEnd) : row.StatementTitle,
+                    StatementTitle(row.VendorPeriodDate ?? row.PeriodEnd),
                     row.PublishedAt,
                     row.VendorPeriodDate ?? row.PeriodEnd,
                     row.LastSynchronizedAt,
@@ -112,7 +112,8 @@ internal sealed class CompanyDisclosureFeedRepository(FinancialIngestionDbContex
                     FreshnessReasonCode: "PersistedNormalizedRecord",
                     IsAudited: row.IsAudited,
                     IsRepresented: row.IsRepresented,
-                    IsComposing: row.IsComposing);
+                    IsComposing: row.IsComposing,
+                    ReportingPeriodType: row.PeriodType);
             }).OfType<CompanyDisclosureFeedItem>());
         }
 
@@ -199,8 +200,10 @@ internal sealed class CompanyDisclosureFeedRepository(FinancialIngestionDbContex
         _ => null
     };
 
-    private static string StatementTitle(CompanyDisclosureType type, DateOnly periodEnd) =>
-        $"{DefaultTitle(type)} — دوره منتهی به {FormatJalaliDate(periodEnd)}";
+    // Provider statement titles commonly embed the company name and are not consistent across sources.
+    // Financial disclosures therefore use one canonical, company-neutral title.
+    private static string StatementTitle(DateOnly periodEnd) =>
+        $"صورت مالی دوره منتهی به {FormatJalaliDate(periodEnd)}";
 
     private static string MonthlyTitle(DateOnly periodEnd) =>
         $"گزارش فعالیت ماهانه تولید و فروش — دوره منتهی به {FormatJalaliDate(periodEnd)}";
@@ -208,14 +211,6 @@ internal sealed class CompanyDisclosureFeedRepository(FinancialIngestionDbContex
     private static string FormatJalaliDate(DateOnly value) =>
         ShamsiMonthCalculator.FormatJalaliDate(new DateTimeOffset(
             value.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3.5)));
-
-    private static string DefaultTitle(CompanyDisclosureType type) => type switch
-    {
-        CompanyDisclosureType.IncomeStatement => "صورت سود و زیان",
-        CompanyDisclosureType.BalanceSheet => "ترازنامه",
-        CompanyDisclosureType.CashFlowStatement => "صورت جریان وجه نقد",
-        _ => "اطلاعیه شرکت"
-    };
 
     private sealed record CompanyIdentity(Guid Id, string ProviderName, string ExternalCompanyId, string? Symbol, string Name);
 }

@@ -20,9 +20,12 @@ public sealed class MonthlyActivityTrend077Tests
     [Theory]
     [InlineData("روند فروش کهمدا را نشان بده")]
     [InlineData("روند فروش ماهانه کسرا")]
+    [InlineData("چارت فروش ماهانه کچاد")]
+    [InlineData("روند تولید و فروش کگل")]
     [InlineData("نمودار فروش ماهانه کهمدا")]
     [InlineData("نمودار فروش کچاد")]
     [InlineData("نمودار تولید و فروش کگل")]
+    [InlineData("نمودار تولید و فروش ماهانه کسرا")]
     [InlineData("مقایسه فروش سال جاری و سال گذشته کهمدا")]
     [InlineData("فروش امسال نسبت به پارسال کسرا")]
     [InlineData("فروش امسال نسبت به سال قبل کچاد")]
@@ -38,6 +41,54 @@ public sealed class MonthlyActivityTrend077Tests
 
         Assert.Equal(DetectedIntent.MonthlyActivityTrend, result.Intent);
         Assert.True(result.Confidence >= 0.95);
+    }
+
+    [Theory]
+    [InlineData("روند فروش ماهانه کهمدا", "کهمدا")]
+    [InlineData("چارت فروش ماهانه کسرا", "کسرا")]
+    [InlineData("روند فروش کچاد", "کچاد")]
+    [InlineData("روند تولید و فروش کگل", "کگل")]
+    [InlineData("نمودار تولید و فروش ماهانه فملی", "فملی")]
+    [InlineData("نمودار فروش فولاد", "فولاد")]
+    [InlineData("نمودار فروش ماهانه شپدیس", "شپدیس")]
+    public void Feature113_CanonicalAlias_RecognizesTrendAndExtractsSymbol(string query, string symbol)
+    {
+        Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(query));
+        Assert.Equal(symbol, MonthlyActivityTrendIntentRules.ExtractCompanySymbol(query));
+    }
+
+    [Theory]
+    [InlineData("روند فروش ماهانه کهمدا")]
+    [InlineData("چارت فروش ماهانه کهمدا")]
+    [InlineData("روند فروش کهمدا")]
+    [InlineData("روند تولید و فروش کهمدا")]
+    [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
+    [InlineData("نمودار فروش کهمدا")]
+    [InlineData("نمودار فروش ماهانه کهمدا")]
+    public async Task Feature113_CanonicalAlias_V1RoutesOnlyToMonthlyActivityTrend(string query)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.MonthlyActivityTrend, result.Intent);
+        Assert.True(result.Confidence >= 0.95);
+    }
+
+    [Fact]
+    public async Task Feature113_CanonicalAlias_UnknownSymbolPreservesTrendRouting()
+    {
+        const string query = "نمودار فروش ماهانه نامعتبر";
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.MonthlyActivityTrend, result.Intent);
+        Assert.Null(MonthlyActivityTrendIntentRules.ExtractCompanySymbol(query));
     }
 
     // -----------------------------------------------------------------------

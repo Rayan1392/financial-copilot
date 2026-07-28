@@ -9,6 +9,7 @@ using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -256,6 +257,38 @@ public sealed class FinancialDataIngestionTests
     }
 
     [Fact]
+    public async Task Processor_UniqueConstraintViolation_DetachesDerivedMetricAndPersistsTerminalFailure()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+        var provider = CreateProvider(providerDb);
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            provider,
+            provider,
+            provider,
+            [new DuplicateDerivedMetricStatementNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            NullLogger<FinancialDataSyncProcessor>.Instance);
+
+        var result = await processor.ProcessAsync(
+            Request(ProviderDataset.FinancialStatements, "company-live", "duplicate-derived-metric-v1"),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
+        Assert.Equal(1, result.Run.ErrorCount);
+        Assert.Contains("DERIVED_METRIC_UNIQUE_CONSTRAINT_VIOLATION", result.Run.ErrorMessage);
+        Assert.Empty(await ingestionDb.DerivedMetrics.ToListAsync());
+        Assert.Empty(ingestionDb.ChangeTracker.Entries<DerivedMetricRow>());
+
+        var persistedRun = await ingestionDb.SyncRuns.SingleAsync();
+        Assert.Equal(DataSyncRunStatus.Failed.ToString(), persistedRun.Status);
+        Assert.Contains("DERIVED_METRIC_UNIQUE_CONSTRAINT_VIOLATION", persistedRun.ErrorMessage);
+    }
+
+    [Fact]
     public async Task Processor_ExplicitUnknownProvider_FailsInsteadOfUsingDefault()
     {
         await using var providerDb = CreateProviderDbContext();
@@ -357,6 +390,36 @@ public sealed class FinancialDataIngestionTests
 
         public Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("normalization failed");
+    }
+
+    private sealed class DuplicateDerivedMetricStatementNormalizer(FinancialIngestionDbContext dbContext) :
+        IFinancialPayloadNormalizer
+    {
+        public string ProviderName => MockFinancialDataProvider.ProviderName;
+
+        public ProviderDataset Dataset => ProviderDataset.FinancialStatements;
+
+        public Task<NormalizationOutcome> NormalizeAsync(ProviderRawPayload payload, CancellationToken cancellationToken)
+        {
+            dbContext.DerivedMetrics.Add(new DerivedMetricRow
+            {
+                Id = Guid.NewGuid(),
+                ExternalCompanyId = "company-live",
+                MetricCode = "PE_TTM",
+                MetricVersion = "v1",
+                CalculationPolicyVersion = "v1",
+                PeriodEnd = new DateOnly(2026, 3, 20)
+            });
+
+            throw new DbUpdateException(
+                "Duplicate derived metric.",
+                new PostgresException(
+                    "duplicate key value violates unique constraint",
+                    "ERROR",
+                    "ERROR",
+                    PostgresErrorCodes.UniqueViolation,
+                    constraintName: "IX_DerivedMetrics_ExternalCompanyId_MetricCode_MetricVersion_C~"));
+        }
     }
 
     private sealed class StubCodalDbSymbolProvider(ProviderRawPayload payload) :

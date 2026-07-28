@@ -1,12 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { isAuthenticated } from "@/integrations/financial-copilot/auth";
+import { AuthScreen } from "./auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/auth" });
-    throw redirect({ to: "/chat" });
+    if (await isAuthenticated()) throw redirect({ to: "/chat" });
   },
-  component: () => null,
+  component: IndexRoute,
 });
+
+function IndexRoute() {
+  return <AuthScreen redirect="/chat" />;
+}

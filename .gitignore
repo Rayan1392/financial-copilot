@@ -6,4 +6,16 @@
 .vs/
 .idea/
 .vscode/
-/graphify-out
+/specs.zip
+
+
+graphify-out/
+--dpi
+--extract-model
+--input
+--ocr-model
+--output
+--page
+--pipeline-mode
+--profile
+--prompt-mode

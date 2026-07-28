@@ -1,0 +1,6 @@
+{
+  "provider": "openai-compatible",
+  "baseUrl": "https://api.deepseek.com",
+  "apiKey": "sk-15a3dfe0f316430ca88d6e68b656633a",
+  "model": "deepseek-v4-pro"
+}

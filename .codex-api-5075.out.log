@@ -1,0 +1,246 @@
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (17ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+[18:31:50 INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5075
+[18:31:50 INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+[18:31:50 INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+[18:31:50 INF] Microsoft.Hosting.Lifetime: Content root path: C:\Source\financial-copilot\src\backend\FinancialCopilot.API
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (22ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT d."Id", d."ChangePercent", d."High", d."Low", d."ObservedAt", d."ProviderName", d."SourceKind", d."TradingDate", d."TradingInstrumentId", d."Value", t."Id", t."ExternalInstrumentId", t."InstrumentCode", t."InstrumentIsin", t."InstrumentKind", t."IsActive", t."LastSynchronizedAt", t."MarketCode", t."Name", t."NormalizedCompanyId", t."ProviderName", t."SourceChangedAt", t."Symbol"
+FROM "DailyIndexSnapshots" AS d
+INNER JOIN "TradingInstruments" AS t ON d."TradingInstrumentId" = t."Id"
+ORDER BY d."ObservedAt" DESC
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (19ms) [Parameters=[@actor_TenantId='?' (DbType = Guid), @actor_ActorId='?' (DbType = Guid), @ToString='?'], CommandType='Text', CommandTimeout='30']
+SELECT w."Symbol"
+FROM "WatchlistSymbols" AS w
+WHERE w."TenantId" = @actor_TenantId AND w."ActorId" = @actor_ActorId AND w."ActorType" = @ToString
+ORDER BY w."Position"
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (13ms) [Parameters=[@conversationId='?' (DbType = Guid), @tenantId='?' (DbType = Guid), @actorId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT c."Id", c."ActorId", c."MessageCount", c."StartedAt", c."TenantId", c."Title", c."UpdatedAt"
+FROM "Conversations" AS c
+WHERE c."Id" = @conversationId AND c."TenantId" = @tenantId AND c."ActorId" = @actorId
+LIMIT 1
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (18ms) [Parameters=[@tenantId='?' (DbType = Guid), @actorId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+SELECT c."Id", c."ActorId", c."MessageCount", c."StartedAt", c."TenantId", c."Title", c."UpdatedAt"
+FROM "Conversations" AS c
+WHERE c."TenantId" = @tenantId AND c."ActorId" = @actorId
+ORDER BY c."UpdatedAt" DESC
+LIMIT @p
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (14ms) [Parameters=[@tenantId='?' (DbType = Guid), @userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT b."Id", b."AccountType", b."BillingMode", b."CreditLineApprovedLimit", b."CreditLineWarningThreshold", b."SubscriptionEffectiveFrom", b."SubscriptionEffectiveTo", b."SubscriptionPlanCode", b."SubscriptionRevision", b."TenantId", b."UserId"
+FROM billing_customer_accounts AS b
+WHERE b."TenantId" = @tenantId AND b."UserId" = @userId AND b."AccountType" = 'Individual'
+LIMIT 2
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT l."Id", l."AsOf", l."LatestPrice", l."PriceChangePercentage", l."ProviderName", l."SourceKind", l."TradingInstrumentId", t."Id", t."ExternalInstrumentId", t."InstrumentCode", t."InstrumentIsin", t."InstrumentKind", t."IsActive", t."LastSynchronizedAt", t."MarketCode", t."Name", t."NormalizedCompanyId", t."ProviderName", t."SourceChangedAt", t."Symbol"
+FROM "LatestMarketQuotes" AS l
+INNER JOIN "TradingInstruments" AS t ON l."TradingInstrumentId" = t."Id"
+WHERE t."IsActive"
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@customerAccountId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT b."CustomerAccountId", b."Balance", b."ReservedAmount", b."Revision", b."UpdatedAt"
+FROM billing_wallet_projections AS b
+WHERE b."CustomerAccountId" = @customerAccountId
+LIMIT 2
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@conversationId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT m."Id", m."AssistantPayloadJson", m."Content", m."ConversationId", m."CreatedAt", m."Role", m."ScannerQueryPlanJson"
+FROM "Messages" AS m
+WHERE m."ConversationId" = @conversationId
+ORDER BY m."CreatedAt", CASE
+    WHEN m."Role" = 'User' THEN 0
+    ELSE 1
+END
+[18:33:02 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (5ms) [Parameters=[@customerAccountId='?' (DbType = Guid), @from='?' (DbType = DateTime), @to='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+SELECT b."Id", b."ActorId", b."ApiClientId", b."AuditDescription", b."CompletionStatus", b."CreditsCharged", b."CustomerAccountId", b."EntryType", b."ExternalUserId", b."IdempotencyKey", b."OccurredAt", b."OperationCode", b."PricingPolicyVersion", b."RelatedEntryId", b."TenantId"
+FROM billing_usage_ledger_entries AS b
+WHERE b."CustomerAccountId" = @customerAccountId AND b."OccurredAt" >= @from AND b."OccurredAt" <= @to
+ORDER BY b."OccurredAt"
+[18:33:02 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/ai/v1/conversations responded 200 in 1170.8959 ms
+[18:33:02 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/watchlists/me responded 200 in 1177.6050 ms
+[18:33:02 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/usage/me responded 200 in 1208.8643 ms
+[18:33:02 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/market/summary responded 200 in 1227.8503 ms
+[18:33:02 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/ai/v1/conversations/d2def61a-7895-4772-b626-6baa8ad2f6d0/messages responded 200 in 1529.6015 ms
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@tokenHash='?'], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."CreatedAt", a."ExpiresAt", a."ReplacedByTokenId", a."RevocationReason", a."RevokedAt", a."TenantId", a."TokenHash", a."UserId"
+FROM auth_refresh_tokens AS a
+WHERE a."TokenHash" = @tokenHash
+LIMIT 2
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."AccessFailedCount", a."ConcurrencyStamp", a."Email", a."EmailConfirmed", a."IsEnabled", a."LockoutEnabled", a."LockoutEnd", a."NormalizedEmail", a."NormalizedUserName", a."PasswordHash", a."PhoneNumber", a."PhoneNumberConfirmed", a."SecurityStamp", a."TwoFactorEnabled", a."UserName"
+FROM auth_users AS a
+WHERE a."Id" = @p
+LIMIT 1
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a."UserId", a."TenantId", a."IsDefault"
+FROM auth_user_tenants AS a
+WHERE a."UserId" = @userId
+ORDER BY a."IsDefault" DESC, a."TenantId"
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT b."Code", b."IncludedCredits", b."Name", b."PricingPolicyVersion"
+FROM billing_subscription_plans AS b
+WHERE b."Code" = 'Free'
+LIMIT 2
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@tenantId='?' (DbType = Guid), @userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT b."Id", b."AccountType", b."BillingMode", b."CreditLineApprovedLimit", b."CreditLineWarningThreshold", b."SubscriptionEffectiveFrom", b."SubscriptionEffectiveTo", b."SubscriptionPlanCode", b."SubscriptionRevision", b."TenantId", b."UserId"
+FROM billing_customer_accounts AS b
+WHERE b."TenantId" = @tenantId AND b."UserId" = @userId
+LIMIT 2
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (6ms) [Parameters=[@account_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT EXISTS (
+    SELECT 1
+    FROM billing_wallet_projections AS b
+    WHERE b."CustomerAccountId" = @account_Id)
+[18:56:42 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (6ms) [Parameters=[@userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Name"
+FROM auth_user_roles AS a
+INNER JOIN auth_roles AS a0 ON a."RoleId" = a0."Id"
+WHERE a."UserId" = @userId
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (176ms) [Parameters=[@normalizedNames='?' (DbType = Object)], CommandType='Text', CommandTimeout='30']
+SELECT s."Code"
+FROM (
+    SELECT DISTINCT a1."Code"
+    FROM auth_roles AS a
+    INNER JOIN auth_role_permissions AS a0 ON a."Id" = a0."RoleId"
+    INNER JOIN auth_permissions AS a1 ON a0."PermissionId" = a1."Id"
+    WHERE (a."NormalizedName" = ANY (@normalizedNames) OR (a."NormalizedName" IS NULL AND array_position(@normalizedNames, NULL) IS NOT NULL)) AND a."IsEnabled"
+) AS s
+ORDER BY s."Code"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (17ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = DateTime), @p3='?' (DbType = Guid), @p4='?', @p5='?' (DbType = DateTime), @p6='?' (DbType = Guid), @p7='?', @p8='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+INSERT INTO auth_refresh_tokens ("Id", "CreatedAt", "ExpiresAt", "ReplacedByTokenId", "RevocationReason", "RevokedAt", "TenantId", "TokenHash", "UserId")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@replacementHash='?'], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."CreatedAt", a."ExpiresAt", a."ReplacedByTokenId", a."RevocationReason", a."RevokedAt", a."TenantId", a."TokenHash", a."UserId"
+FROM auth_refresh_tokens AS a
+WHERE a."TokenHash" = @replacementHash
+LIMIT 2
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@p3='?' (DbType = Guid), @p0='?' (DbType = Guid), @p1='?', @p2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+UPDATE auth_refresh_tokens SET "ReplacedByTokenId" = @p0, "RevocationReason" = @p1, "RevokedAt" = @p2
+WHERE "Id" = @p3;
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /api/auth/v1/refresh responded 200 in 1405.1151 ms
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP OPTIONS /api/v1/admin/users responded 204 in 2.9076 ms
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP OPTIONS /api/v1/admin/users responded 204 in 3.0553 ms
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@tenantId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."AccessFailedCount", a."ConcurrencyStamp", a."Email", a."EmailConfirmed", a."IsEnabled", a."LockoutEnabled", a."LockoutEnd", a."NormalizedEmail", a."NormalizedUserName", a."PasswordHash", a."PhoneNumber", a."PhoneNumberConfirmed", a."SecurityStamp", a."TwoFactorEnabled", a."UserName"
+FROM auth_users AS a
+WHERE a."Id" IN (
+    SELECT a0."UserId"
+    FROM auth_user_tenants AS a0
+    WHERE a0."TenantId" = @tenantId
+)
+ORDER BY a."Email"
+LIMIT @p
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Name"
+FROM auth_user_roles AS a
+INNER JOIN auth_roles AS a0 ON a."RoleId" = a0."Id"
+WHERE a."UserId" = @userId
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@user_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a."TenantId"
+FROM auth_user_tenants AS a
+WHERE a."UserId" = @user_Id
+ORDER BY a."IsDefault" DESC, a."TenantId"
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/admin/users responded 200 in 101.5882 ms
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP OPTIONS /api/v1/admin/roles responded 204 in 0.5387 ms
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@tenantId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."AccessFailedCount", a."ConcurrencyStamp", a."Email", a."EmailConfirmed", a."IsEnabled", a."LockoutEnabled", a."LockoutEnd", a."NormalizedEmail", a."NormalizedUserName", a."PasswordHash", a."PhoneNumber", a."PhoneNumberConfirmed", a."SecurityStamp", a."TwoFactorEnabled", a."UserName"
+FROM auth_users AS a
+WHERE a."Id" IN (
+    SELECT a0."UserId"
+    FROM auth_user_tenants AS a0
+    WHERE a0."TenantId" = @tenantId
+)
+ORDER BY a."Email"
+LIMIT @p
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@userId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Name"
+FROM auth_user_roles AS a
+INNER JOIN auth_roles AS a0 ON a."RoleId" = a0."Id"
+WHERE a."UserId" = @userId
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@user_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a."TenantId"
+FROM auth_user_tenants AS a
+WHERE a."UserId" = @user_Id
+ORDER BY a."IsDefault" DESC, a."TenantId"
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/admin/users responded 200 in 19.8109 ms
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."ConcurrencyStamp", a."IsEnabled", a."Name", a."NormalizedName"
+FROM auth_roles AS a
+ORDER BY a."Name"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:43 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/admin/roles responded 200 in 124.3636 ms
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT a."Id", a."ConcurrencyStamp", a."IsEnabled", a."Name", a."NormalizedName"
+FROM auth_roles AS a
+ORDER BY a."Name"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:43 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:44 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:44 INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@role_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+SELECT a0."Code"
+FROM auth_role_permissions AS a
+INNER JOIN auth_permissions AS a0 ON a."PermissionId" = a0."Id"
+WHERE a."RoleId" = @role_Id
+ORDER BY a0."Code"
+[18:56:44 INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /api/v1/admin/roles responded 200 in 15.3618 ms

@@ -1,22 +1,51 @@
 # API Design
 
-## API Versioning
+## Public AI Facade Decision
 
-Base path:
+The React chat UI must call one backend facade endpoint for every user message:
 
-```text
-/api/v1
+```http
+POST /api/ai/v1/query
 ```
+
+The frontend must not infer intent or choose a scanner, portfolio, market summary, single stock, or deep search service. The backend performs Intent Detection, Tool Routing, execution, answer generation, Usage Accounting, and Conversation persistence behind this endpoint.
+
+The public API contract is also independent of the selected LLM runtime. The backend may execute an AI workflow through configured hosted model providers or local models, but it must not expose vendor-specific request/response formats to the React UI.
 
 ## Authentication Models
 
-### Owned Web App
+### Owned Web Application
 
-Use JWT bearer authentication.
+Use backend-owned ASP.NET Core Identity for web users. The React application signs in through
+`POST /api/auth/v1/login`, sends a short-lived JWT access token as a bearer token, and renews
+sessions through rotating opaque refresh tokens. Persist refresh-token hashes only.
+
+Authorization is permission-based:
+
+```text
+Role -> Permissions -> JWT permission claims -> ASP.NET Core authorization requirement
+```
+
+Roles remain an administration grouping mechanism. Protected capabilities authorize stable
+permission claims rather than hardcoded role-name checks. Tenant membership is resolved
+server-side and included in the access token actor context.
+
+Product access then applies Billing-owned plan entitlement and AI-credit enforcement:
+
+```text
+Permission claim
+-> active subscription-plan capability and quota
+-> credit reservation for billable execution
+```
+
+Permission handlers do not mutate balances or treat JWT claims as plan state. See
+[authorization-and-plan-entitlements.md](./authorization-and-plan-entitlements.md).
+Local configuration, migration, seed, and refresh-session revocation commands are documented in
+[owned-identity-operations.md](./owned-identity-operations.md).
 
 ### SaaS/API Consumers
 
-Use API keys initially. Design so OAuth2 client credentials can be added later.
+Use API keys initially. Design authentication so OAuth2 client credentials can be added later. An external client using the AI conversation experience uses the same AI facade contract.
 
 Headers:
 
@@ -26,108 +55,179 @@ X-Api-Key: <api-key>
 X-Correlation-Id: <uuid>
 ```
 
-## Scanner Endpoints
+## AI Query API
 
-### Create Scanner Query
+### Submit User Message
 
 ```http
-POST /api/v1/scanner/query
+POST /api/ai/v1/query
 ```
 
 Request:
 
 ```json
 {
-  "question": "List symbols with latest quarter net profit growth above 50% and P/E below 5",
+  "conversationId": "uuid-or-null",
+  "message": "List symbols with latest quarter net profit growth above 50% and P/E below 5",
   "language": "fa-IR",
-  "limit": 50,
-  "executionMode": "sync"
+  "responseMode": "sync"
 }
 ```
 
-Response:
+`conversationId` is omitted or null when starting a Conversation. The API creates a Conversation, persists the user Message, routes the request to the appropriate backend tool/use case, persists the assistant Message, and returns the answer.
+
+Example response when the backend selects the Scanner Tool:
 
 ```json
 {
-  "queryId": "uuid",
+  "conversationId": "uuid",
+  "messageId": "uuid",
   "status": "completed",
+  "detectedIntent": "scanner",
+  "toolUsed": "Scanner",
   "needsClarification": false,
-  "interpretedPlan": {},
-  "results": [
-    {
-      "symbol": "ABC",
-      "companyName": "Example Company",
-      "industry": "Chemicals",
-      "score": 87.5,
-      "matchedConditions": [
-        {
-          "metric": "NetProfitGrowth",
-          "actualValue": 72.4,
-          "threshold": 50,
-          "unit": "percent",
-          "period": "LatestQuarter",
-          "comparison": "YoY"
-        },
-        {
-          "metric": "PE",
-          "actualValue": 4.2,
-          "threshold": 5,
-          "period": "TTM"
-        }
+  "answer": {
+    "text": "Two symbols matched your screening conditions.",
+    "table": {
+      "columns": [
+        { "key": "symbol", "label": "Symbol" },
+        { "key": "latestPrice", "label": "Latest Price" },
+        { "key": "priceChangePercent", "label": "Price Change Percentage" },
+        { "key": "marketCapitalization", "label": "Market Capitalization" },
+        { "key": "netProfitGrowth", "label": "Net Profit Growth" },
+        { "key": "pe", "label": "P/E" }
       ],
-      "explanation": "Matched because latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
-      "sources": [
+      "omittedColumns": [],
+      "rows": [
         {
-          "type": "FinancialStatement",
-          "period": "LatestQuarter",
-          "reportDate": "2026-05-01",
-          "provider": "ThirdPartyProvider"
+          "symbol": "ABC",
+          "companyName": "Example Company",
+          "industry": "Chemicals",
+          "latestPrice": 23450,
+          "priceChangePercent": 2.4,
+          "priceSource": "LiveQuote",
+          "priceAsOf": "2026-05-26T09:30:00Z",
+          "marketCapitalization": 42000000000000,
+          "netProfitGrowth": 72.4,
+          "pe": 4.2,
+          "score": 87.5,
+          "matchedConditions": [
+            {
+              "metric": "NET_PROFIT_GROWTH_YOY",
+              "metricVersion": "v1",
+              "calculationPolicyVersion": "yoy-quarterly-v1",
+              "actualValue": 72.4,
+              "threshold": 50,
+              "unit": "percent",
+              "period": "LatestQuarter",
+              "comparison": "YoY"
+            },
+            {
+              "metric": "PE_TTM",
+              "metricVersion": "v1",
+              "calculationPolicyVersion": "ttm-valuation-v1",
+              "actualValue": 4.2,
+              "threshold": 5,
+              "period": "TTM"
+            }
+          ],
+          "citations": [
+            {
+              "type": "FinancialStatement",
+              "period": "LatestQuarter",
+              "reportDate": "2026-05-01",
+              "sourceProvider": "ThirdPartyProvider",
+              "lastSyncAt": "2026-05-02T08:15:00Z"
+            }
+          ]
         }
-      ],
-      "confidence": 0.91,
-      "warnings": []
-    }
-  ],
+      ]
+    },
+    "explanation": "Latest quarter net profit growth was 72.4% YoY and TTM P/E was 4.2.",
+    "confidenceScore": 0.91,
+    "warnings": []
+  },
   "usage": {
-    "creditsCharged": 1,
-    "quotaRemaining": 99
+    "operationCode": "AiQuery.Scanner",
+    "completionStatus": "Completed",
+    "creditsCharged": 1.0,
+    "remainingSpendingCapacity": 99.0,
+    "pricingPolicyVersion": "v1",
+    "cached": false
   }
 }
 ```
 
-### Parse Scanner Query Only
+The returned `detectedIntent` and `toolUsed` are informational output. They do not create a frontend routing responsibility.
 
-Useful for UI preview and debugging.
+When an answer contains a list of stocks, the response uses a table schema. Default columns are symbol, latest price, price change percentage, market capitalization, and metrics relevant to the user's query; user-requested column changes are accepted after validation. The backend enforces a maximum of 10 displayed data columns. Price values prefer available live/low-latency quote data and fall back to the latest completed trading-day statistics with explicit `priceSource` and `priceAsOf` metadata.
 
-```http
-POST /api/v1/scanner/parse
-```
+## Conversation History API
 
-### Execute Structured Scanner Plan
+Conversation history is generic AI chat history, not scanner-specific history.
 
-Useful for SaaS clients that build their own filter UI.
+Conversation history is also not consent for personalized memory. Phase 1 does not expose optional memory inspection or management endpoints and does not feed long-term, preference, portfolio, research, or watchlist memory into `POST /api/ai/v1/query`. Such endpoints and orchestration use require an approved consent-aware scope.
 
 ```http
-POST /api/v1/scanner/execute
+POST /api/ai/v1/query
+POST /api/ai/v1/conversations
+GET  /api/ai/v1/conversations
+GET  /api/ai/v1/conversations/{conversationId}
+GET  /api/ai/v1/conversations/{conversationId}/messages
+DELETE /api/ai/v1/conversations/{conversationId}
 ```
 
-### Get Query History
+Conversation list/detail/message operations are tenant- and actor-scoped. Summaries include
+backend-owned titles. Assistant messages persist a versioned structured payload so scanner rows,
+freshness, citations, confidence, follow-up questions, and usage metadata remain renderable after
+reload. An initial `POST /api/ai/v1/query` without a `conversationId` persists the new conversation
+and both messages atomically.
+
+Each Conversation may contain Messages answered through different tools over time. For example, one conversation can include a market summary question followed by a scanner question.
+
+## Supporting Reference APIs
+
+These endpoints support UI controls, discovery, and integrations. They do not replace `POST /api/ai/v1/query` for a user chat message.
 
 ```http
-GET /api/v1/scanner/history
+GET /api/ai/v1/metadata/metrics
+GET /api/ai/v1/metadata/periods
+GET /api/ai/v1/metadata/symbols
+GET /api/ai/v1/metadata/industries
 ```
 
-### Get Supported Metrics
+The metrics metadata response is backed by the versioned Financial Semantic Layer. It may expose stable semantic metric identifiers, localized display aliases, unit/category, supported period/comparison options, and current public definition/policy version. It must not expose an ungoverned hardcoded frontend formula list.
+
+`GET /api/ai/v1/metadata/metrics` is implemented as an authenticated reference endpoint backed by the registered semantic catalog. It exposes metric codes, definition versions, localized aliases, supported periods, units/categories, and registered public calculation-policy versions; it does not expose executable formula expressions.
+
+`GET /api/ai/v1/metadata/periods` returns backend-owned English and Persian period labels.
+`GET /api/ai/v1/metadata/symbols?search=&limit=` and
+`GET /api/ai/v1/metadata/industries?search=&limit=` query normalized PostgreSQL projections.
+Search text is limited to 100 characters and `limit` must be between `1` and `50`. These
+discovery endpoints help the React UI compose a user-visible prompt; they do not invoke scanner
+parsing or execution.
+
+## Internal Scanner Services
+
+Scanner parsing and execution are Application-layer responsibilities invoked by `IAiQueryOrchestrator` after Tool Routing selects the Scanner Tool:
+
+```csharp
+public interface IAiQueryOrchestrator
+public interface IIntentDetectionService
+public interface IScannerQueryParser
+public interface IScannerExecutionService
+public interface IScannerResultRanker
+public interface IExplainableAnswerBuilder
+```
+
+They are not frontend-facing public APIs. If operational diagnostics eventually require HTTP access, it must be admin-authorized, disabled or protected outside intended environments, and explicitly documented as internal-only:
 
 ```http
-GET /api/v1/scanner/metadata/metrics
+POST /api/internal/scanner/parse
+POST /api/internal/scanner/execute
 ```
 
-### Get Supported Periods
-
-```http
-GET /api/v1/scanner/metadata/periods
-```
+The React UI must never call internal scanner diagnostic endpoints.
 
 ## Admin/Data Endpoints
 
@@ -139,19 +239,60 @@ GET  /api/v1/admin/data-sync/runs
 GET  /api/v1/admin/provider-health
 ```
 
+These endpoints require an authenticated web-application actor with the `data.sync.manage`
+permission. A `DataAdmin` role may grant that permission, but policies do not authorize by role
+name. Trigger endpoints return `202 Accepted` after publishing an ingestion request through the
+configured `IDataSyncRequestPublisher`; the Worker performs normalization and persists resulting
+run state. Financial-statement and monthly-report requests require an `externalReference`
+identifying the source company. Run responses expose dataset, status,
+requested/started/completed times, processed record count, error count/message, and
+source-payload checksum. The provider-health endpoint delegates to
+`IFinancialDataProviderHealthService`.
+
 ## Billing/Usage Endpoints
+
+Every invocation of `POST /api/ai/v1/query` resolves a billable `CustomerAccount`, validates entitlement, reserves spending capacity before expensive work, and commits or releases usage after execution according to a versioned operation-based pricing policy. The immutable Usage Ledger is the source of accounting truth; wallet balance is a read projection.
+
+Billing persistence applies reservation creation and wallet-capacity hold atomically. The AI facade now finalizes every reserved execution through Billing: successful work debits the policy-calculated charge, while configured zero-charge clarification, validation, cancellation, or failure outcomes commit a zero-credit usage-ledger entry and restore held capacity. The query response returns the Billing-calculated operation code, completion status, charged credits, remaining spending capacity, policy version, and cache flag.
+
+For SaaS organization accounts, API usage is charged to the organization and may be attributed to an optional partner-scoped `externalUserId`. Organization accounts may be prepaid, postpaid, or hybrid with an explicitly approved credit line. For direct consumer accounts, the product manages subscriptions/top-ups and rejects billable execution without allowance or balance by default.
+
+Internal Scanner Tool plans and deterministic table results may be served from the configured distributed cache. Cache keys include tenant plus actor/API-client scope and a financial-data version token. Data synchronization and derived-metric persistence rotate that token. A cached table preserves cell source timestamps and returns `scannerTable.executionFacts.fromCache: true`; Billing still reserves and finalizes each facade request and applies its configured cached-response multiplier.
 
 ```http
 GET  /api/v1/usage/me
 GET  /api/v1/usage/api-client/{clientId}
+GET  /api/v1/billing/wallet
+GET  /api/v1/billing/transactions
 POST /api/v1/credits/top-up
 GET  /api/v1/subscriptions/plans
 POST /api/v1/subscriptions/subscribe
+GET  /api/v1/admin/billing/customers/{customerAccountId}/usage
+GET  /api/v1/admin/billing/customers/{customerAccountId}/invoices
+POST /api/v1/admin/billing/customers/{customerAccountId}/adjustments
 ```
+
+Billing administration endpoints require the `billing.manage` permission and remain
+tenant-scoped. A `BillingAdmin` role may grant that permission, but policies do not authorize by
+role name. The implemented manual adjustment operation records a positive usage-credit
+adjustment with an audit reason and idempotency key, and updates the wallet projection as part
+of the same persistence operation. It does not convert payment currency to credits or serve as
+a payment gateway.
+
+Payment gateway callbacks and partner invoice settlement endpoints must be provider-specific authenticated/internal integration contracts when implemented, with idempotency enforced. Full payment gateway and automatic invoice delivery are not required for the initial scanner milestone.
+
+## Admin Management Endpoints
+
+Identity, tenancy, entitlement, subscription, credit-adjustment, immutable-ledger, and audit
+administration routes are documented in
+[admin-management-api.md](./admin-management-api.md). These routes require narrow
+`admin.*` permission policies and web-user JWTs. SaaS API keys cannot call them. Controllers
+delegate to the application-layer admin boundary; they do not authorize by role name, branch on
+plan names, mutate wallet projections directly, or rewrite immutable ledger history.
 
 ## Error Response
 
-Use a consistent problem-details format:
+Use a consistent problem-details format for the AI facade and supporting APIs:
 
 ```json
 {
@@ -160,6 +301,7 @@ Use a consistent problem-details format:
   "status": 400,
   "detail": "Unsupported metric: EV/EBITDA",
   "traceId": "00-...",
+  "correlationId": "uuid",
   "errors": {
     "metric": ["EV/EBITDA is not supported in Phase 1."]
   }

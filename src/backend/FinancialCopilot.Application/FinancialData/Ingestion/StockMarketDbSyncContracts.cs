@@ -1,0 +1,206 @@
+namespace FinancialCopilot.Application.FinancialData.Ingestion;
+
+public enum StockMarketDataset
+{
+    Instruments,
+    IntradayTrades,
+    DailyTrades,
+    IntradayIndices,
+    HistoricalDailyIndices
+}
+
+public sealed record StockMarketSyncResult(
+    StockMarketDataset Dataset,
+    int RowsRead,
+    int RowsPersisted,
+    DateTimeOffset? AdvancedWatermark,
+    TimeSpan Duration);
+
+public interface IStockMarketDbSyncService
+{
+    Task<StockMarketSyncResult> SynchronizeAsync(
+        StockMarketDataset dataset,
+        bool fullReload,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Thrown when a fact-dataset page references instruments missing from the instrument
+/// dimension (registered at the source after the last Instruments sync). The page is not
+/// persisted; callers should synchronize <see cref="StockMarketDataset.Instruments"/> and retry.
+/// </summary>
+public sealed class StockMarketUnresolvedInstrumentException(
+    StockMarketDataset dataset,
+    int unresolvedCount) : InvalidOperationException(
+        $"{dataset} contained {unresolvedCount} unresolved instrument references. " +
+        "Synchronize the instrument dimension before retrying this page.")
+{
+    public StockMarketDataset Dataset { get; } = dataset;
+    public int UnresolvedCount { get; } = unresolvedCount;
+}
+
+public sealed record StockMarketSyncState(
+    StockMarketDataset Dataset,
+    DateTimeOffset? Watermark,
+    DateTimeOffset? LastRunStartedAt,
+    DateTimeOffset? LastRunCompletedAt,
+    string? LogicalVendor = null,
+    string? PhysicalSource = null,
+    string? SourceMode = null);
+
+public interface IStockMarketDbSyncStateReader
+{
+    Task<IReadOnlyCollection<StockMarketSyncState>> QueryAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Lightweight sync-state snapshot for a single TSETMC dataset run.
+/// Uses a plain string dataset key (e.g. "Tsetmc_IntradayTrades") rather than the
+/// StockMarketDataset enum so it is independent of that enumeration.
+/// </summary>
+public sealed record TsetmcSyncState(
+    string Dataset,
+    DateTimeOffset? LastRunStartedAt,
+    DateTimeOffset? LastRunCompletedAt,
+    string? LogicalVendor = null,
+    string? PhysicalSource = null,
+    string? SourceMode = null);
+
+/// <summary>
+/// Reads the last-run state rows for all TSETMC dataset syncs.
+/// Written by <see cref="ITsetmcDirectFeedSyncService"/> implementors and read by the
+/// activity monitor to surface TSETMC runs in the DataSyncActivityMonitor UI.
+/// </summary>
+public interface ITsetmcSyncStateReader
+{
+    Task<IReadOnlyCollection<TsetmcSyncState>> QueryAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Direct TSETMC web-service ingestion adapter (spec 054, Phase 2).
+/// The interface lives in Application so Infrastructure and tests can depend on the abstraction.
+/// <see cref="IsOperational"/> returns false until credentials and the endpoint are configured;
+/// callers fall back to the StockMarketDB bridge when this is false.
+/// </summary>
+public interface ITsetmcDirectFeedSyncService
+{
+    /// <summary>
+    /// Returns true only when the adapter is enabled and configured with credentials.
+    /// </summary>
+    bool IsOperational { get; }
+
+    /// <summary>
+    /// Synchronizes instruments (equity dimension) for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeInstrumentsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches today's intraday trade snapshots for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeIntradayTradesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches daily historical trade records for the configured date range, day by day.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeDailyTradesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches daily index values for the configured date range.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeDailyIndicesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Fetches today's intraday index snapshots for all configured market flows.
+    /// </summary>
+    Task<TsetmcSyncResult> SynchronizeIntradayIndicesAsync(CancellationToken cancellationToken);
+}
+
+public sealed record TsetmcSyncResult(
+    string Dataset,
+    int RowsFetched,
+    int RowsPersisted,
+    TimeSpan Duration);
+
+public sealed record StockMarketHistoryRetentionResult(
+    int IntradayTradesDeleted,
+    int IntradayIndicesDeleted);
+
+public interface IStockMarketHistoryRetentionService
+{
+    Task<StockMarketHistoryRetentionResult> DeleteExpiredAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Determines which physical source feeds the latest market quote projection (spec 054, AC #8).
+/// Phase 1 always returns <c>StockMarketDb</c>; Phase 4 cutover will flip this to
+/// <c>TsetmcWebService</c> once the direct feed is validated and stable.
+/// </summary>
+public interface IMarketQuoteSourcePriority
+{
+    /// <summary>
+    /// The physical source currently designated as the authoritative market-quote feed.
+    /// </summary>
+    string PrimarySourceName { get; }
+}
+
+/// <summary>Configuration options for <see cref="IMarketQuoteSourcePriority"/>.</summary>
+public sealed class MarketQuoteSourcePriorityOptions
+{
+    public const string SectionName = "MarketQuoteSourcePriority";
+
+    /// <summary>
+    /// Stable persisted source name. Defaults to <c>StockMarketDb</c> (bridge phase).
+    /// Set to <c>TsetmcWebService</c> for Phase 4 cutover.
+    /// </summary>
+    public string PrimarySourceName { get; set; } = "StockMarketDb";
+}
+
+// ── Phase 3: Parallel Validation ─────────────────────────────────────────────
+
+/// <summary>Observed divergence between the bridge (StockMarketDb) and the direct (TsetmcWebService) feeds.</summary>
+public sealed record MarketQuoteMismatch(
+    string Symbol,
+    string Field,
+    decimal BridgeValue,
+    decimal DirectValue,
+    decimal AbsoluteDiff,
+    decimal RelativeDiffPercent,
+    string BridgeSourceKind,
+    string DirectSourceKind);
+
+/// <summary>Summary returned by a single validation run.</summary>
+public sealed record TsetmcValidationResult(
+    int InstrumentsCompared,
+    int MismatchCount,
+    int PersistCount,
+    TimeSpan Duration);
+
+/// <summary>
+/// Runs Phase 3 parallel validation: compares LatestMarketQuote rows between the
+/// StockMarketDb bridge and the TsetmcWebService direct feed, persisting divergent rows
+/// to <c>MarketQuoteMismatches</c>.
+/// </summary>
+public interface ITsetmcValidationService
+{
+    /// <summary>Returns true only when both the bridge and the direct feed are configured and have data.</summary>
+    bool CanValidate { get; }
+
+    /// <summary>Runs a full comparison and persists all mismatches above tolerance.</summary>
+    Task<TsetmcValidationResult> ValidateLatestQuotesAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Reads persisted mismatch reports for DataAdmin.</summary>
+public interface IMarketQuoteMismatchReader
+{
+    Task<IReadOnlyCollection<MarketQuoteMismatchSummary>> GetSummaryAsync(
+        int recentDays,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>Per-field aggregate used by DataAdmin summary endpoint.</summary>
+public sealed record MarketQuoteMismatchSummary(
+    string Field,
+    int MismatchCount,
+    decimal AvgRelativeDiffPercent,
+    decimal MaxRelativeDiffPercent,
+    DateTimeOffset? LastComparedAt);

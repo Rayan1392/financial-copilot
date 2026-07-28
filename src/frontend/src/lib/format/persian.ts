@@ -13,7 +13,7 @@ export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string
 
 export function formatPercent(n: number, withSign = true): string {
   const sign = withSign && n > 0 ? "+" : "";
-  return `${sign}${toPersianDigits(n.toFixed(1))}٪`;
+  return `${sign}${toPersianDigits(n.toFixed(2))}٪`;
 }
 
 export function formatRial(n: number): string {

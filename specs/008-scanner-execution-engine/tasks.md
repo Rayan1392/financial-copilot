@@ -1,9 +1,40 @@
 # Tasks
 
-- Implement scanner execution service.
+- Implement `IScannerExecutionService`.
 - Implement condition-to-query mapping.
-- Implement result projection.
-- Implement ranking service.
+- Define table column and row DTOs with value type, formatting hint, source timestamp, and freshness/source status.
+- Implement `IScannerResultColumnPolicy` using the following rules:
+  - First two columns are always `نماد` (symbol) and `شرکت` (company name); these are mandatory identity columns and cannot be removed or reordered.
+  - Subsequent columns include only metrics explicitly requested, filtered, sorted, or named by the user in their query.
+  - No automatic quote enrichment (`LATEST_PRICE`, `DAILY_CHANGE_PCT`, `MARKET_CAP`) is added for valuation-metric scanner filters unless the user explicitly asked for those columns or they are part of a filter/sort condition.
+  - Internal/debug columns (e.g., `symbols`) must never appear in user-facing output.
+  - The total column count must not exceed 10 displayed data columns; explicit user overrides are validated against this limit.
+- Define and implement `IMarketQuoteResolver` for live quote selection with previous-completed-trading-day fallback. This resolver is invoked only when quote columns are part of the result per the column policy above.
+- Implement a valuation-ratio zero-value validity rule in `IScannerExecutionService`:
+  - For ratio metrics including `PE_TTM`, `PS_TTM`, `PB`, and other valuation multiples, a stored value of `0` is treated as missing/invalid.
+  - Rows with `PE_TTM = 0` must be excluded from any condition that tests `PE_TTM < X` or `PE_TTM <= X`.
+  - Rows with `PS_TTM = 0` must be excluded from any condition that tests `PS_TTM < X` or `PS_TTM <= X`.
+  - Zero-value exclusion applies to all `<` and `<=` (below/at-most) filter conditions on valuation ratio and financial ratio metrics. Zero-value rows pass only if the user explicitly requests them.
+- Implement batch screener result projection for symbol, company name, selected metric values, score, and matched conditions (plus quote columns only when included by policy).
+- Implement `IScannerResultRanker`.
 - Implement missing data warnings.
-- Add execute endpoint.
-- Add integration tests.
+- Wire the Scanner Tool into `IAiQueryOrchestrator` and the AI facade response.
+- Emit operation/cache/provider execution facts needed by `IUsageChargeCalculator` without coupling scanner services to wallet or ledger persistence.
+- Add integration tests through `POST /api/ai/v1/query`:
+  - A `high growth and P/E below 6` request verifying correct metric columns only (no automatic quote enrichment).
+  - The Persian query `لیست نمادهای با پی به ای زیر 4 و پی به اس زیر 1` verifying:
+    - Response columns are exactly `نماد`, `شرکت`, `PE_TTM`, `PS_TTM` (no `LATEST_PRICE`, no `DAILY_CHANGE_PCT`, no `MARKET_CAP`, no `symbols`).
+    - No returned row has `PE_TTM = 0` or `PS_TTM = 0`.
+  - A query with explicit price request (`همراه با آخرین قیمت`) verifying `LATEST_PRICE` column is then included.
+  - A query with market-cap filter (`ارزش بازار بالای 10 همت`) verifying `MARKET_CAP` column is included as a filter metric.
+  - Explicit column overrides and 10-column validation.
+  - Do not add a public scanner execute endpoint.
+- Add regression tests for `IScannerResultColumnPolicy`:
+  - PE/PS filter-only query → identity columns + PE_TTM + PS_TTM only.
+  - PE/PS filter with explicit price request → identity columns + PE_TTM + PS_TTM + LATEST_PRICE.
+  - `symbols` or other internal columns are never present in output.
+- Add unit tests for valuation-ratio zero-value exclusion:
+  - Row with `PE_TTM = 0`, condition `PE_TTM < 4` → excluded.
+  - Row with `PS_TTM = 0`, condition `PS_TTM < 1` → excluded.
+  - Row with `PE_TTM = 3.5`, condition `PE_TTM < 4` → included.
+  - Row with `PS_TTM = 0.8`, condition `PS_TTM < 1` → included.

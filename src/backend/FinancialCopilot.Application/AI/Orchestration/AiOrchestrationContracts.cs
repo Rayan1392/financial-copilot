@@ -1,0 +1,171 @@
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.Memory;
+using FinancialCopilot.Application.Scanner;
+
+namespace FinancialCopilot.Application.AI.Orchestration;
+
+public enum DetectedIntent
+{
+    Scanner,
+    SymbolLookup,
+    ComprehensiveAnalysis,
+    FinancialStatementPeriodAnalysis,
+    FinancialStatementTableLookup,
+    ProductRevenueMix,
+    MonthlyActivityTrend,
+    DisclosureListing,
+    MonthlySalesQualityRanking,
+    PersonalizedInsightExplanation,
+    Clarification,
+    Unknown
+}
+
+public sealed record IntentDetectionInput(
+    string UserQuery,
+    string Language,
+    string CorrelationId,
+    Guid TenantId);
+
+public sealed record IntentDetectionResult(
+    DetectedIntent Intent,
+    double Confidence,
+    string? Reasoning = null);
+
+// Raw JSON structure returned by the LLM for intent detection.
+public sealed record LlmIntentOutput(
+    string Intent,
+    double Confidence,
+    string? Reasoning = null);
+
+public sealed record AiQueryRequest(
+    string Message,
+    Guid TenantId,
+    Guid ActorId,
+    string CorrelationId,
+    Guid? ConversationId = null,
+    Guid? UserId = null,
+    Guid? ApiClientId = null,
+    string? ExternalUserId = null,
+    int ScannerPage = 1,
+    int ScannerPageSize = 20,
+    int DisclosurePage = 1,
+    int DisclosurePageSize = 20,
+    ActorType ActorType = ActorType.User,
+    AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
+    AiQueryContext? Context = null);
+
+public sealed record AiQueryContext(
+    Guid? InsightEventId = null,
+    Guid? AlertId = null);
+
+public sealed record AiQueryResponse(
+    Guid ConversationId,
+    Guid MessageId,
+    Guid AssistantMessageId,
+    DetectedIntent Intent,
+    ScannerQueryPlan? ScannerPlan,
+    ScannerTableResult? ScannerTable,
+    SymbolLookupTableResult? SymbolLookupTable,
+    ExplainableAnswer? ExplainableAnswer,
+    ConfidenceScoreResult? ConfidenceScore,
+    string? TextAnswer,
+    bool ClarificationRequired,
+    string? ClarificationMessage,
+    UsageAccountingResult? Usage,
+    IReadOnlyCollection<MemoryUseDisclosure>? MemoryDisclosures = null,
+    string? AiOrchestrationMode = null,
+    string? WorkflowVersion = null,
+    string? ProviderSelection = null,
+    bool? ProviderFallbackOccurred = null,
+    string? WorkflowCorrelationId = null,
+    ComprehensiveAnalysisQueryResponse? ComprehensiveAnalysisResult = null,
+    FinancialStatementAnalysisResponse? FinancialStatementAnalysisResult = null,
+    FinancialStatementTableResult? FinancialStatementTableResult = null,
+    ProductRevenueMixResponse? ProductRevenueMixResult = null,
+    MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
+    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
+    DisclosureListingResult? DisclosureListingResult = null);
+
+public sealed record UsageAccountingResult(
+    string OperationCode,
+    string CompletionStatus,
+    decimal CreditsCharged,
+    decimal RemainingSpendingCapacity,
+    string PricingPolicyVersion,
+    bool Cached,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
+
+// Integration point for mandatory Billing reservation/finalization.
+// Story 007 defines this boundary; Story 010 provides the real implementation.
+// The no-op implementation allows the orchestrator to compile and be tested
+// without billing policy being active.
+public sealed record BillingReservationRequest(
+    string CorrelationId,
+    Guid TenantId,
+    Guid ActorId,
+    string OperationCode,
+    Guid? UserId,
+    Guid? ApiClientId,
+    string? ExternalUserId = null);
+
+public sealed record BillingReservationHandle(
+    string ReservationId,
+    string CorrelationId,
+    Guid CustomerAccountId,
+    Guid TenantId,
+    Guid ActorId,
+    Guid? ApiClientId,
+    string? ExternalUserId,
+    string OperationCode,
+    string? AllocationSource = null,
+    string? AllowanceDateKey = null);
+
+public sealed record BillingFinalizationRequest(
+    string CompletionStatus,
+    bool Cached = false,
+    string? ProviderName = null,
+    string? ModelName = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null,
+    int? TotalTokens = null,
+    decimal? EstimatedCost = null);
+
+public interface IBillingFacadeHook
+{
+    // Attempts to reserve billing credit before executing the AI workflow.
+    // Returns null when billing is not active (no-op phase) or entitlement fails.
+    Task<BillingReservationHandle?> TryReserveAsync(
+        BillingReservationRequest request,
+        CancellationToken cancellationToken);
+
+    // Finalizes the reservation after the workflow completes.
+    Task<UsageAccountingResult?> FinalizeAsync(
+        BillingReservationHandle handle,
+        BillingFinalizationRequest request,
+        CancellationToken cancellationToken);
+
+    // Releases the reservation if the workflow was abandoned or failed early.
+    Task ReleaseAsync(
+        BillingReservationHandle handle,
+        CancellationToken cancellationToken);
+}
+
+public interface IAiIntentDetector
+{
+    Task<IntentDetectionResult> DetectAsync(
+        IntentDetectionInput input,
+        CancellationToken cancellationToken);
+}
+
+public interface IAiQueryOrchestrationService
+{
+    Task<AiQueryResponse> ExecuteAsync(
+        AiQueryRequest request,
+        CancellationToken cancellationToken);
+}

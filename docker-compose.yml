@@ -1,0 +1,118 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-financial_copilot}
+      POSTGRES_USER: ${POSTGRES_USER:-financial_copilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-financial_copilot}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    environment: &application-environment
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__FinancialCopilot: Host=postgres;Port=5432;Database=${POSTGRES_DB:-financial_copilot};Username=${POSTGRES_USER:-financial_copilot};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Redis: redis:6379
+      Database__ApplyMigrationsOnStartup: "true"
+      DataSyncMessaging__Enabled: "true"
+      DataSyncMessaging__HostName: rabbitmq
+      DataSyncMessaging__UserName: ${RABBITMQ_USER:-financial_copilot}
+      DataSyncMessaging__Password: ${RABBITMQ_PASSWORD}
+      FeatureMessaging__HostName: rabbitmq
+      FeatureMessaging__Enabled: "true"
+      FeatureMessaging__UserName: ${RABBITMQ_USER:-financial_copilot}
+      FeatureMessaging__Password: ${RABBITMQ_PASSWORD}
+      ScannerCache__UseRedis: "true"
+      Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
+      Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+      AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
+      AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AiProvider__Abravran__MaxTokens: ${ABRAVRAN_MAX_TOKENS:-3000}
+      AiProvider__Abravran__Temperature: ${ABRAVRAN_TEMPERATURE:-0.7}
+      AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
+      ABRAVRAN_API_KEY: ${ABRAVRAN_API_KEY:-}
+      NadpcoApi__UserName: ${NADPCO_API_USER_NAME:-}
+      NadpcoApi__Password: ${NADPCO_API_PASSWORD:-}
+      NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-5074}:8080"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *application-environment
+      DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        VITE_FINANCIAL_COPILOT_API_BASE_URL: ${FRONTEND_API_BASE_URL:?set FRONTEND_API_BASE_URL in .env}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:

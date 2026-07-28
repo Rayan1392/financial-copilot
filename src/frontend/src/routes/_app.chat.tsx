@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createThread, sendChatMessage } from "@/lib/chat.functions";
+import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
+import { MessageList } from "@/components/app/message-list";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_app/chat")({
@@ -10,46 +11,82 @@ export const Route = createFileRoute("/_app/chat")({
 });
 
 const SUGGESTIONS = [
-  "توسن ارزنده است؟",
+  "آخرین قیمت کگل؟",
   "خلاصه بازار امروز را بگو",
-  "بین اخابر و آسیاتک کدام بهتر است؟",
-  "سهم‌هایی با P/E زیر ۶ و رشد بالا",
+  "روند فروش کگل؟",
+  "سهم‌هایی با P/E زیر ۶ و P/S زیر ۲",
   "تحلیل پرتفوی من",
+  "ترکیب فروش محصول کچاد را بگو",
+  "میانگین فروش ۱۲ ماهه شگل",
+  "آخرین صورت سود و زیان فولاژ",
+  "تحلیل بنیادی دسبحان؟",
+  "تحلیل بنیادی شگل"
 ];
+
+function chatErrorMessage(error: Error): string {
+  if (error.message.toLowerCase().includes("insufficient"))
+    return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
+  return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
+}
 
 function NewChatPage() {
   const navigate = useNavigate();
-  const create = useServerFn(createThread);
   const send = useServerFn(sendChatMessage);
-  const [deepResearch, setDeepResearch] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const startChat = useMutation({
     mutationFn: async (message: string) => {
-      const thread = await create();
-      await send({ data: { threadId: thread.id, message, deepResearch } });
-      return thread.id;
+      const result = await send({ data: { message, scannerPage: 1 } });
+      return result.threadId;
     },
     onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),
+    onError: (error: Error) => {
+      setPendingMessage(null);
+      setQueryError(chatErrorMessage(error));
+    },
   });
+
+  const submit = (text: string) => {
+    setQueryError(null);
+    setPendingMessage(text);
+    startChat.mutate(text);
+  };
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto scrollbar-thin flex items-center justify-center p-8">
+      <div className={`flex-1 overflow-y-auto scrollbar-thin ${pendingMessage ? "" : "flex items-center justify-center p-8"}`}>
+        {pendingMessage ? (
+          <MessageList
+            messages={[
+              {
+                id: "pending-user-message",
+                role: "user",
+                created_at: new Date().toISOString(),
+                content: { text: pendingMessage },
+              },
+            ]}
+            loading={false}
+            streaming={startChat.isPending}
+            onSuggested={submit}
+          />
+        ) : (
         <div className="max-w-2xl w-full text-center animate-fade-up">
           <div className="size-14 mx-auto rounded-2xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center mb-6">
             <div className="size-5 rounded-full bg-emerald" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">
-            دستیار هوشمند تحلیل بازار
+            ساپیو - دستیار هوشمند بازار
           </h1>
           <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto text-pretty">
-            یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و خلاصه بازار را در یک گفتگو دریافت کنید.
+            یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و
+            خلاصه بازار را در یک گفتگو دریافت کنید.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-right">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
-                onClick={() => startChat.mutate(s)}
+                onClick={() => submit(s)}
                 disabled={startChat.isPending}
                 className="text-sm px-4 py-3 rounded-xl border border-border bg-surface hover:bg-surface-2 hover:border-emerald/30 transition disabled:opacity-50"
               >
@@ -58,11 +95,15 @@ function NewChatPage() {
             ))}
           </div>
         </div>
+        )}
       </div>
+      {queryError && (
+        <div className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive text-right">
+          {queryError}
+        </div>
+      )}
       <PromptInput
-        deepResearch={deepResearch}
-        onToggleDeep={() => setDeepResearch((v) => !v)}
-        onSubmit={(text) => startChat.mutate(text)}
+        onSubmit={submit}
         loading={startChat.isPending}
       />
     </>

@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using FinancialCopilot.Application.FinancialData.Providers;
 
 namespace FinancialCopilot.ArchitectureTests;
 
@@ -7,10 +8,11 @@ public sealed class CleanArchitectureDependencyTests
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> AllowedReferences =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["FinancialCopilot.API"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"]),
+            ["FinancialCopilot.API"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Billing", "FinancialCopilot.Infrastructure"]),
             ["FinancialCopilot.Application"] = new HashSet<string>(["FinancialCopilot.Domain"]),
             ["FinancialCopilot.Domain"] = new HashSet<string>(),
-            ["FinancialCopilot.Infrastructure"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Domain"]),
+            ["FinancialCopilot.Billing"] = new HashSet<string>(["FinancialCopilot.Domain"]),
+            ["FinancialCopilot.Infrastructure"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Billing", "FinancialCopilot.Domain"]),
             ["FinancialCopilot.Worker"] = new HashSet<string>(["FinancialCopilot.Application", "FinancialCopilot.Infrastructure"])
         };
 
@@ -39,6 +41,135 @@ public sealed class CleanArchitectureDependencyTests
         }
 
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
+    public void ScannerAndOrchestratorCode_DoesNotEmbedMetricFormulaRoutingCodes()
+    {
+        var applicationRoot = Path.Combine(FindSolutionRoot(), "FinancialCopilot.Application");
+        var governedFormulaCodes = new[] { "NET_PROFIT_GROWTH_YOY", "NET_PROFIT_GROWTH_QOQ", "PE_TTM" };
+        var failures = Directory
+            .EnumerateFiles(applicationRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+                Path.GetFileName(path).Contains("Scanner", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetFileName(path).Contains("Orchestrator", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(path => governedFormulaCodes
+                .Where(code => File.ReadAllText(path).Contains(code, StringComparison.Ordinal))
+                .Select(code => $"{Path.GetFileName(path)} must resolve '{code}' through semantic contracts."))
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void MicrosoftAgentFrameworkPackages_OnlyReferencedFromInfrastructure()
+    {
+        // MAF packages must not appear as NuGet PackageReferences in Domain, Application, Billing, or API.
+        // Their presence outside Infrastructure would couple business policy to a volatile vendor framework.
+        var root = FindSolutionRoot();
+        var mafPackagePrefixes = new[] { "Microsoft.Agents.", "Microsoft.Agents.AI" };
+        var protectedProjects = new[]
+        {
+            "FinancialCopilot.Domain",
+            "FinancialCopilot.Application",
+            "FinancialCopilot.Billing",
+            "FinancialCopilot.API"
+        };
+
+        var failures = protectedProjects
+            .Select(name => Path.Combine(root, name, $"{name}.csproj"))
+            .Where(File.Exists)
+            .SelectMany(path =>
+            {
+                var doc = XDocument.Load(path);
+                return doc.Descendants("PackageReference")
+                    .Select(r => r.Attribute("Include")?.Value)
+                    .Where(pkg => pkg is not null &&
+                        mafPackagePrefixes.Any(prefix =>
+                            pkg!.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                    .Select(pkg => $"{Path.GetFileNameWithoutExtension(path)} must not directly reference MAF package '{pkg}'.");
+            })
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void BusinessAndPublicContractAssemblies_DoNotReferenceVendorModelProviders()
+    {
+        var root = FindSolutionRoot();
+        var protectedRoots = new[]
+        {
+            Path.Combine(root, "FinancialCopilot.Domain"),
+            Path.Combine(root, "FinancialCopilot.Billing"),
+            Path.Combine(root, "FinancialCopilot.API", "Contracts")
+        };
+        var vendorTerms = new[] { "OpenAI", "Anthropic", "Claude", "Abravran", "Ollama" };
+        var failures = protectedRoots
+            .Where(Directory.Exists)
+            .SelectMany(path => Directory.EnumerateFiles(path, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(path => vendorTerms
+                .Where(term => File.ReadAllText(path).Contains(term, StringComparison.OrdinalIgnoreCase))
+                .Select(term => $"{Path.GetFileName(path)} must not reference AI vendor '{term}'."))
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void NoavaranArchiveSource_IsNotDrivenByARecurringHostedWorker()
+    {
+        // Spec 051 AC #4/#5 and spec 052 AC #4: the Noavaran archive (CodalDB SQL) is a one-time
+        // import source. No recurring hosted worker may drive it or its import coordinator; ordinary
+        // recurring refresh belongs to the current API source. The archive sync/import is reachable
+        // only through the explicit DataAdmin endpoints.
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+
+        var hostedServiceLines = workerProgram
+            .Split('\n')
+            .Where(line => line.Contains("AddHostedService", StringComparison.Ordinal))
+            .ToArray();
+
+        var failures = hostedServiceLines
+            .Where(line =>
+                line.Contains("CodalDb", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("NoavaranArchive", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("ArchiveScheduledSync", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("ArchiveImport", StringComparison.OrdinalIgnoreCase))
+            .Select(line => $"Worker registers a recurring hosted service for the archive source: {line.Trim()}")
+            .ToArray();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void StockMarketDb_IsModeledAsMigrationBridge()
+    {
+        // Spec 054 AC #2/#7: StockMarketDB must remain classified as MigrationBridge, not as
+        // an archive or current-incremental source. The ProviderSources catalog is the single owner
+        // of this classification; this test proves it has not drifted.
+        var descriptor = ProviderSources.StockMarketDb;
+
+        Assert.Equal(SourceMode.MigrationBridge, descriptor.DefaultMode);
+        Assert.Equal(LogicalVendor.Tsetmc, descriptor.Vendor);
+    }
+
+    [Fact]
+    public void ScannerCode_DoesNotReferenceStockMarketDbPhysicalSource()
+    {
+        // Spec 054 AC #10: the scanner must read canonical market projections (LatestMarketQuotes)
+        // and must not be coupled to the StockMarketDB physical source name. If the scanner
+        // contains a literal "StockMarketDb" it bypasses the abstraction layer.
+        var root = FindSolutionRoot();
+        var scannerRoot = Path.Combine(root, "FinancialCopilot.Application", "Scanner");
+        var failures = Directory
+            .EnumerateFiles(scannerRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("StockMarketDb", StringComparison.OrdinalIgnoreCase))
+            .Select(path => $"{Path.GetFileName(path)} must not reference the StockMarketDb physical source name directly.")
+            .ToArray();
+
+        Assert.Empty(failures);
     }
 
     private static string FindSolutionRoot()

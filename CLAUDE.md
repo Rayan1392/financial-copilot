@@ -1,0 +1,3 @@
+# CLAUDE
+
+read [README](README.md)

@@ -1,21 +1,20 @@
 import { useRef, useState } from "react";
-import { ArrowUp, Sparkles, Filter } from "lucide-react";
+import { ArrowUp } from "lucide-react";
+import { AssistedQueryDialog } from "@/components/app/assisted-query-dialog";
 
 interface Props {
   onSubmit: (text: string) => void;
-  deepResearch: boolean;
-  onToggleDeep: () => void;
   loading?: boolean;
 }
 
-export function PromptInput({ onSubmit, deepResearch, onToggleDeep, loading }: Props) {
+export function PromptInput({ onSubmit, loading }: Props) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
 
   function submit() {
-    const t = value.trim();
-    if (!t || loading) return;
-    onSubmit(t);
+    const text = value.trim();
+    if (!text || loading) return;
+    onSubmit(text);
     setValue("");
     ref.current?.focus();
   }
@@ -27,33 +26,20 @@ export function PromptInput({ onSubmit, deepResearch, onToggleDeep, loading }: P
           <textarea
             ref={ref}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
             placeholder="از من درباره نمادها، شاخص یا فیلترهای بازار بپرس..."
             rows={2}
             className="w-full bg-transparent border-none resize-none p-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
           />
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onToggleDeep}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition ring-1 ${
-                  deepResearch
-                    ? "bg-emerald-soft text-emerald ring-emerald/30"
-                    : "bg-background text-muted-foreground ring-hairline hover:text-foreground"
-                }`}
-              >
-                <Sparkles className="size-3" />
-                جستجوی عمیق
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium ring-1 ring-hairline bg-background text-muted-foreground hover:text-foreground transition"
-              >
-                <Filter className="size-3" />
-                فیلترنویسی
-              </button>
+          <div className="flex items-center justify-end px-3 pb-3">
+            <div className="ml-auto">
+              <AssistedQueryDialog onCompose={setValue} />
             </div>
             <button
               onClick={submit}

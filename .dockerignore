@@ -1,0 +1,15 @@
+.git
+.vs
+.idea
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+coverage
+TestResults
+artifacts
+specs.zip
+

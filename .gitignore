@@ -19,3 +19,4 @@ graphify-out/
 --pipeline-mode
 --profile
 --prompt-mode
+*.tar

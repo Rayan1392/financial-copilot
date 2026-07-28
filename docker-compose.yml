@@ -63,8 +63,13 @@ services:
       ScannerCache__UseRedis: "true"
       Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
       Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+      AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
       AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AiProvider__Abravran__MaxTokens: ${ABRAVRAN_MAX_TOKENS:-3000}
+      AiProvider__Abravran__Temperature: ${ABRAVRAN_TEMPERATURE:-0.7}
+      AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
+      ABRAVRAN_API_KEY: ${ABRAVRAN_API_KEY:-}
       NadpcoApi__UserName: ${NADPCO_API_USER_NAME:-}
       NadpcoApi__Password: ${NADPCO_API_PASSWORD:-}
       NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}

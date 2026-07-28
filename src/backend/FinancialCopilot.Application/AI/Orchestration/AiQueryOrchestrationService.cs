@@ -33,6 +33,7 @@ public sealed class AiQueryOrchestrationService(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
     TimeProvider timeProvider) : IAiQueryOrchestrationService
 {
@@ -86,6 +87,7 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementTableResult? financialStatementTableResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
+        DisclosureListingResult? disclosureListingResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -348,6 +350,14 @@ public sealed class AiQueryOrchestrationService(
                     textAnswer = "اطلاعات صورت‌های مالی برای نماد یا شرکت درخواستی در پایگاه داده یافت نشد.";
                 }
             }
+            else if (intentResult.Intent == DetectedIntent.DisclosureListing)
+            {
+                var disclosureQuery = DisclosureListingIntentRules.BuildQuery(request.Message, now, request.DisclosurePage, request.DisclosurePageSize) with { Channel = request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai" };
+                disclosureListingResult = await disclosureListingUseCase.ExecuteAsync(disclosureQuery, cancellationToken);
+                clarificationRequired = false;
+                clarificationMessage = null;
+                textAnswer = BuildDisclosureListingContent(disclosureListingResult);
+            }
             else if (intentResult.Intent == DetectedIntent.FinancialStatementTableLookup)
             {
                 var tableQuery = FinancialStatementTableIntentRules.BuildQuery(request.Message);
@@ -534,6 +544,7 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.FinancialStatementTableLookup
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
+            or DetectedIntent.DisclosureListing
             or DetectedIntent.PersonalizedInsightExplanation
             ? assistantContent
             : textAnswer;
@@ -565,7 +576,8 @@ public sealed class AiQueryOrchestrationService(
                     financialStatementAnalysisResult,
                     financialStatementTableResult,
                     productRevenueMixResult,
-                    monthlyActivityTrendResult)),
+                    monthlyActivityTrendResult,
+                    DisclosureListingResult: disclosureListingResult)),
             createConversation,
             cancellationToken);
 
@@ -591,7 +603,8 @@ public sealed class AiQueryOrchestrationService(
             FinancialStatementAnalysisResult: financialStatementAnalysisResult,
             FinancialStatementTableResult: financialStatementTableResult,
             ProductRevenueMixResult: productRevenueMixResult,
-            MonthlyActivityTrendResult: monthlyActivityTrendResult);
+            MonthlyActivityTrendResult: monthlyActivityTrendResult,
+            DisclosureListingResult: disclosureListingResult);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
@@ -800,6 +813,17 @@ public sealed class AiQueryOrchestrationService(
                 : $"Scanner plan created with {plan.Conditions.Count} condition(s).";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
+    }
+
+    private static string BuildDisclosureListingContent(DisclosureListingResult result)
+    {
+        if (result.Items.Count == 0)
+            return "اطلاعیه‌ای با فیلترهای درخواستی یافت نشد.";
+
+        var lines = result.Items.Select((item, index) =>
+            $"{index + 1}. {item.Symbol ?? item.CompanyName ?? "—"} | {item.Title} | دریافت: {item.ReceivedAt:yyyy-MM-dd HH:mm}");
+        var suffix = result.HasNextPage ? $"\nصفحه {result.Page} از {result.TotalPages} — نتایج بیشتری وجود دارد." : string.Empty;
+        return $"فهرست اطلاعیه‌های منتشرشده:\n{string.Join("\n", lines)}{suffix}\nاین فهرست صرفاً اطلاع‌رسانی است و توصیهٔ خرید یا فروش نیست.";
     }
 
     private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)

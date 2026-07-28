@@ -62,6 +62,7 @@ public sealed class AiFacadeController(
                     actor.ApiClientId,
                     ScannerPage: Math.Max(1, httpRequest.ScannerPage),
                     ScannerPageSize: Math.Clamp(httpRequest.ScannerPageSize, 1, 100),
+                    DisclosurePage: Math.Max(1, httpRequest.DisclosurePage),
                     ActorType: actor.ActorType,
                     AuthenticationMode: actor.AuthenticationMode,
                     Context: httpRequest.Context is null
@@ -228,7 +229,8 @@ public sealed class AiFacadeController(
             MapFinancialStatementAnalysisResult(result.FinancialStatementAnalysisResult),
             MapFinancialStatementTableResult(result.FinancialStatementTableResult),
             MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
-            MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult));
+            MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult),
+            result.DisclosureListingResult);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -413,7 +415,8 @@ public sealed class AiFacadeController(
                 MapFinancialStatementAnalysisResult(payload.FinancialStatementAnalysisResult),
                 MapFinancialStatementTableResult(payload.FinancialStatementTableResult),
                 MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
-                MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult));
+                MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult),
+                payload.DisclosureListingResult);
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)

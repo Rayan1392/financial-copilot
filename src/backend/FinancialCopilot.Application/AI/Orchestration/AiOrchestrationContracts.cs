@@ -14,6 +14,7 @@ public enum DetectedIntent
     FinancialStatementTableLookup,
     ProductRevenueMix,
     MonthlyActivityTrend,
+    DisclosureListing,
     MonthlySalesQualityRanking,
     PersonalizedInsightExplanation,
     Clarification,
@@ -48,6 +49,8 @@ public sealed record AiQueryRequest(
     string? ExternalUserId = null,
     int ScannerPage = 1,
     int ScannerPageSize = 20,
+    int DisclosurePage = 1,
+    int DisclosurePageSize = 20,
     ActorType ActorType = ActorType.User,
     AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
     AiQueryContext? Context = null);
@@ -81,7 +84,8 @@ public sealed record AiQueryResponse(
     FinancialStatementTableResult? FinancialStatementTableResult = null,
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
-    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null);
+    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

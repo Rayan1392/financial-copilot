@@ -22,6 +22,11 @@ public sealed class TelegramAssistantResponseRenderer(
         AiQueryResponse response,
         string locale)
     {
+        if (response.DisclosureListingResult is not null)
+        {
+            return RenderDisclosureListing(response, response.DisclosureListingResult);
+        }
+
         if (response.MonthlyActivityTrendResult is not null)
         {
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
@@ -106,6 +111,67 @@ public sealed class TelegramAssistantResponseRenderer(
                 part,
                 Media: index == 0 ? media : null))
             .ToArray();
+    }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderDisclosureListing(
+        AiQueryResponse response,
+        DisclosureListingResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("فهرست اطلاعیه‌های منتشرشده");
+        if (result.Items.Count == 0)
+        {
+            builder.AppendLine("اطلاعیه‌ای با فیلترهای درخواستی یافت نشد.");
+        }
+        else
+        {
+            foreach (var (item, index) in result.Items.Select((item, index) => (item, index)))
+            {
+                var company = item.Symbol ?? item.CompanyName ?? "—";
+                var published = item.PublishedAt is null ? "نامشخص" : FormatJalaliDateOnly(item.PublishedAt.Value);
+                var received = FormatJalaliReceipt(item.ReceivedAt);
+                var qualifiers = string.Join("، ", new[]
+                {
+                    item.IsRevised ? "اصلاحی" : null,
+                    item.IsComposing ? "تلفیقی" : null
+                }.Where(value => value is not null));
+                builder.AppendLine($"{ToPersianDigits((index + 1).ToString(CultureInfo.InvariantCulture))}. {company}");
+                builder.AppendLine($"{DisclosureTypeLabel(item.Type)} — {item.Title}");
+                builder.AppendLine($"انتشار: {published} | دریافت: {received}{(qualifiers.Length > 0 ? $" | {qualifiers}" : string.Empty)}");
+                builder.AppendLine($"منبع: {ProviderSources.GetDisplayName(item.ProviderName)}");
+            }
+        }
+
+        if (result.CoverageStatus != DisclosureCoverageStatus.Complete)
+            builder.AppendLine("هشدار پوشش: بخشی از اطلاعیه‌ها هنوز به شرکت یا نماد نگاشت نشده‌اند.");
+        if (result.FreshnessReasonCode.Contains("stale", StringComparison.OrdinalIgnoreCase))
+            builder.AppendLine("هشدار تازگی: بخشی از داده‌ها ممکن است به‌روز نباشند.");
+        builder.AppendLine($"صفحه {ToPersianDigits(result.Page.ToString(CultureInfo.InvariantCulture))} از {ToPersianDigits(Math.Max(result.TotalPages, 1).ToString(CultureInfo.InvariantCulture))}");
+        if (result.HasNextPage)
+            builder.AppendLine("نتایج بیشتری وجود دارد.");
+        builder.AppendLine("این فهرست صرفاً اطلاع‌رسانی است و توصیهٔ خرید یا فروش نیست.");
+
+        AppendUsage(builder, response);
+        return Split(EscapeMarkdownV2(builder.ToString().Trim()));
+    }
+
+    private static string DisclosureTypeLabel(CompanyDisclosureType type) => type switch
+    {
+        CompanyDisclosureType.MonthlyProductionSales => "تولید و فروش ماهانه",
+        CompanyDisclosureType.IncomeStatement => "صورت سود و زیان",
+        CompanyDisclosureType.BalanceSheet => "ترازنامه",
+        CompanyDisclosureType.CashFlowStatement => "جریان وجه نقد",
+        _ => type.ToString()
+    };
+
+    private static string FormatJalaliDateOnly(DateOnly value) =>
+        ShamsiMonthCalculator.FormatJalaliDate(new DateTimeOffset(
+            value.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3.5)));
+
+    private static string FormatJalaliReceipt(DateTimeOffset value)
+    {
+        var tehran = value.ToOffset(TimeSpan.FromHours(3.5));
+        return $"{ShamsiMonthCalculator.FormatJalaliDate(tehran)} {ToPersianDigits(tehran.ToString("HH:mm", CultureInfo.InvariantCulture))} (تهران)";
     }
 
     private static void AppendStockCard(

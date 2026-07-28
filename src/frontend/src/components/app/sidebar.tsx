@@ -104,6 +104,12 @@ export function ConversationSidebar() {
         >
         دیده‌بان
         </Link>
+        <Link
+          to="/disclosures"
+          className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
+        >
+          اطلاعیه‌ها
+        </Link>
         <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر

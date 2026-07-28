@@ -29,6 +29,7 @@ export interface AssistantChatBlock {
   table?: ScannerTable;
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  disclosureListingResult?: DisclosureListingResult;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -42,6 +43,16 @@ export interface AssistantChatBlock {
     providerFallbackOccurred?: boolean;
     correlationId?: string;
   };
+}
+
+export interface DisclosureListingResult {
+  items: Array<{ disclosureId: string; symbol?: string; companyName?: string; type: string; title: string; publishedAt?: string; receivedAt: string; providerName: string; isRevised: boolean; isComposing: boolean }>;
+  page: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  coverageStatus: string;
+  freshnessReasonCode: string;
 }
 
 export interface MonthlyActivityTrendResult {
@@ -140,6 +151,7 @@ interface AssistantContentResponse {
   scannerTable?: ScannerTable;
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  disclosureListingResult?: DisclosureListingResult;
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -212,6 +224,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         message: z.string().trim().min(1).max(2000),
         scannerPage: z.number().int().min(1).default(1),
         scannerPageSize: z.number().int().min(1).max(100).default(20),
+        disclosurePage: z.number().int().min(1).default(1),
       })
       .parse(d),
   )
@@ -223,6 +236,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         message: data.message,
         scannerPage: data.scannerPage,
         scannerPageSize: data.scannerPageSize,
+        disclosurePage: data.disclosurePage,
       }),
     });
     const createdAt = new Date().toISOString();
@@ -295,6 +309,7 @@ function mapAssistantBlock(
     table,
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
+    disclosureListingResult: content?.disclosureListingResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {

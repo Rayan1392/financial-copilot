@@ -190,6 +190,28 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.DoesNotContain("\\| ماه \\|", message.Text);
     }
 
+    [Fact]
+    public void Disclosure_listing_is_rendered_as_compact_numbered_rows_with_pagination_metadata()
+    {
+        var item = new CompanyDisclosureFeedItem(
+            "d-1", "l-1", CompanyDisclosureType.MonthlyProductionSales, "NoavaranCurrentApi", "559",
+            null, "فولاژ", "فولاد آلیاژی ایران", "گزارش تولید و فروش ماهانه", new DateOnly(2026, 7, 20), null,
+            new DateTimeOffset(2026, 7, 21, 10, 0, 0, TimeSpan.FromHours(3.5)), "source-1", 1, false,
+            DisclosureCoverageStatus.Complete, "PersistedNormalizedData");
+        var result = new DisclosureListingResult(
+            [item],
+            new DisclosureListingAppliedFilters([CompanyDisclosureType.MonthlyProductionSales], null, [], null, null, null, null, DisclosureConsolidationScope.NonConsolidated),
+            1, 8, false, true, 9, 2, DateTimeOffset.UtcNow, DisclosureCoverageStatus.Complete, "PersistedNormalizedData");
+        var response = new AiQueryResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.DisclosureListing,
+            null, null, null, null, null, null, false, null, null, DisclosureListingResult: result);
+
+        var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
+
+        Assert.Contains("فهرست اطلاعیه", message.Text.Replace("\\", string.Empty));
+        Assert.Contains("فولاژ", message.Text);
+        Assert.Contains("نتایج بیشتری", message.Text);
+    }
+
     private static TelegramAssistantResponseRenderer CreateRenderer() =>
         new(
             new TelegramMonthlyTrendChartRenderer(),

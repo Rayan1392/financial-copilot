@@ -52,8 +52,8 @@ function ChatThreadPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: ({ message, scannerPage = 1 }: { message: string; scannerPage?: number }) =>
-      send({ data: { threadId, message, scannerPage } }),
+    mutationFn: ({ message, scannerPage = 1, disclosurePage = 1 }: { message: string; scannerPage?: number; disclosurePage?: number }) =>
+      send({ data: { threadId, message, scannerPage, disclosurePage } }),
     onSuccess: () => {
       setQueryError(null);
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
@@ -75,6 +75,12 @@ function ChatThreadPage() {
     sendMutation.mutate({ message: lastMessageRef.current, scannerPage: page });
   };
 
+  const handleDisclosurePageChange = (page: number, originalQuery: string) => {
+    lastMessageRef.current = originalQuery;
+    setQueryError(null);
+    sendMutation.mutate({ message: originalQuery, disclosurePage: page });
+  };
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, sendMutation.isPending]);
@@ -88,6 +94,7 @@ function ChatThreadPage() {
           streaming={sendMutation.isPending}
           onSuggested={submit}
           onPageChange={handlePageChange}
+          onDisclosurePageChange={handleDisclosurePageChange}
           showDiagnostics={showDiagnostics}
           followedSymbols={new Set(followed?.symbols.map((item) => item.symbol) ?? [])}
         />

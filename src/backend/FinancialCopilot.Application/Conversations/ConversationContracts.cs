@@ -51,7 +51,8 @@ public sealed record AssistantMessagePayload(
     FinancialStatementTableResult? FinancialStatementTableResult = null,
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
-    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null);
+    MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

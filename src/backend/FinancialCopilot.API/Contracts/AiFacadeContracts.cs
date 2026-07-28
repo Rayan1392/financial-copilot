@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 
 namespace FinancialCopilot.API.Contracts;
 
@@ -7,6 +8,7 @@ public sealed record AiQueryHttpRequest(
     Guid? ConversationId = null,
     int ScannerPage = 1,
     int ScannerPageSize = 20,
+    int DisclosurePage = 1,
     AiQueryContextHttpRequest? Context = null);
 
 public sealed record AiQueryContextHttpRequest(
@@ -37,7 +39,8 @@ public sealed record AiQueryHttpResponse(
     FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
-    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
+    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -185,7 +188,8 @@ public sealed record AssistantMessageContentResponse(
     FinancialStatementAnalysisHttpResponse? FinancialStatementAnalysisResult = null,
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
-    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null);
+    MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

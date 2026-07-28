@@ -18,6 +18,12 @@
 | [x] | 98 | [098](./098-telegram-subscriptions-credit-purchases-and-entitlements/user-story.md) / [tasks](./098-telegram-subscriptions-credit-purchases-and-entitlements/tasks.md) | Telegram Subscriptions, Credit Purchases, and Entitlements | Implemented Billing-owned Telegram product catalog, checkout lifecycle, manual receipt review, provider callback placeholder, exact-once credit/subscription fulfillment, reconciliation, admin audit, Feature 097 status notification handoff, REST endpoints, Telegram `/plans`/`/buy`/receipt/status/cancel UX, migration `20260715142409_ImplementTelegramBillingPurchases`, and docs. Validation passed: API/Worker Release builds, 988/988 unit tests, Billing endpoint integration 15/15, architecture tests 7/7, Billing and Financial EF model-current checks. |
 | [x] | 99 | [099](./099-telegram-alert-history-and-explainability/user-story.md) / [tasks](./099-telegram-alert-history-and-explainability/tasks.md) | Telegram Alert History and Explainability | Implemented actor-scoped immutable alert-history projection from Feature 097 handoffs, deterministic why/evidence snapshots, delivery timeline, reaction snapshots, dismiss/restore/feedback/mute, searchable REST history/detail, AI alert context, Telegram `/alerts` and callbacks, docs, migration, and tests. Validation passed: API/Worker Release builds, 991/991 unit tests, 5/5 notification endpoint integration tests, 7/7 architecture tests, FinancialIngestion EF model-current check, and `git diff --check` (CRLF warnings only). |
 
+## Stage 26 — Company Disclosure Discovery
+
+| Done | Order | Spec | User story | Dependency / implementation intent |
+|---|---:|---|---|---|
+| [x] | 112 | [112](./112-company-disclosure-feed-and-telegram-listing/user-story.md) / [tasks](./112-company-disclosure-feed-and-telegram-listing/tasks.md) | Company Disclosure Feed and Telegram Listing | Implemented canonical, provider-neutral read model over persisted monthly production/sales and financial-statement disclosures. Includes deterministic filtered pagination in the Persian RTL web UI, the shared `DisclosureListing` AI contract, compact Telegram pages with actor-bound opaque continuation callbacks, Jalali title presentation, nullable persisted publication dates, authorization, freshness/coverage metadata, revision selection, and focused API/web/AI/Telegram/end-to-end tests. Does not change ingestion schedules or generate financial advice. |
+
 ## Stage Gate
 
 - The Telegram adapter must remain a thin delivery-channel boundary over existing application use cases.

@@ -118,7 +118,10 @@ public sealed class NormalizedFinancialStatementRowConfiguration :
             row.IsRepresented
         });
         builder.HasIndex(row => new { row.ProviderName, row.StatementType });
+        // Feature 112 disclosure-feed provider/type/consolidation/receipt ordering.
+        builder.HasIndex(row => new { row.ProviderName, row.StatementType, row.IsComposing, row.LastSynchronizedAt });
         builder.Property(row => row.VendorPeriodDate);
+        builder.Property(row => row.PublishedAt);
         // Spec 067: nullable FK to Companies for CyclicalWaves rows; company deletion leaves rows orphaned.
         builder.HasOne<NormalizedCompanyRow>()
             .WithMany()
@@ -190,6 +193,9 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         builder.ToTable("MonthlyReports");
         builder.HasKey(row => row.Id);
         builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId }).IsUnique();
+        // Feature 112 disclosure-feed provider/receipt ordering and company filtering.
+        builder.HasIndex(row => new { row.ProviderName, row.LastSynchronizedAt });
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.LastSynchronizedAt });
         // Prevent duplicate report rows for the same logical period when activityId is absent.
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.OutputType, row.ReportType })
             .IsUnique()
@@ -199,6 +205,7 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
         builder.Property(row => row.SourceMode).HasMaxLength(32);
         builder.Property(row => row.OutputType);
         builder.Property(row => row.VendorPeriodDate);
+        builder.Property(row => row.PublishedAt);
         // Spec 067: nullable FK to Companies for CyclicalWaves rows; company deletion leaves rows orphaned.
         builder.HasOne<NormalizedCompanyRow>()
             .WithMany()

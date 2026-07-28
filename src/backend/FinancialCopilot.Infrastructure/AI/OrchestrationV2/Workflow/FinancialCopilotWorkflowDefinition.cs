@@ -45,6 +45,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IDisclosureListingUseCase disclosureListingUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
@@ -321,6 +322,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 "Completed", false, modelClient, rankingUsage);
         }
 
+        var isDisclosureListing = DisclosureListingIntentRules.LooksLikeDisclosureListingQuery(request.Message);
+        if (isDisclosureListing)
+        {
+            var disclosureListing = await disclosureListingUseCase.ExecuteAsync(
+                DisclosureListingIntentRules.BuildQuery(request.Message, msg.Now, request.DisclosurePage, request.DisclosurePageSize) with { Channel = request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai" }, ct);
+            UsageAccountingResult? disclosureUsage = null;
+            if (msg.Reservation is not null)
+                disclosureUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+
+            stepActivity?.SetTag("workflow.intent", "DisclosureListing");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                BuildDisclosureListingContent(disclosureListing),
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, disclosureUsage,
+                DisclosureListingResult: disclosureListing);
+        }
+
         var isMonthlyActivityTrend = MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message);
         if (isMonthlyActivityTrend)
         {
@@ -567,6 +588,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 : msg.MonthlySalesQualityRankingResult is not null ||
             MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlySalesQualityRanking
+                : DisclosureListingIntentRules.LooksLikeDisclosureListingQuery(msg.Request.Message)
+                ? DetectedIntent.DisclosureListing
                 : msg.MonthlyActivityTrendResult is not null ||
             MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(msg.Request.Message)
                 ? DetectedIntent.MonthlyActivityTrend
@@ -618,7 +641,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MonthlySalesQualityRankingResult,
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
-            explainableAnswer, confidenceScore, groundedAnswer, msg.Usage);
+            explainableAnswer, confidenceScore, groundedAnswer, msg.Usage,
+            DisclosureListingResult: msg.DisclosureListingResult);
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteSideEffectsStepAsync(
@@ -642,10 +666,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -663,7 +687,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             financialStatementTableResult: msg.FinancialStatementTableResult,
             productRevenueMixResult: msg.ProductRevenueMixResult,
             monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
-            monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
+            monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
+            disclosureListingResult: msg.DisclosureListingResult);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -675,7 +700,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MonthlySalesQualityRankingResult,
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
-            msg.Request.CorrelationId);
+            msg.Request.CorrelationId,
+            DisclosureListingResult: msg.DisclosureListingResult);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)
@@ -708,7 +734,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             FinancialStatementTableResult: msg.FinancialStatementTableResult,
             ProductRevenueMixResult: msg.ProductRevenueMixResult,
             MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
-            MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult);
+            MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
+            DisclosureListingResult: msg.DisclosureListingResult);
+    }
+
+    private static string BuildDisclosureListingContent(DisclosureListingResult result)
+    {
+        if (result.Items.Count == 0)
+            return "اطلاعیه‌ای با فیلترهای درخواستی یافت نشد.";
+
+        var lines = result.Items.Select((item, index) =>
+            $"{index + 1}. {item.Symbol ?? item.CompanyName ?? "—"} | {item.Title} | دریافت: {item.ReceivedAt:yyyy-MM-dd HH:mm}");
+        var suffix = result.HasNextPage ? $"\nصفحه {result.Page} از {result.TotalPages} — نتایج بیشتری وجود دارد." : string.Empty;
+        return $"فهرست اطلاعیه‌های منتشرشده:\n{string.Join("\n", lines)}{suffix}\nاین فهرست صرفاً اطلاع‌رسانی است و توصیهٔ خرید یا فروش نیست.";
     }
 
     private static string BuildProductRevenueMixContent(ProductRevenueMixResponse result)

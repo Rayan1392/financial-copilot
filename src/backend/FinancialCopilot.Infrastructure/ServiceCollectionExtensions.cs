@@ -153,6 +153,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<TelegramMembershipRevalidationProcessor>();
         services.AddSingleton<ITelegramMonthlyTrendChartRenderer, TelegramMonthlyTrendChartRenderer>();
         services.AddSingleton<ITelegramAssistantResponseRenderer, TelegramAssistantResponseRenderer>();
+        services.AddSingleton<ITelegramDisclosurePaginationStateStore, TelegramDisclosurePaginationStateStore>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
@@ -896,6 +897,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
+        // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
+        services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
+        services.AddScoped<IDisclosureListingUseCase, DisclosureListingUseCase>();
         // Spec 080 — deterministic monthly production/sales quality ranking snapshots.
         services.AddSingleton<IMonthlySalesQualityScoreCalculator, MonthlySalesQualityScoreCalculator>();
         services.AddScoped<IMonthlySalesQualityRankingRepository, MonthlySalesQualityRankingRepository>();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
@@ -39,10 +40,12 @@ public sealed class TelegramAiAssistantAdapter(
     IAiQueryOrchestrationService aiQueryOrchestrationService,
     IConversationRepository conversations,
     ITelegramAssistantResponseRenderer responseRenderer,
+    ITelegramDisclosurePaginationStateStore disclosurePaginationStates,
     TimeProvider timeProvider,
     ILogger<TelegramAiAssistantAdapter> logger) : ITelegramAiAssistantAdapter
 {
     private const int TelegramMessageLimit = 3900;
+    private static readonly ActivitySource DisclosurePaginationActivitySource = new("FinancialCopilot.Disclosures.Telegram", "1.0");
     private const int ProcessedUpdateRetentionDays = 7;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -147,6 +150,7 @@ public sealed class TelegramAiAssistantAdapter(
                 actor.UserId,
                 actor.ApiClientId,
                 ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
+                DisclosurePageSize: 8,
                 ActorType: actor.ActorType,
                 AuthenticationMode: actor.AuthenticationMode),
             cancellationToken);
@@ -157,7 +161,7 @@ public sealed class TelegramAiAssistantAdapter(
             actor.ActorId,
             actor.TenantId,
             response.ConversationId,
-            responseRenderer.Render(response, update.Locale),
+            RenderResponse(response, update, actor, text),
             update.CorrelationId,
             response,
             responseRenderer.Version);
@@ -1375,6 +1379,78 @@ public sealed class TelegramAiAssistantAdapter(
             null, update.CorrelationId, "Alert callback operation is not supported.");
     }
 
+    private IReadOnlyList<TelegramAssistantRenderedMessage> RenderResponse(
+        AiQueryResponse response,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        string originalQuery)
+    {
+        var messages = responseRenderer.Render(response, update.Locale);
+        var listing = response.DisclosureListingResult;
+        if (listing is null || (!listing.HasPreviousPage && !listing.HasNextPage) || messages.Count == 0)
+            return messages;
+
+        var token = disclosurePaginationStates.Create(new TelegramDisclosurePaginationState(
+            actor.ActorId, actor.TenantId, update.TelegramUserId, update.TelegramChatId,
+            update.MessageThreadId, response.ConversationId, originalQuery,
+            listing.TotalPages, timeProvider.GetUtcNow().AddMinutes(15)));
+        var actions = new List<TelegramAssistantAction>();
+        if (listing.HasPreviousPage)
+            actions.Add(new TelegramAssistantAction("قبلی", $"dlp1:{token}:{listing.Page - 1}"));
+        if (listing.HasNextPage)
+            actions.Add(new TelegramAssistantAction("بعدی", $"dlp1:{token}:{listing.Page + 1}"));
+
+        var first = messages[0] with { Actions = actions };
+        return [first, .. messages.Skip(1)];
+    }
+
+    private async Task<TelegramAssistantResult> HandleDisclosurePaginationCallbackAsync(
+        string data,
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        CancellationToken cancellationToken)
+    {
+        using var activity = DisclosurePaginationActivitySource.StartActivity("DisclosurePaginationCallback");
+        var parts = data.Split(':');
+        if (parts.Length != 3 || !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var page))
+        {
+            activity?.SetTag("disclosure.callback.outcome", "malformed");
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "دکمهٔ صفحه‌بندی نامعتبر یا منقضی شده است. لطفاً پرسش را دوباره ارسال کنید.");
+        }
+        if (!disclosurePaginationStates.TryGet(parts[1], out var state) || state.ExpiresAtUtc <= timeProvider.GetUtcNow())
+        {
+            activity?.SetTag("disclosure.callback.outcome", "expired_or_tampered");
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "دکمهٔ صفحه‌بندی نامعتبر یا منقضی شده است. لطفاً پرسش را دوباره ارسال کنید.");
+        }
+        if (page < 1 || page > state.TotalPages)
+        {
+            activity?.SetTag("disclosure.callback.outcome", "page_out_of_range");
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "دکمهٔ صفحه‌بندی نامعتبر یا منقضی شده است. لطفاً پرسش را دوباره ارسال کنید.");
+        }
+        if (state.ActorId != actor.ActorId || state.TenantId != actor.TenantId || state.TelegramUserId != update.TelegramUserId || state.TelegramChatId != update.TelegramChatId || state.MessageThreadId != update.MessageThreadId)
+        {
+            activity?.SetTag("disclosure.callback.outcome", "cross_actor_rejected");
+            return BuildResult(TelegramAssistantResultStatus.ValidationError, actor.ActorId, actor.TenantId, null,
+                update.CorrelationId, "دکمهٔ صفحه‌بندی نامعتبر یا منقضی شده است. لطفاً پرسش را دوباره ارسال کنید.");
+        }
+
+        var response = await aiQueryOrchestrationService.ExecuteAsync(new AiQueryRequest(
+            state.OriginalQuery, actor.TenantId, actor.ActorId, update.CorrelationId, state.ConversationId,
+            actor.UserId, actor.ApiClientId,
+            ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
+            DisclosurePage: page, DisclosurePageSize: 8, ActorType: actor.ActorType,
+            AuthenticationMode: actor.AuthenticationMode), cancellationToken);
+        await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
+        activity?.SetTag("disclosure.callback.outcome", "success");
+        activity?.SetTag("correlation_id", update.CorrelationId);
+        return new TelegramAssistantResult(TelegramAssistantResultStatus.Accepted, actor.ActorId, actor.TenantId,
+            response.ConversationId, RenderResponse(response, update, actor, state.OriginalQuery), update.CorrelationId,
+            response, responseRenderer.Version);
+    }
+
     private async Task<TelegramAssistantResult> HandleCallbackAsync(
         TelegramAssistantUpdate update,
         CurrentActor actor,
@@ -1390,6 +1466,11 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("tr.", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleTrackerCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("dlp1:", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleDisclosurePaginationCallbackAsync(data, update, actor, cancellationToken);
         }
 
         if (data is not null && data.StartsWith("rd.", StringComparison.OrdinalIgnoreCase))

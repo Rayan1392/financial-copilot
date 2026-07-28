@@ -77,6 +77,23 @@ public interface ITelegramAssistantResponseRenderer
         string locale);
 }
 
+public sealed record TelegramDisclosurePaginationState(
+    Guid ActorId,
+    Guid TenantId,
+    long TelegramUserId,
+    long TelegramChatId,
+    int? MessageThreadId,
+    Guid ConversationId,
+    string OriginalQuery,
+    int TotalPages,
+    DateTimeOffset ExpiresAtUtc);
+
+public interface ITelegramDisclosurePaginationStateStore
+{
+    string Create(TelegramDisclosurePaginationState state);
+    bool TryGet(string token, out TelegramDisclosurePaginationState state);
+}
+
 public interface ITelegramMonthlyTrendChartRenderer
 {
     TelegramAssistantMediaAttachment Render(MonthlyActivityTrendResponse trend);

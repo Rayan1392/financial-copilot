@@ -73,6 +73,9 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             row.PeriodType = period.FiscalPeriodType.ToString();
             row.PeriodStart = period.PeriodStart;
             row.PeriodEnd = period.PeriodEnd;
+            row.PublishedAt = statement.AnouncementDate.HasValue
+                ? DateOnly.FromDateTime(statement.AnouncementDate.Value.Date)
+                : null;
             row.SourcePayloadChecksum = payload.Checksum;
             row.LastSynchronizedAt = payload.ReceivedAt;
             row.IsAudited = statement.IsAudited;

@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
+import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AdminDataIndexRouteImport } from './routes/admin_.data.index'
 import { Route as TelegramLinkConfirmRouteImport } from './routes/telegram.link.confirm'
@@ -52,6 +53,11 @@ const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
 const AppFollowedSymbolsRoute = AppFollowedSymbolsRouteImport.update({
   id: '/followed-symbols',
   path: '/followed-symbols',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDisclosuresRoute = AppDisclosuresRouteImport.update({
+  id: '/disclosures',
+  path: '/disclosures',
   getParentRoute: () => AppRoute,
 } as any)
 const AppChatRoute = AppChatRouteImport.update({
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
+  '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRoute
+  '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRoute
+  '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/chat'
+    | '/disclosures'
     | '/followed-symbols'
     | '/telegram-link'
     | '/c/$threadId'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/chat'
+    | '/disclosures'
     | '/followed-symbols'
     | '/telegram-link'
     | '/c/$threadId'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/_app/chat'
+    | '/_app/disclosures'
     | '/_app/followed-symbols'
     | '/_app/telegram-link'
     | '/_app/c/$threadId'
@@ -260,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFollowedSymbolsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/disclosures': {
+      id: '/_app/disclosures'
+      path: '/disclosures'
+      fullPath: '/disclosures'
+      preLoaderRoute: typeof AppDisclosuresRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/chat': {
       id: '/_app/chat'
       path: '/chat'
@@ -328,6 +347,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
+  AppDisclosuresRoute: typeof AppDisclosuresRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
@@ -335,6 +355,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
+  AppDisclosuresRoute: AppDisclosuresRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,

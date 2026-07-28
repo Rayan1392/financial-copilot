@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrations
 {
     [DbContext(typeof(FinancialIngestionDbContext))]
-    partial class FinancialIngestionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727132001_AddCompanyDisclosureFeedIndexes")]
+    partial class AddCompanyDisclosureFeedIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2888,9 +2891,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.Property<DateOnly?>("VendorPeriodDate")
                         .HasColumnType("date");
 
-                    b.Property<DateOnly?>("PublishedAt")
-                        .HasColumnType("date");
-
                     b.Property<string>("WarningsJson")
                         .IsRequired()
                         .HasColumnType("text");
@@ -3093,9 +3093,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("VendorPeriodDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("PublishedAt")
                         .HasColumnType("date");
 
                     b.Property<string>("WarningsJson")

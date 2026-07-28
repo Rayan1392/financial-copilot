@@ -5,6 +5,7 @@ using FinancialCopilot.Application.FinancialData.CodalAlerts;
 using FinancialCopilot.Application.FinancialData.ConditionalTrackers;
 using FinancialCopilot.Application.FinancialData.Radar;
 using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.Telegram;
 using FinancialCopilot.Billing.Contracts;
@@ -18,6 +19,7 @@ using FinancialCopilot.Domain.Identity.Telegram;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FinancialCopilot.UnitTests;
@@ -80,6 +82,91 @@ public sealed class TelegramAiAssistant089Tests
         Assert.Equal(1, ai.CallCount);
         Assert.Equal(first.RenderVersion, replay.RenderVersion);
         Assert.Single(await db.TelegramProcessedUpdates.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Disclosure_pagination_callback_preserves_query_filters_and_replays_idempotently()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var store = new TelegramDisclosurePaginationStateStore(cache);
+        var ai = new FakeDisclosureAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai, disclosurePaginationStates: store);
+        var query = "فهرست تولید و فروش منتشر شده فولاد";
+
+        var first = await adapter.HandleAsync(Update(query, telegramUserId: 1001, updateId: 920), CancellationToken.None);
+        var callbackData = Assert.Single(Assert.Single(first.Messages).Actions!).CallbackData;
+        var callback = new TelegramAssistantUpdate(921, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 10,
+            "callback-921", callbackData, null, "fa-IR", DateTimeOffset.UtcNow, "corr-921");
+
+        var next = await adapter.HandleAsync(callback, CancellationToken.None);
+        var replay = await adapter.HandleAsync(callback, CancellationToken.None);
+
+        Assert.True(callbackData.Length <= 64);
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, next.Status);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, replay.Status);
+        Assert.Equal(2, ai.CallCount);
+        Assert.Equal(query, ai.LastRequest?.Message);
+        Assert.Equal(2, ai.LastRequest?.DisclosurePage);
+        Assert.Equal(8, ai.LastRequest?.DisclosurePageSize);
+        Assert.Equal(first.ConversationId, ai.LastRequest?.ConversationId);
+    }
+
+    [Theory]
+    [InlineData("dlp1:too-short")]
+    [InlineData("dlp1:00000000000000000000000000000000:0")]
+    public async Task Disclosure_pagination_rejects_malformed_or_tampered_callbacks(string callbackData)
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeDisclosureAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+        var callback = new TelegramAssistantUpdate(922, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 10,
+            "callback-922", callbackData, null, "fa-IR", DateTimeOffset.UtcNow, "corr-922");
+
+        var result = await adapter.HandleAsync(callback, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.ValidationError, result.Status);
+        Assert.Equal(0, ai.CallCount);
+    }
+
+    [Fact]
+    public async Task Disclosure_pagination_rejects_cross_chat_callback_without_invoking_ai()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        var ai = new FakeDisclosureAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai);
+        var first = await adapter.HandleAsync(Update("فهرست تولید و فروش منتشر شده", telegramUserId: 1001, updateId: 923), CancellationToken.None);
+        var callbackData = Assert.Single(Assert.Single(first.Messages).Actions!).CallbackData;
+        var crossChat = new TelegramAssistantUpdate(924, TelegramAssistantUpdateKind.CallbackQuery, 1001, 9999, null, 10,
+            "callback-924", callbackData, null, "fa-IR", DateTimeOffset.UtcNow, "corr-924");
+
+        var result = await adapter.HandleAsync(crossChat, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.ValidationError, result.Status);
+        Assert.Equal(1, ai.CallCount);
+    }
+
+    [Fact]
+    public async Task Disclosure_pagination_rejects_expired_callback_without_invoking_ai()
+    {
+        await using var db = CreateDb();
+        var actor = await SeedLinkedActorAsync(db);
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var store = new TelegramDisclosurePaginationStateStore(cache);
+        var token = store.Create(new TelegramDisclosurePaginationState(actor.ActorId, actor.TenantId, 1001, 1001,
+            null, Guid.NewGuid(), "فهرست تولید و فروش", 2, DateTimeOffset.UtcNow.AddMinutes(-1)));
+        var ai = new FakeDisclosureAiQueryOrchestrationService();
+        var adapter = CreateAdapter(db, new FakeTelegramIdentityLinkReader(actor), ai: ai, disclosurePaginationStates: store);
+        var callback = new TelegramAssistantUpdate(925, TelegramAssistantUpdateKind.CallbackQuery, 1001, 1001, null, 10,
+            "callback-925", $"dlp1:{token}:2", null, "fa-IR", DateTimeOffset.UtcNow, "corr-925");
+
+        var result = await adapter.HandleAsync(callback, CancellationToken.None);
+
+        Assert.Equal(TelegramAssistantResultStatus.ValidationError, result.Status);
+        Assert.Equal(0, ai.CallCount);
     }
 
     [Fact]
@@ -316,7 +403,8 @@ public sealed class TelegramAiAssistant089Tests
         INotificationUseCases? notificationUseCases = null,
         IAlertHistoryUseCases? alertHistoryUseCases = null,
         IBillingPurchaseUseCases? billingPurchases = null,
-        ITelegramAssistantResponseRenderer? responseRenderer = null) =>
+        ITelegramAssistantResponseRenderer? responseRenderer = null,
+        ITelegramDisclosurePaginationStateStore? disclosurePaginationStates = null) =>
         new(
             db,
             linkReader ?? new FakeTelegramIdentityLinkReader(),
@@ -334,6 +422,7 @@ public sealed class TelegramAiAssistant089Tests
             responseRenderer ?? new TelegramAssistantResponseRenderer(
                 new TelegramMonthlyTrendChartRenderer(),
                 NullLogger<TelegramAssistantResponseRenderer>.Instance),
+            disclosurePaginationStates ?? new TelegramDisclosurePaginationStateStore(new MemoryCache(new MemoryCacheOptions())),
             TimeProvider.System,
             NullLogger<TelegramAiAssistantAdapter>.Instance);
 
@@ -456,6 +545,30 @@ public sealed class TelegramAiAssistant089Tests
                 false,
                 null,
                 new UsageAccountingResult("AiQuery.StockAnalysis", "Completed", 1, 9, "v1", false)));
+        }
+    }
+
+    private sealed class FakeDisclosureAiQueryOrchestrationService : IAiQueryOrchestrationService
+    {
+        public int CallCount { get; private set; }
+        public AiQueryRequest? LastRequest { get; private set; }
+
+        public Task<AiQueryResponse> ExecuteAsync(AiQueryRequest request, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            LastRequest = request;
+            var page = request.DisclosurePage;
+            var result = new DisclosureListingResult(
+                [new CompanyDisclosureFeedItem($"d-{page}", "logical", CompanyDisclosureType.MonthlyProductionSales,
+                    "ProviderA", "company", null, "FOLAD", "Foolad", "Monthly report", null, null,
+                    DateTimeOffset.UtcNow, "source", 1, false, DisclosureCoverageStatus.Complete, "PersistedNormalizedData")],
+                new DisclosureListingAppliedFilters([CompanyDisclosureType.MonthlyProductionSales], "FOLAD", [], null, null, null, null,
+                    DisclosureConsolidationScope.NonConsolidated),
+                page, 8, page > 1, page < 3, 24, 3, DateTimeOffset.UtcNow,
+                DisclosureCoverageStatus.Complete, "PersistedNormalizedData");
+            return Task.FromResult(new AiQueryResponse(request.ConversationId ?? Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+                DetectedIntent.DisclosureListing, null, null, null, null, null, null, false, null, null,
+                DisclosureListingResult: result));
         }
     }
 

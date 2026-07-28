@@ -1,11 +1,12 @@
 import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
-import type { AssistantChatBlock, ChatMessage, ScannerTable } from "@/lib/chat.functions";
+import type { AssistantChatBlock, ChatMessage, DisclosureListingResult, ScannerTable } from "@/lib/chat.functions";
 import { toPersianDigits } from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
+import { consolidationLabel, disclosureTypeLabels, formatDisclosurePublicationDate, formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 
 interface Props {
   messages: ChatMessage[];
@@ -13,6 +14,7 @@ interface Props {
   streaming: boolean;
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
+  onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }
@@ -23,13 +25,16 @@ export function MessageList({
   streaming,
   onSuggested,
   onPageChange,
+  onDisclosurePageChange,
   showDiagnostics,
   followedSymbols,
 }: Props) {
   if (loading) return <div className="p-8 text-sm text-muted-foreground">در حال بارگذاری...</div>;
   return (
     <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
-      {messages.map((message) => (
+      {messages.map((message, index) => {
+        const originalQuery = [...messages.slice(0, index)].reverse().find((item) => item.role === "user");
+        return (
         <div key={message.id} className="animate-fade-up">
           {message.role === "user" ? (
             <UserBubble text={(message.content as { text: string }).text} />
@@ -38,12 +43,15 @@ export function MessageList({
               block={message.content as AssistantChatBlock}
               onSuggested={onSuggested}
               onPageChange={onPageChange}
+              onDisclosurePageChange={onDisclosurePageChange}
+              disclosureOriginalQuery={originalQuery && "text" in originalQuery.content ? originalQuery.content.text : undefined}
               showDiagnostics={showDiagnostics}
               followedSymbols={followedSymbols}
             />
           )}
         </div>
-      ))}
+        );
+      })}
       {streaming && <StreamingPlaceholder />}
     </div>
   );
@@ -66,12 +74,16 @@ function AssistantBlock({
   block,
   onSuggested,
   onPageChange,
+  onDisclosurePageChange,
+  disclosureOriginalQuery,
   showDiagnostics,
   followedSymbols,
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string) => void;
   onPageChange?: (page: number) => void;
+  onDisclosurePageChange?: (page: number, originalQuery: string) => void;
+  disclosureOriginalQuery?: string;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }) {
@@ -112,6 +124,14 @@ function AssistantBlock({
 
         {block.monthlyActivityTrendResult && (
           <MonthlyActivityTrendChart data={block.monthlyActivityTrendResult} />
+        )}
+
+        {block.disclosureListingResult && (
+          <DisclosureListingTable
+            result={block.disclosureListingResult}
+            originalQuery={disclosureOriginalQuery}
+            onPageChange={onDisclosurePageChange}
+          />
         )}
 
         {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).
@@ -175,6 +195,16 @@ function getMonthlySalesMetadataLabel(block: AssistantChatBlock) {
 
 function isTechnicalMonthlySalesUnitNote(message: string) {
   return message.trim() === "Unit: million Rials";
+}
+
+function DisclosureListingTable({ result, originalQuery, onPageChange }: { result: DisclosureListingResult; originalQuery?: string; onPageChange?: (page: number, originalQuery: string) => void }) {
+  const stale = result.freshnessReasonCode.toLowerCase().includes("stale");
+  return <section dir="rtl" className="space-y-3 rounded-xl border border-hairline p-3">
+    {(stale || result.coverageStatus !== "Complete") && <p role="status" className="text-xs text-amber-500">{stale ? "بخشی از داده‌ها ممکن است به‌روز نباشند." : "پوشش اطلاعیه‌ها کامل نیست."}</p>}
+    <div className="overflow-x-auto"><table className="min-w-[680px] w-full text-right text-xs"><thead><tr className="border-b border-hairline"><th className="p-2">نماد</th><th className="p-2">عنوان</th><th className="p-2">نوع</th><th className="p-2">انتشار</th><th className="p-2">دریافت</th></tr></thead><tbody>{result.items.map((item) => <tr key={item.disclosureId} className="border-b border-hairline/60"><td className="p-2"><bdi>{item.symbol ?? item.companyName ?? "—"}</bdi></td><td className="p-2">{item.title}{item.isRevised ? " (اصلاحی)" : ""} ({consolidationLabel(item.isComposing)})</td><td className="p-2">{disclosureTypeLabels[item.type] ?? item.type}</td><td className="p-2">{formatDisclosurePublicationDate(item.publishedAt)}</td><td className="p-2">{formatDisclosureReceiptDate(item.receivedAt)}</td></tr>)}</tbody></table></div>
+    {result.items.length === 0 && <p className="text-sm text-muted-foreground">اطلاعیه‌ای یافت نشد.</p>}
+    <nav aria-label="صفحه‌بندی اطلاعیه‌ها" className="flex items-center justify-between text-xs"><button type="button" disabled={!result.hasPreviousPage || !originalQuery} onClick={() => originalQuery && onPageChange?.(result.page - 1, originalQuery)}>صفحه قبل</button><span>صفحه {result.page} از {result.totalPages || 1}</span><button type="button" disabled={!result.hasNextPage || !originalQuery} onClick={() => originalQuery && onPageChange?.(result.page + 1, originalQuery)}>صفحه بعد</button></nav>
+  </section>;
 }
 
 function ScannerResultTable({

@@ -228,6 +228,9 @@ public sealed class NormalizedFinancialStatementRow
     /// </summary>
     public DateOnly? VendorPeriodDate { get; set; }
 
+    /// <summary>Provider announcement/publication date when supplied; null means unknown.</summary>
+    public DateOnly? PublishedAt { get; set; }
+
     /// <summary>
     /// FK → <see cref="NormalizedCompanyRow.Id"/>. Set during CyclicalWaves ingestion via
     /// <c>ICompanyResolverService</c> (spec 067). Null when resolution fails or for non-CyclicalWaves rows.
@@ -317,6 +320,9 @@ public sealed class NormalizedMonthlyReportRow
     /// Null when the vendor does not supply a date; used to suppress StaleData warnings.
     /// </summary>
     public DateOnly? VendorPeriodDate { get; set; }
+
+    /// <summary>Provider announcement/publication date when supplied; null means unknown.</summary>
+    public DateOnly? PublishedAt { get; set; }
 
     /// <summary>
     /// FK → <see cref="NormalizedCompanyRow.Id"/>. Set during CyclicalWaves ingestion via

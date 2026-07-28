@@ -53,7 +53,8 @@ internal sealed record AgentExecutedMessage(
     string CompletionStatus,
     bool FromCache,
     IAiModelClient ModelClient,
-    UsageAccountingResult? Usage);
+    UsageAccountingResult? Usage,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -80,7 +81,8 @@ internal sealed record ResultsComputedMessage(
     ExplainableAnswer? ExplainableAnswer,
     ConfidenceScoreResult? ConfidenceScore,
     string? GroundedAnswer,
-    UsageAccountingResult? Usage);
+    UsageAccountingResult? Usage,
+    DisclosureListingResult? DisclosureListingResult = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -104,4 +106,5 @@ internal sealed record PersistenceCompletedMessage(
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? Disclosures,
     IAiModelClient ModelClient,
-    string WorkflowCorrelationId);
+    string WorkflowCorrelationId,
+    DisclosureListingResult? DisclosureListingResult = null);

@@ -77,6 +77,19 @@ public sealed class AiIntentDetectorTests
         Assert.True(result.Confidence >= 0.95);
     }
 
+    [Fact]
+    public async Task Detect_DisclosureListing_UsesDeterministicRouteBeforeTheModel()
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput("فهرست آخرین تولید و فروش منتشر شده را بده", "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.DisclosureListing, result.Intent);
+        Assert.Equal(0.99, result.Confidence);
+    }
+
     private sealed class UnknownIntentExecutionService : IAiModelExecutionService
     {
         public Task<AiModelResult> ExecuteAsync(

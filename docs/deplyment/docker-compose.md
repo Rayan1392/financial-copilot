@@ -33,8 +33,8 @@ Edit `.env` and set strong, unique values for `POSTGRES_PASSWORD`, `RABBITMQ_PAS
 `JWT_SIGNING_KEY`. Set both public URLs correctly:
 
 ```text
-FRONTEND_PUBLIC_ORIGIN=https://app.example.com
-FRONTEND_API_BASE_URL=https://api.example.com
+FRONTEND_PUBLIC_ORIGIN=https://tse.avidaweb.com
+FRONTEND_API_BASE_URL=https://tseai.avidaweb.com
 ```
 
 `FRONTEND_API_BASE_URL` is embedded into the frontend image during its build, so rebuild the

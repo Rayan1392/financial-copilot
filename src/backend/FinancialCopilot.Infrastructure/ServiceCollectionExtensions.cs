@@ -264,8 +264,13 @@ public static class ServiceCollectionExtensions
             .Validate(
                 options => string.IsNullOrWhiteSpace(options.DefaultProvider) ||
                     string.Equals(options.DefaultProvider, "OpenAI", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(options.DefaultProvider, "DeepSeek", StringComparison.OrdinalIgnoreCase),
-                "AiProvider:DefaultProvider must be OpenAI or DeepSeek when configured.")
+                    string.Equals(options.DefaultProvider, "DeepSeek", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(options.DefaultProvider, "Abravran", StringComparison.OrdinalIgnoreCase),
+                "AiProvider:DefaultProvider must be OpenAI, DeepSeek, or Abravran when configured.")
+            .Validate(
+                options => options.Abravran.MaxTokens > 0 &&
+                    options.Abravran.Temperature is >= 0 and <= 2,
+                "AiProvider:Abravran MaxTokens must be positive and Temperature must be between 0 and 2.")
             .ValidateOnStart();
         services.AddSingleton<IAiModelProviderRoutingPolicy, ConfiguredAiProviderRoutingPolicy>();
         services.AddSingleton<IAiExecutionUsageAccumulator, InMemoryAiExecutionUsageAccumulator>();
@@ -440,14 +445,47 @@ public static class ServiceCollectionExtensions
                     provider.GetRequiredService<IOptions<AiProviderOptions>>()),
                 provider.GetRequiredService<TimeProvider>());
         });
-        services.AddSingleton<IAiModelClient>(_ => new ContractPendingAiModelClient(
-            new AiModelProviderDescriptor(
-                "Abravran",
-                "contract-pending",
-                AiProviderHostingMode.ContractPending,
-                AiModelCapability.None,
-                Enabled: false,
-                Priority: int.MaxValue)));
+        services.AddHttpClient("AbravranHostedAiModelTransport", (provider, client) =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "Abravran");
+
+            if (registration?.Endpoint is not null)
+            {
+                client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
+            }
+
+            var apiKey = registration?.CredentialSecretReference is not null
+                ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
+                : null;
+            apiKey ??= registration?.ApiKey;
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"apikey {apiKey}");
+            }
+        });
+        services.AddSingleton<IAiModelClient>(provider =>
+        {
+            var settings = provider.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<AiModelProviderOptions>>().Value;
+            var registration = GetRegistration(settings, "Abravran") ??
+                new AiModelProviderRegistration
+                {
+                    ProviderKey = "Abravran",
+                    ModelKey = "unconfigured",
+                    HostingMode = AiProviderHostingMode.Hosted,
+                    Enabled = false
+                };
+
+            return new ConfiguredHostedAiModelClient(
+                ToDescriptor(registration),
+                new AbravranHostedAiModelTransport(
+                    provider.GetRequiredService<IHttpClientFactory>().CreateClient("AbravranHostedAiModelTransport"),
+                    provider.GetRequiredService<IOptions<AiProviderOptions>>()),
+                provider.GetRequiredService<TimeProvider>());
+        });
         services.AddSingleton<CapabilityBasedAiModelProviderResolver>();
         services.AddSingleton<IAiModelProviderResolver>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());

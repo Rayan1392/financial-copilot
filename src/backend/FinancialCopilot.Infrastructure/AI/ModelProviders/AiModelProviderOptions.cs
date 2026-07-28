@@ -18,6 +18,8 @@ public sealed class AiProviderOptions
     public OpenAiProviderOptions OpenAI { get; init; } = new();
 
     public DeepSeekProviderOptions DeepSeek { get; init; } = new();
+
+    public AbravranProviderOptions Abravran { get; init; } = new();
 }
 
 public sealed class OpenAiProviderOptions
@@ -40,6 +42,13 @@ public sealed class DeepSeekProviderOptions
     public string? ReasoningEffort { get; init; }
 }
 
+public sealed class AbravranProviderOptions
+{
+    public int MaxTokens { get; init; } = 3000;
+
+    public double Temperature { get; init; } = 0.7;
+}
+
 public sealed class ConfiguredAiProviderRoutingPolicy(
     Microsoft.Extensions.Options.IOptions<AiProviderOptions> options) : IAiModelProviderRoutingPolicy
 {
@@ -60,6 +69,9 @@ public sealed class AiModelProviderRegistration
 
     public string? CredentialSecretReference { get; init; }
 
+    // Development-only fallback. Production credentials must use CredentialSecretReference.
+    public string? ApiKey { get; init; }
+
     public bool Enabled { get; init; }
 
     public int Priority { get; init; } = 100;
@@ -75,15 +87,4 @@ public sealed class AiModelProviderRegistration
     public bool LogPromptContent { get; init; }
 
     public int TimeoutSeconds { get; init; } = 30;
-}
-
-public sealed class AbravranAiProviderRegistration
-{
-    public string ProviderKey { get; init; } = "Abravran";
-
-    public AiProviderHostingMode HostingMode => AiProviderHostingMode.ContractPending;
-
-    public bool Enabled => false;
-
-    public string IntegrationStatus => "Official API and authentication contract required before implementation.";
 }

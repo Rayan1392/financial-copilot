@@ -1,6 +1,7 @@
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
+using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -109,6 +110,16 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+var activeAiProvider = app.Services
+    .GetRequiredService<IAiModelProviderDiagnostics>()
+    .GetActiveProvider(Guid.Empty);
+app.Logger.LogInformation(
+    "AI model provider initialized. ConfiguredProvider: {ConfiguredProvider}; ActiveProvider: {ActiveProvider}; Model: {Model}; Available: {Available}",
+    activeAiProvider.ConfiguredProviderKey ?? "auto",
+    activeAiProvider.ProviderKey ?? "none",
+    activeAiProvider.ModelKey ?? "none",
+    activeAiProvider.Available);
 
 if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {

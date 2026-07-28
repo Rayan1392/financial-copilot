@@ -91,6 +91,47 @@ public sealed class AiModelProviderAdapterTests
     }
 
     [Fact]
+    public async Task AiProviderDefaultProvider_SelectsEnabledAbravranRegistrationFromConfiguration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:FinancialCopilot"] = "Host=localhost;Database=fake",
+                ["AiProvider:DefaultProvider"] = "Abravran",
+                ["AiModelProviders:Providers:0:ProviderKey"] = "Abravran",
+                ["AiModelProviders:Providers:0:ModelKey"] = "Gemini-2-5-Flash-91n2v",
+                ["AiModelProviders:Providers:0:HostingMode"] = "Hosted",
+                ["AiModelProviders:Providers:0:Adapter"] = "Abravran",
+                ["AiModelProviders:Providers:0:Endpoint"] = "https://gateway.example/v1/",
+                ["AiModelProviders:Providers:0:ApiKey"] = "development-only-key",
+                ["AiModelProviders:Providers:0:Enabled"] = "true",
+                ["AiModelProviders:Providers:0:Priority"] = "10",
+                ["AiModelProviders:Providers:0:Capabilities"] =
+                    "ChatCompletion,StructuredOutput,ToolCalling,Streaming,UsageReporting"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddFinancialCopilotInfrastructure(configuration);
+        await using var provider = services.BuildServiceProvider();
+        var resolver = provider.GetRequiredService<IAiModelProviderResolver>();
+
+        var candidate = Assert.Single(resolver.ResolveCandidates(new AiModelSelectionRequest(
+            TenantId,
+            AiWorkloadKind.ScannerParsing,
+            AiModelCapability.StructuredOutput,
+            "abravran-config-1")));
+
+        Assert.Equal("Abravran", candidate.Descriptor.ProviderKey);
+        Assert.Equal("Gemini-2-5-Flash-91n2v", candidate.Descriptor.ModelKey);
+
+        var client = provider.GetRequiredService<IHttpClientFactory>()
+            .CreateClient("AbravranHostedAiModelTransport");
+        Assert.True(client.DefaultRequestHeaders.TryGetValues("Authorization", out var values));
+        Assert.Equal("apikey development-only-key", Assert.Single(values));
+    }
+
+    [Fact]
     public async Task OllamaAdapter_MapsChatEmbeddingUsageAndHealthIntoNormalizedModels()
     {
         using var httpClient = new HttpClient(new RouteHandler(request =>
@@ -298,6 +339,57 @@ public sealed class AiModelProviderAdapterTests
 
         Assert.Equal(AiExecutionStatus.RuntimeUnavailable, exception.Status);
         Assert.Equal("hosted_provider_credentials_missing", exception.Code);
+    }
+
+    [Fact]
+    public async Task AbravranAdapter_UsesApiKeyChatCompletionsContract()
+    {
+        string? requestBody = null;
+        using var httpClient = new HttpClient(new RouteHandler(request =>
+        {
+            Assert.True(request.Headers.TryGetValues("Authorization", out var values));
+            Assert.Equal("apikey abr-key", Assert.Single(values));
+
+            return request.RequestUri!.AbsolutePath switch
+            {
+                "/v1/chat/completions" => Json(
+                    """{"id":"arv-1","choices":[{"index":0,"message":{"content":"{\"intent\":\"Scanner\"}"}}],"usage":{"prompt_tokens":9,"completion_tokens":4}}""",
+                    requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult()),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://gateway.example/v1/")
+        };
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "apikey abr-key");
+        var transport = new AbravranHostedAiModelTransport(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(new AiProviderOptions
+            {
+                Abravran = new AbravranProviderOptions
+                {
+                    MaxTokens = 128,
+                    Temperature = 0.25
+                }
+            }));
+
+        var completion = await transport.CompleteAsync(
+            "Gemini-2-5-Flash-91n2v",
+            new AiModelRequest(
+                "abravran-1",
+                TenantId,
+                AiWorkloadKind.ScannerParsing,
+                [new AiConversationMessage(AiMessageRole.User, "scan")],
+                new AiStructuredOutputContract("IntentDetectionOutput", ["intent"])),
+            CancellationToken.None);
+
+        Assert.Equal("{\"intent\":\"Scanner\"}", completion.StructuredJson);
+        Assert.Equal(9, completion.InputTokens);
+        Assert.Equal(4, completion.OutputTokens);
+        Assert.Contains("\"model\":\"Gemini-2-5-Flash-91n2v\"", requestBody);
+        Assert.Contains("\"max_tokens\":128", requestBody);
+        Assert.Contains("\"temperature\":0.25", requestBody);
+        Assert.Contains("\"response_format\":{\"type\":\"json_object\"}", requestBody);
     }
 
     [Fact]

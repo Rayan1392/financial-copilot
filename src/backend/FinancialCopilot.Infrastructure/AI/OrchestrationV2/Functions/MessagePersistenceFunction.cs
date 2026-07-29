@@ -36,7 +36,8 @@ internal sealed class MessagePersistenceFunction(
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
-        DisclosureListingResult? disclosureListingResult = null)
+        DisclosureListingResult? disclosureListingResult = null,
+        PsVisualizationResult? psVisualizationResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -78,7 +79,8 @@ internal sealed class MessagePersistenceFunction(
                     ProductRevenueMixResult: productRevenueMixResult,
                     MonthlyActivityTrendResult: monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
-                    DisclosureListingResult: disclosureListingResult)),
+                    DisclosureListingResult: disclosureListingResult,
+                    PsVisualizationResult: psVisualizationResult)),
             createConversation,
             cancellationToken);
     }

@@ -1,0 +1,35 @@
+{
+  "provider": "CyclicalWaves",
+  "fixtures": [
+    {
+      "file": "circle-chart-data.json",
+      "endpointTemplate": "/api/ps/circle-chart-data/{companyIsin}",
+      "sha256": "f53dce88d2bac772ebf87ce00a9523bf54ba670f4cf9761df34357b37a254a7f"
+    },
+    {
+      "file": "ps-data.json",
+      "endpointTemplate": "/api/ps-data/{companyIsin}",
+      "sha256": "d1089d3ccc2c6c64d45d74b018dfc95dd17678cc218e296b78534f741d65ee85"
+    },
+    {
+      "file": "ps-history.sample.json",
+      "endpointTemplate": "/api/ps/{companyIsin}",
+      "sha256": "a097a165085341871bc05a6d23defa8d7c87cdeaa0f879de5e5d931501a69e63"
+    }
+  ],
+  "fullHistoryCapture": {
+    "sha256": "e5b0e0a72d0bd10f91762c75bfc2e08f38fd8c2c5f9458bc9e3c0df6de3503ad",
+    "pointCount": 1124,
+    "uniqueProviderPointIdCount": 1124,
+    "uniqueObservationDateCount": 1116,
+    "duplicateObservationDateGroupCount": 8,
+    "firstObservationDate": "2021-03-27",
+    "lastObservationDate": "2026-07-29"
+  },
+  "sanitization": {
+    "containsAuthorizationValue": false,
+    "containsBrowserOnlyHeaders": false,
+    "fullHistoryPayloadRetained": false,
+    "reason": "The full capture is represented by immutable verification facts and SHA-256; the committed sample preserves response shape, exact decimal values, duplicate-date behavior, and date range without storing unnecessary provider history."
+  }
+}

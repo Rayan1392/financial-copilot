@@ -47,6 +47,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
+    IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
@@ -492,6 +493,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);
+        var psGaugeSymbol = PsGaugeIntentRules.ExtractCompanySymbol(request.Message);
+        if (psGaugeSymbol is not null)
+        {
+            var psGaugeResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                new PsVisualizationQuery(psGaugeSymbol, IncludeHistory: true), ct);
+            UsageAccountingResult? gaugeUsage = null;
+            if (msg.Reservation is not null)
+                gaugeUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+
+            stepActivity?.SetTag("workflow.intent", "PsGaugeVisualization");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                BuildPsGaugeContent(psGaugeSymbol, psGaugeResult), scannerResult, lookupResult,
+                comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult,
+                productRevenueMixResult, monthlyActivityTrendResult, monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, gaugeUsage,
+                PsVisualizationResult: psGaugeResult);
+        }
+
         var isDirectMetricFollowup = !isDirectMetricLookup &&
             IsDirectMetricLookupFollowup(request.Message, msg.EnrichedMessage);
         if (isDirectMetricLookup || isDirectMetricFollowup)
@@ -596,9 +617,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 : msg.FinancialStatementTableResult is not null ||
             FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementTableLookup
-                : msg.FinancialStatementAnalysisResult is not null ||
+            : msg.FinancialStatementAnalysisResult is not null ||
             FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementPeriodAnalysis
+                : msg.PsVisualizationResult is not null || PsGaugeIntentRules.LooksLikeQuery(msg.Request.Message)
+                ? DetectedIntent.PsGaugeVisualization
                 : DetermineIntent(
                     msg.ScannerResult,
                     msg.LookupResult,
@@ -642,7 +665,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
             explainableAnswer, confidenceScore, groundedAnswer, msg.Usage,
-            DisclosureListingResult: msg.DisclosureListingResult);
+            DisclosureListingResult: msg.DisclosureListingResult,
+            PsVisualizationResult: msg.PsVisualizationResult);
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteSideEffectsStepAsync(
@@ -666,10 +690,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -688,7 +712,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             productRevenueMixResult: msg.ProductRevenueMixResult,
             monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
-            disclosureListingResult: msg.DisclosureListingResult);
+             disclosureListingResult: msg.DisclosureListingResult,
+             psVisualizationResult: msg.PsVisualizationResult);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -701,7 +726,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId,
-            DisclosureListingResult: msg.DisclosureListingResult);
+             DisclosureListingResult: msg.DisclosureListingResult,
+             PsVisualizationResult: msg.PsVisualizationResult);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)
@@ -735,7 +761,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             ProductRevenueMixResult: msg.ProductRevenueMixResult,
             MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
-            DisclosureListingResult: msg.DisclosureListingResult);
+            DisclosureListingResult: msg.DisclosureListingResult,
+            PsVisualizationResult: msg.PsVisualizationResult);
+    }
+
+    private static string BuildPsGaugeContent(string symbol, PsVisualizationResult? result)
+    {
+        if (result is null)
+            return $"داده‌ای برای نمایش گیج P/S نماد {symbol} در پایگاه داده موجود نیست.";
+        if (result.TtmPs.Value is decimal value)
+            return $"گیج P/S نماد {result.CompanySymbol}: مقدار TTM برابر {value:0.00} است. وضعیت داده: {result.Status}.";
+        return $"داده‌ای برای نمایش گیج P/S نماد {result.CompanySymbol} موجود نیست (وضعیت: {result.Status}).";
     }
 
     private static string BuildDisclosureListingContent(DisclosureListingResult result)

@@ -230,7 +230,8 @@ public sealed class AiFacadeController(
             MapFinancialStatementTableResult(result.FinancialStatementTableResult),
             MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
             MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult),
-            result.DisclosureListingResult);
+             result.DisclosureListingResult,
+             result.PsVisualizationResult);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -416,7 +417,8 @@ public sealed class AiFacadeController(
                 MapFinancialStatementTableResult(payload.FinancialStatementTableResult),
                 MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
                 MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult),
-                payload.DisclosureListingResult);
+                payload.DisclosureListingResult,
+                payload.PsVisualizationResult);
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)

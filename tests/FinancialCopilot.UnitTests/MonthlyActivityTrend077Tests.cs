@@ -51,6 +51,9 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("نمودار تولید و فروش ماهانه فملی", "فملی")]
     [InlineData("نمودار فروش فولاد", "فولاد")]
     [InlineData("نمودار فروش ماهانه شپدیس", "شپدیس")]
+    [InlineData("روند فروش ماهانه شپاکسا", "شپاکسا")]
+    [InlineData("روند فروش ماهانه شپ‌اکسا", "شپاکسا")]
+    [InlineData("روند فروش ماهانه شپاکسا؟", "شپاکسا")]
     public void Feature113_CanonicalAlias_RecognizesTrendAndExtractsSymbol(string query, string symbol)
     {
         Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(query));

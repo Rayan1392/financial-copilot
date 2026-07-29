@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,7 +18,8 @@ public sealed class CyclicalWavesDataProviderClient(
     ISymbolDataProvider,
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
-    IFinancialDataProviderHealthService
+    IFinancialDataProviderHealthService,
+    ICyclicalWavesPsProviderClient
 {
     private readonly CyclicalWavesProviderOptions _settings = options.Value;
     private static readonly SemaphoreSlim _throttle = new(10, 10);
@@ -65,6 +68,89 @@ public sealed class CyclicalWavesDataProviderClient(
                 ProviderHealthStatus.Unavailable,
                 timeProvider.GetUtcNow(),
                 exception.Message);
+        }
+    }
+
+    public async Task<PsProviderResult<PsGaugeDistribution>> GetGaugeAsync(string companyIsin, CancellationToken cancellationToken)
+    {
+        var result = await GetPsAsync<CyclicalWavesPsGaugePayload>($"ps/circle-chart-data/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
+        return result.Value is null
+            ? new PsProviderResult<PsGaugeDistribution>(null, result.ErrorCode, result.WarningCode)
+            : new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(result.Value.A, result.Value.B, result.Value.C, result.Value.D, result.Value.E, result.Value.F, result.Value.Close, result.Value.Start, result.Value.Min, result.Value.Average, result.Value.Max, result.Value.End), result.ErrorCode, result.WarningCode);
+    }
+
+    public async Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string companyIsin, CancellationToken cancellationToken)
+    {
+        var result = await GetPsAsync<CyclicalWavesPsCurrentPayload>($"ps-data/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
+        var value = result.Value;
+        if (value is null) return new PsProviderResult<PsCurrentValues>(null, result.ErrorCode, result.WarningCode);
+        if (string.IsNullOrWhiteSpace(value.Ticker) || value.PsRatio is null || value.Close is null || value.Date is null)
+            return new PsProviderResult<PsCurrentValues>(null, PsVisualizationSyncErrorCode.InvalidJsonOrContract, "RequiredCurrentValueFieldMissing");
+        return new PsProviderResult<PsCurrentValues>(new PsCurrentValues(value.Symbol?.Trim() ?? string.Empty, value.Ticker.Trim(), value.PsRatio.Value, value.Close.Value, value.Date.Value), PsVisualizationSyncErrorCode.None);
+    }
+
+    public async Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string companyIsin, CancellationToken cancellationToken)
+    {
+        var result = await GetPsAsync<CyclicalWavesPsHistoryPayload>($"ps/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
+        var value = result.Value;
+        if (value is null) return new PsProviderResult<PsHistorySeries>(null, result.ErrorCode, result.WarningCode);
+        if (value.Data is null || value.Data.Count > _settings.PsMaxHistoryPointsPerCompany)
+            return new PsProviderResult<PsHistorySeries>(null, PsVisualizationSyncErrorCode.InvalidJsonOrContract, "HistoryPointLimitExceeded");
+        var points = new List<PsHistoryPoint>(value.Data.Count);
+        foreach (var point in value.Data)
+        {
+            if (string.IsNullOrWhiteSpace(point.Id) || point.Date is null || point.Ps is null)
+                return new PsProviderResult<PsHistorySeries>(null, PsVisualizationSyncErrorCode.InvalidJsonOrContract, "InvalidHistoryPoint");
+            points.Add(new PsHistoryPoint(point.Id.Trim(), point.Date.Value, point.Ps.Value));
+        }
+        return new PsProviderResult<PsHistorySeries>(new PsHistorySeries(points, value.FirstDate, value.LastDate, value.DataCount), PsVisualizationSyncErrorCode.None);
+    }
+
+    private async Task<PsProviderResult<T>> GetPsAsync<T>(string endpoint, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.NotFoundOrNoData);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.RateLimited, response.Headers.RetryAfter?.Delta is { } retry ? $"RetryAfterSeconds:{(int)retry.TotalSeconds}" : null);
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.AuthenticationFailed);
+            if ((int)response.StatusCode >= 500)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.RemoteServerFailure);
+            if (!response.IsSuccessStatusCode)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.InvalidJsonOrContract, $"Http{(int)response.StatusCode}");
+            if (response.Content.Headers.ContentLength is > 0 and var length && length > _settings.PsMaxResponseBytes)
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.PayloadTooLarge);
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            int read;
+            while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
+            {
+                if (buffer.Length + read > _settings.PsMaxResponseBytes)
+                    return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.PayloadTooLarge);
+                await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
+            }
+            var value = JsonSerializer.Deserialize<T>(buffer.GetBuffer().AsSpan(0, checked((int)buffer.Length)), JsonOptions);
+            return value is null
+                ? new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.InvalidJsonOrContract, "EmptyJson")
+                : new PsProviderResult<T>(value, PsVisualizationSyncErrorCode.None);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.Cancelled);
+        }
+        catch (HttpRequestException)
+        {
+            return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.TimeoutOrNetworkFailure);
+        }
+        catch (JsonException)
+        {
+            return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.InvalidJsonOrContract);
         }
     }
 

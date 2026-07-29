@@ -16,6 +16,7 @@ public enum DetectedIntent
     MonthlyActivityTrend,
     DisclosureListing,
     MonthlySalesQualityRanking,
+    PsGaugeVisualization,
     PersonalizedInsightExplanation,
     Clarification,
     Unknown
@@ -85,7 +86,8 @@ public sealed record AiQueryResponse(
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

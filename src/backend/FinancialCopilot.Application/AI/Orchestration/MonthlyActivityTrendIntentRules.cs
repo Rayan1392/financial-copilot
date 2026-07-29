@@ -70,12 +70,23 @@ public static class MonthlyActivityTrendIntentRules
             ? normalized
             : RemoveFirst(normalized, matchedPhrase);
 
+        // NormalizeText maps ZWNJ to a space for phrase matching. For a symbol
+        // containing a ZWNJ, preserve the original token first so it is not
+        // truncated into two plausible-looking candidates.
+        if (query.Contains('\u200C'))
+        {
+            var joinedCandidates = ExtractCandidateTokens(query);
+            if (joinedCandidates.Count > 0) return joinedCandidates[0];
+        }
+
         var candidates = ExtractCandidateTokens(stripped);
         if (candidates.Count > 0) return candidates[0];
 
         // Fallback to original if stripping removed too much context.
         candidates = ExtractCandidateTokens(normalized);
-        return candidates.Count > 0 ? candidates[0] : null;
+        if (candidates.Count > 0) return candidates[0];
+
+        return null;
     }
 
     public static string NormalizeText(string text) =>
@@ -111,15 +122,15 @@ public static class MonthlyActivityTrendIntentRules
         while (i < normalized.Length)
         {
             var c = normalized[i];
-            var isPersian = c is >= '؀' and <= 'ۿ';
-            if (isPersian)
+            var isSymbolCharacter = IsSymbolCharacter(c);
+            if (isSymbolCharacter)
             {
                 var start = i;
-                while (i < normalized.Length && (normalized[i] is >= '؀' and <= 'ۿ'))
+                while (i < normalized.Length && IsSymbolCharacter(normalized[i]))
                     i++;
                 var len = i - start;
-                var token = normalized.Substring(start, len);
-                if (len is >= 2 and <= 6 && !StopWords.Contains(token))
+                var token = NormalizeSymbolToken(normalized.Substring(start, len));
+                if (token.Length is >= 2 and <= 6 && !StopWords.Contains(token))
                     candidates.Add(token);
             }
             else
@@ -129,4 +140,18 @@ public static class MonthlyActivityTrendIntentRules
         }
         return candidates;
     }
+
+    private static bool IsSymbolCharacter(char value) =>
+        char.IsLetter(value)
+        || value is '\u200C' or '\u200D' or '\u0640';
+
+    private static string NormalizeSymbolToken(string value) =>
+        value
+            .Replace('ك', 'ک')
+            .Replace('ي', 'ی')
+            .Replace('\u200C', '\0')
+            .Replace('\u200D', '\0')
+            .Replace('\u0640', '\0')
+            .Replace("\0", string.Empty)
+            .ToLowerInvariant();
 }

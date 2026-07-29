@@ -40,7 +40,8 @@ public sealed record AiQueryHttpResponse(
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -189,7 +190,8 @@ public sealed record AssistantMessageContentResponse(
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

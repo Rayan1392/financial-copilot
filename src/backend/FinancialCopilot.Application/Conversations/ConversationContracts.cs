@@ -52,7 +52,8 @@ public sealed record AssistantMessagePayload(
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

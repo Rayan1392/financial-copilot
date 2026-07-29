@@ -765,6 +765,20 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services.AddScoped<ICyclicalWavesPsProviderClient>(provider =>
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services
+            .AddOptions<CyclicalWavesPsSyncOptions>()
+            .BindConfiguration(CyclicalWavesPsSyncOptions.SectionName)
+            .Validate(options =>
+                options.SnapshotCadenceMinutes > 0 && options.HistoryCadenceHours > 0 &&
+                options.MaxConcurrency is > 0 and <= 16 && options.MaxCompaniesPerRun is > 0 &&
+                options.MaxRunDurationMinutes > 0 && options.MaxResponseBytes is > 0 &&
+                options.MaxHistoryPointsPerCompany > 0 && options.LeaseDurationMinutes > 0 &&
+                options.LeaseRenewalMinutes is > 0 && options.LeaseRenewalMinutes < options.LeaseDurationMinutes &&
+                options.MaximumAbsoluteRatio > 0m,
+                "CyclicalWaves P/S synchronization options are invalid.")
+            .ValidateOnStart();
 
         // CyclicalWaves blog â€” ComprehensiveAnalysis sync (spec 065).
         // Reuses CyclicalWavesAuthHandler + CyclicalWavesTokenCache from above.
@@ -1037,6 +1051,22 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();
+        services.AddScoped<NoavaranEligibleCompanyPsScopeReader>();
+        services.AddScoped<IPsEligibleCompanyScopeReader>(provider =>
+            provider.GetRequiredService<NoavaranEligibleCompanyPsScopeReader>());
+        services.AddScoped<CyclicalWavesPsVisualizationSyncService>();
+        services.AddScoped<ICyclicalWavesPsVisualizationSyncService>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddScoped<ICompanyPsVisualizationReader>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddOptions<CyclicalWavesPsVisualizationOptions>()
+            .BindConfiguration(CyclicalWavesPsVisualizationOptions.SectionName)
+            .Validate(options => options.MaxSyncAgeHours > 0 && options.MaxObservationLagTradingDays >= 0 &&
+                                 options.MaxHistoryPoints is > 0 and <= 10_000 &&
+                                 options.DisplayPercentageDecimals is >= 0 and <= 6,
+                "CyclicalWaves P/S visualization options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IPsVisualizationExperienceUseCase, PsVisualizationExperienceUseCase>();
         services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
         services.AddScoped<IAssistedQueryMetadataService, EfCoreAssistedQueryMetadataService>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();

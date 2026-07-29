@@ -2,7 +2,7 @@
 
 This deployment runs five containers:
 
-- `frontend`: the web application, served by Nginx;
+- `frontend`: the TanStack Start web application, served by its bundled Cloudflare-Worker-compatible runtime;
 - `api`: the public .NET API;
 - `worker`: the background and RabbitMQ consumer service;
 - `postgres`, `redis`, and `rabbitmq`: required stateful dependencies.
@@ -21,7 +21,7 @@ architecture. For a usual Linux x86-64 server, use `linux/amd64` even when build
 an ARM workstation:
 
 ```bash
-export IMAGE_TAG=2026.07.28-1
+export IMAGE_TAG=2026.07.28-3
 export TARGET_PLATFORM=linux/amd64
 
 docker buildx build --platform "$TARGET_PLATFORM" --load -f docker/api.Dockerfile -t financial-copilot-api:$IMAGE_TAG .
@@ -42,20 +42,25 @@ docker compose -f docker-compose.yml -f docker-compose.local-build.yml build
 
 Use `buildx --platform` above when the architectures differ.
 
-The server already has the PostgreSQL, Redis, and RabbitMQ images. Save only the three application
-images for transfer:
+Pull the PostgreSQL, Redis, and RabbitMQ runtime images on the local build machine, then save all
+six required images in one archive. This is required when the server has no registry access:
 
 ```bash
+docker pull postgres:17-alpine
+docker pull redis:7.4-alpine
+docker pull rabbitmq:4-management-alpine
 docker save --output financial-copilot-$IMAGE_TAG.tar \
   financial-copilot-api:$IMAGE_TAG \
   financial-copilot-worker:$IMAGE_TAG \
-  financial-copilot-frontend:$IMAGE_TAG
+  financial-copilot-frontend:$IMAGE_TAG \
+  postgres:17-alpine redis:7.4-alpine rabbitmq:4-management-alpine
 ```
 
 Copy the archive, `docker-compose.yml`, `.env`, and any reverse-proxy configuration to the server:
 
 ```bash
-scp -P 22033 financial-copilot-$IMAGE_TAG.tar root@185.126.203.173:/opt/financial-copilot/
+scp -P 22033 financial-copilot-$IMAGE_TAG.tar \
+  root@185.126.203.173:/opt/sapio/financial-copilot/
 scp -P 22033 docker-compose.yml root@185.126.203.173:/opt/sapio/financial-copilot/
 scp -P 22033 .env root@185.126.203.173:/opt/sapio/financial-copilot/
 ```
@@ -111,7 +116,7 @@ On the server, load the transferred archive before starting Compose:
 
 ```bash
 cd /opt/sapio/financial-copilot
-docker load --input financial-copilot-2026.07.28-1.tar
+docker load --input financial-copilot-2026.07.28-3.tar
 docker compose up -d --no-build
 docker compose ps
 ```
@@ -151,7 +156,8 @@ Look for the startup message reporting the data-sync consumer count and queue na
 
 Open `http://SERVER_IP:8080`, or your configured HTTPS frontend domain. Confirm that browser
 requests go to `FRONTEND_API_BASE_URL`, and that this origin appears in `FRONTEND_PUBLIC_ORIGIN`
-for API CORS.
+for API CORS. The frontend is server-rendered by the TanStack Start Worker build; it is not a
+static Nginx site.
 
 ## 6. Operate and update
 

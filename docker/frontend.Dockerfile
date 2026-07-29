@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 ARG VITE_FINANCIAL_COPILOT_API_BASE_URL
@@ -9,8 +9,14 @@ RUN npm ci
 COPY src/frontend/ ./
 RUN npm run build
 
-FROM nginx:1.27-alpine AS runtime
-COPY docker/frontend.nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist/client /usr/share/nginx/html
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+# This TanStack Start build targets Cloudflare Workers. It emits a Worker server bundle in
+# dist/server and client assets in dist/client; it does not emit a standalone index.html for Nginx.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
 EXPOSE 80
+CMD ["./node_modules/.bin/wrangler", "dev", "--config", "dist/server/wrangler.json", "--ip", "0.0.0.0", "--port", "80", "--local"]
 

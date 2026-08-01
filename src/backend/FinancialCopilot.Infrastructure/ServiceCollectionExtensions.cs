@@ -45,6 +45,8 @@ using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
+using FinancialCopilot.Application.FinancialData.FundPortfolio;
+using FinancialCopilot.Infrastructure.Financial.FundPortfolio;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Insights;
@@ -97,6 +99,21 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<AuthDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddSingleton<IFundPortfolioValueNormalizer, FundPortfolioValueNormalizer>();
+        services.AddScoped<IFundPortfolioWorkbookParser, XlsxFundPortfolioWorkbookParser>();
+        services.AddOptions<FundPortfolioRawStorageOptions>()
+            .BindConfiguration(FundPortfolioRawStorageOptions.SectionName)
+            .Validate(options => options.MaximumFileBytes > 0 && !string.IsNullOrWhiteSpace(options.RootPath),
+                "Fund portfolio raw storage options must define a positive file limit and root path.")
+            .ValidateOnStart();
+        services.AddScoped<IFundPortfolioRawWorkbookStore, FileSystemFundPortfolioRawWorkbookStore>();
+        services.AddScoped<IInvestmentFundRepository, EfCoreInvestmentFundRepository>();
+        services.AddScoped<IFundPortfolioReportRepository, EfCoreFundPortfolioReportRepository>();
+        services.AddSingleton<IFundPortfolioIngestionTelemetrySink, LoggingFundPortfolioIngestionTelemetry>();
+        services.AddScoped<ICreateOrResolveInvestmentFundUseCase, CreateOrResolveInvestmentFundUseCase>();
+        services.AddScoped<IIngestFundPortfolioWorkbookUseCase, IngestFundPortfolioWorkbookUseCase>();
+        services.AddScoped<IGetFundPortfolioReportStatusUseCase, GetFundPortfolioReportStatusUseCase>();
+        services.AddScoped<IGetFundPortfolioReportIssuesUseCase, GetFundPortfolioReportIssuesUseCase>();
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));

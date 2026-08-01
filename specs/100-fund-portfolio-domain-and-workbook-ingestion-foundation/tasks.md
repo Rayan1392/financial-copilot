@@ -38,9 +38,9 @@
 
 ## 5. Cover and Period Extraction
 
-- [ ] Extract fund display name, report title, and period-end text from the `تیتر` sheet and repeated sheet headers where available.
-- [ ] Reconcile repeated header evidence across sheets and flag conflicts.
-- [ ] Parse Jalali dates using the governed date converter and preserve original strings.
+- [x] Extract fund display name, report title, and period-end text from the `تیتر` sheet and repeated sheet headers where available.
+- [x] Reconcile repeated header evidence across sheets and flag conflicts.
+- [x] Parse Jalali dates using the governed date converter and preserve original strings.
 - [x] Support month-end reports whose period end is not the last calendar day; do not infer a different date.
 - [x] Define `CurrentPeriod`, `FiscalYearToDate`, `PriorComparablePeriod`, and `UnknownPeriodContext` tokens for downstream dual-block parsing.
 - [x] Create a deterministic report identity and source-revision policy.
@@ -65,8 +65,8 @@
 
 - [x] Emit correlation id, fund resolution outcome, file hash prefix, parser version, sheet classification counts, issue counts, duration, and final status.
 - [x] Do not log full portfolio rows, raw bank account-like data, or unrestricted workbook contents.
-- [ ] Add audit entries for ingest, duplicate, corrected revision, failure, and supersession.
-- [ ] Expose metrics for unclassified sheets, formula errors, date failures, and partial parses.
+- [x] Add audit entries for ingest, duplicate, corrected revision, failure, and supersession.
+- [x] Expose metrics for unclassified sheets, formula errors, date failures, and partial parses.
 
 ## 9. Tests and Acceptance Scenarios
 

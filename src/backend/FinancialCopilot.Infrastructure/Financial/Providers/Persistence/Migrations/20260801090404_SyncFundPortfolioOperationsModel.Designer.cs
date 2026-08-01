@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrations
 {
     [DbContext(typeof(FinancialProviderDbContext))]
-    partial class FinancialProviderDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801090404_SyncFundPortfolioOperationsModel")]
+    partial class SyncFundPortfolioOperationsModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,29 +24,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.FundPortfolio.FundPortfolioSourceWatermarkRow", b =>
-                {
-                    b.Property<string>("ProviderName")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset?>("LastModifiedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastSourceObjectId")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("ProviderName");
-
-                    b.HasIndex("LeaseUntilUtc");
-
-                    b.ToTable("FundPortfolioSourceWatermarks", (string)null);
-                });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioExtractionIssueRow", b =>
                 {
@@ -95,49 +75,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                     b.ToTable("FundPortfolioExtractionIssues", (string)null);
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioGovernedMappingRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsApproved")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("MappingType")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("NormalizedValue")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("RawValue")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("ResolutionJson")
-                        .IsRequired()
-                        .HasMaxLength(10000)
-                        .HasColumnType("character varying(10000)");
-
-                    b.Property<DateTimeOffset>("ResolvedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResolvedByActorId")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MappingType", "RawValue")
-                        .IsUnique();
-
-                    b.ToTable("FundPortfolioGovernedMappings", (string)null);
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioImportItemRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,11 +86,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
 
                     b.Property<DateTimeOffset?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CorrelationId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("DownloadToken")
                         .IsRequired()
@@ -174,12 +106,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("ObservedFundName")
                         .HasColumnType("text");
 
@@ -195,9 +121,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("QueuedAtUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("ReportId")
                         .HasColumnType("uuid");
@@ -216,8 +139,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
 
                     b.HasIndex("ImportRunId");
 
-                    b.HasIndex("QueuedAtUtc");
-
                     b.HasIndex("ProviderName", "FileSha256")
                         .IsUnique()
                         .HasFilter("\"FileSha256\" IS NOT NULL");
@@ -227,8 +148,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                         .HasFilter("\"SourceObjectId\" IS NOT NULL");
 
                     b.HasIndex("Status", "AttemptCount", "StartedAtUtc");
-
-                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseUntilUtc");
 
                     b.ToTable("FundPortfolioImportItems", (string)null);
                 });
@@ -328,10 +247,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ReportId");
@@ -341,64 +256,11 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                     b.ToTable("FundPortfolioMappingReviews", (string)null);
                 });
 
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioOperationAuditRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActorId")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("CorrelationId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("ReportId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ReviewId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("RunId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Summary")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId");
-
-                    b.HasIndex("ReviewId");
-
-                    b.HasIndex("RunId");
-
-                    b.HasIndex("EventType", "CreatedAtUtc");
-
-                    b.ToTable("FundPortfolioOperationAudits", (string)null);
-                });
-
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioReportRow", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("ExternalReportId")
                         .HasColumnType("text");
@@ -466,10 +328,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                     b.Property<int>("ReportType")
                         .HasColumnType("integer");
 
-                    b.Property<string>("SourceObjectId")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<int>("SourceRevision")
                         .HasColumnType("integer");
 
@@ -481,8 +339,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                     b.HasIndex("ParseStatus");
 
                     b.HasIndex("ProviderName");
-
-                    b.HasIndex("SourceObjectId");
 
                     b.HasIndex("FundId", "PeriodEndDate");
 
@@ -542,77 +398,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
                         .IsUnique();
 
                     b.ToTable("FundPortfolioReportSheets", (string)null);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioReportStatusHistoryRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Details")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("ReportId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId", "CreatedAtUtc");
-
-                    b.ToTable("FundPortfolioReportStatusHistory", (string)null);
-                });
-
-            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioSourceTraceRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("NormalizedRowCount")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("ReportId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SignalCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SourceObjectId")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<int>("SourceRevision")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId");
-
-                    b.HasIndex("SourceObjectId", "SourceRevision")
-                        .IsUnique();
-
-                    b.ToTable("FundPortfolioSourceTraces", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.InvestmentFundRow", b =>

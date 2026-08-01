@@ -41,6 +41,8 @@ public sealed class FundPortfolioReportRow
     public FundPortfolioParseStatus ParseStatus { get; set; }
     public int SourceRevision { get; set; }
     public DateTimeOffset ImportedAtUtc { get; set; }
+    public string? CorrelationId { get; set; }
+    public string? SourceObjectId { get; set; }
     public Guid? SupersedesReportId { get; set; }
 }
 
@@ -72,6 +74,28 @@ public sealed class FundPortfolioExtractionIssueRow
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
 
+public sealed class FundPortfolioReportStatusHistoryRow
+{
+    public Guid Id { get; set; }
+    public Guid ReportId { get; set; }
+    public FundPortfolioParseStatus Status { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public string? CorrelationId { get; set; }
+    public string? Details { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+}
+
+public sealed class FundPortfolioSourceTraceRow
+{
+    public Guid Id { get; set; }
+    public Guid ReportId { get; set; }
+    public string SourceObjectId { get; set; } = string.Empty;
+    public int SourceRevision { get; set; }
+    public int NormalizedRowCount { get; set; }
+    public int SignalCount { get; set; }
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+}
+
 public sealed class InvestmentFundRowConfiguration : IEntityTypeConfiguration<InvestmentFundRow>
 {
     public void Configure(EntityTypeBuilder<InvestmentFundRow> builder)
@@ -96,6 +120,9 @@ public sealed class FundPortfolioReportRowConfiguration : IEntityTypeConfigurati
         builder.Property(x => x.RawStorageKey).HasMaxLength(1024).IsRequired();
         builder.Property(x => x.RawMimeType).HasMaxLength(256).IsRequired();
         builder.Property(x => x.ParserProfileVersion).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.CorrelationId).HasMaxLength(128);
+        builder.Property(x => x.SourceObjectId).HasMaxLength(512);
+        builder.HasIndex(x => x.SourceObjectId);
         builder.HasIndex(x => new { x.FundId, x.ProviderName, x.PeriodEndDate, x.ReportType, x.SourceRevision }).IsUnique();
         builder.HasIndex(x => new { x.ProviderName, x.FileSha256 }).IsUnique();
         builder.HasIndex(x => new { x.FundId, x.PeriodEndDate });
@@ -126,5 +153,23 @@ public sealed class FundPortfolioExtractionIssueRowConfiguration : IEntityTypeCo
         builder.Property(x => x.ParserProfileVersion).HasMaxLength(128).IsRequired();
         builder.HasIndex(x => new { x.ReportId, x.Severity }); builder.HasIndex(x => x.IssueCode);
         builder.HasIndex(x => new { x.Severity, x.IssueCode });
+    }
+}
+
+public sealed class FundPortfolioReportStatusHistoryRowConfiguration : IEntityTypeConfiguration<FundPortfolioReportStatusHistoryRow>
+{
+    public void Configure(EntityTypeBuilder<FundPortfolioReportStatusHistoryRow> builder)
+    {
+        builder.ToTable("FundPortfolioReportStatusHistory"); builder.HasKey(x => x.Id);
+        builder.Property(x => x.EventType).HasMaxLength(64).IsRequired(); builder.Property(x => x.CorrelationId).HasMaxLength(128); builder.Property(x => x.Details).HasMaxLength(1000);
+        builder.HasIndex(x => new { x.ReportId, x.CreatedAtUtc });
+    }
+}
+
+public sealed class FundPortfolioSourceTraceRowConfiguration : IEntityTypeConfiguration<FundPortfolioSourceTraceRow>
+{
+    public void Configure(EntityTypeBuilder<FundPortfolioSourceTraceRow> builder)
+    {
+        builder.ToTable("FundPortfolioSourceTraces"); builder.HasKey(x => x.Id); builder.Property(x => x.SourceObjectId).HasMaxLength(512).IsRequired(); builder.HasIndex(x => new { x.SourceObjectId, x.SourceRevision }).IsUnique(); builder.HasIndex(x => x.ReportId);
     }
 }

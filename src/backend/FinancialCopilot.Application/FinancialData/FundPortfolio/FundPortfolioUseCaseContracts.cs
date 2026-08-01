@@ -30,7 +30,9 @@ public sealed record IngestFundPortfolioWorkbookRequest(
     Stream Workbook,
     string? ExternalFundId = null,
     string? FundSymbol = null,
-    FundPortfolioReportPeriod? KnownPeriod = null);
+    FundPortfolioReportPeriod? KnownPeriod = null,
+    string? CorrelationId = null,
+    string? SourceObjectId = null);
 
 public sealed record IngestFundPortfolioWorkbookResult(
     Guid ReportId,
@@ -55,7 +57,9 @@ public sealed record FundPortfolioReportStatusResult(
     int SourceRevision,
     string ProviderName,
     string FileSha256,
-    DateTimeOffset ImportedAtUtc);
+    DateTimeOffset ImportedAtUtc,
+    string? CorrelationId = null,
+    string? SourceObjectId = null);
 
 public sealed record FundPortfolioReportIssueResult(
     Guid Id,
@@ -67,6 +71,7 @@ public sealed record FundPortfolioReportIssueResult(
     string? RawValue,
     string Message,
     DateTimeOffset CreatedAtUtc);
+public sealed record FundPortfolioReportIssuePage(IReadOnlyList<FundPortfolioReportIssueResult> Items, int Page, int PageSize, int TotalCount);
 
 public interface IGetFundPortfolioReportStatusUseCase
 {
@@ -75,7 +80,23 @@ public interface IGetFundPortfolioReportStatusUseCase
 
 public interface IGetFundPortfolioReportIssuesUseCase
 {
-    Task<IReadOnlyList<FundPortfolioReportIssueResult>> ExecuteAsync(Guid reportId, CancellationToken cancellationToken);
+    Task<FundPortfolioReportIssuePage> ExecuteAsync(Guid reportId, int page = 1, int pageSize = 100, FundExtractionIssueSeverity? severity = null, string? issueCode = null, CancellationToken cancellationToken = default);
+}
+
+public sealed record FundPortfolioReprocessWork(Guid ReportId, Guid FundId, string ProviderName, string OriginalFileName, string RawStorageKey, string FileSha256, FundPortfolioReportPeriod Period);
+public sealed record ReprocessFundPortfolioReportRequest(Guid ReportId, string ParserProfileVersion);
+public interface IFundPortfolioRawWorkbookReader
+{
+    Task<Stream> OpenAsync(string storageKey, CancellationToken cancellationToken);
+}
+public interface IFundPortfolioReportReprocessRepository
+{
+    Task<FundPortfolioReprocessWork?> GetReprocessWorkAsync(Guid reportId, CancellationToken cancellationToken);
+    Task ReplaceParsedEvidenceAsync(FundPortfolioWorkbookEnvelope envelope, string parserProfileVersion, CancellationToken cancellationToken);
+}
+public interface IReprocessFundPortfolioReportUseCase
+{
+    Task<FundPortfolioParseStatus?> ExecuteAsync(ReprocessFundPortfolioReportRequest request, CancellationToken cancellationToken);
 }
 
 public interface IInvestmentFundRepository
@@ -94,7 +115,7 @@ public interface IFundPortfolioRawWorkbookStore
 public interface IFundPortfolioReportRepository
 {
     Task<FundPortfolioReportStatusResult?> FindStatusAsync(Guid reportId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<FundPortfolioReportIssueResult>> FindIssuesAsync(Guid reportId, CancellationToken cancellationToken);
+    Task<FundPortfolioReportIssuePage> FindIssuesAsync(Guid reportId, int page, int pageSize, FundExtractionIssueSeverity? severity, string? issueCode, CancellationToken cancellationToken);
     Task<(Guid ReportId, int SourceRevision)?> FindByHashAsync(string providerName, string fileSha256, CancellationToken cancellationToken);
     Task<int> GetNextRevisionAsync(Guid fundId, string providerName, DateOnly? periodEndDate, CancellationToken cancellationToken);
     Task<bool> SaveParsedReportAsync(InvestmentFund fund, IngestFundPortfolioWorkbookRequest request, FundPortfolioStoredFile storedFile, FundPortfolioWorkbookEnvelope envelope, int sourceRevision, Guid? supersedesReportId, CancellationToken cancellationToken);
@@ -116,7 +137,10 @@ public sealed record FundPortfolioIngestionTelemetry(
     int IssueCount,
     int ErrorCount,
     FundPortfolioParseStatus FinalStatus,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    int FormulaErrorCount = 0,
+    int DateFailureCount = 0,
+    int PartialParseCount = 0);
 
 public interface IFundPortfolioIngestionTelemetrySink
 {

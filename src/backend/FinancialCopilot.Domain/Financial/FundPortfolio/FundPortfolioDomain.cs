@@ -112,7 +112,8 @@ public sealed record FundPortfolioReportPeriod(
     string? PeriodStartJalali = null,
     DateOnly? PeriodStartDate = null,
     string? FiscalYearStartJalali = null,
-    string? FiscalYearEndJalali = null);
+    string? FiscalYearEndJalali = null,
+    string? PeriodEndText = null);
 
 public sealed class FundPortfolioReport
 {

@@ -110,10 +110,47 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentFundRepository, EfCoreInvestmentFundRepository>();
         services.AddScoped<IFundPortfolioReportRepository, EfCoreFundPortfolioReportRepository>();
         services.AddSingleton<IFundPortfolioIngestionTelemetrySink, LoggingFundPortfolioIngestionTelemetry>();
+        services.AddSingleton<IFundPortfolioOperationalTelemetry, FundPortfolioOperationalTelemetry>();
         services.AddScoped<ICreateOrResolveInvestmentFundUseCase, CreateOrResolveInvestmentFundUseCase>();
         services.AddScoped<IIngestFundPortfolioWorkbookUseCase, IngestFundPortfolioWorkbookUseCase>();
         services.AddScoped<IGetFundPortfolioReportStatusUseCase, GetFundPortfolioReportStatusUseCase>();
         services.AddScoped<IGetFundPortfolioReportIssuesUseCase, GetFundPortfolioReportIssuesUseCase>();
+        services.AddScoped<IFundPortfolioReportQueryRepository, EfCoreFundPortfolioReportQueryRepository>();
+        services.AddScoped<IQueryFundPortfolioReportsUseCase, QueryFundPortfolioReportsUseCase>();
+        services.AddScoped<IFundPortfolioRawWorkbookReader, FileSystemFundPortfolioRawWorkbookReader>();
+        services.AddScoped<IFundPortfolioReportReprocessRepository, EfCoreFundPortfolioReportReprocessRepository>();
+        services.AddScoped<IReprocessFundPortfolioReportUseCase, ReprocessFundPortfolioReportUseCase>();
+        services.AddOptions<FundPortfolioLocalSourceOptions>()
+            .BindConfiguration("FundPortfolio:LocalSource")
+            .Validate(options => options.MaximumItemsPerPage is > 0 and <= 500, "Fund portfolio source page size must be between 1 and 500.")
+            .ValidateOnStart();
+        services.AddSingleton<IFundPortfolioReportSource, ConfiguredLocalFundPortfolioReportSource>();
+        services.AddSingleton<ManualUploadFundPortfolioReportSource>(_ => new ManualUploadFundPortfolioReportSource([]));
+        services.AddSingleton<IFundPortfolioReportSource>(provider => provider.GetRequiredService<ManualUploadFundPortfolioReportSource>());
+        services.AddScoped<IFundPortfolioReportSourceRegistry, FundPortfolioReportSourceRegistry>();
+        services.AddScoped<IFundPortfolioImportRunRepository, EfCoreFundPortfolioImportRunRepository>();
+        services.AddScoped<IStartFundPortfolioImportRunUseCase, StartFundPortfolioImportRunUseCase>();
+        services.AddScoped<IImportFundPortfolioItemUseCase, ImportFundPortfolioItemUseCase>();
+        services.AddScoped<IFinalizeFundPortfolioImportRunUseCase, FinalizeFundPortfolioImportRunUseCase>();
+        services.AddScoped<IFundPortfolioMappingReviewRepository, EfCoreFundPortfolioMappingReviewRepository>();
+        services.AddScoped<IResolveFundPortfolioMappingReviewUseCase, ResolveFundPortfolioMappingReviewUseCase>();
+        services.AddScoped<IFundPortfolioAuditSink, EfCoreFundPortfolioAuditSink>();
+        services.AddScoped<EfCoreFundPortfolioSourceWatermarkStore>();
+        services.AddScoped<IFundPortfolioRetentionStore, EfCoreFundPortfolioRetentionStore>();
+        services.AddOptions<FundPortfolioRetentionOptions>().BindConfiguration(FundPortfolioRetentionOptions.SectionName).Validate(options => options.RunMetadataDays > 0 && options.FailedItemDays > 0 && options.MappingDecisionDays > 0 && options.RawFileDays > 0 && options.CadenceHours > 0, "Fund portfolio retention periods must be positive.").ValidateOnStart();
+        services.AddHostedService<FundPortfolioRetentionWorker>();
+        services.AddOptions<FundPortfolioScheduledDiscoveryOptions>()
+            .BindConfiguration(FundPortfolioScheduledDiscoveryOptions.SectionName)
+            .Validate(options => options.CadenceSeconds > 0 && options.LookbackDays > 0 && options.BatchSize is > 0 and <= 500 && options.Concurrency is > 0 and <= 32 && options.LeaseDurationSeconds is >= 30 and <= 3600,
+                "Fund portfolio scheduled discovery options must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddHostedService<FundPortfolioScheduledDiscoveryWorker>();
+        services.AddOptions<FundPortfolioImportProcessingOptions>()
+            .BindConfiguration(FundPortfolioImportProcessingOptions.SectionName)
+            .Validate(options => options.Concurrency is > 0 and <= 32 && options.PollSeconds > 0 && options.MaximumAttempts is > 0 and <= 10,
+                "Fund portfolio import processing options must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddHostedService<FundPortfolioImportProcessingWorker>();
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));

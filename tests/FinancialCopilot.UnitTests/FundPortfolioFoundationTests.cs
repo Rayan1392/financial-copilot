@@ -1,6 +1,7 @@
 using FinancialCopilot.Infrastructure.Financial.FundPortfolio;
 using FinancialCopilot.Application.FinancialData.FundPortfolio;
 using FinancialCopilot.Domain.Financial.FundPortfolio;
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 
@@ -58,6 +59,76 @@ public sealed class FundPortfolioFoundationTests
         Assert.Contains(result.Issues, issue => issue.IssueCode == "DUPLICATE_LOGICAL_SHEET_TYPE");
         Assert.DoesNotContain(result.Sheets[1].Cells, cell => cell.NormalizedValue == "0" && cell.RawValue == "#REF!");
     }
+
+    [Fact]
+    public async Task WorkbookParser_ExtractsCoverMetadataAndPreservesPeriodText()
+    {
+        await using var workbook = CreateMetadataWorkbook("صندوق آلفا", "صندوق آلفا", "1403/03/29");
+        var parser = new XlsxFundPortfolioWorkbookParser(new FundPortfolioValueNormalizer());
+
+        var result = await parser.ParseAsync(new(
+            Guid.NewGuid(), Guid.NewGuid(), "TestProvider", "metadata.xlsx", "ABC", "iran-fund-portfolio-workbook-v1", workbook), CancellationToken.None);
+
+        Assert.Equal("صندوق آلفا", result.ExtractedFundName);
+        Assert.Equal("گزارش پرتفوی", result.ReportTitle);
+        Assert.Equal("1403/03/29", result.Period.PeriodEndJalali);
+        Assert.Equal("1403/03/29", result.Period.PeriodEndText);
+        Assert.Equal(DateOnly.FromDateTime(new PersianCalendar().ToDateTime(1403, 3, 29, 0, 0, 0, 0)), result.Period.PeriodEndDate);
+        Assert.DoesNotContain(result.Issues, issue => issue.IssueCode == "HEADER_METADATA_CONFLICT");
+    }
+
+    [Fact]
+    public async Task WorkbookParser_ReconcilesRepeatedHeadersAndFlagsConflicts()
+    {
+        await using var workbook = CreateMetadataWorkbook("صندوق آلفا", "صندوق بتا", "1403/03/29");
+        var parser = new XlsxFundPortfolioWorkbookParser(new FundPortfolioValueNormalizer());
+
+        var result = await parser.ParseAsync(new(
+            Guid.NewGuid(), Guid.NewGuid(), "TestProvider", "conflict.xlsx", "ABC", "iran-fund-portfolio-workbook-v1", workbook), CancellationToken.None);
+
+        Assert.Equal("صندوق آلفا", result.ExtractedFundName);
+        Assert.Contains(result.Issues, issue => issue.IssueCode == "HEADER_METADATA_CONFLICT" && issue.Message.Contains("FundName", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task WorkbookParser_PreservesInvalidPeriodTextAndReportsConversionFailure()
+    {
+        await using var workbook = CreateMetadataWorkbook("صندوق آلفا", "صندوق آلفا", "1403/13/01");
+        var parser = new XlsxFundPortfolioWorkbookParser(new FundPortfolioValueNormalizer());
+
+        var result = await parser.ParseAsync(new(
+            Guid.NewGuid(), Guid.NewGuid(), "TestProvider", "invalid-period.xlsx", "ABC", "iran-fund-portfolio-workbook-v1", workbook), CancellationToken.None);
+
+        Assert.Equal("1403/13/01", result.Period.PeriodEndJalali);
+        Assert.Equal("1403/13/01", result.Period.PeriodEndText);
+        Assert.Null(result.Period.PeriodEndDate);
+        Assert.Contains(result.Issues, issue => issue.IssueCode == "INVALID_JALALI_DATE");
+    }
+
+    private static MemoryStream CreateMetadataWorkbook(string coverFundName, string headerFundName, string periodEnd)
+    {
+        const string fundLabel = "\u0646\u0627\u0645 \u0635\u0646\u062f\u0648\u0642";
+        const string titleLabel = "\u0639\u0646\u0648\u0627\u0646 \u06af\u0632\u0627\u0631\u0634";
+        const string periodLabel = "\u062f\u0648\u0631\u0647 \u0645\u0646\u062a\u0647\u06cc \u0628\u0647";
+        const string coverName = "\u062a\u06cc\u062a\u0631";
+        const string holdingsName = "\u0633\u0647\u0627\u0645";
+        var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            Write(archive, "xl/workbook.xml", $"<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"{coverName}\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"{holdingsName}\" sheetId=\"2\" r:id=\"rId2\"/></sheets></workbook>");
+            Write(archive, "xl/_rels/workbook.xml.rels", "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Target=\"worksheets/sheet2.xml\"/></Relationships>");
+            Write(archive, "xl/worksheets/sheet1.xml", MetadataSheetXml(fundLabel, titleLabel, periodLabel, coverFundName, periodEnd, includeTitle: true));
+            Write(archive, "xl/worksheets/sheet2.xml", MetadataSheetXml(fundLabel, titleLabel, periodLabel, headerFundName, periodEnd, includeTitle: false));
+        }
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static string MetadataSheetXml(string fundLabel, string titleLabel, string periodLabel, string fundName, string periodEnd, bool includeTitle) =>
+        $"<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>" +
+        $"<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>{fundLabel}</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>{fundName}</t></is></c></row>" +
+        (includeTitle ? $"<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>{titleLabel}</t></is></c><c r=\"B2\" t=\"inlineStr\"><is><t>گزارش پرتفوی</t></is></c></row>" : string.Empty) +
+        $"<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>{periodLabel}</t></is></c><c r=\"B3\" t=\"inlineStr\"><is><t>{periodEnd}</t></is></c></row></sheetData></worksheet>";
 
     private static MemoryStream CreateWorkbook()
     {

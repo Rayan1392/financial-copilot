@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { adminApi, type FundPortfolioReport, type FundPortfolioReview, type FundPortfolioRun } from "@/integrations/financial-copilot/admin-client";
 import { Archive, BarChart2, Database, Activity, GitCompare, ArrowRight, AlertTriangle } from "lucide-react";
 
 type SourceCard = {
@@ -66,6 +68,19 @@ const sources: SourceCard[] = [
 ];
 
 export function DataManagementOverviewPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [fundName, setFundName] = useState("");
+  const [runs, setRuns] = useState<FundPortfolioRun[]>([]);
+  const [reports, setReports] = useState<FundPortfolioReport[]>([]);
+  const [reviews, setReviews] = useState<FundPortfolioReview[]>([]);
+  const [sourceStatus, setSourceStatus] = useState<{ available: boolean; unavailableReason: string | null } | null>(null);
+  const [health, setHealth] = useState<{ sourceAvailable: boolean; sourceReason: string | null; totalRuns: number; queuedItems: number; retryableItems: number; pendingReviews: number; lastRunAtUtc: string | null } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const refresh = () => Promise.all([adminApi.fundPortfolioRuns(), adminApi.fundPortfolioReports(), adminApi.fundPortfolioReviews(), adminApi.fundPortfolioSourceStatus(), adminApi.fundPortfolioHealth()]).then(([runPage, reportPage, reviewPage, status, healthPage]) => { setRuns(runPage.items); setReports(reportPage.items); setReviews(reviewPage.items); setSourceStatus(status); setHealth(healthPage); }).catch((error) => setMessage(error instanceof Error ? error.message : "Unable to load fund portfolio operations."));
+  useEffect(() => { void refresh(); }, []);
+  const upload = async () => { if (!file) return; try { const result = await adminApi.fundPortfolioUpload(file, fundName || undefined); setMessage(`Queued run ${result.runId} with ${result.itemCount} item(s).`); setFile(null); await refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Upload failed."); } };
+  const reprocess = async (report: FundPortfolioReport) => { if (!window.confirm(`Reprocess ${report.originalFileName}?`)) return; await adminApi.fundPortfolioReprocess(report.reportId); setMessage(`Reprocess queued for ${report.reportId}.`); await refresh(); };
+  const resolve = async (review: FundPortfolioReview, approve: boolean) => { const resolution = window.prompt("Resolution JSON", review.resolutionJson ?? "{}"); if (resolution === null) return; await adminApi.fundPortfolioResolveReview(review, approve, resolution); await refresh(); };
   return (
     <div className="space-y-6">
       <div>
@@ -74,6 +89,14 @@ export function DataManagementOverviewPage() {
           Manage archive imports, current API syncs, market data sources, and live monitoring.
         </p>
       </div>
+
+      <section className="rounded-xl border border-border bg-surface/60 p-4 space-y-4">
+        <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">Fund Portfolio Source Sync</h2><p className="text-xs text-muted-foreground mt-1">Upload approved workbooks, monitor runs, review mappings, and reprocess reports.</p></div><span className={`text-xs rounded-full px-2 py-1 ${sourceStatus?.available ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"}`}>{sourceStatus?.available ? "Source adapter available" : sourceStatus?.unavailableReason ?? "Checking source adapter"}</span></div>
+        <div className="flex flex-wrap items-center gap-2"><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="text-xs" /><input value={fundName} onChange={(event) => setFundName(event.target.value)} placeholder="Fund name hint" className="rounded border border-border bg-background px-2 py-1 text-xs" /><button type="button" disabled={!file} onClick={() => void upload()} className="rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50">Queue upload</button>{message && <span className="text-xs text-muted-foreground">{message}</span>}</div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4"><div><h3 className="text-xs font-semibold mb-2">Recent runs</h3><div className="space-y-1">{runs.map((run) => <div key={run.id} className="flex justify-between rounded border border-border px-2 py-1.5 text-xs"><span>{run.status} · {run.triggerType}</span><span>{run.importedCount}/{run.discoveredCount} imported</span></div>)}{runs.length === 0 && <p className="text-xs text-muted-foreground">No runs found.</p>}</div></div><div><h3 className="text-xs font-semibold mb-2">Reports and issue filters</h3><div className="space-y-1">{reports.map((report) => <div key={report.reportId} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"><span className="truncate">{report.originalFileName} · {report.parseStatus} · {report.issueCount} issues</span><button type="button" onClick={() => void reprocess(report)} className="shrink-0 text-primary hover:underline">Reprocess</button></div>)}{reports.length === 0 && <p className="text-xs text-muted-foreground">No reports found.</p>}</div></div></div>
+        <div><h3 className="text-xs font-semibold mb-2">Pending mapping review</h3><div className="space-y-1">{reviews.map((review) => <div key={review.id} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"><span className="truncate">{review.mappingType} · {review.rawValue}</span><span className="flex gap-2"><button type="button" onClick={() => void resolve(review, true)} className="text-emerald-600 hover:underline">Approve</button><button type="button" onClick={() => void resolve(review, false)} className="text-destructive hover:underline">Reject</button></span></div>)}{reviews.length === 0 && <p className="text-xs text-muted-foreground">No pending mapping reviews.</p>}</div></div>
+      </section>
+      {health && <section className="grid grid-cols-2 md:grid-cols-5 gap-3"><Metric label="Runs" value={health.totalRuns} /><Metric label="Queued" value={health.queuedItems} /><Metric label="Retryable" value={health.retryableItems} /><Metric label="Reviews" value={health.pendingReviews} /><Metric label="Source" value={health.sourceAvailable ? "Ready" : "Unavailable"} /></section>}
 
       {/* Source cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -151,3 +174,5 @@ export function DataManagementOverviewPage() {
     </div>
   );
 }
+
+function Metric({ label, value }: { label: string; value: string | number }) { return <div className="rounded-xl border border-border bg-surface/60 p-3"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div><div className="text-lg font-semibold mt-1">{value}</div></div>; }

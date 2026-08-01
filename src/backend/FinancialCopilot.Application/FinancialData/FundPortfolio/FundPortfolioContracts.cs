@@ -49,6 +49,7 @@ public sealed record FundPortfolioWorkbookEnvelope(
 {
     public string? ExtractedFundName { get; init; }
     public string? ReportTitle { get; init; }
+    public string? CorrelationId { get; init; }
 
     public FundPortfolioParseStatus Status =>
         Issues.Any(issue => issue.Severity is FundExtractionIssueSeverity.Fatal)

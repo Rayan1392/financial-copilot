@@ -25,6 +25,13 @@ public sealed class FinancialProviderDbContext(DbContextOptions<FinancialProvide
     public DbSet<FundCommodityCertificatePositionRow> FundCommodityCertificatePositions => Set<FundCommodityCertificatePositionRow>();
     public DbSet<FundBankDepositPositionRow> FundBankDepositPositions => Set<FundBankDepositPositionRow>();
     public DbSet<FundDerivativePositionRow> FundDerivativePositions => Set<FundDerivativePositionRow>();
+    public DbSet<FundInvestmentIncomeSummaryRow> FundInvestmentIncomeSummaries => Set<FundInvestmentIncomeSummaryRow>();
+    public DbSet<FundSecurityIncomeAttributionRow> FundSecurityIncomeAttributions => Set<FundSecurityIncomeAttributionRow>();
+    public DbSet<FundDividendIncomeDetailRow> FundDividendIncomeDetails => Set<FundDividendIncomeDetailRow>();
+    public DbSet<FundCommodityIncomeDetailRow> FundCommodityIncomeDetails => Set<FundCommodityIncomeDetailRow>();
+    public DbSet<FundDepositIncomeDetailRow> FundDepositIncomeDetails => Set<FundDepositIncomeDetailRow>();
+    public DbSet<FundValuationAdjustmentRow> FundValuationAdjustments => Set<FundValuationAdjustmentRow>();
+    public DbSet<FundPortfolioValuationQualitySnapshotRow> FundPortfolioValuationQualitySnapshots => Set<FundPortfolioValuationQualitySnapshotRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(

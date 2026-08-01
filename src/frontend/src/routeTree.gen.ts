@@ -24,6 +24,7 @@ import { Route as AdminDataReconciliationRouteImport } from './routes/admin_.dat
 import { Route as AdminDataNoavaranRouteImport } from './routes/admin_.data.noavaran'
 import { Route as AdminDataMonitorRouteImport } from './routes/admin_.data.monitor'
 import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archive'
+import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -100,6 +101,12 @@ const AdminDataArchiveRoute = AdminDataArchiveRouteImport.update({
   path: '/admin/data/archive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDataManagementFundReportsRoute =
+  AdminDataManagementFundReportsRouteImport.update({
+    id: '/admin_/data-management/fund-reports',
+    path: '/admin/data-management/fund-reports',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppCThreadIdRoute = AppCThreadIdRouteImport.update({
   id: '/c/$threadId',
   path: '/c/$threadId',
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
@@ -132,6 +140,7 @@ export interface FileRoutesByTo {
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/c/$threadId': typeof AppCThreadIdRoute
+  '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
   '/admin/data/monitor': typeof AdminDataMonitorRoute
   '/admin/data/noavaran': typeof AdminDataNoavaranRoute
@@ -151,6 +160,7 @@ export interface FileRoutesById {
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
+  '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
   '/admin_/data/monitor': typeof AdminDataMonitorRoute
   '/admin_/data/noavaran': typeof AdminDataNoavaranRoute
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/followed-symbols'
     | '/telegram-link'
     | '/c/$threadId'
+    | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/followed-symbols'
     | '/telegram-link'
     | '/c/$threadId'
+    | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
     | '/admin/data/monitor'
     | '/admin/data/noavaran'
@@ -205,6 +217,7 @@ export interface FileRouteTypes {
     | '/_app/followed-symbols'
     | '/_app/telegram-link'
     | '/_app/c/$threadId'
+    | '/admin_/data-management/fund-reports'
     | '/admin_/data/archive'
     | '/admin_/data/monitor'
     | '/admin_/data/noavaran'
@@ -219,6 +232,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
   AdminDataMonitorRoute: typeof AdminDataMonitorRoute
   AdminDataNoavaranRoute: typeof AdminDataNoavaranRoute
@@ -335,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDataArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/data-management/fund-reports': {
+      id: '/admin_/data-management/fund-reports'
+      path: '/admin/data-management/fund-reports'
+      fullPath: '/admin/data-management/fund-reports'
+      preLoaderRoute: typeof AdminDataManagementFundReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/c/$threadId': {
       id: '/_app/c/$threadId'
       path: '/c/$threadId'
@@ -368,6 +389,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,
   AdminDataMonitorRoute: AdminDataMonitorRoute,
   AdminDataNoavaranRoute: AdminDataNoavaranRoute,

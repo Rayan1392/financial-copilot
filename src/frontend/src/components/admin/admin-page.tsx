@@ -86,7 +86,12 @@ export function AdminPage({ user }: { user: AuthUser }) {
                 </Button>
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/admin/data/monitor">
-                    <Activity className="size-4 mr-1.5" /> Live Monitor
+                    <Activity className="size-4 mr-1.5" /> پایش زنده
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/admin/data-management/fund-reports">
+                    <Database className="size-4 mr-1.5" /> آپلود پرتفوی صندوق
                   </Link>
                 </Button>
               </>

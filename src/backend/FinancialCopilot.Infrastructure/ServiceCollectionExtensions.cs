@@ -136,6 +136,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFundPortfolioNonEquitySectionNormalizer, FundNonEquitySectionNormalizer>();
         services.AddScoped<IFundPortfolioSectionNormalizer>(provider => provider.GetRequiredService<IFundPortfolioNonEquitySectionNormalizer>());
         services.AddSingleton<IFundNonEquityNormalizationTelemetry, FundNonEquityNormalizationTelemetry>();
+        services.AddScoped<IFundIncomeQualitySectionNormalizer, FundIncomeQualitySectionNormalizer>();
+        services.AddScoped<IFundIncomeQualityRepository, EfCoreFundIncomeQualityRepository>();
+        services.AddScoped<IGetFundIncomeQualityOverviewUseCase, GetFundIncomeQualityOverviewUseCase>();
         services.AddScoped<IFundNonEquityAssetRepository, EfCoreFundNonEquityAssetRepository>();
         services.AddOptions<FundPortfolioLocalSourceOptions>()
             .BindConfiguration("FundPortfolio:LocalSource")

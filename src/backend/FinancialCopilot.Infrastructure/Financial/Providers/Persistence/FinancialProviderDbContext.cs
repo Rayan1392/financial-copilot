@@ -18,6 +18,9 @@ public sealed class FinancialProviderDbContext(DbContextOptions<FinancialProvide
     public DbSet<FundPortfolioReportStatusHistoryRow> FundPortfolioReportStatusHistory => Set<FundPortfolioReportStatusHistoryRow>();
     public DbSet<FundPortfolioGovernedMappingRow> FundPortfolioGovernedMappings => Set<FundPortfolioGovernedMappingRow>();
     public DbSet<FundPortfolioSourceTraceRow> FundPortfolioSourceTraces => Set<FundPortfolioSourceTraceRow>();
+    public DbSet<FundEquityPositionSnapshotRow> FundEquityPositionSnapshots => Set<FundEquityPositionSnapshotRow>();
+    public DbSet<FundEquityPeriodActivityRow> FundEquityPeriodActivities => Set<FundEquityPeriodActivityRow>();
+    public DbSet<FundEquitySectionTotalRow> FundEquitySectionTotals => Set<FundEquitySectionTotalRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(

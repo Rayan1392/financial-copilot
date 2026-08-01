@@ -3,6 +3,7 @@ using System;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrations
 {
     [DbContext(typeof(FinancialProviderDbContext))]
-    partial class FinancialProviderDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801123506_AddFundEquityImportedAt")]
+    partial class AddFundEquityImportedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -60,9 +63,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
 
                     b.Property<Guid>("FundId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("ImportedAtUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal?>("KnownCorporateActionAdjustment")
                         .HasColumnType("numeric");

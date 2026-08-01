@@ -120,6 +120,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFundPortfolioRawWorkbookReader, FileSystemFundPortfolioRawWorkbookReader>();
         services.AddScoped<IFundPortfolioReportReprocessRepository, EfCoreFundPortfolioReportReprocessRepository>();
         services.AddScoped<IReprocessFundPortfolioReportUseCase, ReprocessFundPortfolioReportUseCase>();
+        services.AddScoped<IFundPortfolioEquitySectionNormalizer, FundEquitySectionNormalizer>();
+        services.AddScoped<IFundPortfolioSectionNormalizer>(provider => provider.GetRequiredService<IFundPortfolioEquitySectionNormalizer>());
+        services.AddSingleton<IFundEquityNormalizationTelemetry, FundEquityNormalizationTelemetry>();
+        services.AddSingleton<IFundEquityCorporateActionAdjustmentProvider, NoKnownFundEquityCorporateActionAdjustmentProvider>();
+        services.AddScoped<IFundEquityPositionRepository, EfCoreFundEquityPositionRepository>();
+        services.AddScoped<IGetFundEquityPositionsUseCase, GetFundEquityPositionsUseCase>();
+        services.AddScoped<IGetFundEquityActivityUseCase, GetFundEquityActivityUseCase>();
+        services.AddScoped<IGetCompanyFundHoldingsUseCase, GetCompanyFundHoldingsUseCase>();
         services.AddOptions<FundPortfolioLocalSourceOptions>()
             .BindConfiguration("FundPortfolio:LocalSource")
             .Validate(options => options.MaximumItemsPerPage is > 0 and <= 500, "Fund portfolio source page size must be between 1 and 500.")

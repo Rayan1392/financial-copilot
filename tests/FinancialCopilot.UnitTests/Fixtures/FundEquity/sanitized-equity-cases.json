@@ -1,0 +1,12 @@
+{
+  "description": "Sanitized Feature 102 equity normalization cases",
+  "rows": [
+    { "name": "ABC", "beginningQuantity": 0, "purchasedQuantity": 100, "soldQuantity": 0, "endingQuantity": 100, "securityType": "OrdinaryEquity" },
+    { "name": "حق تقدم ABC", "beginningQuantity": 10, "purchasedQuantity": 0, "soldQuantity": 0, "endingQuantity": 10, "securityType": "PreemptiveRight" },
+    { "name": "واحد صندوق نمونه", "beginningQuantity": 5, "purchasedQuantity": 0, "soldQuantity": 0, "endingQuantity": 5, "securityType": "InvestmentFundUnit" },
+    { "name": "UNKNOWN", "beginningQuantity": null, "purchasedQuantity": 0, "soldQuantity": null, "endingQuantity": 1, "securityType": "Unresolved" },
+    { "name": "TOTAL", "endingValue": 1000, "isSectionTotal": true },
+    { "name": "DUPLICATE NAME", "resolutionStatus": "Ambiguous" },
+    { "name": "FORMULA ERROR", "beginningQuantity": "#REF!" }
+  ]
+}

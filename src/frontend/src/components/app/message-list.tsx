@@ -124,10 +124,7 @@ function AssistantBlock({
         )}
 
         {block.monthlyActivityTrendResult && (
-          <MonthlyActivityTrendChart
-            data={block.monthlyActivityTrendResult}
-            psGauge={block.psVisualizationResult}
-          />
+          <MonthlyActivityTrendChart data={block.monthlyActivityTrendResult} />
         )}
 
         {block.psVisualizationResult && !block.monthlyActivityTrendResult && (

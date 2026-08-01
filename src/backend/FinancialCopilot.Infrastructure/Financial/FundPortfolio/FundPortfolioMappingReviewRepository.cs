@@ -58,6 +58,12 @@ public sealed class EfCoreFundPortfolioMappingReviewRepository(FinancialProvider
         "INVALID_JALALI_DATE" => FundPortfolioMappingReviewType.InvalidDate,
         "DUPLICATE_LOGICAL_SHEET_TYPE" => FundPortfolioMappingReviewType.UnknownSheet,
         "NO_SHEETS" => FundPortfolioMappingReviewType.HeaderLayoutMismatch,
+        "EQUITY_HEADER_LAYOUT_MISMATCH" => FundPortfolioMappingReviewType.HeaderLayoutMismatch,
+        "UNRESOLVED_FUND_SECURITY" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "AMBIGUOUS_FUND_SECURITY" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "EQUITY_QUANTITY_RECONCILIATION_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "EQUITY_SECTION_TOTAL_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NEGATIVE_EQUITY_QUANTITY" => FundPortfolioMappingReviewType.ReconciliationFailure,
         _ => null
     };
 }

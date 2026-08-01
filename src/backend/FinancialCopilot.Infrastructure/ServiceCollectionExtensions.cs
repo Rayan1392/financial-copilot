@@ -128,6 +128,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGetFundEquityPositionsUseCase, GetFundEquityPositionsUseCase>();
         services.AddScoped<IGetFundEquityActivityUseCase, GetFundEquityActivityUseCase>();
         services.AddScoped<IGetCompanyFundHoldingsUseCase, GetCompanyFundHoldingsUseCase>();
+        services.AddOptions<FundNonEquityNormalizationOptions>()
+            .BindConfiguration(FundNonEquityNormalizationOptions.SectionName)
+            .Validate(options => options.QuantityTolerance >= 0 && options.AbsoluteValueTolerance >= 0 && options.PercentagePointTolerance >= 0,
+                "Fund non-equity normalization tolerances must be non-negative.")
+            .ValidateOnStart();
+        services.AddScoped<IFundPortfolioNonEquitySectionNormalizer, FundNonEquitySectionNormalizer>();
+        services.AddScoped<IFundPortfolioSectionNormalizer>(provider => provider.GetRequiredService<IFundPortfolioNonEquitySectionNormalizer>());
+        services.AddSingleton<IFundNonEquityNormalizationTelemetry, FundNonEquityNormalizationTelemetry>();
+        services.AddScoped<IFundNonEquityAssetRepository, EfCoreFundNonEquityAssetRepository>();
         services.AddOptions<FundPortfolioLocalSourceOptions>()
             .BindConfiguration("FundPortfolio:LocalSource")
             .Validate(options => options.MaximumItemsPerPage is > 0 and <= 500, "Fund portfolio source page size must be between 1 and 500.")

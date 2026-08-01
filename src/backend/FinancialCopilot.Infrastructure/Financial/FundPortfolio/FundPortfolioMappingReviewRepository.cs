@@ -64,6 +64,21 @@ public sealed class EfCoreFundPortfolioMappingReviewRepository(FinancialProvider
         "EQUITY_QUANTITY_RECONCILIATION_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
         "EQUITY_SECTION_TOTAL_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
         "NEGATIVE_EQUITY_QUANTITY" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NON_EQUITY_HEADER_LAYOUT_MISMATCH" => FundPortfolioMappingReviewType.HeaderLayoutMismatch,
+        "NON_EQUITY_SOURCE_FORMULA_ERROR" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NON_EQUITY_UNIT_AMBIGUITY" => FundPortfolioMappingReviewType.UnitAmbiguity,
+        "UNRESOLVED_COMMODITY_INSTRUMENT" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "AMBIGUOUS_COMMODITY_INSTRUMENT" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "UNRESOLVED_BANK" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "UNRESOLVED_DERIVATIVE_INSTRUMENT" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "UNRESOLVED_DERIVATIVE_UNDERLYING" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "AMBIGUOUS_DERIVATIVE_IDENTITY" => FundPortfolioMappingReviewType.UnresolvedSecurity,
+        "INVALID_DERIVATIVE_JALALI_DATE" => FundPortfolioMappingReviewType.InvalidDate,
+        "COMMODITY_QUANTITY_RECONCILIATION_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "BANK_DEPOSIT_RECONCILIATION_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NON_EQUITY_SUMMARY_DETAIL_MISMATCH" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NON_EQUITY_SUMMARY_UNAVAILABLE_SOURCE_ERROR" => FundPortfolioMappingReviewType.ReconciliationFailure,
+        "NON_EQUITY_DUPLICATE_LOGICAL_ROW" => FundPortfolioMappingReviewType.ReconciliationFailure,
         _ => null
     };
 }

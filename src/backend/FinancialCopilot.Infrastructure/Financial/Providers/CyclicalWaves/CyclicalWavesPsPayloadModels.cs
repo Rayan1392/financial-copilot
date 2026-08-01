@@ -23,6 +23,17 @@ internal sealed record CyclicalWavesPsCurrentPayload(
     [property: JsonPropertyName("close")] decimal? Close,
     [property: JsonPropertyName("date")] DateOnly? Date);
 
+internal sealed record CyclicalWavesPsCurrentEnvelope(
+    [property: JsonPropertyName("data")] CyclicalWavesPsCurrentPayload? Data);
+
+internal sealed record CyclicalWavesPsForwardPayload(
+    [property: JsonPropertyName("symbol")] string? Symbol,
+    [property: JsonPropertyName("ps")] decimal? Ps);
+
+internal sealed record CyclicalWavesPsForwardEnvelope(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("data")] CyclicalWavesPsForwardPayload? Data);
+
 internal sealed record CyclicalWavesPsHistoryPayload(
     [property: JsonPropertyName("data")] List<CyclicalWavesPsHistoryPointPayload>? Data,
     [property: JsonPropertyName("first_date")] DateOnly? FirstDate,

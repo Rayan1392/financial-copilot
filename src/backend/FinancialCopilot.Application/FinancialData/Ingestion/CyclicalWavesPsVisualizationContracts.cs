@@ -27,9 +27,9 @@ public enum GaugeRenderabilityStatus
 
 public enum PsVisualizationComponentStatus { Unavailable, Invalid, Partial, Complete }
 
-public sealed record PsEligibleCompany(Guid CompanyId, string CompanyIsin);
+public sealed record PsEligibleCompany(Guid CompanyId, string SymbolIsin, string CompanySymbol);
 
-public sealed record PsScopeIssue(Guid? CompanyId, string? CompanyIsin, string Code);
+public sealed record PsScopeIssue(Guid? CompanyId, string? SymbolIsin, string Code);
 
 public sealed record PsEligibleCompanyScope(
     int EligibleRowsRead,
@@ -44,6 +44,7 @@ public sealed record PsGaugeDistribution(
     decimal BoundaryMax, decimal BoundaryEnd);
 
 public sealed record PsCurrentValues(string Symbol, string Ticker, decimal TtmPsRatio, decimal ForwardPsRatio, DateOnly ObservationDate);
+public sealed record PsForwardValues(string Symbol, decimal ForwardPsRatio);
 
 public sealed record PsHistoryPoint(string ProviderPointId, DateOnly ObservationDate, decimal PsRatio);
 
@@ -53,13 +54,16 @@ public sealed record PsHistorySeries(
 public sealed record PsProviderResult<T>(T? Value, PsVisualizationSyncErrorCode ErrorCode, string? WarningCode = null)
 {
     public bool IsSuccess => ErrorCode == PsVisualizationSyncErrorCode.None && Value is not null;
+    public bool IsClientError => ErrorCode is PsVisualizationSyncErrorCode.AuthenticationFailed or PsVisualizationSyncErrorCode.NotFoundOrNoData or PsVisualizationSyncErrorCode.RateLimited
+        || WarningCode?.StartsWith("Http4", StringComparison.OrdinalIgnoreCase) == true;
 }
 
 public interface ICyclicalWavesPsProviderClient
 {
-    Task<PsProviderResult<PsGaugeDistribution>> GetGaugeAsync(string companyIsin, CancellationToken cancellationToken);
-    Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string companyIsin, CancellationToken cancellationToken);
-    Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string companyIsin, CancellationToken cancellationToken);
+    Task<PsProviderResult<PsGaugeDistribution>> GetGaugeAsync(string symbolIsin, CancellationToken cancellationToken);
+    Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string symbolIsin, CancellationToken cancellationToken);
+    Task<PsProviderResult<PsForwardValues>> GetForwardValuesAsync(string companySymbol, CancellationToken cancellationToken);
+    Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string symbolIsin, CancellationToken cancellationToken);
 }
 
 public interface IPsEligibleCompanyScopeReader

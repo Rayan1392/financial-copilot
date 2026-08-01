@@ -24,8 +24,8 @@ public sealed class CyclicalWavesPsVisualizationAdminController(
     {
         var scope = await scopeReader.ReadAsync(command?.MaxCompanies, cancellationToken);
         return Ok(new PsScopeResponse(scope.EligibleRowsRead, scope.DuplicateRowsRemoved, scope.SkippedMissingOrInvalidIsins,
-            scope.Companies.Take(50).Select(x => new PsCompanyPreview(x.CompanyId, x.CompanyIsin)).ToArray(),
-            scope.Issues.Take(50).Select(x => new PsIssueResponse(x.CompanyId, x.CompanyIsin, x.Code)).ToArray()));
+            scope.Companies.Take(50).Select(x => new PsCompanyPreview(x.CompanyId, x.SymbolIsin)).ToArray(),
+            scope.Issues.Take(50).Select(x => new PsIssueResponse(x.CompanyId, x.SymbolIsin, x.Code)).ToArray()));
     }
 
     [HttpPost("sync")]
@@ -48,13 +48,13 @@ public sealed class CyclicalWavesPsVisualizationAdminController(
         if (!settings.Enabled && !settings.AllowManualSyncWhenWorkerDisabled)
             return Conflict(new { code = "ManualSyncDisabled" });
         var result = await syncService.SyncAsync(new PsVisualizationSyncRequest(false, command?.MaxCompanies, command?.CompanyId, snapshotOnly, historyOnly, command?.CorrelationId), cancellationToken);
-        return Ok(new PsSyncResponse(result.CorrelationId, result.CompaniesConsidered, result.SnapshotSucceeded, result.HistorySucceeded, result.Failed, result.Unchanged, result.ScopeIssues.Take(50).Select(x => new PsIssueResponse(x.CompanyId, x.CompanyIsin, x.Code)).ToArray()));
+        return Ok(new PsSyncResponse(result.CorrelationId, result.CompaniesConsidered, result.SnapshotSucceeded, result.HistorySucceeded, result.Failed, result.Unchanged, result.ScopeIssues.Take(50).Select(x => new PsIssueResponse(x.CompanyId, x.SymbolIsin, x.Code)).ToArray()));
     }
 }
 
 public sealed record PsSyncCommand(int? MaxCompanies = null, Guid? CompanyId = null, string? CorrelationId = null);
-public sealed record PsCompanyPreview(Guid CompanyId, string CompanyIsin);
-public sealed record PsIssueResponse(Guid? CompanyId, string? CompanyIsin, string Code);
+public sealed record PsCompanyPreview(Guid CompanyId, string SymbolIsin);
+public sealed record PsIssueResponse(Guid? CompanyId, string? SymbolIsin, string Code);
 public sealed record PsScopeResponse(int EligibleRowsRead, int DuplicateRowsRemoved, int SkippedMissingOrInvalidIsins, IReadOnlyList<PsCompanyPreview> Preview, IReadOnlyList<PsIssueResponse> Issues);
 public sealed record PsSyncResponse(string CorrelationId, int CompaniesConsidered, int SnapshotSucceeded, int HistorySucceeded, int Failed, int Unchanged, IReadOnlyList<PsIssueResponse> Issues);
 public sealed record PsReadResponse(Guid CompanyId, string CompletenessStatus, string GaugeRenderabilityStatus, DateOnly? SnapshotObservationDate, DateTimeOffset? LastSnapshotSyncAtUtc, DateTimeOffset? LastHistorySyncAtUtc, IReadOnlyList<string> WarningCodes, int ActiveHistoryPointCount);

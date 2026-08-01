@@ -3,17 +3,17 @@
   "fixtures": [
     {
       "file": "circle-chart-data.json",
-      "endpointTemplate": "/api/ps/circle-chart-data/{companyIsin}",
+      "endpointTemplate": "/api/ps/circle-chart-data/{symbolIsin}",
       "sha256": "f53dce88d2bac772ebf87ce00a9523bf54ba670f4cf9761df34357b37a254a7f"
     },
     {
       "file": "ps-data.json",
-      "endpointTemplate": "/api/ps-data/{companyIsin}",
+      "endpointTemplate": "/api/ps-data/{symbolIsin}",
       "sha256": "d1089d3ccc2c6c64d45d74b018dfc95dd17678cc218e296b78534f741d65ee85"
     },
     {
       "file": "ps-history.sample.json",
-      "endpointTemplate": "/api/ps/{companyIsin}",
+      "endpointTemplate": "/api/ps/{symbolIsin}",
       "sha256": "a097a165085341871bc05a6d23defa8d7c87cdeaa0f879de5e5d931501a69e63"
     }
   ],

@@ -5,6 +5,7 @@ import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
+import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import { consolidationLabel, disclosureTypeLabels, formatDisclosurePublicationDate, formatDisclosureReceiptDate } from "@/lib/format/disclosure";
 
@@ -123,7 +124,14 @@ function AssistantBlock({
         )}
 
         {block.monthlyActivityTrendResult && (
-          <MonthlyActivityTrendChart data={block.monthlyActivityTrendResult} />
+          <MonthlyActivityTrendChart
+            data={block.monthlyActivityTrendResult}
+            psGauge={block.psVisualizationResult}
+          />
+        )}
+
+        {block.psVisualizationResult && !block.monthlyActivityTrendResult && (
+          <PsGauge data={block.psVisualizationResult} />
         )}
 
         {block.disclosureListingResult && (

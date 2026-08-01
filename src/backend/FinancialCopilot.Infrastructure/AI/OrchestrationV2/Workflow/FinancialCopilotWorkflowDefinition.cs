@@ -17,6 +17,8 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Agents.AI.Workflows.InProc;
 using Microsoft.Agents.AI.Workflows.Observability;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 
@@ -48,6 +50,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IDisclosureListingUseCase disclosureListingUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
     IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
+    IOptions<CyclicalWavesPsVisualizationOptions> psVisualizationOptions,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
@@ -363,6 +366,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 new MonthlyActivityTrendQuery(request.Message, symbol),
                 ct);
 
+            // The monthly-sales chart can optionally be enriched with the persisted
+            // P/S gauge.  The flag was previously configured but never consumed,
+            // leaving the frontend with no PsVisualizationResult to render.
+            PsVisualizationResult? monthlyTrendGauge = null;
+            if (monthlyActivityTrendResult is not null &&
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+            {
+                monthlyTrendGauge = await psVisualizationExperienceUseCase.ExecuteAsync(
+                    new PsVisualizationQuery(symbol, IncludeHistory: false), ct);
+            }
+
             UsageAccountingResult? trendUsage = null;
             if (msg.Reservation is not null)
             {
@@ -380,7 +394,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
                 scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
-                monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage);
+                monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage,
+                PsVisualizationResult: monthlyTrendGauge);
         }
 
         var isProductRevenueMix = ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message);

@@ -1,4 +1,5 @@
 import type { MonthlyTrendChartCardViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
+import type { PsVisualizationResult } from "@/lib/chat.functions";
 
 const WIDTH = 1800;
 const PADDING = 90;
@@ -6,7 +7,7 @@ const PLOT_TOP = 230;
 const PLOT_HEIGHT = 680;
 
 /** Renders only the canonical trend-card view model; it never requests or derives financial data. */
-export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChartCardViewModel) {
+export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChartCardViewModel, psGauge?: PsVisualizationResult) {
   const explanationHeight = Math.max(140, viewModel.explanationLines.length * 44 + 90);
   const height = PLOT_TOP + PLOT_HEIGHT + explanationHeight + PADDING;
   const canvas = document.createElement("canvas");
@@ -28,6 +29,7 @@ export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChar
   context.fillStyle = palette.mutedForeground;
   drawRtlText(context, `واحد: ${viewModel.unitLabel}`, WIDTH - PADDING, 126);
 
+  if (psGauge) drawCompactGauge(context, psGauge, PADDING + 160, 145, palette);
   drawLegend(context, viewModel, WIDTH - PADDING, 170);
   const values = points.flatMap((point) => [point.currentYear, point.previousYear, point.average])
     .filter((value): value is number => value !== null);
@@ -84,6 +86,40 @@ export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChar
   link.download = `روند-فروش-ماهانه-${viewModel.companyLabel.replaceAll(/[\\/:*?"<>|]/g, "-")}-${date}.png`;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function drawCompactGauge(context: CanvasRenderingContext2D, data: PsVisualizationResult, centerX: number, baselineY: number, palette: MonthlyTrendChartCardViewModel["palette"]) {
+  if (data.gaugeBands.length === 0 || !data.needle) return;
+  const colors = ["#00b900", "#45ed4d", "#9cf59f", "#ffaaaa", "#ff6268", "#f00000"];
+  const outer = 125, inner = 68;
+  const point = (angle: number, radius: number) => {
+    const radians = ((180 - angle) * Math.PI) / 180;
+    return [centerX + radius * Math.cos(radians), baselineY - radius * Math.sin(radians)] as const;
+  };
+  data.gaugeBands.forEach((band, index) => {
+    const start = point(band.startAngleDegrees, outer), end = point(band.endAngleDegrees, outer);
+    const innerEnd = point(band.endAngleDegrees, inner), innerStart = point(band.startAngleDegrees, inner);
+    context.beginPath(); context.moveTo(start[0], start[1]);
+    context.arc(centerX, baselineY, outer, (180 - band.startAngleDegrees) * Math.PI / 180, (180 - band.endAngleDegrees) * Math.PI / 180, true);
+    context.lineTo(innerEnd[0], innerEnd[1]);
+    context.arc(centerX, baselineY, inner, (180 - band.endAngleDegrees) * Math.PI / 180, (180 - band.startAngleDegrees) * Math.PI / 180, false);
+    context.lineTo(innerStart[0], innerStart[1]); context.closePath();
+    context.fillStyle = colors[index] ?? colors[0]; context.fill();
+  });
+  const axisMin = data.gaugeBands[0]?.lowerBoundary;
+  const axisMax = data.gaugeBands[data.gaugeBands.length - 1]?.upperBoundary;
+  if (data.forwardPs.value !== undefined && axisMin !== undefined && axisMax !== undefined && axisMax > axisMin) {
+    const forwardAngle = Math.max(0, Math.min(180, ((data.forwardPs.value - axisMin) / (axisMax - axisMin)) * 180));
+    const markerInner = point(forwardAngle, 96), markerOuter = point(forwardAngle, 121);
+    context.strokeStyle = "#2563eb"; context.lineWidth = 4; context.setLineDash([8, 6]);
+    context.beginPath(); context.moveTo(markerInner[0], markerInner[1]); context.lineTo(markerOuter[0], markerOuter[1]); context.stroke(); context.setLineDash([]);
+  }
+  const needle = point(data.needle.angleDegrees, 112);
+  context.strokeStyle = "#111827"; context.lineWidth = 4;
+  context.beginPath(); context.moveTo(centerX, baselineY); context.lineTo(needle[0], needle[1]); context.stroke();
+  context.fillStyle = "#111827"; context.beginPath(); context.arc(centerX, baselineY, 6, 0, Math.PI * 2); context.fill();
+  context.fillStyle = palette.foreground; context.font = '18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'; context.textAlign = "center";
+  drawRtlText(context, `TTM: ${data.ttmPs.value?.toFixed(2) ?? "—"}`, centerX, baselineY + 38);
 }
 
 function drawLegend(context: CanvasRenderingContext2D, viewModel: MonthlyTrendChartCardViewModel, right: number, y: number) {

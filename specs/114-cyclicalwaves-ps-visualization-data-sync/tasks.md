@@ -9,11 +9,11 @@ All tasks are specification-only and remain unimplemented.
 
 Create token-free contract fixtures for:
 
-/api/ps/circle-chart-data/{companyIsin};
+/api/ps/circle-chart-data/{symbolIsin};
 
-/api/ps-data/{companyIsin};
+/api/ps-data/{symbolIsin};
 
-/api/ps/{companyIsin}.
+/api/ps/{symbolIsin}.
 
 Acceptance:
 
@@ -111,7 +111,7 @@ Secrets and full payloads never appear in application-facing exceptions.
 
 ## [ ] Task 6 - Implement Eligible Scope Normalization
 
-Read CompanyId and CompanyIsin from NoavaranEligibleCompanies, normalize the scope, and reportidentity issues.
+Read CompanyId and SymbolIsin from NoavaranEligibleCompanies, restricted to MarketId values `037c69ad-f519-419f-ae62-59003b6b2428` and `a3ccb30a-caed-4f26-a84a-ac0eb8c78c76`. Normalize the scope and report identity issues. Use SymbolIsin for every CyclicalWaves P/S provider request.
 
 Acceptance:
 

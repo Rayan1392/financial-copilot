@@ -71,27 +71,36 @@ public sealed class CyclicalWavesDataProviderClient(
         }
     }
 
-    public async Task<PsProviderResult<PsGaugeDistribution>> GetGaugeAsync(string companyIsin, CancellationToken cancellationToken)
+    public async Task<PsProviderResult<PsGaugeDistribution>> GetGaugeAsync(string symbolIsin, CancellationToken cancellationToken)
     {
-        var result = await GetPsAsync<CyclicalWavesPsGaugePayload>($"ps/circle-chart-data/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
+        var result = await GetPsAsync<CyclicalWavesPsGaugePayload>($"ps/circle-chart-data/{Uri.EscapeDataString(RequireTicker(symbolIsin))}", cancellationToken);
         return result.Value is null
             ? new PsProviderResult<PsGaugeDistribution>(null, result.ErrorCode, result.WarningCode)
             : new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(result.Value.A, result.Value.B, result.Value.C, result.Value.D, result.Value.E, result.Value.F, result.Value.Close, result.Value.Start, result.Value.Min, result.Value.Average, result.Value.Max, result.Value.End), result.ErrorCode, result.WarningCode);
     }
 
-    public async Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string companyIsin, CancellationToken cancellationToken)
+    public async Task<PsProviderResult<PsCurrentValues>> GetCurrentValuesAsync(string symbolIsin, CancellationToken cancellationToken)
     {
-        var result = await GetPsAsync<CyclicalWavesPsCurrentPayload>($"ps-data/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
-        var value = result.Value;
+        var result = await GetPsAsync<CyclicalWavesPsCurrentEnvelope>($"ps-data/{Uri.EscapeDataString(RequireTicker(symbolIsin))}", cancellationToken);
+        var value = result.Value?.Data;
         if (value is null) return new PsProviderResult<PsCurrentValues>(null, result.ErrorCode, result.WarningCode);
-        if (string.IsNullOrWhiteSpace(value.Ticker) || value.PsRatio is null || value.Close is null || value.Date is null)
+        if (string.IsNullOrWhiteSpace(value.Ticker) || value.PsRatio is null || value.Date is null)
             return new PsProviderResult<PsCurrentValues>(null, PsVisualizationSyncErrorCode.InvalidJsonOrContract, "RequiredCurrentValueFieldMissing");
-        return new PsProviderResult<PsCurrentValues>(new PsCurrentValues(value.Symbol?.Trim() ?? string.Empty, value.Ticker.Trim(), value.PsRatio.Value, value.Close.Value, value.Date.Value), PsVisualizationSyncErrorCode.None);
+        return new PsProviderResult<PsCurrentValues>(new PsCurrentValues(value.Symbol?.Trim() ?? string.Empty, value.Ticker.Trim(), value.PsRatio.Value, 0m, value.Date.Value), PsVisualizationSyncErrorCode.None);
     }
 
-    public async Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string companyIsin, CancellationToken cancellationToken)
+    public async Task<PsProviderResult<PsForwardValues>> GetForwardValuesAsync(string companySymbol, CancellationToken cancellationToken)
     {
-        var result = await GetPsAsync<CyclicalWavesPsHistoryPayload>($"ps/{Uri.EscapeDataString(RequireTicker(companyIsin))}", cancellationToken);
+        var result = await GetPsAsync<CyclicalWavesPsForwardEnvelope>($"futureprediction/{Uri.EscapeDataString(RequireTicker(companySymbol))}", cancellationToken);
+        var value = result.Value?.Data;
+        if (value is null || !result.Value!.Success || string.IsNullOrWhiteSpace(value.Symbol) || value.Ps is null)
+            return new PsProviderResult<PsForwardValues>(null, result.ErrorCode == PsVisualizationSyncErrorCode.None ? PsVisualizationSyncErrorCode.InvalidJsonOrContract : result.ErrorCode, result.WarningCode);
+        return new PsProviderResult<PsForwardValues>(new PsForwardValues(value.Symbol.Trim(), value.Ps.Value), PsVisualizationSyncErrorCode.None);
+    }
+
+    public async Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string symbolIsin, CancellationToken cancellationToken)
+    {
+        var result = await GetPsAsync<CyclicalWavesPsHistoryPayload>($"ps/{Uri.EscapeDataString(RequireTicker(symbolIsin))}", cancellationToken);
         var value = result.Value;
         if (value is null) return new PsProviderResult<PsHistorySeries>(null, result.ErrorCode, result.WarningCode);
         if (value.Data is null || value.Data.Count > _settings.PsMaxHistoryPointsPerCompany)
@@ -111,6 +120,10 @@ public sealed class CyclicalWavesDataProviderClient(
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.Accept.ParseAdd("application/json, text/plain, */*");
+            request.Headers.TryAddWithoutValidation("Origin", "https://tahlilapp.com");
+            request.Headers.Referrer = new Uri("https://tahlilapp.com/");
+            request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
                 return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.NotFoundOrNoData);

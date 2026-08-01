@@ -6,8 +6,27 @@ import type { Components } from "react-markdown";
 const MONTHLY_SALES_QUALITY_RANKING_HEADER =
   "| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |";
 
+const FINANCIAL_STATEMENT_MARKERS = ["خلاصه سود و زیان", "صورت مالی", "درآمد عملیاتی", "سود/زیان"];
+
 function isMonthlySalesQualityRankingMarkdown(content: string): boolean {
   return content.includes(MONTHLY_SALES_QUALITY_RANKING_HEADER);
+}
+
+function isFinancialStatementMarkdown(content: string): boolean {
+  return FINANCIAL_STATEMENT_MARKERS.some((marker) => content.includes(marker));
+}
+
+function formatFinancialStatementMarkdown(content: string): string {
+  return content
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(?:[-*+]\s+|\d+[.)]\s+|\|)/.test(line)) {
+        return line;
+      }
+
+      return line.replace(/([.!؟])\s+(?=(?:✅\s*)?[\u0600-\u06FF])/g, "$1\n\n");
+    })
+    .join("\n");
 }
 
 function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): Components {
@@ -118,18 +137,22 @@ interface Props {
 
 export function MarkdownMessage({ content }: Props) {
   const isMonthlySalesQualityRankingTable = isMonthlySalesQualityRankingMarkdown(content);
+  const isFinancialStatement = isFinancialStatementMarkdown(content);
+  const renderedContent = isFinancialStatement
+    ? formatFinancialStatementMarkdown(content)
+    : content;
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"}`}
-      dir="auto"
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"} ${isFinancialStatement ? "text-right [&_p]:text-right [&_li]:text-right [&_p]:[unicode-bidi:plaintext] [&_li]:[unicode-bidi:plaintext]" : ""}`}
+      dir={isFinancialStatement ? "rtl" : "auto"}
     >
       <Markdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={createMarkdownComponents(isMonthlySalesQualityRankingTable)}
       >
-        {content}
+        {renderedContent}
       </Markdown>
     </div>
   );

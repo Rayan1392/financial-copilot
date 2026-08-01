@@ -32,29 +32,37 @@ public sealed class CyclicalWavesPsSyncOptions
 
 public sealed class NoavaranEligibleCompanyPsScopeReader(FinancialIngestionDbContext dbContext) : IPsEligibleCompanyScopeReader
 {
+    // CyclicalWaves P/S endpoints only publish data for these two eligible markets.
+    // Keep the allow-list at the scope boundary so no provider request is made for
+    // companies outside the supported market universe.
+    private const string SupportedMarketIds =
+        "'037c69ad-f519-419f-ae62-59003b6b2428'::uuid, 'a3ccb30a-caed-4f26-a84a-ac0eb8c78c76'::uuid";
+
     private static readonly Regex IsinPattern = new("^[A-Z0-9]{12}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public async Task<PsEligibleCompanyScope> ReadAsync(int? maxCompanies, CancellationToken cancellationToken)
     {
         var rows = await dbContext.Database.SqlQueryRaw<EligibleCompanyRow>(
-            "SELECT \"Id\" AS \"CompanyId\", \"CompanyIsin\" FROM \"NoavaranEligibleCompanies\"")
+            $"SELECT \"Id\" AS \"CompanyId\", \"SymbolIsin\", \"CompanySymbol\" FROM \"NoavaranEligibleCompanies\" " +
+            $"WHERE \"MarketId\" = ANY (ARRAY[{SupportedMarketIds}])")
             .ToListAsync(cancellationToken);
         var issues = new List<PsScopeIssue>();
         var candidates = new List<PsEligibleCompany>();
         foreach (var row in rows)
         {
-            var isin = NormalizeIsin(row.CompanyIsin);
-            if (isin is null) { issues.Add(new PsScopeIssue(row.CompanyId, row.CompanyIsin, "MissingOrInvalidIsin")); continue; }
-            candidates.Add(new PsEligibleCompany(row.CompanyId, isin));
+            var isin = NormalizeIsin(row.SymbolIsin);
+            if (isin is null) { issues.Add(new PsScopeIssue(row.CompanyId, row.SymbolIsin, "MissingOrInvalidIsin")); continue; }
+            if (string.IsNullOrWhiteSpace(row.CompanySymbol)) { issues.Add(new PsScopeIssue(row.CompanyId, isin, "MissingCompanySymbol")); continue; }
+            candidates.Add(new PsEligibleCompany(row.CompanyId, isin, row.CompanySymbol.Trim()));
         }
         var distinct = candidates.Distinct().ToArray();
-        foreach (var group in distinct.GroupBy(x => x.CompanyId).Where(x => x.Select(i => i.CompanyIsin).Distinct(StringComparer.Ordinal).Count() > 1))
-            foreach (var item in group) issues.Add(new PsScopeIssue(item.CompanyId, item.CompanyIsin, "CompanyMappedToMultipleIsins"));
-        foreach (var group in distinct.GroupBy(x => x.CompanyIsin, StringComparer.Ordinal).Where(x => x.Select(i => i.CompanyId).Distinct().Count() > 1))
-            foreach (var item in group) issues.Add(new PsScopeIssue(item.CompanyId, item.CompanyIsin, "IsinMappedToMultipleCompanies"));
+        foreach (var group in distinct.GroupBy(x => x.CompanyId).Where(x => x.Select(i => i.SymbolIsin).Distinct(StringComparer.Ordinal).Count() > 1))
+            foreach (var item in group) issues.Add(new PsScopeIssue(item.CompanyId, item.SymbolIsin, "CompanyMappedToMultipleIsins"));
+        foreach (var group in distinct.GroupBy(x => x.SymbolIsin, StringComparer.Ordinal).Where(x => x.Select(i => i.CompanyId).Distinct().Count() > 1))
+            foreach (var item in group) issues.Add(new PsScopeIssue(item.CompanyId, item.SymbolIsin, "IsinMappedToMultipleCompanies"));
         var conflictedCompanies = issues.Where(x => x.CompanyId.HasValue && x.Code != "MissingOrInvalidIsin").Select(x => x.CompanyId!.Value).ToHashSet();
-        var conflictedIsins = issues.Where(x => x.CompanyIsin is not null && x.Code != "MissingOrInvalidIsin").Select(x => x.CompanyIsin!).ToHashSet(StringComparer.Ordinal);
-        var valid = distinct.Where(x => !conflictedCompanies.Contains(x.CompanyId) && !conflictedIsins.Contains(x.CompanyIsin))
+        var conflictedIsins = issues.Where(x => x.SymbolIsin is not null && x.Code != "MissingOrInvalidIsin").Select(x => x.SymbolIsin!).ToHashSet(StringComparer.Ordinal);
+        var valid = distinct.Where(x => !conflictedCompanies.Contains(x.CompanyId) && !conflictedIsins.Contains(x.SymbolIsin))
             .OrderBy(x => x.CompanyId).Take(maxCompanies is > 0 ? maxCompanies.Value : int.MaxValue).ToArray();
         return new PsEligibleCompanyScope(rows.Count, candidates.Count - distinct.Length, rows.Count - candidates.Count, valid, issues);
     }
@@ -65,7 +73,7 @@ public sealed class NoavaranEligibleCompanyPsScopeReader(FinancialIngestionDbCon
         return normalized is not null && IsinPattern.IsMatch(normalized) ? normalized : null;
     }
 
-    private sealed class EligibleCompanyRow { public Guid CompanyId { get; set; } public string? CompanyIsin { get; set; } }
+    private sealed class EligibleCompanyRow { public Guid CompanyId { get; set; } public string? SymbolIsin { get; set; } public string? CompanySymbol { get; set; } }
 }
 
 public sealed class CyclicalWavesPsVisualizationSyncService(
@@ -104,8 +112,9 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
             {
                 if (!request.HistoryOnly)
                 {
-                    var changed = await SyncSnapshotAsync(company, correlationId, deadline.Token);
-                    if (changed) snapshotSucceeded++; else unchanged++;
+                    var snapshot = await SyncSnapshotAsync(company, correlationId, deadline.Token);
+                    if (snapshot.Changed) snapshotSucceeded++; else unchanged++;
+                    if (snapshot.ClientError) continue;
                 }
                 if (!request.SnapshotOnly && await IsHistoryDueAsync(company.CompanyId, deadline.Token))
                 {
@@ -152,61 +161,88 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
                 snapshot.BucketD, snapshot.BucketE, snapshot.BucketF, snapshot.LastSyncedAtUtc));
     }
 
-    private async Task<bool> SyncSnapshotAsync(PsEligibleCompany company, string correlationId, CancellationToken token)
+    private sealed record SnapshotSyncOutcome(bool Changed, bool ClientError);
+
+    private async Task<SnapshotSyncOutcome> SyncSnapshotAsync(PsEligibleCompany company, string correlationId, CancellationToken token)
     {
         var now = clock.GetUtcNow();
-        var gaugeTask = provider.GetGaugeAsync(company.CompanyIsin, token);
-        var currentTask = provider.GetCurrentValuesAsync(company.CompanyIsin, token);
-        await Task.WhenAll(gaugeTask, currentTask);
-        var gaugeResult = await gaugeTask; var currentResult = await currentTask;
         var state = await GetOrCreateStateAsync(company, token);
-        state.LastGaugeAttemptAtUtc = now; state.LastCurrentValuesAttemptAtUtc = now;
-        if (!gaugeResult.IsSuccess || !currentResult.IsSuccess)
+        state.LastGaugeAttemptAtUtc = now;
+        var gaugeResult = await provider.GetGaugeAsync(company.SymbolIsin, token);
+        if (!gaugeResult.IsSuccess && gaugeResult.IsClientError)
+        {
+            state.ConsecutiveGaugeFailures++;
+            state.LastErrorCode = gaugeResult.ErrorCode.ToString();
+            await db.SaveChangesAsync(token);
+            return new SnapshotSyncOutcome(false, true);
+        }
+
+        state.LastCurrentValuesAttemptAtUtc = now;
+        var currentResult = await provider.GetCurrentValuesAsync(company.SymbolIsin, token);
+        if (!currentResult.IsSuccess && currentResult.IsClientError)
+        {
+            state.ConsecutiveGaugeFailures += gaugeResult.IsSuccess ? 0 : 1;
+            state.ConsecutiveCurrentValuesFailures++;
+            state.LastErrorCode = currentResult.ErrorCode.ToString();
+            await db.SaveChangesAsync(token);
+            return new SnapshotSyncOutcome(false, true);
+        }
+
+        var forwardResult = await provider.GetForwardValuesAsync(company.CompanySymbol, token);
+        if (!forwardResult.IsSuccess && forwardResult.IsClientError)
+        {
+            state.LastErrorCode = forwardResult.ErrorCode.ToString();
+            await db.SaveChangesAsync(token);
+            return new SnapshotSyncOutcome(false, true);
+        }
+
+        if (!gaugeResult.IsSuccess || !currentResult.IsSuccess || !forwardResult.IsSuccess)
         {
             state.ConsecutiveGaugeFailures += gaugeResult.IsSuccess ? 0 : 1;
             state.ConsecutiveCurrentValuesFailures += currentResult.IsSuccess ? 0 : 1;
-            state.LastErrorCode = (!gaugeResult.IsSuccess ? gaugeResult.ErrorCode : currentResult.ErrorCode).ToString();
-            await db.SaveChangesAsync(token); return false;
+            state.LastErrorCode = (!gaugeResult.IsSuccess ? gaugeResult.ErrorCode : !currentResult.IsSuccess ? currentResult.ErrorCode : forwardResult.ErrorCode).ToString();
+            await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
-        var gauge = gaugeResult.Value!; var current = currentResult.Value!;
-        if (!string.Equals(current.Ticker.Trim(), company.CompanyIsin, StringComparison.OrdinalIgnoreCase))
+        var gauge = gaugeResult.Value!; var current = currentResult.Value! with { ForwardPsRatio = forwardResult.Value!.ForwardPsRatio };
+        if (!string.Equals(current.Ticker.Trim(), company.SymbolIsin, StringComparison.OrdinalIgnoreCase))
         {
-            state.LastErrorCode = PsVisualizationSyncErrorCode.IdentityMismatch.ToString(); await db.SaveChangesAsync(token); return false;
+            state.LastErrorCode = PsVisualizationSyncErrorCode.IdentityMismatch.ToString(); await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
         if (!IsRatioSane(current.TtmPsRatio) || !IsRatioSane(current.ForwardPsRatio) || !IsRatioSane(gauge.GaugeClose))
         {
-            state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return false;
+            state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
         if (new[] { gauge.BucketA, gauge.BucketB, gauge.BucketC, gauge.BucketD, gauge.BucketE, gauge.BucketF }.Any(x => x < 0) ||
             gauge.BoundaryMax <= gauge.BoundaryMin)
         {
-            state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return false;
+            state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
         long total;
         try { total = checked(checked(checked(checked(checked(gauge.BucketA + gauge.BucketB) + gauge.BucketC) + gauge.BucketD) + gauge.BucketE) + gauge.BucketF); }
-        catch (OverflowException) { state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return false; }
+        catch (OverflowException) { state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false); }
         var renderability = total <= 0 ? GaugeRenderabilityStatus.InvalidBucketTotal : GaugeRenderabilityStatus.Renderable;
         var warnings = new List<string>(); if (total <= 0) warnings.Add("InvalidBucketTotal");
         var normalizedHash = HashSnapshot(company, gauge, current);
         var existing = await db.CompanyPsGaugeSnapshots.SingleOrDefaultAsync(x => x.ProviderName == ProviderName && x.CompanyId == company.CompanyId && x.ObservationDate == current.ObservationDate, token);
         if (existing is not null && existing.NormalizedSnapshotHash == normalizedHash)
         {
-            state.LastGaugeSuccessAtUtc = now; state.LastCurrentValuesSuccessAtUtc = now; state.ConsecutiveGaugeFailures = 0; state.ConsecutiveCurrentValuesFailures = 0; await db.SaveChangesAsync(token); return false;
+            state.LastGaugeSuccessAtUtc = now; state.LastCurrentValuesSuccessAtUtc = now; state.ConsecutiveGaugeFailures = 0; state.ConsecutiveCurrentValuesFailures = 0; state.LastErrorCode = null; state.LastWarningCodesJson = "[]"; await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(false, false);
         }
         var row = existing ?? new CompanyPsGaugeSnapshotRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, ObservationDate = current.ObservationDate, FirstSeenAtUtc = now };
-        row.SourceCompanyIsin = company.CompanyIsin; row.TtmPsRatio = current.TtmPsRatio; row.ForwardPsRatio = current.ForwardPsRatio; row.GaugeClose = gauge.GaugeClose;
+        row.SourceCompanyIsin = company.SymbolIsin; row.TtmPsRatio = current.TtmPsRatio; row.ForwardPsRatio = current.ForwardPsRatio; row.GaugeClose = gauge.GaugeClose;
         row.BoundaryStart = gauge.BoundaryStart; row.BoundaryMin = gauge.BoundaryMin; row.BoundaryAverage = gauge.BoundaryAverage; row.BoundaryMax = gauge.BoundaryMax; row.BoundaryEnd = gauge.BoundaryEnd;
         row.BucketA = gauge.BucketA; row.BucketB = gauge.BucketB; row.BucketC = gauge.BucketC; row.BucketD = gauge.BucketD; row.BucketE = gauge.BucketE; row.BucketF = gauge.BucketF; row.BucketTotal = total;
         row.ProviderSymbol = current.Symbol; row.GaugeFetchedAtUtc = now; row.CurrentValuesFetchedAtUtc = now; row.LastSyncedAtUtc = now; row.CompletenessStatus = PsVisualizationComponentStatus.Complete.ToString(); row.GaugeRenderabilityStatus = renderability.ToString(); row.QualityStatus = "Valid"; row.QualityWarningsJson = JsonSerializer.Serialize(warnings); row.GaugePayloadHash = HashGauge(gauge); row.CurrentValuesPayloadHash = HashCurrent(current); row.NormalizedSnapshotHash = normalizedHash;
         if (existing is null) db.CompanyPsGaugeSnapshots.Add(row);
         state.LastSuccessfulSnapshotId = row.Id; state.LastSuccessfulSnapshotDate = row.ObservationDate; state.LastGaugeSuccessAtUtc = now; state.LastCurrentValuesSuccessAtUtc = now; state.ConsecutiveGaugeFailures = 0; state.ConsecutiveCurrentValuesFailures = 0; state.LastWarningCodesJson = JsonSerializer.Serialize(warnings); state.LastSuccessfulCorrelationId = correlationId;
-        await db.SaveChangesAsync(token); return true;
+        state.LastErrorCode = null;
+        await db.SaveChangesAsync(token); return new SnapshotSyncOutcome(true, false);
     }
 
     private async Task<bool> SyncHistoryAsync(PsEligibleCompany company, string correlationId, CancellationToken token)
     {
         var now = clock.GetUtcNow(); var state = await GetOrCreateStateAsync(company, token); state.LastHistoryAttemptAtUtc = now;
-        var result = await provider.GetHistoryAsync(company.CompanyIsin, token);
+        var result = await provider.GetHistoryAsync(company.SymbolIsin, token);
         if (!result.IsSuccess) { state.ConsecutiveHistoryFailures++; state.LastErrorCode = result.ErrorCode.ToString(); await db.SaveChangesAsync(token); return false; }
         var series = result.Value!;
         if (series.Points.Count > _options.MaxHistoryPointsPerCompany || series.Points.Any(x => !IsRatioSane(x.PsRatio))) { state.LastErrorCode = PsVisualizationSyncErrorCode.DataQualityRejected.ToString(); await db.SaveChangesAsync(token); return false; }
@@ -224,7 +260,7 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
         await using var transaction = await db.Database.BeginTransactionAsync(token);
         foreach (var point in normalized)
         {
-            if (!existingById.TryGetValue(point.ProviderPointId, out var row)) { row = new CompanyPsHistoryPointRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, ProviderPointId = point.ProviderPointId, ObservationDate = point.ObservationDate, PsRatio = point.PsRatio, SourceCompanyIsin = company.CompanyIsin, FirstSeenAtUtc = now }; db.CompanyPsHistoryPoints.Add(row); }
+            if (!existingById.TryGetValue(point.ProviderPointId, out var row)) { row = new CompanyPsHistoryPointRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, ProviderPointId = point.ProviderPointId, ObservationDate = point.ObservationDate, PsRatio = point.PsRatio, SourceCompanyIsin = company.SymbolIsin, FirstSeenAtUtc = now }; db.CompanyPsHistoryPoints.Add(row); }
             row.LastSeenAtUtc = now; row.SourcePayloadHash = hash;
             if (metadataMatches) { row.IsActiveInLatestSuccessfulSeries = true; row.LastSeenInSuccessfulSeriesAtUtc = now; }
         }
@@ -236,12 +272,12 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
 
     private Task<bool> IsHistoryDueAsync(Guid companyId, CancellationToken token) => db.CompanyPsSeriesSyncStates.AsNoTracking().Where(x => x.CompanyId == companyId && x.ProviderName == ProviderName).Select(x => !x.NextEligibleHistoryRefreshAtUtc.HasValue || x.NextEligibleHistoryRefreshAtUtc <= clock.GetUtcNow()).SingleOrDefaultAsync(token);
     private async Task<CompanyPsSeriesSyncStateRow> GetOrCreateStateAsync(PsEligibleCompany company, CancellationToken token) => await db.CompanyPsSeriesSyncStates.SingleOrDefaultAsync(x => x.CompanyId == company.CompanyId && x.ProviderName == ProviderName, token) ?? AddState(company);
-    private CompanyPsSeriesSyncStateRow AddState(PsEligibleCompany company) { var state = new CompanyPsSeriesSyncStateRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, SourceCompanyIsin = company.CompanyIsin }; db.CompanyPsSeriesSyncStates.Add(state); return state; }
+    private CompanyPsSeriesSyncStateRow AddState(PsEligibleCompany company) { var state = new CompanyPsSeriesSyncStateRow { Id = Guid.NewGuid(), CompanyId = company.CompanyId, ProviderName = ProviderName, SourceCompanyIsin = company.SymbolIsin }; db.CompanyPsSeriesSyncStates.Add(state); return state; }
     private bool IsRatioSane(decimal value) => value >= -_options.MaximumAbsoluteRatio && value <= _options.MaximumAbsoluteRatio;
     private static IReadOnlyList<string> ParseWarnings(string json) { try { return JsonSerializer.Deserialize<string[]>(json) ?? Array.Empty<string>(); } catch (JsonException) { return new[] { "InvalidStoredWarnings" }; } }
     private static string HashGauge(PsGaugeDistribution x) => Hash(string.Join('|', x.BucketA, x.BucketB, x.BucketC, x.BucketD, x.BucketE, x.BucketF, D(x.GaugeClose), D(x.BoundaryStart), D(x.BoundaryMin), D(x.BoundaryAverage), D(x.BoundaryMax), D(x.BoundaryEnd)));
     private static string HashCurrent(PsCurrentValues x) => Hash($"{x.Ticker.Trim().ToUpperInvariant()}|{D(x.TtmPsRatio)}|{D(x.ForwardPsRatio)}|{x.ObservationDate:yyyy-MM-dd}");
-    private static string HashSnapshot(PsEligibleCompany company, PsGaugeDistribution gauge, PsCurrentValues current) => Hash($"{company.CompanyId:D}|{company.CompanyIsin}|{HashGauge(gauge)}|{HashCurrent(current)}");
+    private static string HashSnapshot(PsEligibleCompany company, PsGaugeDistribution gauge, PsCurrentValues current) => Hash($"{company.CompanyId:D}|{company.SymbolIsin}|{HashGauge(gauge)}|{HashCurrent(current)}");
     private static string HashHistory(IEnumerable<PsHistoryPoint> points, PsHistorySeries series) => Hash(string.Join('\n', points.OrderBy(x => x.ObservationDate).ThenBy(x => x.ProviderPointId, StringComparer.Ordinal).Select(x => $"{x.ProviderPointId}|{x.ObservationDate:yyyy-MM-dd}|{D(x.PsRatio)}").Append($"meta|{series.DeclaredFirstDate:yyyy-MM-dd}|{series.DeclaredLastDate:yyyy-MM-dd}|{series.DeclaredCount}")));
     private static string D(decimal value) => value.ToString("G29", CultureInfo.InvariantCulture);
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

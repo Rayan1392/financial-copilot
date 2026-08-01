@@ -13,13 +13,16 @@ import {
 import { useEffect, useState } from "react";
 import type {
   MonthlyActivityTrendResult,
+  PsVisualizationResult,
 } from "@/lib/chat.functions";
+import { PsGauge } from "@/components/app/ps-gauge";
 import { toPersianDigits } from "@/lib/format/persian";
 import { createMonthlyTrendChartCardViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
 import { downloadMonthlyTrendChartImage } from "@/components/app/monthly-activity-trend-chart-image";
 
 interface Props {
   data: MonthlyActivityTrendResult;
+  psGauge?: PsVisualizationResult;
 }
 
 function formatAmount(value: number | null | undefined): string {
@@ -102,7 +105,7 @@ function useInteractiveChartTheme() {
   return theme;
 }
 
-export function MonthlyActivityTrendChart({ data }: Props) {
+export function MonthlyActivityTrendChart({ data, psGauge }: Props) {
   const theme = useInteractiveChartTheme();
   const viewModel = createMonthlyTrendChartCardViewModel(data, theme);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -123,7 +126,7 @@ export function MonthlyActivityTrendChart({ data }: Props) {
     setDownloadError(null);
     try {
       const theme = document.documentElement.classList.contains("light") ? "light" : "dark";
-      await downloadMonthlyTrendChartImage(createMonthlyTrendChartCardViewModel(data, theme));
+      await downloadMonthlyTrendChartImage(createMonthlyTrendChartCardViewModel(data, theme), psGauge);
     } catch {
       setDownloadError("دریافت تصویر نمودار با خطا مواجه شد. لطفاً دوباره تلاش کنید.");
     } finally {
@@ -134,6 +137,11 @@ export function MonthlyActivityTrendChart({ data }: Props) {
   return (
     <div className="rounded-2xl ring-1 ring-hairline bg-surface/40 p-4 space-y-3" dir="rtl">
       <div className="flex flex-wrap items-start justify-between gap-3">
+        {psGauge && (
+          <div className="w-full max-w-[220px] shrink-0">
+            <PsGauge data={psGauge} />
+          </div>
+        )}
         <div className="space-y-0.5">
           <h3 className="text-sm font-medium text-foreground">{viewModel.title} {viewModel.companyLabel}</h3>
           <p className="text-[11px] text-muted-foreground">{`واحد: ${viewModel.unitLabel}`}</p>

@@ -65,6 +65,20 @@ describe("MarkdownMessage", () => {
     expect(bolds[1].textContent).toBe("7.88");
   });
 
+  it("formats financial-statement sentences as separate RTL, right-aligned blocks", () => {
+    const content =
+      "درآمد عملیاتی ۳ ماهه نسبت به دوره مشابه ۱۰٪ تغییر کرده است. ✅ سود/زیان ناخالص به ۲۰۰ میلیون ریال رسیده است.";
+    const { container } = render(<MarkdownMessage content={content} />);
+    const wrapper = container.firstElementChild;
+    const paragraphs = container.querySelectorAll("p");
+
+    expect(wrapper?.getAttribute("dir")).toBe("rtl");
+    expect(wrapper?.className).toContain("text-right");
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0].textContent).toContain("تغییر کرده است.");
+    expect(paragraphs[1].textContent).toContain("سود/زیان ناخالص");
+  });
+
   it("renders empty content without throwing", () => {
     const { container } = render(<MarkdownMessage content="" />);
     expect(container).not.toBeNull();

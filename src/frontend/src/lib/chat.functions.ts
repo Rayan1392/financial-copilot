@@ -30,6 +30,7 @@ export interface AssistantChatBlock {
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   disclosureListingResult?: DisclosureListingResult;
+  psVisualizationResult?: PsVisualizationResult;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -53,6 +54,27 @@ export interface DisclosureListingResult {
   hasNextPage: boolean;
   coverageStatus: string;
   freshnessReasonCode: string;
+}
+
+export interface PsVisualizationResult {
+  companySymbol: string;
+  companyName?: string;
+  status: string;
+  gaugeRenderabilityStatus: string;
+  ttmPs: { value?: number; state: string };
+  forwardPs: { value?: number; state: string };
+  gaugeClose: { value?: number; state: string };
+  gaugeBands: Array<{
+    order: number;
+    role: string;
+    exactPercentage: number;
+    displayPercentage: number;
+    lowerBoundary: number;
+    upperBoundary: number;
+    startAngleDegrees: number;
+    endAngleDegrees: number;
+  }>;
+  needle?: { sourceValue: number; normalizedPosition: number; angleDegrees: number; bandOrder: number };
 }
 
 export interface MonthlyActivityTrendResult {
@@ -152,6 +174,7 @@ interface AssistantContentResponse {
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   disclosureListingResult?: DisclosureListingResult;
+  psVisualizationResult?: PsVisualizationResult;
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -310,6 +333,7 @@ function mapAssistantBlock(
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
+    psVisualizationResult: content?.psVisualizationResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {

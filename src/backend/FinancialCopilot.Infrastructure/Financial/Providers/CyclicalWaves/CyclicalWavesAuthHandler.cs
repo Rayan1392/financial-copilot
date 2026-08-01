@@ -27,28 +27,9 @@ public sealed class CyclicalWavesAuthHandler(
 
         var response = await base.SendAsync(request, cancellationToken);
 
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-        {
-            return response;
-        }
-
-        response.Dispose();
-        tokenCache.Invalidate();
-
-        await LoginAsync(cancellationToken);
-        AddBearerHeader(request);
-
-        var retryResponse = await base.SendAsync(request, cancellationToken);
-
-        if (retryResponse.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            retryResponse.Dispose();
-            throw new FinancialProviderException(
-                FinancialProviderErrorCode.Unauthorized,
-                "CyclicalWaves re-authentication failed after 401 response.");
-        }
-
-        return retryResponse;
+        // A 4xx response is a definitive rejection for this symbol/request.
+        // Never re-authenticate and replay it.
+        return response;
     }
 
     private async Task EnsureTokenAsync(CancellationToken cancellationToken)

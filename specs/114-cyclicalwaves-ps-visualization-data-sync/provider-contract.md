@@ -5,8 +5,8 @@ server request through the existing CyclicalWaves pipeline; it does not send bro
 
 | Endpoint | Required fields | Explicit zero | No-data / limits |
 | --- | --- | --- | --- |
-| `ps/circle-chart-data/{isin}` | `a`–`f`, `close`, `start`, `min`, `avg`, `max`, `end` | Valid decimal/count value | 404/204 is `NotFoundOrNoData`; response bytes are bounded before JSON parsing. |
-| `ps-data/{isin}` | `ticker`, `ps_ratio`, `close`, `date` | Valid for both ratios; it is never converted to missing | Returned ticker must ordinally match requested ISIN after trim/case normalization. |
+| `ps/circle-chart-data/{symbolIsin}` | `a`–`f`, `close`, `start`, `min`, `avg`, `max`, `end` | Valid decimal/count value | 404/204 is `NotFoundOrNoData`; response bytes are bounded before JSON parsing. |
+| `ps-data/{symbolIsin}` | `data.ticker`, `data.ps_ratio`, `data.close`, `data.date` | Valid for both ratios; it is never converted to missing | Returned ticker must ordinally match requested SymbolIsin after trim/case normalization. |
 | `ps/{isin}` | `data[]` points with `_id`, `date`, `ps` | Valid P/S ratio | Full response only; no cursor, date range, ETag, or pagination parameter is sent or assumed. |
 
 Decimals are parsed and persisted as fixed-precision decimal values (`numeric(28,14)`). Unknown

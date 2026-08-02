@@ -125,6 +125,64 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFundEquityNormalizationTelemetry, FundEquityNormalizationTelemetry>();
         services.AddSingleton<IFundEquityCorporateActionAdjustmentProvider, NoKnownFundEquityCorporateActionAdjustmentProvider>();
         services.AddScoped<IFundEquityPositionRepository, EfCoreFundEquityPositionRepository>();
+        services.AddScoped<IFundPortfolioAnalyticsRepository, EfCoreFundPortfolioAnalyticsRepository>();
+        services.AddScoped<IFundComparablePeriodReportReader, EfCoreFundComparablePeriodReportReader>();
+        services.AddScoped<IFundComparablePeriodSelector, FundComparablePeriodSelector>();
+        services.AddSingleton<IFundHoldingsActivityAnalyticsCalculator, FundHoldingsActivityAnalyticsCalculator>();
+        services.AddScoped<IFundHoldingsActivityFactReader, EfCoreFundHoldingsActivityFactReader>();
+        services.AddOptions<FundPortfolioMaterialityOptions>()
+            .BindConfiguration(FundPortfolioMaterialityOptions.SectionName)
+            .Validate(options => options.AbsoluteAmount >= 0m &&
+                options.AssetWeightChangePercentagePoints >= 0m &&
+                options.Percentile is >= 0m and <= 1m &&
+                !string.IsNullOrWhiteSpace(options.Version),
+                "Fund portfolio materiality thresholds must be non-negative, percentile must be between 0 and 1, and version is required.")
+            .ValidateOnStart();
+        services.AddScoped<FundHoldingsActivityAnalyticsService>();
+        services.AddSingleton<IFundSectorStrategyAnalyticsCalculator, FundSectorStrategyAnalyticsCalculator>();
+        services.AddScoped<IFundSectorStrategyFactReader, EfCoreFundSectorStrategyFactReader>();
+        services.AddOptions<FundSectorStrategyOptions>()
+            .BindConfiguration(FundSectorStrategyOptions.SectionName)
+            .Validate(options => options.MinimumMeaningfulChangePercentagePoints >= 0m && !string.IsNullOrWhiteSpace(options.Version),
+                "Fund strategy posture threshold and version are required.")
+            .ValidateOnStart();
+        services.AddScoped<FundSectorStrategyAnalyticsService>();
+        services.AddSingleton<IFundTurnoverLiquidityAnalyticsCalculator, FundTurnoverLiquidityAnalyticsCalculator>();
+        services.AddScoped<IFundTurnoverLiquidityFactReader, EfCoreFundTurnoverLiquidityFactReader>();
+        services.AddOptions<FundTurnoverLiquidityOptions>()
+            .BindConfiguration(FundTurnoverLiquidityOptions.SectionName)
+            .Validate(options => options.ParticipationRate is > 0m and <= 1m &&
+                options.VolumeLookbackDays > 0 && !string.IsNullOrWhiteSpace(options.Version),
+                "Fund turnover/liquidity settings must have a valid participation rate, lookback, and version.")
+            .ValidateOnStart();
+        services.AddScoped<FundTurnoverLiquidityAnalyticsService>();
+        services.AddSingleton<IFundDerivativeIncomeValuationAnalyticsCalculator, FundDerivativeIncomeValuationAnalyticsCalculator>();
+        services.AddScoped<IFundDerivativeIncomeValuationFactReader, EfCoreFundDerivativeIncomeValuationFactReader>();
+        services.AddOptions<FundDerivativeIncomeValuationOptions>()
+            .BindConfiguration(FundDerivativeIncomeValuationOptions.SectionName)
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Version),
+                "Fund derivative/income/valuation calculation version is required.")
+            .ValidateOnStart();
+        services.AddScoped<FundDerivativeIncomeValuationAnalyticsService>();
+        services.AddSingleton<IFundPortfolioSignalGenerator, FundPortfolioSignalGenerator>();
+        services.AddOptions<FundPortfolioSignalGenerationOptions>()
+            .BindConfiguration(FundPortfolioSignalGenerationOptions.SectionName)
+            .Validate(options => options.MinimumActivityAmount >= 0m &&
+                options.MinimumWeightChangePercentagePoints >= 0m &&
+                options.MinimumSectorChangePercentagePoints >= 0m &&
+                options.MinimumConcentrationIncreasePercentagePoints >= 0m &&
+                options.MinimumHedgeCoverageChangePercentagePoints >= 0m &&
+                options.MinimumUnrealizedIncomeConcentrationPercentage >= 0m &&
+                options.MinimumValuationAdjustmentExposurePercentage >= 0m &&
+                !string.IsNullOrWhiteSpace(options.Version),
+                "Fund portfolio signal thresholds must be non-negative and versioned.")
+            .ValidateOnStart();
+        services.AddScoped<FundPortfolioSignalGenerationService>();
+        services.AddScoped<IFundPortfolioIntelligenceReadUseCase, GetFundPortfolioIntelligenceUseCase>();
+        services.AddScoped<IFundPortfolioIntelligenceDetailRepository, EfCoreFundPortfolioIntelligenceDetailRepository>();
+        services.AddScoped<IFundPortfolioAnalyticsCalculator, DeterministicFundPortfolioAnalyticsCalculator>();
+        services.AddScoped<IFundPortfolioAnalyticsCalculationRegistry, FundPortfolioAnalyticsCalculationRegistry>();
+        services.AddScoped<IFundPortfolioAnalyticsRecalculationCoordinator, FundPortfolioAnalyticsRecalculationCoordinator>();
         services.AddScoped<IGetFundEquityPositionsUseCase, GetFundEquityPositionsUseCase>();
         services.AddScoped<IGetFundEquityActivityUseCase, GetFundEquityActivityUseCase>();
         services.AddScoped<IGetCompanyFundHoldingsUseCase, GetCompanyFundHoldingsUseCase>();
@@ -1122,6 +1180,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeatureComputationJobRepository, PersistedFeatureComputationJobRepository>();
         services.AddScoped<IFeatureInputReader, NoOpFeatureInputReader>();
         services.AddScoped<IDerivedFeatureCalculationService, DerivedFeatureCalculationService>();
+        services.AddSingleton<IDerivedFeatureCalculator, FundPortfolioAnalyticsFeatureCalculator>();
         services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();

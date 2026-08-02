@@ -24,7 +24,8 @@ public sealed class IngestFundPortfolioWorkbookUseCase(
     IFundPortfolioReportRepository reports,
     IEnumerable<IFundPortfolioSectionNormalizer> sectionNormalizers,
     IFundPortfolioIngestionTelemetrySink telemetry,
-    IFundPortfolioAuditSink audit) : IIngestFundPortfolioWorkbookUseCase
+    IFundPortfolioAuditSink audit,
+    IFundPortfolioAnalyticsRecalculationCoordinator? recalculationCoordinator = null) : IIngestFundPortfolioWorkbookUseCase
 {
     public async Task<IngestFundPortfolioWorkbookResult> ExecuteAsync(IngestFundPortfolioWorkbookRequest request, CancellationToken cancellationToken)
     {
@@ -71,6 +72,22 @@ public sealed class IngestFundPortfolioWorkbookUseCase(
         }
         foreach (var normalizer in sectionNormalizers)
             await normalizer.NormalizeAsync(envelope, cancellationToken);
+        if (recalculationCoordinator is not null && envelope.Period.PeriodEndDate is { } scheduledPeriodEnd &&
+            envelope.Status is FundPortfolioParseStatus.Parsed or FundPortfolioParseStatus.PartiallyParsed)
+        {
+            try
+            {
+                await recalculationCoordinator.RequestAsync(
+                    new(fund.Fund.Id, reportId.Value, scheduledPeriodEnd,
+                        FundPortfolioAnalyticsRecalculationReason.NormalizedSectionsCompleted,
+                        $"{hash}:revision:{revision}", FundPortfolioAnalyticsCalculationPolicy.CalculationVersion),
+                    cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Recalculation is failure-isolated. Normalized source data remains committed.
+            }
+        }
         telemetry.Record(new(correlationId, fund.Status, hash[..12], envelope.ParserProfileVersion, envelope.Sheets.Count,
             envelope.Sheets.Count(sheet => sheet.LogicalSheetType == FundWorkbookLogicalSheetType.Unclassified), envelope.Issues.Count,
             envelope.Issues.Count(issue => issue.Severity is FundExtractionIssueSeverity.Error or FundExtractionIssueSeverity.Fatal), envelope.Status,

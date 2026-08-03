@@ -51,6 +51,7 @@ services:
     restart: unless-stopped
     environment: &application-environment
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-false}
       ConnectionStrings__FinancialCopilot: Host=postgres;Port=5432;Database=${POSTGRES_DB:-financial_copilot};Username=${POSTGRES_USER:-financial_copilot};Password=${POSTGRES_PASSWORD}
       ConnectionStrings__Redis: redis:6379
       Database__ApplyMigrationsOnStartup: "true"

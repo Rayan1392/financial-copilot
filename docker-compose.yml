@@ -65,6 +65,7 @@ services:
       ScannerCache__UseRedis: "true"
       Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
       Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+      OpenApi__Enabled: ${OPENAPI_ENABLED:-false}
       AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
       AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       AiProvider__OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-luna}

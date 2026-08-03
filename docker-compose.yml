@@ -80,6 +80,23 @@ services:
       NadpcoApi__UserName: ${NADPCO_API_USER_NAME:-}
       NadpcoApi__Password: ${NADPCO_API_PASSWORD:-}
       NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}
+      TsetmcWebService__Enabled: ${TSETMC_WEB_SERVICE_ENABLED:-false}
+      TsetmcWebService__ServiceUrl: ${TSETMC_WEB_SERVICE_URL:-http://service.tsetmc.com/WebService/TsePublicV2.asmx}
+      TsetmcWebService__UserName: ${TSETMC_WEB_SERVICE_USER_NAME:-}
+      TsetmcWebService__Password: ${TSETMC_WEB_SERVICE_PASSWORD:-}
+      TsetmcWebService__TimeoutSeconds: ${TSETMC_WEB_SERVICE_TIMEOUT_SECONDS:-60}
+      TsetmcWebService__RetryCount: ${TSETMC_WEB_SERVICE_RETRY_COUNT:-3}
+      TsetmcWebService__IntradayTradeFlows__0: ${TSETMC_INTRADAY_FLOW_0:-0}
+      TsetmcWebService__IntradayTradeFlows__1: ${TSETMC_INTRADAY_FLOW_1:-1}
+      TsetmcWebService__IntradayTradeFlows__2: ${TSETMC_INTRADAY_FLOW_2:-2}
+      TsetmcWebService__IntradayTradeFlows__3: ${TSETMC_INTRADAY_FLOW_3:-3}
+      TsetmcWebService__IntradayTradeFlows__4: ${TSETMC_INTRADAY_FLOW_4:-4}
+      TsetmcWebService__IntradayTradeFlows__5: ${TSETMC_INTRADAY_FLOW_5:-5}
+      TsetmcWebService__InstrumentFlows__0: ${TSETMC_INSTRUMENT_FLOW_0:-5}
+      TsetmcWebService__InstrumentFlows__1: ${TSETMC_INSTRUMENT_FLOW_1:-6}
+      TsetmcWebService__InstrumentFlows__2: ${TSETMC_INSTRUMENT_FLOW_2:-7}
+      TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
+      TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
     depends_on:
       postgres:
         condition: service_healthy

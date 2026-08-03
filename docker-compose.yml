@@ -77,6 +77,9 @@ services:
       AiProvider__Abravran__Temperature: ${ABRAVRAN_TEMPERATURE:-0.7}
       AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
       ABRAVRAN_API_KEY: ${ABRAVRAN_API_KEY:-}
+      Telegram__Membership__RequiredChannelId: ${TELEGRAM_REQUIRED_CHANNEL_ID:-}
+      Telegram__Membership__BotTokenEnvironmentVariable: ${TELEGRAM_BOT_TOKEN_ENVIRONMENT_VARIABLE:-TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       NadpcoApi__UserName: ${NADPCO_API_USER_NAME:-}
       NadpcoApi__Password: ${NADPCO_API_PASSWORD:-}
       NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}

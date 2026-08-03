@@ -97,6 +97,13 @@ services:
       TsetmcWebService__InstrumentFlows__2: ${TSETMC_INSTRUMENT_FLOW_2:-7}
       TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
       TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
+      CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}
+      CyclicalWaves__UserName: ${CYCLICAL_WAVES_USER_NAME:-}
+      CyclicalWaves__Password: ${CYCLICAL_WAVES_PASSWORD:-}
+      CyclicalWaves__TimeoutSeconds: ${CYCLICAL_WAVES_TIMEOUT_SECONDS:-30}
+      CyclicalWaves__RetryCount: ${CYCLICAL_WAVES_RETRY_COUNT:-2}
+      CyclicalWaves__CircuitBreakSeconds: ${CYCLICAL_WAVES_CIRCUIT_BREAK_SECONDS:-60}
+      CyclicalWaves__CircuitFailureThreshold: ${CYCLICAL_WAVES_CIRCUIT_FAILURE_THRESHOLD:-5}
     depends_on:
       postgres:
         condition: service_healthy

@@ -67,6 +67,7 @@ services:
       Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
       AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
       AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      AiProvider__OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-luna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AiProvider__Abravran__MaxTokens: ${ABRAVRAN_MAX_TOKENS:-3000}
       AiProvider__Abravran__Temperature: ${ABRAVRAN_TEMPERATURE:-0.7}

@@ -12,7 +12,7 @@ Use `AiProvider:DefaultProvider` to select the active hosted LLM provider. Resta
     "DefaultProvider": "OpenAI",
     "OpenAI": {
       "ApiKey": "",
-      "Model": "gpt-5.4"
+      "Model": "gpt-5.6-luna"
     },
     "DeepSeek": {
       "ApiKey": "",
@@ -41,6 +41,7 @@ For Docker Compose, copy `.env.example` to the ignored `.env` file and set:
 ```dotenv
 AI_PROVIDER_DEFAULT_PROVIDER=OpenAI
 OPENAI_API_KEY=<openai-key>
+OPENAI_MODEL=gpt-5.6-luna
 ABRAVRAN_ENABLED=false
 ```
 

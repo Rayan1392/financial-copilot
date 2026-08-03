@@ -122,6 +122,8 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("نمودار فروش ماهانه کسرا", "کسرا")]
     [InlineData("فروش امسال نسبت به پارسال کچاد", "کچاد")]
     [InlineData("میانگین ۱۲ ماهه فروش کگل", "کگل")]
+    [InlineData("روند فروش فن افزار؟", "فن افزار")]
+    [InlineData("روند فروش فن‌افزار؟", "فنافزار")]
     public void ExtractSymbol_TrendQuery_ReturnsCorrectSymbol(string query, string expectedSymbol)
     {
         var symbol = MonthlyActivityTrendIntentRules.ExtractCompanySymbol(query);

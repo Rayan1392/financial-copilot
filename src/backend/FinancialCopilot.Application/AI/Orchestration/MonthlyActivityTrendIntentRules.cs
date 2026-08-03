@@ -2,6 +2,9 @@ namespace FinancialCopilot.Application.AI.Orchestration;
 
 public static class MonthlyActivityTrendIntentRules
 {
+    private const int MaxSingleTokenSymbolCandidateLength = 6;
+    private const int MaxCompoundSymbolCandidateLength = 12;
+
     // Feature 113 canonical aliases. Each describes the same persisted monthly sales-trend result;
     // production wording is an established alias, not a request for a new production series.
     private static readonly string[] CanonicalMonthlySalesTrendPhrases =
@@ -76,15 +79,18 @@ public static class MonthlyActivityTrendIntentRules
         if (query.Contains('\u200C'))
         {
             var joinedCandidates = ExtractCandidateTokens(query);
-            if (joinedCandidates.Count > 0) return joinedCandidates[0];
+            var joinedCandidate = SelectBestCandidate(joinedCandidates);
+            if (joinedCandidate is not null) return joinedCandidate;
         }
 
         var candidates = ExtractCandidateTokens(stripped);
-        if (candidates.Count > 0) return candidates[0];
+        var candidate = SelectBestCandidate(candidates);
+        if (candidate is not null) return candidate;
 
         // Fallback to original if stripping removed too much context.
         candidates = ExtractCandidateTokens(normalized);
-        if (candidates.Count > 0) return candidates[0];
+        candidate = SelectBestCandidate(candidates);
+        if (candidate is not null) return candidate;
 
         return null;
     }
@@ -129,8 +135,12 @@ public static class MonthlyActivityTrendIntentRules
                 while (i < normalized.Length && IsSymbolCharacter(normalized[i]))
                     i++;
                 var len = i - start;
-                var token = NormalizeSymbolToken(normalized.Substring(start, len));
-                if (token.Length is >= 2 and <= 6 && !StopWords.Contains(token))
+                var rawToken = normalized.Substring(start, len);
+                var token = NormalizeSymbolToken(rawToken);
+                var maxLength = ContainsJoiner(rawToken)
+                    ? MaxCompoundSymbolCandidateLength
+                    : MaxSingleTokenSymbolCandidateLength;
+                if (token.Length >= 2 && token.Length <= maxLength && !StopWords.Contains(token))
                     candidates.Add(token);
             }
             else
@@ -141,9 +151,30 @@ public static class MonthlyActivityTrendIntentRules
         return candidates;
     }
 
+    private static string? SelectBestCandidate(IReadOnlyList<string> candidates)
+    {
+        if (candidates.Count == 0)
+            return null;
+
+        // Some TSE tickers are written as two visible words, while resolver-side
+        // normalization removes whitespace/ZWNJ. Preserve that two-word surface
+        // form instead of truncating to the first short token, e.g. "فن افزار".
+        if (candidates.Count >= 2 && candidates[0].Length <= 2)
+        {
+            var combinedNormalizedLength = candidates[0].Length + candidates[1].Length;
+            if (combinedNormalizedLength <= MaxCompoundSymbolCandidateLength)
+                return $"{candidates[0]} {candidates[1]}";
+        }
+
+        return candidates[0];
+    }
+
     private static bool IsSymbolCharacter(char value) =>
         char.IsLetter(value)
         || value is '\u200C' or '\u200D' or '\u0640';
+
+    private static bool ContainsJoiner(string value) =>
+        value.IndexOf('\u200C') >= 0 || value.IndexOf('\u200D') >= 0 || value.IndexOf('\u0640') >= 0;
 
     private static string NormalizeSymbolToken(string value) =>
         value

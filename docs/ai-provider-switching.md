@@ -9,7 +9,7 @@ Use `AiProvider:DefaultProvider` to select the active hosted LLM provider. Resta
 ```json
 {
   "AiProvider": {
-    "DefaultProvider": "DeepSeek",
+    "DefaultProvider": "OpenAI",
     "OpenAI": {
       "ApiKey": "",
       "Model": "gpt-5.4"
@@ -34,6 +34,14 @@ Prefer environment variables or secret stores over checked-in settings:
 ```powershell
 $env:AiProvider__OpenAI__ApiKey = "<openai-key>"
 $env:AiProvider__DeepSeek__ApiKey = "<deepseek-key>"
+```
+
+For Docker Compose, copy `.env.example` to the ignored `.env` file and set:
+
+```dotenv
+AI_PROVIDER_DEFAULT_PROVIDER=OpenAI
+OPENAI_API_KEY=<openai-key>
+ABRAVRAN_ENABLED=false
 ```
 
 For `AiModelProviders`, set `CredentialSecretReference` to the environment variable name, such as `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`. For the `AiProvider` section, leave `ApiKey` empty in committed files and override it locally or in deployment configuration.

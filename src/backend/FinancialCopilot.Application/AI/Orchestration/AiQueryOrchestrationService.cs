@@ -35,7 +35,8 @@ public sealed class AiQueryOrchestrationService(
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
-    TimeProvider timeProvider) : IAiQueryOrchestrationService
+    TimeProvider timeProvider,
+    ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null) : IAiQueryOrchestrationService
 {
     public async Task<AiQueryResponse> ExecuteAsync(
         AiQueryRequest request,
@@ -482,9 +483,31 @@ public sealed class AiQueryOrchestrationService(
                     new BillingFinalizationRequest(completionStatus, fromCache),
                     cancellationToken);
             }
+
+            if (scannerPlan?.SalesGrowth is not null)
+            {
+                await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                    SalesGrowthScannerTelemetry.Create(
+                        request.CorrelationId, request.TenantId, request.ActorId, scannerPlan, scannerTable,
+                        timeProvider.GetUtcNow() - now, completionStatus,
+                        billingReservation is null ? "not-reserved" : usage?.CompletionStatus ?? completionStatus,
+                        parserOutcome: scannerPlan.ClarificationRequired ? "clarification" : "parsed"),
+                    CancellationToken.None);
+            }
         }
         catch (OperationCanceledException)
         {
+            if (scannerPlan?.SalesGrowth is not null)
+            {
+                await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                    SalesGrowthScannerTelemetry.Create(
+                        request.CorrelationId, request.TenantId, request.ActorId, scannerPlan, scannerTable,
+                        timeProvider.GetUtcNow() - now, "CancelledBeforeExecution",
+                        billingReservation is null ? "not-reserved" : "cancelled",
+                        parserOutcome: scannerPlan.ClarificationRequired ? "clarification" : "parsed",
+                        timedOut: true),
+                    CancellationToken.None);
+            }
             if (billingReservation is not null)
             {
                 await billingHook.FinalizeAsync(
@@ -497,6 +520,16 @@ public sealed class AiQueryOrchestrationService(
         }
         catch
         {
+            if (scannerPlan?.SalesGrowth is not null)
+            {
+                await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                    SalesGrowthScannerTelemetry.Create(
+                        request.CorrelationId, request.TenantId, request.ActorId, scannerPlan, scannerTable,
+                        timeProvider.GetUtcNow() - now, "ProviderFailed",
+                        billingReservation is null ? "not-reserved" : "provider-failed",
+                        parserOutcome: scannerPlan.ClarificationRequired ? "clarification" : "parsed"),
+                    CancellationToken.None);
+            }
             if (billingReservation is not null)
             {
                 await billingHook.FinalizeAsync(

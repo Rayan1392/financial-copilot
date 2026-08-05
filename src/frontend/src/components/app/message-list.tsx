@@ -1,6 +1,6 @@
 import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
 import type { AssistantChatBlock, ChatMessage, DisclosureListingResult, ScannerTable } from "@/lib/chat.functions";
-import { toPersianDigits } from "@/lib/format/persian";
+import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
@@ -14,7 +14,7 @@ interface Props {
   loading: boolean;
   streaming: boolean;
   onSuggested: (q: string) => void;
-  onPageChange?: (page: number) => void;
+  onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
@@ -82,7 +82,7 @@ function AssistantBlock({
 }: {
   block: AssistantChatBlock;
   onSuggested: (q: string) => void;
-  onPageChange?: (page: number) => void;
+  onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   disclosureOriginalQuery?: string;
   showDiagnostics?: boolean;
@@ -114,10 +114,11 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.table && block.table.rows.length > 0 && (
+        {block.table && (block.table.rows.length > 0 || isRenderableEmptyTable(block.table)) && (
           <ScannerResultTable
             table={block.table}
             metadataLabel={tableMetadataLabel}
+            originalQuery={disclosureOriginalQuery}
             onPageChange={onPageChange}
             followedSymbols={followedSymbols}
           />
@@ -215,17 +216,20 @@ function DisclosureListingTable({ result, originalQuery, onPageChange }: { resul
 function ScannerResultTable({
   table,
   metadataLabel,
+  originalQuery,
   onPageChange,
   followedSymbols,
 }: {
   table: ScannerTable;
   metadataLabel?: string;
-  onPageChange?: (page: number) => void;
+  originalQuery?: string;
+  onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   followedSymbols?: ReadonlySet<string>;
 }) {
   const isPersianTable = isRtlFinancialTable(table);
   const { page, pageSize, totalPages, matchingSymbolCount } = table.executionFacts;
   const hasPagination = totalPages > 1;
+  const isSalesGrowth = Boolean(table.salesGrowthMetadata);
 
   return (
     <div className="space-y-2">
@@ -242,6 +246,7 @@ function ScannerResultTable({
             <span dir="rtl">{metadataLabel}</span>
           </div>
         )}
+        {isSalesGrowth && <SalesGrowthTableStatus table={table} />}
         <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
           <thead className="bg-white/5">
             <tr>
@@ -269,7 +274,7 @@ function ScannerResultTable({
                         isPersianTable ? "text-right" : "text-left"
                       }`}
                     >
-                      {cell?.formattedValue ?? cell?.value ?? "—"}
+                      {formatScannerCell(cell, column.identifier, isSalesGrowth)}
                       {shouldShowFreshnessStatus(cell?.freshnessStatus) && (
                         <span className="block text-[9px] text-muted-foreground">
                           {cell.freshnessStatus}
@@ -305,7 +310,7 @@ function ScannerResultTable({
           <div className="flex items-center gap-1">
             <button
               disabled={page <= 1 || !onPageChange}
-              onClick={() => onPageChange?.(page - 1)}
+              onClick={() => onPageChange?.(page - 1, originalQuery, pageSize)}
               className="p-1 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
               aria-label="صفحه قبل"
             >
@@ -313,7 +318,7 @@ function ScannerResultTable({
             </button>
             <button
               disabled={page >= totalPages || !onPageChange}
-              onClick={() => onPageChange?.(page + 1)}
+              onClick={() => onPageChange?.(page + 1, originalQuery, pageSize)}
               className="p-1 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
               aria-label="صفحه بعد"
             >
@@ -328,6 +333,65 @@ function ScannerResultTable({
 
 function containsPersianText(text: string) {
   return /[\u0600-\u06ff\u0750-\u077f]/u.test(text);
+}
+
+function isRenderableEmptyTable(table: ScannerTable) {
+  return Boolean(table.salesGrowthMetadata || table.missingDataWarnings.length > 0);
+}
+
+function SalesGrowthTableStatus({ table }: { table: ScannerTable }) {
+  const metadata = table.salesGrowthMetadata;
+  const rowMetadata = table.rows[0]?.salesGrowthMetadata;
+  if (!metadata) return null;
+
+  const statusLabel = metadata.selectionStatus === "Available"
+    ? "قابل استفاده"
+    : metadata.selectionStatus === "Partial"
+      ? "ناقص"
+      : "در دسترس نیست";
+  const baseline = rowMetadata?.baselinePeriod
+    ? `مبنای مقایسه: ${formatPeriod(rowMetadata.baselinePeriod)}`
+    : rowMetadata?.baselineWindow.length
+      ? `پنجره مبنا: ${formatPeriod(rowMetadata.baselineWindow[0])} تا ${formatPeriod(rowMetadata.baselineWindow[rowMetadata.baselineWindow.length - 1])}`
+      : undefined;
+
+  return (
+    <div className="space-y-1 px-4 py-2 text-[11px] text-muted-foreground" dir="rtl" data-testid="sales-growth-table-status">
+      <div>
+        دوره هدف: {formatPeriod(metadata.targetCommonPeriod)} · پوشش: {toPersianDigits(metadata.coverageNumerator)} از {toPersianDigits(metadata.coverageDenominator)} ({toPersianDigits(metadata.coveragePercent)}٪) · وضعیت: {statusLabel}
+      </div>
+      {baseline && <div>{baseline}</div>}
+      {rowMetadata?.freshnessSource && <div>منبع تازگی: {rowMetadata.freshnessSource}</div>}
+      {rowMetadata?.latestObservedAtUtc && <div>آخرین مشاهده: {formatPeriod(rowMetadata.latestObservedAtUtc)}</div>}
+      {metadata.mixedPeriods && <div className="text-amber-500">هشدار: نتایج دوره‌های ترکیبی دارند.</div>}
+      {table.missingDataWarnings.map((warning) => (
+        <div key={warning} className="text-amber-500" role="status">{warning}</div>
+      ))}
+      {table.rows.length === 0 && <div>داده‌ای برای نمایش وجود ندارد.</div>}
+    </div>
+  );
+}
+
+function formatPeriod(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/u);
+  return toPersianDigits(match ? `${match[1]}/${match[2]}` : value);
+}
+
+function formatScannerCell(
+  cell: ScannerTable["rows"][number]["cells"][string] | undefined,
+  columnIdentifier: string,
+  isSalesGrowth: boolean,
+) {
+  if (!cell || (cell.formattedValue === undefined && cell.value === undefined)) {
+    return isSalesGrowth ? "در دسترس نیست" : "—";
+  }
+  if (cell.formattedValue !== undefined) return cell.formattedValue;
+  if (cell.value === undefined) return isSalesGrowth ? "در دسترس نیست" : "—";
+
+  const key = columnIdentifier.toUpperCase();
+  return key.includes("GROWTH_PERCENT") || key.includes("CHANGE_PCT")
+    ? formatPercent(cell.value, false)
+    : formatNumber(cell.value, { maximumFractionDigits: 2 });
 }
 
 function shouldShowFreshnessStatus(status?: string) {
@@ -372,7 +436,16 @@ function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {
     AVG_12M_MONTHLY_SALES: "متوسط فروش ۱۲ ماهه",
   };
 
-  return localizedLabels[key] ?? localizedLabels[displayName] ?? column.displayName;
+  const salesGrowthLabels: Record<string, string> = {
+    MONTHLY_SALES: "فروش آخرین دوره",
+    MONTHLY_SALES_BASELINE_PREVIOUS_MONTH: "فروش ماه قبل",
+    MONTHLY_SALES_BASELINE_SAME_MONTH_PREVIOUS_YEAR: "فروش ماه مشابه سال قبل",
+    MONTHLY_SALES_BASELINE_AVERAGE_PREVIOUS_12_MONTHS: "میانگین فروش ۱۲ ماه قبل",
+    MONTHLY_SALES_GROWTH_PERCENT: "درصد رشد",
+    MONTHLY_SALES_GROWTH_MULTIPLE: "نسبت فروش",
+  };
+
+  return salesGrowthLabels[key] ?? localizedLabels[key] ?? localizedLabels[displayName] ?? column.displayName;
 }
 
 function isRtlFinancialTable(table: ScannerTable) {

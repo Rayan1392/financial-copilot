@@ -121,11 +121,12 @@ export interface MonthlyActivityTrendMissingDataPoint {
 }
 
 export interface ScannerTable {
-  columns: Array<{ identifier: string; displayName: string }>;
+  columns: Array<{ identifier: string; displayName: string; columnType?: string; metricCode?: string }>;
   rows: Array<{
     symbolCode: string;
     companyName?: string;
     score: number;
+    salesGrowthMetadata?: SalesGrowthRowMetadata;
     cells: Record<
       string,
       { formattedValue?: string; value?: number; freshnessStatus: string; sourceTimestamp?: string }
@@ -138,8 +139,49 @@ export interface ScannerTable {
     page: number;
     pageSize: number;
     totalPages: number;
+    eligibleSymbolCount?: number;
+    evaluatedSymbolCount?: number;
+    excludedByReason?: Record<string, number>;
   };
   missingDataWarnings: string[];
+  salesGrowthMetadata?: SalesGrowthTableMetadata;
+}
+
+export interface SalesGrowthRowMetadata {
+  currentPeriod: string;
+  baselinePeriod?: string;
+  baselineWindow: string[];
+  unit: string;
+  scale: string;
+  evidence: Array<{
+    externalCompanyId: string;
+    periodYear: number;
+    periodMonth: number;
+    salesAmount?: number;
+    sourceName: string;
+    evidenceId: string;
+    observedAtUtc?: string;
+  }>;
+  latestObservedAtUtc?: string;
+  freshnessSource?: string;
+  threshold?: number;
+  operator: string;
+  origin: string;
+  targetPeriodPolicyVersion: string;
+  calculationPolicyVersion: string;
+  matchReason: string;
+}
+
+export interface SalesGrowthTableMetadata {
+  targetCommonPeriod: string;
+  coverageNumerator: number;
+  coverageDenominator: number;
+  coveragePercent: number;
+  selectionStatus: string;
+  targetPeriodPolicyVersion: string;
+  calculationPolicyVersion: string;
+  mixedPeriods: boolean;
+  selectionReason?: string;
 }
 
 interface ConversationSummaryResponse {
@@ -348,7 +390,10 @@ function mapAssistantBlock(
 }
 
 function normalizeRenderableTable(table: ScannerTable | undefined): ScannerTable | undefined {
-  if (!table || table.rows.length === 0) return undefined;
+  if (!table) return undefined;
+  if (table.rows.length === 0 && !table.salesGrowthMetadata && table.missingDataWarnings.length === 0) {
+    return undefined;
+  }
   return table;
 }
 

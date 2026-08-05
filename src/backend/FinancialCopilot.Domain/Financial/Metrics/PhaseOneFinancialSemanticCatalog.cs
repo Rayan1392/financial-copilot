@@ -265,6 +265,10 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.Monthly],
             [
                 Alias("monthly sales growth yoy", "en-US", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("sales growth yoy", "en-US", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("monthly sales growth year over year", "en-US", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("\u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647 \u0645\u0634\u0627\u0628\u0647 \u0633\u0627\u0644 \u0642\u0628\u0644", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
+                Alias("\u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0646\u0633\u0628\u062a \u0628\u0647 \u0645\u0627\u0647 \u0645\u0634\u0627\u0628\u0647 \u0633\u0627\u0644 \u0642\u0628\u0644", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
                 Alias("رشد فروش ماهانه سالانه", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
                 Alias("رشد فروش نسبت به سال قبل", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear),
                 Alias("میزان رشد فروش", "fa-IR", "MONTHLY_SALES_GROWTH_YOY", GrowthComparison.YearOverYear)
@@ -278,6 +282,9 @@ public static class PhaseOneFinancialSemanticCatalog
             [FiscalPeriodType.Monthly],
             [
                 Alias("monthly sales growth mom", "en-US", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth),
+                Alias("sales growth month over month", "en-US", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth),
+                Alias("\u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0646\u0633\u0628\u062a \u0628\u0647 \u0645\u0627\u0647 \u0642\u0628\u0644", "fa-IR", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth),
+                Alias("\u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647 \u0628\u0647 \u0645\u0627\u0647", "fa-IR", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth),
                 Alias("رشد فروش نسبت به ماه قبل", "fa-IR", "MONTHLY_SALES_GROWTH_MOM", GrowthComparison.MonthOverMonth)
             ],
             [Dependency("MONTHLY_SALES")]),

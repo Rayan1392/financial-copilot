@@ -456,7 +456,7 @@ public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator
             return "Scanner plan must retain the original user query.";
         }
 
-        if (plan.Conditions.Count == 0 && !plan.ClarificationRequired)
+        if (plan.Conditions.Count == 0 && plan.SalesGrowth is null && !plan.ClarificationRequired)
         {
             return "Scanner plan must contain at least one condition or require clarification.";
         }
@@ -472,6 +472,58 @@ public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator
         if (plan.RequestedColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
         {
             return $"Requested columns exceed the {ScannerQueryPlan.MaxDisplayColumns}-column maximum.";
+        }
+
+        if (plan.SalesGrowth is not null)
+        {
+            var salesGrowth = plan.SalesGrowth;
+            if (salesGrowth.CurrentObservationSelector !=
+                SalesGrowthCurrentObservationSelector.LatestEligibleCompleteMonthlySales)
+            {
+                return "Sales-growth scanner requires the latest eligible complete monthly-sales observation selector.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind == SalesGrowthThresholdKind.Positive &&
+                salesGrowth.Semantics.ComparisonOperator != ConditionOperator.GreaterThan)
+            {
+                return "Positive sales growth must use the strict GreaterThan operator.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind is SalesGrowthThresholdKind.Percent or SalesGrowthThresholdKind.Multiple &&
+                salesGrowth.Semantics.ThresholdValue is null)
+            {
+                return "Percent and multiple sales-growth thresholds require a numeric value.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind == SalesGrowthThresholdKind.Multiple &&
+                salesGrowth.Semantics.ThresholdValue <= 0)
+            {
+                return "Sales-growth multiple thresholds must be greater than zero.";
+            }
+
+            if (salesGrowth.Page < 1 || salesGrowth.PageSize < 1 ||
+                salesGrowth.PageSize > SalesGrowthScannerPlan.MaximumPageSize)
+            {
+                return $"Sales-growth pagination must use page >= 1 and page size between 1 and {SalesGrowthScannerPlan.MaximumPageSize}.";
+            }
+
+            var universe = salesGrowth.EffectiveMarketUniverse;
+            if (universe.MaximumSymbols < 1 || universe.MaximumSymbols > SalesGrowthScannerPlan.MaximumSymbols)
+            {
+                return $"Sales-growth market universe must contain between 1 and {SalesGrowthScannerPlan.MaximumSymbols} symbols.";
+            }
+
+            var sort = salesGrowth.EffectiveSort;
+            if (sort.Key != SalesGrowthSortKey.GrowthPercent ||
+                sort.Direction is not (SalesGrowthSortDirection.Descending or SalesGrowthSortDirection.Ascending))
+            {
+                return "Sales-growth sorting supports only GrowthPercent with an explicit direction.";
+            }
+
+            if (salesGrowth.EffectiveRequestedDisplayColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
+            {
+                return $"Sales-growth display columns exceed the {ScannerQueryPlan.MaxDisplayColumns}-column maximum.";
+            }
         }
 
         return null;

@@ -58,6 +58,10 @@ These specs capture and act on unanswered queries to continuously improve metric
 - `028-missing-answer-feedback-pipeline` — capture every unanswered or partially answered query (metric gap, calculation gap, data coverage gap, data quality, parser limitation) as classified structured feedback in PostgreSQL; fire-and-forget during query execution; admin visibility; feeds future catalog expansion and ingestion prioritization.
 - `046-dynamic-metric-alias-learning` — (also listed under AI Orchestration) uses the feedback pipeline from `028` as its learning signal source.
 
+### Feature 116 — AI Sales-Growth Symbol Scanner
+
+`116-ai-sales-growth-symbol-scanner` provides governed multi-symbol monthly-sales growth discovery through the existing AI facade. It reuses persisted normalized data and the generic scanner table, with explicit baselines for previous month, same month previous year, and the prior twelve-month average. See the [operating documentation](../docs/feature-116-sales-growth-scanner.md) for aliases, default comparison policy, supported questions, routing boundaries, and Web/Telegram behavior.
+
 ---
 
 ## Data Provider Implementation Specs

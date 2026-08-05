@@ -54,7 +54,8 @@ public sealed record ScannerQueryPlan(
     IReadOnlyCollection<ScannerClarificationItem> ClarificationItems,
     IReadOnlyCollection<string> ColumnOverflowWarnings,
     DateTimeOffset ParsedAt,
-    string PolicyVersion)
+    string PolicyVersion,
+    SalesGrowthScannerPlan? SalesGrowth = null)
 {
     public const int MaxDisplayColumns = 10;
 }

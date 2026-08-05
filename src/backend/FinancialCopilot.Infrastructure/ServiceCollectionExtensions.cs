@@ -290,6 +290,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 
+        services.AddOptions<SalesGrowthScannerOptions>()
+            .BindConfiguration(SalesGrowthScannerOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<SalesGrowthScannerOptions>, SalesGrowthScannerOptionsValidator>();
+        services.AddSingleton<ISalesGrowthCommonEvaluationPeriodSelector>(provider =>
+            new SalesGrowthCommonEvaluationPeriodSelector(
+                provider.GetRequiredService<IOptions<SalesGrowthScannerOptions>>().Value));
+        services.AddSingleton<ISalesGrowthComparisonCalculator, SalesGrowthComparisonCalculator>();
+
         services.AddOptions<ScannerCacheOptions>()
             .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
         var scannerCacheSettings = configuration
@@ -654,6 +663,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IScannerResultRanker, ScannerResultRanker>();
         services.AddScoped<IMarketQuoteResolver, ProviderMarketQuoteResolver>();
         services.AddScoped<IScannerExecutionService, EfCoreScannerExecutionService>();
+        services.AddSingleton<ISalesGrowthScannerTelemetrySink, LoggingSalesGrowthScannerTelemetrySink>();
         services.AddScoped<IConfidenceScoreCalculator, ConfidenceScoreCalculator>();
         services.AddScoped<IConfidenceScoringService, ConfidenceScoringService>();
         services.AddSingleton<IConfidenceScoringAuditSink, LoggingConfidenceScoringAuditSink>();

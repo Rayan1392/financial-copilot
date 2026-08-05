@@ -13,8 +13,9 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
     private const string SystemPrompt =
         "You are an AI intent classifier for a financial platform. " +
         "Classify the user message into one of these intents:\n" +
-        "- Scanner: the user wants to screen or filter stocks by financial metrics with a condition or threshold " +
-        "(e.g. 'find companies where P/E < 10', 'سهام با رشد بالا').\n" +
+        "- Scanner: the user wants to screen or filter stocks by financial metrics with a condition or threshold, " +
+        "including a plural/list request for monthly-sales growth against a previous month, same month last year, " +
+        "or a previous-12-month average (e.g. 'find companies where P/E < 10', 'list stocks with sales growth above 30%').\n" +
         "- SymbolLookup: the user names one or more specific symbols or companies AND asks for the value of a " +
         "metric — with no threshold or filter (e.g. 'PE حفاری چقدر است؟', 'نسبت بدهی فملی را نشان بده', " +
         "'what is the ROE of AAPL?'). Also use for single-number latest monthly sales questions.\n" +
@@ -91,6 +92,22 @@ public sealed class LlmAiIntentDetector(IAiModelExecutionService executionServic
                 DetectedIntent.FinancialStatementPeriodAnalysis,
                 0.98,
                 "Deterministic financial statement analysis phrase rule.");
+        }
+
+        if (SalesGrowthSymbolScannerIntentRules.LooksLikeSingleSymbolSalesGrowthLookup(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.SymbolLookup,
+                0.98,
+                "Deterministic single-symbol sales-growth lookup rule.");
+        }
+
+        if (SalesGrowthSymbolScannerIntentRules.LooksLikeSalesGrowthScannerQuery(input.UserQuery))
+        {
+            return new IntentDetectionResult(
+                DetectedIntent.Scanner,
+                0.99,
+                "Deterministic monthly-sales growth scanner rule.");
         }
 
         if (LooksLikePePointLookup(input.UserQuery))

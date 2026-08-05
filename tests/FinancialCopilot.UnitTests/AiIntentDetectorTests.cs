@@ -90,6 +90,48 @@ public sealed class AiIntentDetectorTests
         Assert.Equal(0.99, result.Confidence);
     }
 
+    [Theory]
+    [InlineData("list stocks with sales growth above 30% versus same month last year")]
+    [InlineData("نمادها با رشد فروش حداقل ۲ برابر نسبت به میانگین ۱۲ ماهه")]
+    public async Task Detect_SalesGrowthDiscovery_UsesDeterministicScannerRoute(string query)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.Scanner, result.Intent);
+        Assert.Equal(0.99, result.Confidence);
+    }
+
+    [Theory]
+    [InlineData("sales growth شغدیر")]
+    [InlineData("رشد فروش فولاد")]
+    public async Task Detect_SingleSymbolSalesGrowth_RemainsSymbolLookup(string query)
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput(query, "fa", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.SymbolLookup, result.Intent);
+        Assert.Equal(0.98, result.Confidence);
+    }
+
+    [Fact]
+    public async Task Detect_SalesGrowthDiscovery_ComposesWithOtherScannerFilters()
+    {
+        var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
+
+        var result = await detector.DetectAsync(
+            new IntentDetectionInput("list stocks with sales growth above 30% and P/E below 5", "en", "corr", TenantId),
+            CancellationToken.None);
+
+        Assert.Equal(DetectedIntent.Scanner, result.Intent);
+    }
+
     private sealed class UnknownIntentExecutionService : IAiModelExecutionService
     {
         public Task<AiModelResult> ExecuteAsync(

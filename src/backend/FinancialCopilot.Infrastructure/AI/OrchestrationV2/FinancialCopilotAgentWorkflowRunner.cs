@@ -29,7 +29,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
     IConfidenceScoringService confidenceScoringService,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null)
 {
     // Mutable state captured by tool closures; one instance per RunAsync call.
     private sealed class OrchestrationState
@@ -159,6 +160,18 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         }
         catch (OperationCanceledException)
         {
+            if (state.ScannerResult?.Plan?.SalesGrowth is not null)
+            {
+                await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                    SalesGrowthScannerTelemetry.Create(
+                        request.CorrelationId, request.TenantId, request.ActorId,
+                        state.ScannerResult.Plan, state.ScannerResult.Table,
+                        timeProvider.GetUtcNow() - now, "CancelledBeforeExecution",
+                        reservation is null ? "not-reserved" : "cancelled",
+                        parserOutcome: state.ScannerResult.ClarificationRequired ? "clarification" : "parsed",
+                        timedOut: true),
+                    CancellationToken.None);
+            }
             if (reservation is not null)
                 await billingFunctions.FinalizeAsync(
                     reservation, "CancelledBeforeExecution", false, CancellationToken.None);
@@ -166,10 +179,37 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         }
         catch
         {
+            if (state.ScannerResult?.Plan?.SalesGrowth is not null)
+            {
+                await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                    SalesGrowthScannerTelemetry.Create(
+                        request.CorrelationId, request.TenantId, request.ActorId,
+                        state.ScannerResult.Plan, state.ScannerResult.Table,
+                        timeProvider.GetUtcNow() - now, "ProviderFailed",
+                        reservation is null ? "not-reserved" : "provider-failed",
+                        parserOutcome: state.ScannerResult.ClarificationRequired ? "clarification" : "parsed"),
+                    CancellationToken.None);
+            }
             if (reservation is not null)
                 await billingFunctions.FinalizeAsync(
                     reservation, "ProviderFailed", false, CancellationToken.None);
             throw;
+        }
+
+        if (state.ScannerResult?.Plan?.SalesGrowth is not null)
+        {
+            await (salesGrowthTelemetry ?? new NoOpSalesGrowthScannerTelemetrySink()).RecordAsync(
+                SalesGrowthScannerTelemetry.Create(
+                    request.CorrelationId,
+                    request.TenantId,
+                    request.ActorId,
+                    state.ScannerResult.Plan,
+                    state.ScannerResult.Table,
+                    timeProvider.GetUtcNow() - now,
+                    completionStatus,
+                    reservation is null ? "not-reserved" : usage?.CompletionStatus ?? completionStatus,
+                    parserOutcome: state.ScannerResult.ClarificationRequired ? "clarification" : "parsed"),
+                CancellationToken.None);
         }
 
         // Step 6: Determine intent and derive structured results

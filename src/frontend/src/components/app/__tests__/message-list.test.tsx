@@ -169,4 +169,73 @@ describe("MessageList", () => {
 
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
+
+  it("renders governed sales-growth metadata and partial-data status without another fetch", () => {
+    const assistantBlock: AssistantChatBlock = {
+      message: "sales growth",
+      intent: "Scanner",
+      creditsUsed: 1,
+      suggestedQuestions: [],
+      filters: [],
+      citations: [],
+      table: {
+        columns: [
+          { identifier: "SYMBOL", displayName: "SYMBOL" },
+          { identifier: "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH", displayName: "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH" },
+          { identifier: "MONTHLY_SALES_GROWTH_PERCENT", displayName: "MONTHLY_SALES_GROWTH_PERCENT" },
+        ],
+        rows: [{
+          symbolCode: "TEST",
+          companyName: "Test company",
+          score: 1,
+          cells: {
+            SYMBOL: { formattedValue: "TEST", freshnessStatus: "Persisted" },
+            MONTHLY_SALES_BASELINE_PREVIOUS_MONTH: { value: 10, freshnessStatus: "Persisted" },
+            MONTHLY_SALES_GROWTH_PERCENT: { value: 25.5, freshnessStatus: "Persisted" },
+          },
+          salesGrowthMetadata: {
+            currentPeriod: "2026-06-01",
+            baselinePeriod: "2026-05-01",
+            unit: "Rial",
+            scale: "Raw",
+            freshnessSource: "Official filing",
+            latestObservedAtUtc: "2026-07-01T00:00:00Z",
+          },
+        }],
+        executionFacts: {
+          matchingSymbolCount: 1,
+          totalSymbolsEvaluated: 1,
+          fromCache: false,
+          page: 1,
+          pageSize: 20,
+          totalPages: 1,
+        },
+        missingDataWarnings: ["baseline unavailable for one symbol"],
+        salesGrowthMetadata: {
+          targetCommonPeriod: "2026-06-01",
+          coverageNumerator: 1,
+          coverageDenominator: 2,
+          coveragePercent: 50,
+          selectionStatus: "Partial",
+          mixedPeriods: false,
+          policyVersion: "sales-growth-v1",
+          evaluationPeriodPolicyVersion: "sales-growth-period-v1",
+        },
+      },
+    };
+
+    renderMessageList(
+      <MessageList
+        messages={[{ id: "sales-growth", role: "assistant", content: assistantBlock, created_at: "2026-07-01T12:00:00Z" }]}
+        loading={false}
+        streaming={false}
+        onSuggested={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("sales-growth-table-status")).toBeInTheDocument();
+    expect(screen.getByTestId("sales-growth-table-status")).toHaveTextContent("Official filing");
+    expect(screen.getByRole("status")).toHaveTextContent("baseline unavailable");
+    expect(screen.getByRole("table")).toBeInTheDocument();
+  });
 });

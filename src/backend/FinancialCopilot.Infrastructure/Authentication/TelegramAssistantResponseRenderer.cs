@@ -32,6 +32,11 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
         }
 
+        if (response.ScannerTable?.SalesGrowthMetadata is not null)
+        {
+            return RenderSalesGrowthScanner(response, response.ScannerTable);
+        }
+
         var builder = new StringBuilder();
         var isSingleSymbolLookup = response.SymbolLookupTable is { Rows.Count: 1 } &&
                                    response.ScannerTable is null;
@@ -255,6 +260,110 @@ public sealed class TelegramAssistantResponseRenderer(
             builder.AppendLine($"صفحه {table.ExecutionFacts.Page} از {table.ExecutionFacts.TotalPages}؛ برای ادامه، نتیجه کامل را در وب مشاهده کنید.");
         }
     }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderSalesGrowthScanner(
+        AiQueryResponse response,
+        ScannerTableResult table)
+    {
+        var metadata = table.SalesGrowthMetadata!;
+        var builder = new StringBuilder();
+        builder.AppendLine("📈 نتایج رشد فروش ماهانه:");
+        builder.AppendLine($"دوره هدف: {FormatPeriod(metadata.TargetCommonPeriod)} | پوشش: {ToPersianDigits($"{metadata.CoverageNumerator}/{metadata.CoverageDenominator}")} ({ToPersianDigits(metadata.CoveragePercent.ToString("0.##", CultureInfo.InvariantCulture))}٪)");
+
+        foreach (var row in table.Rows)
+        {
+            builder.AppendLine();
+            builder.AppendLine($"{row.SymbolCode}{(string.IsNullOrWhiteSpace(row.CompanyName) ? string.Empty : $" — {row.CompanyName}")}");
+            AppendSalesGrowthCells(builder, row, table.Columns);
+        }
+
+        var firstMetadata = table.Rows.Select(row => row.SalesGrowthMetadata).FirstOrDefault(value => value is not null);
+        if (firstMetadata is not null)
+        {
+            var baseline = firstMetadata.BaselinePeriod is not null
+                ? FormatPeriod(firstMetadata.BaselinePeriod.Value)
+                : firstMetadata.BaselineWindow.Count > 0
+                    ? $"{FormatPeriod(firstMetadata.BaselineWindow.First())} تا {FormatPeriod(firstMetadata.BaselineWindow.Last())}"
+                    : "نامشخص";
+            builder.AppendLine();
+            builder.AppendLine($"مقایسه با: {baseline} | منبع تازگی: {firstMetadata.FreshnessSource ?? "ذخیره‌شده"}");
+            if (firstMetadata.LatestObservedAtUtc is not null)
+                builder.AppendLine($"آخرین مشاهده: {FormatPeriod(firstMetadata.LatestObservedAtUtc.Value)}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine($"وضعیت داده: {SalesGrowthStatusLabel(metadata.SelectionStatus)} | صفحه {ToPersianDigits(metadata.CoverageDenominator > 0 ? table.ExecutionFacts.Page.ToString(CultureInfo.InvariantCulture) : "1")} از {ToPersianDigits(Math.Max(table.ExecutionFacts.TotalPages, 1).ToString(CultureInfo.InvariantCulture))}");
+        if (response.ConversationId != Guid.Empty)
+            builder.AppendLine($"جدول کامل در وب: /c/{response.ConversationId:N}");
+        foreach (var warning in table.MissingDataWarnings.Take(3))
+            builder.AppendLine($"هشدار: {warning}");
+        if (table.ExecutionFacts.TotalPages > table.ExecutionFacts.Page)
+            builder.AppendLine("صفحه بعدی با همان فیلتر و تازه‌سازی شواهد قابل دریافت است.");
+
+        AppendUsage(builder, response);
+        return Split(EscapeMarkdownV2(builder.ToString().Trim()));
+    }
+
+    private static void AppendSalesGrowthCells(
+        StringBuilder builder,
+        ScannerTableRow row,
+        IReadOnlyCollection<ScannerTableColumn> columns)
+    {
+        var ordered = new[]
+        {
+            "MONTHLY_SALES",
+            "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH",
+            "MONTHLY_SALES_BASELINE_SAME_MONTH_PREVIOUS_YEAR",
+            "MONTHLY_SALES_BASELINE_AVERAGE_PREVIOUS_12_MONTHS",
+            "MONTHLY_SALES_GROWTH_PERCENT",
+            "MONTHLY_SALES_GROWTH_MULTIPLE"
+        };
+
+        foreach (var identifier in ordered)
+        {
+            var column = columns.FirstOrDefault(item =>
+                string.Equals(item.Identifier, identifier, StringComparison.OrdinalIgnoreCase));
+            if (column is null || !row.Cells.TryGetValue(column.Identifier, out var cell))
+                continue;
+
+            builder.AppendLine($"{SalesGrowthLabel(identifier)}: {FormatSalesGrowthCell(cell, identifier)}");
+        }
+    }
+
+    private static string SalesGrowthLabel(string identifier) => identifier switch
+    {
+        "MONTHLY_SALES" => "فروش فعلی",
+        "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH" => "فروش ماه قبل",
+        "MONTHLY_SALES_BASELINE_SAME_MONTH_PREVIOUS_YEAR" => "فروش ماه مشابه سال قبل",
+        "MONTHLY_SALES_BASELINE_AVERAGE_PREVIOUS_12_MONTHS" => "میانگین فروش ۱۲ ماه قبل",
+        "MONTHLY_SALES_GROWTH_PERCENT" => "درصد رشد",
+        "MONTHLY_SALES_GROWTH_MULTIPLE" => "نسبت فروش",
+        _ => identifier
+    };
+
+    private static string FormatSalesGrowthCell(ScannerTableCell cell, string identifier)
+    {
+        if (cell.FreshnessStatus == CellFreshnessStatus.Missing)
+            return "در دسترس نیست";
+
+        var value = cell.FormattedValue is not null
+            ? ToPersianDigits(cell.FormattedValue)
+            : ToPersianDigits(cell.Value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—");
+        return identifier is "MONTHLY_SALES_GROWTH_PERCENT" ? $"{value}٪" : value;
+    }
+
+    private static string FormatPeriod(DateOnly period) =>
+        ToPersianDigits($"{period.Year:0000}/{period.Month:00}");
+
+    private static string FormatPeriod(DateTimeOffset timestamp) =>
+        ToPersianDigits(timestamp.ToOffset(TimeSpan.FromHours(3.5)).ToString("yyyy/MM/dd", CultureInfo.InvariantCulture));
+
+    private static string SalesGrowthStatusLabel(SalesGrowthCommonPeriodSelectionStatus status) => status switch
+    {
+        SalesGrowthCommonPeriodSelectionStatus.Available => "قابل استفاده",
+        SalesGrowthCommonPeriodSelectionStatus.Partial => "ناقص",
+        _ => "در دسترس نیست"
+    };
 
     private static void AppendCompactRow(
         StringBuilder builder,

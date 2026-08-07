@@ -17,6 +17,7 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 
 internal sealed class FinancialCopilotAgentWorkflowRunner(
     IConversationRepository conversationRepository,
+    IConversationDialogueGate dialogueGate,
     IAiModelProviderResolver providerResolver,
     IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
@@ -55,6 +56,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         {
             throw new ConversationNotFoundException(conversationId);
         }
+        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
 
         // Step 2: Memory retrieval
         var memoryContext = await memoryAdapter.GetContextAsync(
@@ -312,6 +314,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
         // Step 9: Persist conversation exchange
+        await dialogueGate.RecordOutcomeAsync(request, conversationId, clarificationRequired, outcome.ReasonCode, cancellationToken);
         var persistedExchange = await persistenceFunction.PersistAsync(
             conversationId, request,
             detectedIntent, clarificationRequired, clarificationMessage,

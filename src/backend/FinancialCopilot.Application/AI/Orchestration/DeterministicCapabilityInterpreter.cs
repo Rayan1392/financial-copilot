@@ -156,7 +156,7 @@ public sealed class DeterministicCapabilityInterpreter(
         var tokens = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var token in tokens)
         {
-            if (token.Length < 2 || NonEntityWords.Contains(token) || QueryNormalization.IsPresentationWord(token) || token.All(char.IsDigit))
+            if (token.Length < 2 || NonEntityWords.Contains(token) || QueryNormalization.IsEntityDistractor(token) || token.All(char.IsDigit))
                 continue;
             if (!token.Any(character => char.IsLetter(character))) continue;
             var start = normalized.IndexOf(token, StringComparison.Ordinal);

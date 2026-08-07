@@ -96,7 +96,9 @@ public sealed class ConversationRepository(ConversationDbContext dbContext) : IC
         if (row is null) return false;
 
         var messages = dbContext.Messages.Where(message => message.ConversationId == conversationId);
+        var taskStates = dbContext.ConversationTaskStates.Where(state => state.ConversationId == conversationId);
         dbContext.Messages.RemoveRange(messages);
+        dbContext.ConversationTaskStates.RemoveRange(taskStates);
         dbContext.Conversations.Remove(row);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;

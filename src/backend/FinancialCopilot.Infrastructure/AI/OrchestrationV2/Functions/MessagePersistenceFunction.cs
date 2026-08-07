@@ -60,8 +60,8 @@ internal sealed class MessagePersistenceFunction(
                 request.TenantId,
                 request.ActorId,
                 timeProvider.GetUtcNow(),
-                BuildConversationTitle(request.Message),
-                request.Message,
+                BuildConversationTitle(request.OriginalUserMessage ?? request.Message),
+                request.OriginalUserMessage ?? request.Message,
                 assistantContent,
                 planJson,
                 new AssistantMessagePayload(

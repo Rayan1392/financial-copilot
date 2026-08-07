@@ -30,6 +30,7 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 /// </summary>
 internal sealed class FinancialCopilotWorkflowDefinition(
     IConversationRepository conversationRepository,
+    IConversationDialogueGate dialogueGate,
     IAiModelProviderResolver providerResolver,
     IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
@@ -172,7 +173,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             throw new ConversationNotFoundException(conversationId);
         }
 
-        return new WorkflowStartMessage(request, conversationId, createConversation, timeProvider.GetUtcNow());
+        var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
+        return new WorkflowStartMessage(prepared.Request, conversationId, createConversation, timeProvider.GetUtcNow());
     }
 
     private async ValueTask<MemoryRetrievedMessage> ExecuteConversationAndMemoryStepAsync(
@@ -737,6 +739,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         if (msg.Outcome != DialogueOutcome.Answered && msg.Outcome != DialogueOutcome.PartialAnswer)
             responseTextAnswer = msg.GroundedAnswer;
+
+        await dialogueGate.RecordOutcomeAsync(
+            msg.Request, msg.ConversationId, msg.ClarificationRequired, msg.OutcomeReasonCode, ct);
 
         var persistedExchange = await persistenceFunction.PersistAsync(
             msg.ConversationId, msg.Request,

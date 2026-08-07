@@ -54,7 +54,8 @@ public sealed record AiQueryRequest(
     int DisclosurePageSize = 20,
     ActorType ActorType = ActorType.User,
     AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
-    AiQueryContext? Context = null);
+    AiQueryContext? Context = null,
+    string? OriginalUserMessage = null);
 
 public sealed record AiQueryContext(
     Guid? InsightEventId = null,

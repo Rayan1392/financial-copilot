@@ -649,10 +649,25 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();
+        services.AddOptions<CanonicalEntityResolutionOptions>();
+        services.AddScoped<CanonicalEntityResolutionOptions>(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<CanonicalEntityResolutionOptions>>().Value);
+        services.Configure<ConversationTaskStateOptions>(configuration.GetSection(ConversationTaskStateOptions.SectionName));
+        services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
+        services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
+        services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();
+        services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IConversationTaskStateRepository, ConversationTaskStateRepository>();
+        services.AddScoped<IConversationTaskStateService>(provider => new ConversationTaskStateService(
+            provider.GetRequiredService<IConversationTaskStateRepository>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ConversationTaskStateOptions>>().Value,
+            provider.GetRequiredService<IConversationTaskStateTelemetrySink>()));
+        services.AddScoped<IConversationDialogueGate, ConversationDialogueGate>();
         services.AddScoped<EfCoreMemoryRecordRepository>();
         services.AddScoped<IMemoryConsentService, EfCoreMemoryConsentService>();
         services.AddScoped<IMemoryAuditService, EfCoreMemoryAuditService>();

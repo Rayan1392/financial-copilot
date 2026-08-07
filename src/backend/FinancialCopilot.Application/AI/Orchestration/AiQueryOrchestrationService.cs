@@ -36,6 +36,7 @@ public sealed class AiQueryOrchestrationService(
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
+    IConversationDialogueGate dialogueGate,
     TimeProvider timeProvider,
     ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null) : IAiQueryOrchestrationService
 {
@@ -56,6 +57,7 @@ public sealed class AiQueryOrchestrationService(
         {
             throw new ConversationNotFoundException(conversationId);
         }
+        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
 
         // Retrieve authorized memory context before AI execution.
         var subjectId = request.UserId ?? request.ActorId;
@@ -642,14 +644,17 @@ public sealed class AiQueryOrchestrationService(
         if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
             responseTextAnswer = assistantContent;
 
+        await dialogueGate.RecordOutcomeAsync(
+            request, conversationId, clarificationRequired, outcome.ReasonCode, cancellationToken);
+
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
                 conversationId,
                 request.TenantId,
                 request.ActorId,
                 timeProvider.GetUtcNow(),
-                BuildConversationTitle(request.Message),
-                request.Message,
+                BuildConversationTitle(request.OriginalUserMessage ?? request.Message),
+                request.OriginalUserMessage ?? request.Message,
                 assistantContent,
                 planJson,
                 new AssistantMessagePayload(

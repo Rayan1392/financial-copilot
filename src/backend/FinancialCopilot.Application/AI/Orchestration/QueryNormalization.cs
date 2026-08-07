@@ -66,4 +66,15 @@ public static class QueryNormalization
             "چارت" or "نمودار" or "روند" or "جدول" or "گیج" or "فهرست" or "خلاصه" => true,
             _ => false
         };
+
+    public static bool IsEntityDistractor(string value) =>
+        Normalize(value) switch
+        {
+            "chart" or "trend" or "graph" or "table" or "gauge" or "list" or "summary" or
+            "monthly" or "sales" or "sale" or "show" or "please" or "p" or "e" or "s" or "eps" or "roe" or "roa" => true,
+            "چارت" or "نمودار" or "روند" or "جدول" or "گیج" or "فهرست" or "خلاصه" or
+            "ماهانه" or "فروش" or "درآمد" or "سود" or "قیمت" or "نشان" or "بده" or "لطفا" or "لطفاً" or
+            "را" or "کن" or "کنید" or "است" or "چقدر" or "سال" or "ماه" or "هفته" => true,
+            _ => false
+        };
 }

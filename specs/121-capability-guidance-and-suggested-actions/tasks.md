@@ -10,7 +10,7 @@ Acceptance:
 - Existing clients ignore them safely.
 - Hidden canonical values are not trusted from clients.
 
-## [ ] Task 2 — Implement Contextual Suggestion Policy
+## [x] Task 2 — Implement Contextual Suggestion Policy
 
 Rank actions from outcome, reason, frame, pending state, enabled capabilities, and actor availability.
 
@@ -19,7 +19,7 @@ Acceptance:
 - Clarification/disambiguation actions outrank generic help.
 - Output is deterministic, deduplicated, localized, and capped.
 
-## [ ] Task 3 — Add Availability and Entitlement Guards
+## [x] Task 3 — Add Availability and Entitlement Guards
 
 Filter disabled/unavailable capabilities and avoid false data-availability claims.
 
@@ -28,7 +28,7 @@ Acceptance:
 - Suggestions never bypass backend entitlements.
 - No synchronous external provider call is introduced.
 
-## [ ] Task 4 — Generate Starter Prompts and Help Metadata
+## [x] Task 4 — Generate Starter Prompts and Help Metadata
 
 Replace independent static examples with registry-derived projections.
 

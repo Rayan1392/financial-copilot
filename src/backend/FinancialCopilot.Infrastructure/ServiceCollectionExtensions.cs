@@ -646,6 +646,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<QueryInterpretationValidator>();
         services.AddSingleton<IQueryInterpretationTelemetrySink, ActivityQueryInterpretationTelemetrySink>();
         services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
+        services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
         services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();

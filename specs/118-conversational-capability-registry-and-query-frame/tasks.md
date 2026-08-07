@@ -49,7 +49,7 @@ Acceptance:
 - Unknown fields/codes and oversized collections are rejected.
 - Explicit, conversation-derived, policy-defaulted, and model-proposed values are distinguishable.
 
-## [ ] Task 6 — Build Hybrid Capability Interpretation
+## [x] Task 6 — Build Hybrid Capability Interpretation
 
 Combine deterministic recognizers with an optional schema-constrained LLM proposal.
 
@@ -59,7 +59,7 @@ Acceptance:
 - Model output cannot bypass registry validation.
 - Malformed/timeout behavior maps through Feature 117.
 
-## [ ] Task 7 — Define Routing Precedence and Confidence Policy
+## [x] Task 7 — Define Routing Precedence and Confidence Policy
 
 Centralize conflict cases and configurable thresholds.
 
@@ -68,7 +68,7 @@ Acceptance:
 - Scanner vs lookup, trend vs point lookup, analysis vs metric, and gauge vs P/S lookup cases are covered.
 - Low-confidence behavior is deterministic and does not guess.
 
-## [ ] Task 8 — Generate Prompt and Metadata Projections
+## [x] Task 8 — Generate Prompt and Metadata Projections
 
 Produce bounded agent/tool and client metadata from enabled definitions.
 
@@ -78,7 +78,7 @@ Acceptance:
 - Storage/provider details are not exposed.
 - Prompt size has a tested upper bound.
 
-## [ ] Task 9 — Add Registry and Interpretation Telemetry
+## [x] Task 9 — Add Registry and Interpretation Telemetry
 
 Record registry version, candidates, winning confidence, evidence categories, latency, and validation failures using bounded dimensions.
 
@@ -87,7 +87,7 @@ Acceptance:
 - Raw prompt text is not a metric label.
 - Correlation with Feature 117 outcome is possible.
 
-## [ ] Task 10 — Add Paraphrase and Adversarial Tests
+## [x] Task 10 — Add Paraphrase and Adversarial Tests
 
 Cover Persian, English, mixed language, misspacing, punctuation, prompt injection, and routing conflicts.
 

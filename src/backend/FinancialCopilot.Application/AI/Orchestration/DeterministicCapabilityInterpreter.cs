@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 public interface ICapabilityInterpreter
@@ -5,7 +7,9 @@ public interface ICapabilityInterpreter
     QueryInterpretation Interpret(string message);
 }
 
-public sealed class DeterministicCapabilityInterpreter(IConversationalCapabilityRegistry registry) : ICapabilityInterpreter
+public sealed class DeterministicCapabilityInterpreter(
+    IConversationalCapabilityRegistry registry,
+    IQueryInterpretationTelemetrySink? telemetrySink = null) : ICapabilityInterpreter
 {
     private static readonly string[] ScreeningWords = ["screen", "filter", "stocks", "سهام", "فیلتر", "شرط"];
     private static readonly string[] TrendWords = ["trend", "chart", "graph", "monthly sales", "روند", "چارت", "نمودار", "فروش ماهانه"];
@@ -25,6 +29,7 @@ public sealed class DeterministicCapabilityInterpreter(IConversationalCapability
 
     public QueryInterpretation Interpret(string message)
     {
+        var started = Stopwatch.GetTimestamp();
         var original = message ?? string.Empty;
         var normalized = QueryNormalization.Normalize(original);
         var language = AiDialogueOutcomePolicy.DetectReplyLanguage(original);
@@ -85,7 +90,7 @@ public sealed class DeterministicCapabilityInterpreter(IConversationalCapability
             : Array.Empty<string>();
         var confidence = candidates.FirstOrDefault()?.Confidence ?? 0m;
 
-        var interpretation = new QueryInterpretation(
+        var preliminary = new QueryInterpretation(
             original,
             normalized,
             language,
@@ -99,9 +104,35 @@ public sealed class DeterministicCapabilityInterpreter(IConversationalCapability
             [],
             confidence,
             evidence,
-            registry.Version);
-        new QueryInterpretationValidator(registry).Validate(interpretation);
-        return interpretation;
+            registry.Version,
+            InterpretationConfidencePolicy.Band(confidence));
+        var ordered = CapabilityRoutingPrecedence.Order(preliminary, preliminary.CapabilityCandidates);
+        var interpretation = preliminary with
+        {
+            CapabilityCandidates = ordered,
+            ConfidenceBand = InterpretationConfidencePolicy.Band(ordered.FirstOrDefault()?.Confidence ?? 0m)
+        };
+        try
+        {
+            new QueryInterpretationValidator(registry).Validate(interpretation);
+            telemetrySink?.Record(new QueryInterpretationTelemetry(
+                registry.Version,
+                interpretation.CapabilityCandidates.Count,
+                interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
+                interpretation.CapabilityCandidates.FirstOrDefault()?.Confidence ?? 0m,
+                interpretation.ConfidenceBand,
+                interpretation.Evidence.Select(item => item.Category).Distinct(StringComparer.Ordinal).Take(10).ToArray(),
+                Stopwatch.GetElapsedTime(started)));
+            return interpretation;
+        }
+        catch
+        {
+            telemetrySink?.Record(new QueryInterpretationTelemetry(
+                registry.Version, interpretation.CapabilityCandidates.Count,
+                null, 0m, InterpretationConfidenceBand.Low, [],
+                Stopwatch.GetElapsedTime(started), ValidationFailed: true));
+            throw;
+        }
     }
 
     private static void AddScore(

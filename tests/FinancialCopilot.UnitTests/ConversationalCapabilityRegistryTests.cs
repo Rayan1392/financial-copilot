@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.ModelProviders;
 
 namespace FinancialCopilot.UnitTests;
 
@@ -89,10 +90,120 @@ public sealed class ConversationalCapabilityRegistryTests
             "query",
             "en",
             [new CapabilityCandidate("not_registered", 1, 1m, [])],
-            [], [], null, null, null, [], [], 1m, [], registry.Version);
+            [], [], null, null, null, [], [], 1m, [], registry.Version, InterpretationConfidenceBand.High);
 
         var exception = Assert.Throws<InvalidOperationException>(() => validator.Validate(invalid));
 
         Assert.Contains("invalid capability", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("stocks with P/E below 5", "stock_screening")]
+    [InlineData("P/E فولاد چقدر است؟", "symbol_metric_lookup")]
+    [InlineData("chart monthly sales for فولاد", "monthly_activity_trend")]
+    [InlineData("analyze فولاد", "comprehensive_analysis")]
+    [InlineData("show the P/S gauge for فولاد", "ps_gauge_visualization")]
+    public void PrecedencePolicy_ResolvesKnownConflictsDeterministically(string query, string expected)
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query);
+
+        Assert.Equal(expected, interpretation.CapabilityCandidates.First().CapabilityCode);
+        Assert.NotEqual(InterpretationConfidenceBand.Low, interpretation.ConfidenceBand);
+    }
+
+    [Fact]
+    public void LowConfidenceWithoutRecognizedCapability_DoesNotGuess()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret("tell me something useful");
+
+        Assert.Empty(interpretation.CapabilityCandidates);
+        Assert.Equal(InterpretationConfidenceBand.Low, interpretation.ConfidenceBand);
+    }
+
+    [Fact]
+    public async Task HybridInterpreter_RejectsUnregisteredModelProposalAndKeepsDeterministicFrame()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var hybrid = new HybridCapabilityInterpreter(
+            new DeterministicCapabilityInterpreter(registry),
+            registry,
+            new QueryInterpretationValidator(registry),
+            new StubProposalProvider(new QueryInterpretationProposal(["execute_sql"], [], null, 1m, ["prompt injection"])));
+
+        var result = await hybrid.InterpretAsync("chart monthly sales for فولاد", Guid.NewGuid(), "corr", CancellationToken.None);
+
+        Assert.False(result.ModelProposalUsed);
+        Assert.Null(result.FailureOutcome);
+        Assert.Equal("monthly_activity_trend", result.Interpretation.CapabilityCandidates.First().CapabilityCode);
+    }
+
+    [Fact]
+    public async Task HybridInterpreter_ProviderTimeoutMapsThroughDialogueOutcomePolicy()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var hybrid = new HybridCapabilityInterpreter(
+            new DeterministicCapabilityInterpreter(registry),
+            registry,
+            new QueryInterpretationValidator(registry),
+            new ThrowingProposalProvider(new AiModelProviderException(
+                AiExecutionStatus.TimedOut, "timeout", "provider detail")));
+
+        var result = await hybrid.InterpretAsync("tell me something useful", Guid.NewGuid(), "corr", CancellationToken.None);
+
+        Assert.Equal(DialogueOutcome.TemporarilyUnavailable, result.FailureOutcome?.Outcome);
+        Assert.Equal(DialogueOutcomeReasonCodes.ProviderOrToolTimeout, result.FailureOutcome?.ReasonCode);
+    }
+
+    [Fact]
+    public void Projection_ExcludesDisabledCapabilitiesAndProviderDetails()
+    {
+        var definitions = InitialConversationalCapabilityCatalog.Create()
+            .Select((definition, index) => index == 0 ? definition with { Enabled = false } : definition)
+            .ToArray();
+        var registry = new ConversationalCapabilityRegistry(definitions);
+        var projection = new CapabilityRegistryProjection(registry);
+
+        var metadata = projection.BuildMetadataProjection();
+        var prompt = projection.BuildBoundedPrompt(1200);
+
+        Assert.DoesNotContain(metadata, item => item.Code == "stock_screening");
+        Assert.DoesNotContain("postgres", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("provider", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.True(prompt.Length <= 1200);
+    }
+
+    [Fact]
+    public void TelemetrySink_UsesBoundedDimensionsOnly()
+    {
+        var sink = new ActivityQueryInterpretationTelemetrySink();
+        using var activity = new System.Diagnostics.Activity("query").Start();
+
+        sink.Record(new QueryInterpretationTelemetry(
+            1, 2, "monthly_activity_trend", 0.95m, InterpretationConfidenceBand.High,
+            ["trend-keyword", "metric-and-entity"], TimeSpan.FromMilliseconds(4)));
+
+        Assert.Null(activity!.GetTagItem("query.original_text"));
+        Assert.Equal("monthly_activity_trend", activity.GetTagItem("query.winning_capability"));
+        Assert.Equal("High", activity.GetTagItem("query.winning_confidence_band"));
+    }
+
+    private sealed class StubProposalProvider(QueryInterpretationProposal proposal) : IQueryInterpretationProposalProvider
+    {
+        public Task<QueryInterpretationProposal?> ProposeAsync(
+            string originalText,
+            Guid tenantId,
+            string correlationId,
+            CancellationToken cancellationToken) => Task.FromResult<QueryInterpretationProposal?>(proposal);
+    }
+
+    private sealed class ThrowingProposalProvider(Exception exception) : IQueryInterpretationProposalProvider
+    {
+        public Task<QueryInterpretationProposal?> ProposeAsync(
+            string originalText,
+            Guid tenantId,
+            string correlationId,
+            CancellationToken cancellationToken) => Task.FromException<QueryInterpretationProposal?>(exception);
     }
 }

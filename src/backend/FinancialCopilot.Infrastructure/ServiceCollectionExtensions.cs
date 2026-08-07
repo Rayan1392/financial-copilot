@@ -644,7 +644,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConversationalCapabilityRegistry>(_ =>
             new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create()));
         services.AddSingleton<QueryInterpretationValidator>();
+        services.AddSingleton<IQueryInterpretationTelemetrySink, ActivityQueryInterpretationTelemetrySink>();
         services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
+        services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
+        services.AddSingleton<HybridCapabilityInterpreter>();
+        services.AddSingleton<CapabilityRegistryProjection>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();

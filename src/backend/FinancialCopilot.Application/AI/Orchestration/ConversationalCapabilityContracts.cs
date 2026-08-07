@@ -267,7 +267,8 @@ public sealed record QueryInterpretation(
     IReadOnlyList<string> UnsupportedParts,
     decimal Confidence,
     IReadOnlyList<InterpretationEvidence> Evidence,
-    int RegistryVersion);
+    int RegistryVersion,
+    InterpretationConfidenceBand ConfidenceBand = InterpretationConfidenceBand.Low);
 
 public sealed class QueryInterpretationValidator(IConversationalCapabilityRegistry registry)
 {
@@ -284,10 +285,13 @@ public sealed class QueryInterpretationValidator(IConversationalCapabilityRegist
             throw new InvalidOperationException("Query interpretation collection exceeds the allowed limit.");
         if (interpretation.Confidence is < 0 or > 1)
             throw new InvalidOperationException("Query interpretation confidence must be between 0 and 1.");
+        if (interpretation.ConfidenceBand != InterpretationConfidencePolicy.Band(interpretation.Confidence))
+            throw new InvalidOperationException("Query interpretation confidence band is inconsistent.");
 
         foreach (var candidate in interpretation.CapabilityCandidates)
         {
-            if (registry.Find(candidate.CapabilityCode) is null || candidate.Confidence is < 0 or > 1)
+            if (registry.Find(candidate.CapabilityCode) is not { Enabled: true } ||
+                candidate.RegistryVersion != registry.Version || candidate.Confidence is < 0 or > 1)
                 throw new InvalidOperationException($"Query interpretation contains an invalid capability candidate '{candidate.CapabilityCode}'.");
         }
 

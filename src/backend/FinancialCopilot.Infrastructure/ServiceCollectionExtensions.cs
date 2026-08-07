@@ -647,6 +647,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IQueryInterpretationTelemetrySink, ActivityQueryInterpretationTelemetrySink>();
         services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
         services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
+        services.Configure<SemanticRoutingOptions>(configuration.GetSection(SemanticRoutingOptions.SectionName));
+        services.AddScoped<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
+        services.AddSingleton<ISemanticRoutingTelemetrySink, NullSemanticRoutingTelemetrySink>();
+        services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
+        services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
         services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();

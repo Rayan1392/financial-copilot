@@ -1,6 +1,6 @@
 # Feature 122 Tasks — Semantic Route Migration and Legacy Retirement
 
-## [ ] Task 1 — Define Dispatcher and Typed Execution Result
+## [x] Task 1 — Define Dispatcher and Typed Execution Result
 
 Create the semantic capability executor interface, dispatcher, execution context, and typed result contract.
 
@@ -10,7 +10,7 @@ Acceptance:
 - Only enabled registered capabilities can execute.
 - Exceptions are translated without exposing internals.
 
-## [ ] Task 2 — Add Per-Capability Flags and Shadow Comparison
+## [x] Task 2 — Add Per-Capability Flags and Shadow Comparison
 
 Support legacy, shadow, canary, semantic-primary, and rollback states.
 

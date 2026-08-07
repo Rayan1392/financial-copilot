@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using FinancialCopilot.Application.Administration;
+using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Billing;
 
 namespace FinancialCopilot.API.Middleware;
@@ -17,6 +20,15 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
             logger.LogError(exception, "Unhandled exception processing request.");
 
             var problemDetails = CreateProblemDetails(exception);
+
+            var languageHint = context.Request.Headers.AcceptLanguage.ToString();
+            var outcome = AiDialogueOutcomePolicy.FromException(languageHint, exception);
+            problemDetails.Extensions["outcome"] = outcome.Outcome.ToString();
+            problemDetails.Extensions["outcomeReasonCode"] = outcome.ReasonCode;
+            problemDetails.Extensions["replyLanguage"] = outcome.ReplyLanguage;
+            Activity.Current?.SetTag("workflow.outcome", outcome.Outcome.ToString());
+            Activity.Current?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
+            Activity.Current?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
 
             problemDetails.Extensions["traceId"] = context.TraceIdentifier;
             problemDetails.Extensions["correlationId"] = context.TraceIdentifier;
@@ -49,6 +61,34 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 Title = "concurrency-conflict",
                 Status = StatusCodes.Status409Conflict,
                 Detail = "The resource changed while the request was being processed."
+            },
+            AiModelProviderException { Status: AiExecutionStatus.TimedOut } => new ProblemDetails
+            {
+                Type = "https://financialcopilot/errors/provider-timeout",
+                Title = "temporarily-unavailable",
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Detail = "The AI capability is temporarily unavailable. Please try again shortly."
+            },
+            AiModelProviderException { Status: AiExecutionStatus.CapabilityUnavailable or AiExecutionStatus.RuntimeUnavailable } => new ProblemDetails
+            {
+                Type = "https://financialcopilot/errors/provider-unavailable",
+                Title = "temporarily-unavailable",
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Detail = "The AI capability is temporarily unavailable. Please try again shortly."
+            },
+            AiModelProviderException { Status: AiExecutionStatus.InvalidStructuredOutput } => new ProblemDetails
+            {
+                Type = "https://financialcopilot/errors/response-validation-failed",
+                Title = "response-validation-failed",
+                Status = StatusCodes.Status502BadGateway,
+                Detail = "The AI response could not be validated. Please try again."
+            },
+            AiModelProviderException => new ProblemDetails
+            {
+                Type = "https://financialcopilot/errors/provider-failure",
+                Title = "provider-failure",
+                Status = StatusCodes.Status502BadGateway,
+                Detail = "The AI capability could not complete the request. Please try again."
             },
             _ => new ProblemDetails
             {

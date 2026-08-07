@@ -133,6 +133,33 @@ public sealed class NormalizedCompanyRow
     public string? EnTicker { get; set; }
 }
 
+/// <summary>
+/// Read model for the operator-facing Noavaran eligibility view.
+/// The view is the authoritative universe for Noavaran monthly-activity data.
+/// </summary>
+public sealed class NoavaranEligibleCompanyRow
+{
+    public Guid Id { get; set; }
+
+    public string ProviderName { get; set; } = string.Empty;
+
+    public string ExternalCompanyId { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public Guid? IndustryId { get; set; }
+
+    public Guid? GroupId { get; set; }
+
+    public Guid? MarketId { get; set; }
+
+    public int? PrecedencyRight { get; set; }
+
+    public string? CompanySymbol { get; set; }
+
+    public string? TseSymbol { get; set; }
+}
+
 
 /// <summary>Industry classification dimension (provider-scoped; ready for future hierarchy).</summary>
 public sealed class NormalizedIndustryRow

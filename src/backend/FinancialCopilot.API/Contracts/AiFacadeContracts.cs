@@ -41,7 +41,11 @@ public sealed record AiQueryHttpResponse(
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
     DisclosureListingResult? DisclosureListingResult = null,
-    PsVisualizationResult? PsVisualizationResult = null);
+    PsVisualizationResult? PsVisualizationResult = null,
+    string Outcome = "Answered",
+    string OutcomeReasonCode = "none",
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -232,7 +236,11 @@ public sealed record AssistantMessageContentResponse(
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
     DisclosureListingResult? DisclosureListingResult = null,
-    PsVisualizationResult? PsVisualizationResult = null);
+    PsVisualizationResult? PsVisualizationResult = null,
+    string Outcome = "Answered",
+    string OutcomeReasonCode = "none",
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FinancialCopilot.Application.Scanner;
 
 namespace FinancialCopilot.UnitTests;
@@ -79,5 +80,45 @@ public sealed class SalesGrowthScannerContractsTests
             0m,
             FilterOrigin.Explicit,
             SalesGrowthPolicyVersions.V1));
+    }
+
+    [Fact]
+    public void JsonRoundTrip_BindsConstructorAndPreservesOrigins()
+    {
+        var semantics = new SalesGrowthScannerSemantics(
+            SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+            SalesGrowthThresholdKind.Percent,
+            ConditionOperator.GreaterThan,
+            100m,
+            FilterOrigin.InferredDefault,
+            SalesGrowthPolicyVersions.V1,
+            FilterOrigin.InferredDefault,
+            FilterOrigin.Explicit);
+
+        var plan = new ScannerQueryPlan(
+            Guid.NewGuid(),
+            "sales growth above 100 percent",
+            "en",
+            [],
+            [],
+            false,
+            null,
+            [],
+            [],
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"),
+            "v1",
+            new SalesGrowthScannerPlan(semantics));
+
+        var json = JsonSerializer.Serialize(plan);
+        var restoredPlan = JsonSerializer.Deserialize<ScannerQueryPlan>(json);
+        var restored = restoredPlan?.SalesGrowth?.Semantics;
+
+        Assert.NotNull(restored);
+        Assert.Equal(semantics.Baseline, restored.Baseline);
+        Assert.Equal(semantics.ThresholdKind, restored.ThresholdKind);
+        Assert.Equal(semantics.ThresholdValue, restored.ThresholdValue);
+        Assert.Equal(FilterOrigin.InferredDefault, restored.BaselineOrigin);
+        Assert.Equal(FilterOrigin.Explicit, restored.ThresholdOrigin);
+        Assert.Equal(semantics.Policies, restored.Policies);
     }
 }

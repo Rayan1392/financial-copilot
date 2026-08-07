@@ -83,6 +83,10 @@ internal sealed record ResultsComputedMessage(
     ConfidenceScoreResult? ConfidenceScore,
     string? GroundedAnswer,
     UsageAccountingResult? Usage,
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null);
 
@@ -109,5 +113,9 @@ internal sealed record PersistenceCompletedMessage(
     IReadOnlyCollection<MemoryUseDisclosure>? Disclosures,
     IAiModelClient ModelClient,
     string WorkflowCorrelationId,
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null);

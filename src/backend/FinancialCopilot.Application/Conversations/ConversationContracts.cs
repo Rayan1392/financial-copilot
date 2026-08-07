@@ -53,7 +53,11 @@ public sealed record AssistantMessagePayload(
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
     DisclosureListingResult? DisclosureListingResult = null,
-    PsVisualizationResult? PsVisualizationResult = null);
+    PsVisualizationResult? PsVisualizationResult = null,
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

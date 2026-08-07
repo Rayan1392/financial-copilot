@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
@@ -97,6 +98,14 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 usage = await billingFunctions.FinalizeAsync(
                     reservation, "Completed", false, cancellationToken);
 
+            var insightOutcome = AiDialogueOutcomePolicy.Determine(
+                request.Message,
+                DetectedIntent.PersonalizedInsightExplanation,
+                false,
+                null,
+                hasStructuredResult: true,
+                hasData: true);
+
             await memoryAdapter.RecordAuditAsync(
                 memoryContext, request.TenantId, request.ActorId,
                 request.CorrelationId, now, CancellationToken.None);
@@ -109,7 +118,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 null, null, null,
                 null, null, usage,
                 memoryContext, explanation,
-                createConversation, cancellationToken);
+                createConversation, cancellationToken,
+                outcome: insightOutcome.Outcome,
+                outcomeReasonCode: insightOutcome.ReasonCode,
+                replyLanguage: insightOutcome.ReplyLanguage,
+                languageGuardApplied: insightOutcome.LanguageGuardApplied);
 
             var provider = $"{modelClient.Descriptor.ProviderKey}/{modelClient.Descriptor.ModelKey}";
             return new AiQueryResponse(
@@ -131,7 +144,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 WorkflowVersion: "2",
                 ProviderSelection: provider,
                 ProviderFallbackOccurred: false,
-                WorkflowCorrelationId: request.CorrelationId);
+                WorkflowCorrelationId: request.CorrelationId,
+                Outcome: insightOutcome.Outcome,
+                OutcomeReasonCode: insightOutcome.ReasonCode,
+                ReplyLanguage: insightOutcome.ReplyLanguage,
+                LanguageGuardApplied: insightOutcome.LanguageGuardApplied);
         }
 
         var agent = agentFactory.Create(
@@ -253,6 +270,33 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             request.CorrelationId, conversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2);
         var groundedAnswer = GroundAgentProse(
             detectedIntent, state, agentResponse.Text, consistencyContext);
+        var outcome = AiDialogueOutcomePolicy.Determine(
+            request.Message,
+            detectedIntent,
+            clarificationRequired,
+            clarificationMessage,
+            state.ScannerResult is not null || state.LookupResult is not null || detectedIntent != DetectedIntent.Unknown,
+            state.ScannerResult?.Table is not null || state.LookupResult?.Table?.Rows.Count > 0);
+        outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
+            outcome,
+            outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : groundedAnswer));
+        Activity.Current?.SetTag("workflow.outcome", outcome.Outcome.ToString());
+        Activity.Current?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
+        Activity.Current?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
+        Activity.Current?.SetTag("workflow.language_guard_applied", outcome.LanguageGuardApplied);
+
+        if (outcome.Outcome is DialogueOutcome.ClarificationNeeded or DialogueOutcome.DisambiguationNeeded)
+        {
+            clarificationRequired = true;
+            clarificationMessage = AiDialogueOutcomePolicy.ComposeSystemMessage(outcome, outcome.SafeDetail);
+            outcome = outcome with { SafeDetail = clarificationMessage };
+        }
+
+        if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
+            groundedAnswer = AiDialogueOutcomePolicy.ComposeSystemMessage(
+                outcome,
+                detectedIntent == DetectedIntent.Unknown ? null : groundedAnswer);
+
         var confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             groundedAnswer,
@@ -261,6 +305,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var responseTextAnswer = detectedIntent == DetectedIntent.SymbolLookup
             ? groundedAnswer
             : textAnswer;
+
+        if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
+            responseTextAnswer = groundedAnswer;
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
 
@@ -273,7 +320,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             state.LookupResult?.Table,
             explainableAnswer, confidenceScore, usage,
             memoryContext, groundedAnswer,
-            createConversation, cancellationToken);
+            createConversation, cancellationToken,
+            outcome: outcome.Outcome,
+            outcomeReasonCode: outcome.ReasonCode,
+            replyLanguage: outcome.ReplyLanguage,
+            languageGuardApplied: outcome.LanguageGuardApplied);
 
         var providerSelection = $"{modelClient.Descriptor.ProviderKey}/{modelClient.Descriptor.ModelKey}";
 
@@ -296,7 +347,11 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             WorkflowVersion: "2",
             ProviderSelection: providerSelection,
             ProviderFallbackOccurred: false,
-            WorkflowCorrelationId: request.CorrelationId);
+            WorkflowCorrelationId: request.CorrelationId,
+            Outcome: outcome.Outcome,
+            OutcomeReasonCode: outcome.ReasonCode,
+            ReplyLanguage: outcome.ReplyLanguage,
+            LanguageGuardApplied: outcome.LanguageGuardApplied);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
@@ -360,7 +415,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             async (string query) =>
             {
                 var result = await scannerAdapter.SearchAsync(
-                    query,
+                    request.Message,
                     request.CorrelationId,
                     request.TenantId,
                     request.ActorId,

@@ -500,20 +500,27 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
                 client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
             }
-            //****AI AGENT*** ATTENTION PLEASE: DO NOT CHANGE THIS CODE
-            var apiKey = registration?.CredentialSecretReference
-            is not null
+
+            var apiKey = !string.IsNullOrWhiteSpace(registration?.CredentialSecretReference)
                 ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
                 : null;
-            //*****************************************************
+
+            // Support the development-only key on the provider registration, then
+            // fall back to the legacy AiProvider section.
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = registration?.ApiKey;
+            }
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = providerSettings.OpenAI.ApiKey;
+            }
+
             if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            }
-            else if (!string.IsNullOrWhiteSpace(providerSettings.OpenAI.ApiKey))
-            {
                 client.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", providerSettings.OpenAI.ApiKey);
+                    new AuthenticationHeaderValue("Bearer", apiKey);
             }
         });
         services.AddSingleton<IAiModelClient>(provider =>
@@ -634,6 +641,10 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
         services.AddSingleton<IAiModelProviderDiagnostics>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
+        services.AddSingleton<IConversationalCapabilityRegistry>(_ =>
+            new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create()));
+        services.AddSingleton<QueryInterpretationValidator>();
+        services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();

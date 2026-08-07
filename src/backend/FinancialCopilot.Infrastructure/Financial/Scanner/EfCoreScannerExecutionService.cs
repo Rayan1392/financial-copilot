@@ -44,9 +44,25 @@ public sealed class EfCoreScannerExecutionService(
 
         var allRequiredCodes = conditionCodes.Union(displayMetricCodes, StringComparer.OrdinalIgnoreCase).ToList();
 
-        // Use Companies as the universe — each company with an ExternalCompanyId is a candidate
-        var companyQuery = dbContext.Companies.AsNoTracking()
-            .Where(c => c.ExternalCompanyId != null && c.ExternalCompanyId != string.Empty);
+        // Feature 116 operates on Noavaran monthly-activity data. Use the authoritative
+        // NoavaranEligibleCompanies view for that universe; the generic scanner keeps its
+        // existing Companies-based universe.
+        IQueryable<NormalizedCompanyRow> companyQuery = plan.SalesGrowth is not null
+            ? dbContext.NoavaranEligibleCompanies.AsNoTracking().Select(company => new NormalizedCompanyRow
+            {
+                Id = company.Id,
+                ProviderName = company.ProviderName,
+                ExternalCompanyId = company.ExternalCompanyId,
+                Name = company.Name,
+                IndustryId = company.IndustryId,
+                GroupId = company.GroupId,
+                MarketId = company.MarketId,
+                PrecedencyRight = company.PrecedencyRight,
+                CompanySymbol = company.CompanySymbol,
+                TseSymbol = company.TseSymbol
+            })
+            : dbContext.Companies.AsNoTracking()
+                .Where(c => c.ExternalCompanyId != null && c.ExternalCompanyId != string.Empty);
         if (!string.IsNullOrWhiteSpace(request.Universe?.IndustryCode))
         {
             var industryCode = request.Universe.IndustryCode.Trim();
@@ -233,10 +249,16 @@ public sealed class EfCoreScannerExecutionService(
             .ToListAsync(cancellationToken);
 
         var observations = snapshots
-            .Select(snapshot => new SalesGrowthPeriodObservation(
-                ToEvaluationPeriod(snapshot),
-                snapshot.ExternalCompanyId,
-                IsCompleteForBaseline(snapshot, salesPlan.Semantics.Baseline)))
+            .Select(snapshot => new
+            {
+                Snapshot = snapshot,
+                Period = ToEvaluationPeriod(snapshot)
+            })
+            .Where(item => item.Period is not null)
+            .Select(item => new SalesGrowthPeriodObservation(
+                item.Period!.Value,
+                item.Snapshot.ExternalCompanyId,
+                IsCompleteForBaseline(item.Snapshot, salesPlan.Semantics.Baseline)))
             .ToArray();
 
         var selection = periodSelector.Select(observations, companyRows.Count);
@@ -254,6 +276,12 @@ public sealed class EfCoreScannerExecutionService(
             return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), companyRows.Count, warnings);
         }
         var resolvedTargetPeriod = targetPeriod.Value;
+        if (!resolvedTargetPeriod.IsValid)
+        {
+            warnings.Add(
+                $"Sales-growth scanner unavailable: invalid target period ({resolvedTargetPeriod.Year}, {resolvedTargetPeriod.Month}).");
+            return BuildEmptyResult(plan, columns, startTime, timeProvider.GetUtcNow(), companyRows.Count, warnings);
+        }
 
         var requiredOtherCodes = plan.Conditions
             .Select(condition => condition.MetricReference.MetricCode.Value)
@@ -281,13 +309,19 @@ public sealed class EfCoreScannerExecutionService(
         {
             var companySnapshots = snapshots
                 .Where(snapshot => string.Equals(snapshot.ExternalCompanyId, company.ExternalCompanyId, StringComparison.OrdinalIgnoreCase))
-                .Select(snapshot => new SalesGrowthSalesObservation(
-                    snapshot.ExternalCompanyId,
-                    ToEvaluationPeriod(snapshot),
-                    snapshot.MonthlySalesAmount,
-                    snapshot.SourceProviderName,
-                    snapshot.SourceReportId ?? snapshot.SourceRawPayloadId ?? snapshot.Id.ToString("N"),
-                    snapshot.CalculatedAtUtc))
+                .Select(snapshot => new
+                {
+                    Snapshot = snapshot,
+                    Period = ToEvaluationPeriod(snapshot)
+                })
+                .Where(item => item.Period is not null)
+                .Select(item => new SalesGrowthSalesObservation(
+                    item.Snapshot.ExternalCompanyId,
+                    item.Period!.Value,
+                    item.Snapshot.MonthlySalesAmount,
+                    item.Snapshot.SourceProviderName,
+                    item.Snapshot.SourceReportId ?? item.Snapshot.SourceRawPayloadId ?? item.Snapshot.Id.ToString("N"),
+                    item.Snapshot.CalculatedAtUtc))
                 .ToArray();
             var calculation = comparisonCalculator.Calculate(
                 company.ExternalCompanyId,
@@ -527,7 +561,9 @@ public sealed class EfCoreScannerExecutionService(
     private static bool IsSalesGrowthMetric(string code) =>
         code.Equals("MONTHLY_SALES_GROWTH_MOM", StringComparison.OrdinalIgnoreCase) ||
         code.Equals("MONTHLY_SALES_GROWTH_YOY", StringComparison.OrdinalIgnoreCase) ||
-        code.Equals("MONTHLY_SALES_GROWTH", StringComparison.OrdinalIgnoreCase);
+        code.Equals("MONTHLY_SALES_GROWTH", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_PERCENT", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MULTIPLE", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCompleteForBaseline(
         CompanyMonthlyActivityTrendSnapshotRow snapshot,
@@ -540,11 +576,18 @@ public sealed class EfCoreScannerExecutionService(
             _ => false
         };
 
-    private static SalesGrowthEvaluationPeriod ToEvaluationPeriod(CompanyMonthlyActivityTrendSnapshotRow snapshot)
+    private static SalesGrowthEvaluationPeriod? ToEvaluationPeriod(CompanyMonthlyActivityTrendSnapshotRow snapshot)
     {
-        var year = snapshot.CalendarYear ?? snapshot.ReportYear;
-        var month = snapshot.CalendarMonth ?? snapshot.ReportMonth;
-        return new SalesGrowthEvaluationPeriod(year, month);
+        var year = snapshot.CalendarYear is > 0
+            ? snapshot.CalendarYear.Value
+            : snapshot.ReportYear;
+        var month = snapshot.CalendarMonth is > 0
+            ? snapshot.CalendarMonth.Value
+            : snapshot.ReportMonth;
+
+        return year > 0 && month is >= 1 and <= 12
+            ? new SalesGrowthEvaluationPeriod(year, month)
+            : null;
     }
 
     private async Task TryCollectMissingAnswerFeedbackAsync(

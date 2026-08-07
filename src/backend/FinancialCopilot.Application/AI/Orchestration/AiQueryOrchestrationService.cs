@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -566,6 +567,63 @@ public sealed class AiQueryOrchestrationService(
             consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
             monthlyActivityTrendResult,
             financialStatementTableResult);
+
+        var hasStructuredResult =
+            scannerTable is not null ||
+            symbolLookupTable is not null ||
+            comprehensiveAnalysisResult is not null ||
+            financialStatementAnalysisResult is not null ||
+            financialStatementTableResult is not null ||
+            productRevenueMixResult is not null ||
+            monthlyActivityTrendResult is not null ||
+            disclosureListingResult is not null ||
+            (detectedIntent is not DetectedIntent.Unknown and not DetectedIntent.PersonalizedInsightExplanation);
+
+        var hasData =
+            scannerTable is not null ||
+            symbolLookupTable?.Rows.Count > 0 ||
+            comprehensiveAnalysisResult?.HasResults == true ||
+            financialStatementAnalysisResult is not null ||
+            financialStatementTableResult is not null ||
+            productRevenueMixResult is not null ||
+            monthlyActivityTrendResult is not null ||
+            disclosureListingResult?.Items.Count > 0 ||
+            detectedIntent == DetectedIntent.PersonalizedInsightExplanation;
+
+        var hasUnresolvedEntity =
+            symbolLookupTable?.UnresolvedSymbols.Count > 0 ||
+            comprehensiveAnalysisResult?.UnresolvedSymbols.Count > 0;
+
+        var outcome = AiDialogueOutcomePolicy.Determine(
+            request.Message,
+            detectedIntent,
+            clarificationRequired,
+            clarificationMessage,
+            hasStructuredResult,
+            hasData,
+            hasUnresolvedEntity);
+        outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
+            outcome,
+            outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : assistantContent));
+        Activity.Current?.SetTag("workflow.outcome", outcome.Outcome.ToString());
+        Activity.Current?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
+        Activity.Current?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
+        Activity.Current?.SetTag("workflow.language_guard_applied", outcome.LanguageGuardApplied);
+
+        if (outcome.Outcome is DialogueOutcome.ClarificationNeeded or DialogueOutcome.DisambiguationNeeded)
+        {
+            clarificationRequired = true;
+            clarificationMessage = AiDialogueOutcomePolicy.ComposeSystemMessage(outcome, outcome.SafeDetail);
+            outcome = outcome with { SafeDetail = clarificationMessage };
+        }
+
+        if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
+        {
+            assistantContent = AiDialogueOutcomePolicy.ComposeSystemMessage(
+                outcome,
+                detectedIntent == DetectedIntent.Unknown ? null : assistantContent);
+        }
+
         confidenceScore = CalculateConfidenceScore(
             request.CorrelationId,
             assistantContent,
@@ -581,6 +639,8 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.PersonalizedInsightExplanation
             ? assistantContent
             : textAnswer;
+        if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
+            responseTextAnswer = assistantContent;
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -610,7 +670,11 @@ public sealed class AiQueryOrchestrationService(
                     financialStatementTableResult,
                     productRevenueMixResult,
                     monthlyActivityTrendResult,
-                    DisclosureListingResult: disclosureListingResult)),
+                    DisclosureListingResult: disclosureListingResult,
+                    Outcome: outcome.Outcome,
+                    OutcomeReasonCode: outcome.ReasonCode,
+                    ReplyLanguage: outcome.ReplyLanguage,
+                    LanguageGuardApplied: outcome.LanguageGuardApplied)),
             createConversation,
             cancellationToken);
 
@@ -637,7 +701,11 @@ public sealed class AiQueryOrchestrationService(
             FinancialStatementTableResult: financialStatementTableResult,
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult,
-            DisclosureListingResult: disclosureListingResult);
+            DisclosureListingResult: disclosureListingResult,
+            Outcome: outcome.Outcome,
+            OutcomeReasonCode: outcome.ReasonCode,
+            ReplyLanguage: outcome.ReplyLanguage,
+            LanguageGuardApplied: outcome.LanguageGuardApplied);
     }
 
     private ConfidenceScoreResult? CalculateConfidenceScore(

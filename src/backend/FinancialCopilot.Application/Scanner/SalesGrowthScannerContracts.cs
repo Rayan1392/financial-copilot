@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FinancialCopilot.Domain.Financial.Metrics;
 
 namespace FinancialCopilot.Application.Scanner;
@@ -67,9 +68,29 @@ public sealed record SalesGrowthScannerSemantics
         ConditionOperator comparisonOperator,
         decimal? thresholdValue,
         FilterOrigin origin,
+        SalesGrowthPolicyVersions policies)
+        : this(
+            baseline,
+            thresholdKind,
+            comparisonOperator,
+            thresholdValue,
+            origin,
+            policies,
+            origin,
+            origin)
+    {
+    }
+
+    [JsonConstructor]
+    public SalesGrowthScannerSemantics(
+        SalesGrowthComparisonBaseline baseline,
+        SalesGrowthThresholdKind thresholdKind,
+        ConditionOperator comparisonOperator,
+        decimal? thresholdValue,
+        FilterOrigin origin,
         SalesGrowthPolicyVersions policies,
-        FilterOrigin? baselineOrigin = null,
-        FilterOrigin? thresholdOrigin = null)
+        FilterOrigin baselineOrigin,
+        FilterOrigin thresholdOrigin)
     {
         if (thresholdKind == SalesGrowthThresholdKind.Positive && thresholdValue is not null)
         {
@@ -100,8 +121,8 @@ public sealed record SalesGrowthScannerSemantics
         ComparisonOperator = comparisonOperator;
         ThresholdValue = thresholdValue;
         Origin = origin;
-        BaselineOrigin = baselineOrigin ?? origin;
-        ThresholdOrigin = thresholdOrigin ?? origin;
+        BaselineOrigin = baselineOrigin;
+        ThresholdOrigin = thresholdOrigin;
         Policies = policies;
     }
 

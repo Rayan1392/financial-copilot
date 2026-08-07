@@ -22,6 +22,10 @@ export interface ChatMessage {
 export interface AssistantChatBlock {
   message: string;
   intent: string;
+  outcome?: string;
+  outcomeReasonCode?: string;
+  replyLanguage?: string;
+  languageGuardApplied?: boolean;
   confidence?: number;
   creditsUsed: number;
   suggestedQuestions: string[];
@@ -209,6 +213,10 @@ interface ConversationMessagesResponse {
 
 interface AssistantContentResponse {
   intent: string;
+  outcome?: string;
+  outcomeReasonCode?: string;
+  replyLanguage?: string;
+  languageGuardApplied?: boolean;
   clarificationRequired: boolean;
   clarificationMessage?: string;
   textAnswer?: string;
@@ -363,6 +371,10 @@ function mapAssistantBlock(
   return {
     message: tableMetadataLabel ? "" : rawMessage,
     intent: content?.intent ?? "Unknown",
+    outcome: content?.outcome,
+    outcomeReasonCode: content?.outcomeReasonCode,
+    replyLanguage: content?.replyLanguage,
+    languageGuardApplied: content?.languageGuardApplied,
     confidence: content?.confidenceScore?.score ?? explanation?.confidence?.score,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
     suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],

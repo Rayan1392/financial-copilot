@@ -30,6 +30,10 @@ internal sealed class MessagePersistenceFunction(
         string? agentResponseText,
         bool createConversation,
         CancellationToken cancellationToken,
+        DialogueOutcome outcome = DialogueOutcome.Answered,
+        string outcomeReasonCode = DialogueOutcomeReasonCodes.None,
+        string replyLanguage = "en",
+        bool languageGuardApplied = false,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         FinancialStatementTableResult? financialStatementTableResult = null,
@@ -80,7 +84,11 @@ internal sealed class MessagePersistenceFunction(
                     MonthlyActivityTrendResult: monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
                     DisclosureListingResult: disclosureListingResult,
-                    PsVisualizationResult: psVisualizationResult)),
+                    PsVisualizationResult: psVisualizationResult,
+                    Outcome: outcome,
+                    OutcomeReasonCode: outcomeReasonCode,
+                    ReplyLanguage: replyLanguage,
+                    LanguageGuardApplied: languageGuardApplied)),
             createConversation,
             cancellationToken);
     }

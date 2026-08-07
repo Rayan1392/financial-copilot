@@ -85,6 +85,9 @@ public sealed record SalesGrowthComparisonCalculationResult(
     public bool IsUsable =>
         Current.State == SalesGrowthValueState.Available &&
         BaselineValue.State == SalesGrowthValueState.Available &&
+        Current.Period is { IsValid: true } &&
+        (BaselineValue.Period is null || BaselineValue.Period.Value.IsValid) &&
+        BaselineValue.WindowPeriods.All(period => period.IsValid) &&
         GrowthPercent is not null &&
         GrowthMultiple is not null;
 }
@@ -123,7 +126,7 @@ public sealed class SalesGrowthComparisonCalculator : ISalesGrowthComparisonCalc
             .Where(observation => string.Equals(
                 observation.ExternalCompanyId,
                 normalizedCompanyId,
-                StringComparison.Ordinal))
+                StringComparison.Ordinal) && observation.Period.IsValid)
             .OrderBy(observation => observation.Period.Year)
             .ThenBy(observation => observation.Period.Month)
             .ThenBy(observation => observation.EvidenceId, StringComparer.Ordinal)
@@ -193,7 +196,10 @@ public sealed class SalesGrowthComparisonCalculator : ISalesGrowthComparisonCalc
     {
         if (duplicatePeriods)
         {
-            return new SalesGrowthValue(null, SalesGrowthValueState.Invalid, baselinePeriods.FirstOrDefault(), baselinePeriods);
+            var firstPeriod = baselinePeriods.Count == 0
+                ? (SalesGrowthEvaluationPeriod?)null
+                : baselinePeriods.First();
+            return new SalesGrowthValue(null, SalesGrowthValueState.Invalid, firstPeriod, baselinePeriods);
         }
 
         if (baseline == SalesGrowthComparisonBaseline.AveragePrevious12Months)

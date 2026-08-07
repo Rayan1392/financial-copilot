@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FinancialCopilot.Domain.Financial.Metrics;
 
 namespace FinancialCopilot.Application.Scanner;
@@ -55,6 +56,7 @@ public static class SalesGrowthScannerOptionsValidation
 /// <summary>A validated calendar month used as the single scanner evaluation period.</summary>
 public readonly record struct SalesGrowthEvaluationPeriod
 {
+    [JsonConstructor]
     public SalesGrowthEvaluationPeriod(int year, int month)
     {
         if (year < 1)
@@ -75,7 +77,14 @@ public readonly record struct SalesGrowthEvaluationPeriod
 
     public int Month { get; }
 
-    public DateOnly FirstDay => new(Year, Month, 1);
+    [JsonIgnore]
+    public bool IsValid => Year >= 1 && Month is >= 1 and <= 12;
+
+    [JsonIgnore]
+    public DateOnly FirstDay => IsValid
+        ? new(Year, Month, 1)
+        : throw new InvalidOperationException(
+            $"Cannot create the first day for an invalid sales-growth period ({Year}, {Month}).");
 }
 
 /// <summary>
@@ -146,7 +155,10 @@ public sealed class SalesGrowthCommonEvaluationPeriodSelector : ISalesGrowthComm
         }
 
         var candidates = observations
-            .Where(observation => observation.IsComplete && !string.IsNullOrWhiteSpace(observation.ExternalCompanyId))
+            .Where(observation =>
+                observation.Period.IsValid &&
+                observation.IsComplete &&
+                !string.IsNullOrWhiteSpace(observation.ExternalCompanyId))
             .GroupBy(observation => observation.Period)
             .Select(group => new PeriodCoverage(
                 group.Key,

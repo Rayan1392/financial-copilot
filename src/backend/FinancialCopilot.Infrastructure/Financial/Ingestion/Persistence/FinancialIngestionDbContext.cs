@@ -6,6 +6,9 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 {
     public DbSet<NormalizedCompanyRow> Companies => Set<NormalizedCompanyRow>();
 
+    public DbSet<NoavaranEligibleCompanyRow> NoavaranEligibleCompanies =>
+        Set<NoavaranEligibleCompanyRow>();
+
     public DbSet<NormalizedIndustryRow> Industries => Set<NormalizedIndustryRow>();
 
     public DbSet<NormalizedIndustryGroupRow> IndustryGroups => Set<NormalizedIndustryGroupRow>();

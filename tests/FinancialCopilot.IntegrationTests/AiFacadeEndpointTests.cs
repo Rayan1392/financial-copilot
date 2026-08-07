@@ -384,6 +384,8 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
             ReplaceIngestionDbContext(services, IngestionDatabaseName);
 
             // Replace all registered AI model clients with a single scanner-aware fake.
+            services.RemoveAll<IAiModelProviderRoutingPolicy>();
+            services.AddSingleton<IAiModelProviderRoutingPolicy>(new TestAiModelProviderRoutingPolicy());
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(_ =>
                 new ScannerAwareFakeAiModelClient(returnUnknownTerm: false));
@@ -467,6 +469,11 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
 
         return client;
     }
+}
+
+internal sealed class TestAiModelProviderRoutingPolicy : IAiModelProviderRoutingPolicy
+{
+    public string? DefaultProviderKey => null;
 }
 
 // Returns structured JSON shaped for either intent detection or scanner parsing based on schema name.

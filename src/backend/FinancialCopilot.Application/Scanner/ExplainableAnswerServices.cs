@@ -347,7 +347,9 @@ public sealed class ExplainableAnswerBuilder(
     private static bool IsSalesGrowthMetric(string code) =>
         code.Equals("MONTHLY_SALES_GROWTH", StringComparison.OrdinalIgnoreCase) ||
         code.Equals("MONTHLY_SALES_GROWTH_MOM", StringComparison.OrdinalIgnoreCase) ||
-        code.Equals("MONTHLY_SALES_GROWTH_YOY", StringComparison.OrdinalIgnoreCase);
+        code.Equals("MONTHLY_SALES_GROWTH_YOY", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_PERCENT", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MULTIPLE", StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyCollection<DataCitation> BuildDataCitations(ScannerTableResult? result)
     {

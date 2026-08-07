@@ -1,9 +1,25 @@
+using System.Text.Json;
 using FinancialCopilot.Application.Scanner;
 
 namespace FinancialCopilot.UnitTests;
 
 public sealed class SalesGrowthCommonEvaluationPeriodSelectorTests
 {
+    [Fact]
+    public void EvaluationPeriod_JsonRoundTrip_PreservesValidatedYearAndMonth()
+    {
+        var expected = new SalesGrowthEvaluationPeriod(2026, 6);
+
+        var json = JsonSerializer.Serialize(expected);
+        var actual = JsonSerializer.Deserialize<SalesGrowthEvaluationPeriod>(json);
+
+        Assert.Equal(expected, actual);
+        Assert.Equal(2026, actual.Year);
+        Assert.Equal(6, actual.Month);
+        Assert.DoesNotContain("FirstDay", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsValid", json, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void SelectsNewestPeriodThatMeetsCoveragePolicy()
     {
@@ -82,6 +98,23 @@ public sealed class SalesGrowthCommonEvaluationPeriodSelectorTests
         Assert.Equal(SalesGrowthCommonPeriodSelectionStatus.Unavailable, result.Status);
         Assert.Null(result.TargetPeriod);
         Assert.Contains("complete", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void IgnoresDefaultStructPeriodsInsteadOfSelectingYearZero()
+    {
+        var selector = CreateSelector(10m);
+        SalesGrowthPeriodObservation[] observations =
+        [
+            new(default, "INVALID", true),
+            Observation(2026, 6, "VALID", true)
+        ];
+
+        var result = selector.Select(observations, eligibleUniverseSymbolCount: 2);
+
+        Assert.Equal(SalesGrowthCommonPeriodSelectionStatus.Available, result.Status);
+        Assert.Equal(new SalesGrowthEvaluationPeriod(2026, 6), result.TargetPeriod);
+        Assert.Equal(1, result.CoverageNumerator);
     }
 
     [Fact]

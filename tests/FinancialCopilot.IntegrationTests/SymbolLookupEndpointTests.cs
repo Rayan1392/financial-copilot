@@ -131,9 +131,19 @@ public sealed class SymbolLookupEndpointTests : IClassFixture<SymbolLookupApiFac
         var table = document.RootElement.GetProperty("symbolLookupTable");
         var rows = table.GetProperty("rows").EnumerateArray().ToList();
         Assert.Equal(2, rows.Count);
+        var columns = table.GetProperty("columns").EnumerateArray()
+            .Select(column => column.GetProperty("identifier").GetString())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("PE_TTM", columns);
+        Assert.Contains("RETURN_ON_EQUITY", columns);
         var symbols = rows.Select(r => r.GetProperty("symbolCode").GetString()!).ToHashSet();
         Assert.Contains("HAF_TSE", symbols);
         Assert.Contains("FML_TSE", symbols);
+        Assert.All(rows, row =>
+        {
+            Assert.NotEqual(JsonValueKind.Null, row.GetProperty("cells").GetProperty("PE_TTM").GetProperty("value").ValueKind);
+            Assert.NotEqual(JsonValueKind.Null, row.GetProperty("cells").GetProperty("RETURN_ON_EQUITY").GetProperty("value").ValueKind);
+        });
     }
 
     [Fact]
@@ -427,9 +437,10 @@ public sealed class SymbolLookupApiFactory : AiFacadeApiFactory
             new NormalizedCompanyRow
             {
                 Id = companyFmlcoId,
-                Name = "فولاد مبارکه اصفهان",
+                Name = "ملی صنایع مس ایران",
                 ProviderName = "test",
                 ExternalCompanyId = "fmlco-001",
+                Ticker = "فملی",
                 TseSymbol = "FML_TSE",
                 CompanySymbol = "FMLCO",
                 LastSynchronizedAt = now

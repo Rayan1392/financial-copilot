@@ -310,7 +310,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     }
 
     [Fact]
-    public async Task V2AiQuery_ExplicitPeFollowup_UsesLatestUserMessageAsParserInput()
+    public async Task V2AiQuery_ExplicitPeFollowup_BypassesLegacyParserAndUsesSemanticFrame()
     {
         _factory.Fake.Reset();
         using var client = _factory.CreateClient();
@@ -331,10 +331,8 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("pe \u06a9\u0686\u0627\u062f", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("[Recent conversation]", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("Assistant", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("User", _factory.Fake.LastParserUserMessage);
+        Assert.Null(_factory.Fake.LastParserUserMessage);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
         var row = Assert.Single(document.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
         Assert.Equal("\u06a9\u0686\u0627\u062f", row.GetProperty("symbolCode").GetString());
@@ -510,7 +508,9 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.Equal(JsonValueKind.Null, root.GetProperty("symbolLookupTable").ValueKind);
 
         var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("\u0646\u0627\u0645\u0648\u062c\u0648\u062f", textAnswer);
+        Assert.Equal("DisambiguationNeeded", root.GetProperty("outcome").GetString());
+        Assert.Equal("entity_not_found", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.Contains("\u0646\u0645\u0627\u062f \u062f\u0642\u06cc\u0642", textAnswer);
         Assert.DoesNotContain("Found metric data for 0 symbol(s). 1 unresolved.", textAnswer);
         Assert.DoesNotContain("Clarification needed", textAnswer);
     }
@@ -559,7 +559,7 @@ public sealed class V2ShgolDirectPriceRegressionEndpointTests : IClassFixture<V2
         Assert.Equal("3,934", priceCell.GetProperty("formattedValue").GetString());
         Assert.Equal("PreviousTradingDay", priceCell.GetProperty("freshnessStatus").GetString());
         Assert.Equal("LatestDailyFallback", priceCell.GetProperty("sourceLabel").GetString());
-        Assert.Equal("2026-06-17", priceCell.GetProperty("tradingDate").GetString());
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-2).ToString("yyyy-MM-dd"), priceCell.GetProperty("tradingDate").GetString());
         Assert.Equal(FormatJalaliDate(ParseTradingDate(priceCell.GetProperty("tradingDate").GetString()!)),
             priceCell.GetProperty("tradingDatePersian").GetString());
 
@@ -773,6 +773,8 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_activity_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(1, root.GetProperty("semanticRegistryVersion").GetInt32());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
@@ -1054,7 +1056,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         var table = root.GetProperty("financialStatementTableResult");
         Assert.Equal("غالبر", table.GetProperty("source").GetProperty("companySymbol").GetString());
         Assert.Equal("IncomeStatement", table.GetProperty("source").GetProperty("statementType").GetString());
-        Assert.Equal("NadpcoApi", table.GetProperty("source").GetProperty("providerName").GetString());
+        Assert.Equal("نوآوران امین", table.GetProperty("source").GetProperty("providerName").GetString());
         Assert.True(table.GetProperty("lineItems").GetArrayLength() >= 5);
         Assert.Contains("| ردیف | شرح | مبلغ |", root.GetProperty("textAnswer").GetString());
     }

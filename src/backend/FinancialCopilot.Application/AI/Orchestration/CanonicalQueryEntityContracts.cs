@@ -35,20 +35,75 @@ public interface ICanonicalQueryEntityResolver
     Task<EntityResolutionResult> ResolveFromInterpretationAsync(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(
+        QueryInterpretation interpretation,
+        CancellationToken cancellationToken = default);
 }
 
 public enum QuerySlotType
 {
+    Insight,
+    Conditions,
     CompanyOrSymbol,
+    CompaniesOrSymbols,
     Metric,
+    Metrics,
     Period,
     ComparisonBaseline,
     Threshold,
     StatementType,
+    AuditStatus,
+    RestatementStatus,
+    ConsolidationScope,
+    MetricSet,
     AnalysisTopic,
+    DisclosureTypes,
+    PublishedFrom,
+    PublishedTo,
+    Industry,
     Presentation,
     ResultLimit,
     Sort
+}
+
+public static class QuerySlotSchema
+{
+    private static readonly IReadOnlyDictionary<string, QuerySlotType> TypesByName =
+        new Dictionary<string, QuerySlotType>(StringComparer.Ordinal)
+        {
+            ["conditions"] = QuerySlotType.Conditions,
+            ["insight"] = QuerySlotType.Insight,
+            ["symbol"] = QuerySlotType.CompanyOrSymbol,
+            ["symbols"] = QuerySlotType.CompaniesOrSymbols,
+            ["metric"] = QuerySlotType.Metric,
+            ["metrics"] = QuerySlotType.Metrics,
+            ["period"] = QuerySlotType.Period,
+            ["comparison"] = QuerySlotType.ComparisonBaseline,
+            ["threshold"] = QuerySlotType.Threshold,
+            ["statementType"] = QuerySlotType.StatementType,
+            ["auditStatus"] = QuerySlotType.AuditStatus,
+            ["restatementStatus"] = QuerySlotType.RestatementStatus,
+            ["consolidationScope"] = QuerySlotType.ConsolidationScope,
+            ["metricSet"] = QuerySlotType.MetricSet,
+            ["topic"] = QuerySlotType.AnalysisTopic,
+            ["disclosureTypes"] = QuerySlotType.DisclosureTypes,
+            ["publishedFrom"] = QuerySlotType.PublishedFrom,
+            ["publishedTo"] = QuerySlotType.PublishedTo,
+            ["industry"] = QuerySlotType.Industry,
+            ["presentation"] = QuerySlotType.Presentation,
+            ["limit"] = QuerySlotType.ResultLimit,
+            ["sort"] = QuerySlotType.Sort
+        };
+
+    private static readonly IReadOnlyDictionary<QuerySlotType, string> NamesByType =
+        TypesByName.ToDictionary(item => item.Value, item => item.Key);
+
+    public static bool TryGetType(string name, out QuerySlotType type) =>
+        TypesByName.TryGetValue(name, out type);
+
+    public static string Name(QuerySlotType type) =>
+        NamesByType.TryGetValue(type, out var name) ? name : type.ToString();
 }
 
 public enum QuerySlotValidationState
@@ -81,20 +136,6 @@ public interface ICapabilitySlotValidator
 
 public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry registry) : ICapabilitySlotValidator
 {
-    private static readonly IReadOnlyDictionary<string, QuerySlotType> SlotTypes = new Dictionary<string, QuerySlotType>(StringComparer.Ordinal)
-    {
-        ["symbol"] = QuerySlotType.CompanyOrSymbol,
-        ["metric"] = QuerySlotType.Metric,
-        ["period"] = QuerySlotType.Period,
-        ["comparison"] = QuerySlotType.ComparisonBaseline,
-        ["threshold"] = QuerySlotType.Threshold,
-        ["statementType"] = QuerySlotType.StatementType,
-        ["topic"] = QuerySlotType.AnalysisTopic,
-        ["presentation"] = QuerySlotType.Presentation,
-        ["limit"] = QuerySlotType.ResultLimit,
-        ["sort"] = QuerySlotType.Sort
-    };
-
     public SlotValidationResult Validate(string capabilityCode, QueryInterpretation interpretation, EntityResolutionResult entityResolution)
     {
         var definition = registry.Find(capabilityCode)
@@ -103,14 +144,14 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
 
         foreach (var definitionSlot in definition.RequiredSlots.Concat(definition.OptionalSlots))
         {
-            if (!SlotTypes.TryGetValue(definitionSlot.Name, out var type))
+            if (!QuerySlotSchema.TryGetType(definitionSlot.Name, out var type))
                 continue;
 
             slots.Add(ResolveSlot(type, definitionSlot.Required, capabilityCode, interpretation, entityResolution));
         }
 
         var priority = definition.RequiredSlots
-            .Select(slot => SlotTypes.TryGetValue(slot.Name, out var type) ? type : (QuerySlotType?)null)
+            .Select(slot => QuerySlotSchema.TryGetType(slot.Name, out var type) ? type : (QuerySlotType?)null)
             .Where(type => type is not null)
             .Select(type => slots.Single(slot => slot.Type == type))
             .FirstOrDefault(slot => slot.ValidationState is QuerySlotValidationState.Missing or QuerySlotValidationState.Ambiguous);
@@ -137,6 +178,8 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
                 EntityResolutionResult.NotFound notFound => new(type, notFound.NormalizedMention, QueryValueProvenance.UserExplicit, 0m, QuerySlotValidationState.Invalid, capabilityCode, "entity_not_found"),
                 _ => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode)
             },
+            QuerySlotType.Conditions => new(type, interpretation.OriginalText, QueryValueProvenance.UserExplicit, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
+            QuerySlotType.Insight => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric when interpretation.Metrics.FirstOrDefault() is { } metric => new(type, metric.MetricCode, metric.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Period when interpretation.Period is { } period => new(type, period.Value, period.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
@@ -146,7 +189,10 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
         };
 }
 
-public sealed record CanonicalEntityResolutionOptions(bool Enabled = false, int MaxCandidates = 5, decimal FuzzyCandidateThreshold = 0.72m);
+public sealed record CanonicalEntityResolutionOptions(bool Enabled = false, int MaxCandidates = 5, decimal FuzzyCandidateThreshold = 0.72m)
+{
+    public CanonicalEntityResolutionOptions() : this(false, 5, 0.72m) { }
+}
 
 public interface ICanonicalCompanyRouteAdapter
 {

@@ -89,7 +89,7 @@ Acceptance:
 - Telegram meaning matches web even when layout differs.
 - No client invents a fallback message independently.
 
-## [~] Task 10 — Add Regression and Contract Tests
+## [x] Task 10 — Add Regression and Contract Tests
 
 Cover all outcomes, reason codes, languages, channels, persistence, security, and successful intent regressions.
 

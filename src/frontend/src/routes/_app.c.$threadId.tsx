@@ -52,8 +52,8 @@ function ChatThreadPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: ({ message, scannerPage = 1, scannerPageSize = 20, disclosurePage = 1 }: { message: string; scannerPage?: number; scannerPageSize?: number; disclosurePage?: number }) =>
-      send({ data: { threadId, message, scannerPage, scannerPageSize, disclosurePage } }),
+    mutationFn: ({ message, scannerPage = 1, scannerPageSize = 20, disclosurePage = 1, suggestedActionId }: { message: string; scannerPage?: number; scannerPageSize?: number; disclosurePage?: number; suggestedActionId?: string }) =>
+      send({ data: { threadId, message, scannerPage, scannerPageSize, disclosurePage, suggestedActionId } }),
     onSuccess: () => {
       setQueryError(null);
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
@@ -63,10 +63,11 @@ function ChatThreadPage() {
     onError: (error: Error) => setQueryError(chatErrorMessage(error)),
   });
 
-  const submit = (text: string) => {
+  const submit = (text: string, suggestedActionId?: string) => {
+    if (sendMutation.isPending) return;
     lastMessageRef.current = text;
     setQueryError(null);
-    sendMutation.mutate({ message: text });
+    sendMutation.mutate({ message: text, suggestedActionId });
   };
 
   const handlePageChange = (page: number, originalQuery?: string, pageSize?: number) => {

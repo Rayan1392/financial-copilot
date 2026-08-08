@@ -128,6 +128,9 @@ public sealed class ConversationalCapabilityRegistry : IConversationalCapability
                 throw new InvalidOperationException($"Capability '{definition.Code}' references unknown route '{definition.ExecutionRoute}'.");
             if (string.IsNullOrWhiteSpace(definition.OutputType) || string.IsNullOrWhiteSpace(definition.PrecedenceGroup))
                 throw new InvalidOperationException($"Capability '{definition.Code}' is missing output or precedence metadata.");
+            if (definition.DataRequirements.Count == 0 || definition.DataRequirements.Count > 12 ||
+                definition.DataRequirements.Any(item => string.IsNullOrWhiteSpace(item) || item.Length > 80))
+                throw new InvalidOperationException($"Capability '{definition.Code}' has invalid data-requirement metadata.");
             if (definition.Aliases.Count == 0 || definition.Examples.Count == 0)
                 throw new InvalidOperationException($"Capability '{definition.Code}' must define aliases and examples.");
 
@@ -151,6 +154,8 @@ public sealed class ConversationalCapabilityRegistry : IConversationalCapability
             {
                 if (string.IsNullOrWhiteSpace(slot.Name) || !slotNames.Add(slot.Name))
                     throw new InvalidOperationException($"Capability '{definition.Code}' has duplicate or empty slot names.");
+                if (!QuerySlotSchema.TryGetType(slot.Name, out _))
+                    throw new InvalidOperationException($"Capability '{definition.Code}' declares unknown slot '{slot.Name}'.");
                 if (slot.Required != definition.RequiredSlots.Contains(slot))
                     throw new InvalidOperationException($"Capability '{definition.Code}' has inconsistent required-slot metadata.");
             }
@@ -170,11 +175,12 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "symbol metrics"), Alias("fa", "شاخص‌های نماد")],
             [Example("en", "show فولاد P/E"), Example("fa", "P/E فولاد چقدر است؟")],
             [Slot("symbol", "symbol", true), Slot("metric", "metric", true)],
-            [Slot("period", "period", false)]),
+            [Slot("symbols", "symbol-list", false), Slot("metrics", "metric-list", false), Slot("period", "period", false)]),
         Definition("comprehensive_analysis", CapabilityExecutionRoutes.ComprehensiveAnalysis, "summary", "analysis",
             [Alias("en", "stock analysis"), Alias("fa", "تحلیل سهم")],
             [Example("en", "analyze فولاد"), Example("fa", "فولاد را بررسی کن")],
-            [Slot("symbol", "symbol", true)], [Slot("topic", "topic", false), Slot("period", "period", false)]),
+            [Slot("symbol", "symbol", true)],
+            [Slot("topic", "topic", false), Slot("period", "period", false), Slot("limit", "integer", false)]),
         Definition("monthly_activity_trend", CapabilityExecutionRoutes.MonthlyActivityTrend, "chart", "trend",
             [Alias("en", "monthly sales trend"), Alias("fa", "روند فروش ماهانه")],
             [Example("en", "chart monthly sales for فولاد"), Example("fa", "چارت روند فروش فولاد")],
@@ -186,19 +192,29 @@ public static class InitialConversationalCapabilityCatalog
         Definition("financial_statement_table", CapabilityExecutionRoutes.FinancialStatementTable, "table", "statement",
             [Alias("en", "financial statement table"), Alias("fa", "جدول صورت مالی")],
             [Example("en", "show فولاد income statement"), Example("fa", "جدول صورت سود و زیان فولاد")],
-            [Slot("symbol", "symbol", true)], [Slot("period", "period", false)]),
+            [Slot("symbol", "symbol", true)],
+            [Slot("period", "period", false), Slot("statementType", "statement-type", false),
+                Slot("auditStatus", "boolean", false), Slot("restatementStatus", "boolean", false),
+                Slot("consolidationScope", "statement-scope", false)]),
         Definition("financial_statement_period_analysis", CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis, "summary", "statement",
             [Alias("en", "financial statement analysis"), Alias("fa", "تحلیل صورت مالی")],
             [Example("en", "analyze فولاد financial statements"), Example("fa", "تحلیل صورت مالی فولاد")],
-            [Slot("symbol", "symbol", true)], [Slot("period", "period", false)]),
+            [Slot("symbol", "symbol", true)],
+            [Slot("period", "period", false), Slot("statementType", "statement-type", false),
+                Slot("auditStatus", "boolean", false), Slot("consolidationScope", "statement-scope", false),
+                Slot("metricSet", "metric-list", false)]),
         Definition("disclosure_listing", CapabilityExecutionRoutes.DisclosureListing, "list", "disclosure",
             [Alias("en", "company disclosures"), Alias("fa", "اطلاعیه‌های شرکت")],
             [Example("en", "latest disclosures for فولاد"), Example("fa", "آخرین اطلاعیه‌های فولاد")],
-            [], [Slot("symbol", "symbol", false), Slot("period", "period", false)]),
+            [], [Slot("symbol", "symbol", false), Slot("period", "period", false),
+                Slot("disclosureTypes", "disclosure-type-list", false),
+                Slot("publishedFrom", "date", false), Slot("publishedTo", "date", false),
+                Slot("consolidationScope", "disclosure-scope", false)]),
         Definition("monthly_sales_quality_ranking", CapabilityExecutionRoutes.MonthlySalesQualityRanking, "table", "ranking",
             [Alias("en", "monthly sales ranking"), Alias("fa", "رتبه‌بندی کیفیت فروش ماهانه")],
             [Example("en", "rank monthly sales quality"), Example("fa", "رتبه‌بندی کیفیت فروش ماهانه")],
-            [], [Slot("industry", "industry", false), Slot("period", "period", false)]),
+            [], [Slot("industry", "industry", false), Slot("period", "period", false),
+                Slot("sort", "ranking-direction", false), Slot("limit", "integer", false)]),
         Definition("ps_gauge_visualization", CapabilityExecutionRoutes.PsGaugeVisualization, "gauge", "valuation",
             [Alias("en", "P/S gauge"), Alias("fa", "گیج P/S")],
             [Example("en", "show the P/S gauge for فولاد"), Example("fa", "گیج P/S فولاد")],
@@ -218,7 +234,24 @@ public static class InitialConversationalCapabilityCatalog
         IReadOnlyList<LocalizedExample> examples,
         IReadOnlyList<SlotDefinition> required,
         IReadOnlyList<SlotDefinition> optional) =>
-        new(code, 1, true, aliases, examples, required, optional, route, output, [], precedence, new SuggestionPolicy(true));
+        new(code, 1, true, aliases, examples, required, optional, route, output,
+            DataRequirementsFor(route), precedence, new SuggestionPolicy(true));
+
+    private static IReadOnlyList<string> DataRequirementsFor(string route) => route switch
+    {
+        CapabilityExecutionRoutes.Scanner => ["canonical_company_identity", "normalized_financial_metrics"],
+        CapabilityExecutionRoutes.SymbolLookup => ["canonical_company_identity", "normalized_financial_metrics"],
+        CapabilityExecutionRoutes.ComprehensiveAnalysis => ["canonical_company_identity", "comprehensive_analysis_posts", "normalized_financial_metrics"],
+        CapabilityExecutionRoutes.MonthlyActivityTrend => ["canonical_company_identity", "monthly_activity_reports"],
+        CapabilityExecutionRoutes.ProductRevenueMix => ["canonical_company_identity", "monthly_product_sales"],
+        CapabilityExecutionRoutes.FinancialStatementTable => ["canonical_company_identity", "financial_statements"],
+        CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis => ["canonical_company_identity", "financial_statements"],
+        CapabilityExecutionRoutes.DisclosureListing => ["company_disclosures"],
+        CapabilityExecutionRoutes.MonthlySalesQualityRanking => ["monthly_activity_reports", "normalized_financial_metrics"],
+        CapabilityExecutionRoutes.PsGaugeVisualization => ["canonical_company_identity", "normalized_financial_metrics"],
+        CapabilityExecutionRoutes.PersonalizedInsightExplanation => ["personalized_market_insights"],
+        _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
+    };
 
     private static LocalizedAlias Alias(string language, string value) => new(language, value);
 

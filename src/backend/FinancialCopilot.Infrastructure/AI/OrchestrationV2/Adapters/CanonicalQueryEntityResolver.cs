@@ -41,6 +41,28 @@ public sealed class CanonicalQueryEntityResolver(
         if (exact.Length > 1)
             return ToAmbiguous(exact, options.Value.MaxCandidates);
 
+        // Canonical names often include legal/industry prefixes while users use the
+        // stable short company name (for example "چادرملو"). Treat a unique,
+        // sufficiently specific contained identity as a normalized variant; never
+        // choose it when more than one canonical company shares the phrase.
+        var normalizedVariants = normalized.Length >= 4
+            ? companies
+                .Where(row => CandidateValues(row)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(NormalizeIdentity)
+                    .Any(value => value.Contains(normalized, StringComparison.OrdinalIgnoreCase)))
+                .Select(row => new MatchResult(row, "normalized_identity_variant"))
+                .GroupBy(item => item.Row.Id)
+                .Select(group => group.First())
+                .ToArray()
+            : [];
+        if (normalizedVariants.Length == 1)
+            return new EntityResolutionResult.Resolved(
+                ToEntity(normalizedVariants[0].Row, normalizedVariants[0].Kind),
+                new EntityResolutionEvidence(normalizedVariants[0].Kind, 0.95m));
+        if (normalizedVariants.Length > 1)
+            return ToAmbiguous(normalizedVariants, options.Value.MaxCandidates);
+
         var fuzzy = companies
             .Select(row => new { Row = row, Score = BestSimilarity(normalized, CandidateValues(row)) })
             .Where(item => item.Score >= options.Value.FuzzyCandidateThreshold)
@@ -58,9 +80,17 @@ public sealed class CanonicalQueryEntityResolver(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default)
     {
-        foreach (var mention in interpretation.EntityMentions
-                     .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text))
-                     .OrderByDescending(mention => mention.Length))
+        var mentions = interpretation.EntityMentions
+            .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text))
+            .OrderBy(mention => mention.Start)
+            .ToArray();
+        foreach (var phrase in ContiguousPhrases(mentions))
+        {
+            var result = await ResolveMentionAsync(phrase, cancellationToken);
+            if (result is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
+                return result;
+        }
+        foreach (var mention in mentions.OrderByDescending(mention => mention.Length))
         {
             var result = await ResolveMentionAsync(mention.Text, cancellationToken);
             if (result is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
@@ -70,6 +100,53 @@ public sealed class CanonicalQueryEntityResolver(
         return interpretation.EntityMentions.Count == 0
             ? new EntityResolutionResult.Missing("CompanyOrSymbol")
             : new EntityResolutionResult.NotFound(NormalizeIdentity(interpretation.EntityMentions[0].Text));
+    }
+
+    public async Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(
+        QueryInterpretation interpretation,
+        CancellationToken cancellationToken = default)
+    {
+        var mentions = interpretation.EntityMentions
+            .Where(mention => !QueryNormalization.IsEntityDistractor(mention.Text))
+            .OrderBy(mention => mention.Start)
+            .ToArray();
+        var resolved = new List<(int Position, EntityResolutionResult.Resolved Result)>();
+
+        foreach (var mention in mentions)
+        {
+            if (await ResolveMentionAsync(mention.Text, cancellationToken) is EntityResolutionResult.Resolved match)
+                resolved.Add((mention.Start, match));
+        }
+
+        foreach (var phrase in ContiguousPhrases(mentions))
+        {
+            if (await ResolveMentionAsync(phrase, cancellationToken) is not EntityResolutionResult.Resolved match)
+                continue;
+            var position = interpretation.NormalizedText.IndexOf(
+                QueryNormalization.Normalize(phrase),
+                StringComparison.OrdinalIgnoreCase);
+            resolved.Add((position < 0 ? int.MaxValue : position, match));
+        }
+
+        return resolved
+            .OrderBy(item => item.Position)
+            .GroupBy(item => item.Result.Entity.CanonicalId)
+            .Select(group => group.First().Result)
+            .Take(10)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> ContiguousPhrases(IReadOnlyList<EntityMention> mentions)
+    {
+        for (var length = Math.Min(4, mentions.Count); length >= 2; length--)
+        for (var start = 0; start + length <= mentions.Count; start++)
+        {
+            var window = mentions.Skip(start).Take(length).ToArray();
+            var contiguous = window.Zip(window.Skip(1), (left, right) =>
+                    right.Start - (left.Start + left.Length) <= 2)
+                .All(value => value);
+            if (contiguous) yield return string.Join(' ', window.Select(item => item.Text));
+        }
     }
 
     private static MatchResult[] Match(

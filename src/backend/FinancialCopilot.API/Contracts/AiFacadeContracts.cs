@@ -9,7 +9,14 @@ public sealed record AiQueryHttpRequest(
     int ScannerPage = 1,
     int ScannerPageSize = 20,
     int DisclosurePage = 1,
-    AiQueryContextHttpRequest? Context = null);
+    AiQueryContextHttpRequest? Context = null,
+    string? SuggestedActionId = null);
+
+public sealed record CapabilityStarterPromptHttpResponse(
+    string CapabilityCode,
+    string Label,
+    string Example,
+    int RegistryVersion);
 
 public sealed record AiQueryContextHttpRequest(
     Guid? InsightEventId = null,
@@ -45,7 +52,20 @@ public sealed record AiQueryHttpResponse(
     string Outcome = "Answered",
     string OutcomeReasonCode = "none",
     string ReplyLanguage = "en",
-    bool LanguageGuardApplied = false);
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
+
+public sealed record SuggestedActionHttpResponse(
+    string Id,
+    string Kind,
+    string Label,
+    string Message,
+    string CapabilityCode,
+    IReadOnlyDictionary<string, string> PresetSlots,
+    string RelevanceReason,
+    int RegistryVersion);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -240,7 +260,10 @@ public sealed record AssistantMessageContentResponse(
     string Outcome = "Answered",
     string OutcomeReasonCode = "none",
     string ReplyLanguage = "en",
-    bool LanguageGuardApplied = false);
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

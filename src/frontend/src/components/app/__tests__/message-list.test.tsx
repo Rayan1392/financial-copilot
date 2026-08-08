@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { MessageList } from "../message-list";
@@ -14,6 +14,39 @@ function renderMessageList(ui: ReactElement) {
 }
 
 describe("MessageList", () => {
+  it("renders persisted suggested actions and submits the visible message once", () => {
+    const onSuggested = vi.fn();
+    const assistantBlock: AssistantChatBlock = {
+      message: "لطفاً درخواست را کامل کنید.",
+      intent: "Clarification",
+      replyLanguage: "fa",
+      creditsUsed: 0,
+      suggestedQuestions: [],
+      suggestedActions: [{
+        id: "fill:monthly_activity_trend",
+        kind: "FillSlot",
+        label: "تکمیل درخواست",
+        message: "چارت روند فروش فولاد",
+        capabilityCode: "monthly_activity_trend",
+        relevanceReason: "required_input_missing",
+        registryVersion: 1,
+      }],
+      filters: [],
+      citations: [],
+    };
+
+    renderMessageList(<MessageList
+      messages={[{ id: "assistant-action", role: "assistant", content: assistantBlock, created_at: "2026-08-07T00:00:00Z" }]}
+      loading={false}
+      streaming={false}
+      onSuggested={onSuggested}
+    />);
+
+    fireEvent.click(screen.getByRole("button", { name: "تکمیل درخواست" }));
+    expect(onSuggested).toHaveBeenCalledTimes(1);
+    expect(onSuggested).toHaveBeenCalledWith("چارت روند فروش فولاد", "fill:monthly_activity_trend");
+  });
+
   it("renders monthly-sales unit as localized table metadata for آخرین فروش کچاد چقدر بوده؟", () => {
     const table = {
       columns: [

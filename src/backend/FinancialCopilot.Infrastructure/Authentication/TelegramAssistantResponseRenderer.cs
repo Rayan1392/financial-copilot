@@ -64,6 +64,7 @@ public sealed class TelegramAssistantResponseRenderer(
         AppendConfidence(builder, response);
         AppendUsage(builder, response);
         AppendCitations(builder, response);
+        AppendSuggestedActions(builder, response);
 
         var text = builder.ToString().Trim();
         if (string.IsNullOrWhiteSpace(text))
@@ -259,6 +260,16 @@ public sealed class TelegramAssistantResponseRenderer(
         {
             builder.AppendLine($"صفحه {table.ExecutionFacts.Page} از {table.ExecutionFacts.TotalPages}؛ برای ادامه، نتیجه کامل را در وب مشاهده کنید.");
         }
+    }
+
+    private static void AppendSuggestedActions(StringBuilder builder, AiQueryResponse response)
+    {
+        if (response.SuggestedActions is not { Count: > 0 }) return;
+        builder.AppendLine();
+        builder.AppendLine(response.ReplyLanguage == "fa" ? "پیشنهادها:" : "Suggestions:");
+        var index = 1;
+        foreach (var action in response.SuggestedActions.Take(4))
+            builder.AppendLine($"{index++}. {action.LocalizedLabel} — {action.Message}");
     }
 
     private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderSalesGrowthScanner(

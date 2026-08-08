@@ -649,9 +649,27 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
         services.Configure<SemanticRoutingOptions>(configuration.GetSection(SemanticRoutingOptions.SectionName));
         services.AddScoped<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
-        services.AddSingleton<ISemanticRoutingTelemetrySink, NullSemanticRoutingTelemetrySink>();
+        services.AddSingleton<ISemanticRoutingTelemetrySink, SemanticRoutingEventTelemetrySink>();
         services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
         services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
+        services.AddScoped<ISemanticExecutionCoordinator, SemanticExecutionCoordinator>();
+        services.AddScoped<ISemanticOutcomeFeedbackCollector, SemanticOutcomeFeedbackCollector>();
+        services.AddSingleton<ISemanticDialogueEventSink, BoundedSemanticDialogueEventSink>();
+        services.AddSingleton<ISemanticDialogueMetricsQuery, SemanticDialogueMetricsQuery>();
+        services.AddSingleton<ISemanticDialogueOutcomeTelemetry, SemanticDialogueOutcomeTelemetry>();
+        services.AddScoped<ISemanticOfflineRegressionRunner, SemanticOfflineRegressionRunner>();
+        services.AddSingleton<ISemanticPhraseCandidatePolicy, SemanticPhraseCandidatePolicy>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementTableCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ComprehensiveAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, StockScreeningCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, PersonalizedInsightExplanationCapabilityExecutor>();
         services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();
@@ -662,6 +680,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
         services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
         services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();
+        services.AddSingleton<ISemanticQueryFrameEnricher, SemanticQueryFrameEnricher>();
         services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-`[ ]` Not yet implemented
+`[~]` Active routes migrated; production canary observation and physical legacy-rule removal remain gated
 
 ## Story
 

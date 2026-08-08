@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
 using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Ingestion;
@@ -37,6 +38,10 @@ public sealed class AiQueryOrchestrationService(
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
     IConversationDialogueGate dialogueGate,
+    ISemanticExecutionCoordinator semanticExecutionCoordinator,
+    ISemanticRoutingRolloutCoordinator semanticRolloutCoordinator,
+    ICapabilityGuidanceService guidanceService,
+    ISemanticDialogueOutcomeTelemetry outcomeTelemetry,
     TimeProvider timeProvider,
     ISalesGrowthScannerTelemetrySink? salesGrowthTelemetry = null) : IAiQueryOrchestrationService
 {
@@ -72,7 +77,8 @@ public sealed class AiQueryOrchestrationService(
 
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
 
-        var billingReservation = await billingHook.TryReserveAsync(
+        BillingReservationHandle? billingReservation = request.SemanticFrame is null
+            ? await billingHook.TryReserveAsync(
             new BillingReservationRequest(
                 request.CorrelationId,
                 request.TenantId,
@@ -81,7 +87,8 @@ public sealed class AiQueryOrchestrationService(
                 request.UserId,
                 request.ApiClientId,
                 request.ExternalUserId),
-            cancellationToken);
+            cancellationToken)
+            : null;
 
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
@@ -91,7 +98,9 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementTableResult? financialStatementTableResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         DisclosureListingResult? disclosureListingResult = null;
+        PsVisualizationResult? psVisualizationResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -99,12 +108,13 @@ public sealed class AiQueryOrchestrationService(
         string? clarificationMessage;
         var detectedIntent = DetectedIntent.Unknown;
         UsageAccountingResult? usage = null;
+        CapabilityExecutionResult? semanticExecution = null;
         var completionStatus = "Completed";
         var fromCache = false;
 
         try
         {
-            if (request.Context?.InsightEventId is Guid insightEventId)
+            if (request.Context?.InsightEventId is Guid insightEventId && request.SemanticFrame is null)
             {
                 detectedIntent = DetectedIntent.PersonalizedInsightExplanation;
                 textAnswer = await explainInsightUseCase.ExecuteAsync(
@@ -121,6 +131,62 @@ public sealed class AiQueryOrchestrationService(
                 clarificationRequired = false;
                 clarificationMessage = null;
             }
+            else if (request.SemanticFrame is { } semanticFrame)
+            {
+                var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+                    semanticFrame,
+                    new QueryExecutionContext(
+                        request.TenantId,
+                        request.ActorId,
+                        conversationId,
+                        request.CorrelationId,
+                        semanticFrame.Interpretation.ReplyLanguage,
+                        now,
+                        request.ScannerPage,
+                        request.ScannerPageSize,
+                        request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                        request.ActorType,
+                        request.AuthenticationMode,
+                        request.UserId,
+                        request.ApiClientId),
+                    request,
+                    cancellationToken);
+                usage = semantic.Usage;
+                semanticExecution = semantic.Execution;
+                detectedIntent = SemanticIntent(semanticFrame.CapabilityCode);
+                clarificationRequired = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
+                clarificationMessage = clarificationRequired
+                    ? AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                        semantic.Execution.Status == CapabilityExecutionStatus.DisambiguationRequired ? DialogueOutcome.DisambiguationNeeded : DialogueOutcome.ClarificationNeeded,
+                        semantic.Execution.ReasonCode,
+                        semanticFrame.Interpretation.ReplyLanguage,
+                        null,
+                        false))
+                    : null;
+                completionStatus = semantic.Execution.Status.ToString();
+                switch (semantic.Execution.Payload)
+                {
+                    case SemanticScannerPayload scanner:
+                        scannerPlan = scanner.Plan;
+                        scannerTable = scanner.Table;
+                        explainableAnswer = await explainableAnswerBuilder.BuildAsync(new ExplainableAnswerRequest(scanner.Plan, scanner.Table, request.TenantId, request.CorrelationId), cancellationToken);
+                        break;
+                    case SymbolLookupTableResult lookup: symbolLookupTable = lookup; break;
+                    case ComprehensiveAnalysisQueryResponse analysis: comprehensiveAnalysisResult = analysis; break;
+                    case SemanticComprehensiveAnalysisPayload combined:
+                        comprehensiveAnalysisResult = combined.Analysis;
+                        symbolLookupTable = combined.Lookup;
+                        break;
+                    case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
+                    case FinancialStatementTableResult table: financialStatementTableResult = table; break;
+                    case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
+                    case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
+                    case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
+                    case DisclosureListingResult disclosures: disclosureListingResult = disclosures; break;
+                    case PsVisualizationResult gauge: psVisualizationResult = gauge; break;
+                    case string explanation: textAnswer = explanation; break;
+                }
+            }
             else
             {
             var intentResult = await intentDetector.DetectAsync(
@@ -132,6 +198,12 @@ public sealed class AiQueryOrchestrationService(
                 cancellationToken);
 
             detectedIntent = intentResult.Intent;
+            if (request.SemanticShadowFrame is { } shadowFrame)
+                semanticRolloutCoordinator.RecordShadowComparison(
+                    shadowFrame.CapabilityCode,
+                    SemanticRouteMapping.FromIntent(detectedIntent),
+                    shadowFrame.CapabilityCode,
+                    request.CorrelationId);
 
             if (intentResult.Intent == DetectedIntent.Scanner)
             {
@@ -578,7 +650,9 @@ public sealed class AiQueryOrchestrationService(
             financialStatementTableResult is not null ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
+            monthlySalesQualityRankingResult is not null ||
             disclosureListingResult is not null ||
+            psVisualizationResult is not null ||
             (detectedIntent is not DetectedIntent.Unknown and not DetectedIntent.PersonalizedInsightExplanation);
 
         var hasData =
@@ -596,17 +670,26 @@ public sealed class AiQueryOrchestrationService(
             symbolLookupTable?.UnresolvedSymbols.Count > 0 ||
             comprehensiveAnalysisResult?.UnresolvedSymbols.Count > 0;
 
-        var outcome = AiDialogueOutcomePolicy.Determine(
-            request.Message,
-            detectedIntent,
-            clarificationRequired,
-            clarificationMessage,
-            hasStructuredResult,
-            hasData,
-            hasUnresolvedEntity);
+        var outcome = semanticExecution is null
+            ? AiDialogueOutcomePolicy.Determine(
+                request.Message,
+                detectedIntent,
+                clarificationRequired,
+                clarificationMessage,
+                hasStructuredResult,
+                hasData,
+                hasUnresolvedEntity)
+            : new DialogueOutcomeResult(
+                SemanticDialogueOutcome(semanticExecution.Status),
+                semanticExecution.ReasonCode,
+                request.SemanticFrame!.Interpretation.ReplyLanguage,
+                null,
+                false);
         outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
             outcome,
             outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : assistantContent));
+        outcomeTelemetry.Record(request, outcome,
+            request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", now);
         Activity.Current?.SetTag("workflow.outcome", outcome.Outcome.ToString());
         Activity.Current?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
         Activity.Current?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
@@ -646,6 +729,14 @@ public sealed class AiQueryOrchestrationService(
 
         await dialogueGate.RecordOutcomeAsync(
             request, conversationId, clarificationRequired, outcome.ReasonCode, cancellationToken);
+        var suggestedActions = guidanceService.Suggest(new CapabilityGuidanceRequest(
+            request.OriginalUserMessage ?? request.Message,
+            outcome.ReplyLanguage,
+            outcome.Outcome,
+            outcome.ReasonCode,
+            request.SemanticFrame?.Interpretation,
+            CorrelationId: request.CorrelationId,
+            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
 
         var persistedExchange = await conversationRepository.PersistExchangeAsync(
             new ConversationExchange(
@@ -675,11 +766,16 @@ public sealed class AiQueryOrchestrationService(
                     financialStatementTableResult,
                     productRevenueMixResult,
                     monthlyActivityTrendResult,
+                    MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
                     DisclosureListingResult: disclosureListingResult,
+                    PsVisualizationResult: psVisualizationResult,
                     Outcome: outcome.Outcome,
                     OutcomeReasonCode: outcome.ReasonCode,
                     ReplyLanguage: outcome.ReplyLanguage,
-                    LanguageGuardApplied: outcome.LanguageGuardApplied)),
+                    LanguageGuardApplied: outcome.LanguageGuardApplied,
+                    SuggestedActions: suggestedActions,
+                    SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
             createConversation,
             cancellationToken);
 
@@ -706,12 +802,45 @@ public sealed class AiQueryOrchestrationService(
             FinancialStatementTableResult: financialStatementTableResult,
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult,
+            MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
             DisclosureListingResult: disclosureListingResult,
+            PsVisualizationResult: psVisualizationResult,
             Outcome: outcome.Outcome,
             OutcomeReasonCode: outcome.ReasonCode,
             ReplyLanguage: outcome.ReplyLanguage,
-            LanguageGuardApplied: outcome.LanguageGuardApplied);
+            LanguageGuardApplied: outcome.LanguageGuardApplied,
+            SuggestedActions: suggestedActions,
+            SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion);
     }
+
+    private static DetectedIntent SemanticIntent(string capabilityCode) => capabilityCode switch
+    {
+        "stock_screening" => DetectedIntent.Scanner,
+        "symbol_metric_lookup" => DetectedIntent.SymbolLookup,
+        "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
+        "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
+        "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
+        "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
+        "disclosure_listing" => DetectedIntent.DisclosureListing,
+        "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
+        "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
+        "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        _ => DetectedIntent.Unknown
+    };
+
+    private static DialogueOutcome SemanticDialogueOutcome(CapabilityExecutionStatus status) => status switch
+    {
+        CapabilityExecutionStatus.Executed => DialogueOutcome.Answered,
+        CapabilityExecutionStatus.Partial => DialogueOutcome.PartialAnswer,
+        CapabilityExecutionStatus.NoData => DialogueOutcome.NoData,
+        CapabilityExecutionStatus.ClarificationRequired => DialogueOutcome.ClarificationNeeded,
+        CapabilityExecutionStatus.DisambiguationRequired => DialogueOutcome.DisambiguationNeeded,
+        CapabilityExecutionStatus.TemporarilyUnavailable => DialogueOutcome.TemporarilyUnavailable,
+        CapabilityExecutionStatus.Failed => DialogueOutcome.Failed,
+        _ => DialogueOutcome.Unsupported
+    };
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
         string correlationId,

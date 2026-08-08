@@ -37,8 +37,6 @@ public static class CapabilityRoutingPrecedence
                            text.Contains("above", StringComparison.OrdinalIgnoreCase) ||
                            text.Contains("زیر", StringComparison.Ordinal) ||
                            text.Contains("بالای", StringComparison.Ordinal);
-        var hasPluralScreening = text.Contains("stocks", StringComparison.OrdinalIgnoreCase) ||
-                                 text.Contains("سهام", StringComparison.Ordinal);
         var hasEntity = interpretation.EntityMentions.Count > 0;
         var hasMetric = interpretation.Metrics.Count > 0;
         var hasTrend = text.Contains("trend", StringComparison.OrdinalIgnoreCase) ||
@@ -54,9 +52,18 @@ public static class CapabilityRoutingPrecedence
                           text.Contains("analyze", StringComparison.OrdinalIgnoreCase) ||
                           text.Contains("تحلیل", StringComparison.Ordinal) ||
                           text.Contains("بررسی", StringComparison.Ordinal);
+        var hasStatement = candidates.Any(candidate => candidate.CapabilityCode is "financial_statement_table" or "financial_statement_period_analysis");
+        var hasProduct = candidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
+        var hasDisclosure = candidates.Any(candidate => candidate.CapabilityCode == "disclosure_listing");
+        var hasRanking = candidates.Any(candidate => candidate.CapabilityCode == "monthly_sales_quality_ranking");
 
-        var preferred = hasThreshold && hasPluralScreening ? "stock_screening"
+        var preferred = hasThreshold && candidates.Any(candidate => candidate.CapabilityCode == "stock_screening") ? "stock_screening"
             : hasGauge && hasPs ? "ps_gauge_visualization"
+            : hasStatement && hasAnalysis ? "financial_statement_period_analysis"
+            : hasStatement ? "financial_statement_table"
+            : hasProduct ? "product_revenue_mix"
+            : hasDisclosure ? "disclosure_listing"
+            : hasRanking ? "monthly_sales_quality_ranking"
             : hasTrend && hasMetric && hasEntity ? "monthly_activity_trend"
             : hasAnalysis && hasEntity && !IsExplicitPointMetric(text) ? "comprehensive_analysis"
             : hasMetric && hasEntity ? "symbol_metric_lookup"

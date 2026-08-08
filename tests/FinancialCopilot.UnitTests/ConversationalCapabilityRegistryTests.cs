@@ -12,7 +12,11 @@ public sealed class ConversationalCapabilityRegistryTests
 
         Assert.Equal(11, registry.GetAll().Count);
         Assert.DoesNotContain(registry.GetAll(), definition => definition.Code is "unknown" or "clarification");
-        Assert.All(registry.GetAll(), definition => Assert.NotNull(registry.Find(definition.Code)));
+        Assert.All(registry.GetAll(), definition =>
+        {
+            Assert.NotNull(registry.Find(definition.Code));
+            Assert.NotEmpty(definition.DataRequirements);
+        });
     }
 
     [Fact]
@@ -103,6 +107,11 @@ public sealed class ConversationalCapabilityRegistryTests
     [InlineData("chart monthly sales for فولاد", "monthly_activity_trend")]
     [InlineData("analyze فولاد", "comprehensive_analysis")]
     [InlineData("show the P/S gauge for فولاد", "ps_gauge_visualization")]
+    [InlineData("ترکیب فروش محصولات فولاد", "product_revenue_mix")]
+    [InlineData("جدول صورت سود و زیان فولاد", "financial_statement_table")]
+    [InlineData("تحلیل صورت مالی فولاد", "financial_statement_period_analysis")]
+    [InlineData("آخرین اطلاعیه‌های فولاد", "disclosure_listing")]
+    [InlineData("رتبه‌بندی کیفیت فروش ماهانه", "monthly_sales_quality_ranking")]
     public void PrecedencePolicy_ResolvesKnownConflictsDeterministically(string query, string expected)
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());

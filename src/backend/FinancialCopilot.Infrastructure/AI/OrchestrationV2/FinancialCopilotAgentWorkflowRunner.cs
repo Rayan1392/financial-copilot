@@ -2,11 +2,13 @@ using System.Diagnostics;
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
@@ -18,6 +20,9 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2;
 internal sealed class FinancialCopilotAgentWorkflowRunner(
     IConversationRepository conversationRepository,
     IConversationDialogueGate dialogueGate,
+    ISemanticExecutionCoordinator semanticExecutionCoordinator,
+    ISemanticRoutingRolloutCoordinator semanticRolloutCoordinator,
+    ISemanticDialogueOutcomeTelemetry outcomeTelemetry,
     IAiModelProviderResolver providerResolver,
     IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
@@ -66,12 +71,94 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
 
         // Step 3: Billing reservation — before agent executes
-        var reservation = await billingFunctions.TryReserveAsync(request, cancellationToken);
+        var reservation = request.SemanticFrame is null
+            ? await billingFunctions.TryReserveAsync(request, cancellationToken)
+            : null;
 
         // Step 4: Build tools with request-scoped closures
         var state = new OrchestrationState();
         var scannerTool = CreateScannerTool(state, request, cancellationToken);
         var lookupTool = CreateLookupTool(state, request, cancellationToken);
+
+        UsageAccountingResult? usage = null;
+
+        if (request.SemanticFrame is { } semanticFrame)
+        {
+            var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+                semanticFrame,
+                new QueryExecutionContext(request.TenantId, request.ActorId, conversationId,
+                    request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage, now,
+                    request.ScannerPage, request.ScannerPageSize,
+                    request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId),
+                request,
+                cancellationToken);
+            var scannerPayload = semantic.Execution.Payload as SemanticScannerPayload;
+            var lookupTable = semantic.Execution.Payload as SymbolLookupTableResult;
+            var comprehensivePayload = semantic.Execution.Payload as SemanticComprehensiveAnalysisPayload;
+            lookupTable ??= comprehensivePayload?.Lookup;
+            var semanticText = semantic.Execution.Payload as string;
+            state.ScannerResult = scannerPayload is null ? null : ScannerToolResult.Success(scannerPayload.Plan, scannerPayload.Table, scannerPayload.Table.ExecutionFacts.FromCache);
+            state.LookupResult = lookupTable is null ? null : SymbolLookupToolResult.Success(lookupTable);
+            var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
+            var semanticOutcome = semantic.Execution.Status switch
+            {
+                CapabilityExecutionStatus.Executed => DialogueOutcome.Answered,
+                CapabilityExecutionStatus.Partial => DialogueOutcome.PartialAnswer,
+                CapabilityExecutionStatus.NoData => DialogueOutcome.NoData,
+                CapabilityExecutionStatus.ClarificationRequired => DialogueOutcome.ClarificationNeeded,
+                CapabilityExecutionStatus.DisambiguationRequired => DialogueOutcome.DisambiguationNeeded,
+                CapabilityExecutionStatus.TemporarilyUnavailable => DialogueOutcome.TemporarilyUnavailable,
+                CapabilityExecutionStatus.Failed => DialogueOutcome.Failed,
+                _ => DialogueOutcome.Unsupported
+            };
+            var semanticClarificationMessage = clarification
+                ? AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(semanticOutcome, semantic.Execution.ReasonCode, semanticFrame.Interpretation.ReplyLanguage, null, false))
+                : null;
+            var semanticDialogueOutcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
+                new DialogueOutcomeResult(semanticOutcome, semantic.Execution.ReasonCode,
+                    semanticFrame.Interpretation.ReplyLanguage, null, false), semanticText);
+            if (semanticOutcome is not DialogueOutcome.Answered and not DialogueOutcome.PartialAnswer)
+                semanticText = AiDialogueOutcomePolicy.ComposeSystemMessage(semanticDialogueOutcome);
+            outcomeTelemetry.Record(request, semanticDialogueOutcome,
+                request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", now);
+            var persisted = await persistenceFunction.PersistAsync(
+                conversationId, request, SemanticIntent(semanticFrame.CapabilityCode), clarification,
+                semanticClarificationMessage, semanticText, scannerPayload?.Plan, scannerPayload?.Table,
+                lookupTable, null, null, semantic.Usage, memoryContext, null,
+                createConversation, cancellationToken, semanticOutcome, semantic.Execution.ReasonCode,
+                semanticFrame.Interpretation.ReplyLanguage,
+                languageGuardApplied: semanticDialogueOutcome.LanguageGuardApplied,
+                comprehensiveAnalysisResult: comprehensivePayload?.Analysis ?? semantic.Execution.Payload as ComprehensiveAnalysisQueryResponse,
+                financialStatementAnalysisResult: semantic.Execution.Payload as FinancialStatementAnalysisResponse,
+                financialStatementTableResult: semantic.Execution.Payload as FinancialStatementTableResult,
+                productRevenueMixResult: semantic.Execution.Payload as ProductRevenueMixResponse,
+                monthlyActivityTrendResult: semantic.Execution.Payload as MonthlyActivityTrendResponse,
+                monthlySalesQualityRankingResult: semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
+                disclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
+                psVisualizationResult: semantic.Execution.Payload as PsVisualizationResult);
+            await dialogueGate.RecordOutcomeAsync(request, conversationId, clarification, semantic.Execution.ReasonCode, cancellationToken);
+            return new AiQueryResponse(
+                conversationId, persisted.UserMessageId, persisted.AssistantMessageId,
+                SemanticIntent(semanticFrame.CapabilityCode), scannerPayload?.Plan, scannerPayload?.Table,
+                lookupTable, null, null, semanticText, clarification, semanticClarificationMessage, semantic.Usage,
+                AiOrchestrationMode: "MicrosoftAgentFrameworkV2", WorkflowVersion: "2-fallback",
+                WorkflowCorrelationId: request.CorrelationId,
+                ComprehensiveAnalysisResult: comprehensivePayload?.Analysis ?? semantic.Execution.Payload as ComprehensiveAnalysisQueryResponse,
+                FinancialStatementAnalysisResult: semantic.Execution.Payload as FinancialStatementAnalysisResponse,
+                FinancialStatementTableResult: semantic.Execution.Payload as FinancialStatementTableResult,
+                ProductRevenueMixResult: semantic.Execution.Payload as ProductRevenueMixResponse,
+                MonthlyActivityTrendResult: semantic.Execution.Payload as MonthlyActivityTrendResponse,
+                MonthlySalesQualityRankingResult: semantic.Execution.Payload as MonthlySalesQualityRankingResponse,
+                DisclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
+                PsVisualizationResult: semantic.Execution.Payload as PsVisualizationResult,
+                Outcome: semanticOutcome, OutcomeReasonCode: semantic.Execution.ReasonCode,
+                ReplyLanguage: semanticFrame.Interpretation.ReplyLanguage,
+                LanguageGuardApplied: semanticDialogueOutcome.LanguageGuardApplied,
+                SuggestedActions: persisted.SuggestedActions,
+                SemanticCapabilityCode: semanticFrame.CapabilityCode,
+                SemanticRegistryVersion: semanticFrame.RegistryVersion);
+        }
 
         var modelClient = ResolveModelClient(request);
         var chatClientAdapter = new FinancialCopilotChatClientAdapter(
@@ -80,7 +167,6 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             request.CorrelationId,
             request.TenantId,
             AiWorkloadKind.ResearchTool);
-        UsageAccountingResult? usage = null;
 
         if (request.Context?.InsightEventId is Guid insightEventId)
         {
@@ -233,6 +319,12 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
 
         // Step 6: Determine intent and derive structured results
         var detectedIntent = DetermineIntent(state);
+        if (request.SemanticShadowFrame is { } shadowFrame)
+            semanticRolloutCoordinator.RecordShadowComparison(
+                shadowFrame.CapabilityCode,
+                SemanticRouteMapping.FromIntent(detectedIntent),
+                shadowFrame.CapabilityCode,
+                request.CorrelationId);
         var clarificationRequired =
             state.ScannerResult?.ClarificationRequired ?? state.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -282,6 +374,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
             outcome,
             outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : groundedAnswer));
+        outcomeTelemetry.Record(request, outcome,
+            request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", now);
         Activity.Current?.SetTag("workflow.outcome", outcome.Outcome.ToString());
         Activity.Current?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
         Activity.Current?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
@@ -354,8 +448,27 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             Outcome: outcome.Outcome,
             OutcomeReasonCode: outcome.ReasonCode,
             ReplyLanguage: outcome.ReplyLanguage,
-            LanguageGuardApplied: outcome.LanguageGuardApplied);
+            LanguageGuardApplied: outcome.LanguageGuardApplied,
+            SuggestedActions: persistedExchange.SuggestedActions,
+            SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion);
     }
+
+    private static DetectedIntent SemanticIntent(string capabilityCode) => capabilityCode switch
+    {
+        "stock_screening" => DetectedIntent.Scanner,
+        "symbol_metric_lookup" => DetectedIntent.SymbolLookup,
+        "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
+        "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
+        "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
+        "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
+        "disclosure_listing" => DetectedIntent.DisclosureListing,
+        "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
+        "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
+        "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        _ => DetectedIntent.Unknown
+    };
 
     private ConfidenceScoreResult? CalculateConfidenceScore(
         string correlationId,

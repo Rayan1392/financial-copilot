@@ -380,6 +380,39 @@ public sealed class SymbolLookupParserTests
 
     // --- helpers ---
 
+    [Fact]
+    public void DirectMetricRegistry_ResolvesYtdBeforeGenericSalesAlias()
+    {
+        var resolver = BuildAliasResolver();
+        var registry = new DirectMetricRoutingRegistry(
+            resolver,
+            new FinancialCopilot.Infrastructure.Financial.Semantics.DefaultMetricAliasExpressionNormalizer());
+
+        var result = registry.TryResolve("فروش YTD چقدر بوده؟", AsOf);
+
+        Assert.Equal("MONTHLY_SALES_YTD", result?.MetricCode.Value);
+    }
+
+    [Fact]
+    public void DirectMetricRegistry_ResolvesGenericMonthlySalesAndAllCanonicalMetrics()
+    {
+        var resolver = BuildAliasResolver();
+        var registry = new DirectMetricRoutingRegistry(
+            resolver,
+            new FinancialCopilot.Infrastructure.Financial.Semantics.DefaultMetricAliasExpressionNormalizer());
+
+        var monthlySales = registry.TryResolve("فروش ماه قبل کچاد", AsOf);
+        var all = registry.ResolveAll("PE و ROE فملی و حفاری", AsOf);
+        var peLongForm = registry.ResolveAll("نسبت قیمت به سود کگل", AsOf);
+        var dailyChange = registry.ResolveAll("درصد تغییر قیمت کگل", AsOf);
+
+        Assert.Equal("MONTHLY_SALES", monthlySales?.MetricCode.Value);
+        Assert.Equal(SymbolLookupPeriodSelector.PreviousMonth, monthlySales?.PeriodSelector);
+        Assert.Equal(["PE_TTM", "RETURN_ON_EQUITY"], all.Select(match => match.MetricCode.Value));
+        Assert.Equal(["PE_TTM"], peLongForm.Select(match => match.MetricCode.Value));
+        Assert.Equal(["DAILY_CHANGE_PCT"], dailyChange.Select(match => match.MetricCode.Value));
+    }
+
     private static LlmSymbolLookupParser BuildParser(string llmJson, IMetricAliasResolver resolver)
     {
         var execution = new StubAiModelExecutionService(llmJson);

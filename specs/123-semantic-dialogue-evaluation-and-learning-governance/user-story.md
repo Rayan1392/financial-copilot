@@ -2,7 +2,7 @@
 
 ## Status
 
-`[ ]` Not yet implemented
+`[~]` Governance implementation complete; production evidence window has not yet been demonstrated
 
 ## Story
 

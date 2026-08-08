@@ -55,7 +55,10 @@ public sealed record AiQueryRequest(
     ActorType ActorType = ActorType.User,
     AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
     AiQueryContext? Context = null,
-    string? OriginalUserMessage = null);
+    string? OriginalUserMessage = null,
+    ValidatedQueryFrame? SemanticFrame = null,
+    ValidatedQueryFrame? SemanticShadowFrame = null,
+    string? SuggestedActionId = null);
 
 public sealed record AiQueryContext(
     Guid? InsightEventId = null,
@@ -92,7 +95,10 @@ public sealed record AiQueryResponse(
     DialogueOutcome Outcome = DialogueOutcome.Answered,
     string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
     string ReplyLanguage = "en",
-    bool LanguageGuardApplied = false);
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

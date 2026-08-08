@@ -36,5 +36,50 @@ public sealed class CapabilityGuidanceServiceTests
         Assert.Equal("monthly_activity_trend", prompt.CapabilityCode);
     }
 
+    [Theory]
+    [InlineData(DialogueOutcome.PartialAnswer, DialogueOutcomeReasonCodes.PartialEvidence)]
+    [InlineData(DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.RequiredInputMissing)]
+    [InlineData(DialogueOutcome.DisambiguationNeeded, DialogueOutcomeReasonCodes.EntityAmbiguous)]
+    [InlineData(DialogueOutcome.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows)]
+    [InlineData(DialogueOutcome.Unsupported, DialogueOutcomeReasonCodes.CapabilityNotRecognized)]
+    [InlineData(DialogueOutcome.TemporarilyUnavailable, DialogueOutcomeReasonCodes.ProviderOrToolTimeout)]
+    [InlineData(DialogueOutcome.Failed, DialogueOutcomeReasonCodes.ProviderOrToolFailure)]
+    public void EveryNonSuccessOutcome_ReturnsBoundedEnabledGuidance(
+        DialogueOutcome outcome,
+        string reason)
+    {
+        var service = Create();
+
+        foreach (var language in new[] { "fa", "en" })
+        {
+            var actions = service.Suggest(new(
+                language == "fa" ? "راهنمایی کن" : "help me",
+                language,
+                outcome,
+                reason,
+                ActorAvailableCapabilities: ["monthly_activity_trend"]));
+
+            var action = Assert.Single(actions);
+            Assert.Equal("monthly_activity_trend", action.CapabilityCode);
+            Assert.InRange(action.Id.Length, 1, 160);
+            Assert.InRange(action.LocalizedLabel.Length, 1, 160);
+            Assert.InRange(action.Message.Length, 1, 500);
+            Assert.StartsWith(language == "fa" ? "مثال" : "Try", action.LocalizedLabel, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void VagueHelp_DoesNotAdvertiseDisabledOrUnavailableCapabilities()
+    {
+        var actions = Create().Suggest(new(
+            "what can you do?", "en", DialogueOutcome.Unsupported,
+            DialogueOutcomeReasonCodes.CapabilityNotRecognized,
+            ActorAvailableCapabilities: ["symbol_metric_lookup", "not_registered"]));
+
+        var action = Assert.Single(actions);
+        Assert.Equal("symbol_metric_lookup", action.CapabilityCode);
+        Assert.DoesNotContain(actions, item => item.CapabilityCode == "not_registered");
+    }
+
     private static CapabilityGuidanceService Create() => new(new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create()));
 }

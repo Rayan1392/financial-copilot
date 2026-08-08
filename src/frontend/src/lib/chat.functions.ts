@@ -29,6 +29,7 @@ export interface AssistantChatBlock {
   confidence?: number;
   creditsUsed: number;
   suggestedQuestions: string[];
+  suggestedActions: SuggestedAction[];
   filters: Array<{ label: string; value: string }>;
   table?: ScannerTable;
   tableMetadataLabel?: string;
@@ -58,6 +59,23 @@ export interface DisclosureListingResult {
   hasNextPage: boolean;
   coverageStatus: string;
   freshnessReasonCode: string;
+}
+
+export interface SuggestedAction {
+  id: string;
+  kind: string;
+  label: string;
+  message: string;
+  capabilityCode: string;
+  relevanceReason: string;
+  registryVersion: number;
+}
+
+export interface CapabilityStarterPrompt {
+  capabilityCode: string;
+  label: string;
+  example: string;
+  registryVersion: number;
 }
 
 export interface PsVisualizationResult {
@@ -243,6 +261,7 @@ interface AssistantContentResponse {
   providerSelection?: string;
   providerFallbackOccurred?: boolean;
   workflowCorrelationId?: string;
+  suggestedActions?: SuggestedAction[];
 }
 
 export const listThreads = createServerFn({ method: "GET" })
@@ -298,6 +317,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPage: z.number().int().min(1).default(1),
         scannerPageSize: z.number().int().min(1).max(100).default(20),
         disclosurePage: z.number().int().min(1).default(1),
+        suggestedActionId: z.string().max(160).optional(),
       })
       .parse(d),
   )
@@ -310,6 +330,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPage: data.scannerPage,
         scannerPageSize: data.scannerPageSize,
         disclosurePage: data.disclosurePage,
+        suggestedActionId: data.suggestedActionId,
       }),
     });
     const createdAt = new Date().toISOString();
@@ -329,6 +350,15 @@ export const sendChatMessage = createServerFn({ method: "POST" })
       } satisfies ChatMessage,
     };
   });
+
+export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<CapabilityStarterPrompt[]>(
+      context,
+      "/api/ai/v1/capabilities/guidance?language=fa",
+    ),
+  );
 
 function mapThread(row: ConversationSummaryResponse): ChatThread {
   return {
@@ -378,6 +408,7 @@ function mapAssistantBlock(
     confidence: content?.confidenceScore?.score ?? explanation?.confidence?.score,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
     suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],
+    suggestedActions: content?.suggestedActions ?? [],
     filters:
       explanation?.filterChips.map((chip) => ({
         label: chip.metricDisplayName,

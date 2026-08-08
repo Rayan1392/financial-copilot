@@ -123,11 +123,26 @@ public sealed class CanonicalQueryEntityResolverTests
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
         var interpretation = new DeterministicCapabilityInterpreter(registry)
-            .Interpret("لطفاً چارت نمودار روند فروش ماهانه P/E فولاد را نشان بده");
+            .Interpret("لطفاً چارت نمودار روند فروش ماه قبل مشابه سال گذشته P/E فولاد را نشان بده");
 
         var mentions = interpretation.EntityMentions.Select(item => item.Text).ToArray();
         Assert.Contains("فولاد", mentions);
         Assert.DoesNotContain(mentions, QueryNormalization.IsEntityDistractor);
+    }
+
+    [Fact]
+    public async Task MultipleCanonicalEntities_AreResolvedWithoutTreatingConnectorsAsSymbols()
+    {
+        await using var db = CreateDb();
+        AddCompany(db, "فملی", "ملی صنایع مس ایران", "femeli");
+        AddCompany(db, "حفاری", "حفاری شمال", "hafari");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret("PE و ROE فملی و حفاری");
+
+        var resolved = await CreateResolver(db).ResolveAllFromInterpretationAsync(interpretation);
+
+        Assert.Equal(["فملی", "حفاری"], resolved.Select(item => item.Entity.DisplaySymbol));
     }
 
     [Fact]

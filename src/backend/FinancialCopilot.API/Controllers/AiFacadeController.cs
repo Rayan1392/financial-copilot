@@ -24,8 +24,20 @@ public sealed class AiFacadeController(
     IAiQueryOrchestrationService orchestrationService,
     IConversationRepository conversationRepository,
     IMessageRepository messageRepository,
-    IAlertHistoryUseCases alertHistory) : ControllerBase
+    IAlertHistoryUseCases alertHistory,
+    ICapabilityGuidanceService guidanceService) : ControllerBase
 {
+    [HttpGet("capabilities/guidance")]
+    public ActionResult<IReadOnlyCollection<CapabilityStarterPromptHttpResponse>> GetCapabilityGuidance(
+        [FromQuery] string language = "fa")
+    {
+        var safeLanguage = language.Equals("en", StringComparison.OrdinalIgnoreCase) ? "en" : "fa";
+        return Ok(guidanceService.StarterPrompts(safeLanguage)
+            .Select(item => new CapabilityStarterPromptHttpResponse(
+                item.CapabilityCode, item.LocalizedLabel, item.Example, item.RegistryVersion))
+            .ToArray());
+    }
+
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(
         [FromBody] AiQueryHttpRequest httpRequest,
@@ -67,7 +79,8 @@ public sealed class AiFacadeController(
                     AuthenticationMode: actor.AuthenticationMode,
                     Context: httpRequest.Context is null
                         ? null
-                        : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId)),
+                        : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId),
+                    SuggestedActionId: httpRequest.SuggestedActionId),
                 cancellationToken);
         }
         catch (ConversationNotFoundException)
@@ -235,7 +248,10 @@ public sealed class AiFacadeController(
              result.Outcome.ToString(),
              result.OutcomeReasonCode,
              result.ReplyLanguage,
-             result.LanguageGuardApplied);
+             result.LanguageGuardApplied,
+             MapSuggestedActions(result.SuggestedActions),
+             result.SemanticCapabilityCode,
+             result.SemanticRegistryVersion);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -476,7 +492,22 @@ public sealed class AiFacadeController(
                 payload.Outcome.ToString(),
                 payload.OutcomeReasonCode,
                 payload.ReplyLanguage,
-                payload.LanguageGuardApplied);
+                payload.LanguageGuardApplied,
+                MapSuggestedActions(payload.SuggestedActions),
+                payload.SemanticCapabilityCode,
+                payload.SemanticRegistryVersion);
+
+    private static IReadOnlyCollection<SuggestedActionHttpResponse>? MapSuggestedActions(
+        IReadOnlyCollection<SuggestedAction>? actions) =>
+        actions?.Select(action => new SuggestedActionHttpResponse(
+            action.Id,
+            action.Kind.ToString(),
+            action.LocalizedLabel,
+            action.Message,
+            action.CapabilityCode,
+            action.PresetSlots,
+            action.RelevanceReason,
+            action.RegistryVersion)).ToArray();
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)

@@ -172,6 +172,110 @@ public sealed class CleanArchitectureDependencyTests
         Assert.Empty(failures);
     }
 
+    [Fact]
+    public void MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(), "FinancialCopilot.Application", "AI", "Orchestration", "SemanticCapabilityExecutors.cs"));
+        var trend = Slice(source, "public sealed class MonthlyActivityTrendCapabilityExecutor", "public sealed class SymbolMetricLookupCapabilityExecutor");
+        var lookup = Slice(source, "public sealed class SymbolMetricLookupCapabilityExecutor", "public sealed class ProductRevenueMixCapabilityExecutor");
+
+        Assert.DoesNotContain("MonthlyActivityTrendIntentRules", trend, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExtractCompanySymbol", trend, StringComparison.Ordinal);
+        Assert.DoesNotContain("ISymbolLookupParser", lookup, StringComparison.Ordinal);
+        Assert.DoesNotContain("IComprehensiveAnalysisQueryParser", source, StringComparison.Ordinal);
+        Assert.Contains("QuerySlotType.CompanyOrSymbol", trend, StringComparison.Ordinal);
+        Assert.Contains("QuerySlotType.CompanyOrSymbol", lookup, StringComparison.Ordinal);
+        Assert.Contains("QuerySlotType.Metric", lookup, StringComparison.Ordinal);
+
+        foreach (var legacyParser in new[]
+                 {
+                     "FinancialStatementTableIntentRules",
+                     "FinancialStatementAnalysisIntentRules",
+                     "DisclosureListingIntentRules",
+                     "MonthlySalesQualityRankingIntentRules"
+                 })
+        {
+            Assert.DoesNotContain(legacyParser, source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void EveryProductionOrchestrator_CutsSemanticFramesOverBeforeLegacyRouting()
+    {
+        var root = FindSolutionRoot();
+        var files = new[]
+        {
+            Path.Combine(root, "FinancialCopilot.Application", "AI", "Orchestration", "AiQueryOrchestrationService.cs"),
+            Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "FinancialCopilotAgentWorkflowRunner.cs"),
+            Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "Workflow", "FinancialCopilotWorkflowDefinition.cs")
+        };
+
+        foreach (var file in files)
+        {
+            var source = File.ReadAllText(file);
+            var semanticBranch = source.IndexOf("SemanticFrame is", StringComparison.Ordinal);
+            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            Assert.True(semanticBranch >= 0 && semanticExecution > semanticBranch,
+                $"{Path.GetFileName(file)} must execute validated semantic frames through the coordinator.");
+        }
+
+        foreach (var file in files.Skip(1))
+        {
+            var source = File.ReadAllText(file);
+            var semanticExecution = source.IndexOf("semanticExecutionCoordinator.ExecuteAsync", StringComparison.Ordinal);
+            var modelResolution = source.IndexOf("ResolveModelClient(request)", StringComparison.Ordinal);
+            Assert.True(modelResolution > semanticExecution,
+                $"{Path.GetFileName(file)} must not require an AI model before deterministic semantic execution.");
+        }
+    }
+
+    [Fact]
+    public void SemanticFeatureDocumentation_TracksVerifiedImplementationState()
+    {
+        var repositoryRoot = Path.GetFullPath(Path.Combine(FindSolutionRoot(), "..", ".."));
+        var specsRoot = Path.Combine(repositoryRoot, "specs");
+        var completedFeatures = new[]
+        {
+            "117-ai-dialogue-outcome-safety-and-localization",
+            "118-conversational-capability-registry-and-query-frame",
+            "119-canonical-query-entity-and-slot-resolution",
+            "120-conversational-task-state-and-clarification-orchestration",
+            "121-capability-guidance-and-suggested-actions"
+        };
+
+        foreach (var feature in completedFeatures)
+        {
+            var story = File.ReadAllText(Path.Combine(specsRoot, feature, "user-story.md"));
+            var tasks = File.ReadAllText(Path.Combine(specsRoot, feature, "tasks.md"));
+            Assert.Contains("`[x]`", story, StringComparison.Ordinal);
+            Assert.DoesNotContain("## [ ] Task", tasks, StringComparison.Ordinal);
+            Assert.DoesNotContain("## [~] Task", tasks, StringComparison.Ordinal);
+        }
+
+        var migrationTasks = File.ReadAllText(Path.Combine(
+            specsRoot, "122-semantic-route-migration-and-legacy-retirement", "tasks.md"));
+        var governanceTasks = File.ReadAllText(Path.Combine(
+            specsRoot, "123-semantic-dialogue-evaluation-and-learning-governance", "tasks.md"));
+        var evidence = File.ReadAllText(Path.Combine(
+            specsRoot, "123-semantic-dialogue-evaluation-and-learning-governance", "implementation-evidence.md"));
+
+        Assert.DoesNotContain("## [ ] Task", migrationTasks, StringComparison.Ordinal);
+        Assert.Contains("## [~] Task 10", migrationTasks, StringComparison.Ordinal);
+        Assert.DoesNotContain("## [ ] Task", governanceTasks, StringComparison.Ordinal);
+        Assert.DoesNotContain("## [~] Task", governanceTasks, StringComparison.Ordinal);
+        Assert.Contains("At least 24 hours", evidence, StringComparison.Ordinal);
+        Assert.Contains("No synthetic production observation", evidence, StringComparison.Ordinal);
+    }
+
+    private static string Slice(string source, string startMarker, string endMarker)
+    {
+        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        var end = source.IndexOf(endMarker, start + startMarker.Length, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, $"Could not locate semantic executor slice '{startMarker}'.");
+        return source[start..end];
+    }
+
     private static string FindSolutionRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

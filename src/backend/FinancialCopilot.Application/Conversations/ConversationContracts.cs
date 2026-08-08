@@ -57,7 +57,10 @@ public sealed record AssistantMessagePayload(
     DialogueOutcome Outcome = DialogueOutcome.Answered,
     string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
     string ReplyLanguage = "en",
-    bool LanguageGuardApplied = false);
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,
@@ -72,7 +75,8 @@ public sealed record ConversationExchange(
 
 public sealed record PersistedConversationExchange(
     Guid UserMessageId,
-    Guid AssistantMessageId);
+    Guid AssistantMessageId,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null);
 
 public sealed class ConversationNotFoundException(Guid conversationId)
     : Exception($"Conversation '{conversationId}' was not found.")

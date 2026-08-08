@@ -13,7 +13,7 @@ interface Props {
   messages: ChatMessage[];
   loading: boolean;
   streaming: boolean;
-  onSuggested: (q: string) => void;
+  onSuggested: (q: string, actionId?: string) => void;
   onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   showDiagnostics?: boolean;
@@ -43,6 +43,7 @@ export function MessageList({
             <AssistantBlock
               block={message.content as AssistantChatBlock}
               onSuggested={onSuggested}
+              actionsDisabled={streaming}
               onPageChange={onPageChange}
               onDisclosurePageChange={onDisclosurePageChange}
               disclosureOriginalQuery={originalQuery && "text" in originalQuery.content ? originalQuery.content.text : undefined}
@@ -74,6 +75,7 @@ function UserBubble({ text }: { text: string }) {
 function AssistantBlock({
   block,
   onSuggested,
+  actionsDisabled,
   onPageChange,
   onDisclosurePageChange,
   disclosureOriginalQuery,
@@ -81,7 +83,8 @@ function AssistantBlock({
   followedSymbols,
 }: {
   block: AssistantChatBlock;
-  onSuggested: (q: string) => void;
+  onSuggested: (q: string, actionId?: string) => void;
+  actionsDisabled: boolean;
   onPageChange?: (page: number, originalQuery?: string, pageSize?: number) => void;
   onDisclosurePageChange?: (page: number, originalQuery: string) => void;
   disclosureOriginalQuery?: string;
@@ -170,12 +173,29 @@ function AssistantBlock({
           <OrchestrationDiagnosticsPanel orchestration={block.orchestration} />
         )}
 
+        {(block.suggestedActions ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label={block.replyLanguage === "fa" ? "پیشنهادهای ادامه گفتگو" : "Suggested next actions"}>
+            {(block.suggestedActions ?? []).map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                disabled={actionsDisabled}
+                onClick={() => !actionsDisabled && onSuggested(action.message, action.id)}
+                className="px-3 py-1.5 rounded-full ring-1 ring-emerald/30 bg-emerald-soft text-[11px] text-emerald hover:bg-emerald/15 focus-visible:outline-none focus-visible:ring-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {block.suggestedQuestions.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {block.suggestedQuestions.map((question) => (
               <button
                 key={question}
-                onClick={() => onSuggested(question)}
+                disabled={actionsDisabled}
+                onClick={() => !actionsDisabled && onSuggested(question)}
                 className="px-3 py-1.5 rounded-full ring-1 ring-hairline bg-white/5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/10 transition"
               >
                 {question}
@@ -246,6 +266,7 @@ function ScannerResultTable({
             <span dir="rtl">{metadataLabel}</span>
           </div>
         )}
+
         {isSalesGrowth && <SalesGrowthTableStatus table={table} />}
         <table className={`w-full text-sm ${isPersianTable ? "text-right" : "text-left"}`}>
           <thead className="bg-white/5">

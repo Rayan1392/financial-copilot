@@ -12,11 +12,12 @@ public sealed class DeterministicCapabilityInterpreter(
     IQueryInterpretationTelemetrySink? telemetrySink = null) : ICapabilityInterpreter
 {
     private static readonly string[] ScreeningWords = ["screen", "filter", "stocks", "سهام", "فیلتر", "شرط"];
-    private static readonly string[] TrendWords = ["trend", "chart", "graph", "monthly sales", "روند", "چارت", "نمودار", "فروش ماهانه"];
+    private static readonly string[] TrendWords = ["trend", "chart", "graph", "روند", "چارت", "نمودار"];
     private static readonly string[] AnalysisWords = ["analysis", "analyze", "review", "تحلیل", "بررسی", "ارزیابی", "وضعیت"];
     private static readonly string[] GaugeWords = ["gauge", "گیج"];
     private static readonly string[] ProductWords = ["product mix", "product revenue", "ترکیب فروش", "محصول"];
     private static readonly string[] StatementWords = ["statement", "صورت مالی", "سود و زیان", "ترازنامه"];
+    private static readonly string[] StatementAnalysisWords = ["financial statement analysis", "analyze financial statement", "تحلیل صورت مالی", "تحلیل ترازنامه", "تحلیل سود و زیان"];
     private static readonly string[] DisclosureWords = ["disclosure", "اطلاعیه", "کدال"];
     private static readonly string[] RankingWords = ["ranking", "rank", "رتبه", "رتبه‌بندی", "کیفیت فروش"];
     private static readonly string[] MetricWords = ["p/e", "p/s", "eps", "roe", "roa", "فروش", "درآمد", "سود", "قیمت", "نسبت"];
@@ -24,7 +25,10 @@ public sealed class DeterministicCapabilityInterpreter(
     {
         "show", "the", "for", "with", "below", "above", "monthly", "sales", "stock", "stocks", "screen",
         "filter", "analysis", "analyze", "review", "p", "e", "s", "eps", "چارت", "نمودار", "روند", "فروش",
-        "ماهانه", "سهام", "با", "زیر", "بالای", "تحلیل", "بررسی", "آخرین", "جدول", "صورت", "مالی", "قیمت"
+        "ماهانه", "سهام", "با", "زیر", "بالای", "تحلیل", "بررسی", "آخرین", "جدول", "صورت", "مالی", "قیمت",
+        "ytd", "چقدر", "بوده", "است", "هست", "چیست", "چیه", "را", "کن", "بده", "نشان", "نمایش", "لطفا", "لطفاً",
+        "month", "quarter", "year", "week", "previous", "prior", "last", "latest", "same", "before", "current", "and", "or",
+        "ماه", "فصل", "سال", "هفته", "قبل", "قبلی", "گذشته", "اخیر", "مشابه", "جاری", "امسال", "پارسال", "و", "یا", "برای", "از", "به"
     };
 
     public QueryInterpretation Interpret(string message)
@@ -36,21 +40,46 @@ public sealed class DeterministicCapabilityInterpreter(
         var evidence = new List<InterpretationEvidence>();
         var scores = new Dictionary<string, decimal>(StringComparer.Ordinal);
 
+        // Registry aliases are the governed recognition source. Hand-authored keyword
+        // rules below only add common paraphrases and conflict-specific evidence.
+        foreach (var catalogDefinition in registry.GetEnabled())
+        {
+            var alias = catalogDefinition.Aliases.FirstOrDefault(item =>
+                normalized.Contains(QueryNormalization.Normalize(item.Value), StringComparison.OrdinalIgnoreCase));
+            if (alias is null) continue;
+            scores[catalogDefinition.Code] = Math.Max(scores.GetValueOrDefault(catalogDefinition.Code), 0.97m);
+            evidence.Add(new InterpretationEvidence(catalogDefinition.Code, $"registry-alias:{alias.Language}", QueryValueProvenance.UserExplicit));
+        }
+
         AddScore("stock_screening", ScreeningWords, 0.9m, normalized, scores, evidence, "screening-keyword");
         AddScore("monthly_activity_trend", TrendWords, 0.9m, normalized, scores, evidence, "trend-keyword");
         AddScore("comprehensive_analysis", AnalysisWords, 0.75m, normalized, scores, evidence, "analysis-keyword");
         AddScore("ps_gauge_visualization", GaugeWords, 0.95m, normalized, scores, evidence, "gauge-keyword");
         AddScore("product_revenue_mix", ProductWords, 0.9m, normalized, scores, evidence, "product-keyword");
         AddScore("financial_statement_table", StatementWords, 0.8m, normalized, scores, evidence, "statement-keyword");
+        AddScore("financial_statement_period_analysis", StatementAnalysisWords, 0.98m, normalized, scores, evidence, "statement-analysis-keyword");
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
 
+        if (ContainsAny(normalized, MetricWords) && ContainsAny(normalized,
+                ["below", "above", "under", "over", "زیر", "بالای", "کمتر از", "بیشتر از", "حداقل", "حداکثر"]))
+        {
+            scores["stock_screening"] = Math.Max(scores.GetValueOrDefault("stock_screening"), 0.96m);
+            evidence.Add(new InterpretationEvidence("stock_screening", "metric-threshold", QueryValueProvenance.UserExplicit));
+        }
+
+        if (ContainsAny(normalized, StatementWords) && ContainsAny(normalized, AnalysisWords))
+        {
+            scores["financial_statement_period_analysis"] = Math.Max(scores.GetValueOrDefault("financial_statement_period_analysis"), 0.98m);
+            evidence.Add(new InterpretationEvidence("financial_statement_period_analysis", "statement-with-analysis", QueryValueProvenance.UserExplicit));
+        }
+
         var entities = ExtractEntities(original, normalized);
-        if (entities.Count > 0 && ContainsAny(normalized, MetricWords))
+        if (ContainsAny(normalized, MetricWords))
         {
             scores["symbol_metric_lookup"] = Math.Max(
                 scores.TryGetValue("symbol_metric_lookup", out var existing) ? existing : 0m,
-                0.88m);
+                entities.Count > 0 ? 0.88m : 0.86m);
             evidence.Add(new InterpretationEvidence(
                 "symbol_metric_lookup",
                 "metric-and-entity",
@@ -110,6 +139,7 @@ public sealed class DeterministicCapabilityInterpreter(
         var interpretation = preliminary with
         {
             CapabilityCandidates = ordered,
+            Confidence = ordered.FirstOrDefault()?.Confidence ?? 0m,
             ConfidenceBand = InterpretationConfidencePolicy.Band(ordered.FirstOrDefault()?.Confidence ?? 0m)
         };
         try
@@ -166,7 +196,7 @@ public sealed class DeterministicCapabilityInterpreter(
     }
 
     private static PresentationPreference? DetectPresentation(string normalized) =>
-        normalized.Contains("chart", StringComparison.OrdinalIgnoreCase) || normalized.Contains("چارت", StringComparison.Ordinal)
+        normalized.Contains("chart", StringComparison.OrdinalIgnoreCase) || normalized.Contains("چارت", StringComparison.Ordinal) || normalized.Contains("نمودار", StringComparison.Ordinal)
             ? new PresentationPreference(PresentationKind.Chart, QueryValueProvenance.UserExplicit)
             : normalized.Contains("table", StringComparison.OrdinalIgnoreCase) || normalized.Contains("جدول", StringComparison.Ordinal)
                 ? new PresentationPreference(PresentationKind.Table, QueryValueProvenance.UserExplicit)

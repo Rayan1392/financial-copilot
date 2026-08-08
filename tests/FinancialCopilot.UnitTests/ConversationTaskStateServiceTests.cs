@@ -83,6 +83,23 @@ public sealed class ConversationTaskStateServiceTests
     }
 
     [Fact]
+    public async Task LookupToChartRefinement_CarriesCanonicalSymbolIntoTrendCapability()
+    {
+        var service = Create(out _);
+        var companyId = Guid.NewGuid();
+        await service.RecordAnsweredAsync(Scope, "symbol_metric_lookup",
+            [Slot(QuerySlotType.CompanyOrSymbol, "فولاد", companyId), Slot(QuerySlotType.Metric, "MONTHLY_SALES")],
+            Guid.NewGuid(), "lookup", default);
+
+        var transition = await service.ResolveFollowUpAsync(Scope, "monthly_activity_trend",
+            [Slot(QuerySlotType.Presentation, "Chart")], Guid.NewGuid(), "chart", default);
+
+        Assert.Equal("monthly_activity_trend", transition.Current!.ActiveCapability);
+        Assert.Equal("فولاد", transition.Current.FindSlot(QuerySlotType.CompanyOrSymbol)!.Value);
+        Assert.Equal(QueryValueProvenance.ConversationInferred, transition.Current.FindSlot(QuerySlotType.CompanyOrSymbol)!.Provenance);
+    }
+
+    [Fact]
     public async Task ConcurrentExpectedVersions_AllowOnlyOneWriter()
     {
         var repository = new InMemoryRepository();

@@ -2,7 +2,7 @@
 
 ## Status
 
-`[ ]` Not yet implemented
+`[x]` Implemented and verified
 
 ## Story
 

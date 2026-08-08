@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { sendChatMessage } from "@/lib/chat.functions";
+import { getCapabilityStarterPrompts, sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { useState } from "react";
@@ -9,19 +9,6 @@ import { useState } from "react";
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
 });
-
-const SUGGESTIONS = [
-  "آخرین قیمت کگل؟",
-  "خلاصه بازار امروز را بگو",
-  "روند فروش کگل؟",
-  "سهم‌هایی با P/E زیر ۶ و P/S زیر ۲",
-  "تحلیل پرتفوی من",
-  "ترکیب فروش محصول کچاد را بگو",
-  "میانگین فروش ۱۲ ماهه شگل",
-  "آخرین صورت سود و زیان فولاژ",
-  "تحلیل بنیادی دسبحان؟",
-  "تحلیل بنیادی شگل"
-];
 
 function chatErrorMessage(error: Error): string {
   if (error.message.toLowerCase().includes("insufficient"))
@@ -32,12 +19,19 @@ function chatErrorMessage(error: Error): string {
 function NewChatPage() {
   const navigate = useNavigate();
   const send = useServerFn(sendChatMessage);
+  const fetchStarterPrompts = useServerFn(getCapabilityStarterPrompts);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
+  const { data: starterPrompts = [] } = useQuery({
+    queryKey: ["capability-starter-prompts", "fa"],
+    queryFn: () => fetchStarterPrompts(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const startChat = useMutation({
-    mutationFn: async (message: string) => {
-      const result = await send({ data: { message, scannerPage: 1 } });
+    mutationFn: async ({ message, suggestedActionId }: { message: string; suggestedActionId?: string }) => {
+      const result = await send({ data: { message, scannerPage: 1, suggestedActionId } });
       return result.threadId;
     },
     onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),
@@ -47,10 +41,11 @@ function NewChatPage() {
     },
   });
 
-  const submit = (text: string) => {
+  const submit = (text: string, suggestedActionId?: string) => {
+    if (startChat.isPending) return;
     setQueryError(null);
     setPendingMessage(text);
-    startChat.mutate(text);
+    startChat.mutate({ message: text, suggestedActionId });
   };
 
   return (
@@ -83,14 +78,14 @@ function NewChatPage() {
             خلاصه بازار را در یک گفتگو دریافت کنید.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-right">
-            {SUGGESTIONS.map((s) => (
+            {starterPrompts.map((prompt) => (
               <button
-                key={s}
-                onClick={() => submit(s)}
+                key={`${prompt.registryVersion}:${prompt.capabilityCode}`}
+                onClick={() => submit(prompt.example)}
                 disabled={startChat.isPending}
                 className="text-sm px-4 py-3 rounded-xl border border-border bg-surface hover:bg-surface-2 hover:border-emerald/30 transition disabled:opacity-50"
               >
-                {s}
+                {prompt.example}
               </button>
             ))}
           </div>

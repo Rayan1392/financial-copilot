@@ -1,6 +1,6 @@
 # Feature 121 Tasks — Capability Guidance and Suggested Actions
 
-## [ ] Task 1 — Define Versioned Guidance Contracts
+## [x] Task 1 — Define Versioned Guidance Contracts
 
 Add suggested actions, capability help summaries, preset slot metadata, and persistence/API mappings.
 
@@ -37,7 +37,7 @@ Acceptance:
 - Every published example maps to one enabled capability.
 - Disabling a capability removes its starter examples.
 
-## [ ] Task 5 — Implement Web Suggested Actions
+## [x] Task 5 — Implement Web Suggested Actions
 
 Render accessible action chips with persisted/reloaded parity.
 
@@ -47,7 +47,7 @@ Acceptance:
 - Clicking submits the visible message through `POST /api/ai/v1/query`.
 - Duplicate sends are prevented using existing chat behavior.
 
-## [ ] Task 6 — Implement Telegram Suggested Actions
+## [x] Task 6 — Implement Telegram Suggested Actions
 
 Add bounded inline buttons or numbered fallback text with secure callback handling.
 
@@ -56,7 +56,7 @@ Acceptance:
 - Actions are actor/conversation scoped and expire safely.
 - Callback replay cannot duplicate Billing/execution.
 
-## [ ] Task 7 — Persist Exact Guidance Snapshot
+## [x] Task 7 — Persist Exact Guidance Snapshot
 
 Store the actions returned with the assistant message.
 
@@ -66,7 +66,7 @@ Acceptance:
 - Registry version is retained.
 - Payload size limits are enforced.
 
-## [ ] Task 8 — Add Guidance Analytics
+## [x] Task 8 — Add Guidance Analytics
 
 Record presented, selected, expired, and successfully resolved actions using bounded IDs/codes.
 
@@ -75,7 +75,7 @@ Acceptance:
 - Analytics correlate with outcome and capability.
 - Raw text and sensitive slots are excluded from metric dimensions.
 
-## [ ] Task 9 — Add Outcome and Channel Tests
+## [x] Task 9 — Add Outcome and Channel Tests
 
 Cover contextual suggestions for every non-success outcome and vague help, in Persian/English, web/Telegram, live/reload.
 

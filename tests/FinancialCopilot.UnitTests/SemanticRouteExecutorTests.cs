@@ -134,6 +134,24 @@ public sealed class SemanticRouteExecutorTests
     }
 
     [Fact]
+    public async Task ComprehensiveAnalysisExecutor_PreservesDatabaseReportsWhenLiveMetricsFail()
+    {
+        var analysis = new AnalysisUseCase(hasRows: true);
+        var executor = new ComprehensiveAnalysisCapabilityExecutor(
+            analysis, new ThrowingLookupService(), TimeProvider.System);
+
+        var result = await executor.ExecuteAsync(
+            Frame("comprehensive_analysis", Symbol("فولاژ")), Context(), default);
+
+        var payload = Assert.IsType<SemanticComprehensiveAnalysisPayload>(result.Payload);
+        Assert.Equal(CapabilityExecutionStatus.Partial, result.Status);
+        Assert.True(payload.Analysis.HasResults);
+        Assert.Empty(payload.Lookup.Rows);
+        Assert.Contains("live_metrics_unavailable", result.Warnings!);
+        Assert.Empty(analysis.Request!.TopicTags);
+    }
+
+    [Fact]
     public async Task PersonalizedInsightExecutor_UsesValidatedInsightAndCurrentActor()
     {
         var insightId = Guid.NewGuid();
@@ -188,6 +206,12 @@ public sealed class SemanticRouteExecutorTests
                 : [];
             return Task.FromResult(new SymbolLookupTableResult(Guid.NewGuid(), [], resultRows, new(DateTimeOffset.UtcNow, TimeSpan.Zero, resultRows.Length, resultRows.Length, false), [], []));
         }
+    }
+
+    private sealed class ThrowingLookupService : ISymbolMetricLookupService
+    {
+        public Task<SymbolLookupTableResult> LookupAsync(SymbolLookupRequest request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("simulated lookup failure");
     }
 
     private sealed class AnalysisUseCase(bool hasRows) : IComprehensiveAnalysisQueryUseCase

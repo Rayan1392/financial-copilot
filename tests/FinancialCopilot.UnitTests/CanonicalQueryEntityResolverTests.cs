@@ -164,6 +164,17 @@ public sealed class CanonicalQueryEntityResolverTests
     }
 
     [Fact]
+    public void FundamentalAnalysisQualifier_NeverBecomesEntityMention()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry)
+            .Interpret("تحلیل بنیادی فولاژ؟");
+
+        var mention = Assert.Single(interpretation.EntityMentions);
+        Assert.Equal("فولاژ", mention.Text);
+    }
+
+    [Fact]
     public async Task MultipleCanonicalEntities_AreResolvedWithoutTreatingConnectorsAsSymbols()
     {
         await using var db = CreateDb();

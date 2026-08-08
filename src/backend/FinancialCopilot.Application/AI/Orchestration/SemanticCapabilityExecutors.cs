@@ -240,29 +240,70 @@ public sealed class ComprehensiveAnalysisCapabilityExecutor(
         var fromDate = ParseDateTimeOffset(frame.Value(QuerySlotType.Period));
         var limit = Math.Clamp(ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 3, 1, 5);
 
-        var analysisTask = useCase.ExecuteAsync(
-            new ComprehensiveAnalysisQueryRequest(symbols, topics, fromDate, limit),
+        var analysisTask = TryExecuteAsync(
+            () => useCase.ExecuteAsync(
+                new ComprehensiveAnalysisQueryRequest(symbols, topics, fromDate, limit),
+                cancellationToken),
             cancellationToken);
-        var lookupTask = lookupService.LookupAsync(new SymbolLookupRequest(
-            symbols.SelectMany(symbolName => SemanticLookupMetricPolicy.ContextMetricCodes.Select(metricCode =>
-                new SymbolLookupRequestPair(symbolName, new MetricCode(metricCode)))).ToArray(),
-            DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime),
-            context.ActorId.ToString(),
-            frame.Interpretation.OriginalText), cancellationToken);
+        var lookupTask = TryExecuteAsync(
+            () => lookupService.LookupAsync(new SymbolLookupRequest(
+                symbols.SelectMany(symbolName => SemanticLookupMetricPolicy.ContextMetricCodes.Select(metricCode =>
+                    new SymbolLookupRequestPair(symbolName, new MetricCode(metricCode)))).ToArray(),
+                DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime),
+                context.ActorId.ToString(),
+                frame.Interpretation.OriginalText), cancellationToken),
+            cancellationToken);
         await Task.WhenAll(analysisTask, lookupTask);
 
-        var analysis = await analysisTask;
-        var lookup = await lookupTask;
+        var analysisAttempt = await analysisTask;
+        var lookupAttempt = await lookupTask;
+        if (analysisAttempt.Failed && lookupAttempt.Failed)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed,
+                DialogueOutcomeReasonCodes.ProviderOrToolFailure);
+
+        var analysis = analysisAttempt.Value ?? new ComprehensiveAnalysisQueryResponse([], symbols);
+        var lookup = lookupAttempt.Value ?? EmptyLookup(symbols, context.Now);
         var payload = new SemanticComprehensiveAnalysisPayload(analysis, lookup);
         var hasAnalysis = analysis.HasResults;
         var hasMetrics = lookup.Rows.Count > 0;
+        var warnings = new List<string>();
+        if (analysisAttempt.Failed) warnings.Add("analysis_posts_unavailable");
+        else if (!hasAnalysis) warnings.Add("analysis_posts_unavailable");
+        if (lookupAttempt.Failed) warnings.Add("live_metrics_unavailable");
+        else if (!hasMetrics) warnings.Add("live_metrics_unavailable");
+
+        if ((analysisAttempt.Failed && !hasMetrics) || (lookupAttempt.Failed && !hasAnalysis))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable,
+                DialogueOutcomeReasonCodes.ProviderOrToolFailure, payload, warnings);
         if (!hasAnalysis && !hasMetrics) return NoData(frame, payload);
         return hasAnalysis && hasMetrics
             ? Success(frame, payload)
             : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Partial,
-                DialogueOutcomeReasonCodes.PartialEvidence, payload,
-                [hasAnalysis ? "live_metrics_unavailable" : "analysis_posts_unavailable"]);
+                DialogueOutcomeReasonCodes.PartialEvidence, payload, warnings);
     }
+
+    private async Task<ExecutionAttempt<T>> TryExecuteAsync<T>(
+        Func<Task<T>> execute,
+        CancellationToken cancellationToken) where T : class
+    {
+        try
+        {
+            return new(await execute(), false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return new(null, true);
+        }
+    }
+
+    private static SymbolLookupTableResult EmptyLookup(IReadOnlyCollection<string> symbols, DateTimeOffset now) =>
+        new(Guid.NewGuid(), [], [], new(now, TimeSpan.Zero, symbols.Count, 0, false), [], symbols);
+
+    private sealed record ExecutionAttempt<T>(T? Value, bool Failed) where T : class;
 }
 
 public sealed class PersonalizedInsightExplanationCapabilityExecutor(

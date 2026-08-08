@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -735,6 +736,33 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         Assert.Contains("ترکیب درآمد محصولات", textAnswer);
     }
 
+    [Fact]
+    public async Task V2AiQuery_FundamentalAnalysis_ReturnsPersistedAnalysisWhenLiveMetricsFail()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "تحلیل بنیادی فولاژ؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("ComprehensiveAnalysis", root.GetProperty("intent").GetString());
+        Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.True(root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal() > 0m);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var analyses = root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray();
+        var analysis = Assert.Single(analyses);
+        Assert.Equal("تحلیل بنیادی فولاژ", analysis.GetProperty("title").GetString());
+        Assert.Equal("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", analysis.GetProperty("plainTextSummary").GetString());
+        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", root.GetProperty("textAnswer").GetString());
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -1305,6 +1333,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             ReplaceIngestionDbContext(services, _dbName);
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
+            services.RemoveAll<ISymbolMetricLookupService>();
+            services.AddSingleton<ISymbolMetricLookupService, ThrowingSymbolMetricLookupService>();
         });
     }
 
@@ -1359,7 +1389,41 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 CompanySymbol = "فملی",
                 TseSymbol = "فملی",
                 LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000006"),
+                Name = "فولاد آلیاژی ایران",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "6",
+                CompanySymbol = "فولاژ",
+                TseSymbol = "فولاژ",
+                Ticker = "فولاژ",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
             });
+
+        var analysisNow = DateTimeOffset.UtcNow;
+        db.ComprehensiveAnalyses.Add(new ComprehensiveAnalysisRow
+        {
+            Id = 75001,
+            Title = "تحلیل بنیادی فولاژ",
+            Summary = "<p>P/E فعلی 5.4 و ارزش ذاتی 3753 تومان</p>",
+            PlainTextSummary = "P/E فعلی 5.4 و ارزش ذاتی 3753 تومان",
+            CreatedAt = analysisNow,
+            PersianCreatedAt = "1405/05/17",
+            AuthorId = 75,
+            AuthorName = "تحلیلگر",
+            SyncedAt = analysisNow
+        });
+        db.ComprehensiveAnalysisTags.Add(new ComprehensiveAnalysisTagRow
+        {
+            AnalysisId = 75001,
+            TagId = 75001,
+            TagName = "فولاژ",
+            TagSlug = "folaj",
+            TagTypeId = 1,
+            IsAnalytic = false
+        });
 
         db.CompanyProductRevenueMix.AddRange(
             new CompanyProductRevenueMixRow
@@ -1551,6 +1615,14 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 SourceProviderName = "NoavaranCurrentApi",
                 CalculatedAtUtc = now
             });
+    }
+
+    private sealed class ThrowingSymbolMetricLookupService : ISymbolMetricLookupService
+    {
+        public Task<SymbolLookupTableResult> LookupAsync(
+            SymbolLookupRequest request,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("simulated live-metric outage");
     }
 }
 

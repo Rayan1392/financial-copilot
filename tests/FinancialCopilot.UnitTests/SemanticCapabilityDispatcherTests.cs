@@ -110,6 +110,26 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
+    public async Task SemanticCoordinator_MapsExecutionFailureToZeroChargeProviderFailureStatus()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var billing = new RecordingBilling();
+        var coordinator = new SemanticExecutionCoordinator(
+            new SemanticCapabilityDispatcher(registry,
+                [new Executor("monthly_activity_trend", CapabilityExecutionStatus.Failed)]),
+            billing, new RecordingFeedback(), new RecordingEventSink());
+
+        var operation = await coordinator.ExecuteAsync(
+            Frame("monthly_activity_trend"), Context(),
+            new AiQueryRequest("trend", Guid.NewGuid(), Guid.NewGuid(), "failed-no-charge"), default);
+
+        Assert.Equal(CapabilityExecutionStatus.Failed, operation.Execution.Status);
+        Assert.Equal("ProviderFailed", billing.LastCompletionStatus);
+        Assert.Equal(1, billing.Reservations);
+        Assert.Equal(1, billing.Finalizations);
+    }
+
+    [Fact]
     public async Task InvalidFrame_DoesNotTouchBillingOrExecutor()
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
@@ -151,14 +171,14 @@ public sealed class SemanticCapabilityDispatcherTests
         [new ResolvedQuerySlot(QuerySlotType.CompanyOrSymbol, "FOLD", QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability)],
         new("", "", "en", [], [], [], null, null, null, [], [], 0, [], 1));
     private static QueryExecutionContext Context() => new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "test", "en");
-    private sealed class Executor(string code) : IConversationalCapabilityExecutor
+    private sealed class Executor(string code, CapabilityExecutionStatus status = CapabilityExecutionStatus.Executed) : IConversationalCapabilityExecutor
     {
         public string CapabilityCode => code;
         public int Calls { get; private set; }
         public Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(new CapabilityExecutionResult(code, 1, CapabilityExecutionStatus.Executed, "none"));
+            return Task.FromResult(new CapabilityExecutionResult(code, 1, status, "none"));
         }
     }
     private sealed class RecordingTelemetry : ISemanticRoutingTelemetrySink
@@ -171,6 +191,7 @@ public sealed class SemanticCapabilityDispatcherTests
         public int Reservations { get; private set; }
         public int Finalizations { get; private set; }
         public int Releases { get; private set; }
+        public string? LastCompletionStatus { get; private set; }
         public Task<BillingReservationHandle?> TryReserveAsync(BillingReservationRequest request, CancellationToken cancellationToken)
         {
             Reservations++;
@@ -179,6 +200,7 @@ public sealed class SemanticCapabilityDispatcherTests
         public Task<UsageAccountingResult?> FinalizeAsync(BillingReservationHandle handle, BillingFinalizationRequest request, CancellationToken cancellationToken)
         {
             Finalizations++;
+            LastCompletionStatus = request.CompletionStatus;
             return Task.FromResult<UsageAccountingResult?>(new(handle.OperationCode, request.CompletionStatus, 1m, 9m, "test", false));
         }
         public Task ReleaseAsync(BillingReservationHandle handle, CancellationToken cancellationToken) { Releases++; return Task.CompletedTask; }

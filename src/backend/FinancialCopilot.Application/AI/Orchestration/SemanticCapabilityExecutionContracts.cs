@@ -132,8 +132,7 @@ public sealed class SemanticExecutionCoordinator(
             RecordOutcomeEvent(frame, context, result);
             await feedbackCollector.TryCollectAsync(request, frame, result, context.Now, CancellationToken.None);
             if (reservation is null) return new(result, null);
-            var completion = result.Status is CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial or CapabilityExecutionStatus.NoData
-                ? "Completed" : result.Status.ToString();
+            var completion = SemanticBillingCompletionStatus.For(result.Status);
             var cached = result.Payload is SemanticScannerPayload scanner && scanner.Table.ExecutionFacts.FromCache;
             var usage = await billingHook.FinalizeAsync(reservation, new BillingFinalizationRequest(completion, cached), cancellationToken);
             return new(result, usage);
@@ -163,6 +162,18 @@ public sealed class SemanticExecutionCoordinator(
             name, context.CorrelationId, frame.CapabilityCode, frame.RegistryVersion,
             result.ReasonCode, context.Channel, context.Now, result.Status.ToString()));
     }
+}
+
+public static class SemanticBillingCompletionStatus
+{
+    public static string For(CapabilityExecutionStatus status) => status switch
+    {
+        CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial or CapabilityExecutionStatus.NoData => "Completed",
+        CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired => "ClarificationRequired",
+        CapabilityExecutionStatus.Unsupported => "ValidationFailed",
+        CapabilityExecutionStatus.TemporarilyUnavailable or CapabilityExecutionStatus.Failed => "ProviderFailed",
+        _ => "ProviderFailed"
+    };
 }
 
 public sealed record SemanticRoutingOptions(

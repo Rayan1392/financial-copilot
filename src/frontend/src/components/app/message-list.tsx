@@ -95,14 +95,21 @@ function AssistantBlock({
   const message = tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
     ? ""
     : replaceProviderDisplayNames(block.message);
+  const isRtlMessage = block.replyLanguage === "fa" ||
+    (!block.replyLanguage && containsPersianText(message));
 
   return (
     <div className="flex gap-4" dir="ltr">
       <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
         AI
       </div>
-      <div className="flex-1 space-y-5 min-w-0" dir="auto">
-        {message.trim().length > 0 && <MarkdownMessage content={message} />}
+      <div
+        className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
+        dir={isRtlMessage ? "rtl" : "ltr"}
+      >
+        {message.trim().length > 0 && (
+          <MarkdownMessage content={message} direction={isRtlMessage ? "rtl" : "ltr"} />
+        )}
 
         {block.filters.length > 0 && (
           <div className="flex flex-wrap gap-2">

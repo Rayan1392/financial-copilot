@@ -247,7 +247,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 case ComprehensiveAnalysisQueryResponse analysis: comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(analysis); break;
                 case SemanticComprehensiveAnalysisPayload combined:
                     comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(combined.Analysis);
-                    lookupResult = SymbolLookupToolResult.Success(combined.Lookup);
+                    lookupResult = combined.Lookup.Rows.Count > 0
+                        ? SymbolLookupToolResult.Success(combined.Lookup)
+                        : null;
                     break;
                 case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
                 case FinancialStatementTableResult table: financialStatementTableResult = table; break;
@@ -261,7 +263,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticScannerPayload => scannerResult!.AgentSummary,
                 SymbolLookupTableResult => lookupResult!.AgentSummary,
                 ComprehensiveAnalysisQueryResponse => comprehensiveAnalysisResult!.AgentSummary,
-                SemanticComprehensiveAnalysisPayload => $"{lookupResult!.AgentSummary}\n\n{comprehensiveAnalysisResult!.AgentSummary}",
+                SemanticComprehensiveAnalysisPayload => lookupResult is null
+                    ? comprehensiveAnalysisResult!.AgentSummary
+                    : $"{lookupResult.AgentSummary}\n\n{comprehensiveAnalysisResult!.AgentSummary}",
                 FinancialStatementAnalysisResponse analysis => analysis.RenderedAnswer,
                 FinancialStatementTableResult table => table.RenderedAnswer,
                 ProductRevenueMixResponse product => BuildProductRevenueMixContent(product),

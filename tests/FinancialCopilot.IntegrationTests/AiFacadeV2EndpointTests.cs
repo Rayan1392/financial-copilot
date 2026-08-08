@@ -760,7 +760,9 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         var analysis = Assert.Single(analyses);
         Assert.Equal("تحلیل بنیادی فولاژ", analysis.GetProperty("title").GetString());
         Assert.Equal("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", analysis.GetProperty("plainTextSummary").GetString());
-        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", root.GetProperty("textAnswer").GetString());
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", textAnswer);
+        Assert.DoesNotContain("Found metric data for 0 symbol(s)", textAnswer);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

@@ -14,6 +14,30 @@ function renderMessageList(ui: ReactElement) {
 }
 
 describe("MessageList", () => {
+  it("uses reply language to right-align a Persian assistant answer that starts in English", () => {
+    const assistantBlock: AssistantChatBlock = {
+      message: "Found metric data for 0 symbol(s). 1 unresolved.\n\nتحلیل بنیادی فولاژ",
+      intent: "ComprehensiveAnalysis",
+      replyLanguage: "fa",
+      creditsUsed: 1,
+      suggestedQuestions: [],
+      filters: [],
+      citations: [],
+    };
+
+    const { container } = renderMessageList(<MessageList
+      messages={[{ id: "assistant-rtl", role: "assistant", content: assistantBlock, created_at: "2026-08-08T00:00:00Z" }]}
+      loading={false}
+      streaming={false}
+      onSuggested={vi.fn()}
+    />);
+
+    const content = screen.getByText("تحلیل بنیادی فولاژ").closest("[dir='rtl']");
+    expect(content).not.toBeNull();
+    expect(content?.className).toContain("text-right");
+    expect(container.querySelector("[dir='rtl'] .text-right")).not.toBeNull();
+  });
+
   it("renders persisted suggested actions and submits the visible message once", () => {
     const onSuggested = vi.fn();
     const assistantBlock: AssistantChatBlock = {

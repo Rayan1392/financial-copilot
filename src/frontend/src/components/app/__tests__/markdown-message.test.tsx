@@ -65,6 +65,18 @@ describe("MarkdownMessage", () => {
     expect(bolds[1].textContent).toBe("7.88");
   });
 
+  it("keeps a Persian response RTL when its first sentence is English", () => {
+    const content = "Found metric data for 0 symbol(s). 1 unresolved.\n\nتحلیل بنیادی فولاژ";
+    const { container } = render(<MarkdownMessage content={content} direction="rtl" />);
+    const wrapper = container.firstElementChild;
+    const paragraphs = container.querySelectorAll("p");
+
+    expect(wrapper?.getAttribute("dir")).toBe("rtl");
+    expect(wrapper?.className).toContain("text-right");
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0].className).toContain("[unicode-bidi:plaintext]");
+  });
+
   it("formats financial-statement sentences as separate RTL, right-aligned blocks", () => {
     const content =
       "درآمد عملیاتی ۳ ماهه نسبت به دوره مشابه ۱۰٪ تغییر کرده است. ✅ سود/زیان ناخالص به ۲۰۰ میلیون ریال رسیده است.";

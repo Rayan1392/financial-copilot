@@ -96,8 +96,17 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             var scannerPayload = semantic.Execution.Payload as SemanticScannerPayload;
             var lookupTable = semantic.Execution.Payload as SymbolLookupTableResult;
             var comprehensivePayload = semantic.Execution.Payload as SemanticComprehensiveAnalysisPayload;
-            lookupTable ??= comprehensivePayload?.Lookup;
-            var semanticText = semantic.Execution.Payload as string;
+            if (lookupTable is null && comprehensivePayload?.Lookup.Rows.Count > 0)
+                lookupTable = comprehensivePayload.Lookup;
+            var semanticText = semantic.Execution.Payload switch
+            {
+                string text => text,
+                ComprehensiveAnalysisQueryResponse analysis => ComprehensiveAnalysisToolResult.Success(analysis).AgentSummary,
+                SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
+                    $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",
+                SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary,
+                _ => null
+            };
             state.ScannerResult = scannerPayload is null ? null : ScannerToolResult.Success(scannerPayload.Plan, scannerPayload.Table, scannerPayload.Table.ExecutionFacts.FromCache);
             state.LookupResult = lookupTable is null ? null : SymbolLookupToolResult.Success(lookupTable);
             var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;

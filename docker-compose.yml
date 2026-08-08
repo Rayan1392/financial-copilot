@@ -107,6 +107,15 @@ services:
       CyclicalWaves__RetryCount: ${CYCLICAL_WAVES_RETRY_COUNT:-2}
       CyclicalWaves__CircuitBreakSeconds: ${CYCLICAL_WAVES_CIRCUIT_BREAK_SECONDS:-60}
       CyclicalWaves__CircuitFailureThreshold: ${CYCLICAL_WAVES_CIRCUIT_FAILURE_THRESHOLD:-5}
+      CyclicalWavesPsVisualization__Enabled: ${CYCLICAL_WAVES_PS_VISUALIZATION_ENABLED:-true}
+      CyclicalWavesPsVisualization__EnableStandaloneGauge: ${CYCLICAL_WAVES_STANDALONE_GAUGE:-true}
+      CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-true}
+      CyclicalWavesPsVisualization__IncludeHistoryInStandaloneGauge: ${CYCLICAL_WAVES_INCLUDE_HISTORY:-true}
+      CyclicalWavesPsVisualization__AllowStaleStandaloneGauge: ${CYCLICAL_WAVES_ALLOW_STALE:-true}
+      CyclicalWavesPsVisualization__MaxSyncAgeHours: ${CYCLICAL_WAVES_MAX_SYNC_AGE_HOURS:-48}
+      CyclicalWavesPsVisualization__MaxObservationLagTradingDays: ${CYCLICAL_WAVES_MAX_LAG_TRADING_DAYS:-2}
+      CyclicalWavesPsVisualization__MaxHistoryPoints: ${CYCLICAL_WAVES_MAX_HISTORY_POINTS:-5000}
+      CyclicalWavesPsVisualization__DisplayPercentageDecimals: ${CYCLICAL_WAVES_PERCENTAGE_DECIMALS:-2}
     depends_on:
       postgres:
         condition: service_healthy

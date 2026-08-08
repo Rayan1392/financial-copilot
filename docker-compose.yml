@@ -37,8 +37,9 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./docker/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     ports:
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -65,6 +66,7 @@ services:
       FeatureMessaging__Password: ${RABBITMQ_PASSWORD}
       ScannerCache__UseRedis: "true"
       Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
+      Cors__AllowedOrigins__1: ${FRONTEND_PUBLIC_ORIGIN_ALT:-https://sapio.ir}
       Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
       OpenApi__Enabled: ${OPENAPI_ENABLED:-false}
       OpenApi__ServerUrl: ${OPENAPI_SERVER_URL:-}
@@ -87,6 +89,8 @@ services:
       TsetmcWebService__ServiceUrl: ${TSETMC_WEB_SERVICE_URL:-http://service.tsetmc.com/WebService/TsePublicV2.asmx}
       TsetmcWebService__UserName: ${TSETMC_WEB_SERVICE_USER_NAME:-}
       TsetmcWebService__Password: ${TSETMC_WEB_SERVICE_PASSWORD:-}
+      MarketQuoteSourcePriority__PrimarySourceName: ${MARKET_QUOTE_PRIMARY_SOURCE:-TsetmcWebService}
+      TsetmcPolling__Enabled: ${TSETMC_POLLING_ENABLED:-true}
       TsetmcWebService__TimeoutSeconds: ${TSETMC_WEB_SERVICE_TIMEOUT_SECONDS:-60}
       TsetmcWebService__RetryCount: ${TSETMC_WEB_SERVICE_RETRY_COUNT:-3}
       TsetmcWebService__IntradayTradeFlows__0: ${TSETMC_INTRADAY_FLOW_0:-0}
@@ -145,6 +149,8 @@ services:
     image: ${FRONTEND_IMAGE:-financial-copilot-frontend}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
+    environment:
+      FINANCIAL_COPILOT_API_BASE_URL: http://api:8080
     depends_on:
       api:
         condition: service_started

@@ -84,18 +84,26 @@ public sealed class CanonicalQueryEntityResolver(
             .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text))
             .OrderBy(mention => mention.Start)
             .ToArray();
+        EntityResolutionResult.Ambiguous? bestAmbiguity = null;
         foreach (var phrase in ContiguousPhrases(mentions))
         {
             var result = await ResolveMentionAsync(phrase, cancellationToken);
-            if (result is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
+            if (result is EntityResolutionResult.Resolved)
                 return result;
+            if (result is EntityResolutionResult.Ambiguous && bestAmbiguity is null)
+                bestAmbiguity = (EntityResolutionResult.Ambiguous)result;
         }
         foreach (var mention in mentions.OrderByDescending(mention => mention.Length))
         {
             var result = await ResolveMentionAsync(mention.Text, cancellationToken);
-            if (result is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
+            if (result is EntityResolutionResult.Resolved)
                 return result;
+            if (result is EntityResolutionResult.Ambiguous && bestAmbiguity is null)
+                bestAmbiguity = (EntityResolutionResult.Ambiguous)result;
         }
+
+        if (bestAmbiguity is not null)
+            return bestAmbiguity;
 
         return interpretation.EntityMentions.Count == 0
             ? new EntityResolutionResult.Missing("CompanyOrSymbol")

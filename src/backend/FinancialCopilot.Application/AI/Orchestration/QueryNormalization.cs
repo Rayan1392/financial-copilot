@@ -71,11 +71,11 @@ public static class QueryNormalization
         Normalize(value) switch
         {
             "chart" or "trend" or "graph" or "table" or "gauge" or "list" or "summary" or
-            "monthly" or "sales" or "sale" or "show" or "please" or "p" or "e" or "s" or "eps" or "roe" or "roa" or
+            "monthly" or "sales" or "sale" or "product" or "products" or "mix" or "revenue" or "show" or "please" or "p" or "e" or "s" or "eps" or "roe" or "roa" or
             "month" or "quarter" or "year" or "week" or "previous" or "prior" or "last" or "latest" or "same" or
             "before" or "current" or "and" or "or" or "for" or "of" or "this" => true,
             "چارت" or "نمودار" or "روند" or "جدول" or "گیج" or "فهرست" or "خلاصه" or
-            "ماهانه" or "فروش" or "درآمد" or "سود" or "قیمت" or "نشان" or "بده" or "لطفا" or "لطفاً" or
+            "ماهانه" or "فروش" or "درآمد" or "سود" or "قیمت" or "محصول" or "محصولات" or "ترکیب" or "رکیب" or "نشان" or "بده" or "لطفا" or "لطفاً" or
             "را" or "کن" or "کنید" or "است" or "چقدر" or "سال" or "ماه" or "فصل" or "هفته" or
             "قبل" or "قبلی" or "گذشته" or "آخرین" or "اخیر" or "مشابه" or "جاری" or "امسال" or "پارسال" or
             "و" or "یا" or "برای" or "از" or "به" or "این" or "آن" or "نماد" or "شرکت" or "سهم" => true,

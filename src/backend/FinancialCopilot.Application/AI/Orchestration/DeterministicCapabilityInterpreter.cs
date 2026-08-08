@@ -23,9 +23,9 @@ public sealed class DeterministicCapabilityInterpreter(
     private static readonly string[] MetricWords = ["p/e", "p/s", "eps", "roe", "roa", "فروش", "درآمد", "سود", "قیمت", "نسبت"];
     private static readonly HashSet<string> NonEntityWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "show", "the", "for", "with", "below", "above", "monthly", "sales", "stock", "stocks", "screen",
+        "show", "the", "for", "with", "below", "above", "monthly", "sales", "product", "products", "mix", "revenue", "stock", "stocks", "screen",
         "filter", "analysis", "analyze", "review", "p", "e", "s", "eps", "چارت", "نمودار", "روند", "فروش",
-        "ماهانه", "سهام", "با", "زیر", "بالای", "تحلیل", "بررسی", "آخرین", "جدول", "صورت", "مالی", "قیمت",
+        "ماهانه", "سهام", "با", "زیر", "بالای", "تحلیل", "بررسی", "آخرین", "جدول", "صورت", "مالی", "قیمت", "محصول", "محصولات", "ترکیب", "رکیب",
         "ytd", "چقدر", "بوده", "است", "هست", "چیست", "چیه", "را", "کن", "بده", "نشان", "نمایش", "لطفا", "لطفاً",
         "month", "quarter", "year", "week", "previous", "prior", "last", "latest", "same", "before", "current", "and", "or",
         "ماه", "فصل", "سال", "هفته", "قبل", "قبلی", "گذشته", "اخیر", "مشابه", "جاری", "امسال", "پارسال", "و", "یا", "برای", "از", "به"

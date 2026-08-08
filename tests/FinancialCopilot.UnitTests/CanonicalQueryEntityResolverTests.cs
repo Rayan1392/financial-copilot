@@ -78,6 +78,39 @@ public sealed class CanonicalQueryEntityResolverTests
         Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
     }
 
+    [Fact]
+    public async Task ExactTickerWinsOverAnEarlierAmbiguousGenericMention()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "کچاد", "معدنی و صنعتی چادرملو", "kchad");
+        AddCompany(db, "الف", "محصولات معدنی الف", "alpha");
+        AddCompany(db, "ب", "محصولات معدنی ب", "beta");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret("محصولات کچاد") with
+        {
+            EntityMentions =
+            [
+                new EntityMention("محصولات", 0, 7),
+                new EntityMention("کچاد", 8, 4)
+            ]
+        };
+
+        var result = await CreateResolver(db).ResolveFromInterpretationAsync(interpretation);
+
+        Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
+    }
+
+    [Fact]
+    public void ProductMixSemanticWordsAndKnownTypo_NeverBecomeEntityMentions()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry)
+            .Interpret("رکیب فروش محصولات کچاد؟");
+
+        Assert.Equal(["کچاد"], interpretation.EntityMentions.Select(item => item.Text));
+    }
+
     [Theory]
     [InlineData("فولاد")]
     [InlineData("فولاد،")]

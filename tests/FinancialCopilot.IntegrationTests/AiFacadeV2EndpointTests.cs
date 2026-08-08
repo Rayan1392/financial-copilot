@@ -709,6 +709,7 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
     [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
     [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
+    [InlineData("رکیب فروش محصولات کچاد؟", "کچاد")]
     public async Task V2AiQuery_ProductRevenueMixQueries_ReturnProductRevenueMixAndChargeCredits(
         string message,
         string expectedSymbol)

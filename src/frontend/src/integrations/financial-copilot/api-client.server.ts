@@ -48,7 +48,16 @@ export async function financialCopilotServerApi<T>(
 }
 
 function apiUrl(path: string) {
+  // TanStack Start runs through Wrangler/workerd in production. That runtime
+  // does not reliably expose Docker variables through process.env, so keep
+  // the runtime override but fall back to the build-time Vite value.
+  const processEnv = (globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  }).process?.env;
   const baseUrl =
-    process.env.FINANCIAL_COPILOT_API_BASE_URL ?? process.env.VITE_FINANCIAL_COPILOT_API_BASE_URL;
+    processEnv?.FINANCIAL_COPILOT_API_BASE_URL ??
+    processEnv?.VITE_FINANCIAL_COPILOT_INTERNAL_API_BASE_URL ??
+    import.meta.env.VITE_FINANCIAL_COPILOT_INTERNAL_API_BASE_URL ??
+    import.meta.env.VITE_FINANCIAL_COPILOT_API_BASE_URL;
   return buildFinancialCopilotApiUrl(path, baseUrl);
 }

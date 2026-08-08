@@ -120,6 +120,11 @@ services:
       CyclicalWavesPsVisualization__MaxObservationLagTradingDays: ${CYCLICAL_WAVES_MAX_LAG_TRADING_DAYS:-2}
       CyclicalWavesPsVisualization__MaxHistoryPoints: ${CYCLICAL_WAVES_MAX_HISTORY_POINTS:-5000}
       CyclicalWavesPsVisualization__DisplayPercentageDecimals: ${CYCLICAL_WAVES_PERCENTAGE_DECIMALS:-2}
+      NoavaranCurrentApi__BaseAddress: ${NOAVARAN_API_BASE_ADDRESS:-https://data3.nadpco.com/}
+      NoavaranCurrentApi__UserName: ${NOAVARAN_API_USER_NAME:-}
+      NoavaranCurrentApi__Password: ${NOAVARAN_API_PASSWORD:-}
+      NoavaranCurrentApi__TimeoutSeconds: ${NOAVARAN_API_TIMEOUT_SECONDS:-30}
+      NoavaranCurrentApi__RetryCount: ${NOAVARAN_API_RETRY_COUNT:-2}
     depends_on:
       postgres:
         condition: service_healthy

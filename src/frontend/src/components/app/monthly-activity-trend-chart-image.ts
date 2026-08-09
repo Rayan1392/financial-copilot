@@ -162,12 +162,12 @@ function drawCompactPsGauge(
     const percentageRadius = (outer + inner) / 2;
     context.font = '700 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
     context.strokeText(
-      toPersianDigits(`${band.displayPercentage.toFixed(2)}%`),
+      toPersianDigits(`${band.displayPercentage.toFixed(1)}%`),
       cx + percentageRadius * Math.cos(percentageRadians),
       cy - percentageRadius * Math.sin(percentageRadians) + 6,
     );
     context.fillText(
-      toPersianDigits(`${band.displayPercentage.toFixed(2)}%`),
+      toPersianDigits(`${band.displayPercentage.toFixed(1)}%`),
       cx + percentageRadius * Math.cos(percentageRadians),
       cy - percentageRadius * Math.sin(percentageRadians) + 6,
     );

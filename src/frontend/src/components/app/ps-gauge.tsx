@@ -79,7 +79,7 @@ export function PsGauge({
                 strokeWidth="2"
                 paintOrder="stroke"
               >
-                {toPersianDigits(`${band.displayPercentage.toFixed(2)}%`)}
+                {toPersianDigits(`${band.displayPercentage.toFixed(1)}%`)}
               </text>
             </g>
           );

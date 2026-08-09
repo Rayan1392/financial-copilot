@@ -17,3 +17,4 @@ services:
       dockerfile: docker/frontend.Dockerfile
       args:
         VITE_FINANCIAL_COPILOT_API_BASE_URL: ${FRONTEND_API_BASE_URL:?set FRONTEND_API_BASE_URL in .env}
+        VITE_FINANCIAL_COPILOT_INTERNAL_API_BASE_URL: ${FRONTEND_INTERNAL_API_BASE_URL:-http://api:8080}

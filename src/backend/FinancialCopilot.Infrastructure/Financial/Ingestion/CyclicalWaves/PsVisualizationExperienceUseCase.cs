@@ -28,6 +28,7 @@ public sealed class PsVisualizationExperienceUseCase(
     {
         var settings = options.Value;
         if (!settings.Enabled || !settings.EnableStandaloneGauge || string.IsNullOrWhiteSpace(query.SymbolOrCompanyName)) return null;
+        if (query.IncludeInMonthlySalesTrendChart && !settings.IncludeGaugeInMonthlySalesTrendChart) return null;
         var company = await companyResolver.ResolveBySymbolAsync(query.SymbolOrCompanyName, cancellationToken);
         if (company is null) return null;
         var local = await reader.GetAsync(company.Id, cancellationToken);
@@ -43,7 +44,11 @@ public sealed class PsVisualizationExperienceUseCase(
         var projected = includeHistory ? ordered.TakeLast(settings.MaxHistoryPoints).Select(x => new PsVisualizationHistoryPoint(x.ProviderPointId, x.ObservationDate, x.PsRatio)).ToArray() : Array.Empty<PsVisualizationHistoryPoint>();
         var gauge = PsGaugeCalculator.Calculate(
             new[] { local.Snapshot.BucketA, local.Snapshot.BucketB, local.Snapshot.BucketC, local.Snapshot.BucketD, local.Snapshot.BucketE, local.Snapshot.BucketF },
-            local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.TtmPsRatio,
+            local.Snapshot.BoundaryStart,
+            local.Snapshot.BoundaryMin,
+            local.Snapshot.BoundaryMax,
+            local.Snapshot.BoundaryEnd,
+            local.Snapshot.TtmPsRatio,
             settings.DisplayPercentageDecimals);
         return new PsVisualizationResult(1, company.Id, company.Ticker ?? query.SymbolOrCompanyName, company.CompanySymbol, local.Snapshot.ProviderName, local.SnapshotObservationDate, fresh ? PsVisualizationStatus.Fresh : PsVisualizationStatus.Stale, local.GaugeRenderabilityStatus, Present(local.Snapshot.TtmPsRatio), Present(local.Snapshot.ForwardPsRatio), Present(local.Snapshot.GaugeClose), gauge.Bands, gauge.Needle, local.Snapshot.BoundaryStart, local.Snapshot.BoundaryEnd, local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.BoundaryAverage, includeHistory, includeHistory ? PsVisualizationStatus.Fresh : PsVisualizationStatus.NotRequested, projected, ordered.Length, includeHistory && ordered.Length > projected.Length, local.Snapshot.LastSyncedAtUtc, local.WarningCodes);
     }

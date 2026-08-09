@@ -225,6 +225,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
+        PsVisualizationResult? semanticPsVisualizationResult = null;
 
         if (request.SemanticFrame is { } semanticFrame)
         {
@@ -256,6 +257,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                 case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
                 case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
+            }
+            if (monthlyActivityTrendResult is not null &&
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+            {
+                semanticPsVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                    new PsVisualizationQuery(monthlyActivityTrendResult.CompanySymbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
             }
             var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
             var summary = semantic.Execution.Payload switch
@@ -293,7 +300,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 null,
                 semantic.Usage,
                 DisclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
-                PsVisualizationResult: semantic.Execution.Payload as PsVisualizationResult,
+                PsVisualizationResult: semanticPsVisualizationResult ?? semantic.Execution.Payload as PsVisualizationResult,
                 SemanticOutcome: SemanticDialogueOutcome(semantic.Execution.Status),
                 SemanticOutcomeReasonCode: semantic.Execution.ReasonCode,
                 SemanticReplyLanguage: semanticFrame.Interpretation.ReplyLanguage);
@@ -456,7 +463,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
             {
                 monthlyTrendGauge = await psVisualizationExperienceUseCase.ExecuteAsync(
-                    new PsVisualizationQuery(symbol, IncludeHistory: false), ct);
+                    new PsVisualizationQuery(symbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
             }
 
             UsageAccountingResult? trendUsage = null;

@@ -58,7 +58,10 @@ public sealed record PsVisualizationResult(
     DateTimeOffset? LastSuccessfulSyncAtUtc,
     IReadOnlyList<string> WarningCodes);
 
-public sealed record PsVisualizationQuery(string SymbolOrCompanyName, bool IncludeHistory = true);
+public sealed record PsVisualizationQuery(
+    string SymbolOrCompanyName,
+    bool IncludeHistory = true,
+    bool IncludeInMonthlySalesTrendChart = false);
 
 public interface IPsVisualizationExperienceUseCase
 {

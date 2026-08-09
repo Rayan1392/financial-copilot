@@ -16,5 +16,6 @@
    preserve the existing active series and investigate the bounded status/warning code. Do not delete
    historical rows to recover.
 6. Before production enablement, verify the persisted sample-company projection against the approved
-   شراز and غگلپا captures: equal 30-degree arcs in `a..f` visual order, `min..max` axis, TTM
-   `ps_ratio` needle, and edge clamping. Keep rollout disabled if parity regresses.
+   شراز and غگلپا captures: equal 30-degree arcs in `a..f` visual order, piecewise
+   `start..min`, `min..max`, and `max..end` ranges, TTM
+     `ps_ratio` needle, and outer-edge clamping. Keep rollout disabled if parity regresses.

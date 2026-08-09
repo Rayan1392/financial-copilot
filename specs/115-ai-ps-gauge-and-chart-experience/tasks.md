@@ -8,8 +8,9 @@ Do not implement: - vendor guessing - local quantile calculation -
 alternative bucket algorithms
 
 Acceptance: - six equal-width bands render in a,b,c,d,e,f visual order. - percentages use provider
-counts and reconcile to 100. - needle uses current TTM PS ratio. - axis uses min/max. - start/end/avg
-remain available as separate provider facts. - out-of-range values clamp visibly.
+counts and reconcile to 100. - needle uses current TTM PS ratio. - band ranges use `start..min`,
+four equal intervals across `min..max`, and `max..end`. - start/end/min/max/avg remain available as
+separate provider facts. - values outside `start..end` clamp visibly.
 
 ## Task 6 - Integrate AI Responses
 

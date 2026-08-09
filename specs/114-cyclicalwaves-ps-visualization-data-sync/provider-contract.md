@@ -26,6 +26,8 @@ therefore always refreshes the complete history response and hashes normalized s
 
 Same-symbol شراز and غگلپا API/UI captures establish six equal-width histogram arcs. Visual order is
 `a,b,c,d,e,f` from low/green to high/red. Counts determine exact percentages, while every arc remains
-30 degrees. The rendered numeric axis is `min..max`, divided into six equal intervals. The needle
-uses `ps-data.ps_ratio`, maps linearly over that axis, and clamps outside it. `start`, `end`, `avg`,
-circle `close`, and Forward P/S remain separate provider facts.
+30 degrees. The numeric ranges are piecewise: `a` spans `start..min`, `b..e` divide `min..max`
+into four equal numeric intervals, and `f` spans `max..end`. The needle uses `ps-data.ps_ratio`
+and interpolates within the matching piecewise interval. Values below `start` clamp to the left edge
+and values above `end` clamp to the right edge. `avg`, circle `close`, and Forward P/S remain separate
+provider facts.

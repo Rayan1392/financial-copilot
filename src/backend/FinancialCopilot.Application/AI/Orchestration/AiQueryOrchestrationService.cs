@@ -35,6 +35,7 @@ public sealed class AiQueryOrchestrationService(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
     IConversationDialogueGate dialogueGate,
@@ -506,6 +507,13 @@ public sealed class AiQueryOrchestrationService(
                     monthlyActivityTrendResult = await monthlyActivityTrendUseCase.ExecuteAsync(
                         new MonthlyActivityTrendQuery(request.Message, symbol),
                         cancellationToken);
+
+                    if (monthlyActivityTrendResult is not null)
+                    {
+                        psVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                            new PsVisualizationQuery(symbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true),
+                            cancellationToken);
+                    }
 
                     clarificationRequired = false;
                     clarificationMessage = null;

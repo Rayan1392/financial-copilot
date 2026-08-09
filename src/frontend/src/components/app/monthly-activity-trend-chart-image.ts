@@ -1,4 +1,7 @@
+import type { PsVisualizationResult } from "@/lib/chat.functions";
 import type { MonthlyTrendChartCardViewModel } from "@/components/app/monthly-activity-trend-chart-view-model";
+import { getPsGaugeMarkerAngles } from "@/components/app/ps-gauge-geometry";
+import { toPersianDigits } from "@/lib/format/persian";
 
 const WIDTH = 1800;
 const PADDING = 90;
@@ -6,7 +9,10 @@ const PLOT_TOP = 230;
 const PLOT_HEIGHT = 680;
 
 /** Renders only the canonical trend-card view model; it never requests or derives financial data. */
-export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChartCardViewModel) {
+export async function downloadMonthlyTrendChartImage(
+  viewModel: MonthlyTrendChartCardViewModel,
+  psVisualization?: PsVisualizationResult,
+) {
   const explanationHeight = Math.max(140, viewModel.explanationLines.length * 44 + 90);
   const height = PLOT_TOP + PLOT_HEIGHT + explanationHeight + PADDING;
   const canvas = document.createElement("canvas");
@@ -57,6 +63,18 @@ export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChar
   });
 
   drawAverageLine(context, points, plotLeft, groupWidth, maximum, plotBottom, palette.average);
+  // Draw the gauge after the plot so bars/grid lines cannot cover it in the exported image.
+  if (psVisualization) {
+    drawCompactPsGauge(
+      context,
+      psVisualization,
+      WIDTH - PADDING - 315,
+      PLOT_TOP + 25,
+      300,
+      palette.foreground,
+      palette.surface,
+    );
+  }
   // Keep the watermark in the lower-left whitespace so it does not obscure the plotted data.
   context.save();
   context.textAlign = "left";
@@ -84,6 +102,89 @@ export async function downloadMonthlyTrendChartImage(viewModel: MonthlyTrendChar
   link.download = `روند-فروش-ماهانه-${viewModel.companyLabel.replaceAll(/[\\/:*?"<>|]/g, "-")}-${date}.png`;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function drawCompactPsGauge(
+  context: CanvasRenderingContext2D,
+  data: PsVisualizationResult,
+  left: number,
+  top: number,
+  width: number,
+  foreground: string,
+  background: string,
+) {
+  const height = width * 0.68;
+  const cx = left + width / 2;
+  const cy = top + height * 0.82;
+  const outer = width * 0.44;
+  const inner = width * 0.24;
+  const colors = ["#00b900", "#45ed4d", "#9cf59f", "#ffaaaa", "#ff6268", "#f00000"];
+
+  data.gaugeBands.forEach((band, index) => {
+    context.beginPath();
+    for (let step = 0; step <= 12; step++) {
+      const angle = band.startAngleDegrees + ((band.endAngleDegrees - band.startAngleDegrees) * step) / 12;
+      const radians = Math.PI - (angle * Math.PI) / 180;
+      const x = cx + outer * Math.cos(radians);
+      const y = cy - outer * Math.sin(radians);
+      if (step === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    for (let step = 12; step >= 0; step--) {
+      const angle = band.startAngleDegrees + ((band.endAngleDegrees - band.startAngleDegrees) * step) / 12;
+      const radians = Math.PI - (angle * Math.PI) / 180;
+      context.lineTo(cx + inner * Math.cos(radians), cy - inner * Math.sin(radians));
+    }
+    context.closePath();
+    context.fillStyle = colors[index] ?? colors[0];
+    context.fill();
+
+    const labelAngle = band.endAngleDegrees;
+    const labelRadians = Math.PI - (labelAngle * Math.PI) / 180;
+    const labelRadius = outer + 25;
+    context.textAlign = "center";
+    context.font = '700 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.fillStyle = foreground;
+    context.strokeStyle = background;
+    context.lineWidth = 5;
+    context.strokeText(
+      toPersianDigits(band.upperBoundary.toFixed(2)),
+      cx + labelRadius * Math.cos(labelRadians),
+      cy - labelRadius * Math.sin(labelRadians),
+    );
+    context.fillText(
+      toPersianDigits(band.upperBoundary.toFixed(2)),
+      cx + labelRadius * Math.cos(labelRadians),
+      cy - labelRadius * Math.sin(labelRadians),
+    );
+
+    const percentageAngle = (band.startAngleDegrees + band.endAngleDegrees) / 2;
+    const percentageRadians = Math.PI - (percentageAngle * Math.PI) / 180;
+    const percentageRadius = (outer + inner) / 2;
+    context.font = '700 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.strokeText(
+      toPersianDigits(`${band.displayPercentage.toFixed(2)}%`),
+      cx + percentageRadius * Math.cos(percentageRadians),
+      cy - percentageRadius * Math.sin(percentageRadians) + 6,
+    );
+    context.fillText(
+      toPersianDigits(`${band.displayPercentage.toFixed(2)}%`),
+      cx + percentageRadius * Math.cos(percentageRadians),
+      cy - percentageRadius * Math.sin(percentageRadians) + 6,
+    );
+  });
+
+  const { ttm } = getPsGaugeMarkerAngles(data);
+  if (ttm !== undefined) {
+    const radians = Math.PI - (ttm * Math.PI) / 180;
+    context.beginPath();
+    context.moveTo(cx, cy);
+    context.lineTo(cx + outer * 0.86 * Math.cos(radians), cy - outer * 0.86 * Math.sin(radians));
+    context.strokeStyle = "#000000";
+    context.lineWidth = 5;
+    context.stroke();
+  }
+  context.beginPath(); context.arc(cx, cy, 7, 0, Math.PI * 2);
+  context.fillStyle = "#000000"; context.fill();
 }
 
 function drawLegend(context: CanvasRenderingContext2D, viewModel: MonthlyTrendChartCardViewModel, right: number, y: number) {

@@ -4,13 +4,26 @@
 
 Input: - a,b,c,d,e,f - start - end - current PS ratio
 
-Segments: a,b,c,d,e,f in visual low-to-high order
+Segments: a,b,c,d,e,f in visual low-to-high order.
 
 Angle: six equal 30-degree arcs. Population controls percentage labels only.
 
-Needle: current TTM `ps_ratio` mapped linearly to the `min/max` range.
+Numeric ranges:
 
-Values outside the range are clamped.
+- `a`: `start..min`;
+- `b..e`: four equal intervals across `min..max`;
+- `f`: `max..end`.
+
+The marker uses piecewise linear interpolation within the segment containing
+the current value. A value below `start` clamps to the left edge; a value
+above `end` clamps to the right edge. `min` and `max` are internal boundaries,
+not the complete rendered axis.
+
+Needle: current TTM `ps_ratio` is mapped using the piecewise ranges above.
+
+Boundary and percentage labels must use high-contrast foreground text,
+visible in both light and dark themes, with sufficient font weight and size
+for the gauge and its exported image.
 
 The Gauge is shown only when feature configuration enables it.
 

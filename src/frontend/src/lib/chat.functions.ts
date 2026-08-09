@@ -96,6 +96,10 @@ export interface PsVisualizationResult {
     startAngleDegrees: number;
     endAngleDegrees: number;
   }>;
+  providerBoundaryStart?: number;
+  providerBoundaryEnd?: number;
+  gaugeAxisMin?: number;
+  gaugeAxisMax?: number;
   needle?: { sourceValue: number; normalizedPosition: number; angleDegrees: number; bandOrder: number };
 }
 

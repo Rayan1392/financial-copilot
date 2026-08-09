@@ -30,9 +30,10 @@ The disclosed token is explicitly listed in the operational rollout checklist as
 
 Acceptance criteria: - Six provider buckets are preserved. - Segment
 visual order is a,b,c,d,e,f. - Segments are equal-width 30-degree histogram bins. - Population is
-used for exact/display percentages only. - No local quantile calculation is performed. - `min/max`
-define the rendered axis; `start/end/avg` are retained provider facts. - Needle uses current
-`ps_ratio`, maps linearly over `min/max`, and clamps outside the range.
+used for exact/display percentages only. - No local quantile calculation is performed. - Segment `a`
+uses `start..min`, segments `b..e` divide `min..max` into four equal numeric intervals, and segment
+`f` uses `max..end`. - `start/end/min/max/avg` remain separate provider facts. - Needle uses current
+`ps_ratio`, interpolates within the matching segment, and clamps only outside `start..end`.
 
 
 ## [ ] Task 2 - Verify Gauge Boundary, Arc, and Needle Semantics

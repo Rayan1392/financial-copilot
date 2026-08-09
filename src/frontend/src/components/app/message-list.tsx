@@ -1,5 +1,10 @@
 import { ChevronRight, ChevronLeft, Loader2, ShieldCheck } from "lucide-react";
-import type { AssistantChatBlock, ChatMessage, DisclosureListingResult, ScannerTable } from "@/lib/chat.functions";
+import type {
+  AssistantChatBlock,
+  ChatMessage,
+  DisclosureListingResult,
+  ScannerTable,
+} from "@/lib/chat.functions";
 import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
@@ -7,7 +12,12 @@ import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-di
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
-import { consolidationLabel, disclosureTypeLabels, formatDisclosurePublicationDate, formatDisclosureReceiptDate } from "@/lib/format/disclosure";
+import {
+  consolidationLabel,
+  disclosureTypeLabels,
+  formatDisclosurePublicationDate,
+  formatDisclosureReceiptDate,
+} from "@/lib/format/disclosure";
 
 interface Props {
   messages: ChatMessage[];
@@ -34,24 +44,30 @@ export function MessageList({
   return (
     <div className="p-6 md:p-8 space-y-10 max-w-4xl mx-auto w-full">
       {messages.map((message, index) => {
-        const originalQuery = [...messages.slice(0, index)].reverse().find((item) => item.role === "user");
+        const originalQuery = [...messages.slice(0, index)]
+          .reverse()
+          .find((item) => item.role === "user");
         return (
-        <div key={message.id} className="animate-fade-up">
-          {message.role === "user" ? (
-            <UserBubble text={(message.content as { text: string }).text} />
-          ) : (
-            <AssistantBlock
-              block={message.content as AssistantChatBlock}
-              onSuggested={onSuggested}
-              actionsDisabled={streaming}
-              onPageChange={onPageChange}
-              onDisclosurePageChange={onDisclosurePageChange}
-              disclosureOriginalQuery={originalQuery && "text" in originalQuery.content ? originalQuery.content.text : undefined}
-              showDiagnostics={showDiagnostics}
-              followedSymbols={followedSymbols}
-            />
-          )}
-        </div>
+          <div key={message.id} className="animate-fade-up">
+            {message.role === "user" ? (
+              <UserBubble text={(message.content as { text: string }).text} />
+            ) : (
+              <AssistantBlock
+                block={message.content as AssistantChatBlock}
+                onSuggested={onSuggested}
+                actionsDisabled={streaming}
+                onPageChange={onPageChange}
+                onDisclosurePageChange={onDisclosurePageChange}
+                disclosureOriginalQuery={
+                  originalQuery && "text" in originalQuery.content
+                    ? originalQuery.content.text
+                    : undefined
+                }
+                showDiagnostics={showDiagnostics}
+                followedSymbols={followedSymbols}
+              />
+            )}
+          </div>
         );
       })}
       {streaming && <StreamingPlaceholder />}
@@ -92,11 +108,12 @@ function AssistantBlock({
   followedSymbols?: ReadonlySet<string>;
 }) {
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
-  const message = tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
-    ? ""
-    : replaceProviderDisplayNames(block.message);
-  const isRtlMessage = block.replyLanguage === "fa" ||
-    (!block.replyLanguage && containsPersianText(message));
+  const message =
+    tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
+      ? ""
+      : replaceProviderDisplayNames(block.message);
+  const isRtlMessage =
+    block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
 
   return (
     <div className="flex gap-4" dir="ltr">
@@ -135,7 +152,10 @@ function AssistantBlock({
         )}
 
         {block.monthlyActivityTrendResult && (
-          <MonthlyActivityTrendChart data={block.monthlyActivityTrendResult} />
+          <MonthlyActivityTrendChart
+            data={block.monthlyActivityTrendResult}
+            psVisualization={block.psVisualizationResult}
+          />
         )}
 
         {block.psVisualizationResult && !block.monthlyActivityTrendResult && (
@@ -181,7 +201,13 @@ function AssistantBlock({
         )}
 
         {(block.suggestedActions ?? []).length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label={block.replyLanguage === "fa" ? "پیشنهادهای ادامه گفتگو" : "Suggested next actions"}>
+          <div
+            className="flex flex-wrap gap-2 pt-1"
+            role="group"
+            aria-label={
+              block.replyLanguage === "fa" ? "پیشنهادهای ادامه گفتگو" : "Suggested next actions"
+            }
+          >
             {(block.suggestedActions ?? []).map((action) => (
               <button
                 key={action.id}
@@ -217,9 +243,11 @@ function AssistantBlock({
 
 function getMonthlySalesMetadataLabel(block: AssistantChatBlock) {
   if (!isTechnicalMonthlySalesUnitNote(block.message)) return undefined;
-  if (!block.table?.columns.some((column) =>
-    column.identifier.toUpperCase().startsWith("MONTHLY_SALES"),
-  )) {
+  if (
+    !block.table?.columns.some((column) =>
+      column.identifier.toUpperCase().startsWith("MONTHLY_SALES"),
+    )
+  ) {
     return undefined;
   }
 
@@ -230,14 +258,76 @@ function isTechnicalMonthlySalesUnitNote(message: string) {
   return message.trim() === "Unit: million Rials";
 }
 
-function DisclosureListingTable({ result, originalQuery, onPageChange }: { result: DisclosureListingResult; originalQuery?: string; onPageChange?: (page: number, originalQuery: string) => void }) {
+function DisclosureListingTable({
+  result,
+  originalQuery,
+  onPageChange,
+}: {
+  result: DisclosureListingResult;
+  originalQuery?: string;
+  onPageChange?: (page: number, originalQuery: string) => void;
+}) {
   const stale = result.freshnessReasonCode.toLowerCase().includes("stale");
-  return <section dir="rtl" className="space-y-3 rounded-xl border border-hairline p-3">
-    {(stale || result.coverageStatus !== "Complete") && <p role="status" className="text-xs text-amber-500">{stale ? "بخشی از داده‌ها ممکن است به‌روز نباشند." : "پوشش اطلاعیه‌ها کامل نیست."}</p>}
-    <div className="overflow-x-auto"><table className="min-w-[680px] w-full text-right text-xs"><thead><tr className="border-b border-hairline"><th className="p-2">نماد</th><th className="p-2">عنوان</th><th className="p-2">نوع</th><th className="p-2">انتشار</th><th className="p-2">دریافت</th></tr></thead><tbody>{result.items.map((item) => <tr key={item.disclosureId} className="border-b border-hairline/60"><td className="p-2"><bdi>{item.symbol ?? item.companyName ?? "—"}</bdi></td><td className="p-2">{item.title}{item.isRevised ? " (اصلاحی)" : ""} ({consolidationLabel(item.isComposing)})</td><td className="p-2">{disclosureTypeLabels[item.type] ?? item.type}</td><td className="p-2">{formatDisclosurePublicationDate(item.publishedAt)}</td><td className="p-2">{formatDisclosureReceiptDate(item.receivedAt)}</td></tr>)}</tbody></table></div>
-    {result.items.length === 0 && <p className="text-sm text-muted-foreground">اطلاعیه‌ای یافت نشد.</p>}
-    <nav aria-label="صفحه‌بندی اطلاعیه‌ها" className="flex items-center justify-between text-xs"><button type="button" disabled={!result.hasPreviousPage || !originalQuery} onClick={() => originalQuery && onPageChange?.(result.page - 1, originalQuery)}>صفحه قبل</button><span>صفحه {result.page} از {result.totalPages || 1}</span><button type="button" disabled={!result.hasNextPage || !originalQuery} onClick={() => originalQuery && onPageChange?.(result.page + 1, originalQuery)}>صفحه بعد</button></nav>
-  </section>;
+  return (
+    <section dir="rtl" className="space-y-3 rounded-xl border border-hairline p-3">
+      {(stale || result.coverageStatus !== "Complete") && (
+        <p role="status" className="text-xs text-amber-500">
+          {stale ? "بخشی از داده‌ها ممکن است به‌روز نباشند." : "پوشش اطلاعیه‌ها کامل نیست."}
+        </p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="min-w-[680px] w-full text-right text-xs">
+          <thead>
+            <tr className="border-b border-hairline">
+              <th className="p-2">نماد</th>
+              <th className="p-2">عنوان</th>
+              <th className="p-2">نوع</th>
+              <th className="p-2">انتشار</th>
+              <th className="p-2">دریافت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result.items.map((item) => (
+              <tr key={item.disclosureId} className="border-b border-hairline/60">
+                <td className="p-2">
+                  <bdi>{item.symbol ?? item.companyName ?? "—"}</bdi>
+                </td>
+                <td className="p-2">
+                  {item.title}
+                  {item.isRevised ? " (اصلاحی)" : ""} ({consolidationLabel(item.isComposing)})
+                </td>
+                <td className="p-2">{disclosureTypeLabels[item.type] ?? item.type}</td>
+                <td className="p-2">{formatDisclosurePublicationDate(item.publishedAt)}</td>
+                <td className="p-2">{formatDisclosureReceiptDate(item.receivedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {result.items.length === 0 && (
+        <p className="text-sm text-muted-foreground">اطلاعیه‌ای یافت نشد.</p>
+      )}
+      <nav aria-label="صفحه‌بندی اطلاعیه‌ها" className="flex items-center justify-between text-xs">
+        <button
+          type="button"
+          disabled={!result.hasPreviousPage || !originalQuery}
+          onClick={() => originalQuery && onPageChange?.(result.page - 1, originalQuery)}
+        >
+          صفحه قبل
+        </button>
+        <span>
+          صفحه {result.page} از {result.totalPages || 1}
+        </span>
+        <button
+          type="button"
+          disabled={!result.hasNextPage || !originalQuery}
+          onClick={() => originalQuery && onPageChange?.(result.page + 1, originalQuery)}
+        >
+          صفحه بعد
+        </button>
+      </nav>
+    </section>
+  );
 }
 
 function ScannerResultTable({
@@ -332,8 +422,8 @@ function ScannerResultTable({
           dir="rtl"
         >
           <span>
-            {toPersianDigits(matchingSymbolCount)} نتیجه · صفحه{" "}
-            {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+            {toPersianDigits(matchingSymbolCount)} نتیجه · صفحه {toPersianDigits(page)} از{" "}
+            {toPersianDigits(totalPages)}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -372,11 +462,12 @@ function SalesGrowthTableStatus({ table }: { table: ScannerTable }) {
   const rowMetadata = table.rows[0]?.salesGrowthMetadata;
   if (!metadata) return null;
 
-  const statusLabel = metadata.selectionStatus === "Available"
-    ? "قابل استفاده"
-    : metadata.selectionStatus === "Partial"
-      ? "ناقص"
-      : "در دسترس نیست";
+  const statusLabel =
+    metadata.selectionStatus === "Available"
+      ? "قابل استفاده"
+      : metadata.selectionStatus === "Partial"
+        ? "ناقص"
+        : "در دسترس نیست";
   const baseline = rowMetadata?.baselinePeriod
     ? `مبنای مقایسه: ${formatPeriod(rowMetadata.baselinePeriod)}`
     : rowMetadata?.baselineWindow.length
@@ -384,16 +475,29 @@ function SalesGrowthTableStatus({ table }: { table: ScannerTable }) {
       : undefined;
 
   return (
-    <div className="space-y-1 px-4 py-2 text-[11px] text-muted-foreground" dir="rtl" data-testid="sales-growth-table-status">
+    <div
+      className="space-y-1 px-4 py-2 text-[11px] text-muted-foreground"
+      dir="rtl"
+      data-testid="sales-growth-table-status"
+    >
       <div>
-        دوره هدف: {formatPeriod(metadata.targetCommonPeriod)} · پوشش: {toPersianDigits(metadata.coverageNumerator)} از {toPersianDigits(metadata.coverageDenominator)} ({toPersianDigits(metadata.coveragePercent)}٪) · وضعیت: {statusLabel}
+        دوره هدف: {formatPeriod(metadata.targetCommonPeriod)} · پوشش:{" "}
+        {toPersianDigits(metadata.coverageNumerator)} از{" "}
+        {toPersianDigits(metadata.coverageDenominator)} ({toPersianDigits(metadata.coveragePercent)}
+        ٪) · وضعیت: {statusLabel}
       </div>
       {baseline && <div>{baseline}</div>}
       {rowMetadata?.freshnessSource && <div>منبع تازگی: {rowMetadata.freshnessSource}</div>}
-      {rowMetadata?.latestObservedAtUtc && <div>آخرین مشاهده: {formatPeriod(rowMetadata.latestObservedAtUtc)}</div>}
-      {metadata.mixedPeriods && <div className="text-amber-500">هشدار: نتایج دوره‌های ترکیبی دارند.</div>}
+      {rowMetadata?.latestObservedAtUtc && (
+        <div>آخرین مشاهده: {formatPeriod(rowMetadata.latestObservedAtUtc)}</div>
+      )}
+      {metadata.mixedPeriods && (
+        <div className="text-amber-500">هشدار: نتایج دوره‌های ترکیبی دارند.</div>
+      )}
       {table.missingDataWarnings.map((warning) => (
-        <div key={warning} className="text-amber-500" role="status">{warning}</div>
+        <div key={warning} className="text-amber-500" role="status">
+          {warning}
+        </div>
       ))}
       {table.rows.length === 0 && <div>داده‌ای برای نمایش وجود ندارد.</div>}
     </div>
@@ -473,7 +577,12 @@ function localizeColumnDisplayName(column: ScannerTable["columns"][number]) {
     MONTHLY_SALES_GROWTH_MULTIPLE: "نسبت فروش",
   };
 
-  return salesGrowthLabels[key] ?? localizedLabels[key] ?? localizedLabels[displayName] ?? column.displayName;
+  return (
+    salesGrowthLabels[key] ??
+    localizedLabels[key] ??
+    localizedLabels[displayName] ??
+    column.displayName
+  );
 }
 
 function isRtlFinancialTable(table: ScannerTable) {

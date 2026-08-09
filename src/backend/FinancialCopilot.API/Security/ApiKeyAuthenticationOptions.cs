@@ -17,5 +17,11 @@ public sealed class ApiKeyClientCredential
 
     public string KeySha256 { get; init; } = string.Empty;
 
+    public string KeyEnvironmentVariable { get; init; } = string.Empty;
+
     public bool IsActive { get; init; } = true;
+
+    // Empty means unrestricted for backward compatibility. Dedicated service clients should
+    // always provide a narrow set of API path prefixes.
+    public IList<string> AllowedPathPrefixes { get; init; } = [];
 }

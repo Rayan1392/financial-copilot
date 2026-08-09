@@ -72,14 +72,10 @@ builder.Services
         "Telegram membership revalidation settings must be positive.")
     .ValidateOnStart();
 builder.Services
-    .AddOptions<TelegramDevPollingOptions>()
-    .BindConfiguration(TelegramDevPollingOptions.SectionName);
-builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
-builder.Services.AddHostedService<TelegramDevPollingWorker>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
 builder.Services.AddHostedService<AlertHistoryHandoffWorker>();
 builder.Services

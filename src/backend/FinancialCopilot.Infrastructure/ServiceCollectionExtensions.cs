@@ -274,11 +274,19 @@ public static class ServiceCollectionExtensions
                 !string.IsNullOrWhiteSpace(options.PolicyVersion),
                 "Telegram membership options must define a positive allowance, cache lifetime, and policy version.")
             .ValidateOnStart();
-        services.AddHttpClient<ITelegramChannelMembershipProvider, TelegramBotMembershipProvider>(client =>
-        {
-            client.BaseAddress = new Uri("https://api.telegram.org/");
-            client.Timeout = TimeSpan.FromSeconds(10);
-        });
+        services.AddOptions<TelegramGatewayOptions>()
+            .BindConfiguration(TelegramGatewayOptions.SectionName)
+            .Validate(options =>
+                !options.Enabled ||
+                Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
+                uri.Scheme == Uri.UriSchemeHttps &&
+                !string.IsNullOrWhiteSpace(options.ServiceId) &&
+                !string.IsNullOrWhiteSpace(options.ServiceSecret) &&
+                options.RequestTimeoutSeconds is > 0 and <= 120,
+                "Telegram Gateway settings must define an HTTPS URL, service identity, secret, and bounded timeout when enabled.")
+            .ValidateOnStart();
+        services.AddHttpClient<ITelegramGatewayClient, TelegramGatewayClient>();
+        services.AddScoped<ITelegramChannelMembershipProvider, TelegramBotMembershipProvider>();
         services.AddScoped<TelegramMembershipService>();
         services.AddScoped<ITelegramMembershipService>(provider => provider.GetRequiredService<TelegramMembershipService>());
         services.AddScoped<IDailyFreeAllowanceService>(provider => provider.GetRequiredService<TelegramMembershipService>());
@@ -1430,8 +1438,6 @@ public static class ServiceCollectionExtensions
                                  options.MaximumQueryRangeDays is > 0 and <= 3650,
                 "Alert history settings must be positive and bounded.")
             .ValidateOnStart();
-        services.AddOptions<TelegramNotificationOptions>()
-            .BindConfiguration(TelegramNotificationOptions.SectionName);
         services.AddScoped<INotificationEntitlementPolicy, NotificationEntitlementPolicy>();
         services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
         services.AddScoped<INotificationUseCases, NotificationUseCases>();

@@ -28,11 +28,13 @@ public sealed class ApiKeyAuthenticationHandler(
         var apiKey = values.First()!;
         var presentedHash = SHA256.HashData(Encoding.UTF8.GetBytes(apiKey));
         var credential = apiKeyOptions.CurrentValue.Clients.FirstOrDefault(client =>
-            client.IsActive && MatchesHash(presentedHash, client.KeySha256));
+            client.IsActive && MatchesConfiguredCredential(presentedHash, client));
 
         if (credential is null ||
             !Guid.TryParse(credential.ClientId, out var clientId) ||
-            !Guid.TryParse(credential.TenantId, out var tenantId))
+            !Guid.TryParse(credential.TenantId, out var tenantId) ||
+            credential.AllowedPathPrefixes.Count > 0 &&
+            !credential.AllowedPathPrefixes.Any(prefix => Request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase)))
         {
             return Task.FromResult(AuthenticateResult.Fail("Invalid API key."));
         }
@@ -63,5 +65,17 @@ public sealed class ApiKeyAuthenticationHandler(
         {
             return false;
         }
+    }
+
+    private static bool MatchesConfiguredCredential(byte[] presentedHash, ApiKeyClientCredential credential)
+    {
+        var environmentKey = string.IsNullOrWhiteSpace(credential.KeyEnvironmentVariable)
+            ? null
+            : Environment.GetEnvironmentVariable(credential.KeyEnvironmentVariable);
+        return !string.IsNullOrWhiteSpace(environmentKey)
+            ? CryptographicOperations.FixedTimeEquals(
+                presentedHash,
+                SHA256.HashData(Encoding.UTF8.GetBytes(environmentKey)))
+            : MatchesHash(presentedHash, credential.KeySha256);
     }
 }

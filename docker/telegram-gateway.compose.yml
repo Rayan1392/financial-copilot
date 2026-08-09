@@ -1,0 +1,35 @@
+services:
+  telegram-gateway:
+    image: ${TELEGRAM_GATEWAY_IMAGE:-financial-copilot-telegram-gateway:local}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    ports:
+      - "127.0.0.1:${TELEGRAM_GATEWAY_PORT:-5088}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      TelegramGateway__Enabled: ${TELEGRAM_GATEWAY_ENABLED:-false}
+      TelegramGateway__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+      TelegramGateway__PrimaryApiBaseUrl: ${TELEGRAM_PRIMARY_API_BASE_URL:-}
+      TelegramGateway__PrimaryApiKey: ${TELEGRAM_PRIMARY_API_KEY:-}
+      TelegramGateway__ServiceId: ${TELEGRAM_GATEWAY_SERVICE_ID:-}
+      TelegramGateway__ServiceSecret: ${TELEGRAM_GATEWAY_SERVICE_SECRET:-}
+      TelegramGateway__RequireHttps: ${TELEGRAM_GATEWAY_REQUIRE_HTTPS:-true}
+      TelegramGateway__MaximumClockSkewSeconds: ${TELEGRAM_GATEWAY_MAX_CLOCK_SKEW_SECONDS:-120}
+      TelegramGateway__RateLimitPermitLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_PERMITS:-120}
+      TelegramGateway__RateLimitWindowSeconds: ${TELEGRAM_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:-60}
+      TelegramGateway__RateLimitQueueLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_QUEUE:-0}
+      TelegramGateway__OffsetFilePath: /var/lib/telegram-gateway/offset.txt
+      TelegramGateway__IdempotencyFilePath: /var/lib/telegram-gateway/idempotency.json
+    volumes:
+      - telegram_gateway_state:/var/lib/telegram-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  telegram_gateway_state:

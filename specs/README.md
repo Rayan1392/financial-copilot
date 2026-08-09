@@ -58,6 +58,10 @@ These specs capture and act on unanswered queries to continuously improve metric
 - `028-missing-answer-feedback-pipeline` — capture every unanswered or partially answered query (metric gap, calculation gap, data coverage gap, data quality, parser limitation) as classified structured feedback in PostgreSQL; fire-and-forget during query execution; admin visibility; feeds future catalog expansion and ingestion prioritization.
 - `046-dynamic-metric-alias-learning` — (also listed under AI Orchestration) uses the feedback pipeline from `028` as its learning signal source.
 
+### Feature 116 — AI Sales-Growth Symbol Scanner
+
+`116-ai-sales-growth-symbol-scanner` provides governed multi-symbol monthly-sales growth discovery through the existing AI facade. It reuses persisted normalized data and the generic scanner table, with explicit baselines for previous month, same month previous year, and the prior twelve-month average. See the [operating documentation](../docs/feature-116-sales-growth-scanner.md) for aliases, default comparison policy, supported questions, routing boundaries, and Web/Telegram behavior.
+
 ---
 
 ## Data Provider Implementation Specs
@@ -79,6 +83,8 @@ These specs implement concrete financial-data providers behind the `004` abstrac
 - CyclicalWaves sales and valuation fields are provider-precomputed company-level facts. Monetary sales fields are source-unit Rials and must be persisted as-is under passthrough/source policies; PE/PS ratios are unitless and must also be stored as-is. Do not apply Noavaran million-Rial conversion or raw line-item aggregation rules to CyclicalWaves values.
 - `070-cyclicalwaves-monthly-sales-average-snapshot` — CyclicalWaves-only monthly/latest sales snapshots default to `MONTHLY_SALES`, `AVG_12M_MONTHLY_SALES`, YTD, and YTD-to-previous-month, with the mandatory Persian average header `متوسط فروش ۱۲ ماهه`; explicit same-period requests use prior-year same-month sales instead. This does not modify Noavaran spec 069 behavior.
 - `071-cyclicalwaves-derivedmetrics-full-snapshot-persistence` — CyclicalWaves-only persistence fix so all supported `/api/custom-filtering/ticker/{ticker}` sales, profit, margin, monthly, and valuation snapshots reach `DerivedMetrics` with Rials passthrough evidence instead of only the narrow monthly-sales subset.
+- `114-cyclicalwaves-ps-visualization-data-sync` — configuration-gated Worker synchronization of CyclicalWaves P/S gauge buckets/boundaries, current TTM/Forward values, and the full provider-point-identified historical series for `NoavaranEligibleCompanies.CompanyIsin`, with idempotent persistence and no vendor call on the AI path.
+- `115-ai-ps-gauge-and-chart-experience` — explicit P/S-gauge AI intent plus standalone gauge/history visualization, and an optional compact gauge on the existing monthly-sales trend chart/export controlled by `CyclicalWavesPsVisualization:IncludeGaugeInMonthlySalesTrendChart`.
 
 ### Noavaran Amin Archive (NoavaranArchiveSql / CodalDB)
 
@@ -337,3 +343,62 @@ This package defines the Telegram delivery channel and the proactive monitoring 
 ## Scope Boundary
 
 This pack does not introduce portfolio holdings, brokerage integration, order execution, or guaranteed trading signals. Followed symbols remain a lightweight interest list. Portfolio quantity, cost basis, P/L, allocation, and risk require a separate future bounded-context specification.
+
+# Conversational Query Semantic and Guidance Layer — Spec Pack
+
+This package turns the findings in
+[`docs/ai-query-semantic-dialogue-layer-review.md`](../docs/ai-query-semantic-dialogue-layer-review.md)
+into an incremental implementation plan. It adds an application-governed conversational semantic
+boundary around the existing financial metric semantic layer and specialized query use cases. It
+does not replace deterministic financial calculations, source faithfulness, Billing, or the single
+public `POST /api/ai/v1/query` facade.
+
+## Proposed Features
+
+| Order | Spec | Purpose |
+|---:|---|---|
+| 117 | [AI Dialogue Outcome Safety and Localization](./117-ai-dialogue-outcome-safety-and-localization/user-story.md) | Make clarification, ambiguity, no-data, unsupported, and failure states explicit and deterministically localized; guard raw unknown prose. |
+| 118 | [Conversational Capability Registry and Query Frame](./118-conversational-capability-registry-and-query-frame/user-story.md) | Define the authoritative enabled-capability catalog and schema-constrained interpretation frame. |
+| 119 | [Canonical Query Entity and Slot Resolution](./119-canonical-query-entity-and-slot-resolution/user-story.md) | Resolve company/symbol and other slots through typed canonical outcomes instead of local token heuristics. |
+| 120 | [Conversational Task State and Clarification Orchestration](./120-conversational-task-state-and-clarification-orchestration/user-story.md) | Add safe multi-turn slot reuse, pending clarification, expiry, task-switch, and concurrency behavior. |
+| 121 | [Capability Guidance and Suggested Actions](./121-capability-guidance-and-suggested-actions/user-story.md) | Generate contextual help, choices, and next actions only from enabled executable capabilities. |
+| 122 | [Semantic Route Migration and Legacy Retirement](./122-semantic-route-migration-and-legacy-retirement/user-story.md) | Move existing routes behind the semantic boundary, starting with monthly trend and direct metric lookup, then retire duplicated phrase/token logic. |
+| 123 | [Semantic Dialogue Evaluation and Learning Governance](./123-semantic-dialogue-evaluation-and-learning-governance/user-story.md) | Measure routing/dialogue quality and govern reviewed phrase promotion, canary, and rollback. |
+
+## Required Implementation Sequence
+
+```text
+117
+  -> 118
+     -> 119
+        -> 120
+           -> 121
+           -> 122
+              -> 123 production completion gate
+```
+
+- Feature 117 may ship independently as the immediate safety slice.
+- Features 118 and 119 establish interpretation and canonical resolution before any route becomes
+  semantic-primary.
+- Feature 120 is required before multi-turn follow-ups are enabled.
+- Feature 121 may be developed alongside late Feature 120 work but cannot publish unregistered
+  actions.
+- Feature 122 migrates monthly activity trend and direct metric lookup first, then the remaining
+  capabilities under per-capability rollout flags.
+- Feature 123 evaluation foundations should begin early; its rollout and learning gates are required
+  before the package is marked production-complete.
+
+## Coherence Rules
+
+- Feature `015` remains the source of truth for metric definitions, aliases, formulas, units, and
+  policies; Feature `118` governs user objectives/capabilities and composes with it.
+- Feature `019` general/consent-aware memory remains separate from Feature `120` short-lived typed
+  task state.
+- Feature `028` feedback remains fire-and-forget; Feature `123` extends coverage and reason taxonomy
+  without making feedback part of the critical answer path.
+- The LLM may propose a schema-constrained interpretation but cannot create executable metrics,
+  formulas, SQL, entities, routes, or capabilities.
+- V1 rollback and native MAF V2 must share capability, slot, entity, outcome, and Billing semantics.
+- Web and Telegram may render differently but must preserve the same semantic outcome and actions.
+- No spec in this pack introduces a public parser/tool endpoint or synchronous external provider
+  call from the AI response path.

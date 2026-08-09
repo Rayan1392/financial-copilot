@@ -48,6 +48,20 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
     }
 }
 
+public sealed class NoavaranEligibleCompanyRowConfiguration : IEntityTypeConfiguration<NoavaranEligibleCompanyRow>
+{
+    public void Configure(EntityTypeBuilder<NoavaranEligibleCompanyRow> builder)
+    {
+        builder.ToView("NoavaranEligibleCompanies");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.ProviderName).HasMaxLength(64);
+        builder.Property(row => row.ExternalCompanyId).HasMaxLength(128);
+        builder.Property(row => row.Name).HasMaxLength(512);
+        builder.Property(row => row.CompanySymbol).HasMaxLength(128);
+        builder.Property(row => row.TseSymbol).HasMaxLength(128);
+    }
+}
+
 public sealed class NormalizedIndustryRowConfiguration : IEntityTypeConfiguration<NormalizedIndustryRow>
 {
     public void Configure(EntityTypeBuilder<NormalizedIndustryRow> builder)

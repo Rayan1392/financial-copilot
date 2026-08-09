@@ -24,8 +24,20 @@ public sealed class AiFacadeController(
     IAiQueryOrchestrationService orchestrationService,
     IConversationRepository conversationRepository,
     IMessageRepository messageRepository,
-    IAlertHistoryUseCases alertHistory) : ControllerBase
+    IAlertHistoryUseCases alertHistory,
+    ICapabilityGuidanceService guidanceService) : ControllerBase
 {
+    [HttpGet("capabilities/guidance")]
+    public ActionResult<IReadOnlyCollection<CapabilityStarterPromptHttpResponse>> GetCapabilityGuidance(
+        [FromQuery] string language = "fa")
+    {
+        var safeLanguage = language.Equals("en", StringComparison.OrdinalIgnoreCase) ? "en" : "fa";
+        return Ok(guidanceService.StarterPrompts(safeLanguage)
+            .Select(item => new CapabilityStarterPromptHttpResponse(
+                item.CapabilityCode, item.LocalizedLabel, item.Example, item.RegistryVersion))
+            .ToArray());
+    }
+
     [HttpPost("query")]
     public async Task<ActionResult<AiQueryHttpResponse>> Query(
         [FromBody] AiQueryHttpRequest httpRequest,
@@ -67,7 +79,8 @@ public sealed class AiFacadeController(
                     AuthenticationMode: actor.AuthenticationMode,
                     Context: httpRequest.Context is null
                         ? null
-                        : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId)),
+                        : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId),
+                    SuggestedActionId: httpRequest.SuggestedActionId),
                 cancellationToken);
         }
         catch (ConversationNotFoundException)
@@ -230,7 +243,15 @@ public sealed class AiFacadeController(
             MapFinancialStatementTableResult(result.FinancialStatementTableResult),
             MapMonthlyActivityTrendResult(result.MonthlyActivityTrendResult),
             MapMonthlySalesQualityRankingResult(result.MonthlySalesQualityRankingResult),
-            result.DisclosureListingResult);
+             result.DisclosureListingResult,
+             result.PsVisualizationResult,
+             result.Outcome.ToString(),
+             result.OutcomeReasonCode,
+             result.ReplyLanguage,
+             result.LanguageGuardApplied,
+             MapSuggestedActions(result.SuggestedActions),
+             result.SemanticCapabilityCode,
+             result.SemanticRegistryVersion);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -246,7 +267,8 @@ public sealed class AiFacadeController(
                 r.CompanyName,
                 MapCells(table.Columns, r),
                 r.Score,
-                r.MatchedConditionMetrics)).ToList(),
+                r.MatchedConditionMetrics,
+                MapSalesGrowthRowMetadata(r.SalesGrowthMetadata))).ToList(),
             new ScannerExecutionFactsResponse(
                 table.ExecutionFacts.ExecutedAt,
                 table.ExecutionFacts.Duration,
@@ -255,7 +277,10 @@ public sealed class AiFacadeController(
                 table.ExecutionFacts.FromCache,
                 table.ExecutionFacts.Page,
                 table.ExecutionFacts.PageSize,
-                table.ExecutionFacts.TotalPages),
+                table.ExecutionFacts.TotalPages,
+                table.ExecutionFacts.EligibleSymbolCount,
+                table.ExecutionFacts.EvaluatedSymbolCount,
+                table.ExecutionFacts.ExcludedByReason),
             table.MissingDataWarnings.Concat(
                 table.UnresolvedSymbols.Select(s => $"Symbol '{s}' could not be resolved.")).ToList());
     }
@@ -285,9 +310,55 @@ public sealed class AiFacadeController(
                 table.ExecutionFacts.FromCache,
                 table.ExecutionFacts.Page,
                 table.ExecutionFacts.PageSize,
-                table.ExecutionFacts.TotalPages),
-            table.MissingDataWarnings);
+                table.ExecutionFacts.TotalPages,
+                table.ExecutionFacts.EligibleSymbolCount,
+                table.ExecutionFacts.EvaluatedSymbolCount,
+                table.ExecutionFacts.ExcludedByReason),
+            table.MissingDataWarnings,
+            MapSalesGrowthTableMetadata(table.SalesGrowthMetadata));
     }
+
+    private static SalesGrowthRowMetadataResponse? MapSalesGrowthRowMetadata(
+        SalesGrowthRowMetadata? metadata) =>
+        metadata is null
+            ? null
+            : new SalesGrowthRowMetadataResponse(
+                metadata.CurrentPeriod,
+                metadata.BaselinePeriod,
+                metadata.BaselineWindow,
+                metadata.Unit,
+                metadata.Scale,
+                metadata.Evidence.Select(evidence => new SalesGrowthEvidenceResponse(
+                    evidence.ExternalCompanyId,
+                    evidence.Period.Year,
+                    evidence.Period.Month,
+                    evidence.SalesAmount,
+                    evidence.SourceName,
+                    evidence.EvidenceId,
+                    evidence.ObservedAtUtc)).ToArray(),
+                metadata.LatestObservedAtUtc,
+                metadata.FreshnessSource,
+                metadata.Threshold,
+                metadata.Operator.ToString(),
+                metadata.Origin.ToString(),
+                metadata.Policies.TargetPeriod.Value,
+                metadata.Policies.Calculation.Value,
+                metadata.MatchReason);
+
+    private static SalesGrowthTableMetadataResponse? MapSalesGrowthTableMetadata(
+        SalesGrowthTableMetadata? metadata) =>
+        metadata is null
+            ? null
+            : new SalesGrowthTableMetadataResponse(
+                metadata.TargetCommonPeriod,
+                metadata.CoverageNumerator,
+                metadata.CoverageDenominator,
+                metadata.CoveragePercent,
+                metadata.SelectionStatus.ToString(),
+                metadata.TargetPeriodPolicyVersion.Value,
+                metadata.CalculationPolicyVersion.Value,
+                metadata.MixedPeriods,
+                metadata.SelectionReason);
 
     private static IReadOnlyDictionary<string, ScannerTableCellResponse> MapCells(
         IReadOnlyCollection<ScannerTableColumn> columns,
@@ -416,7 +487,27 @@ public sealed class AiFacadeController(
                 MapFinancialStatementTableResult(payload.FinancialStatementTableResult),
                 MapMonthlyActivityTrendResult(payload.MonthlyActivityTrendResult),
                 MapMonthlySalesQualityRankingResult(payload.MonthlySalesQualityRankingResult),
-                payload.DisclosureListingResult);
+                payload.DisclosureListingResult,
+                payload.PsVisualizationResult,
+                payload.Outcome.ToString(),
+                payload.OutcomeReasonCode,
+                payload.ReplyLanguage,
+                payload.LanguageGuardApplied,
+                MapSuggestedActions(payload.SuggestedActions),
+                payload.SemanticCapabilityCode,
+                payload.SemanticRegistryVersion);
+
+    private static IReadOnlyCollection<SuggestedActionHttpResponse>? MapSuggestedActions(
+        IReadOnlyCollection<SuggestedAction>? actions) =>
+        actions?.Select(action => new SuggestedActionHttpResponse(
+            action.Id,
+            action.Kind.ToString(),
+            action.LocalizedLabel,
+            action.Message,
+            action.CapabilityCode,
+            action.PresetSlots,
+            action.RelevanceReason,
+            action.RegistryVersion)).ToArray();
 
     private static ComprehensiveAnalysisResultResponse? MapComprehensiveAnalysisResult(
         ComprehensiveAnalysisQueryResponse? result)

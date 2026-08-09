@@ -1387,18 +1387,27 @@ public sealed class TelegramAiAssistantAdapter(
     {
         var messages = responseRenderer.Render(response, update.Locale);
         var listing = response.DisclosureListingResult;
-        if (listing is null || (!listing.HasPreviousPage && !listing.HasNextPage) || messages.Count == 0)
+        var scanner = response.ScannerTable;
+        var hasScannerPagination = scanner?.SalesGrowthMetadata is not null &&
+                                    scanner.ExecutionFacts.TotalPages > 1;
+        if ((listing is null || (!listing.HasPreviousPage && !listing.HasNextPage)) &&
+            !hasScannerPagination || messages.Count == 0)
             return messages;
 
+        var totalPages = listing?.TotalPages ?? scanner!.ExecutionFacts.TotalPages;
         var token = disclosurePaginationStates.Create(new TelegramDisclosurePaginationState(
             actor.ActorId, actor.TenantId, update.TelegramUserId, update.TelegramChatId,
             update.MessageThreadId, response.ConversationId, originalQuery,
-            listing.TotalPages, timeProvider.GetUtcNow().AddMinutes(15)));
+            totalPages, timeProvider.GetUtcNow().AddMinutes(15)));
         var actions = new List<TelegramAssistantAction>();
-        if (listing.HasPreviousPage)
-            actions.Add(new TelegramAssistantAction("قبلی", $"dlp1:{token}:{listing.Page - 1}"));
-        if (listing.HasNextPage)
-            actions.Add(new TelegramAssistantAction("بعدی", $"dlp1:{token}:{listing.Page + 1}"));
+        var page = listing?.Page ?? scanner!.ExecutionFacts.Page;
+        var hasPrevious = listing?.HasPreviousPage ?? page > 1;
+        var hasNext = listing?.HasNextPage ?? page < totalPages;
+        var prefix = listing is not null ? "dlp1" : "sgp1";
+        if (hasPrevious)
+            actions.Add(new TelegramAssistantAction("قبلی", $"{prefix}:{token}:{page - 1}"));
+        if (hasNext)
+            actions.Add(new TelegramAssistantAction("بعدی", $"{prefix}:{token}:{page + 1}"));
 
         var first = messages[0] with { Actions = actions };
         return [first, .. messages.Skip(1)];
@@ -1408,7 +1417,8 @@ public sealed class TelegramAiAssistantAdapter(
         string data,
         TelegramAssistantUpdate update,
         CurrentActor actor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool salesGrowth = false)
     {
         using var activity = DisclosurePaginationActivitySource.StartActivity("DisclosurePaginationCallback");
         var parts = data.Split(':');
@@ -1441,7 +1451,11 @@ public sealed class TelegramAiAssistantAdapter(
             state.OriginalQuery, actor.TenantId, actor.ActorId, update.CorrelationId, state.ConversationId,
             actor.UserId, actor.ApiClientId,
             ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
-            DisclosurePage: page, DisclosurePageSize: 8, ActorType: actor.ActorType,
+            DisclosurePage: salesGrowth ? 1 : page,
+            DisclosurePageSize: salesGrowth ? 8 : 8,
+            ScannerPage: salesGrowth ? page : 1,
+            ScannerPageSize: salesGrowth ? 20 : 20,
+            ActorType: actor.ActorType,
             AuthenticationMode: actor.AuthenticationMode), cancellationToken);
         await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
         activity?.SetTag("disclosure.callback.outcome", "success");
@@ -1471,6 +1485,11 @@ public sealed class TelegramAiAssistantAdapter(
         if (data is not null && data.StartsWith("dlp1:", StringComparison.OrdinalIgnoreCase))
         {
             return await HandleDisclosurePaginationCallbackAsync(data, update, actor, cancellationToken);
+        }
+
+        if (data is not null && data.StartsWith("sgp1:", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleDisclosurePaginationCallbackAsync(data, update, actor, cancellationToken, salesGrowth: true);
         }
 
         if (data is not null && data.StartsWith("rd.", StringComparison.OrdinalIgnoreCase))

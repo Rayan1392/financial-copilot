@@ -17,10 +17,1934 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.Persistence.Migrat
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.2")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.FundPortfolio.FundPortfolioSourceWatermarkRow", b =>
+                {
+                    b.Property<string>("ProviderName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastSourceObjectId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ProviderName");
+
+                    b.HasIndex("LeaseUntilUtc");
+
+                    b.ToTable("FundPortfolioSourceWatermarks", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundAssetAllocationSnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AssetClass")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("HasSourceFormulaError")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsSectionTotal")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("MarketOrNetSaleValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("MonetaryUnit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("NormalizedAssetClassCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PercentageScale")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RawAssetClassLabel")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetClass");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "NormalizedAssetClassCode")
+                        .IsUnique();
+
+                    b.ToTable("FundAssetAllocationSnapshots", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundBankDepositPositionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BalanceReconciliationDifference")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("BankCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<decimal?>("BeginningBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("DecreaseAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EndingBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("IncreaseAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("IsSectionTotal")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedBankName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RawBankName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ReconciliationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankCode");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "NormalizedBankName")
+                        .IsUnique();
+
+                    b.ToTable("FundBankDepositPositions", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundCommodityCertificatePositionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BeginningCostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("BeginningMarketValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("BeginningQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("CommodityCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("CommodityType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("EndingCostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EndingMarketValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EndingQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EndingUnitPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ExtractedInstrumentSymbol")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsSectionTotal")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedInstrumentName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("PurchaseCostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("PurchasedQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("QuantityReconciliationDifference")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("RawInstrumentName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ReconciliationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SaleProceedsAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("SoldQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommodityCode");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("TradingInstrumentId");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "NormalizedInstrumentName")
+                        .IsUnique();
+
+                    b.ToTable("FundCommodityCertificatePositions", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundCommodityIncomeDetailRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawInstrumentName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal?>("RealizedIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("TotalIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("UnrealizedIncome")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundCommodityIncomeDetails", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundDepositIncomeDetailRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("DiscountCost")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("GrossIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("NetIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawBankName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundDepositIncomeDetails", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundDerivativePositionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ContractMultiplier")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ContractQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("DerivativeType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("EffectiveReturnPercentage")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateOnly?>("ExpiryOrExerciseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExpiryOrExerciseJalali")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HedgeCoverageCalculationVersion")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("HedgeCoverageEvidenceJson")
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("HedgeCoverageStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("MarketValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("NormalizedInstrumentName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("OptionType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("PositionSide")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawInstrumentName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("RawUnderlyingName")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("StrikePrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("UnderlyingCoverageQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("UnderlyingExternalCompanyId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("UnderlyingTradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DerivativeType");
+
+                    b.HasIndex("ExpiryOrExerciseDate");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("TradingInstrumentId");
+
+                    b.HasIndex("UnderlyingExternalCompanyId");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "NormalizedInstrumentName")
+                        .IsUnique();
+
+                    b.ToTable("FundDerivativePositions", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundDividendIncomeDetailRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("DiscountCost")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("DividendPerShare")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EntitledQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("GrossDividendIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("MeetingDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("MeetingDateJalali")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal?>("NetDividendIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalCompanyId");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundDividendIncomeDetails", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundEquityPeriodActivityRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActivityClassification")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("KnownCorporateActionAdjustment")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("MonetaryUnit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("NormalizedSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("PurchaseCostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("PurchasedQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("QuantityReconciliationDifference")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("RawSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ReconciliationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("SaleProceedsAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("SecurityType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SoldQuantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TradingInstrumentId");
+
+                    b.HasIndex("ExternalCompanyId", "PeriodEndDate");
+
+                    b.HasIndex("ReconciliationStatus", "SecurityType");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "ActivityClassification");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "NormalizedSecurityName")
+                        .IsUnique();
+
+                    b.ToTable("FundEquityPeriodActivities", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundEquityPositionSnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("MarketOrNetSaleValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("MonetaryUnit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("NormalizedSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PercentageScale")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("PositionState")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("RawSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SecurityType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("UnitMarketPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TradingInstrumentId");
+
+                    b.HasIndex("ExternalCompanyId", "PeriodEndDate");
+
+                    b.HasIndex("ResolutionStatus", "SecurityType");
+
+                    b.HasIndex("FundId", "PeriodEndDate", "PositionState");
+
+                    b.HasIndex("ReportId", "PeriodContext", "PositionState", "SourceLogicalRow", "NormalizedSecurityName")
+                        .IsUnique();
+
+                    b.ToTable("FundEquityPositionSnapshots", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundEquitySectionTotalRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CostAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("MarketOrNetSaleValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("RawLabel")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("WeightOfTotalAssetsPercentage")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundEquitySectionTotals", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundInvestmentIncomeSummaryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("CalculatedPercentageOfTotalIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("CalculationVersion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("CumulativeAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("HasSourceFormulaError")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("IncomeCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsSourceTotal")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<decimal?>("PercentageOfTotalAssets")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawCategory")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ReconciliationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SourcePercentageOfTotalIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncomeCategory");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow", "IncomeCategory")
+                        .IsUnique();
+
+                    b.ToTable("FundInvestmentIncomeSummaries", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioExtractionIssueRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssueCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RawValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IssueCode");
+
+                    b.HasIndex("ReportId", "Severity");
+
+                    b.HasIndex("Severity", "IssueCode");
+
+                    b.ToTable("FundPortfolioExtractionIssues", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioGovernedMappingRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MappingType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NormalizedValue")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("RawValue")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ResolutionJson")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTimeOffset>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResolvedByActorId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MappingType", "RawValue")
+                        .IsUnique();
+
+                    b.ToTable("FundPortfolioGovernedMappings", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioImportItemRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("DownloadToken")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("FileSha256")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ImportRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LastErrorSummary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ObservedFundName")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("ObservedPeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("QueuedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceObjectId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportRunId");
+
+                    b.HasIndex("QueuedAtUtc");
+
+                    b.HasIndex("ProviderName", "FileSha256")
+                        .IsUnique()
+                        .HasFilter("\"FileSha256\" IS NOT NULL");
+
+                    b.HasIndex("ProviderName", "SourceObjectId")
+                        .IsUnique()
+                        .HasFilter("\"SourceObjectId\" IS NOT NULL");
+
+                    b.HasIndex("Status", "AttemptCount", "StartedAtUtc");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseUntilUtc");
+
+                    b.ToTable("FundPortfolioImportItems", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioImportRunRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("DiscoveredCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DuplicateCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ImportedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PartialCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RequestedByActorId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TriggerType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderName");
+
+                    b.HasIndex("Status", "StartedAtUtc");
+
+                    b.ToTable("FundPortfolioImportRuns", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioMappingReviewRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CandidateJson")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<int>("MappingType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NormalizedValue")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("RawValue")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResolutionJson")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResolvedByActorId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportId");
+
+                    b.HasIndex("Status", "MappingType");
+
+                    b.ToTable("FundPortfolioMappingReviews", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioOperationAuditRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ReviewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportId");
+
+                    b.HasIndex("ReviewId");
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("EventType", "CreatedAtUtc");
+
+                    b.ToTable("FundPortfolioOperationAudits", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioReportRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ExternalReportId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FiscalYearEndJalali")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FiscalYearStartJalali")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("ParseStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateOnly?>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PeriodEndJalali")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("PeriodStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PeriodStartJalali")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("RawFileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RawMimeType")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("RawStorageKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<int>("ReportType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceObjectId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SupersedesReportId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParseStatus");
+
+                    b.HasIndex("ProviderName");
+
+                    b.HasIndex("SourceObjectId");
+
+                    b.HasIndex("FundId", "PeriodEndDate");
+
+                    b.HasIndex("ProviderName", "FileSha256")
+                        .IsUnique();
+
+                    b.HasIndex("FundId", "ProviderName", "PeriodEndDate", "ReportType", "SourceRevision")
+                        .IsUnique();
+
+                    b.ToTable("FundPortfolioReports", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioReportSheetRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ClassificationConfidence")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("HeaderFingerprint")
+                        .HasColumnType("text");
+
+                    b.Property<int>("LogicalSheetType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NormalizedSheetName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("OriginalSheetName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SheetIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UsedRange")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LogicalSheetType");
+
+                    b.HasIndex("ReportId", "SheetIndex")
+                        .IsUnique();
+
+                    b.ToTable("FundPortfolioReportSheets", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioReportStatusHistoryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportId", "CreatedAtUtc");
+
+                    b.ToTable("FundPortfolioReportStatusHistory", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioSourceTraceRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("NormalizedRowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SignalCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceObjectId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportId");
+
+                    b.HasIndex("SourceObjectId", "SourceRevision")
+                        .IsUnique();
+
+                    b.ToTable("FundPortfolioSourceTraces", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundPortfolioValuationQualitySnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AdjustedSecurityCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("AdjustedValueAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AdjustedValueExposurePercentage")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("CalculationVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MaterialReconciliationIssueCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("QualityScore")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("QualityStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QualityStatus");
+
+                    b.HasIndex("ReportId")
+                        .IsUnique();
+
+                    b.ToTable("FundPortfolioValuationQualitySnapshots", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundSecurityIncomeAttributionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("DividendIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RawSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal?>("RealizedSaleIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("ReconciliationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("TotalIncome")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("UnrealizedPriceChangeIncome")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalCompanyId");
+
+                    b.HasIndex("ReconciliationStatus");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundSecurityIncomeAttributions", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.FundValuationAdjustmentRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AdjustedPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AdjustedValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("CalculatedAdjustmentPercentage")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ClosingPrice")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ExternalCompanyId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ImportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsMaterial")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ParserProfileVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("PeriodContext")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("RawSecurityName")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceAddress")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("SourceAdjustmentPercentage")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("SourceEvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
+
+                    b.Property<int>("SourceLogicalRow")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceSheetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TradingInstrumentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalCompanyId");
+
+                    b.HasIndex("IsMaterial");
+
+                    b.HasIndex("ResolutionStatus");
+
+                    b.HasIndex("FundId", "PeriodContext");
+
+                    b.HasIndex("ReportId", "PeriodContext", "SourceLogicalRow")
+                        .IsUnique();
+
+                    b.ToTable("FundValuationAdjustments", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.InvestmentFundRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalFundId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FundName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("FundSymbol")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ManagerName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NormalizedFundName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("RegistrationNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderName", "ExternalFundId")
+                        .IsUnique()
+                        .HasFilter("\"ExternalFundId\" IS NOT NULL");
+
+                    b.HasIndex("ProviderName", "NormalizedFundName");
+
+                    b.ToTable("InvestmentFunds", (string)null);
+                });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Providers.Persistence.ProviderRawPayloadRow", b =>
                 {

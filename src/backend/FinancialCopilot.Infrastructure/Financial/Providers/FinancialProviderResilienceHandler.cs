@@ -111,10 +111,9 @@ public sealed class FinancialProviderResilienceHandler(
         }
     }
 
-    private static bool IsTransient(HttpStatusCode statusCode) =>
-        statusCode == HttpStatusCode.RequestTimeout ||
-        statusCode == HttpStatusCode.TooManyRequests ||
-        (int)statusCode >= 500;
+    // Provider 4xx responses are definitive request rejections and must never
+    // be replayed. Only server-side failures are retriable here.
+    private static bool IsTransient(HttpStatusCode statusCode) => (int)statusCode >= 500;
 
     private static async Task<HttpRequestMessage> CloneAsync(
         HttpRequestMessage request,

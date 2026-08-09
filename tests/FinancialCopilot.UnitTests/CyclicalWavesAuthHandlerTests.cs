@@ -141,6 +141,28 @@ public sealed class CyclicalWavesAuthHandlerTests
             () => client.GetAsync("custom-filtering/tickers"));
     }
 
+    [Fact]
+    public async Task HtmlLoginResponse_ThrowsDiagnosticInvalidResponse()
+    {
+        var inner = new FakeHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "<html><body>Bad gateway</body></html>",
+                    Encoding.UTF8,
+                    "text/html")
+            }));
+
+        var (client, _) = BuildClient(inner);
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(
+            () => client.GetAsync("custom-filtering/tickers"));
+
+        Assert.Equal(FinancialProviderErrorCode.InvalidResponse, exception.Code);
+        Assert.Contains("non-JSON", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Bad gateway", exception.Message, StringComparison.Ordinal);
+    }
+
     private static (HttpClient Client, CyclicalWavesTokenCache Cache) BuildClient(
         HttpMessageHandler innerHandler,
         CyclicalWavesTokenCache? cache = null)

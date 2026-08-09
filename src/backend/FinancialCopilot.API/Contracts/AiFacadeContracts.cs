@@ -9,7 +9,14 @@ public sealed record AiQueryHttpRequest(
     int ScannerPage = 1,
     int ScannerPageSize = 20,
     int DisclosurePage = 1,
-    AiQueryContextHttpRequest? Context = null);
+    AiQueryContextHttpRequest? Context = null,
+    string? SuggestedActionId = null);
+
+public sealed record CapabilityStarterPromptHttpResponse(
+    string CapabilityCode,
+    string Label,
+    string Example,
+    int RegistryVersion);
 
 public sealed record AiQueryContextHttpRequest(
     Guid? InsightEventId = null,
@@ -40,7 +47,25 @@ public sealed record AiQueryHttpResponse(
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    string Outcome = "Answered",
+    string OutcomeReasonCode = "none",
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
+
+public sealed record SuggestedActionHttpResponse(
+    string Id,
+    string Kind,
+    string Label,
+    string Message,
+    string CapabilityCode,
+    IReadOnlyDictionary<string, string> PresetSlots,
+    string RelevanceReason,
+    int RegistryVersion);
 
 public sealed record UsageAccountingResponse(
     string OperationCode,
@@ -83,7 +108,44 @@ public sealed record ScannerTableRowResponse(
     string? CompanyName,
     IReadOnlyDictionary<string, ScannerTableCellResponse> Cells,
     double Score,
-    IReadOnlyCollection<string> MatchedConditionMetrics);
+    IReadOnlyCollection<string> MatchedConditionMetrics,
+    SalesGrowthRowMetadataResponse? SalesGrowthMetadata = null);
+
+public sealed record SalesGrowthEvidenceResponse(
+    string ExternalCompanyId,
+    int PeriodYear,
+    int PeriodMonth,
+    decimal? SalesAmount,
+    string SourceName,
+    string EvidenceId,
+    DateTimeOffset? ObservedAtUtc);
+
+public sealed record SalesGrowthRowMetadataResponse(
+    DateOnly CurrentPeriod,
+    DateOnly? BaselinePeriod,
+    IReadOnlyCollection<DateOnly> BaselineWindow,
+    string Unit,
+    string Scale,
+    IReadOnlyCollection<SalesGrowthEvidenceResponse> Evidence,
+    DateTimeOffset? LatestObservedAtUtc,
+    string? FreshnessSource,
+    decimal? Threshold,
+    string Operator,
+    string Origin,
+    string TargetPeriodPolicyVersion,
+    string CalculationPolicyVersion,
+    string MatchReason);
+
+public sealed record SalesGrowthTableMetadataResponse(
+    DateOnly TargetCommonPeriod,
+    int CoverageNumerator,
+    int CoverageDenominator,
+    decimal CoveragePercent,
+    string SelectionStatus,
+    string TargetPeriodPolicyVersion,
+    string CalculationPolicyVersion,
+    bool MixedPeriods,
+    string? SelectionReason);
 
 public sealed record ScannerExecutionFactsResponse(
     DateTimeOffset ExecutedAt,
@@ -93,14 +155,18 @@ public sealed record ScannerExecutionFactsResponse(
     bool FromCache,
     int Page,
     int PageSize,
-    int TotalPages);
+    int TotalPages,
+    int EligibleSymbolCount = 0,
+    int EvaluatedSymbolCount = 0,
+    IReadOnlyDictionary<string, int>? ExcludedByReason = null);
 
 public sealed record ScannerTableResponse(
     Guid PlanId,
     IReadOnlyCollection<ScannerTableColumnResponse> Columns,
     IReadOnlyCollection<ScannerTableRowResponse> Rows,
     ScannerExecutionFactsResponse ExecutionFacts,
-    IReadOnlyCollection<string> MissingDataWarnings);
+    IReadOnlyCollection<string> MissingDataWarnings,
+    SalesGrowthTableMetadataResponse? SalesGrowthMetadata = null);
 
 public sealed record ConditionFilterChipResponse(
     string MetricCode,
@@ -189,7 +255,15 @@ public sealed record AssistantMessageContentResponse(
     FinancialStatementTableHttpResponse? FinancialStatementTableResult = null,
     MonthlyActivityTrendChartResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingHttpResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    string Outcome = "Answered",
+    string OutcomeReasonCode = "none",
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

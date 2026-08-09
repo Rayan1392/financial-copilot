@@ -65,11 +65,66 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             IdentityColumns.Select(c => c.Identifier),
             StringComparer.OrdinalIgnoreCase);
 
+        if (plan.SalesGrowth is not null)
+        {
+            var salesPlan = plan.SalesGrowth;
+            columns.Add(new ScannerTableColumn(
+                "MONTHLY_SALES",
+                usePersianLabels ? "فروش آخرین دوره" : "Latest Monthly Sales",
+                ScannerColumnType.Metric,
+                "MONTHLY_SALES"));
+            seen.Add("MONTHLY_SALES");
+
+            var baselineColumn = salesPlan.Semantics.Baseline switch
+            {
+                SalesGrowthComparisonBaseline.PreviousMonth =>
+                    new ScannerTableColumn(
+                        "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH",
+                        usePersianLabels ? "فروش ماه قبل" : "Previous Month Sales",
+                        ScannerColumnType.Metric,
+                        "MONTHLY_SALES_BASELINE_PREVIOUS_MONTH"),
+                SalesGrowthComparisonBaseline.SameMonthPreviousYear =>
+                    new ScannerTableColumn(
+                        "MONTHLY_SALES_BASELINE_SAME_MONTH_PREVIOUS_YEAR",
+                        usePersianLabels ? "فروش ماه مشابه سال قبل" : "Same Month Previous Year Sales",
+                        ScannerColumnType.Metric,
+                        "MONTHLY_SALES_BASELINE_SAME_MONTH_PREVIOUS_YEAR"),
+                SalesGrowthComparisonBaseline.AveragePrevious12Months =>
+                    new ScannerTableColumn(
+                        "MONTHLY_SALES_BASELINE_AVERAGE_PREVIOUS_12_MONTHS",
+                        usePersianLabels ? "میانگین فروش ۱۲ ماهه" : "Average Previous 12 Months Sales",
+                        ScannerColumnType.Metric,
+                        "MONTHLY_SALES_BASELINE_AVERAGE_PREVIOUS_12_MONTHS"),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            columns.Add(baselineColumn);
+            seen.Add(baselineColumn.Identifier);
+
+            columns.Add(new ScannerTableColumn(
+                "MONTHLY_SALES_GROWTH_PERCENT",
+                usePersianLabels ? "درصد رشد" : "Growth Percent",
+                ScannerColumnType.Metric,
+                "MONTHLY_SALES_GROWTH_PERCENT"));
+            seen.Add("MONTHLY_SALES_GROWTH_PERCENT");
+
+            if (salesPlan.Semantics.ThresholdKind == SalesGrowthThresholdKind.Multiple ||
+                IsSalesMultipleRequested(salesPlan))
+            {
+                columns.Add(new ScannerTableColumn(
+                    "MONTHLY_SALES_GROWTH_MULTIPLE",
+                    usePersianLabels ? "نسبت فروش" : "Sales Multiple",
+                    ScannerColumnType.Metric,
+                    "MONTHLY_SALES_GROWTH_MULTIPLE"));
+                seen.Add("MONTHLY_SALES_GROWTH_MULTIPLE");
+            }
+        }
+
         // Add condition metrics. Quote-column conditions (e.g. MARKET_CAP filter) are added
         // via QuoteColumnDefinitions so their ColumnType is preserved correctly.
         foreach (var condition in plan.Conditions)
         {
             var code = condition.MetricReference.MetricCode.Value;
+            if (plan.SalesGrowth is not null && IsSalesGrowthMetric(code)) continue;
             if (!seen.Add(code)) continue;
 
             if (QuoteColumnDefinitions.TryGetValue(code, out var quoteCol))
@@ -185,6 +240,19 @@ public sealed class ScannerResultColumnPolicy : IScannerResultColumnPolicy
             "OPERATING PROFIT MARGIN" => "حاشیه سود عملیاتی",
             _ => metricCode
         };
+
+    private static bool IsSalesGrowthMetric(string code) =>
+        code.Equals("MONTHLY_SALES_GROWTH", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MOM", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_YOY", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_PERCENT", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MULTIPLE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSalesMultipleRequested(SalesGrowthScannerPlan plan) =>
+        plan.EffectiveRequestedDisplayColumns.Any(column =>
+            column.Identifier.Contains("multiple", StringComparison.OrdinalIgnoreCase) ||
+            column.Identifier.Contains("ratio", StringComparison.OrdinalIgnoreCase) ||
+            column.Identifier.Contains("نسبت", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsPersianLanguage(string language) =>
         language.StartsWith("fa", StringComparison.OrdinalIgnoreCase);

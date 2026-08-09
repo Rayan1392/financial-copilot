@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
@@ -17,6 +18,8 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Agents.AI.Workflows.InProc;
 using Microsoft.Agents.AI.Workflows.Observability;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
 namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 
@@ -28,6 +31,10 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 /// </summary>
 internal sealed class FinancialCopilotWorkflowDefinition(
     IConversationRepository conversationRepository,
+    IConversationDialogueGate dialogueGate,
+    ISemanticExecutionCoordinator semanticExecutionCoordinator,
+    ISemanticRoutingRolloutCoordinator semanticRolloutCoordinator,
+    ISemanticDialogueOutcomeTelemetry outcomeTelemetry,
     IAiModelProviderResolver providerResolver,
     IAiExecutionUsageAccumulator usageAccumulator,
     ScannerToolAdapter scannerAdapter,
@@ -47,6 +54,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
+    IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
+    IOptions<CyclicalWavesPsVisualizationOptions> psVisualizationOptions,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider)
@@ -111,7 +120,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         // Step 3: Agent execution (tool calling loop)
         ExecutorBinding step3 = ((Func<BillingReservedMessage, IWorkflowContext, CancellationToken, ValueTask<AgentExecutedMessage>>)
-            ((msg, _, token) => ExecuteAgentStepAsync(msg, request, token)))
+            ((msg, _, token) => ExecuteAgentStepAsync(msg, token)))
             .BindAsExecutor("step3-agent-execution");
 
         // Step 4: Result computation (intent, explainability, consistency, confidence)
@@ -168,7 +177,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             throw new ConversationNotFoundException(conversationId);
         }
 
-        return new WorkflowStartMessage(request, conversationId, createConversation, timeProvider.GetUtcNow());
+        var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
+        return new WorkflowStartMessage(prepared.Request, conversationId, createConversation, timeProvider.GetUtcNow());
     }
 
     private async ValueTask<MemoryRetrievedMessage> ExecuteConversationAndMemoryStepAsync(
@@ -192,7 +202,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step2.BillingReservation");
 
-        var reservation = await billingFunctions.TryReserveAsync(msg.Request, ct);
+        var reservation = msg.Request.SemanticFrame is null
+            ? await billingFunctions.TryReserveAsync(msg.Request, ct)
+            : null;
 
         return new BillingReservedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
@@ -200,15 +212,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     }
 
     private async ValueTask<AgentExecutedMessage> ExecuteAgentStepAsync(
-        BillingReservedMessage msg, AiQueryRequest request, CancellationToken ct)
+        BillingReservedMessage msg, CancellationToken ct)
     {
         using var stepActivity = ActivitySource.StartActivity("Step3.AgentExecution");
-
-        var modelClient = ResolveModelClient(request);
-        var chatClientAdapter = new FinancialCopilotChatClientAdapter(
-            modelClient, usageAccumulator,
-            request.CorrelationId, request.TenantId,
-            AiWorkloadKind.ResearchTool);
+        var request = msg.Request;
 
         ScannerToolResult? scannerResult = null;
         SymbolLookupToolResult? lookupResult = null;
@@ -218,6 +225,92 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
+        PsVisualizationResult? semanticPsVisualizationResult = null;
+
+        if (request.SemanticFrame is { } semanticFrame)
+        {
+            var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+                semanticFrame,
+                new QueryExecutionContext(
+                    request.TenantId, request.ActorId, msg.ConversationId,
+                    request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage,
+                    msg.Now, request.ScannerPage, request.ScannerPageSize,
+                    request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId),
+                request,
+                ct);
+            switch (semantic.Execution.Payload)
+            {
+                case SemanticScannerPayload scanner:
+                    scannerResult = ScannerToolResult.Success(scanner.Plan, scanner.Table, scanner.Table.ExecutionFacts.FromCache);
+                    break;
+                case SymbolLookupTableResult lookup: lookupResult = SymbolLookupToolResult.Success(lookup); break;
+                case ComprehensiveAnalysisQueryResponse analysis: comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(analysis); break;
+                case SemanticComprehensiveAnalysisPayload combined:
+                    comprehensiveAnalysisResult = ComprehensiveAnalysisToolResult.Success(combined.Analysis);
+                    lookupResult = combined.Lookup.Rows.Count > 0
+                        ? SymbolLookupToolResult.Success(combined.Lookup)
+                        : null;
+                    break;
+                case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
+                case FinancialStatementTableResult table: financialStatementTableResult = table; break;
+                case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
+                case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
+                case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
+            }
+            if (monthlyActivityTrendResult is not null &&
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+            {
+                semanticPsVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                    new PsVisualizationQuery(monthlyActivityTrendResult.CompanySymbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
+            }
+            var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
+            var summary = semantic.Execution.Payload switch
+            {
+                SemanticScannerPayload => scannerResult!.AgentSummary,
+                SymbolLookupTableResult => lookupResult!.AgentSummary,
+                ComprehensiveAnalysisQueryResponse => comprehensiveAnalysisResult!.AgentSummary,
+                SemanticComprehensiveAnalysisPayload => lookupResult is null
+                    ? comprehensiveAnalysisResult!.AgentSummary
+                    : $"{lookupResult.AgentSummary}\n\n{comprehensiveAnalysisResult!.AgentSummary}",
+                FinancialStatementAnalysisResponse analysis => analysis.RenderedAnswer,
+                FinancialStatementTableResult table => table.RenderedAnswer,
+                ProductRevenueMixResponse product => BuildProductRevenueMixContent(product),
+                MonthlyActivityTrendResponse trend => BuildMonthlyActivityTrendContent(trend),
+                MonthlySalesQualityRankingResponse ranking => BuildMonthlySalesQualityRankingContent(ranking),
+                DisclosureListingResult disclosures => BuildDisclosureListingContent(disclosures),
+                PsVisualizationResult gauge => BuildPsGaugeContent(gauge.CompanySymbol, gauge),
+                string explanation => explanation,
+                _ => AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                    clarification ? DialogueOutcome.ClarificationNeeded : semantic.Execution.Status == CapabilityExecutionStatus.NoData ? DialogueOutcome.NoData : DialogueOutcome.Unsupported,
+                    semantic.Execution.ReasonCode,
+                    semanticFrame.Interpretation.ReplyLanguage,
+                    null,
+                    false))
+            };
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, null, summary ?? string.Empty,
+                scannerResult, lookupResult, comprehensiveAnalysisResult,
+                financialStatementAnalysisResult, financialStatementTableResult,
+                productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
+                clarification ? "ClarificationRequired" : semantic.Execution.Status.ToString(),
+                scannerResult?.FromCache ?? false,
+                null,
+                semantic.Usage,
+                DisclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
+                PsVisualizationResult: semanticPsVisualizationResult ?? semantic.Execution.Payload as PsVisualizationResult,
+                SemanticOutcome: SemanticDialogueOutcome(semantic.Execution.Status),
+                SemanticOutcomeReasonCode: semantic.Execution.ReasonCode,
+                SemanticReplyLanguage: semanticFrame.Interpretation.ReplyLanguage);
+        }
+
+        var modelClient = ResolveModelClient(request);
+        var chatClientAdapter = new FinancialCopilotChatClientAdapter(
+            modelClient, usageAccumulator,
+            request.CorrelationId, request.TenantId,
+            AiWorkloadKind.ResearchTool);
 
         if (request.Context?.InsightEventId is Guid insightEventId)
         {
@@ -255,7 +348,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             async (string query) =>
             {
                 var result = await scannerAdapter.SearchAsync(
-                    query, request.CorrelationId, request.TenantId, request.ActorId,
+                    request.Message, request.CorrelationId, request.TenantId, request.ActorId,
                     request.ApiClientId, request.ScannerPage, request.ScannerPageSize, ct);
                 scannerResult = result;
                 return result.AgentSummary;
@@ -362,6 +455,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 new MonthlyActivityTrendQuery(request.Message, symbol),
                 ct);
 
+            // The monthly-sales chart can optionally be enriched with the persisted
+            // P/S gauge.  The flag was previously configured but never consumed,
+            // leaving the frontend with no PsVisualizationResult to render.
+            PsVisualizationResult? monthlyTrendGauge = null;
+            if (monthlyActivityTrendResult is not null &&
+                psVisualizationOptions.Value.IncludeGaugeInMonthlySalesTrendChart)
+            {
+                monthlyTrendGauge = await psVisualizationExperienceUseCase.ExecuteAsync(
+                    new PsVisualizationQuery(symbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
+            }
+
             UsageAccountingResult? trendUsage = null;
             if (msg.Reservation is not null)
             {
@@ -379,7 +483,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     : BuildMonthlyActivityTrendContent(monthlyActivityTrendResult),
                 scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
-                monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage);
+                monthlyActivityTrendResult is null ? "Completed" : "Completed", false, modelClient, trendUsage,
+                PsVisualizationResult: monthlyTrendGauge);
         }
 
         var isProductRevenueMix = ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message);
@@ -492,6 +597,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var isDirectMetricLookup = IsDirectMetricLookupRequest(request.Message);
+        var psGaugeSymbol = PsGaugeIntentRules.ExtractCompanySymbol(request.Message);
+        if (psGaugeSymbol is not null)
+        {
+            var psGaugeResult = await psVisualizationExperienceUseCase.ExecuteAsync(
+                new PsVisualizationQuery(psGaugeSymbol, IncludeHistory: true), ct);
+            UsageAccountingResult? gaugeUsage = null;
+            if (msg.Reservation is not null)
+                gaugeUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+
+            stepActivity?.SetTag("workflow.intent", "PsGaugeVisualization");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                BuildPsGaugeContent(psGaugeSymbol, psGaugeResult), scannerResult, lookupResult,
+                comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult,
+                productRevenueMixResult, monthlyActivityTrendResult, monthlySalesQualityRankingResult,
+                "Completed", false, modelClient, gaugeUsage,
+                PsVisualizationResult: psGaugeResult);
+        }
+
         var isDirectMetricFollowup = !isDirectMetricLookup &&
             IsDirectMetricLookupFollowup(request.Message, msg.EnrichedMessage);
         if (isDirectMetricLookup || isDirectMetricFollowup)
@@ -582,8 +707,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
-        var detectedIntent =
-            msg.Request.Context?.InsightEventId is not null
+        var detectedIntent = msg.Request.SemanticFrame is { } semanticFrame
+            ? SemanticIntent(semanticFrame.CapabilityCode)
+            : msg.Request.Context?.InsightEventId is not null
                 ? DetectedIntent.PersonalizedInsightExplanation
                 : msg.MonthlySalesQualityRankingResult is not null ||
             MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(msg.Request.Message)
@@ -596,9 +722,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 : msg.FinancialStatementTableResult is not null ||
             FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementTableLookup
-                : msg.FinancialStatementAnalysisResult is not null ||
+            : msg.FinancialStatementAnalysisResult is not null ||
             FinancialStatementAnalysisIntentRules.LooksLikeFinancialStatementAnalysisQuery(msg.Request.Message)
                 ? DetectedIntent.FinancialStatementPeriodAnalysis
+                : msg.PsVisualizationResult is not null || PsGaugeIntentRules.LooksLikeQuery(msg.Request.Message)
+                ? DetectedIntent.PsGaugeVisualization
                 : DetermineIntent(
                     msg.ScannerResult,
                     msg.LookupResult,
@@ -612,6 +740,32 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ScannerResult?.ClarificationRequired ?? msg.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
             msg.ScannerResult?.ClarificationMessage ?? msg.LookupResult?.ClarificationMessage;
+        if (msg.Request.SemanticShadowFrame is { } shadowFrame)
+            semanticRolloutCoordinator.RecordShadowComparison(
+                shadowFrame.CapabilityCode,
+                SemanticRouteMapping.FromIntent(detectedIntent),
+                shadowFrame.CapabilityCode,
+                msg.Request.CorrelationId);
+
+        var outcome = msg.SemanticOutcome is { } semanticOutcome
+            ? new DialogueOutcomeResult(
+                semanticOutcome,
+                msg.SemanticOutcomeReasonCode ?? DialogueOutcomeReasonCodes.None,
+                msg.SemanticReplyLanguage ?? AiDialogueOutcomePolicy.DetectReplyLanguage(msg.Request.Message),
+                null,
+                false)
+            : DetermineDialogueOutcome(msg, detectedIntent, clarificationRequired, clarificationMessage);
+        outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
+            outcome,
+            outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : msg.AgentResponseText));
+        outcomeTelemetry.Record(msg.Request, outcome,
+            msg.Request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", msg.Now);
+        if (outcome.Outcome is DialogueOutcome.ClarificationNeeded or DialogueOutcome.DisambiguationNeeded)
+        {
+            clarificationRequired = true;
+            clarificationMessage = AiDialogueOutcomePolicy.ComposeSystemMessage(outcome, outcome.SafeDetail);
+            outcome = outcome with { SafeDetail = clarificationMessage };
+        }
 
         ExplainableAnswer? explainableAnswer = null;
         if (msg.ScannerResult?.Table is not null && msg.ScannerResult.Plan is not null)
@@ -625,14 +779,22 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var consistencyContext = new AnswerConsistencyContext(
             msg.Request.CorrelationId, msg.ConversationId, "MicrosoftAgentFrameworkV2", WorkflowVersion: 2);
 
-        var groundedAnswer = GroundAgentProse(
-            detectedIntent, msg.ScannerResult, msg.LookupResult, msg.AgentResponseText, consistencyContext);
+        var groundedAnswer = outcome.Outcome == DialogueOutcome.Answered
+            ? GroundAgentProse(
+                detectedIntent, msg.ScannerResult, msg.LookupResult, msg.AgentResponseText, consistencyContext)
+            : AiDialogueOutcomePolicy.ComposeSystemMessage(
+                outcome,
+                detectedIntent == DetectedIntent.Unknown ? null : msg.AgentResponseText);
 
         var confidenceScore = CalculateConfidenceScore(
             msg.Request.CorrelationId, groundedAnswer, msg.LookupResult?.Table, explainableAnswer);
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);
+        stepActivity?.SetTag("workflow.outcome", outcome.Outcome.ToString());
+        stepActivity?.SetTag("workflow.outcome_reason", outcome.ReasonCode);
+        stepActivity?.SetTag("workflow.reply_language", outcome.ReplyLanguage);
+        stepActivity?.SetTag("workflow.language_guard_applied", outcome.LanguageGuardApplied);
 
         return new ResultsComputedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
@@ -642,7 +804,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.CompletionStatus, msg.FromCache, msg.ModelClient,
             detectedIntent, clarificationRequired, clarificationMessage,
             explainableAnswer, confidenceScore, groundedAnswer, msg.Usage,
-            DisclosureListingResult: msg.DisclosureListingResult);
+            Outcome: outcome.Outcome,
+            OutcomeReasonCode: outcome.ReasonCode,
+            ReplyLanguage: outcome.ReplyLanguage,
+            LanguageGuardApplied: outcome.LanguageGuardApplied,
+            DisclosureListingResult: msg.DisclosureListingResult,
+            PsVisualizationResult: msg.PsVisualizationResult);
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteSideEffectsStepAsync(
@@ -666,12 +833,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
             ? msg.GroundedAnswer
             : textAnswer;
+
+        if (msg.Outcome != DialogueOutcome.Answered && msg.Outcome != DialogueOutcome.PartialAnswer)
+            responseTextAnswer = msg.GroundedAnswer;
+
+        await dialogueGate.RecordOutcomeAsync(
+            msg.Request, msg.ConversationId, msg.ClarificationRequired, msg.OutcomeReasonCode, ct);
 
         var persistedExchange = await persistenceFunction.PersistAsync(
             msg.ConversationId, msg.Request,
@@ -682,13 +855,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ExplainableAnswer, msg.ConfidenceScore, msg.Usage,
             msg.MemoryContext, msg.GroundedAnswer,
             msg.CreateConversation, ct,
+            outcome: msg.Outcome,
+            outcomeReasonCode: msg.OutcomeReasonCode,
+            replyLanguage: msg.ReplyLanguage,
+            languageGuardApplied: msg.LanguageGuardApplied,
             comprehensiveAnalysisResult: msg.ComprehensiveAnalysisResult?.QueryResponse,
             financialStatementAnalysisResult: msg.FinancialStatementAnalysisResult,
             financialStatementTableResult: msg.FinancialStatementTableResult,
             productRevenueMixResult: msg.ProductRevenueMixResult,
             monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
-            disclosureListingResult: msg.DisclosureListingResult);
+             disclosureListingResult: msg.DisclosureListingResult,
+             psVisualizationResult: msg.PsVisualizationResult);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -701,13 +879,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.ExplainableAnswer, msg.ConfidenceScore,
             responseTextAnswer, msg.Usage, disclosures, msg.ModelClient,
             msg.Request.CorrelationId,
-            DisclosureListingResult: msg.DisclosureListingResult);
+            msg.Outcome, msg.OutcomeReasonCode, msg.ReplyLanguage, msg.LanguageGuardApplied,
+             DisclosureListingResult: msg.DisclosureListingResult,
+             PsVisualizationResult: msg.PsVisualizationResult,
+             SuggestedActions: persistedExchange.SuggestedActions);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)
     {
-        var providerSelection =
-            $"{msg.ModelClient.Descriptor.ProviderKey}/{msg.ModelClient.Descriptor.ModelKey}";
+        var providerSelection = msg.ModelClient is null
+            ? "semantic-deterministic"
+            : $"{msg.ModelClient.Descriptor.ProviderKey}/{msg.ModelClient.Descriptor.ModelKey}";
 
         return new AiQueryResponse(
             msg.ConversationId,
@@ -735,7 +917,24 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             ProductRevenueMixResult: msg.ProductRevenueMixResult,
             MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
-            DisclosureListingResult: msg.DisclosureListingResult);
+            DisclosureListingResult: msg.DisclosureListingResult,
+            PsVisualizationResult: msg.PsVisualizationResult,
+            Outcome: msg.Outcome,
+            OutcomeReasonCode: msg.OutcomeReasonCode,
+            ReplyLanguage: msg.ReplyLanguage,
+            LanguageGuardApplied: msg.LanguageGuardApplied,
+            SuggestedActions: msg.SuggestedActions,
+            SemanticCapabilityCode: msg.Request.SemanticFrame?.CapabilityCode ?? msg.Request.SemanticShadowFrame?.CapabilityCode,
+            SemanticRegistryVersion: msg.Request.SemanticFrame?.RegistryVersion ?? msg.Request.SemanticShadowFrame?.RegistryVersion);
+    }
+
+    private static string BuildPsGaugeContent(string symbol, PsVisualizationResult? result)
+    {
+        if (result is null)
+            return $"داده‌ای برای نمایش گیج P/S نماد {symbol} در پایگاه داده موجود نیست.";
+        if (result.TtmPs.Value is decimal value)
+            return $"گیج P/S نماد {result.CompanySymbol}: مقدار TTM برابر {value:0.00} است. وضعیت داده: {result.Status}.";
+        return $"داده‌ای برای نمایش گیج P/S نماد {result.CompanySymbol} موجود نیست (وضعیت: {result.Status}).";
     }
 
     private static string BuildDisclosureListingContent(DisclosureListingResult result)
@@ -884,6 +1083,34 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────
 
+    private static DetectedIntent SemanticIntent(string capabilityCode) => capabilityCode switch
+    {
+        "stock_screening" => DetectedIntent.Scanner,
+        "symbol_metric_lookup" => DetectedIntent.SymbolLookup,
+        "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
+        "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
+        "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
+        "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
+        "disclosure_listing" => DetectedIntent.DisclosureListing,
+        "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
+        "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
+        "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        _ => DetectedIntent.Unknown
+    };
+
+    private static DialogueOutcome SemanticDialogueOutcome(CapabilityExecutionStatus status) => status switch
+    {
+        CapabilityExecutionStatus.Executed => DialogueOutcome.Answered,
+        CapabilityExecutionStatus.Partial => DialogueOutcome.PartialAnswer,
+        CapabilityExecutionStatus.NoData => DialogueOutcome.NoData,
+        CapabilityExecutionStatus.ClarificationRequired => DialogueOutcome.ClarificationNeeded,
+        CapabilityExecutionStatus.DisambiguationRequired => DialogueOutcome.DisambiguationNeeded,
+        CapabilityExecutionStatus.TemporarilyUnavailable => DialogueOutcome.TemporarilyUnavailable,
+        CapabilityExecutionStatus.Failed => DialogueOutcome.Failed,
+        _ => DialogueOutcome.Unsupported
+    };
+
     private static DetectedIntent DetermineIntent(
         ScannerToolResult? scannerResult,
         SymbolLookupToolResult? lookupResult,
@@ -1021,6 +1248,52 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             "نسبت قیمت به سود",
             "price to earnings",
             "price-to-earnings");
+    }
+
+    private static DialogueOutcomeResult DetermineDialogueOutcome(
+        AgentExecutedMessage message,
+        DetectedIntent detectedIntent,
+        bool clarificationRequired,
+        string? clarificationMessage)
+    {
+        var hasStructuredResult =
+            message.ScannerResult is not null ||
+            message.LookupResult is not null ||
+            message.ComprehensiveAnalysisResult is not null ||
+            message.FinancialStatementAnalysisResult is not null ||
+            message.FinancialStatementTableResult is not null ||
+            message.ProductRevenueMixResult is not null ||
+            message.MonthlyActivityTrendResult is not null ||
+            message.MonthlySalesQualityRankingResult is not null ||
+            message.DisclosureListingResult is not null ||
+            message.PsVisualizationResult is not null ||
+            (detectedIntent is not DetectedIntent.Unknown and not DetectedIntent.PersonalizedInsightExplanation);
+
+        var hasData =
+            message.ScannerResult?.Table is not null ||
+            message.LookupResult?.Table?.Rows.Count > 0 ||
+            message.ComprehensiveAnalysisResult?.QueryResponse?.HasResults == true ||
+            message.FinancialStatementAnalysisResult is not null ||
+            message.FinancialStatementTableResult is not null ||
+            message.ProductRevenueMixResult is not null ||
+            message.MonthlyActivityTrendResult is not null ||
+            message.MonthlySalesQualityRankingResult?.Items.Count > 0 ||
+            message.DisclosureListingResult?.Items.Count > 0 ||
+            message.PsVisualizationResult is not null ||
+            detectedIntent == DetectedIntent.PersonalizedInsightExplanation;
+
+        var hasUnresolvedEntity =
+            message.LookupResult?.Table?.UnresolvedSymbols.Count > 0 ||
+            message.ComprehensiveAnalysisResult?.UnresolvedSymbols.Count > 0;
+
+        return AiDialogueOutcomePolicy.Determine(
+            message.Request.Message,
+            detectedIntent,
+            clarificationRequired,
+            clarificationMessage,
+            hasStructuredResult,
+            hasData,
+            hasUnresolvedEntity);
     }
 
     private static string NormalizeForIntent(string value) =>

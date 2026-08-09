@@ -1,0 +1,22 @@
+{
+  "description": "Sanitized Feature 103 non-equity normalization acceptance cases",
+  "assetAllocation": [
+    { "rawLabel": "commodity certificates", "assetClass": "CommodityCertificates", "marketValue": 1700, "weight": 3.5 },
+    { "rawLabel": "bank deposits", "assetClass": "BankDeposits", "marketValue": 110, "weight": 5.0 },
+    { "rawLabel": "derivatives", "assetClass": "Derivatives", "marketValue": 20, "weight": 0.2 },
+    { "rawLabel": "formula-error total", "assetClass": "Unknown", "marketValue": "#REF!", "isSectionTotal": true }
+  ],
+  "commodityCertificates": [
+    { "name": "gold bullion certificate GOLD01", "commodityType": "GoldBullion", "endingQuantity": 11 },
+    { "name": "copper cathode certificate COPPER01", "commodityType": "CopperCathode", "endingQuantity": 4 },
+    { "name": "rebar certificate REBAR01", "commodityType": "Rebar", "endingQuantity": 6 }
+  ],
+  "bankDeposits": [
+    { "bank": "Bank Mellat", "beginning": 100, "increase": 20, "decrease": 10, "ending": 110 },
+    { "bank": "Unknown Bank", "resolutionStatus": "Unresolved" }
+  ],
+  "derivatives": [
+    { "name": "protective put FOOLAD", "derivativeType": "ProtectivePut", "coveredQuantity": 100, "holdingQuantity": 100, "coverageStatus": "Covered" },
+    { "name": "ordinary call FOOLAD", "derivativeType": "ExchangeTradedOption", "positionSide": "Long", "coverageStatus": "NotApplicable" }
+  ]
+}

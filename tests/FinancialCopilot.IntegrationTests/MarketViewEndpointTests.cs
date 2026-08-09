@@ -20,7 +20,7 @@ public sealed class MarketViewEndpointTests : IClassFixture<MarketViewApiFactory
     }
 
     [Fact]
-    public async Task Watchlist_UpdateThenRead_ReturnsQuoteAndNoQuoteFallback()
+    public async Task Watchlist_UpdateThenRead_UsesCanonicalIntradayResolver()
     {
         using var client = UserClient();
 
@@ -36,8 +36,9 @@ public sealed class MarketViewEndpointTests : IClassFixture<MarketViewApiFactory
         Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
         Assert.Equal(2, symbols.Length);
         Assert.Equal(5m, symbols[0].GetProperty("changePercent").GetDecimal());
-        Assert.Equal(JsonValueKind.Null, symbols[1].GetProperty("latestPrice").ValueKind);
-        Assert.Equal(JsonValueKind.Null, symbols[1].GetProperty("asOf").ValueKind);
+        Assert.Equal(99m, symbols[1].GetProperty("latestPrice").GetDecimal());
+        Assert.Equal(-1m, symbols[1].GetProperty("changePercent").GetDecimal());
+        Assert.Equal("IntradayToday", symbols[1].GetProperty("sourceKind").GetString());
     }
 
     [Fact]
@@ -230,6 +231,33 @@ public class MarketViewApiFactory : AiFacadeApiFactory
             db.LatestMarketQuotes.AddRange(
                 Quote(gain.Id, 105m, 5m),
                 Quote(loss.Id, 95m, -5m));
+            db.DailyInstrumentTrades.Add(new DailyInstrumentTradeRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = "TsetmcWebService",
+                ExternalTradeId = Guid.NewGuid(),
+                TradingInstrumentId = noQuote.Id,
+                TradingDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                ClosingPrice = 97m,
+                LastTradedPrice = 98m,
+                PriceChange = 3m,
+                PriceYesterday = 100m,
+                SourceInsertedAt = DateTimeOffset.UtcNow
+            });
+            db.IntradayTradeSnapshots.Add(new IntradayTradeSnapshotRow
+            {
+                Id = Guid.NewGuid(),
+                ProviderName = "TsetmcWebService",
+                ExternalSnapshotId = Guid.NewGuid(),
+                TradingInstrumentId = noQuote.Id,
+                TradingDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                TradingTime = TimeOnly.FromDateTime(DateTime.UtcNow),
+                ClosingPrice = 98m,
+                LastTradedPrice = 99m,
+                PriceChange = 4m,
+                PriceYesterday = 100m,
+                ReceivedAt = DateTimeOffset.UtcNow
+            });
             db.DailyIndexSnapshots.Add(new DailyIndexSnapshotRow
             {
                 Id = Guid.NewGuid(),

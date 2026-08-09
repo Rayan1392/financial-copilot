@@ -778,6 +778,328 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.ToTable("CompanyProductRevenueMix", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsGaugeSnapshotRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BoundaryAverage")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("BoundaryEnd")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("BoundaryMax")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("BoundaryMin")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("BoundaryStart")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<long>("BucketA")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketB")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketC")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketD")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketE")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketF")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BucketTotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompletenessStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CurrentValuesFetchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrentValuesPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("FirstSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ForwardPsRatio")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<decimal>("GaugeClose")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<DateTimeOffset>("GaugeFetchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GaugePayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("GaugeRenderabilityStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("LastSyncedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedSnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly>("ObservationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProviderSymbol")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("QualityStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("QualityWarningsJson")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<string>("SourceCompanyIsin")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("TtmPsRatio")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "GaugeRenderabilityStatus", "ObservationDate");
+
+                    b.HasIndex("ProviderName", "CompanyId", "ObservationDate")
+                        .IsUnique();
+
+                    b.ToTable("CompanyPsGaugeSnapshots", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsHistoryPointRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FirstSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActiveInLatestSuccessfulSeries")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSeenInSuccessfulSeriesAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ObservationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProviderPointId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<decimal>("PsRatio")
+                        .HasPrecision(28, 14)
+                        .HasColumnType("numeric(28,14)");
+
+                    b.Property<string>("SourceCompanyIsin")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SourcePayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderName", "CompanyId", "ProviderPointId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "IsActiveInLatestSuccessfulSeries", "ObservationDate", "ProviderPointId");
+
+                    b.ToTable("CompanyPsHistoryPoints", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsSeriesSyncStateRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualFirstHistoryDate")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("ActualHistoryCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("ActualLastHistoryDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("BackfillCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConsecutiveCurrentValuesFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ConsecutiveGaugeFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ConsecutiveHistoryFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("DeclaredFirstHistoryDate")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("DeclaredHistoryCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("DeclaredLastHistoryDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("LastCompleteHistoryRefreshAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastCurrentValuesAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastCurrentValuesSuccessAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("LastGaugeAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastGaugeSuccessAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHistoryAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHistorySuccessAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastSuccessfulCorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateOnly?>("LastSuccessfulSnapshotDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("LastSuccessfulSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastWarningCodesJson")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<DateTimeOffset?>("NextEligibleHistoryRefreshAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedLatestSuccessfulSeriesHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SourceCompanyIsin")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("ProviderName", "CompanyId")
+                        .IsUnique();
+
+                    b.ToTable("CompanyPsSeriesSyncStates", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsVisualizationLeaseRow", b =>
+                {
+                    b.Property<string>("LeaseName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LeaseName");
+
+                    b.ToTable("CompanyPsVisualizationLeases", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.ComprehensiveAnalysisCategoryRow", b =>
                 {
                     b.Property<long>("AnalysisId")
@@ -2868,6 +3190,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("PublishedAt")
+                        .HasColumnType("date");
+
                     b.Property<string>("SourceMode")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -2886,9 +3211,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("character varying(32)");
 
                     b.Property<DateOnly?>("VendorPeriodDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("PublishedAt")
                         .HasColumnType("date");
 
                     b.Property<string>("WarningsJson")
@@ -3081,6 +3403,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("PublishedAt")
+                        .HasColumnType("date");
+
                     b.Property<string>("ReportType")
                         .HasColumnType("text");
 
@@ -3093,9 +3418,6 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("VendorPeriodDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("PublishedAt")
                         .HasColumnType("date");
 
                     b.Property<string>("WarningsJson")
@@ -4563,6 +4885,33 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.AlertRuleRow", null)
                         .WithMany()
                         .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsGaugeSnapshotRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsHistoryPointRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.CompanyPsSeriesSyncStateRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.NormalizedCompanyRow", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

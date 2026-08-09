@@ -79,6 +79,8 @@ export function createMonthlyTrendChartCardViewModel(
   const points = data.chartPoints.map((point) => mapPoint(point));
   const currentYear = data.chartPoints.find((point) => point.currentFiscalYear != null)?.currentFiscalYear;
   const previousYear = data.chartPoints.find((point) => point.previousFiscalYear != null)?.previousFiscalYear;
+  const currentYearTotal = sumReportedSales(points, "currentYear");
+  const previousYearTotal = sumReportedSales(points, "previousYear");
   const companyLabel = data.companyName
     ? `${data.companyName} (${data.companySymbol})`
     : data.companySymbol;
@@ -89,8 +91,14 @@ export function createMonthlyTrendChartCardViewModel(
     title: "روند فروش ماهانه",
     companyLabel,
     unitLabel: data.unitLabelFa,
-    currentYearLegend: currentYear ? toPersianDigits(String(currentYear)) : "سال جاری",
-    previousYearLegend: previousYear ? toPersianDigits(String(previousYear)) : "سال قبل",
+    currentYearLegend: formatCurrentYearLegend(
+      currentYear,
+      currentYearTotal,
+      previousYear,
+      previousYearTotal,
+      "سال جاری",
+    ),
+    previousYearLegend: formatYearLegend(previousYear, previousYearTotal, "سال قبل"),
     averageLegend: "میانگین ۱۲ ماهه",
     points,
     explanationLines: [
@@ -127,6 +135,46 @@ function formatBarAmount(value: number | null): string | null {
   return toPersianDigits(
     Math.round(value).toLocaleString("en-US", { maximumFractionDigits: 0 }),
   );
+}
+
+function sumReportedSales(
+  points: MonthlyTrendChartPointViewModel[],
+  yearKey: "currentYear" | "previousYear",
+): number | null {
+  const reportedAmounts = points
+    .map((point) => point[yearKey])
+    .filter((value): value is number => value !== null);
+
+  return reportedAmounts.length > 0
+    ? reportedAmounts.reduce((total, value) => total + value, 0)
+    : null;
+}
+
+function formatYearLegend(
+  year: number | null | undefined,
+  total: number | null,
+  fallback: string,
+): string {
+  const label = year ? toPersianDigits(String(year)) : fallback;
+  const totalLabel = formatBarAmount(total);
+  return totalLabel ? `${label}: ${totalLabel}` : label;
+}
+
+function formatCurrentYearLegend(
+  currentYear: number | null | undefined,
+  currentYearTotal: number | null,
+  previousYear: number | null | undefined,
+  previousYearTotal: number | null,
+  fallback: string,
+): string {
+  const label = formatYearLegend(currentYear, currentYearTotal, fallback);
+  if (currentYearTotal === null || previousYearTotal === null || previousYearTotal === 0) {
+    return label;
+  }
+
+  const percentage = toPersianDigits(((currentYearTotal / previousYearTotal) * 100).toFixed(2));
+  const previousYearLabel = previousYear ? toPersianDigits(String(previousYear)) : "سال قبل";
+  return `${label} (${percentage}٪ از ${previousYearLabel})`;
 }
 
 function formatJalaliDateTime(isoTimestamp: string): string {

@@ -207,7 +207,9 @@ public sealed class LlmSymbolLookupParser(
         {
             var language = NormalizeBcp47(llmOutput.DetectedLanguage);
             var metricTerm = SelectResolvableMetricTerm(
-                directRouting is not null && directRouting.MatchedPhrase.Length > pair.MetricTerm.Length
+                directRouting is not null &&
+                !string.Equals(directRouting.MetricCode.Value, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) &&
+                directRouting.MatchedPhrase.Length > pair.MetricTerm.Length
                     ? directRouting.MatchedPhrase
                     : pair.MetricTerm,
                 request.Message,

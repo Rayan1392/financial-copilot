@@ -51,6 +51,9 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("نمودار تولید و فروش ماهانه فملی", "فملی")]
     [InlineData("نمودار فروش فولاد", "فولاد")]
     [InlineData("نمودار فروش ماهانه شپدیس", "شپدیس")]
+    [InlineData("روند فروش ماهانه شپاکسا", "شپاکسا")]
+    [InlineData("روند فروش ماهانه شپ‌اکسا", "شپاکسا")]
+    [InlineData("روند فروش ماهانه شپاکسا؟", "شپاکسا")]
     public void Feature113_CanonicalAlias_RecognizesTrendAndExtractsSymbol(string query, string symbol)
     {
         Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(query));
@@ -119,6 +122,8 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("نمودار فروش ماهانه کسرا", "کسرا")]
     [InlineData("فروش امسال نسبت به پارسال کچاد", "کچاد")]
     [InlineData("میانگین ۱۲ ماهه فروش کگل", "کگل")]
+    [InlineData("روند فروش فن افزار؟", "فن افزار")]
+    [InlineData("روند فروش فن‌افزار؟", "فنافزار")]
     public void ExtractSymbol_TrendQuery_ReturnsCorrectSymbol(string query, string expectedSymbol)
     {
         var symbol = MonthlyActivityTrendIntentRules.ExtractCompanySymbol(query);

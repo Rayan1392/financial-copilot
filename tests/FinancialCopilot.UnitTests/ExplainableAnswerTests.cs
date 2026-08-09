@@ -348,6 +348,102 @@ public sealed class ExplainableAnswerBuilderTests
         Assert.Null(answer.ExplanationText);
     }
 
+    [Fact]
+    public async Task Build_SalesGrowth_UsesDeterministicPersianFramingAndDefaultDisclosure()
+    {
+        var salesPlan = new SalesGrowthScannerPlan(
+            new SalesGrowthScannerSemantics(
+                SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+                SalesGrowthThresholdKind.Percent,
+                ConditionOperator.GreaterThan,
+                30m,
+                FilterOrigin.InferredDefault,
+                SalesGrowthPolicyVersions.V1));
+        var plan = new ScannerQueryPlan(
+            Guid.NewGuid(),
+            "رشد فروش نمادها",
+            "fa",
+            [new ScannerCondition(
+                D.MetricRef("MONTHLY_SALES_GROWTH_YOY"),
+                ConditionOperator.GreaterThan,
+                30m,
+                FilterOrigin.InferredDefault)],
+            [],
+            false,
+            null,
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            "v1",
+            salesPlan);
+        var result = D.Result(plan.PlanId, [D.Row("A", "MONTHLY_SALES_GROWTH_PERCENT", 42m, live: false)]) with
+        {
+            SalesGrowthMetadata = new SalesGrowthTableMetadata(
+                new DateOnly(2026, 6, 1),
+                8,
+                10,
+                80m,
+                SalesGrowthCommonPeriodSelectionStatus.Available,
+                SalesGrowthPolicyVersions.V1.TargetPeriod,
+                SalesGrowthPolicyVersions.V1.Calculation,
+                false,
+                null)
+        };
+
+        var answer = await MakeBuilder(throwOnGenerate: true).BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.Contains("ماه مشابه سال قبل", answer.ExplanationText);
+        Assert.Contains("۳۰٪", answer.ExplanationText);
+        Assert.Contains("مبنای مقایسه مشخص نشده بود", answer.ExplanationText);
+        Assert.Contains("پوشش دوره مشترک", answer.ExplanationText);
+        Assert.NotNull(answer.ExplanationText);
+        Assert.True(answer.FilterChips.Single().IsInferred);
+        Assert.Equal(SalesGrowthSymbolScanner.Intent, answer.FilterChips.Single().MetricCode);
+    }
+
+    [Fact]
+    public async Task Build_SalesGrowth_EmptyPartialResultDisclosesUnavailableStatus()
+    {
+        var salesPlan = SalesGrowthScannerPlan.CreateInferredDefault();
+        var plan = new ScannerQueryPlan(
+            Guid.NewGuid(),
+            "sales growth",
+            "fa",
+            [],
+            [],
+            false,
+            null,
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            "v1",
+            salesPlan);
+        var result = D.Result(plan.PlanId, []) with
+        {
+            MissingDataWarnings = ["No common evaluation period is available."],
+            SalesGrowthMetadata = new SalesGrowthTableMetadata(
+                new DateOnly(2026, 6, 1),
+                2,
+                10,
+                20m,
+                SalesGrowthCommonPeriodSelectionStatus.Unavailable,
+                SalesGrowthPolicyVersions.V1.TargetPeriod,
+                SalesGrowthPolicyVersions.V1.Calculation,
+                false,
+                "No period met the minimum coverage policy.")
+        };
+
+        var answer = await MakeBuilder(throwOnGenerate: true).BuildAsync(
+            new ExplainableAnswerRequest(plan, result, Guid.NewGuid(), "corr"),
+            CancellationToken.None);
+
+        Assert.Contains("نماد منطبقی یافت نشد", answer.ExplanationText);
+        Assert.Contains("رتبه‌بندی انجام نشد", answer.ExplanationText);
+        Assert.Contains("در دسترس نیست", answer.ExplanationText);
+    }
+
     // --- helpers ---
 
     private static ExplainableAnswerBuilder MakeBuilder(

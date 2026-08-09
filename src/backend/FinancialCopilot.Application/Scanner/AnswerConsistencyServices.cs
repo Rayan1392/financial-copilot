@@ -42,14 +42,16 @@ public sealed class MetricDisplayNameResolver(
 
 public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNames) : ISymbolLookupProseBuilder
 {
-    private const string MonthlySalesUnitNote = "Unit: million Rials";
+    private const string MonthlySalesUnitNoteFa = "واحد: میلیون ریال";
+    private const string MonthlySalesUnitNoteEn = "Unit: million Rials";
     private const string MonthlySalesMetricCode = "MONTHLY_SALES";
 
     public string Build(SymbolLookupTableResult table)
     {
         var persian = ContainsPersian(table);
 
-        if (HasAvailableMonthlySalesMonetaryCell(table))
+        if ((table.RequestedMetricCodes is null || table.RequestedMetricCodes.Count == 0) &&
+            HasAvailableMonthlySalesMonetaryCell(table))
             return MonthlySalesSentence(table, persian);
 
         var metricColumns = table.Columns
@@ -88,7 +90,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
                 || requestedCell.FreshnessStatus == CellFreshnessStatus.Missing
                 || string.IsNullOrWhiteSpace(requestedCell.FormattedValue))
             {
-                return UnavailableSentence(persian, requestedSymbol, requestedMetricDisplay);
+                return WithUnitNote(table, UnavailableSentence(persian, requestedSymbol, requestedMetricDisplay));
             }
 
             return WithUnitNote(table, ValueSentence(
@@ -115,7 +117,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
             || cell.FreshnessStatus == CellFreshnessStatus.Missing
             || string.IsNullOrWhiteSpace(cell.FormattedValue))
         {
-            return UnavailableSentence(persian, symbol, metricDisplay);
+            return WithUnitNote(table, UnavailableSentence(persian, symbol, metricDisplay));
         }
 
         return WithUnitNote(table, ValueSentence(persian, symbol, metricCode, metricDisplay, cell));
@@ -267,7 +269,7 @@ public sealed class SymbolLookupProseBuilder(MetricDisplayNameResolver displayNa
 
     private static string WithUnitNote(SymbolLookupTableResult table, string sentence) =>
         HasMonthlySalesMonetaryColumn(table)
-            ? $"{MonthlySalesUnitNote}{Environment.NewLine}{sentence}"
+            ? $"{(ContainsPersian(table) ? MonthlySalesUnitNoteFa : MonthlySalesUnitNoteEn)}{Environment.NewLine}{sentence}"
             : sentence;
 
     private static bool HasMonthlySalesMonetaryColumn(SymbolLookupTableResult table) =>

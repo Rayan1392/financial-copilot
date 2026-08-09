@@ -290,6 +290,123 @@ public sealed class ScannerParserTests
         Assert.True(result.Plan.ClarificationRequired);
     }
 
+    [Fact]
+    public async Task Parser_Feature116SalesGrowthQuery_UsesDeterministicMonthlyYoyPlan()
+    {
+        var resolver = BuildAliasResolver();
+        var parser = BuildParser(string.Empty, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest("سهام با رشد فروش بالای 100 درصد؟", "fa", "corr-feature-116-bug", TenantId, AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Equal("MONTHLY_SALES_GROWTH_YOY", result.Plan.Conditions.Single().MetricReference.MetricCode.Value);
+        Assert.Equal(ConditionOperator.GreaterThan, result.Plan.Conditions.Single().Operator);
+        Assert.Equal(100m, result.Plan.Conditions.Single().Threshold);
+        Assert.NotNull(result.Plan.SalesGrowth);
+        Assert.Equal(
+            SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+            result.Plan.SalesGrowth.Semantics.Baseline);
+        Assert.Equal(SalesGrowthThresholdKind.Percent, result.Plan.SalesGrowth.Semantics.ThresholdKind);
+    }
+
+    [Fact]
+    public async Task Parser_Feature116SalesGrowthQuery_RecognizesSalesBeforeGrowthPhraseForMom()
+    {
+        var resolver = BuildAliasResolver();
+        var parser = BuildParser(string.Empty, resolver);
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest(
+                "\u0644\u06cc\u0633\u062a \u0633\u0647\u0645\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u0641\u0631\u0648\u0634 \u0627\u06cc\u0646 \u0645\u0627\u0647\u0634\u0627\u0646 \u0646\u0633\u0628\u062a \u0628\u0647 \u0645\u0627\u0647 \u0642\u0628\u0644 \u0628\u06cc\u0634 \u0627\u0632 100 \u062f\u0631\u0635\u062f \u0631\u0634\u062f \u06a9\u0631\u062f\u0647",
+                "fa",
+                "corr-feature-116-mom-phrase",
+                TenantId,
+                AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Equal("MONTHLY_SALES_GROWTH_MOM", result.Plan.Conditions.Single().MetricReference.MetricCode.Value);
+        Assert.Equal(ConditionOperator.GreaterThan, result.Plan.Conditions.Single().Operator);
+        Assert.Equal(100m, result.Plan.Conditions.Single().Threshold);
+        Assert.Equal(SalesGrowthComparisonBaseline.PreviousMonth, result.Plan.SalesGrowth!.Semantics.Baseline);
+    }
+
+    [Fact]
+    public async Task Parser_Feature116SalesMultiple_RecognizesSameMonthPreviousYearWithoutGrowthWord()
+    {
+        var parser = BuildParser(string.Empty, BuildAliasResolver());
+
+        var result = await parser.ParseAsync(
+            new ScannerParseRequest(
+                "\u0646\u0645\u0627\u062f\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u0641\u0631\u0648\u0634\u0634\u0627\u0646 \u062d\u062f\u0627\u0642\u0644 \u06f2 \u0628\u0631\u0627\u0628\u0631 \u0645\u0627\u0647 \u0645\u0634\u0627\u0628\u0647 \u0633\u0627\u0644 \u0642\u0628\u0644 \u0634\u062f\u0647",
+                "fa",
+                "corr-feature-116-yoy-multiple",
+                TenantId,
+                AsOf),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Plan.ClarificationRequired);
+        Assert.Equal("MONTHLY_SALES_GROWTH_YOY", result.Plan.Conditions.Single().MetricReference.MetricCode.Value);
+        Assert.Equal(ConditionOperator.GreaterThanOrEqual, result.Plan.Conditions.Single().Operator);
+        Assert.Equal(2m, result.Plan.Conditions.Single().Threshold);
+        Assert.Equal(SalesGrowthComparisonBaseline.SameMonthPreviousYear, result.Plan.SalesGrowth!.Semantics.Baseline);
+        Assert.Equal(SalesGrowthThresholdKind.Multiple, result.Plan.SalesGrowth.Semantics.ThresholdKind);
+    }
+
+    [Fact]
+    public async Task Parser_Feature116_RealPersianQueries_BypassLlmAliasRewrites()
+    {
+        var cases = new[]
+        {
+            (
+                Query: "\u0633\u0647\u0627\u0645 \u0628\u0627 \u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0628\u0627\u0644\u0627\u06cc 100 \u062f\u0631\u0635\u062f\u061f",
+                Baseline: SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+                Kind: SalesGrowthThresholdKind.Percent,
+                Operator: ConditionOperator.GreaterThan,
+                Threshold: 100m),
+            (
+                Query: "\u0633\u0647\u0627\u0645 \u0628\u0627 \u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0628\u0627\u0644\u0627\u06cc 40 \u062f\u0631\u0635\u062f\u061f",
+                Baseline: SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+                Kind: SalesGrowthThresholdKind.Percent,
+                Operator: ConditionOperator.GreaterThan,
+                Threshold: 40m),
+            (
+                Query: "\u0644\u06cc\u0633\u062a \u0646\u0645\u0627\u062f\u0647\u0627\u06cc \u0628\u0627 \u0631\u0634\u062f \u0641\u0631\u0648\u0634 \u0628\u0627\u0644\u0627\u06cc \u06f3\u06f0 \u062f\u0631\u0635\u062f \u0646\u0633\u0628\u062a \u0628\u0647 \u0633\u0627\u0644 \u06af\u0630\u0634\u062a\u0647",
+                Baseline: SalesGrowthComparisonBaseline.SameMonthPreviousYear,
+                Kind: SalesGrowthThresholdKind.Percent,
+                Operator: ConditionOperator.GreaterThan,
+                Threshold: 30m),
+            (
+                Query: "\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647\u200c\u0634\u0627\u0646 \u06f1.\u06f5 \u0628\u0631\u0627\u0628\u0631 \u0645\u06cc\u0627\u0646\u06af\u06cc\u0646 \u06f1\u06f2 \u0645\u0627\u0647\u0647 \u0627\u0633\u062a",
+                Baseline: SalesGrowthComparisonBaseline.AveragePrevious12Months,
+                Kind: SalesGrowthThresholdKind.Multiple,
+                Operator: ConditionOperator.GreaterThanOrEqual,
+                Threshold: 1.5m)
+        };
+
+        foreach (var testCase in cases)
+        {
+            var parser = BuildParser(string.Empty, BuildAliasResolver());
+            var result = await parser.ParseAsync(
+                new ScannerParseRequest(testCase.Query, "fa", "corr-feature-116-real-fa", TenantId, AsOf),
+                CancellationToken.None);
+
+            Assert.True(result.Succeeded);
+            Assert.False(result.Plan.ClarificationRequired);
+            Assert.Equal("fa", result.Plan.Language);
+            Assert.NotNull(result.Plan.SalesGrowth);
+            Assert.Equal(testCase.Baseline, result.Plan.SalesGrowth.Semantics.Baseline);
+            Assert.Equal(testCase.Kind, result.Plan.SalesGrowth.Semantics.ThresholdKind);
+            Assert.Equal(testCase.Operator, result.Plan.SalesGrowth.Semantics.ComparisonOperator);
+            Assert.Equal(testCase.Threshold, result.Plan.SalesGrowth.Semantics.ThresholdValue);
+        }
+    }
+
     // --- Bug 1 regression: market-scope clarification hallucination ---
 
     [Fact]

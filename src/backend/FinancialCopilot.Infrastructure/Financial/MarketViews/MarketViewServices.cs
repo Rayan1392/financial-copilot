@@ -1,6 +1,8 @@
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.MarketViews;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Domain.Financial.ValueObjects;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +59,7 @@ public sealed class MemoryMarketViewCache(
 
 public sealed class WatchlistService(
     FinancialIngestionDbContext dbContext,
+    IMarketDataProvider marketDataProvider,
     IBillableAccountResolver accountResolver,
     IPlanCapabilityService planCapabilities,
     IOptions<MarketViewOptions> options,
@@ -170,34 +173,28 @@ public sealed class WatchlistService(
             return new WatchlistView([], null);
         }
 
-        var rows = await (
-            from instrument in dbContext.TradingInstruments.AsNoTracking()
-            where symbols.Contains(instrument.Symbol)
-            join quote in dbContext.LatestMarketQuotes.AsNoTracking()
-                on instrument.Id equals quote.TradingInstrumentId into quoteRows
-            from quote in quoteRows.DefaultIfEmpty()
-            select new { instrument.Symbol, Quote = quote })
-            .ToListAsync(cancellationToken);
-        var quotes = rows
-            .GroupBy(row => row.Symbol, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Where(item => item.Quote is not null)
-                    .OrderByDescending(item => item.Quote!.AsOf)
-                    .Select(item => item.Quote)
-                    .FirstOrDefault(),
-                StringComparer.OrdinalIgnoreCase);
+        // Use the same canonical resolver as AI/scanner price lookups. It checks today's
+        // IntradayTradeSnapshots first, then daily trades, then the quote projection. The
+        // watchlist must not resolve prices through a separate instrument-id-only query because
+        // company-linked instruments can differ from the instrument row whose ticker is shown.
+        var requested = symbols
+            .Select(symbol => new SymbolCode(symbol))
+            .ToArray();
+        var quoteResult = await marketDataProvider.GetLatestQuotesAsync(requested, cancellationToken);
+        var observations = quoteResult.Observations
+            .ToDictionary(item => item.SymbolCode.Value, StringComparer.OrdinalIgnoreCase);
         var staleBefore = timeProvider.GetUtcNow().AddMinutes(-_options.StaleAfterMinutes);
         var result = symbols.Select(symbol =>
         {
-            quotes.TryGetValue(symbol, out var quote);
+            observations.TryGetValue(symbol, out var observation);
             return new WatchlistQuote(
                 symbol,
-                quote?.LatestPrice,
-                quote?.PriceChangePercentage,
-                quote?.AsOf,
-                quote?.SourceKind,
-                quote is not null && quote.AsOf < staleBefore);
+                observation?.LatestPrice,
+                observation?.PriceChangePercentage,
+                observation?.AsOf,
+                observation?.SourceLabel,
+                observation is not null &&
+                    (observation.Source != MarketQuoteSource.LiveQuote || observation.AsOf < staleBefore));
         }).ToArray();
         var timestamps = result.Select(item => item.AsOf).OfType<DateTimeOffset>().ToArray();
         return new WatchlistView(result, timestamps.Length == 0 ? null : timestamps.Max());

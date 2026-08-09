@@ -16,6 +16,7 @@ public enum DetectedIntent
     MonthlyActivityTrend,
     DisclosureListing,
     MonthlySalesQualityRanking,
+    PsGaugeVisualization,
     PersonalizedInsightExplanation,
     Clarification,
     Unknown
@@ -53,7 +54,11 @@ public sealed record AiQueryRequest(
     int DisclosurePageSize = 20,
     ActorType ActorType = ActorType.User,
     AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
-    AiQueryContext? Context = null);
+    AiQueryContext? Context = null,
+    string? OriginalUserMessage = null,
+    ValidatedQueryFrame? SemanticFrame = null,
+    ValidatedQueryFrame? SemanticShadowFrame = null,
+    string? SuggestedActionId = null);
 
 public sealed record AiQueryContext(
     Guid? InsightEventId = null,
@@ -85,7 +90,15 @@ public sealed record AiQueryResponse(
     ProductRevenueMixResponse? ProductRevenueMixResult = null,
     MonthlyActivityTrendResponse? MonthlyActivityTrendResult = null,
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult = null,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
+    string? SemanticCapabilityCode = null,
+    int? SemanticRegistryVersion = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

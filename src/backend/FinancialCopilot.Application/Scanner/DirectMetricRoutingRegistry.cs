@@ -30,6 +30,8 @@ public interface IDirectMetricRoutingRegistry
 {
     DirectMetricRoutingMatch? TryResolve(string userMessage, DateOnly asOf);
 
+    IReadOnlyList<DirectMetricRoutingMatch> ResolveAll(string userMessage, DateOnly asOf);
+
     bool ContainsDirectMetricTerm(string userMessage, DateOnly asOf);
 
     SymbolLookupPeriodSelector? ResolvePeriodSelector(string userMessage, MetricCode metricCode);
@@ -71,11 +73,11 @@ public sealed class DirectMetricRoutingRegistry(
                 DirectMetricRoutingCapabilities.LookupEligible |
                 DirectMetricRoutingCapabilities.DirectQuestionEligible |
                 DirectMetricRoutingCapabilities.FundamentalMetric,
-            ["ROE"] =
+            ["RETURN_ON_EQUITY"] =
                 DirectMetricRoutingCapabilities.LookupEligible |
                 DirectMetricRoutingCapabilities.DirectQuestionEligible |
                 DirectMetricRoutingCapabilities.FundamentalMetric,
-            ["ROA"] =
+            ["RETURN_ON_ASSETS"] =
                 DirectMetricRoutingCapabilities.LookupEligible |
                 DirectMetricRoutingCapabilities.DirectQuestionEligible |
                 DirectMetricRoutingCapabilities.FundamentalMetric,
@@ -167,39 +169,68 @@ public sealed class DirectMetricRoutingRegistry(
         "نماد", "سهم", "شرکت", "برای", "را", "از", "میخوام", "می‌خوام", "لطفا", "لطفاً"
     ];
 
+    private static readonly IReadOnlyDictionary<string, string> GovernedDirectPhrases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["فروش"] = "MONTHLY_SALES",
+            ["فروش ماه"] = "MONTHLY_SALES",
+            ["فروش ماهانه"] = "MONTHLY_SALES",
+            ["فروش ماهیانه"] = "MONTHLY_SALES",
+            ["آخرین فروش"] = "MONTHLY_SALES",
+            ["فروش آخرین ماه"] = "MONTHLY_SALES",
+            ["فروش این ماه"] = "MONTHLY_SALES",
+            ["فروش ماه قبل"] = "MONTHLY_SALES",
+            ["فروش ماه گذشته"] = "MONTHLY_SALES",
+            ["فروش ماه مشابه سال قبل"] = "MONTHLY_SALES",
+            ["مبلغ فروش"] = "MONTHLY_SALES",
+            ["monthly sales"] = "MONTHLY_SALES",
+            ["last month sales"] = "MONTHLY_SALES",
+            ["previous month sales"] = "MONTHLY_SALES"
+        };
+
     public DirectMetricRoutingMatch? TryResolve(string userMessage, DateOnly asOf)
     {
-        if (string.IsNullOrWhiteSpace(userMessage))
-        {
-            return null;
-        }
+        return ResolveMatches(userMessage, asOf)
+            .OrderByDescending(match => match.MatchedPhrase.Length)
+            .FirstOrDefault();
+    }
 
+    public IReadOnlyList<DirectMetricRoutingMatch> ResolveAll(string userMessage, DateOnly asOf)
+    {
         var normalizedMessage = NormalizeQuery(userMessage);
-        var candidates = ExtractCandidatePhrases(normalizedMessage);
-        DirectMetricRoutingMatch? best = null;
+        var matches = ResolveMatches(userMessage, asOf)
+            .GroupBy(match => match.MetricCode.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(match => match.MatchedPhrase.Length).First())
+            .ToList();
 
-        foreach (var candidate in candidates)
+        var componentMatches = matches.Where(candidate => matches.Any(other =>
+                !ReferenceEquals(candidate, other) &&
+                other.MatchedPhrase.Length > candidate.MatchedPhrase.Length &&
+                other.MatchedPhrase.Contains(candidate.MatchedPhrase, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+        foreach (var component in componentMatches)
+            matches.Remove(component);
+
+        if (matches.Any(match =>
+                !string.Equals(match.MetricCode.Value, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase) &&
+                match.Capabilities.HasFlag(DirectMetricRoutingCapabilities.MonthlyActivityMetric)))
         {
-            var resolution = ResolveCandidate(candidate, asOf);
-            if (resolution is null)
-            {
-                continue;
-            }
-
-            if (best is null ||
-                candidate.Length > best.MatchedPhrase.Length)
-            {
-                best = resolution with
-                {
-                    PeriodSelector = ResolvePeriodSelector(userMessage, resolution.MetricCode),
-                    DisplayLabel = ResolveDisplayLabel(
-                        resolution.MetricCode,
-                        ResolvePeriodSelector(userMessage, resolution.MetricCode))
-                };
-            }
+            matches.RemoveAll(match => string.Equals(match.MetricCode.Value, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase));
         }
 
-        return best;
+        // A bare Persian "sales" token is a useful direct-lookup alias, but it is
+        // also contained in the P/S long form. Keep it only when monthly intent is
+        // explicit or no P/S metric was resolved.
+        if (matches.Any(match => string.Equals(match.MetricCode.Value, "PS_TTM", StringComparison.OrdinalIgnoreCase)) &&
+            !ContainsAny(normalizedMessage, "فروش ماه", "فروش ماهانه", "فروش ماهیانه", "آخرین فروش", "monthly sales"))
+        {
+            matches.RemoveAll(match => string.Equals(match.MetricCode.Value, "MONTHLY_SALES", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return matches
+            .OrderBy(match => normalizedMessage.IndexOf(match.MatchedPhrase, StringComparison.OrdinalIgnoreCase) is var index && index >= 0 ? index : int.MaxValue)
+            .ThenByDescending(match => match.MatchedPhrase.Length)
+            .ToArray();
     }
 
     public bool ContainsDirectMetricTerm(string userMessage, DateOnly asOf) =>
@@ -290,6 +321,8 @@ public sealed class DirectMetricRoutingRegistry(
             ("PS_TTM", _) => "نسبت قیمت به فروش",
             ("LATEST_PRICE", _) => "آخرین قیمت",
             ("DAILY_CHANGE_PCT", _) => "تغییر روزانه %",
+            ("RETURN_ON_EQUITY", _) => "بازده حقوق صاحبان سهام (ROE)",
+            ("RETURN_ON_ASSETS", _) => "بازده دارایی‌ها (ROA)",
             ("NET_PROFIT_MARGIN", _) => "حاشیه سود خالص",
             ("GROSS_PROFIT_MARGIN", _) => "حاشیه سود ناخالص",
             ("OPERATING_PROFIT_MARGIN", _) => "حاشیه سود عملیاتی",
@@ -344,7 +377,40 @@ public sealed class DirectMetricRoutingRegistry(
                 ResolveDisplayLabel(metricCode, null));
         }
 
-        return null;
+        if (!GovernedDirectPhrases.TryGetValue(candidate, out var governedCode) ||
+            !CapabilityMap.TryGetValue(governedCode, out var governedCapabilities))
+        {
+            return null;
+        }
+
+        var governedMetricCode = new MetricCode(governedCode);
+        return new DirectMetricRoutingMatch(
+            candidate,
+            governedMetricCode,
+            governedCapabilities,
+            null,
+            ResolveDisplayLabel(governedMetricCode, null));
+    }
+
+    private IReadOnlyList<DirectMetricRoutingMatch> ResolveMatches(string userMessage, DateOnly asOf)
+    {
+        if (string.IsNullOrWhiteSpace(userMessage)) return [];
+
+        var matches = new List<DirectMetricRoutingMatch>();
+        var normalizedMessage = NormalizeQuery(userMessage);
+        foreach (var candidate in ExtractCandidatePhrases(normalizedMessage))
+        {
+            var resolution = ResolveCandidate(candidate, asOf);
+            if (resolution is null) continue;
+            var selector = ResolvePeriodSelector(userMessage, resolution.MetricCode);
+            matches.Add(resolution with
+            {
+                PeriodSelector = selector,
+                DisplayLabel = ResolveDisplayLabel(resolution.MetricCode, selector)
+            });
+        }
+
+        return matches;
     }
 
     private static IEnumerable<string> ExtractCandidatePhrases(string normalizedMessage)

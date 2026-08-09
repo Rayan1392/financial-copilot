@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Domain.Financial.Metrics;
@@ -77,8 +78,244 @@ public sealed class LlmScannerQueryParser(
         ScannerParseRequest request,
         CancellationToken cancellationToken)
     {
+        if (TryBuildFeature116SalesGrowthPlan(request, out var salesGrowthResult))
+        {
+            return salesGrowthResult;
+        }
+
         var llmOutput = await InvokeLlmAsync(request, cancellationToken);
         return BuildPlan(request, llmOutput, cancellationToken);
+    }
+
+    private bool TryBuildFeature116SalesGrowthPlan(
+        ScannerParseRequest request,
+        out ScannerParseResult result)
+    {
+        result = default!;
+        var normalized = NormalizeSalesGrowthText(request.UserQuery);
+        var hasGenericSalesGrowth = Feature116ContainsAny(
+                normalized,
+                "\u0631\u0634\u062f \u0641\u0631\u0648\u0634",
+                "\u0627\u0641\u0632\u0627\u06cc\u0634 \u0641\u0631\u0648\u0634",
+                "sales growth") ||
+            (Feature116ContainsAny(normalized, "\u0641\u0631\u0648\u0634", "sales") &&
+             Feature116ContainsAny(
+                 normalized,
+                 "\u0631\u0634\u062f",
+                 "\u0627\u0641\u0632\u0627\u06cc\u0634",
+                 "\u0631\u0634\u062f \u06a9\u0631\u062f\u0647",
+                 "growth",
+                 "increase",
+                 "increased",
+                 "grew"));
+        var hasAverage12MonthMultiple =
+            Feature116ContainsAny(normalized, "\u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647", "monthly sales") &&
+            Feature116ContainsAny(normalized, "\u0645\u06cc\u0627\u0646\u06af\u06cc\u0646", "\u0645\u062a\u0648\u0633\u0637", "average") &&
+            Feature116ContainsAny(normalized, "12 \u0645\u0627\u0647", "12-month", "12 month") &&
+            Feature116ContainsAny(normalized, "\u0628\u0631\u0627\u0628\u0631", " times", " multiple");
+        var hasComparativeSalesMultiple =
+            Feature116ContainsAny(normalized, "\u0641\u0631\u0648\u0634", "sales") &&
+            Feature116ContainsAny(normalized, "\u0628\u0631\u0627\u0628\u0631", " times", " multiple") &&
+            Feature116ContainsAny(
+                normalized,
+                "\u0645\u0627\u0647 \u0642\u0628\u0644",
+                "\u0645\u0627\u0647 \u0645\u0634\u0627\u0628\u0647",
+                "\u0633\u0627\u0644 \u0642\u0628\u0644",
+                "\u0633\u0627\u0644 \u06af\u0630\u0634\u062a\u0647",
+                "\u067e\u0627\u0631\u0633\u0627\u0644",
+                "previous month",
+                "same month",
+                "previous year",
+                "last year",
+                "mom",
+                "yoy");
+
+        if (!hasGenericSalesGrowth && !hasAverage12MonthMultiple && !hasComparativeSalesMultiple)
+        {
+            return false;
+        }
+
+        var baseline = ResolveFeature116Baseline(normalized, out var baselineOrigin);
+        var thresholdKind = Feature116ContainsAny(normalized, "\u0628\u0631\u0627\u0628\u0631", " times", " multiple")
+            ? SalesGrowthThresholdKind.Multiple
+            : SalesGrowthThresholdKind.Percent;
+        var thresholdMatch = MatchFeature116Threshold(normalized, thresholdKind);
+
+        decimal? threshold = null;
+        if (thresholdMatch.Success &&
+            decimal.TryParse(
+                thresholdMatch.Groups["value"].Value,
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var parsedThreshold))
+        {
+            threshold = parsedThreshold;
+        }
+        else if (thresholdKind == SalesGrowthThresholdKind.Percent)
+        {
+            thresholdKind = SalesGrowthThresholdKind.Positive;
+        }
+        else
+        {
+            return false;
+        }
+
+        var comparisonOperator = ResolveFeature116Operator(normalized, thresholdKind);
+        var metricCode = (baseline, thresholdKind) switch
+        {
+            (SalesGrowthComparisonBaseline.PreviousMonth, _) => "MONTHLY_SALES_GROWTH_MOM",
+            (SalesGrowthComparisonBaseline.SameMonthPreviousYear, _) => "MONTHLY_SALES_GROWTH_YOY",
+            (_, SalesGrowthThresholdKind.Multiple) => "MONTHLY_SALES_GROWTH_MULTIPLE",
+            _ => "MONTHLY_SALES_GROWTH_PERCENT"
+        };
+        var growthComparison = baseline switch
+        {
+            SalesGrowthComparisonBaseline.PreviousMonth => GrowthComparison.MonthOverMonth,
+            SalesGrowthComparisonBaseline.SameMonthPreviousYear => GrowthComparison.YearOverYear,
+            _ => (GrowthComparison?)null
+        };
+        var thresholdOrigin = threshold.HasValue ? FilterOrigin.Explicit : FilterOrigin.InferredDefault;
+
+        var condition = new ScannerCondition(
+            new ScannerMetricReference(
+                "\u0631\u0634\u062f \u0641\u0631\u0648\u0634",
+                new MetricCode(metricCode),
+                new MetricVersion("v1"),
+                new CalculationPolicyVersion($"{metricCode}_v1"),
+                FiscalPeriodType.Monthly,
+                growthComparison),
+            comparisonOperator,
+            threshold ?? 0m,
+            thresholdOrigin);
+
+        var salesPlan = new SalesGrowthScannerPlan(
+            new SalesGrowthScannerSemantics(
+                baseline,
+                thresholdKind,
+                comparisonOperator,
+                threshold,
+                baselineOrigin == FilterOrigin.Explicit && thresholdOrigin == FilterOrigin.Explicit
+                    ? FilterOrigin.Explicit
+                    : FilterOrigin.InferredDefault,
+                SalesGrowthPolicyVersions.V1,
+                baselineOrigin,
+                thresholdOrigin));
+
+        var language = normalized.Any(character => character is >= '\u0600' and <= '\u06ff')
+            ? "fa"
+            : request.Language;
+        var plan = new ScannerQueryPlan(
+            Guid.NewGuid(),
+            request.UserQuery,
+            language,
+            [condition],
+            [],
+            false,
+            null,
+            [],
+            [],
+            timeProvider.GetUtcNow(),
+            PolicyVersion,
+            salesPlan);
+
+        var validationError = validator.Validate(plan);
+        result = validationError is null
+            ? new ScannerParseResult(plan, Succeeded: true)
+            : new ScannerParseResult(plan, Succeeded: false, validationError);
+        return true;
+    }
+
+    private static SalesGrowthComparisonBaseline ResolveFeature116Baseline(
+        string normalized,
+        out FilterOrigin origin)
+    {
+        origin = FilterOrigin.Explicit;
+        if (Feature116ContainsAny(normalized, "\u0645\u06cc\u0627\u0646\u06af\u06cc\u0646", "\u0645\u062a\u0648\u0633\u0637", "average"))
+        {
+            return SalesGrowthComparisonBaseline.AveragePrevious12Months;
+        }
+
+        if (Feature116ContainsAny(normalized, "\u0645\u0627\u0647 \u0642\u0628\u0644", "\u062f\u0648\u0631\u0647 \u0642\u0628\u0644", "previous month", "mom"))
+        {
+            return SalesGrowthComparisonBaseline.PreviousMonth;
+        }
+
+        if (Feature116ContainsAny(
+                normalized,
+                "\u0633\u0627\u0644 \u06af\u0630\u0634\u062a\u0647",
+                "\u0633\u0627\u0644 \u0642\u0628\u0644",
+                "\u067e\u0627\u0631\u0633\u0627\u0644",
+                "\u0645\u0627\u0647 \u0645\u0634\u0627\u0628\u0647",
+                "\u062f\u0648\u0631\u0647 \u0645\u0634\u0627\u0628\u0647",
+                "previous year",
+                "last year",
+                "yoy"))
+        {
+            return SalesGrowthComparisonBaseline.SameMonthPreviousYear;
+        }
+
+        origin = FilterOrigin.InferredDefault;
+        return SalesGrowthComparisonBaseline.SameMonthPreviousYear;
+    }
+
+    private static System.Text.RegularExpressions.Match MatchFeature116Threshold(
+        string normalized,
+        SalesGrowthThresholdKind thresholdKind)
+    {
+        var suffix = thresholdKind == SalesGrowthThresholdKind.Multiple
+            ? "(?:\\u0628\\u0631\\u0627\\u0628\\u0631|times?|multiple)"
+            : "(?:%|\\u062f\\u0631\\u0635\\u062f|percent)";
+
+        return System.Text.RegularExpressions.Regex.Match(
+            normalized,
+            $@"(?<value>\d+(?:\.\d+)?)\s*{suffix}",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    }
+
+    private static ConditionOperator ResolveFeature116Operator(
+        string normalized,
+        SalesGrowthThresholdKind thresholdKind)
+    {
+        if (thresholdKind == SalesGrowthThresholdKind.Positive)
+        {
+            return ConditionOperator.GreaterThan;
+        }
+
+        if (Feature116ContainsAny(normalized, "\u062d\u062f\u0627\u0642\u0644", "\u06a9\u0645\u062a\u0631 \u0646\u0628\u0627\u0634\u062f", "at least", "no less than"))
+        {
+            return ConditionOperator.GreaterThanOrEqual;
+        }
+
+        if (Feature116ContainsAny(normalized, "\u0628\u06cc\u0634 \u0627\u0632", "\u0628\u06cc\u0634\u062a\u0631 \u0627\u0632", "\u0628\u0627\u0644\u0627\u06cc", "over", "more than", "above"))
+        {
+            return ConditionOperator.GreaterThan;
+        }
+
+        // Feature 116 defines unqualified multiple expressions such as "2 times" as
+        // at-least/effectively that multiple, avoiding a brittle exact-decimal match.
+        return thresholdKind == SalesGrowthThresholdKind.Multiple
+            ? ConditionOperator.GreaterThanOrEqual
+            : ConditionOperator.GreaterThan;
+    }
+
+    private static bool Feature116ContainsAny(string value, params string[] terms) =>
+        terms.Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeSalesGrowthText(string value)
+    {
+        var normalized = value.Trim()
+            .Replace('٫', '.')
+            .Replace('٬', ',');
+
+        for (var digit = 0; digit <= 9; digit++)
+        {
+            normalized = normalized
+                .Replace((char)('\u06F0' + digit), (char)('0' + digit))
+                .Replace((char)('\u0660' + digit), (char)('0' + digit));
+        }
+
+        return normalized;
     }
 
     private async Task<LlmScannerParseOutput> InvokeLlmAsync(
@@ -456,7 +693,7 @@ public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator
             return "Scanner plan must retain the original user query.";
         }
 
-        if (plan.Conditions.Count == 0 && !plan.ClarificationRequired)
+        if (plan.Conditions.Count == 0 && plan.SalesGrowth is null && !plan.ClarificationRequired)
         {
             return "Scanner plan must contain at least one condition or require clarification.";
         }
@@ -472,6 +709,58 @@ public sealed class ScannerQueryPlanValidator : IScannerQueryPlanValidator
         if (plan.RequestedColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
         {
             return $"Requested columns exceed the {ScannerQueryPlan.MaxDisplayColumns}-column maximum.";
+        }
+
+        if (plan.SalesGrowth is not null)
+        {
+            var salesGrowth = plan.SalesGrowth;
+            if (salesGrowth.CurrentObservationSelector !=
+                SalesGrowthCurrentObservationSelector.LatestEligibleCompleteMonthlySales)
+            {
+                return "Sales-growth scanner requires the latest eligible complete monthly-sales observation selector.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind == SalesGrowthThresholdKind.Positive &&
+                salesGrowth.Semantics.ComparisonOperator != ConditionOperator.GreaterThan)
+            {
+                return "Positive sales growth must use the strict GreaterThan operator.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind is SalesGrowthThresholdKind.Percent or SalesGrowthThresholdKind.Multiple &&
+                salesGrowth.Semantics.ThresholdValue is null)
+            {
+                return "Percent and multiple sales-growth thresholds require a numeric value.";
+            }
+
+            if (salesGrowth.Semantics.ThresholdKind == SalesGrowthThresholdKind.Multiple &&
+                salesGrowth.Semantics.ThresholdValue <= 0)
+            {
+                return "Sales-growth multiple thresholds must be greater than zero.";
+            }
+
+            if (salesGrowth.Page < 1 || salesGrowth.PageSize < 1 ||
+                salesGrowth.PageSize > SalesGrowthScannerPlan.MaximumPageSize)
+            {
+                return $"Sales-growth pagination must use page >= 1 and page size between 1 and {SalesGrowthScannerPlan.MaximumPageSize}.";
+            }
+
+            var universe = salesGrowth.EffectiveMarketUniverse;
+            if (universe.MaximumSymbols < 1 || universe.MaximumSymbols > SalesGrowthScannerPlan.MaximumSymbols)
+            {
+                return $"Sales-growth market universe must contain between 1 and {SalesGrowthScannerPlan.MaximumSymbols} symbols.";
+            }
+
+            var sort = salesGrowth.EffectiveSort;
+            if (sort.Key != SalesGrowthSortKey.GrowthPercent ||
+                sort.Direction is not (SalesGrowthSortDirection.Descending or SalesGrowthSortDirection.Ascending))
+            {
+                return "Sales-growth sorting supports only GrowthPercent with an explicit direction.";
+            }
+
+            if (salesGrowth.EffectiveRequestedDisplayColumns.Count > ScannerQueryPlan.MaxDisplayColumns)
+            {
+                return $"Sales-growth display columns exceed the {ScannerQueryPlan.MaxDisplayColumns}-column maximum.";
+            }
         }
 
         return null;

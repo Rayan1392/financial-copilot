@@ -52,9 +52,13 @@ internal sealed record AgentExecutedMessage(
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult,
     string CompletionStatus,
     bool FromCache,
-    IAiModelClient ModelClient,
+    IAiModelClient? ModelClient,
     UsageAccountingResult? Usage,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    DialogueOutcome? SemanticOutcome = null,
+    string? SemanticOutcomeReasonCode = null,
+    string? SemanticReplyLanguage = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -74,7 +78,7 @@ internal sealed record ResultsComputedMessage(
     MonthlySalesQualityRankingResponse? MonthlySalesQualityRankingResult,
     string CompletionStatus,
     bool FromCache,
-    IAiModelClient ModelClient,
+    IAiModelClient? ModelClient,
     DetectedIntent DetectedIntent,
     bool ClarificationRequired,
     string? ClarificationMessage,
@@ -82,7 +86,13 @@ internal sealed record ResultsComputedMessage(
     ConfidenceScoreResult? ConfidenceScore,
     string? GroundedAnswer,
     UsageAccountingResult? Usage,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -105,6 +115,12 @@ internal sealed record PersistenceCompletedMessage(
     string? TextAnswer,
     UsageAccountingResult? Usage,
     IReadOnlyCollection<MemoryUseDisclosure>? Disclosures,
-    IAiModelClient ModelClient,
+    IAiModelClient? ModelClient,
     string WorkflowCorrelationId,
-    DisclosureListingResult? DisclosureListingResult = null);
+    DialogueOutcome Outcome = DialogueOutcome.Answered,
+    string OutcomeReasonCode = DialogueOutcomeReasonCodes.None,
+    string ReplyLanguage = "en",
+    bool LanguageGuardApplied = false,
+    DisclosureListingResult? DisclosureListingResult = null,
+    PsVisualizationResult? PsVisualizationResult = null,
+    IReadOnlyCollection<SuggestedAction>? SuggestedActions = null);

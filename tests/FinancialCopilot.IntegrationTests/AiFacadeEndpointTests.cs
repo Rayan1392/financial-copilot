@@ -167,6 +167,10 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(document.RootElement.GetProperty("clarificationRequired").GetBoolean());
+        var liveActions = document.RootElement.GetProperty("suggestedActions").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()).ToArray();
+        Assert.NotEmpty(liveActions);
+        var conversationId = document.RootElement.GetProperty("conversationId").GetGuid();
         var usage = document.RootElement.GetProperty("usage");
         Assert.Equal("ClarificationRequired", usage.GetProperty("completionStatus").GetString());
         Assert.Equal(0m, usage.GetProperty("creditsCharged").GetDecimal());
@@ -175,6 +179,35 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         var entry = entries.OrderBy(item => item.OccurredAt).Last();
         Assert.Equal(0m, entry.CreditsCharged);
         Assert.Equal("ClarificationRequired", entry.CompletionStatus);
+
+        using var messagesResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages",
+            CancellationToken.None);
+        using var messagesDocument = await ReadJsonAsync(messagesResponse);
+        var assistant = messagesDocument.RootElement.GetProperty("messages").EnumerateArray().Last();
+        var reloadedActions = assistant.GetProperty("assistantContent").GetProperty("suggestedActions").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()).ToArray();
+        Assert.Equal(liveActions, reloadedActions);
+    }
+
+    [Fact]
+    public async Task CapabilityGuidance_ReturnsRegistryBackedExecutableStarters()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.GetAsync("/api/ai/v1/capabilities/guidance?language=fa", CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var prompts = document.RootElement.EnumerateArray().ToArray();
+        Assert.NotEmpty(prompts);
+        Assert.All(prompts, prompt =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(prompt.GetProperty("capabilityCode").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(prompt.GetProperty("example").GetString()));
+            Assert.True(prompt.GetProperty("registryVersion").GetInt32() > 0);
+        });
     }
 
     [Fact]
@@ -384,6 +417,8 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
             ReplaceIngestionDbContext(services, IngestionDatabaseName);
 
             // Replace all registered AI model clients with a single scanner-aware fake.
+            services.RemoveAll<IAiModelProviderRoutingPolicy>();
+            services.AddSingleton<IAiModelProviderRoutingPolicy>(new TestAiModelProviderRoutingPolicy());
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(_ =>
                 new ScannerAwareFakeAiModelClient(returnUnknownTerm: false));
@@ -467,6 +502,11 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
 
         return client;
     }
+}
+
+internal sealed class TestAiModelProviderRoutingPolicy : IAiModelProviderRoutingPolicy
+{
+    public string? DefaultProviderKey => null;
 }
 
 // Returns structured JSON shaped for either intent detection or scanner parsing based on schema name.

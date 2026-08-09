@@ -55,6 +55,42 @@ namespace FinancialCopilot.Infrastructure.Conversations.Persistence.Migrations
                     b.ToTable("Conversations", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Conversations.Persistence.ConversationTaskStateRow", b =>
+                {
+                    b.Property<Guid>("ConversationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastCorrelationId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("StateJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ConversationId");
+
+                    b.HasIndex("TenantId", "ActorId", "ExpiresAt");
+
+                    b.ToTable("ConversationTaskStates", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Conversations.Persistence.MessageRow", b =>
                 {
                     b.Property<Guid>("Id")

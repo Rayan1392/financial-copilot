@@ -108,7 +108,7 @@ public sealed class ExplainableAnswerBuilder(
         var confidence = confidenceCalculator.Calculate(plan, result);
 
         ScannerExplanationOutput? explanationOutput = null;
-        if (result is not null)
+        if (plan.SalesGrowth is null && result is not null)
         {
             try
             {
@@ -128,17 +128,24 @@ public sealed class ExplainableAnswerBuilder(
             }
         }
 
+        var explanationText = plan.SalesGrowth is not null
+            ? BuildSalesGrowthExplanation(plan, result)
+            : explanationOutput?.ExplanationText;
+
         return new ExplainableAnswer(
             filterChips,
             metricEvidence,
             dataCitations,
             confidence,
             explanationOutput?.SuggestedFollowUpQuestions ?? [],
-            explanationOutput?.ExplanationText);
+            explanationText);
     }
 
-    private IReadOnlyCollection<ConditionFilterChip> BuildFilterChips(ScannerQueryPlan plan, DateOnly asOf) =>
-        plan.Conditions.Select(condition =>
+    private IReadOnlyCollection<ConditionFilterChip> BuildFilterChips(ScannerQueryPlan plan, DateOnly asOf)
+    {
+        var chips = plan.Conditions
+            .Where(condition => plan.SalesGrowth is null || !IsSalesGrowthMetric(condition.MetricReference.MetricCode.Value))
+            .Select(condition =>
         {
             var code = condition.MetricReference.MetricCode.Value;
             var displayName = TryGetDisplayName(condition.MetricReference.MetricCode, asOf) ?? code;
@@ -156,11 +163,40 @@ public sealed class ExplainableAnswerBuilder(
                 condition.OriginReason);
         }).ToList();
 
+        if (plan.SalesGrowth is { } salesPlan)
+        {
+            var semantics = salesPlan.Semantics;
+            var threshold = semantics.ThresholdKind == SalesGrowthThresholdKind.Positive
+                ? 0m
+                : semantics.ThresholdValue ?? 0m;
+            var (symbol, label) = GetOperatorDisplay(semantics.ComparisonOperator);
+            chips.Insert(
+                0,
+                new ConditionFilterChip(
+                    SalesGrowthSymbolScanner.Intent,
+                    "رشد فروش",
+                    symbol,
+                    label,
+                    threshold,
+                    FormatThreshold(threshold),
+                    semantics.Origin.ToString(),
+                    semantics.Origin == FilterOrigin.InferredDefault,
+                    semantics.Origin == FilterOrigin.InferredDefault
+                        ? "مبنای مقایسه طبق سیاست پیش‌فرض فروش انتخاب شد."
+                        : null));
+        }
+
+        return chips;
+    }
+
     private IReadOnlyCollection<MetricEvidenceSummary> BuildMetricEvidence(
         ScannerQueryPlan plan,
         ScannerTableResult? result,
-        DateOnly asOf) =>
-        plan.Conditions.Select(condition =>
+        DateOnly asOf)
+    {
+        var evidence = plan.Conditions
+            .Where(condition => plan.SalesGrowth is null || !IsSalesGrowthMetric(condition.MetricReference.MetricCode.Value))
+            .Select(condition =>
         {
             var code = condition.MetricReference.MetricCode.Value;
             var displayName = TryGetDisplayName(condition.MetricReference.MetricCode, asOf) ?? code;
@@ -182,11 +218,144 @@ public sealed class ExplainableAnswerBuilder(
                 representativeCell?.SourceTimestamp);
         }).ToList();
 
+        if (plan.SalesGrowth is { } salesPlan)
+        {
+            var growthCell = result?.Rows
+                .Select(row => row.Cells.TryGetValue("MONTHLY_SALES_GROWTH_PERCENT", out var cell) ? cell : null)
+                .FirstOrDefault(cell => cell is not null && cell.FreshnessStatus != CellFreshnessStatus.Missing);
+            evidence.Insert(
+                0,
+                new MetricEvidenceSummary(
+                    SalesGrowthSymbolScanner.Intent,
+                    salesPlan.Semantics.Policies.Calculation.Value,
+                    salesPlan.Semantics.Policies.Calculation.Value,
+                    "رشد فروش",
+                    "درصد",
+                    growthCell?.Value,
+                    growthCell?.FormattedValue,
+                    "Monthly",
+                    growthCell?.SourceTimestamp));
+        }
+
+        return evidence;
+    }
+
+    private static string BuildSalesGrowthExplanation(
+        ScannerQueryPlan plan,
+        ScannerTableResult? result)
+    {
+        var salesPlan = plan.SalesGrowth!;
+        var semantics = salesPlan.Semantics;
+        var metadata = result?.SalesGrowthMetadata;
+        var baseline = GetBaselineDisplay(semantics.Baseline);
+        var threshold = semantics.ThresholdKind switch
+        {
+            SalesGrowthThresholdKind.Positive => "رشد مثبت",
+            SalesGrowthThresholdKind.Percent =>
+                $"رشد {GetOperatorPhrase(semantics.ComparisonOperator)} {FormatPersianNumber(semantics.ThresholdValue ?? 0m)}٪",
+            SalesGrowthThresholdKind.Multiple =>
+                $"نسبت فروش {GetOperatorPhrase(semantics.ComparisonOperator)} {FormatPersianNumber(semantics.ThresholdValue ?? 0m)} برابر",
+            _ => "شرط رشد فروش"
+        };
+        var targetPeriod = metadata?.TargetCommonPeriod.ToString("yyyy/MM") ??
+                           (salesPlan.TargetCommonPeriod?.ToString("yyyy/MM") ?? "نامشخص");
+        var rows = result?.Rows.Count ?? 0;
+        var lines = new List<string>
+        {
+            rows == 0
+                ? "برای این شرط نماد منطبقی یافت نشد."
+                : $"{rows} نماد با {threshold} فروش آخرین ماه کامل نسبت به {baseline} در دوره {FormatPersianDigits(targetPeriod)} نمایش داده شده‌اند.",
+            $"مبنای محاسبه: {baseline}؛ دوره هدف: {FormatPersianDigits(targetPeriod)}."
+        };
+
+        if (semantics.Origin == FilterOrigin.InferredDefault)
+        {
+            lines.Add($"چون مبنای مقایسه مشخص نشده بود، {baseline} در نظر گرفته شد.");
+        }
+
+        if (metadata is not null)
+        {
+            lines.Add(
+                $"پوشش دوره مشترک: {FormatPersianNumber(metadata.CoverageNumerator)} از {FormatPersianNumber(metadata.CoverageDenominator)} نماد ({FormatPersianNumber(metadata.CoveragePercent)}٪). "+
+                $"وضعیت: {GetSelectionStatusDisplay(metadata.SelectionStatus)}.");
+            if (metadata.MixedPeriods)
+            {
+                lines.Add("هشدار: نتایج ممکن است شامل دوره‌های متفاوت باشند و وضعیت دوره ترکیبی است.");
+            }
+        }
+
+        if (result?.MissingDataWarnings is { Count: > 0 })
+        {
+            lines.Add($"هشدار داده: {string.Join(" ؛ ", result.MissingDataWarnings)}");
+        }
+
+        if (rows == 0 && result?.SalesGrowthMetadata?.SelectionStatus is
+            SalesGrowthCommonPeriodSelectionStatus.Partial or SalesGrowthCommonPeriodSelectionStatus.Unavailable)
+        {
+            lines.Add("به‌دلیل نبود پوشش کافی یا داده کامل، رتبه‌بندی انجام نشد.");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string GetBaselineDisplay(SalesGrowthComparisonBaseline baseline) =>
+        baseline switch
+        {
+            SalesGrowthComparisonBaseline.PreviousMonth => "ماه قبل",
+            SalesGrowthComparisonBaseline.SameMonthPreviousYear => "ماه مشابه سال قبل",
+            SalesGrowthComparisonBaseline.AveragePrevious12Months => "میانگین ۱۲ ماه قبل",
+            _ => "مبنای مشخص‌شده"
+        };
+
+    private static string GetOperatorPhrase(ConditionOperator op) =>
+        op switch
+        {
+            ConditionOperator.GreaterThan => "بیش از",
+            ConditionOperator.GreaterThanOrEqual => "حداقل",
+            ConditionOperator.LessThan => "کمتر از",
+            ConditionOperator.LessThanOrEqual => "حداکثر",
+            ConditionOperator.Equal => "برابر با",
+            ConditionOperator.NotEqual => "غیر از",
+            _ => "طبق"
+        };
+
+    private static string GetSelectionStatusDisplay(SalesGrowthCommonPeriodSelectionStatus status) =>
+        status.ToString() switch
+        {
+            nameof(SalesGrowthCommonPeriodSelectionStatus.Available) => "قابل استفاده",
+            nameof(SalesGrowthCommonPeriodSelectionStatus.Partial) => "ناقص",
+            nameof(SalesGrowthCommonPeriodSelectionStatus.Unavailable) => "در دسترس نیست",
+            _ => status.ToString()
+        };
+
+    private static string FormatPersianNumber(decimal value) =>
+        FormatPersianDigits(FormatThreshold(value));
+
+    private static string FormatPersianDigits(string value) =>
+        value
+            .Replace('0', '۰')
+            .Replace('1', '۱')
+            .Replace('2', '۲')
+            .Replace('3', '۳')
+            .Replace('4', '۴')
+            .Replace('5', '۵')
+            .Replace('6', '۶')
+            .Replace('7', '۷')
+            .Replace('8', '۸')
+            .Replace('9', '۹');
+
+    private static bool IsSalesGrowthMetric(string code) =>
+        code.Equals("MONTHLY_SALES_GROWTH", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MOM", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_YOY", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_PERCENT", StringComparison.OrdinalIgnoreCase) ||
+        code.Equals("MONTHLY_SALES_GROWTH_MULTIPLE", StringComparison.OrdinalIgnoreCase);
+
     private static IReadOnlyCollection<DataCitation> BuildDataCitations(ScannerTableResult? result)
     {
         if (result is null) return [];
 
-        return result.Rows
+        var citations = result.Rows
             .SelectMany(row => row.Cells
                 .Where(kv => kv.Value.FreshnessStatus != CellFreshnessStatus.Missing
                              && kv.Value.SourceTimestamp is not null)
@@ -197,6 +366,18 @@ public sealed class ExplainableAnswerBuilder(
                     kv.Value.FreshnessStatus.ToString(),
                     row.SourceProvider)))
             .ToList();
+
+        citations.AddRange(result.Rows
+            .Where(row => row.SalesGrowthMetadata is not null)
+            .SelectMany(row => row.SalesGrowthMetadata!.Evidence
+                .Select(evidence => new DataCitation(
+                    row.SymbolCode,
+                    $"MONTHLY_SALES:{evidence.Period.Year}/{evidence.Period.Month:00}",
+                    evidence.ObservedAtUtc,
+                    evidence.ObservedAtUtc is null ? "Missing" : "Persisted",
+                    evidence.SourceName))));
+
+        return citations;
     }
 
     private string? TryGetDisplayName(MetricCode code, DateOnly asOf)

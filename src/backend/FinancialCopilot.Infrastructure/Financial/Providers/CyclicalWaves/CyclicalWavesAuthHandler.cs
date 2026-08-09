@@ -27,28 +27,9 @@ public sealed class CyclicalWavesAuthHandler(
 
         var response = await base.SendAsync(request, cancellationToken);
 
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-        {
-            return response;
-        }
-
-        response.Dispose();
-        tokenCache.Invalidate();
-
-        await LoginAsync(cancellationToken);
-        AddBearerHeader(request);
-
-        var retryResponse = await base.SendAsync(request, cancellationToken);
-
-        if (retryResponse.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            retryResponse.Dispose();
-            throw new FinancialProviderException(
-                FinancialProviderErrorCode.Unauthorized,
-                "CyclicalWaves re-authentication failed after 401 response.");
-        }
-
-        return retryResponse;
+        // A 4xx response is a definitive rejection for this symbol/request.
+        // Never re-authenticate and replay it.
+        return response;
     }
 
     private async Task EnsureTokenAsync(CancellationToken cancellationToken)
@@ -87,12 +68,40 @@ public sealed class CyclicalWavesAuthHandler(
                     $"CyclicalWaves login failed with status {loginResponse.StatusCode}.");
             }
 
-            var authResponse = await loginResponse.Content.ReadFromJsonAsync<CyclicalWavesAuthResponse>(
-                JsonOptions,
-                cancellationToken) ??
+            var responseBody = await loginResponse.Content.ReadAsStringAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(responseBody))
+            {
                 throw new FinancialProviderException(
                     FinancialProviderErrorCode.InvalidResponse,
                     "CyclicalWaves login response was empty.");
+            }
+
+            CyclicalWavesAuthResponse? authResponse;
+            try
+            {
+                authResponse = JsonSerializer.Deserialize<CyclicalWavesAuthResponse>(responseBody, JsonOptions);
+            }
+            catch (JsonException exception)
+            {
+                var contentType = loginResponse.Content.Headers.ContentType?.ToString() ?? "unknown";
+                var preview = responseBody[..Math.Min(responseBody.Length, 256)]
+                    .Replace("\r", " ", StringComparison.Ordinal)
+                    .Replace("\n", " ", StringComparison.Ordinal);
+
+                throw new FinancialProviderException(
+                    FinancialProviderErrorCode.InvalidResponse,
+                    $"CyclicalWaves login returned non-JSON content. Status: " +
+                    $"{(int)loginResponse.StatusCode} {loginResponse.StatusCode}; " +
+                    $"Content-Type: {contentType}; Response preview: {preview}",
+                    exception);
+            }
+
+            if (authResponse is null)
+            {
+                throw new FinancialProviderException(
+                    FinancialProviderErrorCode.InvalidResponse,
+                    "CyclicalWaves login response was empty.");
+            }
 
             var expiresAt = timeProvider.GetUtcNow().AddSeconds(authResponse.ExpiresIn);
             tokenCache.SetToken(authResponse.AccessToken, expiresAt);

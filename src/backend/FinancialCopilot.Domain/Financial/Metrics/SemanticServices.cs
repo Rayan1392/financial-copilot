@@ -98,10 +98,10 @@ public sealed class MetricAliasResolver(IFinancialMetricRegistry registry) : IMe
             throw new ArgumentException("Expression and language are required for metric resolution.");
         }
 
-        var expression = userExpression.Trim();
+        var expression = MetricAliasTextNormalizer.Normalize(userExpression);
         var candidates = registry.GetSupportedMetrics(asOf)
             .Where(definition => definition.Aliases.Any(alias =>
-                string.Equals(alias.Expression, expression, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(MetricAliasTextNormalizer.Normalize(alias.Expression), expression, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(alias.Language, language, StringComparison.OrdinalIgnoreCase) &&
                 (context.Comparison is null || alias.ComparisonQualifier == context.Comparison)))
             .Where(definition =>
@@ -119,6 +119,46 @@ public sealed class MetricAliasResolver(IFinancialMetricRegistry registry) : IMe
                 candidates,
                 "Select a comparison basis to resolve the requested metric.")
         };
+    }
+}
+
+/// <summary>
+/// Canonicalizes metric aliases before registry matching. This is deliberately
+/// limited to text normalization; it does not infer intent or parse formulas.
+/// </summary>
+public static class MetricAliasTextNormalizer
+{
+    public static string Normalize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var normalized = value.Trim()
+            .Replace('\u0643', '\u06A9')
+            .Replace('\u064A', '\u06CC')
+            .Replace('\u0649', '\u06CC')
+            .Replace('\u0626', '\u06CC')
+            .Replace('\u0640', '\0')
+            .Replace('\u200C', ' ')
+            .Replace('\u200D', ' ')
+            .Replace('\uFEFF', ' ')
+            .Replace('\u066A', '%')
+            .Replace('\u066B', '.')
+            .Replace(',', '.');
+
+        normalized = normalized.Replace("\0", string.Empty, StringComparison.Ordinal);
+
+        for (var i = 0; i <= 9; i++)
+        {
+            normalized = normalized
+                .Replace((char)('\u06F0' + i), (char)('0' + i))
+                .Replace((char)('\u0660' + i), (char)('0' + i));
+        }
+
+        while (normalized.Contains("  ", StringComparison.Ordinal))
+            normalized = normalized.Replace("  ", " ", StringComparison.Ordinal);
+
+        return normalized.Trim().ToLowerInvariant();
     }
 }
 

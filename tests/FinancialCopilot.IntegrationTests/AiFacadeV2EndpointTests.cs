@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -310,7 +311,7 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
     }
 
     [Fact]
-    public async Task V2AiQuery_ExplicitPeFollowup_UsesLatestUserMessageAsParserInput()
+    public async Task V2AiQuery_ExplicitPeFollowup_BypassesLegacyParserAndUsesSemanticFrame()
     {
         _factory.Fake.Reset();
         using var client = _factory.CreateClient();
@@ -331,10 +332,8 @@ public sealed class V2SymbolLookupEndpointTests : IClassFixture<V2SymbolLookupAp
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("pe \u06a9\u0686\u0627\u062f", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("[Recent conversation]", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("Assistant", _factory.Fake.LastParserUserMessage);
-        Assert.DoesNotContain("User", _factory.Fake.LastParserUserMessage);
+        Assert.Null(_factory.Fake.LastParserUserMessage);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
         var row = Assert.Single(document.RootElement.GetProperty("symbolLookupTable").GetProperty("rows").EnumerateArray());
         Assert.Equal("\u06a9\u0686\u0627\u062f", row.GetProperty("symbolCode").GetString());
@@ -510,7 +509,9 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.Equal(JsonValueKind.Null, root.GetProperty("symbolLookupTable").ValueKind);
 
         var textAnswer = root.GetProperty("textAnswer").GetString();
-        Assert.Contains("\u0646\u0627\u0645\u0648\u062c\u0648\u062f", textAnswer);
+        Assert.Equal("DisambiguationNeeded", root.GetProperty("outcome").GetString());
+        Assert.Equal("entity_not_found", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.Contains("\u0646\u0645\u0627\u062f \u062f\u0642\u06cc\u0642", textAnswer);
         Assert.DoesNotContain("Found metric data for 0 symbol(s). 1 unresolved.", textAnswer);
         Assert.DoesNotContain("Clarification needed", textAnswer);
     }
@@ -559,7 +560,7 @@ public sealed class V2ShgolDirectPriceRegressionEndpointTests : IClassFixture<V2
         Assert.Equal("3,934", priceCell.GetProperty("formattedValue").GetString());
         Assert.Equal("PreviousTradingDay", priceCell.GetProperty("freshnessStatus").GetString());
         Assert.Equal("LatestDailyFallback", priceCell.GetProperty("sourceLabel").GetString());
-        Assert.Equal("2026-06-17", priceCell.GetProperty("tradingDate").GetString());
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-2).ToString("yyyy-MM-dd"), priceCell.GetProperty("tradingDate").GetString());
         Assert.Equal(FormatJalaliDate(ParseTradingDate(priceCell.GetProperty("tradingDate").GetString()!)),
             priceCell.GetProperty("tradingDatePersian").GetString());
 
@@ -709,6 +710,7 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
     [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
     [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
+    [InlineData("رکیب فروش محصولات کچاد؟", "کچاد")]
     public async Task V2AiQuery_ProductRevenueMixQueries_ReturnProductRevenueMixAndChargeCredits(
         string message,
         string expectedSymbol)
@@ -732,6 +734,35 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         var textAnswer = root.GetProperty("textAnswer").GetString();
         Assert.Contains(expectedSymbol, textAnswer);
         Assert.Contains("ترکیب درآمد محصولات", textAnswer);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_FundamentalAnalysis_ReturnsPersistedAnalysisWhenLiveMetricsFail()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "تحلیل بنیادی فولاژ؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("ComprehensiveAnalysis", root.GetProperty("intent").GetString());
+        Assert.Equal("comprehensive_analysis", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.True(root.GetProperty("usage").GetProperty("creditsCharged").GetDecimal() > 0m);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var analyses = root.GetProperty("comprehensiveAnalysisResult").GetProperty("items").EnumerateArray().ToArray();
+        var analysis = Assert.Single(analyses);
+        Assert.Equal("تحلیل بنیادی فولاژ", analysis.GetProperty("title").GetString());
+        Assert.Equal("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", analysis.GetProperty("plainTextSummary").GetString());
+        var textAnswer = root.GetProperty("textAnswer").GetString();
+        Assert.Contains("P/E فعلی 5.4 و ارزش ذاتی 3753 تومان", textAnswer);
+        Assert.DoesNotContain("Found metric data for 0 symbol(s)", textAnswer);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -773,6 +804,8 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_activity_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(1, root.GetProperty("semanticRegistryVersion").GetInt32());
         Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
@@ -1054,7 +1087,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         var table = root.GetProperty("financialStatementTableResult");
         Assert.Equal("غالبر", table.GetProperty("source").GetProperty("companySymbol").GetString());
         Assert.Equal("IncomeStatement", table.GetProperty("source").GetProperty("statementType").GetString());
-        Assert.Equal("NadpcoApi", table.GetProperty("source").GetProperty("providerName").GetString());
+        Assert.Equal("نوآوران امین", table.GetProperty("source").GetProperty("providerName").GetString());
         Assert.True(table.GetProperty("lineItems").GetArrayLength() >= 5);
         Assert.Contains("| ردیف | شرح | مبلغ |", root.GetProperty("textAnswer").GetString());
     }
@@ -1302,6 +1335,8 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
             ReplaceIngestionDbContext(services, _dbName);
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
+            services.RemoveAll<ISymbolMetricLookupService>();
+            services.AddSingleton<ISymbolMetricLookupService, ThrowingSymbolMetricLookupService>();
         });
     }
 
@@ -1356,7 +1391,41 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 CompanySymbol = "فملی",
                 TseSymbol = "فملی",
                 LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000006"),
+                Name = "فولاد آلیاژی ایران",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "6",
+                CompanySymbol = "فولاژ",
+                TseSymbol = "فولاژ",
+                Ticker = "فولاژ",
+                LastSynchronizedAt = DateTimeOffset.UtcNow
             });
+
+        var analysisNow = DateTimeOffset.UtcNow;
+        db.ComprehensiveAnalyses.Add(new ComprehensiveAnalysisRow
+        {
+            Id = 75001,
+            Title = "تحلیل بنیادی فولاژ",
+            Summary = "<p>P/E فعلی 5.4 و ارزش ذاتی 3753 تومان</p>",
+            PlainTextSummary = "P/E فعلی 5.4 و ارزش ذاتی 3753 تومان",
+            CreatedAt = analysisNow,
+            PersianCreatedAt = "1405/05/17",
+            AuthorId = 75,
+            AuthorName = "تحلیلگر",
+            SyncedAt = analysisNow
+        });
+        db.ComprehensiveAnalysisTags.Add(new ComprehensiveAnalysisTagRow
+        {
+            AnalysisId = 75001,
+            TagId = 75001,
+            TagName = "فولاژ",
+            TagSlug = "folaj",
+            TagTypeId = 1,
+            IsAnalytic = false
+        });
 
         db.CompanyProductRevenueMix.AddRange(
             new CompanyProductRevenueMixRow
@@ -1548,6 +1617,14 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 SourceProviderName = "NoavaranCurrentApi",
                 CalculatedAtUtc = now
             });
+    }
+
+    private sealed class ThrowingSymbolMetricLookupService : ISymbolMetricLookupService
+    {
+        public Task<SymbolLookupTableResult> LookupAsync(
+            SymbolLookupRequest request,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("simulated live-metric outage");
     }
 }
 

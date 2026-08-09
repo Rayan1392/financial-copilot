@@ -6,11 +6,30 @@ import type { Components } from "react-markdown";
 const MONTHLY_SALES_QUALITY_RANKING_HEADER =
   "| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |";
 
+const FINANCIAL_STATEMENT_MARKERS = ["خلاصه سود و زیان", "صورت مالی", "درآمد عملیاتی", "سود/زیان"];
+
 function isMonthlySalesQualityRankingMarkdown(content: string): boolean {
   return content.includes(MONTHLY_SALES_QUALITY_RANKING_HEADER);
 }
 
-function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): Components {
+function isFinancialStatementMarkdown(content: string): boolean {
+  return FINANCIAL_STATEMENT_MARKERS.some((marker) => content.includes(marker));
+}
+
+function formatFinancialStatementMarkdown(content: string): string {
+  return content
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(?:[-*+]\s+|\d+[.)]\s+|\|)/.test(line)) {
+        return line;
+      }
+
+      return line.replace(/([.!؟])\s+(?=(?:✅\s*)?[\u0600-\u06FF])/g, "$1\n\n");
+    })
+    .join("\n");
+}
+
+function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, isRtl: boolean): Components {
   const sharedTableCellClass = "px-3 py-2 text-[13px] align-top border-b border-hairline";
   const rankingTableLayoutClass = isMonthlySalesQualityRankingTable
     ? [
@@ -40,11 +59,11 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): C
     `${isMonthlySalesQualityRankingTable ? "monthly-sales-quality-ranking-table w-max min-w-full" : "w-full"} table-auto text-sm border-collapse ${rankingTableLayoutClass}`.trim();
 
   return {
-    p: ({ children }) => <p className="leading-relaxed text-pretty">{children}</p>,
+    p: ({ children }) => <p className="leading-relaxed text-pretty [unicode-bidi:plaintext]">{children}</p>,
     strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
     pre: ({ children }) => (
-      <pre className="bg-surface/60 ring-1 ring-hairline rounded-lg overflow-x-auto my-2 text-xs font-mono p-3">
+      <pre className="bg-surface/60 ring-1 ring-hairline rounded-lg overflow-x-auto my-2 text-xs font-mono p-3 text-left" dir="ltr">
         {children}
       </pre>
     ),
@@ -61,11 +80,11 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): C
     },
     ul: ({ children }) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
     ol: ({ children }) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,
-    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+    li: ({ children }) => <li className="leading-relaxed [unicode-bidi:plaintext]">{children}</li>,
     table: ({ children }) => (
       <div
         className="overflow-x-auto rounded-lg ring-1 ring-hairline my-2"
-        dir={isMonthlySalesQualityRankingTable ? "rtl" : undefined}
+        dir={isMonthlySalesQualityRankingTable || isRtl ? "rtl" : "ltr"}
       >
         <table className={rankingTableClass}>
           {isMonthlySalesQualityRankingTable && (
@@ -87,7 +106,7 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): C
     thead: ({ children }) => <thead className="bg-white/5">{children}</thead>,
     th: ({ children }) => (
       <th
-        className={`${sharedTableCellClass} font-medium text-muted-foreground text-xs ${isMonthlySalesQualityRankingTable ? "whitespace-normal" : "text-left"}`.trim()}
+        className={`${sharedTableCellClass} font-medium text-muted-foreground text-xs ${isMonthlySalesQualityRankingTable ? "whitespace-normal" : isRtl ? "text-right" : "text-left"}`.trim()}
       >
         {children}
       </th>
@@ -114,22 +133,28 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean): C
 
 interface Props {
   content: string;
+  direction?: "rtl" | "ltr" | "auto";
 }
 
-export function MarkdownMessage({ content }: Props) {
+export function MarkdownMessage({ content, direction = "auto" }: Props) {
   const isMonthlySalesQualityRankingTable = isMonthlySalesQualityRankingMarkdown(content);
+  const isFinancialStatement = isFinancialStatementMarkdown(content);
+  const isRtl = direction === "rtl" || (direction === "auto" && isFinancialStatement);
+  const renderedContent = isFinancialStatement
+    ? formatFinancialStatementMarkdown(content)
+    : content;
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"}`}
-      dir="auto"
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
+      dir={isRtl ? "rtl" : direction}
     >
       <Markdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
-        components={createMarkdownComponents(isMonthlySalesQualityRankingTable)}
+        components={createMarkdownComponents(isMonthlySalesQualityRankingTable, isRtl)}
       >
-        {content}
+        {renderedContent}
       </Markdown>
     </div>
   );

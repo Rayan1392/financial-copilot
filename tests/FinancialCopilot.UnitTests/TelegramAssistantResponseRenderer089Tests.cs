@@ -212,6 +212,34 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.Contains("نتایج بیشتری", message.Text);
     }
 
+    [Fact]
+    public void Suggested_actions_are_rendered_as_bounded_numbered_fallback_text()
+    {
+        var action = new SuggestedAction(
+            "fill:monthly_activity_trend",
+            SuggestedActionKind.FillSlot,
+            "تکمیل درخواست",
+            "چارت روند فروش فولاد",
+            "monthly_activity_trend",
+            new Dictionary<string, string>(),
+            DialogueOutcomeReasonCodes.RequiredInputMissing,
+            1);
+        var response = new AiQueryResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.Clarification,
+            null, null, null, null, null, null, true, "لطفاً درخواست را کامل کنید.", null,
+            Outcome: DialogueOutcome.ClarificationNeeded,
+            OutcomeReasonCode: DialogueOutcomeReasonCodes.RequiredInputMissing,
+            ReplyLanguage: "fa",
+            SuggestedActions: [action]);
+
+        var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
+
+        Assert.Contains("پیشنهادها", message.Text);
+        Assert.Contains("تکمیل درخواست", message.Text);
+        Assert.Contains("چارت روند فروش فولاد", message.Text);
+        Assert.Equal(1, message.Text.Split("تکمیل درخواست", StringSplitOptions.None).Length - 1);
+    }
+
     private static TelegramAssistantResponseRenderer CreateRenderer() =>
         new(
             new TelegramMonthlyTrendChartRenderer(),

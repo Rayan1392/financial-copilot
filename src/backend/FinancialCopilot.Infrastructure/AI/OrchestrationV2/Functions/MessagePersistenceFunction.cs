@@ -11,7 +11,8 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
 internal sealed class MessagePersistenceFunction(
     IConversationRepository repository,
     TimeProvider timeProvider,
-    ISymbolLookupProseBuilder symbolLookupProseBuilder)
+    ISymbolLookupProseBuilder symbolLookupProseBuilder,
+    ICapabilityGuidanceService guidanceService)
 {
     internal async Task<PersistedConversationExchange> PersistAsync(
         Guid conversationId,
@@ -30,13 +31,18 @@ internal sealed class MessagePersistenceFunction(
         string? agentResponseText,
         bool createConversation,
         CancellationToken cancellationToken,
+        DialogueOutcome outcome = DialogueOutcome.Answered,
+        string outcomeReasonCode = DialogueOutcomeReasonCodes.None,
+        string replyLanguage = "en",
+        bool languageGuardApplied = false,
         ComprehensiveAnalysisQueryResponse? comprehensiveAnalysisResult = null,
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         FinancialStatementTableResult? financialStatementTableResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
-        DisclosureListingResult? disclosureListingResult = null)
+        DisclosureListingResult? disclosureListingResult = null,
+        PsVisualizationResult? psVisualizationResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -48,15 +54,23 @@ internal sealed class MessagePersistenceFunction(
                 monthlySalesQualityRankingResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
+        var suggestions = guidanceService.Suggest(new CapabilityGuidanceRequest(
+            request.OriginalUserMessage ?? request.Message,
+            replyLanguage,
+            outcome,
+            outcomeReasonCode,
+            request.SemanticFrame?.Interpretation,
+            CorrelationId: request.CorrelationId,
+            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
 
-        return await repository.PersistExchangeAsync(
+        var persisted = await repository.PersistExchangeAsync(
             new ConversationExchange(
                 conversationId,
                 request.TenantId,
                 request.ActorId,
                 timeProvider.GetUtcNow(),
-                BuildConversationTitle(request.Message),
-                request.Message,
+                BuildConversationTitle(request.OriginalUserMessage ?? request.Message),
+                request.OriginalUserMessage ?? request.Message,
                 assistantContent,
                 planJson,
                 new AssistantMessagePayload(
@@ -78,9 +92,18 @@ internal sealed class MessagePersistenceFunction(
                     ProductRevenueMixResult: productRevenueMixResult,
                     MonthlyActivityTrendResult: monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
-                    DisclosureListingResult: disclosureListingResult)),
+                    DisclosureListingResult: disclosureListingResult,
+                    PsVisualizationResult: psVisualizationResult,
+                    Outcome: outcome,
+                    OutcomeReasonCode: outcomeReasonCode,
+                    ReplyLanguage: replyLanguage,
+                    LanguageGuardApplied: languageGuardApplied,
+                    SuggestedActions: suggestions,
+                    SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
             createConversation,
             cancellationToken);
+        return persisted with { SuggestedActions = suggestions };
     }
 
     private static string BuildConversationTitle(string message)

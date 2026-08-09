@@ -22,14 +22,20 @@ export interface ChatMessage {
 export interface AssistantChatBlock {
   message: string;
   intent: string;
+  outcome?: string;
+  outcomeReasonCode?: string;
+  replyLanguage?: string;
+  languageGuardApplied?: boolean;
   confidence?: number;
   creditsUsed: number;
   suggestedQuestions: string[];
+  suggestedActions: SuggestedAction[];
   filters: Array<{ label: string; value: string }>;
   table?: ScannerTable;
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   disclosureListingResult?: DisclosureListingResult;
+  psVisualizationResult?: PsVisualizationResult;
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -53,6 +59,48 @@ export interface DisclosureListingResult {
   hasNextPage: boolean;
   coverageStatus: string;
   freshnessReasonCode: string;
+}
+
+export interface SuggestedAction {
+  id: string;
+  kind: string;
+  label: string;
+  message: string;
+  capabilityCode: string;
+  relevanceReason: string;
+  registryVersion: number;
+}
+
+export interface CapabilityStarterPrompt {
+  capabilityCode: string;
+  label: string;
+  example: string;
+  registryVersion: number;
+}
+
+export interface PsVisualizationResult {
+  companySymbol: string;
+  companyName?: string;
+  status: string;
+  gaugeRenderabilityStatus: string;
+  ttmPs: { value?: number; state: string };
+  forwardPs: { value?: number; state: string };
+  gaugeClose: { value?: number; state: string };
+  gaugeBands: Array<{
+    order: number;
+    role: string;
+    exactPercentage: number;
+    displayPercentage: number;
+    lowerBoundary: number;
+    upperBoundary: number;
+    startAngleDegrees: number;
+    endAngleDegrees: number;
+  }>;
+  providerBoundaryStart?: number;
+  providerBoundaryEnd?: number;
+  gaugeAxisMin?: number;
+  gaugeAxisMax?: number;
+  needle?: { sourceValue: number; normalizedPosition: number; angleDegrees: number; bandOrder: number };
 }
 
 export interface MonthlyActivityTrendResult {
@@ -99,11 +147,12 @@ export interface MonthlyActivityTrendMissingDataPoint {
 }
 
 export interface ScannerTable {
-  columns: Array<{ identifier: string; displayName: string }>;
+  columns: Array<{ identifier: string; displayName: string; columnType?: string; metricCode?: string }>;
   rows: Array<{
     symbolCode: string;
     companyName?: string;
     score: number;
+    salesGrowthMetadata?: SalesGrowthRowMetadata;
     cells: Record<
       string,
       { formattedValue?: string; value?: number; freshnessStatus: string; sourceTimestamp?: string }
@@ -116,8 +165,49 @@ export interface ScannerTable {
     page: number;
     pageSize: number;
     totalPages: number;
+    eligibleSymbolCount?: number;
+    evaluatedSymbolCount?: number;
+    excludedByReason?: Record<string, number>;
   };
   missingDataWarnings: string[];
+  salesGrowthMetadata?: SalesGrowthTableMetadata;
+}
+
+export interface SalesGrowthRowMetadata {
+  currentPeriod: string;
+  baselinePeriod?: string;
+  baselineWindow: string[];
+  unit: string;
+  scale: string;
+  evidence: Array<{
+    externalCompanyId: string;
+    periodYear: number;
+    periodMonth: number;
+    salesAmount?: number;
+    sourceName: string;
+    evidenceId: string;
+    observedAtUtc?: string;
+  }>;
+  latestObservedAtUtc?: string;
+  freshnessSource?: string;
+  threshold?: number;
+  operator: string;
+  origin: string;
+  targetPeriodPolicyVersion: string;
+  calculationPolicyVersion: string;
+  matchReason: string;
+}
+
+export interface SalesGrowthTableMetadata {
+  targetCommonPeriod: string;
+  coverageNumerator: number;
+  coverageDenominator: number;
+  coveragePercent: number;
+  selectionStatus: string;
+  targetPeriodPolicyVersion: string;
+  calculationPolicyVersion: string;
+  mixedPeriods: boolean;
+  selectionReason?: string;
 }
 
 interface ConversationSummaryResponse {
@@ -145,6 +235,10 @@ interface ConversationMessagesResponse {
 
 interface AssistantContentResponse {
   intent: string;
+  outcome?: string;
+  outcomeReasonCode?: string;
+  replyLanguage?: string;
+  languageGuardApplied?: boolean;
   clarificationRequired: boolean;
   clarificationMessage?: string;
   textAnswer?: string;
@@ -152,6 +246,7 @@ interface AssistantContentResponse {
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   disclosureListingResult?: DisclosureListingResult;
+  psVisualizationResult?: PsVisualizationResult;
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -170,6 +265,7 @@ interface AssistantContentResponse {
   providerSelection?: string;
   providerFallbackOccurred?: boolean;
   workflowCorrelationId?: string;
+  suggestedActions?: SuggestedAction[];
 }
 
 export const listThreads = createServerFn({ method: "GET" })
@@ -225,6 +321,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPage: z.number().int().min(1).default(1),
         scannerPageSize: z.number().int().min(1).max(100).default(20),
         disclosurePage: z.number().int().min(1).default(1),
+        suggestedActionId: z.string().max(160).optional(),
       })
       .parse(d),
   )
@@ -237,6 +334,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         scannerPage: data.scannerPage,
         scannerPageSize: data.scannerPageSize,
         disclosurePage: data.disclosurePage,
+        suggestedActionId: data.suggestedActionId,
       }),
     });
     const createdAt = new Date().toISOString();
@@ -256,6 +354,15 @@ export const sendChatMessage = createServerFn({ method: "POST" })
       } satisfies ChatMessage,
     };
   });
+
+export const getCapabilityStarterPrompts = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<CapabilityStarterPrompt[]>(
+      context,
+      "/api/ai/v1/capabilities/guidance?language=fa",
+    ),
+  );
 
 function mapThread(row: ConversationSummaryResponse): ChatThread {
   return {
@@ -298,9 +405,14 @@ function mapAssistantBlock(
   return {
     message: tableMetadataLabel ? "" : rawMessage,
     intent: content?.intent ?? "Unknown",
+    outcome: content?.outcome,
+    outcomeReasonCode: content?.outcomeReasonCode,
+    replyLanguage: content?.replyLanguage,
+    languageGuardApplied: content?.languageGuardApplied,
     confidence: content?.confidenceScore?.score ?? explanation?.confidence?.score,
     creditsUsed: content?.usage?.creditsCharged ?? 0,
     suggestedQuestions: explanation?.suggestedFollowUpQuestions ?? [],
+    suggestedActions: content?.suggestedActions ?? [],
     filters:
       explanation?.filterChips.map((chip) => ({
         label: chip.metricDisplayName,
@@ -310,6 +422,7 @@ function mapAssistantBlock(
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
+    psVisualizationResult: content?.psVisualizationResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {
@@ -324,7 +437,10 @@ function mapAssistantBlock(
 }
 
 function normalizeRenderableTable(table: ScannerTable | undefined): ScannerTable | undefined {
-  if (!table || table.rows.length === 0) return undefined;
+  if (!table) return undefined;
+  if (table.rows.length === 0 && !table.salesGrowthMetadata && table.missingDataWarnings.length === 0) {
+    return undefined;
+  }
   return table;
 }
 

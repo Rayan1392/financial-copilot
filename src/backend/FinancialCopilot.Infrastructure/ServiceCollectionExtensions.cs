@@ -45,6 +45,8 @@ using FinancialCopilot.Infrastructure.Financial.Providers.StockMarketDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.Tsetmc;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
+using FinancialCopilot.Application.FinancialData.FundPortfolio;
+using FinancialCopilot.Infrastructure.Financial.FundPortfolio;
 using FinancialCopilot.Infrastructure.Financial.Semantics.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Insights;
@@ -97,6 +99,136 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<AuthDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<SemanticCatalogDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<FinancialProviderDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddSingleton<IFundPortfolioValueNormalizer, FundPortfolioValueNormalizer>();
+        services.AddScoped<IFundPortfolioWorkbookParser, XlsxFundPortfolioWorkbookParser>();
+        services.AddOptions<FundPortfolioRawStorageOptions>()
+            .BindConfiguration(FundPortfolioRawStorageOptions.SectionName)
+            .Validate(options => options.MaximumFileBytes > 0 && !string.IsNullOrWhiteSpace(options.RootPath),
+                "Fund portfolio raw storage options must define a positive file limit and root path.")
+            .ValidateOnStart();
+        services.AddScoped<IFundPortfolioRawWorkbookStore, FileSystemFundPortfolioRawWorkbookStore>();
+        services.AddScoped<IInvestmentFundRepository, EfCoreInvestmentFundRepository>();
+        services.AddScoped<IFundPortfolioReportRepository, EfCoreFundPortfolioReportRepository>();
+        services.AddSingleton<IFundPortfolioIngestionTelemetrySink, LoggingFundPortfolioIngestionTelemetry>();
+        services.AddSingleton<IFundPortfolioOperationalTelemetry, FundPortfolioOperationalTelemetry>();
+        services.AddScoped<ICreateOrResolveInvestmentFundUseCase, CreateOrResolveInvestmentFundUseCase>();
+        services.AddScoped<IIngestFundPortfolioWorkbookUseCase, IngestFundPortfolioWorkbookUseCase>();
+        services.AddScoped<IGetFundPortfolioReportStatusUseCase, GetFundPortfolioReportStatusUseCase>();
+        services.AddScoped<IGetFundPortfolioReportIssuesUseCase, GetFundPortfolioReportIssuesUseCase>();
+        services.AddScoped<IFundPortfolioReportQueryRepository, EfCoreFundPortfolioReportQueryRepository>();
+        services.AddScoped<IQueryFundPortfolioReportsUseCase, QueryFundPortfolioReportsUseCase>();
+        services.AddScoped<IFundPortfolioRawWorkbookReader, FileSystemFundPortfolioRawWorkbookReader>();
+        services.AddScoped<IFundPortfolioReportReprocessRepository, EfCoreFundPortfolioReportReprocessRepository>();
+        services.AddScoped<IReprocessFundPortfolioReportUseCase, ReprocessFundPortfolioReportUseCase>();
+        services.AddScoped<IFundPortfolioEquitySectionNormalizer, FundEquitySectionNormalizer>();
+        services.AddScoped<IFundPortfolioSectionNormalizer>(provider => provider.GetRequiredService<IFundPortfolioEquitySectionNormalizer>());
+        services.AddSingleton<IFundEquityNormalizationTelemetry, FundEquityNormalizationTelemetry>();
+        services.AddSingleton<IFundEquityCorporateActionAdjustmentProvider, NoKnownFundEquityCorporateActionAdjustmentProvider>();
+        services.AddScoped<IFundEquityPositionRepository, EfCoreFundEquityPositionRepository>();
+        services.AddScoped<IFundPortfolioAnalyticsRepository, EfCoreFundPortfolioAnalyticsRepository>();
+        services.AddScoped<IFundComparablePeriodReportReader, EfCoreFundComparablePeriodReportReader>();
+        services.AddScoped<IFundComparablePeriodSelector, FundComparablePeriodSelector>();
+        services.AddSingleton<IFundHoldingsActivityAnalyticsCalculator, FundHoldingsActivityAnalyticsCalculator>();
+        services.AddScoped<IFundHoldingsActivityFactReader, EfCoreFundHoldingsActivityFactReader>();
+        services.AddOptions<FundPortfolioMaterialityOptions>()
+            .BindConfiguration(FundPortfolioMaterialityOptions.SectionName)
+            .Validate(options => options.AbsoluteAmount >= 0m &&
+                options.AssetWeightChangePercentagePoints >= 0m &&
+                options.Percentile is >= 0m and <= 1m &&
+                !string.IsNullOrWhiteSpace(options.Version),
+                "Fund portfolio materiality thresholds must be non-negative, percentile must be between 0 and 1, and version is required.")
+            .ValidateOnStart();
+        services.AddScoped<FundHoldingsActivityAnalyticsService>();
+        services.AddSingleton<IFundSectorStrategyAnalyticsCalculator, FundSectorStrategyAnalyticsCalculator>();
+        services.AddScoped<IFundSectorStrategyFactReader, EfCoreFundSectorStrategyFactReader>();
+        services.AddOptions<FundSectorStrategyOptions>()
+            .BindConfiguration(FundSectorStrategyOptions.SectionName)
+            .Validate(options => options.MinimumMeaningfulChangePercentagePoints >= 0m && !string.IsNullOrWhiteSpace(options.Version),
+                "Fund strategy posture threshold and version are required.")
+            .ValidateOnStart();
+        services.AddScoped<FundSectorStrategyAnalyticsService>();
+        services.AddSingleton<IFundTurnoverLiquidityAnalyticsCalculator, FundTurnoverLiquidityAnalyticsCalculator>();
+        services.AddScoped<IFundTurnoverLiquidityFactReader, EfCoreFundTurnoverLiquidityFactReader>();
+        services.AddOptions<FundTurnoverLiquidityOptions>()
+            .BindConfiguration(FundTurnoverLiquidityOptions.SectionName)
+            .Validate(options => options.ParticipationRate is > 0m and <= 1m &&
+                options.VolumeLookbackDays > 0 && !string.IsNullOrWhiteSpace(options.Version),
+                "Fund turnover/liquidity settings must have a valid participation rate, lookback, and version.")
+            .ValidateOnStart();
+        services.AddScoped<FundTurnoverLiquidityAnalyticsService>();
+        services.AddSingleton<IFundDerivativeIncomeValuationAnalyticsCalculator, FundDerivativeIncomeValuationAnalyticsCalculator>();
+        services.AddScoped<IFundDerivativeIncomeValuationFactReader, EfCoreFundDerivativeIncomeValuationFactReader>();
+        services.AddOptions<FundDerivativeIncomeValuationOptions>()
+            .BindConfiguration(FundDerivativeIncomeValuationOptions.SectionName)
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Version),
+                "Fund derivative/income/valuation calculation version is required.")
+            .ValidateOnStart();
+        services.AddScoped<FundDerivativeIncomeValuationAnalyticsService>();
+        services.AddSingleton<IFundPortfolioSignalGenerator, FundPortfolioSignalGenerator>();
+        services.AddOptions<FundPortfolioSignalGenerationOptions>()
+            .BindConfiguration(FundPortfolioSignalGenerationOptions.SectionName)
+            .Validate(options => options.MinimumActivityAmount >= 0m &&
+                options.MinimumWeightChangePercentagePoints >= 0m &&
+                options.MinimumSectorChangePercentagePoints >= 0m &&
+                options.MinimumConcentrationIncreasePercentagePoints >= 0m &&
+                options.MinimumHedgeCoverageChangePercentagePoints >= 0m &&
+                options.MinimumUnrealizedIncomeConcentrationPercentage >= 0m &&
+                options.MinimumValuationAdjustmentExposurePercentage >= 0m &&
+                !string.IsNullOrWhiteSpace(options.Version),
+                "Fund portfolio signal thresholds must be non-negative and versioned.")
+            .ValidateOnStart();
+        services.AddScoped<FundPortfolioSignalGenerationService>();
+        services.AddScoped<IFundPortfolioIntelligenceReadUseCase, GetFundPortfolioIntelligenceUseCase>();
+        services.AddScoped<IFundPortfolioIntelligenceDetailRepository, EfCoreFundPortfolioIntelligenceDetailRepository>();
+        services.AddScoped<IFundPortfolioAnalyticsCalculator, DeterministicFundPortfolioAnalyticsCalculator>();
+        services.AddScoped<IFundPortfolioAnalyticsCalculationRegistry, FundPortfolioAnalyticsCalculationRegistry>();
+        services.AddScoped<IFundPortfolioAnalyticsRecalculationCoordinator, FundPortfolioAnalyticsRecalculationCoordinator>();
+        services.AddScoped<IGetFundEquityPositionsUseCase, GetFundEquityPositionsUseCase>();
+        services.AddScoped<IGetFundEquityActivityUseCase, GetFundEquityActivityUseCase>();
+        services.AddScoped<IGetCompanyFundHoldingsUseCase, GetCompanyFundHoldingsUseCase>();
+        services.AddOptions<FundNonEquityNormalizationOptions>()
+            .BindConfiguration(FundNonEquityNormalizationOptions.SectionName)
+            .Validate(options => options.QuantityTolerance >= 0 && options.AbsoluteValueTolerance >= 0 && options.PercentagePointTolerance >= 0,
+                "Fund non-equity normalization tolerances must be non-negative.")
+            .ValidateOnStart();
+        services.AddScoped<IFundPortfolioNonEquitySectionNormalizer, FundNonEquitySectionNormalizer>();
+        services.AddScoped<IFundPortfolioSectionNormalizer>(provider => provider.GetRequiredService<IFundPortfolioNonEquitySectionNormalizer>());
+        services.AddSingleton<IFundNonEquityNormalizationTelemetry, FundNonEquityNormalizationTelemetry>();
+        services.AddScoped<IFundIncomeQualitySectionNormalizer, FundIncomeQualitySectionNormalizer>();
+        services.AddScoped<IFundIncomeQualityRepository, EfCoreFundIncomeQualityRepository>();
+        services.AddScoped<IGetFundIncomeQualityOverviewUseCase, GetFundIncomeQualityOverviewUseCase>();
+        services.AddScoped<IFundNonEquityAssetRepository, EfCoreFundNonEquityAssetRepository>();
+        services.AddOptions<FundPortfolioLocalSourceOptions>()
+            .BindConfiguration("FundPortfolio:LocalSource")
+            .Validate(options => options.MaximumItemsPerPage is > 0 and <= 500, "Fund portfolio source page size must be between 1 and 500.")
+            .ValidateOnStart();
+        services.AddSingleton<IFundPortfolioReportSource, ConfiguredLocalFundPortfolioReportSource>();
+        services.AddSingleton<ManualUploadFundPortfolioReportSource>(_ => new ManualUploadFundPortfolioReportSource([]));
+        services.AddSingleton<IFundPortfolioReportSource>(provider => provider.GetRequiredService<ManualUploadFundPortfolioReportSource>());
+        services.AddScoped<IFundPortfolioReportSourceRegistry, FundPortfolioReportSourceRegistry>();
+        services.AddScoped<IFundPortfolioImportRunRepository, EfCoreFundPortfolioImportRunRepository>();
+        services.AddScoped<IStartFundPortfolioImportRunUseCase, StartFundPortfolioImportRunUseCase>();
+        services.AddScoped<IImportFundPortfolioItemUseCase, ImportFundPortfolioItemUseCase>();
+        services.AddScoped<IFinalizeFundPortfolioImportRunUseCase, FinalizeFundPortfolioImportRunUseCase>();
+        services.AddScoped<IFundPortfolioMappingReviewRepository, EfCoreFundPortfolioMappingReviewRepository>();
+        services.AddScoped<IResolveFundPortfolioMappingReviewUseCase, ResolveFundPortfolioMappingReviewUseCase>();
+        services.AddScoped<IFundPortfolioAuditSink, EfCoreFundPortfolioAuditSink>();
+        services.AddScoped<EfCoreFundPortfolioSourceWatermarkStore>();
+        services.AddScoped<IFundPortfolioRetentionStore, EfCoreFundPortfolioRetentionStore>();
+        services.AddOptions<FundPortfolioRetentionOptions>().BindConfiguration(FundPortfolioRetentionOptions.SectionName).Validate(options => options.RunMetadataDays > 0 && options.FailedItemDays > 0 && options.MappingDecisionDays > 0 && options.RawFileDays > 0 && options.CadenceHours > 0, "Fund portfolio retention periods must be positive.").ValidateOnStart();
+        services.AddHostedService<FundPortfolioRetentionWorker>();
+        services.AddOptions<FundPortfolioScheduledDiscoveryOptions>()
+            .BindConfiguration(FundPortfolioScheduledDiscoveryOptions.SectionName)
+            .Validate(options => options.CadenceSeconds > 0 && options.LookbackDays > 0 && options.BatchSize is > 0 and <= 500 && options.Concurrency is > 0 and <= 32 && options.LeaseDurationSeconds is >= 30 and <= 3600,
+                "Fund portfolio scheduled discovery options must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddHostedService<FundPortfolioScheduledDiscoveryWorker>();
+        services.AddOptions<FundPortfolioImportProcessingOptions>()
+            .BindConfiguration(FundPortfolioImportProcessingOptions.SectionName)
+            .Validate(options => options.Concurrency is > 0 and <= 32 && options.PollSeconds > 0 && options.MaximumAttempts is > 0 and <= 10,
+                "Fund portfolio import processing options must be positive and bounded.")
+            .ValidateOnStart();
+        services.AddHostedService<FundPortfolioImportProcessingWorker>();
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));
@@ -157,6 +289,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
+
+        services.AddOptions<SalesGrowthScannerOptions>()
+            .BindConfiguration(SalesGrowthScannerOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<SalesGrowthScannerOptions>, SalesGrowthScannerOptionsValidator>();
+        services.AddSingleton<ISalesGrowthCommonEvaluationPeriodSelector>(provider =>
+            new SalesGrowthCommonEvaluationPeriodSelector(
+                provider.GetRequiredService<IOptions<SalesGrowthScannerOptions>>().Value));
+        services.AddSingleton<ISalesGrowthComparisonCalculator, SalesGrowthComparisonCalculator>();
 
         services.AddOptions<ScannerCacheOptions>()
             .Bind(configuration.GetSection(ScannerCacheOptions.SectionName));
@@ -359,20 +500,27 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(registration.Endpoint, UriKind.Absolute);
                 client.Timeout = TimeSpan.FromSeconds(registration.TimeoutSeconds);
             }
-            //****AI AGENT*** ATTENTION PLEASE: DO NOT CHANGE THIS CODE
-            var apiKey = registration?.CredentialSecretReference
-            is not null
+
+            var apiKey = !string.IsNullOrWhiteSpace(registration?.CredentialSecretReference)
                 ? Environment.GetEnvironmentVariable(registration.CredentialSecretReference)
                 : null;
-            //*****************************************************
+
+            // Support the development-only key on the provider registration, then
+            // fall back to the legacy AiProvider section.
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = registration?.ApiKey;
+            }
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = providerSettings.OpenAI.ApiKey;
+            }
+
             if (!string.IsNullOrWhiteSpace(apiKey))
             {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            }
-            else if (!string.IsNullOrWhiteSpace(providerSettings.OpenAI.ApiKey))
-            {
                 client.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", providerSettings.OpenAI.ApiKey);
+                    new AuthenticationHeaderValue("Bearer", apiKey);
             }
         });
         services.AddSingleton<IAiModelClient>(provider =>
@@ -493,10 +641,58 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
         services.AddSingleton<IAiModelProviderDiagnostics>(provider =>
             provider.GetRequiredService<CapabilityBasedAiModelProviderResolver>());
+        services.AddSingleton<IConversationalCapabilityRegistry>(_ =>
+            new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create()));
+        services.AddSingleton<QueryInterpretationValidator>();
+        services.AddSingleton<IQueryInterpretationTelemetrySink, ActivityQueryInterpretationTelemetrySink>();
+        services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
+        services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
+        services.Configure<SemanticRoutingOptions>(configuration.GetSection(SemanticRoutingOptions.SectionName));
+        services.AddScoped<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
+        services.AddSingleton<ISemanticRoutingTelemetrySink, SemanticRoutingEventTelemetrySink>();
+        services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
+        services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
+        services.AddScoped<ISemanticExecutionCoordinator, SemanticExecutionCoordinator>();
+        services.AddScoped<ISemanticOutcomeFeedbackCollector, SemanticOutcomeFeedbackCollector>();
+        services.AddSingleton<ISemanticDialogueEventSink, BoundedSemanticDialogueEventSink>();
+        services.AddSingleton<ISemanticDialogueMetricsQuery, SemanticDialogueMetricsQuery>();
+        services.AddSingleton<ISemanticDialogueOutcomeTelemetry, SemanticDialogueOutcomeTelemetry>();
+        services.AddScoped<ISemanticOfflineRegressionRunner, SemanticOfflineRegressionRunner>();
+        services.AddSingleton<ISemanticPhraseCandidatePolicy, SemanticPhraseCandidatePolicy>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementTableCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ComprehensiveAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, StockScreeningCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, PersonalizedInsightExplanationCapabilityExecutor>();
+        services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
+        services.AddSingleton<HybridCapabilityInterpreter>();
+        services.AddSingleton<CapabilityRegistryProjection>();
+        services.AddOptions<CanonicalEntityResolutionOptions>();
+        services.AddScoped<CanonicalEntityResolutionOptions>(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<CanonicalEntityResolutionOptions>>().Value);
+        services.Configure<ConversationTaskStateOptions>(configuration.GetSection(ConversationTaskStateOptions.SectionName));
+        services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
+        services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
+        services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();
+        services.AddSingleton<ISemanticQueryFrameEnricher, SemanticQueryFrameEnricher>();
+        services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IConversationTaskStateRepository, ConversationTaskStateRepository>();
+        services.AddScoped<IConversationTaskStateService>(provider => new ConversationTaskStateService(
+            provider.GetRequiredService<IConversationTaskStateRepository>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ConversationTaskStateOptions>>().Value,
+            provider.GetRequiredService<IConversationTaskStateTelemetrySink>()));
+        services.AddScoped<IConversationDialogueGate, ConversationDialogueGate>();
         services.AddScoped<EfCoreMemoryRecordRepository>();
         services.AddScoped<IMemoryConsentService, EfCoreMemoryConsentService>();
         services.AddScoped<IMemoryAuditService, EfCoreMemoryAuditService>();
@@ -522,6 +718,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IScannerResultRanker, ScannerResultRanker>();
         services.AddScoped<IMarketQuoteResolver, ProviderMarketQuoteResolver>();
         services.AddScoped<IScannerExecutionService, EfCoreScannerExecutionService>();
+        services.AddSingleton<ISalesGrowthScannerTelemetrySink, LoggingSalesGrowthScannerTelemetrySink>();
         services.AddScoped<IConfidenceScoreCalculator, ConfidenceScoreCalculator>();
         services.AddScoped<IConfidenceScoringService, ConfidenceScoringService>();
         services.AddSingleton<IConfidenceScoringAuditSink, LoggingConfidenceScoringAuditSink>();
@@ -765,6 +962,20 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<IFinancialDataProviderHealthService>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services.AddScoped<ICyclicalWavesPsProviderClient>(provider =>
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services
+            .AddOptions<CyclicalWavesPsSyncOptions>()
+            .BindConfiguration(CyclicalWavesPsSyncOptions.SectionName)
+            .Validate(options =>
+                options.SnapshotCadenceMinutes > 0 && options.HistoryCadenceHours > 0 &&
+                options.MaxConcurrency is > 0 and <= 16 && options.MaxCompaniesPerRun is > 0 &&
+                options.MaxRunDurationMinutes > 0 && options.MaxResponseBytes is > 0 &&
+                options.MaxHistoryPointsPerCompany > 0 && options.LeaseDurationMinutes > 0 &&
+                options.LeaseRenewalMinutes is > 0 && options.LeaseRenewalMinutes < options.LeaseDurationMinutes &&
+                options.MaximumAbsoluteRatio > 0m,
+                "CyclicalWaves P/S synchronization options are invalid.")
+            .ValidateOnStart();
 
         // CyclicalWaves blog â€” ComprehensiveAnalysis sync (spec 065).
         // Reuses CyclicalWavesAuthHandler + CyclicalWavesTokenCache from above.
@@ -1034,9 +1245,26 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeatureComputationJobRepository, PersistedFeatureComputationJobRepository>();
         services.AddScoped<IFeatureInputReader, NoOpFeatureInputReader>();
         services.AddScoped<IDerivedFeatureCalculationService, DerivedFeatureCalculationService>();
+        services.AddSingleton<IDerivedFeatureCalculator, FundPortfolioAnalyticsFeatureCalculator>();
         services.AddScoped<IFeatureRecalculationScheduler, FeatureRecalculationScheduler>();
         services.AddScoped<IFeatureComputationProcessor, FeatureComputationProcessor>();
         services.AddScoped<ICyclicalWavesFullSyncService, CyclicalWavesFullSyncService>();
+        services.AddScoped<NoavaranEligibleCompanyPsScopeReader>();
+        services.AddScoped<IPsEligibleCompanyScopeReader>(provider =>
+            provider.GetRequiredService<NoavaranEligibleCompanyPsScopeReader>());
+        services.AddScoped<CyclicalWavesPsVisualizationSyncService>();
+        services.AddScoped<ICyclicalWavesPsVisualizationSyncService>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddScoped<ICompanyPsVisualizationReader>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddOptions<CyclicalWavesPsVisualizationOptions>()
+            .BindConfiguration(CyclicalWavesPsVisualizationOptions.SectionName)
+            .Validate(options => options.MaxSyncAgeHours > 0 && options.MaxObservationLagTradingDays >= 0 &&
+                                 options.MaxHistoryPoints is > 0 and <= 10_000 &&
+                                 options.DisplayPercentageDecimals is >= 0 and <= 6,
+                "CyclicalWaves P/S visualization options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IPsVisualizationExperienceUseCase, PsVisualizationExperienceUseCase>();
         services.AddScoped<IMetricRecalculationProcessor, MetricRecalculationProcessor>();
         services.AddScoped<IAssistedQueryMetadataService, EfCoreAssistedQueryMetadataService>();
         services.AddScoped<ICodalDbSyncStateStore, EfCoreCodalDbSyncStateStore>();

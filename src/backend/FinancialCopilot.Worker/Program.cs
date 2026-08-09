@@ -124,6 +124,7 @@ builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
 builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
+builder.Services.AddHostedService<CyclicalWavesPsVisualizationSyncWorker>();
 
 var host = builder.Build();
 host.Run();

@@ -41,6 +41,35 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
+    public async Task TokenProvider_ReusesDistributedTokenAcrossProviderInstances()
+    {
+        var tokenRequestCount = 0;
+        var distributedCache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            tokenRequestCount++;
+            return JsonResponse(new { access_token = "shared-token", expires_in = 120 });
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+
+        var firstProvider = CreateTokenProvider(
+            httpClient,
+            cache: new NadpcoApiTokenCache(distributedCache));
+        var secondProvider = CreateTokenProvider(
+            httpClient,
+            cache: new NadpcoApiTokenCache(distributedCache));
+
+        var first = await firstProvider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
+        var second = await secondProvider.GetTokenAsync(forceRefresh: false, CancellationToken.None);
+
+        Assert.Equal("shared-token", first);
+        Assert.Equal(first, second);
+        Assert.Equal(1, tokenRequestCount);
+    }
+
+    [Fact]
     public async Task TokenProvider_RefreshesTokenAfterTehranDayEnds()
     {
         var time = new MutableTimeProvider(DateTimeOffset.Parse("2026-06-03T20:29:58Z"));

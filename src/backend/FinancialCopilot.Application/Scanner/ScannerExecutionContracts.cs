@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.ValueObjects;
 
 namespace FinancialCopilot.Application.Scanner;
@@ -47,7 +48,34 @@ public sealed record ScannerTableRow(
     /// surfaced so explainable answers can cite archive provenance for historical rows (spec 052 AC #10).
     /// </summary>
     string? SourceProvider = null,
-    string? ExternalCompanyId = null);
+    string? ExternalCompanyId = null,
+    SalesGrowthRowMetadata? SalesGrowthMetadata = null);
+
+public sealed record SalesGrowthRowMetadata(
+    DateOnly CurrentPeriod,
+    DateOnly? BaselinePeriod,
+    IReadOnlyCollection<DateOnly> BaselineWindow,
+    string Unit,
+    string Scale,
+    IReadOnlyCollection<SalesGrowthInputEvidence> Evidence,
+    DateTimeOffset? LatestObservedAtUtc,
+    string? FreshnessSource,
+    decimal? Threshold,
+    ConditionOperator Operator,
+    FilterOrigin Origin,
+    SalesGrowthPolicyVersions Policies,
+    string MatchReason);
+
+public sealed record SalesGrowthTableMetadata(
+    DateOnly TargetCommonPeriod,
+    int CoverageNumerator,
+    int CoverageDenominator,
+    decimal CoveragePercent,
+    SalesGrowthCommonPeriodSelectionStatus SelectionStatus,
+    CalculationPolicyVersion TargetPeriodPolicyVersion,
+    CalculationPolicyVersion CalculationPolicyVersion,
+    bool MixedPeriods,
+    string? SelectionReason);
 
 public sealed record ScannerExecutionFacts(
     DateTimeOffset ExecutedAt,
@@ -57,14 +85,18 @@ public sealed record ScannerExecutionFacts(
     bool FromCache,
     int Page = 1,
     int PageSize = 20,
-    int TotalPages = 1);
+    int TotalPages = 1,
+    int EligibleSymbolCount = 0,
+    int EvaluatedSymbolCount = 0,
+    IReadOnlyDictionary<string, int>? ExcludedByReason = null);
 
 public sealed record ScannerTableResult(
     Guid PlanId,
     IReadOnlyCollection<ScannerTableColumn> Columns,
     IReadOnlyCollection<ScannerTableRow> Rows,
     ScannerExecutionFacts ExecutionFacts,
-    IReadOnlyCollection<string> MissingDataWarnings);
+    IReadOnlyCollection<string> MissingDataWarnings,
+    SalesGrowthTableMetadata? SalesGrowthMetadata = null);
 
 public sealed record ScannerExecutionRequest(
     ScannerQueryPlan Plan,

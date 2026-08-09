@@ -24,3 +24,15 @@ public sealed class MessageRowConfiguration : IEntityTypeConfiguration<MessageRo
         builder.Property(row => row.Role).HasMaxLength(20);
     }
 }
+
+public sealed class ConversationTaskStateRowConfiguration : IEntityTypeConfiguration<ConversationTaskStateRow>
+{
+    public void Configure(EntityTypeBuilder<ConversationTaskStateRow> builder)
+    {
+        builder.ToTable("ConversationTaskStates");
+        builder.HasKey(row => row.ConversationId);
+        builder.HasIndex(row => new { row.TenantId, row.ActorId, row.ExpiresAt });
+        builder.Property(row => row.LastCorrelationId).HasMaxLength(200);
+        builder.Property(row => row.StateJson).IsRequired();
+    }
+}

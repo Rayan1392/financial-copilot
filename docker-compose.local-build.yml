@@ -1,0 +1,20 @@
+# Use only on the build machine. The main docker-compose.yml is runtime-only so a server
+# never attempts to download SDK, runtime, or npm images while starting the application.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        VITE_FINANCIAL_COPILOT_API_BASE_URL: ${FRONTEND_API_BASE_URL:?set FRONTEND_API_BASE_URL in .env}
+        VITE_FINANCIAL_COPILOT_INTERNAL_API_BASE_URL: ${FRONTEND_INTERNAL_API_BASE_URL:-http://api:8080}

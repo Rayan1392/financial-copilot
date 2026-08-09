@@ -6,6 +6,9 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 {
     public DbSet<NormalizedCompanyRow> Companies => Set<NormalizedCompanyRow>();
 
+    public DbSet<NoavaranEligibleCompanyRow> NoavaranEligibleCompanies =>
+        Set<NoavaranEligibleCompanyRow>();
+
     public DbSet<NormalizedIndustryRow> Industries => Set<NormalizedIndustryRow>();
 
     public DbSet<NormalizedIndustryGroupRow> IndustryGroups => Set<NormalizedIndustryGroupRow>();
@@ -108,6 +111,14 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CompanyMonthlyActivityTrendSnapshotRow> CompanyMonthlyActivityTrendSnapshots =>
         Set<CompanyMonthlyActivityTrendSnapshotRow>();
+
+    public DbSet<CompanyPsGaugeSnapshotRow> CompanyPsGaugeSnapshots => Set<CompanyPsGaugeSnapshotRow>();
+
+    public DbSet<CompanyPsHistoryPointRow> CompanyPsHistoryPoints => Set<CompanyPsHistoryPointRow>();
+
+    public DbSet<CompanyPsSeriesSyncStateRow> CompanyPsSeriesSyncStates => Set<CompanyPsSeriesSyncStateRow>();
+
+    public DbSet<CompanyPsVisualizationLeaseRow> CompanyPsVisualizationLeases => Set<CompanyPsVisualizationLeaseRow>();
 
     public DbSet<MonthlySalesQualityRankingSnapshotRow> MonthlySalesQualityRankingSnapshots =>
         Set<MonthlySalesQualityRankingSnapshotRow>();

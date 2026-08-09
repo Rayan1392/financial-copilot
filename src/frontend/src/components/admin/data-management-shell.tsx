@@ -18,12 +18,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { label: "Overview", to: "/admin/data", icon: LayoutGrid },
-  { label: "Archive Import", to: "/admin/data/archive", icon: Archive },
-  { label: "Noavaran Current API", to: "/admin/data/noavaran", icon: BarChart2 },
-  { label: "StockMarketDB Bridge", to: "/admin/data/stockmarket", icon: Database, badge: "Bridge" },
-  { label: "Live Monitor", to: "/admin/data/monitor", icon: Activity },
-  { label: "Reconciliation", to: "/admin/data/reconciliation", icon: GitCompare },
+  { label: "نمای کلی", to: "/admin/data", icon: LayoutGrid },
+  { label: "ورود آرشیو", to: "/admin/data/archive", icon: Archive },
+  { label: "رابط فعلی نواوران", to: "/admin/data/noavaran", icon: BarChart2 },
+  { label: "پل StockMarketDB", to: "/admin/data/stockmarket", icon: Database, badge: "پل" },
+  { label: "پایش زنده", to: "/admin/data/monitor", icon: Activity },
+  { label: "تطبیق داده‌ها", to: "/admin/data/reconciliation", icon: GitCompare },
 ];
 
 export function DataManagementShell({ children }: { children: React.ReactNode }) {
@@ -31,18 +31,18 @@ export function DataManagementShell({ children }: { children: React.ReactNode })
   const currentPath = routerState.location.pathname;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div dir="rtl" className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border px-6 py-3 flex items-center gap-4 shrink-0">
         <Link
           to="/admin"
           className="p-1.5 text-muted-foreground hover:text-foreground transition"
-          aria-label="Back to admin"
+          aria-label="بازگشت به مدیریت"
         >
           <ArrowLeft className="size-4" />
         </Link>
-        <span className="text-sm text-muted-foreground">Admin</span>
+        <span className="text-sm text-muted-foreground">مدیریت</span>
         <span className="text-muted-foreground">/</span>
-        <span className="text-sm font-medium">Data Operations</span>
+        <span className="text-sm font-medium">عملیات داده</span>
       </header>
 
       <div className="flex flex-1 min-h-0">

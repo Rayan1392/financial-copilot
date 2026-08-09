@@ -69,7 +69,22 @@ public sealed record GoldenQuestion(
     IReadOnlyCollection<ExpectedCondition> ExpectedConditions,
     IReadOnlyCollection<EvidenceRequirement> EvidenceRequirements,
     IReadOnlyCollection<ProseRequirement> ProseRequirements,
-    string? Notes = null);
+    string? Notes = null,
+    string? ExpectedRoutingTarget = null,
+    ExpectedSalesGrowthParameters? ExpectedSalesGrowth = null);
+
+/// <summary>
+/// Optional Feature 116 expectations carried by the shared AI regression
+/// contract. Keeping these fields separate from generic metric conditions makes
+/// the comparison baseline, threshold kind, and inferred-default policy
+/// explicit and machine-checkable.
+/// </summary>
+public sealed record ExpectedSalesGrowthParameters(
+    string Baseline,
+    string ThresholdKind,
+    decimal? ThresholdValue,
+    ConditionOperator ComparisonOperator,
+    bool InferredDefault);
 
 // Versioned golden dataset. DatasetVersion identifies the revision for regression comparisons.
 public sealed record EvaluationDataset(

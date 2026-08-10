@@ -16,12 +16,15 @@ export async function downloadMonthlyTrendChartImage(
   const explanationHeight = Math.max(140, viewModel.explanationLines.length * 44 + 90);
   const height = PLOT_TOP + PLOT_HEIGHT + explanationHeight + PADDING;
   const canvas = document.createElement("canvas");
-  const scale = Math.max(1, window.devicePixelRatio || 1);
+  // Use a high-resolution backing canvas so downloaded labels and one-pixel details remain sharp
+  // when the PNG is previewed or downscaled.
+  const scale = Math.max(2, window.devicePixelRatio || 1);
   canvas.width = WIDTH * scale;
   canvas.height = height * scale;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable.");
   context.scale(scale, scale);
+  context.imageSmoothingEnabled = true;
 
   const { palette, points } = viewModel;
   context.fillStyle = palette.surface;
@@ -45,7 +48,7 @@ export async function downloadMonthlyTrendChartImage(
   const groupWidth = (plotRight - plotLeft) / Math.max(points.length, 1);
 
   context.strokeStyle = palette.grid;
-  context.lineWidth = 1;
+  context.lineWidth = 2;
   for (let tick = 0; tick <= 4; tick++) {
     const y = PLOT_TOP + (PLOT_HEIGHT * tick) / 4;
     context.beginPath(); context.moveTo(plotLeft, y); context.lineTo(plotRight, y); context.stroke();
@@ -56,8 +59,8 @@ export async function downloadMonthlyTrendChartImage(
     const barWidth = Math.min(30, groupWidth * 0.25);
     drawBar(context, center - barWidth - 5, point.previousYear, point.previousYearValueLabel, palette.previousYear, palette.foreground, maximum, plotBottom);
     drawBar(context, center + 5, point.currentYear, point.currentYearValueLabel, palette.currentYear, palette.foreground, maximum, plotBottom);
-    context.fillStyle = palette.mutedForeground;
-    context.font = '20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+    context.fillStyle = palette.foreground;
+    context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
     context.textAlign = "center";
     drawRtlText(context, point.fiscalMonthLabel, center, plotBottom + 38);
   });
@@ -89,7 +92,7 @@ export async function downloadMonthlyTrendChartImage(
   context.font = '600 24px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   drawRtlText(context, "توضیحات", WIDTH - PADDING, explanationTop);
   context.fillStyle = palette.mutedForeground;
-  context.font = '20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   const lines = viewModel.explanationLines.length > 0 ? viewModel.explanationLines : ["دادهٔ گم‌شده‌ای گزارش نشده است."];
   lines.forEach((line, index) => drawRtlText(context, line, WIDTH - PADDING, explanationTop + 42 * (index + 1)));
 
@@ -197,7 +200,7 @@ function drawLegend(context: CanvasRenderingContext2D, viewModel: MonthlyTrendCh
   context.font = '20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   entries.forEach(([label, color]) => {
     context.fillStyle = color; context.fillRect(cursor - 18, y - 15, 18, 18);
-    context.fillStyle = viewModel.palette.mutedForeground; context.textAlign = "right";
+    context.fillStyle = viewModel.palette.foreground; context.textAlign = "right";
     drawRtlText(context, label, cursor - 28, y);
     cursor -= context.measureText(label).width + 95;
   });
@@ -209,7 +212,7 @@ function drawBar(context: CanvasRenderingContext2D, x: number, value: number | n
   context.fillStyle = color;
   context.fillRect(x, bottom - height, 30, height);
   context.fillStyle = labelColor;
-  context.font = '17px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+  context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   context.textAlign = "center";
   context.fillText(label, x + 15, bottom - height - 14);
 }

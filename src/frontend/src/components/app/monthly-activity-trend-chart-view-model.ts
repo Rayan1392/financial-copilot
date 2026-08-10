@@ -51,24 +51,24 @@ const jalaliMonthNames = [
 
 const exportPalettes: Record<MonthlyTrendChartTheme, MonthlyTrendExportPalette> = {
   dark: {
-    currentYear: "#10b981",
-    previousYear: "#6366f1",
-    average: "#f59e0b",
-    foreground: "#f4f4f5",
-    mutedForeground: "#a1a1aa",
-    grid: "rgba(255,255,255,0.12)",
+    currentYear: "#34d399",
+    previousYear: "#818cf8",
+    average: "#fbbf24",
+    foreground: "#ffffff",
+    mutedForeground: "#e4e4e7",
+    grid: "rgba(255,255,255,0.22)",
     surface: "#24242a",
-    watermark: "rgba(244,244,245,0.14)",
+    watermark: "rgba(244,244,245,0.22)",
   },
   light: {
-    currentYear: "#059669",
-    previousYear: "#4f46e5",
-    average: "#d97706",
-    foreground: "#27272a",
-    mutedForeground: "#52525b",
-    grid: "rgba(63,63,70,0.18)",
+    currentYear: "#047857",
+    previousYear: "#4338ca",
+    average: "#b45309",
+    foreground: "#18181b",
+    mutedForeground: "#3f3f46",
+    grid: "rgba(63,63,70,0.28)",
     surface: "#fafafa",
-    watermark: "rgba(39,39,42,0.13)",
+    watermark: "rgba(39,39,42,0.18)",
   },
 };
 

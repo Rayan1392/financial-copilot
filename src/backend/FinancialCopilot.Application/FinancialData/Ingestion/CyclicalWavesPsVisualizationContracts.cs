@@ -40,7 +40,7 @@ public sealed record PsEligibleCompanyScope(
 
 public sealed record PsGaugeDistribution(
     long BucketA, long BucketB, long BucketC, long BucketD, long BucketE, long BucketF,
-    decimal GaugeClose, decimal BoundaryStart, decimal BoundaryMin, decimal BoundaryAverage,
+    decimal GaugeClose, decimal GaugeAverage, decimal BoundaryStart, decimal BoundaryMin, decimal BoundaryAverage,
     decimal BoundaryMax, decimal BoundaryEnd);
 
 public sealed record PsCurrentValues(string Symbol, string Ticker, decimal TtmPsRatio, decimal ForwardPsRatio, DateOnly ObservationDate);

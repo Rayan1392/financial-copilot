@@ -120,6 +120,24 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<CompanyPsVisualizationLeaseRow> CompanyPsVisualizationLeases => Set<CompanyPsVisualizationLeaseRow>();
 
+    public DbSet<IndustryRelativeValuationSourceFactRow> IndustryRelativeValuationSourceFacts =>
+        Set<IndustryRelativeValuationSourceFactRow>();
+
+    public DbSet<IndustryRelativeValuationSourceLeaseRow> IndustryRelativeValuationSourceLeases =>
+        Set<IndustryRelativeValuationSourceLeaseRow>();
+
+    public DbSet<IndustryRelativeValuationCalculationRow> IndustryRelativeValuationCalculations =>
+        Set<IndustryRelativeValuationCalculationRow>();
+    public DbSet<IndustryRelativeValuationMetricRow> IndustryRelativeValuationMetrics =>
+        Set<IndustryRelativeValuationMetricRow>();
+    public DbSet<CompanyIndustryRelativeValuationRow> CompanyIndustryRelativeValuations =>
+        Set<CompanyIndustryRelativeValuationRow>();
+    public DbSet<IndustryWatchStateRow> IndustryWatchStates => Set<IndustryWatchStateRow>();
+    public DbSet<IndustryWatchTransitionRow> IndustryWatchTransitions => Set<IndustryWatchTransitionRow>();
+    public DbSet<IndustryWatchEvaluationRow> IndustryWatchEvaluations => Set<IndustryWatchEvaluationRow>();
+    public DbSet<IndustryRelativeValuationOutboxRow> IndustryRelativeValuationOutbox =>
+        Set<IndustryRelativeValuationOutboxRow>();
+
     public DbSet<MonthlySalesQualityRankingSnapshotRow> MonthlySalesQualityRankingSnapshots =>
         Set<MonthlySalesQualityRankingSnapshotRow>();
 

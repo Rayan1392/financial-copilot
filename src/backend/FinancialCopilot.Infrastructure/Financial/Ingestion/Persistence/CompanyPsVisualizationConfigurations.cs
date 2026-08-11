@@ -13,7 +13,7 @@ public sealed class CompanyPsGaugeSnapshotRowConfiguration : IEntityTypeConfigur
         b.Property(x => x.GaugeRenderabilityStatus).HasMaxLength(32); b.Property(x => x.QualityStatus).HasMaxLength(32);
         b.Property(x => x.QualityWarningsJson).HasMaxLength(4096); b.Property(x => x.GaugePayloadHash).HasMaxLength(64);
         b.Property(x => x.CurrentValuesPayloadHash).HasMaxLength(64); b.Property(x => x.NormalizedSnapshotHash).HasMaxLength(64);
-        foreach (var property in new[] { nameof(CompanyPsGaugeSnapshotRow.TtmPsRatio), nameof(CompanyPsGaugeSnapshotRow.ForwardPsRatio), nameof(CompanyPsGaugeSnapshotRow.GaugeClose), nameof(CompanyPsGaugeSnapshotRow.BoundaryStart), nameof(CompanyPsGaugeSnapshotRow.BoundaryMin), nameof(CompanyPsGaugeSnapshotRow.BoundaryAverage), nameof(CompanyPsGaugeSnapshotRow.BoundaryMax), nameof(CompanyPsGaugeSnapshotRow.BoundaryEnd) }) b.Property(property).HasPrecision(28, 14);
+        foreach (var property in new[] { nameof(CompanyPsGaugeSnapshotRow.TtmPsRatio), nameof(CompanyPsGaugeSnapshotRow.ForwardPsRatio), nameof(CompanyPsGaugeSnapshotRow.GaugeClose), nameof(CompanyPsGaugeSnapshotRow.GaugeAverage), nameof(CompanyPsGaugeSnapshotRow.BoundaryStart), nameof(CompanyPsGaugeSnapshotRow.BoundaryMin), nameof(CompanyPsGaugeSnapshotRow.BoundaryAverage), nameof(CompanyPsGaugeSnapshotRow.BoundaryMax), nameof(CompanyPsGaugeSnapshotRow.BoundaryEnd) }) b.Property(property).HasPrecision(28, 14);
         b.HasIndex(x => new { x.ProviderName, x.CompanyId, x.ObservationDate }).IsUnique();
         b.HasIndex(x => new { x.CompanyId, x.GaugeRenderabilityStatus, x.ObservationDate });
         b.HasOne<NormalizedCompanyRow>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);

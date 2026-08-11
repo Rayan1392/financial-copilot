@@ -972,6 +972,8 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<ICyclicalWavesPsProviderClient>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services.AddScoped<ICyclicalWavesRelativeValuationProviderClient>(provider =>
+            provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services
             .AddOptions<CyclicalWavesPsSyncOptions>()
             .BindConfiguration(CyclicalWavesPsSyncOptions.SectionName)
@@ -1263,6 +1265,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CyclicalWavesPsVisualizationSyncService>();
         services.AddScoped<ICyclicalWavesPsVisualizationSyncService>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services
+            .AddOptions<IndustryRelativeValuationSourceOptions>()
+            .BindConfiguration(IndustryRelativeValuationSourceOptions.SectionName)
+            .Validate(options => options.MaximumCompaniesPerRun > 0 &&
+                                 options.MaximumConcurrency is > 0 and <= 32 &&
+                                 options.LeaseMinutes > 0,
+                "Industry relative valuation source-ingestion options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IIndustryRelativeValuationSourceIngestionService,
+            IndustryRelativeValuationSourceIngestionService>();
         services.AddScoped<ICompanyPsVisualizationReader>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
         services.AddOptions<CyclicalWavesPsVisualizationOptions>()

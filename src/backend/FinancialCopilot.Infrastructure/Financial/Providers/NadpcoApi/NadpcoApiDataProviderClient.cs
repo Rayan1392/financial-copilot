@@ -15,7 +15,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 public sealed class NadpcoApiDataProviderClient(
     HttpClient httpClient,
     IProviderRawPayloadStore rawPayloads,
-    INadpcoApiTokenProvider tokenProvider,
+    NadpcoApiTokenCache tokenCache,
     IOptions<NadpcoApiProviderOptions> options,
     TimeProvider timeProvider,
     ILogger<NadpcoApiDataProviderClient> logger,
@@ -214,36 +214,21 @@ public sealed class NadpcoApiDataProviderClient(
             cancellationToken);
     }
 
-    public async Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
+    public Task<ProviderHealthResult> CheckAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            await tokenProvider.GetTokenAsync(forceRefresh: true, cancellationToken);
-            return new ProviderHealthResult(
-                ProviderName,
-                ProviderHealthStatus.Healthy,
-                timeProvider.GetUtcNow(),
-                "Authenticated token request succeeded.");
-        }
-        catch (FinancialProviderException exception)
-        {
-            logger.LogWarning(
-                "NADPCO API health check failed with provider error {ProviderErrorCode}.",
-                exception.Code);
-            var status = exception.Code == FinancialProviderErrorCode.InvalidResponse
-                ? ProviderHealthStatus.Degraded
-                : ProviderHealthStatus.Unavailable;
-            return new ProviderHealthResult(ProviderName, status, timeProvider.GetUtcNow(), exception.Code.ToString());
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogWarning(exception, "NADPCO API health check failed.");
-            return new ProviderHealthResult(
-                ProviderName,
-                ProviderHealthStatus.Unavailable,
-                timeProvider.GetUtcNow(),
-                "TransportFailure");
-        }
+        // Health is intentionally cache-only. It must never call the vendor token endpoint because
+        // NADPCO enforces a limited daily token allowance. TryGetToken checks the in-process cache
+        // first and then the shared Redis cache, without fetching or refreshing a token.
+        cancellationToken.ThrowIfCancellationRequested();
+        var now = timeProvider.GetUtcNow();
+        var hasCachedToken = tokenCache.TryGetToken(now, out _);
+        return Task.FromResult(new ProviderHealthResult(
+            ProviderName,
+            hasCachedToken ? ProviderHealthStatus.Healthy : ProviderHealthStatus.Degraded,
+            now,
+            hasCachedToken
+                ? "A valid cached authenticated token is available."
+                : "No valid cached authenticated token is available."));
     }
 
     private async Task<ProviderRawPayload> FetchGetRawAsync(

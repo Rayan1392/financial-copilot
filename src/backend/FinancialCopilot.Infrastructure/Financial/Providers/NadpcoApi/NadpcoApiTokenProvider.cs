@@ -116,13 +116,23 @@ public sealed class NadpcoApiTokenProvider(
 
     private static TimeZoneInfo GetTehranTimeZone()
     {
-        try
+        if (TimeZoneInfo.TryFindSystemTimeZoneById("Asia/Tehran", out var tehranTimeZone))
         {
-            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+            return tehranTimeZone;
         }
-        catch (TimeZoneNotFoundException)
+
+        if (TimeZoneInfo.TryFindSystemTimeZoneById("Iran Standard Time", out tehranTimeZone))
         {
-            return TimeZoneInfo.FindSystemTimeZoneById("Iran Standard Time");
+            return tehranTimeZone;
         }
+
+        // Minimal runtime images may omit both IANA and Windows timezone databases. Iran has
+        // observed UTC+03:30 year-round since 2022, so retain the daily-cache contract even when
+        // tzdata is unavailable in the container.
+        return TimeZoneInfo.CreateCustomTimeZone(
+            "Asia/Tehran",
+            TimeSpan.FromMinutes(210),
+            "Tehran Standard Time",
+            "Tehran Standard Time");
     }
 }

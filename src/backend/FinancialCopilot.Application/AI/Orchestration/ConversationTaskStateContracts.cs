@@ -106,7 +106,8 @@ public sealed class ConversationDialogueGate(
     IMessageRepository messageRepository,
     TimeProvider timeProvider,
     ISemanticDialogueEventSink? eventSink = null,
-    ISemanticQueryFrameEnricher? frameEnricher = null) : IConversationDialogueGate
+    ISemanticQueryFrameEnricher? frameEnricher = null,
+    IIndustryRelativeValuationSemanticResolver? industryRelativeValuationResolver = null) : IConversationDialogueGate
 {
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
@@ -175,6 +176,64 @@ public sealed class ConversationDialogueGate(
                 interpretation,
                 validatedFrameSlots,
                 timeProvider.GetUtcNow()).ToArray();
+        IndustryRelativeValuationResolution? relativeResolution = null;
+        PendingDialogueAction? relativePendingAction = null;
+        if (industryRelativeValuationResolver is not null && capability is not null && capability.Contains("relative_valuation", StringComparison.Ordinal))
+        {
+            relativeResolution = await industryRelativeValuationResolver.ResolveAsync(capability, interpretation, cancellationToken);
+            if (relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Resolved)
+            {
+                validatedFrameSlots = validatedFrameSlots
+                    .Where(slot => slot.Type is not QuerySlotType.Industry and not QuerySlotType.CompanyOrSymbol and not QuerySlotType.CompaniesOrSymbols)
+                    .Append(new ResolvedQuerySlot(QuerySlotType.Industry, relativeResolution.IndustryId!.Value.ToString("D"), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, relativeResolution.IndustryName))
+                    .Concat(relativeResolution.CompanyIds is { Count: 1 } ? [new ResolvedQuerySlot(QuerySlotType.CompanyOrSymbol, relativeResolution.CompanyIds[0].ToString("D"), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, relativeResolution.Symbols?.FirstOrDefault())] : [])
+                    .Concat(relativeResolution.CompanyIds is { Count: > 1 } ? [new ResolvedQuerySlot(QuerySlotType.CompaniesOrSymbols, string.Join(',', relativeResolution.CompanyIds), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, string.Join(',', relativeResolution.Symbols ?? []))] : [])
+                    .ToArray();
+            }
+            else
+            {
+                var companyIssue = relativeResolution.Status is IndustryRelativeValuationResolutionStatus.DifferentIndustries or IndustryRelativeValuationResolutionStatus.InvalidIndustryMembership;
+                var expected = companyIssue
+                    ? QuerySlotType.CompaniesOrSymbols
+                    : relativeResolution.Detail == "Industry"
+                        ? QuerySlotType.Industry
+                        : QuerySlotType.CompanyOrSymbol;
+                var validation = relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Ambiguous
+                    ? QuerySlotValidationState.Ambiguous
+                    : relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Missing
+                        ? QuerySlotValidationState.Missing
+                        : QuerySlotValidationState.Invalid;
+                var reason = relativeResolution.Status switch
+                {
+                    IndustryRelativeValuationResolutionStatus.Ambiguous => DialogueOutcomeReasonCodes.EntityAmbiguous,
+                    IndustryRelativeValuationResolutionStatus.NotFound => DialogueOutcomeReasonCodes.EntityNotFound,
+                    IndustryRelativeValuationResolutionStatus.DifferentIndustries => DialogueOutcomeReasonCodes.DifferentIndustries,
+                    IndustryRelativeValuationResolutionStatus.InvalidIndustryMembership => DialogueOutcomeReasonCodes.InvalidIndustryMembership,
+                    _ => DialogueOutcomeReasonCodes.RequiredInputMissing
+                };
+                validatedFrameSlots = validatedFrameSlots
+                    .Where(slot => slot.Type != expected)
+                    .Append(new ResolvedQuerySlot(expected, null, QueryValueProvenance.UserExplicit, 0m, validation, capability, reason))
+                    .ToArray();
+                var candidateSlots = (relativeResolution.CandidateIds ?? [])
+                    .Select((id, index) => new ConversationTaskSlot(
+                        expected,
+                        id.ToString("D"),
+                        id,
+                        QueryValueProvenance.UserExplicit,
+                        1m,
+                        Guid.Empty,
+                        0))
+                    .ToArray();
+                relativePendingAction = new(
+                    validation == QuerySlotValidationState.Ambiguous ? PendingDialogueActionKind.Disambiguation : PendingDialogueActionKind.Clarification,
+                    expected,
+                    candidateSlots,
+                    reason,
+                    Guid.Empty,
+                    0);
+            }
+        }
         var resolvedEntities = capability == "symbol_metric_lookup"
             ? await entityResolver.ResolveAllFromInterpretationAsync(interpretation, cancellationToken)
             : [];
@@ -294,12 +353,29 @@ public sealed class ConversationDialogueGate(
                 .ToArray();
             slots = slots.Where(slot => slot.Type is not QuerySlotType.Metric and not QuerySlotType.Metrics and not QuerySlotType.Period).ToArray();
         }
-        var hasExplicitUnresolvedEntity = validatedFrameSlots.Any(slot =>
-            slot.Type == QuerySlotType.CompanyOrSymbol &&
-            slot.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid);
-        var transition = hasExplicitUnresolvedEntity
-            ? null
-            : await stateService.ResolveFollowUpAsync(scope, capability, slots, Guid.Empty, request.CorrelationId, cancellationToken);
+        var hasExplicitUnresolvedEntity = relativePendingAction is not null || validatedFrameSlots.Any(slot =>
+            (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Industry) &&
+            slot.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Missing);
+        ConversationTaskStateTransition? transition;
+        if (relativePendingAction is not null)
+        {
+            // First let Feature 120 apply task-switch semantics, then persist the complete
+            // Feature-125 pending action and its canonical candidates.
+            var switched = await stateService.ResolveFollowUpAsync(scope, capability, slots, Guid.Empty, request.CorrelationId + ":switch", cancellationToken);
+            transition = await stateService.RecordPendingAsync(
+                scope,
+                capability,
+                switched.Current?.Slots ?? slots,
+                relativePendingAction,
+                request.CorrelationId + ":pending",
+                cancellationToken);
+        }
+        else
+        {
+            transition = hasExplicitUnresolvedEntity
+                ? null
+                : await stateService.ResolveFollowUpAsync(scope, capability, slots, Guid.Empty, request.CorrelationId, cancellationToken);
+        }
         var state = transition?.Current ?? active;
         var effectiveSlots = state?.Slots ?? slots;
         var effectiveCapability = state?.ActiveCapability ?? capability;
@@ -356,6 +432,11 @@ public sealed class ConversationDialogueGate(
         var retainedSlots = active?.Slots ?? [];
         if (clarificationRequired)
         {
+            // Feature-specific adapters may already have persisted a candidate-bearing
+            // Feature 120 pending action. Do not overwrite it with the legacy empty action.
+            if (active?.PendingAction is not null &&
+                string.Equals(active.PendingAction.ReasonCode, clarificationReason, StringComparison.Ordinal))
+                return;
             var entityReason = clarificationReason is DialogueOutcomeReasonCodes.EntityAmbiguous or DialogueOutcomeReasonCodes.EntityNotFound;
             var expected = entityReason || interpretation.MissingSlots.Contains("symbol", StringComparer.Ordinal)
                 ? QuerySlotType.CompanyOrSymbol

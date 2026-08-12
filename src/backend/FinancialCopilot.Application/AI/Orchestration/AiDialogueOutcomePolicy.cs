@@ -28,6 +28,9 @@ public static class DialogueOutcomeReasonCodes
     public const string ProviderOrToolFailure = "provider_or_tool_failure";
     public const string ResponseValidationFailed = "response_validation_failed";
     public const string LanguageGuardApplied = "language_guard_applied";
+    public const string DifferentIndustries = "different_industries";
+    public const string InvalidIndustryMembership = "invalid_industry_membership";
+    public const string ResultLimitExceeded = "result_limit_exceeded";
 }
 
 public static class AiDialogueOutcomePolicy
@@ -183,6 +186,8 @@ public static class AiDialogueOutcomePolicy
     private static string ComposePersian(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.DifferentIndustries => "این دو نماد متعلق به صنایع مختلف هستند. کدام را نسبت به صنعت خودش بررسی کنم؟",
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.InvalidIndustryMembership => "این نماد عضو صنعت انتخاب‌شده نیست. لطفاً نماد یا صنعت درست را مشخص کنید.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "برای پاسخ دقیق، لطفاً اطلاعات بیشتری درباره نماد، معیار یا بازه موردنظر بنویسید.",
             DialogueOutcome.DisambiguationNeeded =>

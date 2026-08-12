@@ -59,12 +59,13 @@ public static class CapabilityExecutionRoutes
     public const string MonthlySalesQualityRanking = "monthly_sales_quality_ranking";
     public const string PsGaugeVisualization = "ps_gauge_visualization";
     public const string PersonalizedInsightExplanation = "personalized_insight_explanation";
+    public const string IndustryRelativeValuation = "industry_relative_valuation_read";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         Scanner, SymbolLookup, ComprehensiveAnalysis, MonthlyActivityTrend, ProductRevenueMix,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
-        MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation
+        MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation
     };
 }
 
@@ -222,7 +223,23 @@ public static class InitialConversationalCapabilityCatalog
         Definition("personalized_insight_explanation", CapabilityExecutionRoutes.PersonalizedInsightExplanation, "summary", "insight",
             [Alias("en", "explain this alert"), Alias("fa", "این هشدار را توضیح بده")],
             [Example("en", "explain this alert"), Example("fa", "این هشدار را توضیح بده")],
-            [Slot("insight", "insight", true)], [])
+            [Slot("insight", "insight", true)], []),
+        Definition("symbol_vs_industry_relative_valuation", CapabilityExecutionRoutes.IndustryRelativeValuation, "comparison", "relative-valuation",
+            [Alias("en", "compare symbol with its industry"), Alias("fa", "مقایسه نماد با صنعت"), Alias("fa", "ارزش‌گذاری نسبی نماد")],
+            [Example("en", "compare فولاد with its industry"), Example("fa", "نماد شگل را با صنعت خودش مقایسه کن")],
+            [Slot("symbol", "symbol", true)], [Slot("industry", "industry", false), Slot("limit", "integer", false), Slot("presentation", "presentation", false)]),
+        Definition("industry_relative_valuation_ranking", CapabilityExecutionRoutes.IndustryRelativeValuation, "ranking", "relative-valuation",
+            [Alias("en", "industry relative valuation ranking"), Alias("fa", "رتبه بندی ارزش گذاری نسبی صنعت")],
+            [Example("en", "rank companies in an industry"), Example("fa", "نمادهای صنعت شوینده را رتبه بندی کن")],
+            [Slot("industry", "industry", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)]),
+        Definition("industry_relative_valuation_summary", CapabilityExecutionRoutes.IndustryRelativeValuation, "summary", "relative-valuation",
+            [Alias("en", "industry relative valuation summary"), Alias("fa", "خلاصه ارزش گذاری نسبی صنعت")],
+            [Example("en", "summarize the industry's relative valuation"), Example("fa", "وضعیت ارزش گذاری صنعت شوینده")],
+            [], [Slot("industry", "industry", false), Slot("symbol", "symbol", false)]),
+        Definition("symbol_pair_within_industry", CapabilityExecutionRoutes.IndustryRelativeValuation, "comparison", "relative-valuation",
+            [Alias("en", "compare two symbols within their industry"), Alias("fa", "مقایسه دو نماد در یک صنعت")],
+            [Example("en", "compare فولاد and فملی within their industry"), Example("fa", "شگل و شوینده را مقایسه کن")],
+            [Slot("symbols", "symbol-list", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)])
     ];
 
     private static CapabilityDefinition Definition(
@@ -250,6 +267,7 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.MonthlySalesQualityRanking => ["monthly_activity_reports", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.PsGaugeVisualization => ["canonical_company_identity", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.PersonalizedInsightExplanation => ["personalized_market_insights"],
+        CapabilityExecutionRoutes.IndustryRelativeValuation => ["published_industry_relative_valuation_snapshot"],
         _ => throw new InvalidOperationException($"No governed data requirements exist for route '{route}'.")
     };
 

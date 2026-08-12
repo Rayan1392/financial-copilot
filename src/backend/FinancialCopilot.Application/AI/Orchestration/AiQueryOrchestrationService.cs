@@ -185,6 +185,9 @@ public sealed class AiQueryOrchestrationService(
                     case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
                     case DisclosureListingResult disclosures: disclosureListingResult = disclosures; break;
                     case PsVisualizationResult gauge: psVisualizationResult = gauge; break;
+                    case IndustryRelativeValuationPayload relative:
+                        textAnswer = relative.PresentationText;
+                        break;
                     case string explanation: textAnswer = explanation; break;
                 }
             }
@@ -835,6 +838,7 @@ public sealed class AiQueryOrchestrationService(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
 

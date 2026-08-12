@@ -15,8 +15,11 @@ public sealed class IndustryRelativeValuationCalculationRowConfiguration : IEnti
         builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
         builder.Property(row => row.MembershipHash).HasMaxLength(64).IsRequired();
         builder.Property(row => row.SourceBarrierHash).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.SourceBarrierEvidenceJson).HasColumnType("text").IsRequired();
         builder.HasIndex(row => new { row.CalculationDate, row.IndustryId, row.CalculationVersion }).IsUnique();
         builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.Status });
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsLatestEvaluation })
+            .IsUnique().HasFilter("\"IsLatestEvaluation\" = TRUE");
         builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsSelectedCurrent })
             .IsUnique().HasFilter("\"IsSelectedCurrent\" = TRUE");
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
@@ -46,7 +49,7 @@ public sealed class CompanyIndustryRelativeValuationRowConfiguration : IEntityTy
         builder.HasKey(row => row.Id);
         foreach (var name in new[] { nameof(CompanyIndustryRelativeValuationRow.CurrentPE), nameof(CompanyIndustryRelativeValuationRow.HistoricalAveragePE), nameof(CompanyIndustryRelativeValuationRow.CurrentPS), nameof(CompanyIndustryRelativeValuationRow.HistoricalAveragePS), nameof(CompanyIndustryRelativeValuationRow.CurrentMarketPrice), nameof(CompanyIndustryRelativeValuationRow.EquilibriumPrice), nameof(CompanyIndustryRelativeValuationRow.PEPercent), nameof(CompanyIndustryRelativeValuationRow.PSPercent), nameof(CompanyIndustryRelativeValuationRow.EquilibriumPercent) }) builder.Property(name).HasPrecision(28, 14);
         builder.Property(row => row.RankVersion).HasMaxLength(64).IsRequired();
-        foreach (var name in new[] { nameof(CompanyIndustryRelativeValuationRow.PeSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.PsSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.EquilibriumSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.PeSourceWatermark), nameof(CompanyIndustryRelativeValuationRow.PsSourceWatermark), nameof(CompanyIndustryRelativeValuationRow.EquilibriumSourceWatermark) }) builder.Property(name).HasMaxLength(1024).IsRequired();
+        foreach (var name in new[] { nameof(CompanyIndustryRelativeValuationRow.PeSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.PeSourceVersion), nameof(CompanyIndustryRelativeValuationRow.PsSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.PsSourceVersion), nameof(CompanyIndustryRelativeValuationRow.EquilibriumSourceObservationId), nameof(CompanyIndustryRelativeValuationRow.EquilibriumSourceVersion), nameof(CompanyIndustryRelativeValuationRow.PeSourceWatermark), nameof(CompanyIndustryRelativeValuationRow.PsSourceWatermark), nameof(CompanyIndustryRelativeValuationRow.EquilibriumSourceWatermark) }) builder.Property(name).HasMaxLength(1024).IsRequired();
         foreach (var name in new[] { nameof(CompanyIndustryRelativeValuationRow.PEClassification), nameof(CompanyIndustryRelativeValuationRow.PSClassification), nameof(CompanyIndustryRelativeValuationRow.EquilibriumClassification), nameof(CompanyIndustryRelativeValuationRow.PEReason), nameof(CompanyIndustryRelativeValuationRow.PSReason), nameof(CompanyIndustryRelativeValuationRow.EquilibriumReason) }) builder.Property(name).HasMaxLength(128).IsRequired();
         builder.HasIndex(row => new { row.CalculationId, row.CompanyId }).IsUnique();
         builder.HasIndex(row => new { row.CalculationId, row.GlobalRank });
@@ -78,9 +81,11 @@ public sealed class IndustryWatchTransitionRowConfiguration : IEntityTypeConfigu
         builder.Property(row => row.EvaluationKind).HasMaxLength(64).IsRequired();
         builder.Property(row => row.PreviousState).HasMaxLength(32).IsRequired();
         builder.Property(row => row.NextState).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.EvaluationOutcome).HasMaxLength(64).IsRequired();
         builder.Property(row => row.Reason).HasMaxLength(256).IsRequired();
         builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
         builder.Property(row => row.EventIdentity).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.CreatedAtUtc).IsRequired();
         builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind }).IsUnique();
         builder.HasIndex(row => new { row.IndustryId, row.TransitionDate });
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
@@ -96,6 +101,11 @@ public sealed class IndustryWatchEvaluationRowConfiguration : IEntityTypeConfigu
         builder.HasKey(row => row.Id);
         builder.Property(row => row.EvaluationKind).HasMaxLength(64).IsRequired();
         builder.Property(row => row.Outcome).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.PreviousState).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.NewState).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.TransitionReason).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsEffective });
         builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind }).IsUnique();
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<IndustryRelativeValuationCalculationRow>().WithMany().HasForeignKey(row => row.CalculationId).OnDelete(DeleteBehavior.Restrict);

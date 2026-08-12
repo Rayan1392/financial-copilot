@@ -7,6 +7,13 @@ public sealed record CanonicalQueryEntity(
     string EntityType,
     string IdentityProvenance);
 
+public sealed record CanonicalQueryIndustry(
+    Guid CanonicalId,
+    string ExternalId,
+    string DisplayName,
+    string ProviderName,
+    string IdentityProvenance);
+
 public sealed record EntityResolutionEvidence(
     string MatchKind,
     decimal Confidence,
@@ -28,6 +35,17 @@ public abstract record EntityResolutionResult
     public sealed record Missing(string EntityType) : EntityResolutionResult;
 }
 
+public abstract record IndustryResolutionResult
+{
+    public sealed record Resolved(CanonicalQueryIndustry Industry, EntityResolutionEvidence Evidence) : IndustryResolutionResult;
+
+    public sealed record Ambiguous(IReadOnlyList<CanonicalQueryIndustry> Candidates) : IndustryResolutionResult;
+
+    public sealed record NotFound(string NormalizedMention) : IndustryResolutionResult;
+
+    public sealed record Missing(string EntityType) : IndustryResolutionResult;
+}
+
 public interface ICanonicalQueryEntityResolver
 {
     Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default);
@@ -39,6 +57,13 @@ public interface ICanonicalQueryEntityResolver
     Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default);
+}
+
+// Feature 119 remains the canonical authority for both company and industry identity.
+// Feature-specific routes may adapt these outcomes, but may not reimplement matching.
+public interface ICanonicalQueryIndustryResolver
+{
+    Task<IndustryResolutionResult> ResolveIndustryMentionAsync(string? mention, CancellationToken cancellationToken = default);
 }
 
 public enum QuerySlotType

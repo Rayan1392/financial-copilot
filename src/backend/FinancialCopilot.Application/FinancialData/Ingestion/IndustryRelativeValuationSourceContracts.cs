@@ -64,6 +64,27 @@ public interface ICyclicalWavesRelativeValuationProviderClient
         CancellationToken cancellationToken);
 }
 
+public sealed record IndustryRelativeValuationOrchestrationResult(
+    string CorrelationId,
+    int CompaniesConsidered,
+    int FactsPersisted,
+    int FactsUnchanged,
+    int SourceFailures,
+    int IndustriesCalculated,
+    int PublishedSnapshots,
+    int InconclusiveSnapshots);
+
+/// <summary>
+/// Application boundary for the Feature 125 downstream calculation pipeline.
+/// Scheduling and retry ownership remain with the existing worker workflow.
+/// </summary>
+public interface IIndustryRelativeValuationOrchestrationService
+{
+    Task<IndustryRelativeValuationOrchestrationResult> RunAsync(
+        string correlationId,
+        CancellationToken cancellationToken);
+}
+
 public sealed record PsRelativeValuationProjection(
     Guid CompanyId,
     string ProviderName,

@@ -14,6 +14,65 @@ public sealed record SemanticComprehensiveAnalysisPayload(
     ComprehensiveAnalysisQueryResponse Analysis,
     SymbolLookupTableResult Lookup);
 
+public sealed record IndustryRelativeValuationPayload(
+    IndustryRelativeValuationReadModel ReadModel,
+    string PresentationText);
+
+public sealed class IndustryRelativeValuationCapabilityExecutor(
+    IIndustryRelativeValuationReadRepository repository,
+    IndustryRelativeValuationReadOptions readOptions,
+    string? registeredCapabilityCode = null) : IConversationalCapabilityExecutor
+{
+    public IndustryRelativeValuationCapabilityExecutor(
+        IIndustryRelativeValuationReadRepository repository,
+        string? registeredCapabilityCode = null)
+        : this(repository, new IndustryRelativeValuationReadOptions(), registeredCapabilityCode)
+    {
+    }
+
+    private static readonly IReadOnlySet<string> Codes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "symbol_vs_industry_relative_valuation", "industry_relative_valuation_ranking",
+        "industry_relative_valuation_summary", "symbol_pair_within_industry"
+    };
+
+    public string CapabilityCode => registeredCapabilityCode ?? "symbol_vs_industry_relative_valuation";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
+    {
+        if (!Codes.Contains(frame.CapabilityCode)) return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "unsupported_feature_125_capability");
+        var industry = ParseId(frame.Value(QuerySlotType.Industry));
+        var ids = ParseIds(frame.Value(QuerySlotType.CompaniesOrSymbols) ?? frame.Value(QuerySlotType.CompanyOrSymbol));
+        var options = readOptions;
+        options.Validate();
+        var requestedLimit = int.TryParse(frame.Value(QuerySlotType.ResultLimit), out var parsed)
+            ? parsed
+            : options.DefaultResultLimit;
+        if (requestedLimit < 1 || requestedLimit > options.MaximumResultLimit)
+        {
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.ResultLimitExceeded);
+        }
+        var limit = requestedLimit;
+        try
+        {
+            var read = await repository.ReadAsync(new IndustryRelativeValuationReadRequest(industry, ids, frame.CapabilityCode, limit), cancellationToken);
+            if (read is null)
+            {
+                return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows);
+            }
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Executed, DialogueOutcomeReasonCodes.None,
+                new IndustryRelativeValuationPayload(read, IndustryRelativeValuationPresentation.Explain(read, context.ReplyLanguage)));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed, DialogueOutcomeReasonCodes.ProviderOrToolFailure);
+        }
+    }
+
+    private static Guid? ParseId(string? value) => Guid.TryParse(value, out var id) ? id : null;
+    private static IReadOnlyList<Guid> ParseIds(string? value) => string.IsNullOrWhiteSpace(value) ? [] : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(ParseId).Where(x => x.HasValue).Select(x => x!.Value).Take(2).ToArray();
+}
+
 public sealed class StockScreeningCapabilityExecutor(
     IScannerQueryParser parser,
     IScannerExecutionService executionService,

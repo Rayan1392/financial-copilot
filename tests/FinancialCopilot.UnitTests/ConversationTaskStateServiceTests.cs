@@ -47,6 +47,39 @@ public sealed class ConversationTaskStateServiceTests
     }
 
     [Fact]
+    public async Task PendingFeature125Clarification_PersistsCandidatesAndResolvesIndustryReply()
+    {
+        var service = Create(out _);
+        var industryA = Guid.NewGuid();
+        var industryB = Guid.NewGuid();
+        await service.RecordPendingAsync(
+            Scope,
+            "industry_relative_valuation_ranking",
+            [],
+            new(
+                PendingDialogueActionKind.Disambiguation,
+                QuerySlotType.Industry,
+                [Slot(QuerySlotType.Industry, industryA.ToString("D"), industryA), Slot(QuerySlotType.Industry, industryB.ToString("D"), industryB)],
+                DialogueOutcomeReasonCodes.EntityAmbiguous,
+                Guid.NewGuid(),
+                1),
+            "feature125-ambiguous",
+            default);
+
+        var transition = await service.ResolveFollowUpAsync(
+            Scope,
+            null,
+            [Slot(QuerySlotType.Industry, industryB.ToString("D"), industryB)],
+            Guid.NewGuid(),
+            "feature125-selection",
+            default);
+
+        Assert.Equal(ConversationTaskStateTransitionKind.ClarificationResolved, transition.Kind);
+        Assert.Null(transition.Current!.PendingAction);
+        Assert.Equal(industryB.ToString("D"), transition.Current.FindSlot(QuerySlotType.Industry)!.Value);
+    }
+
+    [Fact]
     public async Task ExpiredState_IsDeletedAndNeverCarried()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.Parse("2026-08-07T10:00:00Z"));

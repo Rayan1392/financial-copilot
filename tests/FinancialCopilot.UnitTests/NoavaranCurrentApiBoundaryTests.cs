@@ -4,6 +4,8 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -130,7 +132,8 @@ public sealed class NoavaranCurrentApiBoundaryTests
         new(
             httpClient,
             new ProviderRawPayloadStore(CreateProviderDbContext()),
-            new SequenceTokenProvider("token"),
+            new NadpcoApiTokenCache(
+                new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()))),
             Options.Create(new NadpcoApiProviderOptions
             {
                 StatementFromYear = 1403,

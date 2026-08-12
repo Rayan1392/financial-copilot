@@ -12,8 +12,10 @@ public sealed class IndustryRelativeValuationCalculationRow
     public string AlgorithmVersion { get; set; } = string.Empty;
     public string MembershipHash { get; set; } = string.Empty;
     public string SourceBarrierHash { get; set; } = string.Empty;
+    public string SourceBarrierEvidenceJson { get; set; } = string.Empty;
     public DateTimeOffset CalculatedAtUtc { get; set; }
     public DateTimeOffset? PublishedAtUtc { get; set; }
+    public bool IsLatestEvaluation { get; set; }
     public bool IsSelectedCurrent { get; set; }
 }
 
@@ -40,8 +42,20 @@ public sealed class CompanyIndustryRelativeValuationRow
     public Guid CalculationId { get; set; }
     public Guid CompanyId { get; set; }
     public string PeSourceObservationId { get; set; } = string.Empty;
+    public Guid? PeSourceFactId { get; set; }
+    public string PeSourceVersion { get; set; } = string.Empty;
+    public DateTimeOffset? PeSourceObservationTimestamp { get; set; }
+    public DateTimeOffset? PePersistedAtUtc { get; set; }
     public string PsSourceObservationId { get; set; } = string.Empty;
+    public Guid? PsSourceFactId { get; set; }
+    public string PsSourceVersion { get; set; } = string.Empty;
+    public DateTimeOffset? PsSourceObservationTimestamp { get; set; }
+    public DateTimeOffset? PsPersistedAtUtc { get; set; }
     public string EquilibriumSourceObservationId { get; set; } = string.Empty;
+    public Guid? EquilibriumSourceFactId { get; set; }
+    public string EquilibriumSourceVersion { get; set; } = string.Empty;
+    public DateTimeOffset? EquilibriumSourceObservationTimestamp { get; set; }
+    public DateTimeOffset? EquilibriumPersistedAtUtc { get; set; }
     public string PeSourceWatermark { get; set; } = string.Empty;
     public string PsSourceWatermark { get; set; } = string.Empty;
     public string EquilibriumSourceWatermark { get; set; } = string.Empty;
@@ -93,6 +107,7 @@ public sealed class IndustryWatchTransitionRow
     public string EvaluationKind { get; set; } = string.Empty;
     public string PreviousState { get; set; } = string.Empty;
     public string NextState { get; set; } = string.Empty;
+    public string EvaluationOutcome { get; set; } = string.Empty;
     public int PreviousEntryStreak { get; set; }
     public int NewEntryStreak { get; set; }
     public int PreviousExitStreak { get; set; }
@@ -101,6 +116,7 @@ public sealed class IndustryWatchTransitionRow
     public string Reason { get; set; } = string.Empty;
     public string AlgorithmVersion { get; set; } = string.Empty;
     public string EventIdentity { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
 }
 
 public sealed class IndustryWatchEvaluationRow
@@ -111,6 +127,16 @@ public sealed class IndustryWatchEvaluationRow
     public string EvaluationKind { get; set; } = string.Empty;
     public string Outcome { get; set; } = string.Empty;
     public DateTimeOffset EvaluatedAtUtc { get; set; }
+    public DateOnly CalculationDate { get; set; }
+    public string PreviousState { get; set; } = string.Empty;
+    public string NewState { get; set; } = string.Empty;
+    public int PreviousEntryStreak { get; set; }
+    public int NewEntryStreak { get; set; }
+    public int PreviousExitStreak { get; set; }
+    public int NewExitStreak { get; set; }
+    public string TransitionReason { get; set; } = string.Empty;
+    public string AlgorithmVersion { get; set; } = string.Empty;
+    public bool IsEffective { get; set; } = true;
 }
 
 public sealed class IndustryRelativeValuationOutboxRow

@@ -60,10 +60,16 @@ public sealed class IndustryRelativeValuationSourceIngestionService(
             : request.CorrelationId.Trim();
 
         if (!settings.Enabled)
+        {
+            logger.LogInformation("Feature 125 source ingestion is disabled.");
             return new(correlationId, 0, 0, 0, 0, false);
+        }
 
         if (!await TryAcquireLeaseAsync(correlationId, cancellationToken))
+        {
+            logger.LogWarning("Feature 125 source ingestion lease contended for correlation {CorrelationId}.", correlationId);
             return new(correlationId, 0, 0, 0, 0, true);
+        }
 
         try
         {
@@ -109,6 +115,7 @@ public sealed class IndustryRelativeValuationSourceIngestionService(
                         company.CompanyId);
                 }
             }
+            logger.LogInformation("Feature 125 source ingestion completed for correlation {CorrelationId}: companies {Companies}, persisted {Persisted}, unchanged {Unchanged}, failures {Failures}.", correlationId, companies.Length, persisted, unchanged, failures);
             return new(correlationId, companies.Length, persisted, unchanged, failures, false);
         }
         finally
@@ -136,10 +143,18 @@ public sealed class IndustryRelativeValuationSourceIngestionService(
         }
 
         var ps = await db.CompanyPsGaugeSnapshots.AsNoTracking()
-            .Where(row => row.CompanyId == company.CompanyId && row.ProviderName == "CyclicalWaves")
-            .OrderByDescending(row => row.ObservationDate)
+            .Where(row => row.CompanyId == company.CompanyId &&
+                          row.ProviderName == "CyclicalWaves" &&
+                          row.GaugeRenderabilityStatus == GaugeRenderabilityStatus.Renderable.ToString() &&
+                          row.QualityStatus == "Valid" &&
+                          row.GaugeClose > 0m &&
+                          row.GaugeAverage > 0m)
+            // CyclicalWaves does not provide a business observation date for the
+            // gauge. Persistence/fetch time is the freshness evidence instead.
+            .OrderByDescending(row => row.GaugeFetchedAtUtc)
+            .ThenByDescending(row => row.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        if (ps is not null && ps.GaugeClose > 0m && ps.GaugeAverage > 0m)
+        if (ps is not null)
         {
             var projection = PsRelativeValuationFactProjection.FromGauge(
                 company.CompanyId,

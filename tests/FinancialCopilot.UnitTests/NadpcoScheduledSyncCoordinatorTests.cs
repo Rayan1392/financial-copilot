@@ -70,6 +70,72 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
     }
 
     [Fact]
+    public async Task SuccessfulScheduledIngestion_InvokesFeature125DownstreamPipeline()
+    {
+        await using var db = CreateDb();
+        var feature = new StubIndustryRelativeValuationOrchestrationService();
+        var coordinator = NewCoordinator(
+            db,
+            new StubNadpcoApiSyncService(),
+            feature125: feature,
+            options: new NadpcoScheduledSyncOptions { Enabled = true, RetryDelaySeconds = 0 });
+
+        var run = await coordinator.RunAsync(
+            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
+            CancellationToken.None);
+
+        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
+        Assert.Equal(1, feature.InvocationCount);
+        Assert.StartsWith("nadpco-", feature.CorrelationIds.Single());
+    }
+
+    [Fact]
+    public async Task Feature125Failure_UsesExistingRetryAndLeavesPublishedSnapshotUntouched()
+    {
+        await using var db = CreateDb();
+        var calculationId = Guid.NewGuid();
+        db.IndustryRelativeValuationCalculations.Add(new IndustryRelativeValuationCalculationRow
+        {
+            Id = calculationId,
+            IndustryId = Guid.NewGuid(),
+            CalculationDate = new DateOnly(2026, 6, 3),
+            CalculationVersion = 1,
+            Status = "Published",
+            IsSelectedCurrent = true,
+            IsLatestEvaluation = true,
+            IndustryExternalId = "industry-1",
+            IndustryTitleSnapshot = "Industry",
+            AlgorithmVersion = "IQR-R7-1.5-v1",
+            MembershipHash = "membership",
+            SourceBarrierHash = "barrier",
+            SourceBarrierEvidenceJson = "[]",
+            CalculatedAtUtc = Now,
+            PublishedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+
+        var feature = new StubIndustryRelativeValuationOrchestrationService
+        {
+            ExceptionToThrow = new InvalidOperationException("feature-125-failure")
+        };
+        var coordinator = NewCoordinator(
+            db,
+            new StubNadpcoApiSyncService(),
+            feature125: feature,
+            options: new NadpcoScheduledSyncOptions { Enabled = true, RetryCount = 1, RetryDelaySeconds = 0 });
+
+        var run = await coordinator.RunAsync(
+            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
+            CancellationToken.None);
+
+        Assert.Equal(NadpcoScheduledSyncRunStatus.Failed, run.Status);
+        Assert.Equal(2, feature.InvocationCount);
+        var published = await db.IndustryRelativeValuationCalculations.SingleAsync(row => row.Id == calculationId);
+        Assert.True(published.IsSelectedCurrent);
+        Assert.Equal("Published", published.Status);
+    }
+
+    [Fact]
     public async Task AutomaticRun_WhenOnlyCompanyCatalogSelected_DoesNotInvokeFullIncrementalSync()
     {
         await using var db = CreateDb();
@@ -195,7 +261,8 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
         FinancialIngestionDbContext db,
         StubNadpcoApiSyncService orchestration,
         INadpcoScheduledSyncAlertSink? alertSink = null,
-        NadpcoScheduledSyncOptions? options = null)
+        NadpcoScheduledSyncOptions? options = null,
+        StubIndustryRelativeValuationOrchestrationService? feature125 = null)
     {
         var timeProvider = new FixedTimeProvider(Now);
         return new NadpcoScheduledSyncCoordinator(
@@ -209,7 +276,8 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
                 LockLeaseSeconds = 3600
             }),
             timeProvider,
-            NullLogger<NadpcoScheduledSyncCoordinator>.Instance);
+            NullLogger<NadpcoScheduledSyncCoordinator>.Instance,
+            feature125);
     }
 
     private static FinancialIngestionDbContext CreateDb() =>
@@ -262,6 +330,25 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
                 AdvancedWatermark: Now,
                 Duration: TimeSpan.FromMilliseconds(100),
                 RunMode: NadpcoApiSyncRunMode.CompanyCatalogRefresh));
+        }
+    }
+
+    private sealed class StubIndustryRelativeValuationOrchestrationService
+        : IIndustryRelativeValuationOrchestrationService
+    {
+        public int InvocationCount { get; private set; }
+        public List<string> CorrelationIds { get; } = [];
+        public Exception? ExceptionToThrow { get; set; }
+
+        public Task<IndustryRelativeValuationOrchestrationResult> RunAsync(
+            string correlationId,
+            CancellationToken cancellationToken)
+        {
+            InvocationCount++;
+            CorrelationIds.Add(correlationId);
+            if (ExceptionToThrow is not null) throw ExceptionToThrow;
+            return Task.FromResult(new IndustryRelativeValuationOrchestrationResult(
+                correlationId, 0, 0, 0, 0, 0, 0, 0));
         }
     }
 

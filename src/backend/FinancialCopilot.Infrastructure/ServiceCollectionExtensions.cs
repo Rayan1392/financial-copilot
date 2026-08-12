@@ -24,6 +24,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Insights;
 using FinancialCopilot.Domain.Financial.Insights.Microstructure;
+using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Domain.Financial.Services;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Billing;
@@ -678,6 +679,26 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, ComprehensiveAnalysisCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, StockScreeningCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PersonalizedInsightExplanationCapabilityExecutor>();
+        services.AddOptions<IndustryRelativeValuationOptions>()
+            .BindConfiguration(IndustryRelativeValuationOptions.SectionName)
+            .Validate(options => options.IsValid(out _), "IndustryRelativeValuation options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IIndustryRelativeValuationReadRepository, IndustryRelativeValuationReadRepository>();
+        services.AddOptions<IndustryRelativeValuationReadOptions>()
+            .BindConfiguration(IndustryRelativeValuationReadOptions.SectionName)
+            .Validate(options =>
+                options.DefaultResultLimit is >= 1 and <= 100 &&
+                options.MaximumResultLimit is >= 1 and <= 1000 &&
+                options.DefaultResultLimit <= options.MaximumResultLimit,
+                "Industry relative valuation read limits are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IndustryRelativeValuationReadOptions>(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<IndustryRelativeValuationReadOptions>>().Value);
+        services.AddScoped<IIndustryRelativeValuationSemanticResolver, IndustryRelativeValuationSemanticAdapter>();
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "symbol_vs_industry_relative_valuation"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_ranking"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_summary"));
+        services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "symbol_pair_within_industry"));
         services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();
@@ -687,6 +708,8 @@ public static class ServiceCollectionExtensions
         services.Configure<ConversationTaskStateOptions>(configuration.GetSection(ConversationTaskStateOptions.SectionName));
         services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
         services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
+        services.AddScoped<ICanonicalQueryIndustryResolver>(provider =>
+            (ICanonicalQueryIndustryResolver)provider.GetRequiredService<ICanonicalQueryEntityResolver>());
         services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();
         services.AddSingleton<ISemanticQueryFrameEnricher, SemanticQueryFrameEnricher>();
         services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
@@ -1275,6 +1298,19 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
         services.AddScoped<IIndustryRelativeValuationSourceIngestionService,
             IndustryRelativeValuationSourceIngestionService>();
+        services.AddScoped<IIndustryRelativeValuationOrchestrationService,
+            IndustryRelativeValuationOrchestrationService>();
+        services.AddScoped<IndustryRelativeValuationCalculationInputBuilder>();
+        services.AddScoped<IndustryRelativeValuationCalculationSnapshotWriter>();
+        services.AddOptions<IndustryWatchOptions>()
+            .BindConfiguration("IndustryRelativeValuation")
+            .Validate(options => options.EntryConsecutiveSnapshots is >= 1 and <= 30 &&
+                                 options.ExitConsecutiveSnapshots is >= 1 and <= 30,
+                "Industry watch thresholds must be between 1 and 30.")
+            .ValidateOnStart();
+        services.AddScoped(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<IndustryWatchOptions>>().Value);
+        services.AddScoped<IndustryWatchEvaluationService>();
         services.AddScoped<ICompanyPsVisualizationReader>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
         services.AddOptions<CyclicalWavesPsVisualizationOptions>()

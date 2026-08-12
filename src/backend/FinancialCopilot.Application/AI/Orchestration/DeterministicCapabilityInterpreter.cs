@@ -21,6 +21,8 @@ public sealed class DeterministicCapabilityInterpreter(
     private static readonly string[] DisclosureWords = ["disclosure", "اطلاعیه", "کدال"];
     private static readonly string[] RankingWords = ["ranking", "rank", "رتبه", "رتبه‌بندی", "کیفیت فروش"];
     private static readonly string[] MetricWords = ["p/e", "p/s", "eps", "roe", "roa", "فروش", "درآمد", "سود", "قیمت", "نسبت"];
+    private static readonly string[] RelativeWords = ["relative valuation", "industry relative", "ارزش گذاری نسبی", "ارزش‌گذاری نسبی", "با صنعت", "در صنعت", "داخل صنعت"];
+    private static readonly string[] IndustryWords = ["industry", "group", "صنعت", "گروه"];
     private static readonly HashSet<string> NonEntityWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "show", "the", "for", "with", "below", "above", "monthly", "sales", "product", "products", "mix", "revenue", "stock", "stocks", "screen",
@@ -30,6 +32,11 @@ public sealed class DeterministicCapabilityInterpreter(
         "month", "quarter", "year", "week", "previous", "prior", "last", "latest", "same", "before", "current", "and", "or",
         "ماه", "فصل", "سال", "هفته", "قبل", "قبلی", "گذشته", "اخیر", "مشابه", "جاری", "امسال", "پارسال", "و", "یا", "برای", "از", "به"
     };
+
+    static DeterministicCapabilityInterpreter()
+    {
+        NonEntityWords.UnionWith(["industry", "group", "صنعت", "گروه", "با", "در", "داخل", "compare", "rank", "ranking", "pair", "دو", "نمادها", "symbol", "symbols", "its", "relative", "valuation"]);
+    }
 
     public QueryInterpretation Interpret(string message)
     {
@@ -60,6 +67,18 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("financial_statement_period_analysis", StatementAnalysisWords, 0.98m, normalized, scores, evidence, "statement-analysis-keyword");
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
+        var entities = ExtractEntities(original, normalized);
+
+        if (ContainsAny(normalized, RelativeWords) ||
+            ContainsAny(normalized, IndustryWords) && ContainsAny(normalized, ["compare", "rank", "ranking", "analysis", "analyze", "review", "ØªØ­Ù„ÛŒÙ„", "Ø¨Ø±Ø±Ø³ÛŒ", "Ù…Ù‚Ø§ÛŒØ³Ù‡", "Ø±ØªØ¨Ù‡"]))
+        {
+            var pair = entities.Count > 1 || ContainsAny(normalized, ["pair", "two symbols", "Ø¯Ùˆ Ù†Ù…Ø§Ø¯"]);
+            var ranking = ContainsAny(normalized, RankingWords);
+            var summary = !ranking && !pair && !ContainsAny(normalized, ["compare", "Ù…Ù‚Ø§ÛŒØ³Ù‡"]);
+            var code = pair ? "symbol_pair_within_industry" : ranking ? "industry_relative_valuation_ranking" : summary ? "industry_relative_valuation_summary" : "symbol_vs_industry_relative_valuation";
+            scores[code] = Math.Max(scores.GetValueOrDefault(code), 0.98m);
+            evidence.Add(new InterpretationEvidence(code, "feature-125-relative-valuation", QueryValueProvenance.UserExplicit));
+        }
 
         if (ContainsAny(normalized, MetricWords) && ContainsAny(normalized,
                 ["below", "above", "under", "over", "زیر", "بالای", "کمتر از", "بیشتر از", "حداقل", "حداکثر"]))
@@ -74,7 +93,6 @@ public sealed class DeterministicCapabilityInterpreter(
             evidence.Add(new InterpretationEvidence("financial_statement_period_analysis", "statement-with-analysis", QueryValueProvenance.UserExplicit));
         }
 
-        var entities = ExtractEntities(original, normalized);
         if (ContainsAny(normalized, MetricWords))
         {
             scores["symbol_metric_lookup"] = Math.Max(

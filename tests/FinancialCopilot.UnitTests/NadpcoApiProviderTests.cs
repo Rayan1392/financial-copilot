@@ -116,6 +116,63 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
+    public async Task DataProvider_HealthCheck_UsesCachedTokenWithoutCallingVendor()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var now = new DateTimeOffset(2026, 8, 12, 8, 0, 0, TimeSpan.Zero);
+        var cache = CreateTokenCache();
+        cache.SetToken("cached-token", now, now.AddHours(1));
+        var vendorCalled = false;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            vendorCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            cache,
+            Options.Create(new NadpcoApiProviderOptions()),
+            new MutableTimeProvider(now),
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        var result = await provider.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderHealthStatus.Healthy, result.Status);
+        Assert.False(vendorCalled);
+    }
+
+    [Fact]
+    public async Task DataProvider_HealthCheck_WithEmptyCache_IsDegradedWithoutCallingVendor()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var vendorCalled = false;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            vendorCalled = true;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        var result = await provider.CheckAsync(CancellationToken.None);
+
+        Assert.Equal(ProviderHealthStatus.Degraded, result.Status);
+        Assert.False(vendorCalled);
+    }
+
+    [Fact]
     public async Task AuthHandler_AddsBearerHeaderAndRetriesOnceAfter401()
     {
         var tokenProvider = new SequenceTokenProvider("expired-token", "fresh-token");
@@ -320,7 +377,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 StatementFromYear = 1401,
@@ -361,7 +418,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 FundamentalIndexFromYear = 1401,
@@ -405,7 +462,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 // Permitted range (Shamsi 1404+); flows through unchanged.
@@ -459,7 +516,7 @@ public sealed class NadpcoApiProviderTests
         var client = new NadpcoApiDataProviderClient(
             httpClient,
             new ProviderRawPayloadStore(dbContext),
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions
             {
                 // Earlier than the permitted Shamsi 1404 boundary — must be clamped up to 1404/01/01.
@@ -539,10 +596,13 @@ public sealed class NadpcoApiProviderTests
         new(
             httpClient,
             store,
-            new SequenceTokenProvider("token"),
+            CreateTokenCache(),
             Options.Create(new NadpcoApiProviderOptions()),
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+    private static NadpcoApiTokenCache CreateTokenCache() =>
+        new(new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
 
     private static FinancialProviderDbContext CreateProviderDbContext()
     {

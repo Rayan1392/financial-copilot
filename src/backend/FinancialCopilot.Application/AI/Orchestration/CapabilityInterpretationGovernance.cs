@@ -56,6 +56,14 @@ public static class CapabilityRoutingPrecedence
         var hasProduct = candidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
         var hasDisclosure = candidates.Any(candidate => candidate.CapabilityCode == "disclosure_listing");
         var hasRanking = candidates.Any(candidate => candidate.CapabilityCode == "monthly_sales_quality_ranking");
+        var hasRelativeValuation = text.Contains("relative valuation", StringComparison.OrdinalIgnoreCase) ||
+                                   text.Contains("ارزش گذاری نسبی", StringComparison.Ordinal) ||
+                                   text.Contains("ارزش‌گذاری نسبی", StringComparison.Ordinal) ||
+                                   text.Contains("مقایسه", StringComparison.Ordinal) &&
+                                   (text.Contains("صنعت", StringComparison.Ordinal) || text.Contains("industry", StringComparison.OrdinalIgnoreCase));
+        var relativeCandidate = candidates.FirstOrDefault(candidate => candidate.CapabilityCode is
+            "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or "symbol_pair_within_industry");
 
         var preferred = hasThreshold && candidates.Any(candidate => candidate.CapabilityCode == "stock_screening") ? "stock_screening"
             : hasGauge && hasPs ? "ps_gauge_visualization"
@@ -63,6 +71,7 @@ public static class CapabilityRoutingPrecedence
             : hasStatement ? "financial_statement_table"
             : hasProduct ? "product_revenue_mix"
             : hasDisclosure ? "disclosure_listing"
+            : hasRelativeValuation && relativeCandidate is not null ? relativeCandidate.CapabilityCode
             : hasRanking ? "monthly_sales_quality_ranking"
             : hasTrend && hasMetric && hasEntity ? "monthly_activity_trend"
             : hasAnalysis && hasEntity && !IsExplicitPointMetric(text) ? "comprehensive_analysis"

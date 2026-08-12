@@ -269,7 +269,8 @@ public sealed class NadpcoScheduledSyncCoordinator(
     INadpcoScheduledSyncAlertSink alertSink,
     IOptions<NadpcoScheduledSyncOptions> options,
     TimeProvider timeProvider,
-    ILogger<NadpcoScheduledSyncCoordinator> logger) : INadpcoScheduledSyncCoordinator
+    ILogger<NadpcoScheduledSyncCoordinator> logger,
+    IIndustryRelativeValuationOrchestrationService? industryRelativeValuation = null) : INadpcoScheduledSyncCoordinator
 {
     public async Task<NadpcoScheduledSyncRun> RunAsync(
         NadpcoScheduledSyncRunRequest request,
@@ -338,6 +339,10 @@ public sealed class NadpcoScheduledSyncCoordinator(
             try
             {
                 result = await ExecuteSelectedDatasetsAsync(settings, timeout.Token);
+                if (industryRelativeValuation is not null)
+                {
+                    await industryRelativeValuation.RunAsync($"nadpco-{row.Id:N}", timeout.Token);
+                }
                 lastException = null;
                 break;
             }

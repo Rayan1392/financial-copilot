@@ -76,6 +76,10 @@ public sealed class SemanticCapabilityDispatcher(
             .ToArray();
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Ambiguous))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityAmbiguous);
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "different_industries"))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "different_industries");
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "invalid_industry_membership"))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "invalid_industry_membership");
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == DialogueOutcomeReasonCodes.EntityNotFound))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Unsupported))

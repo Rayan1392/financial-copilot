@@ -7,8 +7,48 @@ namespace FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 
 public sealed class CanonicalQueryEntityResolver(
     FinancialIngestionDbContext dbContext,
-    IOptions<CanonicalEntityResolutionOptions> options) : ICanonicalQueryEntityResolver
+    IOptions<CanonicalEntityResolutionOptions> options) : ICanonicalQueryEntityResolver, ICanonicalQueryIndustryResolver
 {
+    public async Task<IndustryResolutionResult> ResolveIndustryMentionAsync(string? mention, CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeIdentity(mention);
+        if (string.IsNullOrWhiteSpace(normalized) || QueryNormalization.IsPresentationWord(normalized))
+            return new IndustryResolutionResult.Missing("Industry");
+
+        var industries = await dbContext.Industries.AsNoTracking()
+            .Where(row => row.ProviderName == "NoavaranCurrentApi")
+            .ToArrayAsync(cancellationToken);
+        var exact = industries.Where(row =>
+                string.Equals(NormalizeIdentity(row.ExternalId), normalized, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(NormalizeIdentity(row.Name), normalized, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (exact.Length == 1)
+            return new IndustryResolutionResult.Resolved(
+                new CanonicalQueryIndustry(exact[0].Id, exact[0].ExternalId, exact[0].Name, exact[0].ProviderName, "canonical_industry"),
+                new EntityResolutionEvidence("exact_industry", 1m));
+        if (exact.Length > 1)
+            return new IndustryResolutionResult.Ambiguous(exact
+                .Take(Math.Clamp(options.Value.MaxCandidates, 1, 10))
+                .Select(row => new CanonicalQueryIndustry(row.Id, row.ExternalId, row.Name, row.ProviderName, "canonical_industry"))
+                .ToArray());
+
+        var contained = industries.Where(row =>
+                NormalizeIdentity(row.Name).Contains(normalized, StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains(NormalizeIdentity(row.Name), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (contained.Length == 1)
+            return new IndustryResolutionResult.Resolved(
+                new CanonicalQueryIndustry(contained[0].Id, contained[0].ExternalId, contained[0].Name, contained[0].ProviderName, "canonical_industry_variant"),
+                new EntityResolutionEvidence("canonical_industry_variant", 0.95m));
+        if (contained.Length > 1)
+            return new IndustryResolutionResult.Ambiguous(contained
+                .Take(Math.Clamp(options.Value.MaxCandidates, 1, 10))
+                .Select(row => new CanonicalQueryIndustry(row.Id, row.ExternalId, row.Name, row.ProviderName, "canonical_industry_variant"))
+                .ToArray());
+
+        return new IndustryResolutionResult.NotFound(normalized);
+    }
+
     public async Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeIdentity(mention);

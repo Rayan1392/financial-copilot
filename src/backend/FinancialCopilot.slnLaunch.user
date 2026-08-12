@@ -9,10 +9,6 @@
       {
         "Path": "FinancialCopilot.Worker\\FinancialCopilot.Worker.csproj",
         "Action": "Start"
-      },
-      {
-        "Path": "FinancialCopilot.TelegramGateway\\FinancialCopilot.TelegramGateway.csproj",
-        "Action": "Start"
       }
     ]
   }

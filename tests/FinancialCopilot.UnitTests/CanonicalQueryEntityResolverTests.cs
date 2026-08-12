@@ -238,6 +238,20 @@ public sealed class CanonicalQueryEntityResolverTests
         Assert.Equal(reason, outcome.ReasonCode);
     }
 
+    [Fact]
+    public async Task CanonicalIndustryResolver_ReturnsResolvedAmbiguousAndNotFoundOutcomes()
+    {
+        await using var db = CreateDb();
+        db.Industries.AddRange(
+            new NormalizedIndustryRow { Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalId = "steel", Name = "Steel" },
+            new NormalizedIndustryRow { Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalId = "steel-2", Name = "Steel" });
+        await db.SaveChangesAsync();
+        var resolver = CreateResolver(db);
+
+        Assert.IsType<IndustryResolutionResult.Ambiguous>(await resolver.ResolveIndustryMentionAsync("Steel"));
+        Assert.IsType<IndustryResolutionResult.NotFound>(await resolver.ResolveIndustryMentionAsync("Unknown industry"));
+    }
+
     private static FinancialIngestionDbContext CreateDb() => new(
         new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())

@@ -124,6 +124,7 @@ services:
       CyclicalWavesPsVisualization__MaxObservationLagTradingDays: ${CYCLICAL_WAVES_MAX_LAG_TRADING_DAYS:-2}
       CyclicalWavesPsVisualization__MaxHistoryPoints: ${CYCLICAL_WAVES_MAX_HISTORY_POINTS:-5000}
       CyclicalWavesPsVisualization__DisplayPercentageDecimals: ${CYCLICAL_WAVES_PERCENTAGE_DECIMALS:-2}
+      Feature126__Enabled: ${FEATURE126_ENABLED:-false}
       Feature126__RelativeValuationIngestion__Enabled: ${Feature126__RelativeValuationIngestion__Enabled:?Feature126__RelativeValuationIngestion__Enabled is required}
       Feature126__RelativeValuationIngestion__DailyCadenceMinutes: ${Feature126__RelativeValuationIngestion__DailyCadenceMinutes:?Feature126__RelativeValuationIngestion__DailyCadenceMinutes is required}
       Feature126__RelativeValuationIngestion__PageSize: ${Feature126__RelativeValuationIngestion__PageSize:?Feature126__RelativeValuationIngestion__PageSize is required}

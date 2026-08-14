@@ -189,6 +189,7 @@ public sealed class Feature126ManagementOptions
 
 public sealed class Feature126ManagementServer(
     IOptions<Feature126ManagementOptions> options,
+    IOptions<Feature126Options> featureOptions,
     IOptions<RelativeValuationIngestionOptions> ingestionOptions,
     IServiceScopeFactory scopeFactory,
     Feature126WorkerHealth health,
@@ -199,8 +200,8 @@ public sealed class Feature126ManagementServer(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var management = options.Value;
-        var ingestion = ingestionOptions.Value;
-        if (!ingestion.Enabled)
+        var ingestion = featureOptions.Value.Enabled ? ingestionOptions.Value : null;
+        if (ingestion is null || !ingestion.Enabled)
         {
             // The management listener remains available so disabled is observable.
             health.MarkDisabled();
@@ -262,7 +263,7 @@ public sealed class Feature126ManagementServer(
         else if (path == "/health/ready")
         {
             var snapshot = health.Snapshot();
-            await WriteAsync(context, snapshot.State is "ready" or "disabled" ? 200 : 503,
+            await WriteAsync(context, IsReady(snapshot) ? 200 : 503,
                 JsonSerializer.Serialize(snapshot), "application/json");
         }
         else if (path == "/metrics") await WriteAsync(context, 200, Feature126PrometheusMetrics.Render(health.Snapshot()), "text/plain; version=0.0.4");
@@ -275,6 +276,9 @@ public sealed class Feature126ManagementServer(
         context.Response.StatusCode = status; context.Response.ContentType = contentType; context.Response.ContentLength64 = bytes.Length;
         await context.Response.OutputStream.WriteAsync(bytes); context.Response.Close();
     }
+
+    public static bool IsReady(Feature126HealthSnapshot snapshot) =>
+        snapshot.State is "ready" or "disabled";
 }
 
 public static class Feature126PrometheusMetrics

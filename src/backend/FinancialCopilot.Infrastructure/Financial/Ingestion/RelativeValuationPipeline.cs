@@ -6,6 +6,12 @@ using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
+public sealed class Feature126Options
+{
+    public const string SectionName = "Feature126";
+    public bool Enabled { get; init; }
+}
+
 public sealed class RelativeValuationIngestionOptions
 {
     public const string SectionName = "Feature126:RelativeValuationIngestion";
@@ -65,7 +71,8 @@ public sealed class RelativeValuationPipeline(
     IFeature126OperationalSummarySink? summarySink = null,
     IFeature126EventAppender? eventAppender = null,
     IFeature114AcceptedPsVisualizationPersistence? visualizationPersistence = null,
-    IFeature126RuntimeLifecycleObserver? lifecycleObserver = null) : IFeature126RelativeValuationPipeline
+    IFeature126RuntimeLifecycleObserver? lifecycleObserver = null,
+    IOptions<Feature126Options>? featureOptions = null) : IFeature126RelativeValuationPipeline
 {
     private const string LeaseName = "feature126";
     private readonly RelativeValuationIngestionOptions settings = options.Value;
@@ -82,7 +89,7 @@ public sealed class RelativeValuationPipeline(
         var requestedId = string.IsNullOrWhiteSpace(correlationId) ? Guid.NewGuid().ToString("N") : correlationId.Trim();
         var startedAtUtc = clock.GetUtcNow();
         var tehranDate = TehranDate(startedAtUtc);
-        if (!settings.Enabled)
+        if (!(featureOptions?.Value.Enabled ?? false) || !settings.Enabled)
             return Completed(new(requestedId, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
                 CreateSummary(requestedId, startedAtUtc, tehranDate, Feature126RunState.Disabled,
                     Feature126LeaseStatus.NotAttempted, false, false, null, Array.Empty<Feature126MetricOutcome>(),

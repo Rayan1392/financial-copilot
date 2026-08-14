@@ -1307,6 +1307,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFeature126LeaseReadinessProbe>(provider =>
             (IndustryRelativeValuationLeaseStore)provider.GetRequiredService<IFeature126LeaseStore>());
         services.AddScoped<IFeature125HandoffConsumer, Feature125HandoffConsumer>();
+        services.AddOptions<Feature126Options>()
+            .BindConfiguration(Feature126Options.SectionName);
         services.AddOptions<RelativeValuationIngestionOptions>()
             .BindConfiguration(RelativeValuationIngestionOptions.SectionName)
             .Validate(options => options.DailyCadenceMinutes > 0 &&

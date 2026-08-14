@@ -7,12 +7,20 @@ namespace FinancialCopilot.Worker;
 
 public sealed class CyclicalWavesRelativeValuationWorker(
     IServiceScopeFactory scopeFactory,
+    IOptions<Feature126Options> featureOptions,
     IOptions<RelativeValuationIngestionOptions> options,
     Feature126WorkerHealth health,
     ILogger<CyclicalWavesRelativeValuationWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!featureOptions.Value.Enabled)
+        {
+            health.MarkDisabled();
+            logger.LogInformation("Feature126 is disabled by configuration key Feature126:Enabled; scheduled execution will not start.");
+            return;
+        }
+
         health.Configure(options.Value.ConfigurationRevision,
             !string.IsNullOrWhiteSpace(options.Value.ConfigurationRevision) &&
             !string.IsNullOrWhiteSpace(options.Value.DeploymentIdentifier));
@@ -44,7 +52,7 @@ public sealed class CyclicalWavesRelativeValuationWorker(
     {
         if (cancellationToken.IsCancellationRequested)
             return;
-        if (!options.Value.Enabled)
+        if (!featureOptions.Value.Enabled || !options.Value.Enabled)
         {
             health.MarkDisabled();
             return;

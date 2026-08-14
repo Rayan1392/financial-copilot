@@ -130,7 +130,8 @@ public sealed class Slice1PostgreSqlTests(PostgreSqlIntegrationFixture fixture)
             new EmptyFactStore(), new IndustryRelativeValuationLeaseStore(db, new FixedTimeProvider(Now)),
             Options.Create(new RelativeValuationIngestionOptions { Enabled = true }),
             new FixedTimeProvider(Now), NullLogger<RelativeValuationPipeline>.Instance,
-            new EmptyHandoffBoundary(), summarySink: registry);
+            new EmptyHandoffBoundary(), summarySink: registry,
+            featureOptions: Options.Create(new Feature126Options { Enabled = true }));
 
         var result = await pipeline.RunAsync("same-day-no-op", CancellationToken.None);
 

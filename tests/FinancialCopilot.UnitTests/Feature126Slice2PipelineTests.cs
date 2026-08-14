@@ -9,6 +9,44 @@ namespace FinancialCopilot.UnitTests;
 public sealed class Feature126Slice2PipelineTests
 {
     [Fact]
+    public async Task Run_MasterDisabled_DoesNotTouchAnyExecutionDependency()
+    {
+        var universe = new TestUniverse([new RelativeValuationEligibleSymbol("ISIN000000001", Guid.NewGuid())]);
+        var ps = new TestPsOperation();
+        var provider = new TestProvider();
+        var facts = new MemoryFactStore();
+        var lease = new TestLeaseStore();
+        var handoff = new TestHandoffBoundary();
+        var events = new TestEventAppender();
+        var visualization = new TestVisualizationPersistence();
+        var pipeline = new RelativeValuationPipeline(
+            universe,
+            ps,
+            provider,
+            facts,
+            lease,
+            Options.Create(new RelativeValuationIngestionOptions { Enabled = true }),
+            TimeProvider.System,
+            NullLogger<RelativeValuationPipeline>.Instance,
+            handoff,
+            eventAppender: events,
+            visualizationPersistence: visualization,
+            featureOptions: Options.Create(new Feature126Options { Enabled = false }));
+
+        var result = await pipeline.RunAsync("disabled", CancellationToken.None);
+
+        Assert.Equal(Feature126RunState.Disabled, result.OperationalSummary?.RunState);
+        Assert.Equal(0, universe.ReadCalls);
+        Assert.Equal(0, ps.Calls);
+        Assert.Equal(0, provider.TotalCalls);
+        Assert.Equal(0, lease.AcquireCalls);
+        Assert.Equal(0, facts.PersistCalls);
+        Assert.Equal(0, events.Calls);
+        Assert.Equal(0, handoff.Calls);
+        Assert.Equal(0, visualization.Calls);
+    }
+
+    [Fact]
     public async Task Run_ProcessesEveryAdmittedSymbolAcrossPages()
     {
         var universe = Enumerable.Range(1, 5)
@@ -168,15 +206,27 @@ public sealed class Feature126Slice2PipelineTests
             }),
             TimeProvider.System,
             NullLogger<RelativeValuationPipeline>.Instance,
-            new TestHandoffBoundary());
+            new TestHandoffBoundary(),
+            featureOptions: Options.Create(new Feature126Options { Enabled = true }));
 
     private sealed class TestUniverse(IReadOnlyList<RelativeValuationEligibleSymbol> symbols) : IEligibleUniverseReader
-    { public Task<IReadOnlyList<RelativeValuationEligibleSymbol>> ReadAsync(CancellationToken _) => Task.FromResult(symbols); }
+    {
+        public int ReadCalls { get; private set; }
+        public Task<IReadOnlyList<RelativeValuationEligibleSymbol>> ReadAsync(CancellationToken _)
+        {
+            ReadCalls++;
+            return Task.FromResult(symbols);
+        }
+    }
 
     private sealed class TestPsOperation : ICyclicalWavesPsAcceptedOperation
     {
+        public int Calls { get; private set; }
         public Task<PsProviderResult<PsGaugeDistribution>> AcquireAcceptedPsGaugeAsync(string isin, CancellationToken _)
-            => Task.FromResult(new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(1, 1, 1, 1, 1, 1, 2, 3, 1, 1, 2, 4, 5), PsVisualizationSyncErrorCode.None));
+        {
+            Calls++;
+            return Task.FromResult(new PsProviderResult<PsGaugeDistribution>(new PsGaugeDistribution(1, 1, 1, 1, 1, 1, 2, 3, 1, 1, 2, 4, 5), PsVisualizationSyncErrorCode.None));
+        }
     }
 
     private sealed class TestProvider : ICyclicalWavesRelativeValuationProviderClient
@@ -188,11 +238,13 @@ public sealed class Feature126Slice2PipelineTests
         public int DelayMilliseconds { get; init; }
         public bool TrackConcurrency { get; init; }
         public int PeCalls { get; private set; }
+        public int TotalCalls { get; private set; }
         public int MaximumConcurrentPeCalls { get; private set; }
         private int concurrentPeCalls;
         public async Task<RelativeValuationProviderResult> GetPeGaugeAsync(string isin, CancellationToken token)
         {
             PeCalls++;
+            TotalCalls++;
             if (ThrowPe) throw new InvalidOperationException("test network failure");
             if (SlowIsin == isin) await Task.Delay(Timeout.Infinite, token);
             if (DelayMilliseconds > 0)
@@ -206,6 +258,7 @@ public sealed class Feature126Slice2PipelineTests
         }
         public async Task<RelativeValuationProviderResult> GetEquilibriumGaugeAsync(string isin, CancellationToken token)
         {
+            TotalCalls++;
             if (SlowIsin == isin) await Task.Delay(Timeout.Infinite, token);
             return AlwaysFailEquilibrium ? Failure(RelativeValuationSourceKind.EquilibriumGauge, RelativeValuationFactReadiness.NotFoundOrNoData, isin) : Ready(RelativeValuationSourceKind.EquilibriumGauge, isin);
         }
@@ -216,8 +269,10 @@ public sealed class Feature126Slice2PipelineTests
     private sealed class MemoryFactStore : IFeature126SourceFactStore
     {
         public HashSet<string> Keys { get; } = new(StringComparer.Ordinal);
+        public int PersistCalls { get; private set; }
         public Task<Feature126SourceFactWriteResult> PersistAcceptedAsync(Guid _, RelativeValuationProviderResult result, LeaseHandle __, CancellationToken ___)
         {
+            PersistCalls++;
             var key = result.SourceKind + ":" + result.SourceObservationId;
             return Task.FromResult(Keys.Add(key) ? Feature126SourceFactWriteResult.Persisted : Feature126SourceFactWriteResult.Unchanged);
         }
@@ -228,12 +283,14 @@ public sealed class Feature126Slice2PipelineTests
 
     private sealed class TestHandoffBoundary : IFeature125HandoffSubmissionBoundary
     {
+        public int Calls { get; private set; }
         public Task<Feature125HandoffValidationResult> SubmitAsync(
             Feature126HandoffPackage package,
             Feature126HandoffLeaseState lease,
             DateTimeOffset _,
             CancellationToken __)
         {
+            Calls++;
             Assert.True(package.IsComplete);
             Assert.Equal(LeaseState.Handoff, lease.State);
             Assert.Equal(package.FencingToken, lease.FencingToken);
@@ -246,9 +303,14 @@ public sealed class Feature126Slice2PipelineTests
         private readonly LeaseHandle handle = new("feature126", DateOnly.FromDateTime(DateTime.UtcNow), Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(1));
         public bool RenewResult { get; init; } = true;
         public bool SucceededTransitionResult { get; init; } = true;
+        public int AcquireCalls { get; private set; }
         public int RenewCalls { get; private set; }
         public List<LeaseState> Transitions { get; } = new();
-        public Task<LeaseHandle?> TryAcquireAsync(string _, DateOnly date, TimeSpan __, CancellationToken ___) => Task.FromResult<LeaseHandle?>(handle with { CalculationDate = date });
+        public Task<LeaseHandle?> TryAcquireAsync(string _, DateOnly date, TimeSpan __, CancellationToken ___)
+        {
+            AcquireCalls++;
+            return Task.FromResult<LeaseHandle?>(handle with { CalculationDate = date });
+        }
         public Task<bool> RenewAsync(LeaseHandle _, TimeSpan __, CancellationToken ___)
         {
             RenewCalls++;
@@ -259,6 +321,29 @@ public sealed class Feature126Slice2PipelineTests
         {
             Transitions.Add(state);
             return Task.FromResult(state != LeaseState.Succeeded || SucceededTransitionResult);
+        }
+    }
+
+    private sealed class TestEventAppender : IFeature126EventAppender
+    {
+        public int Calls { get; private set; }
+        public Task<Feature126EventAppendAcknowledgement> AppendAsync(
+            Feature126EventAppendRequest request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(new Feature126EventAppendAcknowledgement(
+                request.EventId, request.RunId, 1, false, false, DateTimeOffset.UtcNow));
+        }
+    }
+
+    private sealed class TestVisualizationPersistence : IFeature114AcceptedPsVisualizationPersistence
+    {
+        public int Calls { get; private set; }
+        public Task PersistAcceptedGaugeAsync(Guid companyId, string symbolIsin, PsGaugeDistribution gauge,
+            DateTimeOffset fetchedAtUtc, string? correlationId, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.CompletedTask;
         }
     }
 }

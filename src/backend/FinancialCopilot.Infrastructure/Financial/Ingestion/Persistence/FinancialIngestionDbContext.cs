@@ -174,8 +174,26 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<Feature126EventStreamRow> Feature126EventStreams => Set<Feature126EventStreamRow>();
     public DbSet<Feature126EventRow> Feature126Events => Set<Feature126EventRow>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    public DbSet<CyclicalWavesMetricSnapshotRow> CyclicalWavesMetricSnapshots =>
+        Set<CyclicalWavesMetricSnapshotRow>();
+
+    public DbSet<CyclicalWavesAcquisitionCheckRow> CyclicalWavesAcquisitionChecks =>
+        Set<CyclicalWavesAcquisitionCheckRow>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,
             type => type.Namespace == typeof(FinancialIngestionDbContext).Namespace);
+
+        if (Database.IsNpgsql())
+        {
+            modelBuilder.Entity<CyclicalWavesMetricSnapshotRow>()
+                .ToTable(
+                    "CyclicalWavesMetricSnapshots",
+                    table => table.HasCheckConstraint(
+                        "CK_CyclicalWavesMetricSnapshots_ResponseHash",
+                        "\"ResponseHash\" ~ '^[0-9a-f]{64}$'"));
+        }
+    }
 }

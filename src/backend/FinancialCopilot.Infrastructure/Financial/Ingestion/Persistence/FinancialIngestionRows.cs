@@ -135,7 +135,7 @@ public sealed class NormalizedCompanyRow
 
 /// <summary>
 /// Read model for the operator-facing Noavaran eligibility view.
-/// The view is the authoritative universe for Noavaran monthly-activity data.
+/// The view is the authoritative universe for eligible per-company acquisitions.
 /// </summary>
 public sealed class NoavaranEligibleCompanyRow
 {
@@ -156,6 +156,8 @@ public sealed class NoavaranEligibleCompanyRow
     public int? PrecedencyRight { get; set; }
 
     public string? CompanySymbol { get; set; }
+
+    public string? SymbolIsin { get; set; }
 
     public string? TseSymbol { get; set; }
 

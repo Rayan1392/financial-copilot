@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
@@ -11,8 +12,6 @@ public sealed class CyclicalWavesAuthHandler(
     IOptions<CyclicalWavesProviderOptions> options,
     TimeProvider timeProvider) : DelegatingHandler
 {
-    private readonly SemaphoreSlim _loginGate = new(1, 1);
-
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
@@ -22,109 +21,159 @@ public sealed class CyclicalWavesAuthHandler(
             return await base.SendAsync(request, cancellationToken);
         }
 
-        await EnsureTokenAsync(cancellationToken);
-        AddBearerHeader(request);
+        var token = await EnsureTokenAsync(cancellationToken);
+        AddBearerHeader(request, token);
 
         var response = await base.SendAsync(request, cancellationToken);
-
-        // A 4xx response is a definitive rejection for this symbol/request.
-        // Never re-authenticate and replay it.
-        return response;
-    }
-
-    private async Task EnsureTokenAsync(CancellationToken cancellationToken)
-    {
-        if (tokenCache.TryGetToken(timeProvider.GetUtcNow(), out _))
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
         {
-            return;
+            return response;
         }
 
-        await LoginAsync(cancellationToken);
+        response.Dispose();
+        var replacement = await RecoverAfterUnauthorizedAsync(token.AccessToken, cancellationToken);
+        using var replay = await CloneAsync(request, cancellationToken);
+        AddBearerHeader(replay, replacement);
+        return await base.SendAsync(replay, cancellationToken);
     }
 
-    private async Task LoginAsync(CancellationToken cancellationToken)
+    private async Task<CyclicalWavesCachedToken> EnsureTokenAsync(CancellationToken cancellationToken)
     {
-        await _loginGate.WaitAsync(cancellationToken);
+        var cached = await tokenCache.GetValidTokenAsync(timeProvider.GetUtcNow(), cancellationToken);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        await tokenCache.AuthenticationGate.WaitAsync(cancellationToken);
         try
         {
-            if (tokenCache.TryGetToken(timeProvider.GetUtcNow(), out _))
-            {
-                return;
-            }
-
-            var settings = options.Value;
-            var loginUri = new Uri(new Uri(settings.BaseAddress), "auth/login");
-            using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUri)
-            {
-                Content = JsonContent.Create(new { user_name = settings.UserName, password = settings.Password })
-            };
-
-            using var loginResponse = await base.SendAsync(loginRequest, cancellationToken);
-
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                throw new FinancialProviderException(
-                    FinancialProviderErrorCode.Unauthorized,
-                    $"CyclicalWaves login failed with status {loginResponse.StatusCode}.");
-            }
-
-            var responseBody = await loginResponse.Content.ReadAsStringAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(responseBody))
-            {
-                throw new FinancialProviderException(
-                    FinancialProviderErrorCode.InvalidResponse,
-                    "CyclicalWaves login response was empty.");
-            }
-
-            CyclicalWavesAuthResponse? authResponse;
-            try
-            {
-                authResponse = JsonSerializer.Deserialize<CyclicalWavesAuthResponse>(responseBody, JsonOptions);
-            }
-            catch (JsonException exception)
-            {
-                var contentType = loginResponse.Content.Headers.ContentType?.ToString() ?? "unknown";
-                var preview = responseBody[..Math.Min(responseBody.Length, 256)]
-                    .Replace("\r", " ", StringComparison.Ordinal)
-                    .Replace("\n", " ", StringComparison.Ordinal);
-
-                throw new FinancialProviderException(
-                    FinancialProviderErrorCode.InvalidResponse,
-                    $"CyclicalWaves login returned non-JSON content. Status: " +
-                    $"{(int)loginResponse.StatusCode} {loginResponse.StatusCode}; " +
-                    $"Content-Type: {contentType}; Response preview: {preview}",
-                    exception);
-            }
-
-            if (authResponse is null)
-            {
-                throw new FinancialProviderException(
-                    FinancialProviderErrorCode.InvalidResponse,
-                    "CyclicalWaves login response was empty.");
-            }
-
-            var expiresAt = timeProvider.GetUtcNow().AddSeconds(authResponse.ExpiresIn);
-            tokenCache.SetToken(authResponse.AccessToken, expiresAt);
+            cached = await tokenCache.GetValidTokenAsync(timeProvider.GetUtcNow(), cancellationToken);
+            return cached ?? await LoginAsync(cancellationToken);
         }
         finally
         {
-            _loginGate.Release();
+            tokenCache.AuthenticationGate.Release();
         }
     }
 
-    private void AddBearerHeader(HttpRequestMessage request)
+    private async Task<CyclicalWavesCachedToken> RecoverAfterUnauthorizedAsync(
+        string rejectedAccessToken,
+        CancellationToken cancellationToken)
     {
-        request.Headers.Authorization = null;
-
-        if (tokenCache.TryGetToken(timeProvider.GetUtcNow(), out var token))
+        await tokenCache.AuthenticationGate.WaitAsync(cancellationToken);
+        try
         {
-            request.Headers.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            await tokenCache.InvalidateIfMatchesAsync(rejectedAccessToken, cancellationToken);
+            var current = await tokenCache.GetValidTokenAsync(timeProvider.GetUtcNow(), cancellationToken);
+            return current ?? await LoginAsync(cancellationToken);
         }
+        finally
+        {
+            tokenCache.AuthenticationGate.Release();
+        }
+    }
+
+    private async Task<CyclicalWavesCachedToken> LoginAsync(CancellationToken cancellationToken)
+    {
+        var settings = options.Value;
+        var loginUri = new Uri(new Uri(settings.BaseAddress), "auth/login");
+        using var loginRequest = new HttpRequestMessage(HttpMethod.Post, loginUri)
+        {
+            Content = JsonContent.Create(new { user_name = settings.UserName, password = settings.Password })
+        };
+
+        using var loginResponse = await base.SendAsync(loginRequest, cancellationToken);
+        if (!loginResponse.IsSuccessStatusCode)
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.Unauthorized,
+                $"CyclicalWaves login failed with status {(int)loginResponse.StatusCode}.");
+        }
+
+        var responseBody = await loginResponse.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            throw InvalidLoginResponse("CyclicalWaves login response was empty.");
+        }
+
+        CyclicalWavesAuthResponse? authResponse;
+        try
+        {
+            authResponse = JsonSerializer.Deserialize<CyclicalWavesAuthResponse>(responseBody, JsonOptions);
+        }
+        catch (JsonException exception)
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                "CyclicalWaves login response was not valid JSON.",
+                exception);
+        }
+
+        if (authResponse is null ||
+            string.IsNullOrWhiteSpace(authResponse.AccessToken) ||
+            authResponse.ExpiresIn <= 0)
+        {
+            throw InvalidLoginResponse("CyclicalWaves login response did not contain a usable token.");
+        }
+
+        var issuedAtUtc = timeProvider.GetUtcNow();
+        var token = new CyclicalWavesCachedToken(
+            authResponse.AccessToken,
+            string.IsNullOrWhiteSpace(authResponse.TokenType) ? "Bearer" : authResponse.TokenType,
+            issuedAtUtc,
+            issuedAtUtc.AddSeconds(authResponse.ExpiresIn),
+            authResponse.RefreshToken);
+
+        await tokenCache.SetTokenAsync(token, cancellationToken);
+        return token;
+    }
+
+    private static void AddBearerHeader(
+        HttpRequestMessage request,
+        CyclicalWavesCachedToken token)
+    {
+        request.Headers.Authorization = new AuthenticationHeaderValue(token.TokenType, token.AccessToken);
+    }
+
+    private static async Task<HttpRequestMessage> CloneAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var clone = new HttpRequestMessage(request.Method, request.RequestUri)
+        {
+            Version = request.Version,
+            VersionPolicy = request.VersionPolicy
+        };
+
+        foreach (var header in request.Headers)
+        {
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        foreach (var option in request.Options)
+        {
+            clone.Options.Set(new HttpRequestOptionsKey<object?>(option.Key), option.Value);
+        }
+
+        if (request.Content is not null)
+        {
+            var bytes = await request.Content.ReadAsByteArrayAsync(cancellationToken);
+            clone.Content = new ByteArrayContent(bytes);
+            foreach (var header in request.Content.Headers)
+            {
+                clone.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        return clone;
     }
 
     private static bool IsAuthRequest(HttpRequestMessage request) =>
         request.RequestUri?.OriginalString.Contains("auth/login", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static FinancialProviderException InvalidLoginResponse(string message) =>
+        new(FinancialProviderErrorCode.InvalidResponse, message);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

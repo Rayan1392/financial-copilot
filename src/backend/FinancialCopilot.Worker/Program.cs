@@ -126,6 +126,7 @@ builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
 builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
+builder.Services.AddHostedService<CyclicalWavesDataAcquisitionWorker>();
 // Feature 114 remains available for visualization reads and retained admin read paths only.
 // Its former scheduled provider-fetch owner is detached; Feature 126 owns daily acquisition.
 builder.Services.AddHostedService<CyclicalWavesRelativeValuationWorker>();

@@ -58,6 +58,7 @@ public sealed class NoavaranEligibleCompanyRowConfiguration : IEntityTypeConfigu
         builder.Property(row => row.ExternalCompanyId).HasMaxLength(128);
         builder.Property(row => row.Name).HasMaxLength(512);
         builder.Property(row => row.CompanySymbol).HasMaxLength(128);
+        builder.Property(row => row.SymbolIsin).HasMaxLength(128);
         builder.Property(row => row.TseSymbol).HasMaxLength(128);
     }
 }

@@ -313,12 +313,35 @@ public static class ServiceCollectionExtensions
         var scannerCacheSettings = configuration
             .GetSection(ScannerCacheOptions.SectionName)
             .Get<ScannerCacheOptions>() ?? new ScannerCacheOptions();
-        if (scannerCacheSettings.UseRedis)
+        var cyclicalWavesAcquisitionSettings = configuration
+            .GetSection(CyclicalWavesDataAcquisitionOptions.SectionName)
+            .Get<CyclicalWavesDataAcquisitionOptions>() ?? new CyclicalWavesDataAcquisitionOptions();
+        services
+            .AddOptions<CyclicalWavesDataAcquisitionOptions>()
+            .BindConfiguration(CyclicalWavesDataAcquisitionOptions.SectionName)
+            .Validate(
+                options =>
+                    !options.Enabled ||
+                    (CyclicalWavesUtcCronSchedule.IsValid(options.Schedule) &&
+                     options.RequestDelayMilliseconds is >= 0 and <= 60_000 &&
+                     options.TimeoutSeconds is > 0 and <= 300 &&
+                     options.RetryCount is >= 0 and <= 5),
+                "Enabled CyclicalWaves acquisition settings must define a valid five-field UTC " +
+                "schedule and bounded pacing, timeout, and retry values.")
+            .ValidateOnStart();
+
+        if (scannerCacheSettings.UseRedis || cyclicalWavesAcquisitionSettings.Enabled)
         {
             var redisConfiguration = configuration.GetConnectionString("Redis");
             if (string.IsNullOrWhiteSpace(redisConfiguration))
             {
                 redisConfiguration = scannerCacheSettings.RedisConfiguration;
+            }
+
+            if (cyclicalWavesAcquisitionSettings.Enabled && string.IsNullOrWhiteSpace(redisConfiguration))
+            {
+                throw new InvalidOperationException(
+                    "Redis configuration is required when CyclicalWaves data acquisition is enabled.");
             }
 
             services.AddStackExchangeRedisCache(options =>
@@ -972,7 +995,18 @@ public static class ServiceCollectionExtensions
         // CyclicalWaves data provider
         services
             .AddOptions<CyclicalWavesProviderOptions>()
-            .BindConfiguration(CyclicalWavesProviderOptions.SectionName);
+            .BindConfiguration(CyclicalWavesProviderOptions.SectionName)
+            .Validate(
+                options =>
+                    options.TokenExpirationSafetyMarginSeconds is > 0 and <= 3_600 &&
+                    (!cyclicalWavesAcquisitionSettings.Enabled ||
+                     (Uri.TryCreate(options.BaseAddress, UriKind.Absolute, out var baseAddress) &&
+                      baseAddress.Scheme == Uri.UriSchemeHttps &&
+                      !string.IsNullOrWhiteSpace(options.UserName) &&
+                      !string.IsNullOrWhiteSpace(options.Password))),
+                "CyclicalWaves settings must define a bounded token safety margin and, when data " +
+                "acquisition is enabled, an HTTPS base address plus secret-backed credentials.")
+            .ValidateOnStart();
         services.AddSingleton<CyclicalWavesTokenCache>();
         services.AddTransient<CyclicalWavesAuthHandler>();
         services
@@ -984,6 +1018,23 @@ public static class ServiceCollectionExtensions
             })
             .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
             .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
+        services.AddTransient<CyclicalWavesDataAcquisitionResilienceHandler>();
+        services
+            .AddHttpClient<CyclicalWavesDataAcquisitionClient>((provider, client) =>
+            {
+                var settings = provider.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
+                client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            })
+            .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
+            .AddHttpMessageHandler<CyclicalWavesDataAcquisitionResilienceHandler>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionClient>(provider =>
+            provider.GetRequiredService<CyclicalWavesDataAcquisitionClient>());
+        services.AddSingleton<ICanonicalJsonHasher, CanonicalJsonHasher>();
+        services.AddScoped<ICyclicalWavesAcquisitionCompanySource, CyclicalWavesAcquisitionCompanySource>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionRepository, CyclicalWavesDataAcquisitionRepository>();
+        services.AddScoped<ICyclicalWavesDataAcquisitionService, CyclicalWavesDataAcquisitionService>();
         services.AddScoped<MockFinancialDataProvider>();
         services.AddScoped<ISymbolDataProvider>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());

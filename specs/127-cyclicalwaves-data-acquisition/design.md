@@ -5,7 +5,7 @@ Status: Design only. No implementation is authorized by this specification.
 ## 1. Problem statement
 
 Financial Copilot needs a small, reliable worker that acquires three CyclicalWaves responses for
-every company each day:
+every company exposed by the `NoavaranEligibleCompanies` view each day:
 
 1. P/S gauge: `GET /api/ps/circle-chart-data/{ISIN}`
 2. P/E gauge: `GET /api/pe/circle-chart-data/{ISIN}`
@@ -49,7 +49,8 @@ The design separates two facts:
 - RabbitMQ, outbox messages, multi-stage orchestration, or a manual trigger API.
 - Parallel provider calls or multiple-worker coordination.
 - Derived metrics, normalized valuation facts, AI query changes, or frontend changes.
-- Company catalog creation or mutation. The existing `Companies` catalog remains authoritative.
+- Company catalog or eligibility-view creation or mutation. The existing
+  `NoavaranEligibleCompanies` view remains authoritative for acquisition scope.
 - Historical missed-day reconstruction. The worker acquires the provider's current response.
 
 ## 3. Design principles
@@ -73,9 +74,12 @@ flowchart TD
     Scheduler[Daily UTC schedule / startup recovery]
     Worker[CyclicalWavesDataAcquisitionWorker]
     Service[Data acquisition service]
-    Catalog[(Companies)]
+    EligibleCompanies[(NoavaranEligibleCompanies view)]
     Client[CyclicalWaves acquisition client]
-    Provider[CyclicalWaves HTTP API]
+    Auth[Existing CyclicalWavesAuthHandler]
+    TokenCache[(Redis token cache)]
+    Login[POST /api/auth/login]
+    Provider[CyclicalWaves data endpoints]
     Canonicalizer[JSON validation and canonical hash]
     Repository[Snapshot/check repository]
     Snapshots[(CyclicalWavesMetricSnapshots)]
@@ -83,9 +87,12 @@ flowchart TD
 
     Scheduler --> Worker
     Worker --> Service
-    Service --> Catalog
+    Service --> EligibleCompanies
     Service --> Client
-    Client --> Provider
+    Client --> Auth
+    Auth -->|read/write token envelope| TokenCache
+    Auth -->|cache miss, early expiry, or controlled 401 recovery| Login
+    Auth -->|Bearer access token| Provider
     Client --> Canonicalizer
     Canonicalizer --> Repository
     Repository -->|only when changed| Snapshots
@@ -99,13 +106,19 @@ flowchart TD
 | `CyclicalWavesDataAcquisitionWorker` | Wait for the configured UTC schedule, invoke one run at a time, and perform startup recovery. |
 | Data acquisition service | Load companies, enforce fixed metric order, skip already completed daily work, isolate failures, and apply inter-request delay. |
 | Acquisition client | Send the three GET requests and return the exact response text plus transport metadata and request timestamps. |
+| Existing `CyclicalWavesAuthHandler` | Reuse the current login and bearer-header flow, resolve cached tokens, single-flight token acquisition, and perform at most one controlled 401 recovery. |
+| Existing CyclicalWaves token cache abstraction | Store and retrieve the authentication token envelope from Redis with expiry-aware validation and a safety margin. |
 | JSON canonicalizer | Validate JSON, canonicalize the complete document, and calculate SHA-256. It never changes the stored raw text. |
 | Snapshot/check repository | Atomically compare the latest snapshot, insert a changed snapshot when necessary, and insert the acquisition check. |
-| Existing `Companies` table | Supply `CompanyId` and the symbol ISIN. This feature never creates or updates company data. |
+| Existing `NoavaranEligibleCompanies` view | Define the acquisition universe and supply `ExternalCompanyId`, `CompanySymbol`, and `SymbolIsin`; the projected `Id` is retained only as the `Companies.Id` FK used by snapshots and checks. |
 
 The feature may use the existing CyclicalWaves base address and authentication transport settings,
 but it owns a dedicated raw-response acquisition operation. It must not call Feature 114, Feature
 125, Feature 126, or their application services.
+
+Authentication remains owned by the existing CyclicalWaves authentication implementation. This
+design requires the existing token cache to use Redis; it does not introduce another login client,
+token provider, credential store, or authentication handler.
 
 ## 5. Future Feature114 Data Consumption Boundary
 
@@ -116,11 +129,12 @@ services in its scope:
 - P/E
 - Equilibrium
 
-The worker must call and persist all three services for every company in each daily cycle. P/S is
-not optional and must not be skipped because Feature 114 currently fetches or consumes P/S data for
-gauge visualization. Until Feature 114 is migrated, the existing Feature 114 provider call and this
-worker's P/S acquisition may temporarily coexist. That temporary overlap does not change this
-feature's responsibility to independently acquire, hash, persist, and audit P/S responses.
+The worker must call and persist all three services for every eligible company in each daily cycle.
+P/S is not optional and must not be skipped because Feature 114 currently fetches or consumes P/S
+data for gauge visualization. Until Feature 114 is migrated, the existing Feature 114 provider
+call and this worker's P/S acquisition may temporarily coexist. That temporary overlap does not
+change this feature's responsibility to independently acquire, hash, persist, and audit P/S
+responses.
 
 ### Current Feature 114 flow
 
@@ -198,6 +212,93 @@ are failed checks and do not replace the latest accepted snapshot.
 `204` and `404` are recorded as `Failed` with `NotFoundOrNoData`. Other non-success status codes
 are also failed checks after the retry policy, if applicable. A failed response never deletes,
 invalidates, or overwrites a previous valid snapshot.
+
+### Authentication lifecycle
+
+The acquisition client must reuse the existing `CyclicalWavesAuthHandler` and its existing login
+flow. It must not implement login, bearer-header injection, token refresh, or credential handling a
+second time.
+
+The existing authentication flow uses:
+
+```http
+POST https://back1.cyclicalwaves.com/api/auth/login
+Content-Type: application/json
+
+{
+  "user_name": "...",
+  "password": "..."
+}
+```
+
+The response contains `token_type`, `expires_in`, `access_token`, and `refresh_token`. The existing
+authentication implementation continues to own validation of the login response and creation of
+the bearer authorization header.
+
+The existing CyclicalWaves token cache must be backed by Redis. A cached token envelope contains:
+
+- The access token.
+- The absolute UTC expiration timestamp calculated from the successful login time and
+  `expires_in`.
+- The refresh token only if the existing authentication implementation supports refresh-token
+  handling. This feature does not invent a new refresh-token exchange endpoint or flow.
+
+Before every CyclicalWaves data request, the existing authentication handler follows this sequence:
+
+1. Read the token envelope from Redis.
+2. If the access token is present and remains valid beyond the configured expiration safety margin,
+   attach it using the provider's bearer token type and send the data request. Do not call login.
+3. If the token is missing, expired, or within the safety margin, enter the existing single-flight
+   authentication gate.
+4. After entering the gate, read Redis again. If another request already stored a valid token, use
+   it and do not call login.
+5. Otherwise call the existing login flow once, validate the response, calculate the absolute
+   expiration timestamp, store the token envelope in Redis, and use the new access token.
+
+The safety margin prevents a token from being considered valid when it may expire during a data
+request. For example, with a ten-minute lifetime and a one-minute safety margin, the token becomes
+ineligible for new requests after nine minutes. If the configured margin is greater than or equal
+to a short provider lifetime, the effective margin must be reduced proportionally so the token
+retains a positive usable window.
+
+The single-flight gate belongs to the existing authentication path and covers concurrent requests
+within the process. The acquisition worker still sends data requests sequentially. Redis is shared
+token storage, not a lease or a new coordination mechanism.
+
+Single-flight is an authentication concern only. Its scope starts when a valid token is unavailable
+and ends when the existing authentication path returns a token or an authentication failure. It
+must not schedule, serialize, coordinate, deduplicate, checkpoint, resume, or otherwise control
+company or metric acquisition work. Data acquisition concurrency remains governed solely by the
+worker's sequential execution model and awaited request flow.
+
+#### Provider 401 policy
+
+A data-endpoint `401` may indicate that a token became invalid earlier than its recorded
+expiration. It is handled only by the existing authentication handler:
+
+1. Invalidate the cached token used by the rejected request without deleting a newer token that
+   another request may already have stored.
+2. Enter the existing single-flight authentication path and recheck Redis.
+3. Obtain and cache a replacement token only if Redis still has no valid token.
+4. Replay the data request at most once with the replacement token.
+5. If the replay also returns `401`, return a terminal authentication failure. Do not refresh or
+   replay again, and do not pass `401` into the general transient retry policy.
+
+Login/refresh activity is one controlled authentication path and must never become a nested or
+unlimited retry loop. Physical attempt telemetry must include the one bounded authentication replay
+when it occurs.
+
+#### Authentication security
+
+- Never log `access_token` or `refresh_token`, including in exceptions, response previews, check
+  diagnostics, tracing tags, or structured log properties.
+- Never store the CyclicalWaves username or password outside the existing secret configuration.
+- Redis key names use a fixed, non-sensitive namespace such as `cyclicalwaves:auth:token:v1`; keys
+  must not contain credentials, tokens, or token fragments.
+- Treat the Redis value as sensitive. Do not expose it through status endpoints or diagnostics.
+- A Redis read/write failure must not silently degrade into login on every data request. When the
+  feature is enabled, inability to use the required Redis token cache produces a bounded
+  authentication/cache failure for the affected acquisition.
 
 ### Acquisition timestamps
 
@@ -360,7 +461,7 @@ logical check.
 ### Restart continuation
 
 At startup and at each scheduled boundary, the worker captures one `CycleDateUtc` and loads the
-company catalog in deterministic order. Before calling a metric endpoint, it asks whether a
+eligible-company view in deterministic order. Before calling a metric endpoint, it asks whether a
 `Changed` or `NoChange` check already exists for that cycle, company, and metric:
 
 - If yes, that metric is complete for the cycle and is skipped without adding a new check.
@@ -381,7 +482,7 @@ The worker uses this fixed order and never executes metrics in parallel:
 ```text
 On startup or daily schedule
   capture CycleDateUtc
-  load all Companies in deterministic order
+  load NoavaranEligibleCompanies in deterministic order
 
   for each company:
     resolve one SymbolIsin
@@ -406,12 +507,17 @@ On startup or daily schedule
 
 ### Company and ISIN selection
 
-- Load every existing company row; do not create, update, delete, rank, or filter companies by a
-  downstream feature's eligibility rules.
-- Prefer `Companies.SymbolIsin`. `Companies.EnTicker` may be used only as an explicit fallback when
-  it is a valid normalized symbol ISIN.
-- If both values are present but normalize to different values, record three failed checks with
-  `IdentityConfigurationMismatch` and make no provider request for that company.
+- Load every row from `NoavaranEligibleCompanies`. The company source projects the view's
+  `ExternalCompanyId`, `CompanySymbol`, and `SymbolIsin`; it also retains `Id` solely for the
+  existing `Companies.Id` persistence foreign key.
+- The equivalent operator query is:
+
+  ```sql
+  SELECT "ExternalCompanyId", "CompanySymbol", "SymbolIsin"
+  FROM "NoavaranEligibleCompanies";
+  ```
+- Use the view's `SymbolIsin` as the CyclicalWaves request identity after trimming, uppercasing,
+  and validation. Do not fall back to `EnTicker` and do not apply another eligibility filter.
 - If no valid ISIN exists, record three `MissingSymbolIsin` failures. Missing identity is visible
   and must never silently reduce coverage.
 - Company order is stable: normalized ISIN, then `CompanyId`. Metric order is always P/S, P/E,
@@ -438,17 +544,20 @@ the next metric.
 | --- | --- | --- | --- |
 | Network error, timeout, HTTP `408`, `429`, or `5xx` | Yes, within `RetryCount` | `Failed` after exhaustion | Next metric |
 | HTTP `204` or `404` | No | `Failed / NotFoundOrNoData` | Next metric |
-| Other HTTP `4xx` | No, except the transport's bounded authentication refresh | `Failed` with stable HTTP code | Next metric |
+| HTTP `401` from a data endpoint | Existing auth path may refresh and replay once; never general retry | `Failed / AuthenticationFailed` if the replay is also `401` | Next metric |
+| Other HTTP `4xx` | No | `Failed` with stable HTTP code | Next metric |
 | Invalid/malformed JSON or contract mismatch | No | `Failed`; previous snapshot retained | Next metric |
 | Equilibrium response identity mismatch | No | `Failed / IdentityMismatch` | Next metric |
-| Missing/conflicting company ISIN | No HTTP call | Three failed checks for the company | Next company |
+| Missing/invalid eligible-company `SymbolIsin` | No HTTP call | Three failed checks for the company | Next company |
 | Snapshot/check transaction failure | No provider retry in the same metric operation | Transaction rolls back; error is logged | Next execution re-acquires unfinished work |
 | Host cancellation | No | Commit already completed work only | Startup recovery resumes |
 
 Retries use bounded exponential backoff with jitter and honor a valid bounded `Retry-After` for
 `429`. `RetryCount = 2` means at most three physical HTTP attempts: the initial attempt plus two
-retries. `TimeoutSeconds` applies per physical attempt. Authentication refresh, when required by
-the provider, is part of this same transport policy and must not create a second retry loop.
+retries. `TimeoutSeconds` applies per physical attempt. The general retry stage never retries
+`401`; the existing authentication handler owns the single bounded refresh/replay described above.
+The handler and general resilience stages form one controlled transport pipeline and must not call
+each other recursively.
 
 Logs include company id, ISIN, metric, endpoint, check id, result, HTTP status, attempt count,
 duration, hash prefix, and failure code. Raw responses, credentials, authorization headers, and
@@ -496,6 +605,20 @@ Validation rules:
 The provider base address and credentials remain in the existing secret-backed CyclicalWaves
 transport configuration. They are not duplicated into this section.
 
+Authentication configuration requirements:
+
+- The existing `CyclicalWaves` provider configuration owns
+  `TokenExpirationSafetyMarginSeconds`; a default of 60 seconds is appropriate and the value must
+  be positive and bounded.
+- The existing application Redis/distributed-cache configuration supplies the token-cache
+  connection. No second Redis connection string or feature-local credential is introduced.
+- When this feature is enabled, Redis token caching is required and must pass startup/readiness
+  validation before acquisition begins.
+- The Redis key namespace is fixed and non-sensitive. It may include an environment/deployment
+  namespace but no username, password, access token, refresh token, or token fragment.
+- The access token and absolute UTC expiration timestamp are always cached together. The refresh
+  token is cached only when supported by the existing authentication implementation.
+
 ## 14. Migration impact
 
 One additive EF Core migration is required in `FinancialIngestionDbContext`:
@@ -532,7 +655,7 @@ recovery; dropping them is a separate explicit destructive operation, not part o
 - Worker order is company-sequential and exactly `PS -> PE -> Equilibrium`.
 - A failed P/S operation still executes P/E and equilibrium.
 - Request delay is applied once between logical calls and is cancellation-aware.
-- Missing and conflicting ISINs produce the required failed checks without HTTP calls.
+- Missing and invalid eligible-company ISINs produce the required failed checks without HTTP calls.
 - A successful same-cycle check is skipped during restart; a failed check is retried.
 
 ### Provider contract tests
@@ -547,6 +670,26 @@ For each endpoint, cover:
 - Retry attempt count never exceeds `1 + RetryCount`.
 - One logical acquisition produces one acquisition-check row even when it uses multiple physical
   HTTP attempts.
+
+### Authentication lifecycle tests
+
+- A valid Redis token is reused and causes zero login requests.
+- A missing Redis token causes one login request, stores the access token and absolute UTC expiry,
+  and then authorizes the data request.
+- An expired or safety-margin-invalid token is not used for a new data request and is replaced
+  through the existing login path.
+- Multiple concurrent acquisition-client requests in one process recheck Redis behind the existing
+  single-flight gate and produce one login/refresh request.
+- A concurrent request that finds the token populated while waiting does not invoke login.
+- A data-endpoint `401` invalidates only the rejected token, refreshes through the controlled path,
+  and replays the data request once.
+- A second `401` after replay becomes a terminal authentication failure with no further login,
+  replay, or general retry.
+- Redis-unavailable behavior is bounded and never becomes login-per-request fallback.
+- Access tokens, refresh tokens, credentials, and token fragments are absent from captured logs,
+  exceptions, acquisition checks, tracing tags, and Redis key names.
+- If the existing authentication implementation supports refresh-token handling, the refresh token
+  round-trips through Redis without being logged; otherwise no new refresh-token flow is created.
 
 ### PostgreSQL integration tests
 
@@ -579,14 +722,14 @@ After a controlled test run, operators should be able to answer with simple quer
 - Which company/metric checks failed in the latest UTC cycle?
 - Which checks were `Changed` versus `NoChange`?
 - What is the latest snapshot hash and acquisition timestamp for each company/metric?
-- Does every company have three successful checks for the cycle, or explicit identity/provider
-  failures explaining the gap?
+- Does every company in `NoavaranEligibleCompanies` have three successful checks for the cycle, or
+  explicit identity/provider failures explaining the gap?
 
 ## 16. Acceptance criteria
 
 1. When disabled, the feature makes no provider calls and writes no feature rows.
-2. Each enabled daily cycle evaluates every company and all three metrics in the fixed sequential
-   order, with no parallel calls.
+2. Each enabled daily cycle evaluates every company from `NoavaranEligibleCompanies` and all three
+   metrics in the fixed sequential order, with no parallel calls.
 3. Every accepted changed response is stored completely in a new immutable snapshot.
 4. An unchanged accepted response creates no snapshot and creates one `NoChange` check.
 5. Every exhausted provider failure creates a `Failed` check when the database is available and
@@ -606,3 +749,18 @@ After a controlled test run, operators should be able to answer with simple quer
     migration to database-backed consumption is a separate future change.
 14. `RawResponseJson` remains the canonical source of truth. Any future structured consumer uses a
     separate read model or projection and does not change the acquisition storage model.
+15. Given a valid token exists in Redis, provider calls do not invoke login.
+16. Given no token exists in Redis, login is called once through the existing authentication flow,
+    and the access token plus absolute UTC expiration timestamp are cached before the data request.
+17. Given a cached token is expired or within its expiration safety margin, a new token is obtained
+    safely through the existing single-flight authentication path and replaces the stale cache
+    entry.
+18. Given multiple acquisition requests start together in one process and Redis has no valid token,
+    only one token login/refresh occurs; waiting requests reuse the token stored by the winner.
+19. Given a CyclicalWaves data endpoint returns `401` because the token is no longer valid, the
+    existing authentication handler invalidates that token, refreshes according to policy, and
+    replays the data request at most once. A second `401` is terminal.
+20. Authentication credentials remain in existing secret configuration; access tokens and refresh
+    tokens never appear in logs or diagnostics, and Redis key names contain no sensitive values.
+21. The single-flight gate coordinates token login/refresh only. It is not used as a data
+    acquisition concurrency, scheduling, ownership, deduplication, or recovery mechanism.

@@ -1,0 +1,288 @@
+using System.Net;
+using System.Text.Json;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
+
+namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
+
+public sealed class CyclicalWavesDataAcquisitionClient(
+    HttpClient httpClient,
+    TimeProvider timeProvider) : ICyclicalWavesDataAcquisitionClient
+{
+    private static readonly string[] CircleChartNumericFields =
+        ["a", "b", "c", "d", "e", "f", "close", "start", "end", "min", "max", "avg"];
+
+    private static readonly string[] EquilibriumNumericFields =
+        ["a", "b", "c", "d", "e", "f", "close", "balance", "maxbalance", "minbalance", "volume", "growth"];
+
+    public async Task<CyclicalWavesProviderAcquisitionResult> AcquireAsync(
+        CyclicalWavesMetricType metricType,
+        string normalizedIsin,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedIsin);
+
+        var checkedAtUtc = timeProvider.GetUtcNow();
+        var endpoint = GetEndpoint(metricType, normalizedIsin);
+        var attemptContext = new CyclicalWavesAcquisitionRequestContext();
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Options.Set(CyclicalWavesAcquisitionRequestOptions.Context, attemptContext);
+            using var response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
+            {
+                return Failure(
+                    metricType,
+                    endpoint,
+                    checkedAtUtc,
+                    attemptContext,
+                    response.StatusCode,
+                    CyclicalWavesAcquisitionFailureCodes.NotFoundOrNoData,
+                    "CyclicalWaves returned no data for this metric.");
+            }
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                return Failure(
+                    metricType,
+                    endpoint,
+                    checkedAtUtc,
+                    attemptContext,
+                    response.StatusCode,
+                    CyclicalWavesAcquisitionFailureCodes.AuthenticationFailed,
+                    "CyclicalWaves authentication failed after controlled token recovery.");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return Failure(
+                    metricType,
+                    endpoint,
+                    checkedAtUtc,
+                    attemptContext,
+                    response.StatusCode,
+                    MapStatusFailure(response.StatusCode),
+                    $"CyclicalWaves returned HTTP status {(int)response.StatusCode}.");
+            }
+
+            var rawResponseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            var validationFailure = ValidateResponse(metricType, normalizedIsin, rawResponseJson);
+            if (validationFailure is not null)
+            {
+                return Failure(
+                    metricType,
+                    endpoint,
+                    checkedAtUtc,
+                    attemptContext,
+                    response.StatusCode,
+                    validationFailure.Value.Code,
+                    validationFailure.Value.Message);
+            }
+
+            return new CyclicalWavesProviderAcquisitionResult(
+                metricType,
+                endpoint,
+                checkedAtUtc,
+                attemptContext.FirstRequestedAtUtc,
+                attemptContext.LastRequestedAtUtc,
+                timeProvider.GetUtcNow(),
+                rawResponseJson,
+                (int)response.StatusCode,
+                attemptContext.AttemptCount,
+                null,
+                null);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (FinancialProviderException exception)
+        {
+            var code = exception.Code switch
+            {
+                FinancialProviderErrorCode.Timeout => CyclicalWavesAcquisitionFailureCodes.Timeout,
+                FinancialProviderErrorCode.Unauthorized => CyclicalWavesAcquisitionFailureCodes.AuthenticationFailed,
+                FinancialProviderErrorCode.RemoteUnavailable => CyclicalWavesAcquisitionFailureCodes.NetworkError,
+                _ => CyclicalWavesAcquisitionFailureCodes.UnexpectedFailure
+            };
+
+            return Failure(
+                metricType,
+                endpoint,
+                checkedAtUtc,
+                attemptContext,
+                null,
+                code,
+                exception.Message);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            return Failure(
+                metricType,
+                endpoint,
+                checkedAtUtc,
+                attemptContext,
+                null,
+                CyclicalWavesAcquisitionFailureCodes.UnexpectedFailure,
+                "CyclicalWaves response processing failed.");
+        }
+    }
+
+    public static string GetEndpoint(CyclicalWavesMetricType metricType, string normalizedIsin)
+    {
+        var escapedIsin = Uri.EscapeDataString(normalizedIsin);
+        return metricType switch
+        {
+            CyclicalWavesMetricType.PS => $"ps/circle-chart-data/{escapedIsin}",
+            CyclicalWavesMetricType.PE => $"pe/circle-chart-data/{escapedIsin}",
+            CyclicalWavesMetricType.Equilibrium => $"equilibrium/gauge/{escapedIsin}",
+            _ => throw new ArgumentOutOfRangeException(nameof(metricType), metricType, null)
+        };
+    }
+
+    private static (string Code, string Message)? ValidateResponse(
+        CyclicalWavesMetricType metricType,
+        string normalizedIsin,
+        string rawResponseJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawResponseJson))
+        {
+            return (CyclicalWavesAcquisitionFailureCodes.InvalidJson, "Provider response was empty.");
+        }
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(rawResponseJson, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = 64
+            });
+        }
+        catch (JsonException)
+        {
+            return (CyclicalWavesAcquisitionFailureCodes.InvalidJson, "Provider response was not valid JSON.");
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return (CyclicalWavesAcquisitionFailureCodes.ContractMismatch, "Provider response root was not an object.");
+            }
+
+            if (!AllNumbersAreSupported(document.RootElement))
+            {
+                return (CyclicalWavesAcquisitionFailureCodes.ContractMismatch, "Provider response contained an unsupported number.");
+            }
+
+            if (HasDuplicateProperties(document.RootElement))
+            {
+                return (CyclicalWavesAcquisitionFailureCodes.InvalidJson, "Provider response contained duplicate object properties.");
+            }
+
+            var requiredFields = metricType == CyclicalWavesMetricType.Equilibrium
+                ? EquilibriumNumericFields
+                : CircleChartNumericFields;
+
+            if (requiredFields.Any(field => !HasSupportedNumber(document.RootElement, field)))
+            {
+                return (CyclicalWavesAcquisitionFailureCodes.ContractMismatch, "Provider response lacked required numeric gauge fields.");
+            }
+
+            if (metricType == CyclicalWavesMetricType.Equilibrium &&
+                document.RootElement.TryGetProperty("enticker", out var identity))
+            {
+                if (identity.ValueKind != JsonValueKind.String ||
+                    !string.Equals(
+                        NormalizeIsin(identity.GetString()),
+                        normalizedIsin,
+                        StringComparison.Ordinal))
+                {
+                    return (CyclicalWavesAcquisitionFailureCodes.IdentityMismatch, "Provider response identity did not match the requested ISIN.");
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasSupportedNumber(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.Number &&
+        value.TryGetDecimal(out _);
+
+    private static bool AllNumbersAreSupported(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Number => element.TryGetDecimal(out _),
+            JsonValueKind.Object => element.EnumerateObject().All(property => AllNumbersAreSupported(property.Value)),
+            JsonValueKind.Array => element.EnumerateArray().All(AllNumbersAreSupported),
+            _ => true
+        };
+    }
+
+    private static bool HasDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name) || HasDuplicateProperties(property.Value))
+                {
+                    return true;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            return element.EnumerateArray().Any(HasDuplicateProperties);
+        }
+
+        return false;
+    }
+
+    private CyclicalWavesProviderAcquisitionResult Failure(
+        CyclicalWavesMetricType metricType,
+        string endpoint,
+        DateTimeOffset checkedAtUtc,
+        CyclicalWavesAcquisitionRequestContext attemptContext,
+        HttpStatusCode? statusCode,
+        string failureCode,
+        string failureMessage) =>
+        new(
+            metricType,
+            endpoint,
+            checkedAtUtc,
+            attemptContext.FirstRequestedAtUtc,
+            null,
+            timeProvider.GetUtcNow(),
+            null,
+            statusCode is null ? null : (int)statusCode.Value,
+            attemptContext.AttemptCount,
+            failureCode,
+            Sanitize(failureMessage));
+
+    private static string MapStatusFailure(HttpStatusCode statusCode) => statusCode switch
+    {
+        HttpStatusCode.RequestTimeout => CyclicalWavesAcquisitionFailureCodes.Timeout,
+        HttpStatusCode.TooManyRequests => CyclicalWavesAcquisitionFailureCodes.RateLimited,
+        _ when (int)statusCode >= 500 => CyclicalWavesAcquisitionFailureCodes.ProviderServerError,
+        _ => CyclicalWavesAcquisitionFailureCodes.HttpClientError
+    };
+
+    private static string? NormalizeIsin(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
+
+    private static string Sanitize(string value) =>
+        value.Replace('\r', ' ').Replace('\n', ' ')[..Math.Min(value.Length, 1_000)];
+}

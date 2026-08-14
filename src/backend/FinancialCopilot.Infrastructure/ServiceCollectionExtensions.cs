@@ -995,6 +995,7 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services.AddScoped<ICyclicalWavesPsProviderClient>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
+        services.AddScoped<ICyclicalWavesPsAcceptedOperation, CyclicalWavesPsOperation>();
         services.AddScoped<ICyclicalWavesRelativeValuationProviderClient>(provider =>
             provider.GetRequiredService<CyclicalWavesDataProviderClient>());
         services
@@ -1288,6 +1289,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CyclicalWavesPsVisualizationSyncService>();
         services.AddScoped<ICyclicalWavesPsVisualizationSyncService>(provider =>
             provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
+        services.AddScoped<IFeature114AcceptedPsVisualizationPersistence>(provider =>
+            provider.GetRequiredService<CyclicalWavesPsVisualizationSyncService>());
         services
             .AddOptions<IndustryRelativeValuationSourceOptions>()
             .BindConfiguration(IndustryRelativeValuationSourceOptions.SectionName)
@@ -1298,8 +1301,51 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
         services.AddScoped<IIndustryRelativeValuationSourceIngestionService,
             IndustryRelativeValuationSourceIngestionService>();
+        services.AddScoped<IEligibleUniverseReader, NoavaranEligibleCompanyUniverseReader>();
+        services.AddScoped<IFeature126SourceFactStore, IndustryRelativeValuationSourceFactStore>();
+        services.AddScoped<IFeature126LeaseStore, IndustryRelativeValuationLeaseStore>();
+        services.AddScoped<IFeature126LeaseReadinessProbe>(provider =>
+            (IndustryRelativeValuationLeaseStore)provider.GetRequiredService<IFeature126LeaseStore>());
+        services.AddScoped<IFeature125HandoffConsumer, Feature125HandoffConsumer>();
+        services.AddOptions<RelativeValuationIngestionOptions>()
+            .BindConfiguration(RelativeValuationIngestionOptions.SectionName)
+            .Validate(options => options.DailyCadenceMinutes > 0 &&
+                                 options.PageSize > 0 &&
+                                 options.MaximumConcurrency is > 0 and <= 32 &&
+                                 options.RetryCount is >= 0 and <= 10 &&
+                                 options.CompanyTimeoutSeconds > 0 &&
+                                 options.LeaseMinutes > 0,
+                "Feature 126 ingestion options are invalid.")
+            .ValidateOnStart();
+        services.AddScoped<IFeature126RelativeValuationPipeline, RelativeValuationPipeline>();
+        services.AddSingleton<IFeature126OperationalSummarySink, Feature126OperationalSummaryRegistry>();
+        services.AddOptions<Feature126TelemetryOptions>()
+            .BindConfiguration(Feature126TelemetryOptions.SectionName);
+        services.AddHttpClient(nameof(SeqFeature126EventSink), (provider, client) =>
+        {
+            var settings = provider.GetRequiredService<IOptions<Feature126TelemetryOptions>>().Value;
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(1, settings.RequestTimeoutSeconds));
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseProxy = false });
+        services.AddSingleton<SeqFeature126EventSink>(provider =>
+            new SeqFeature126EventSink(
+                provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(SeqFeature126EventSink)),
+                provider.GetRequiredService<IOptions<Feature126TelemetryOptions>>().Value,
+                provider.GetRequiredService<TimeProvider>(),
+                (exception, endpoint) => provider.GetRequiredService<ILogger<SeqFeature126EventSink>>()
+                    .LogWarning(exception, "Feature 126 telemetry probe failed for Seq endpoint {SeqEndpoint}.", endpoint),
+                (statusCode, responseBody, endpoint, eventType) => provider.GetRequiredService<ILogger<SeqFeature126EventSink>>()
+                    .LogInformation("Feature 126 telemetry export: endpoint {SeqEndpoint}, event type {EventType}, HTTP {StatusCode}, response body {ResponseBody}.", endpoint, eventType, statusCode, responseBody),
+                (exception, endpoint, eventType) => provider.GetRequiredService<ILogger<SeqFeature126EventSink>>()
+                    .LogError(exception, "Feature 126 telemetry export failed: endpoint {SeqEndpoint}, event type {EventType}, exception type {ExceptionType}, message {ExceptionMessage}.", endpoint, eventType, exception.GetType().FullName, exception.Message)));
+        services.AddScoped<IFeature126DurableEventSink, Feature126PostgresEventSink>();
+        services.AddScoped<IFeature126EventAppender, Feature126EventAppender>();
+        services.AddScoped<RuntimeActivationGate, Feature126RuntimeActivationGate>();
         services.AddScoped<IIndustryRelativeValuationOrchestrationService,
             IndustryRelativeValuationOrchestrationService>();
+        services.AddScoped<IFeature125HandoffSubmissionBoundary>(provider =>
+            provider.GetRequiredService<IIndustryRelativeValuationOrchestrationService>()
+                as IFeature125HandoffSubmissionBoundary ??
+            throw new InvalidOperationException("Feature 125 orchestration does not implement the handoff boundary."));
         services.AddScoped<IndustryRelativeValuationCalculationInputBuilder>();
         services.AddScoped<IndustryRelativeValuationCalculationSnapshotWriter>();
         services.AddOptions<IndustryWatchOptions>()

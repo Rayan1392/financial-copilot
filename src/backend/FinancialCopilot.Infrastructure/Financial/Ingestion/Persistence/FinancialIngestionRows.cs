@@ -158,6 +158,7 @@ public sealed class NoavaranEligibleCompanyRow
     public string? CompanySymbol { get; set; }
 
     public string? TseSymbol { get; set; }
+
 }
 
 

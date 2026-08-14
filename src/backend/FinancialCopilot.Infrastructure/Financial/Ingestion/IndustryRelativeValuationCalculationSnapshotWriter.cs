@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Collections.Concurrent;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
         DateOnly calculationDate,
         IndustryRelativeValuationCalculationInput input,
         DateTimeOffset calculatedAtUtc,
+        Feature126HandoffLeaseState? fence,
         CancellationToken cancellationToken)
     {
         var lockKey = $"industry-relative-valuation:{input.IndustryId:D}:{calculationDate:yyyy-MM-dd}";
@@ -40,6 +42,8 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
 
         try
         {
+            if (fence is not null && !await OwnsFenceAsync(fence, calculatedAtUtc, cancellationToken))
+                return new(Guid.Empty, 0, "Rejected", false);
             // PostgreSQL transaction-scoped advisory locking serializes allocation for the
             // calculation identity. This is deliberately acquired before any version read.
             if (db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
@@ -141,10 +145,10 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
         }
 
             await db.SaveChangesAsync(cancellationToken);
-            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
             if (status == "Published")
                 await (watchEvaluationService ?? new IndustryWatchEvaluationService(db, new()))
-                    .EvaluateAsync(input.IndustryId, calculation.Id, "Daily", calculatedAtUtc, cancellationToken);
+                    .EvaluateAsync(input.IndustryId, calculation.Id, "Daily", calculatedAtUtc, cancellationToken, manageTransaction: false);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
             logger?.LogInformation("Feature 125 calculation completed for industry {IndustryId}, date {CalculationDate}, calculation {CalculationId}, version {Version}, status {Status}, members {Members}, barrier complete {BarrierComplete}.", input.IndustryId, calculationDate, calculation.Id, calculation.CalculationVersion, status, input.Result.Companies.Count, input.SourceBarrier.IsComplete);
             return new(calculation.Id, calculation.CalculationVersion, status, false);
         }
@@ -152,6 +156,26 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
         {
             testLock?.Release();
         }
+    }
+
+    public Task<IndustryRelativeValuationSnapshotWriteResult> WriteAsync(
+        DateOnly calculationDate,
+        IndustryRelativeValuationCalculationInput input,
+        DateTimeOffset calculatedAtUtc,
+        CancellationToken cancellationToken) =>
+        WriteAsync(calculationDate, input, calculatedAtUtc, null, cancellationToken);
+
+    private async Task<bool> OwnsFenceAsync(
+        Feature126HandoffLeaseState fence,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        if (!db.Database.IsRelational()) return fence.State == LeaseState.Handoff && fence.ExpiresAtUtc > nowUtc;
+        var expectedOwner = new LeaseOwnerId(fence.LeaseName, fence.CalculationDate, fence.FencingToken, LeaseState.Handoff).Envelope;
+        var row = await db.IndustryRelativeValuationSourceLeases
+            .FromSqlInterpolated($"SELECT * FROM \"IndustryRelativeValuationSourceLeases\" WHERE \"LeaseName\" = {fence.LeaseName} FOR UPDATE")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        return row is not null && row.ExpiresAtUtc > nowUtc && row.Owner == expectedOwner;
     }
 
     private static void ApplySourceEvidence(

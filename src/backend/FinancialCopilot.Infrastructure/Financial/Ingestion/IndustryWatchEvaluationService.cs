@@ -18,7 +18,8 @@ public sealed class IndustryWatchEvaluationService(
 
     public async Task<IndustryWatchEvaluationResult?> EvaluateAsync(
         Guid industryId, Guid calculationId, string evaluationKind,
-        DateTimeOffset evaluatedAtUtc, CancellationToken cancellationToken = default)
+        DateTimeOffset evaluatedAtUtc, CancellationToken cancellationToken = default,
+        bool manageTransaction = true)
     {
         var started = Stopwatch.GetTimestamp();
         options.Validate();
@@ -31,7 +32,7 @@ public sealed class IndustryWatchEvaluationService(
             return null;
         }
 
-        await using var transaction = db.Database.IsRelational()
+        await using var transaction = manageTransaction && db.Database.IsRelational()
             ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         if (db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
         {

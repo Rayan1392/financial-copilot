@@ -171,6 +171,9 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
 
     public DbSet<ComprehensiveAnalysisSyncLogRow> ComprehensiveAnalysisSyncLogs => Set<ComprehensiveAnalysisSyncLogRow>();
 
+    public DbSet<Feature126EventStreamRow> Feature126EventStreams => Set<Feature126EventStreamRow>();
+    public DbSet<Feature126EventRow> Feature126Events => Set<Feature126EventRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(FinancialIngestionDbContext).Assembly,

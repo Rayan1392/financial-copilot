@@ -255,7 +255,7 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
     }
 
     [SkippableFact]
-    public async Task Existing_worker_flow_triggers_feature125_publication_and_idempotent_watch_evaluation()
+    public async Task Valid_feature126_handoff_triggers_feature125_publication_and_idempotent_watch_evaluation()
     {
         await using var database = await fixture.CreateDatabaseAsync();
         var industry = Guid.NewGuid();
@@ -297,6 +297,7 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
 
         await using var context = database.CreateContext();
         var source = new StubFeature125SourceIngestion();
+        var sourceFacts = new IndustryRelativeValuationSourceFactStore(context, new FixedTimeProvider(Now));
         var pipeline = new IndustryRelativeValuationOrchestrationService(
             source,
             new IndustryRelativeValuationCalculationInputBuilder(context),
@@ -315,35 +316,40 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
                 CanonicalProviderName = "NADPCO"
             }),
             new FixedTimeProvider(Now),
-            NullLogger<IndustryRelativeValuationOrchestrationService>.Instance);
-        var coordinator = new NadpcoScheduledSyncCoordinator(
-            new StubNadpcoApiScheduledSyncService(),
-            new EfCoreNadpcoScheduledSyncRunRepository(context, new FixedTimeProvider(Now)),
-            new NoopNadpcoAlertSink(),
-            Options.Create(new NadpcoScheduledSyncOptions
+            NullLogger<IndustryRelativeValuationOrchestrationService>.Instance,
+            sourceFacts,
+            new Feature125HandoffConsumer());
+        var admitted = companies.Select((company, index) =>
+            new RelativeValuationEligibleSymbol($"IRTEST{index + 1:000}", company)).ToArray();
+        var snapshot = await sourceFacts.ReadCurrentSnapshotAsync(Day, admitted, CancellationToken.None);
+        var package = Feature126HandoffPackage.Create(
+            new Feature126RunIdentity("feature126-integration", Day),
+            Guid.NewGuid(),
+            snapshot.Facts);
+        var lease = new Feature126HandoffLeaseState(
+            "feature126", Day, LeaseState.Handoff, package.FencingToken, Now.AddMinutes(5));
+        await using (var leaseSeed = database.CreateContext())
+        {
+            leaseSeed.IndustryRelativeValuationSourceLeases.Add(new IndustryRelativeValuationSourceLeaseRow
             {
-                Enabled = true,
-                RetryDelaySeconds = 0,
-                LockLeaseSeconds = 3600
-            }),
-            new FixedTimeProvider(Now),
-            NullLogger<NadpcoScheduledSyncCoordinator>.Instance,
-            pipeline);
+                LeaseName = lease.LeaseName,
+                Owner = new LeaseOwnerId(lease.LeaseName, lease.CalculationDate, lease.FencingToken, LeaseState.Handoff).Envelope,
+                ExpiresAtUtc = lease.ExpiresAtUtc,
+                UpdatedAtUtc = Now
+            });
+            await leaseSeed.SaveChangesAsync();
+        }
 
-        var first = await coordinator.RunAsync(
-            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
-            CancellationToken.None);
-        var second = await coordinator.RunAsync(
-            new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
-            CancellationToken.None);
+        var first = await pipeline.SubmitAsync(package, lease, Now, CancellationToken.None);
+        var second = await pipeline.SubmitAsync(package, lease, Now, CancellationToken.None);
 
-        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, first.Status);
-        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, second.Status);
+        Assert.True(first.Accepted);
+        Assert.True(second.Accepted);
         Assert.Single(await context.IndustryRelativeValuationCalculations.ToArrayAsync());
         Assert.Equal("Published", (await context.IndustryRelativeValuationCalculations.SingleAsync()).Status);
         Assert.Single(await context.IndustryWatchEvaluations.ToArrayAsync());
         Assert.Single(await context.IndustryWatchTransitions.ToArrayAsync());
-        Assert.Equal(2, source.InvocationCount);
+        Assert.Equal(0, source.InvocationCount);
     }
 
     private static IndustryRelativeValuationCalculationSnapshotWriter Writer(FinancialIngestionDbContext context) =>
@@ -393,6 +399,7 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
                 ExternalCompanyId = $"company-{companies[index]:N}",
                 Name = $"Company {index + 1}",
                 IndustryId = industry,
+                SymbolIsin = $"IRTEST{index + 1:000}",
                 LastSynchronizedAt = Now
             });
         await context.SaveChangesAsync();

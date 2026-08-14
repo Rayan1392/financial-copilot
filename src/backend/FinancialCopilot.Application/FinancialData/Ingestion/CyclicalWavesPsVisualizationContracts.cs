@@ -66,6 +66,23 @@ public interface ICyclicalWavesPsProviderClient
     Task<PsProviderResult<PsHistorySeries>> GetHistoryAsync(string symbolIsin, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Scope-free P/S acquisition boundary used by Feature 126 after a symbol has
+/// already been admitted by the authoritative eligibility projection.
+/// </summary>
+public interface ICyclicalWavesPsAcceptedOperation
+{
+    Task<PsProviderResult<PsGaugeDistribution>> AcquireAcceptedPsGaugeAsync(
+        string approvedSymbolIsin,
+        CancellationToken cancellationToken);
+}
+
+public interface IFeature114AcceptedPsVisualizationPersistence
+{
+    Task PersistAcceptedGaugeAsync(Guid companyId, string symbolIsin, PsGaugeDistribution gauge,
+        DateTimeOffset fetchedAtUtc, string? correlationId, CancellationToken cancellationToken);
+}
+
 public interface IPsEligibleCompanyScopeReader
 {
     Task<PsEligibleCompanyScope> ReadAsync(int? maxCompanies, CancellationToken cancellationToken);

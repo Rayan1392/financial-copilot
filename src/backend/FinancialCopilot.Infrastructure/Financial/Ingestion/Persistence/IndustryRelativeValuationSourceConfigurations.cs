@@ -37,5 +37,7 @@ public sealed class IndustryRelativeValuationSourceLeaseRowConfiguration
         builder.HasKey(row => row.LeaseName);
         builder.Property(row => row.LeaseName).HasMaxLength(128).IsRequired();
         builder.Property(row => row.Owner).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.CurrentRunId).HasMaxLength(128);
+        builder.Property(row => row.SupersededRunId).HasMaxLength(128);
     }
 }

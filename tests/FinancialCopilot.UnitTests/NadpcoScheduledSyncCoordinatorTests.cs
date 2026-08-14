@@ -70,7 +70,7 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
     }
 
     [Fact]
-    public async Task SuccessfulScheduledIngestion_InvokesFeature125DownstreamPipeline()
+    public async Task SuccessfulScheduledIngestion_DoesNotInvokeFeature125DownstreamPipeline()
     {
         await using var db = CreateDb();
         var feature = new StubIndustryRelativeValuationOrchestrationService();
@@ -85,12 +85,12 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
             CancellationToken.None);
 
         Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
-        Assert.Equal(1, feature.InvocationCount);
-        Assert.StartsWith("nadpco-", feature.CorrelationIds.Single());
+        Assert.Equal(0, feature.InvocationCount);
+        Assert.Empty(feature.CorrelationIds);
     }
 
     [Fact]
-    public async Task Feature125Failure_UsesExistingRetryAndLeavesPublishedSnapshotUntouched()
+    public async Task NadpcoSuccess_LeavesFeature125PublishedSnapshotUntouched()
     {
         await using var db = CreateDb();
         var calculationId = Guid.NewGuid();
@@ -114,10 +114,7 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
         });
         await db.SaveChangesAsync();
 
-        var feature = new StubIndustryRelativeValuationOrchestrationService
-        {
-            ExceptionToThrow = new InvalidOperationException("feature-125-failure")
-        };
+        var feature = new StubIndustryRelativeValuationOrchestrationService();
         var coordinator = NewCoordinator(
             db,
             new StubNadpcoApiSyncService(),
@@ -128,8 +125,8 @@ public sealed class NadpcoScheduledSyncCoordinatorTests
             new NadpcoScheduledSyncRunRequest(NadpcoScheduledSyncTriggerSource.Automatic),
             CancellationToken.None);
 
-        Assert.Equal(NadpcoScheduledSyncRunStatus.Failed, run.Status);
-        Assert.Equal(2, feature.InvocationCount);
+        Assert.Equal(NadpcoScheduledSyncRunStatus.Succeeded, run.Status);
+        Assert.Equal(0, feature.InvocationCount);
         var published = await db.IndustryRelativeValuationCalculations.SingleAsync(row => row.Id == calculationId);
         Assert.True(published.IsSelectedCurrent);
         Assert.Equal("Published", published.Status);

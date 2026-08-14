@@ -82,7 +82,7 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
     ICyclicalWavesPsProviderClient provider,
     IOptions<CyclicalWavesPsSyncOptions> options,
     TimeProvider clock,
-    ILogger<CyclicalWavesPsVisualizationSyncService> logger) : ICyclicalWavesPsVisualizationSyncService, ICompanyPsVisualizationReader
+    ILogger<CyclicalWavesPsVisualizationSyncService> logger) : ICyclicalWavesPsVisualizationSyncService, ICompanyPsVisualizationReader, IFeature114AcceptedPsVisualizationPersistence
 {
     private const string ProviderName = "CyclicalWaves";
     private readonly CyclicalWavesPsSyncOptions _options = options.Value;
@@ -136,6 +136,35 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
         {
             await ReleaseLeaseAsync(correlationId, CancellationToken.None);
         }
+    }
+
+    public async Task PersistAcceptedGaugeAsync(Guid companyId, string symbolIsin, PsGaugeDistribution gauge,
+        DateTimeOffset fetchedAtUtc, string? correlationId, CancellationToken cancellationToken)
+    {
+        if (gauge.GaugeClose <= 0m || gauge.GaugeAverage <= 0m) return;
+        var company = await db.Companies.AsNoTracking().SingleOrDefaultAsync(x => x.Id == companyId, cancellationToken);
+        var symbol = new PsEligibleCompany(companyId, symbolIsin.Trim().ToUpperInvariant(), company?.Ticker ?? string.Empty);
+        var observationDate = DateOnly.FromDateTime(fetchedAtUtc.UtcDateTime);
+        var current = new PsCurrentValues(symbol.CompanySymbol, symbol.CompanySymbol, gauge.GaugeClose, gauge.GaugeAverage, observationDate);
+        var normalizedHash = HashSnapshot(symbol, gauge, current);
+        var existing = await db.CompanyPsGaugeSnapshots.SingleOrDefaultAsync(x =>
+            x.ProviderName == ProviderName && x.CompanyId == companyId && x.ObservationDate == observationDate, cancellationToken);
+        if (existing is not null && existing.NormalizedSnapshotHash == normalizedHash) return;
+        var now = clock.GetUtcNow();
+        var total = gauge.BucketA + gauge.BucketB + gauge.BucketC + gauge.BucketD + gauge.BucketE + gauge.BucketF;
+        var row = existing ?? new CompanyPsGaugeSnapshotRow { Id = Guid.NewGuid(), CompanyId = companyId, ProviderName = ProviderName, ObservationDate = observationDate, FirstSeenAtUtc = now };
+        row.SourceCompanyIsin = symbol.SymbolIsin; row.TtmPsRatio = gauge.GaugeClose; row.ForwardPsRatio = gauge.GaugeAverage;
+        row.GaugeClose = gauge.GaugeClose; row.GaugeAverage = gauge.GaugeAverage; row.BoundaryStart = gauge.BoundaryStart;
+        row.BoundaryMin = gauge.BoundaryMin; row.BoundaryAverage = gauge.BoundaryAverage; row.BoundaryMax = gauge.BoundaryMax; row.BoundaryEnd = gauge.BoundaryEnd;
+        row.BucketA = gauge.BucketA; row.BucketB = gauge.BucketB; row.BucketC = gauge.BucketC; row.BucketD = gauge.BucketD; row.BucketE = gauge.BucketE; row.BucketF = gauge.BucketF; row.BucketTotal = total;
+        row.ProviderSymbol = symbol.CompanySymbol; row.GaugeFetchedAtUtc = fetchedAtUtc; row.CurrentValuesFetchedAtUtc = fetchedAtUtc; row.LastSyncedAtUtc = fetchedAtUtc;
+        row.CompletenessStatus = PsVisualizationComponentStatus.Complete.ToString(); row.GaugeRenderabilityStatus = total > 0 ? GaugeRenderabilityStatus.Renderable.ToString() : GaugeRenderabilityStatus.InvalidBucketTotal.ToString(); row.QualityStatus = "Valid";
+        row.GaugePayloadHash = HashGauge(gauge); row.CurrentValuesPayloadHash = HashCurrent(current); row.NormalizedSnapshotHash = normalizedHash;
+        if (existing is null) db.CompanyPsGaugeSnapshots.Add(row);
+        var state = await GetOrCreateStateAsync(symbol, cancellationToken);
+        state.SourceCompanyIsin = symbol.SymbolIsin; state.LastSuccessfulSnapshotId = row.Id; state.LastSuccessfulSnapshotDate = observationDate;
+        state.LastGaugeSuccessAtUtc = fetchedAtUtc; state.LastCurrentValuesSuccessAtUtc = fetchedAtUtc; state.LastSuccessfulCorrelationId = correlationId;
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<PsVisualizationReadModel?> GetAsync(Guid companyId, CancellationToken cancellationToken)

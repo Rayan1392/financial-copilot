@@ -24,19 +24,22 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(FinancialIn
         string canonicalProviderName,
         DateTimeOffset calculatedAtUtc,
         TimeSpan freshnessWindow,
+        Feature126SourceSnapshotEvidence manifest,
         CancellationToken cancellationToken)
     {
+        var admittedCompanyIds = manifest.Facts.Select(fact => fact.CompanyId).Distinct().ToArray();
         var companies = await db.Companies.AsNoTracking()
             .Where(row => row.ProviderName == canonicalProviderName && row.IndustryId != null)
+            .Where(row => admittedCompanyIds.Contains(row.Id))
             .Select(row => new { row.Id, row.IndustryId })
             .ToArrayAsync(cancellationToken);
         var industryIds = companies.Select(row => row.IndustryId!.Value).Distinct().ToArray();
         var industries = await db.Industries.AsNoTracking()
             .Where(row => row.ProviderName == canonicalProviderName && industryIds.Contains(row.Id))
             .ToDictionaryAsync(row => row.Id, cancellationToken);
-        var companyIds = companies.Select(row => row.Id).ToArray();
+        var admittedFactIds = manifest.Facts.Where(fact => fact.FactId.HasValue).Select(fact => fact.FactId!.Value).ToArray();
         var persistedFacts = await db.IndustryRelativeValuationSourceFacts.AsNoTracking()
-            .Where(row => row.ProviderName == "CyclicalWaves" && companyIds.Contains(row.CompanyId))
+            .Where(row => row.ProviderName == "CyclicalWaves" && admittedFactIds.Contains(row.Id))
             .ToArrayAsync(cancellationToken);
         var facts = persistedFacts
             .Select(IndustryRelativeValuationSourceFactMapper.Map)

@@ -1,4 +1,5 @@
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
@@ -75,6 +76,11 @@ builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
 builder.Services.AddHttpClient();
+builder.Services.AddOptions<Feature126ManagementOptions>()
+    .BindConfiguration(Feature126ManagementOptions.SectionName);
+builder.Services.AddSingleton<Feature126WorkerHealth>();
+builder.Services.AddSingleton<IFeature126RuntimeLifecycleObserver>(sp => sp.GetRequiredService<Feature126WorkerHealth>());
+builder.Services.AddHostedService<Feature126ManagementServer>();
 builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
 builder.Services.AddHostedService<AlertHistoryHandoffWorker>();
@@ -120,7 +126,9 @@ builder.Services.AddHostedService<NadpcoScheduledSyncWorker>();
 builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
 builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
-builder.Services.AddHostedService<CyclicalWavesPsVisualizationSyncWorker>();
+// Feature 114 remains available for visualization reads and retained admin read paths only.
+// Its former scheduled provider-fetch owner is detached; Feature 126 owns daily acquisition.
+builder.Services.AddHostedService<CyclicalWavesRelativeValuationWorker>();
 
 var host = builder.Build();
 host.Run();

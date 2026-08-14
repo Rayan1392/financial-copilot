@@ -24,6 +24,8 @@ public sealed class IndustryRelativeValuationSourceLeaseRow
 {
     public string LeaseName { get; set; } = string.Empty;
     public string Owner { get; set; } = string.Empty;
+    public string? CurrentRunId { get; set; }
+    public string? SupersededRunId { get; set; }
     public DateTimeOffset ExpiresAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }

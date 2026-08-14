@@ -40,7 +40,9 @@ public sealed class IndustryRelativeValuationSourceFactStore(
             var fetchedAt = result.FetchedAtUtc ?? atomicNow;
             var watermark = result.SourceWatermark ?? result.SourceObservationId;
             var id = Guid.NewGuid();
-            var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            try
+            {
+                var affected = await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO "IndustryRelativeValuationSourceFacts"
                 ("Id", "CompanyId", "ProviderName", "SourceKind", "SourceObservationId",
                  "CurrentValue", "ReferenceValue", "FetchedAtUtc", "PersistedAtUtc",
@@ -54,10 +56,16 @@ public sealed class IndustryRelativeValuationSourceFactStore(
                 ON CONFLICT ("ProviderName", "SourceKind", "SourceObservationId") DO NOTHING
                 """, cancellationToken);
 
-            if (affected == 1)
+                if (affected == 1)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return Feature126SourceFactWriteResult.Persisted;
+                }
+            }
+            catch(Exception e)
             {
-                await transaction.CommitAsync(cancellationToken);
-                return Feature126SourceFactWriteResult.Persisted;
+                Console.WriteLine(e.Message);
+                throw;
             }
 
             var unchanged = await db.IndustryRelativeValuationSourceFacts

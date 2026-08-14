@@ -72,39 +72,40 @@ public sealed class RelativeValuationPipeline(
 
     public async Task<Feature126IngestionRunResult> RunAsync(string? correlationId, CancellationToken cancellationToken)
     {
-        var id = string.IsNullOrWhiteSpace(correlationId) ? Guid.NewGuid().ToString("N") : correlationId.Trim();
+        var prepared = await PrepareRunAsync(correlationId, cancellationToken);
+        if (prepared.Completed is not null) return prepared.Completed;
+        return await ExecuteOwnedRunAsync(prepared.Active!, cancellationToken);
+    }
+
+    private async Task<RunPreparationResult> PrepareRunAsync(string? correlationId, CancellationToken cancellationToken)
+    {
+        var requestedId = string.IsNullOrWhiteSpace(correlationId) ? Guid.NewGuid().ToString("N") : correlationId.Trim();
         var startedAtUtc = clock.GetUtcNow();
         var tehranDate = TehranDate(startedAtUtc);
         if (!settings.Enabled)
-            return Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
-                CreateSummary(id, startedAtUtc, tehranDate, Feature126RunState.Disabled,
-                    Feature126LeaseStatus.NotAttempted, false, false, null,
-                    Array.Empty<Feature126MetricOutcome>(), "Disabled", Feature126HandoffStatus.NotApplicable, null));
+            return Completed(new(requestedId, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
+                CreateSummary(requestedId, startedAtUtc, tehranDate, Feature126RunState.Disabled,
+                    Feature126LeaseStatus.NotAttempted, false, false, null, Array.Empty<Feature126MetricOutcome>(),
+                    "Disabled", Feature126HandoffStatus.NotApplicable, null));
 
         var decision = (activationGate ?? new Feature126RuntimeActivationGate(options)).Evaluate();
         if (!decision.Allowed)
         {
-            logger.LogWarning("Feature 126 activation rejected. reason={Reason} correlationId={CorrelationId}.",
-                decision.RejectionReason, id);
-            var activationOutcomes = new[] {
-                new Feature126MetricOutcome(null, null, RelativeValuationSourceKind.PEGauge,
-                    "Skipped", decision.RejectionReason?.ToString()) };
-            return Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, activationOutcomes),
-                CreateSummary(id, startedAtUtc, tehranDate, Feature126RunState.ActivationGuardRejected,
-                    Feature126LeaseStatus.NotAttempted, false, true, null, activationOutcomes,
-                    decision.RejectionReason?.ToString(), Feature126HandoffStatus.NotApplicable,
-                    decision.RejectionReason?.ToString()));
+            logger.LogWarning("Feature 126 activation rejected. reason={Reason} correlationId={CorrelationId}.", decision.RejectionReason, requestedId);
+            var outcomes = new[] { new Feature126MetricOutcome(null, null, RelativeValuationSourceKind.PEGauge, "Skipped", decision.RejectionReason?.ToString()) };
+            return Completed(new(requestedId, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, outcomes),
+                CreateSummary(requestedId, startedAtUtc, tehranDate, Feature126RunState.ActivationGuardRejected,
+                    Feature126LeaseStatus.NotAttempted, false, true, null, outcomes, decision.RejectionReason?.ToString(),
+                    Feature126HandoffStatus.NotApplicable, decision.RejectionReason?.ToString()));
         }
 
-        // Caller correlation is diagnostic context only; lifecycle lineage is durable run state.
-        id = Feature126RunId.Create(tehranDate, startedAtUtc);
-
+        var id = Feature126RunId.Create(tehranDate, startedAtUtc);
         if (leaseStore is IFeature126LeaseRecoveryStore recoveryStore &&
             await recoveryStore.HasSucceededAsync(LeaseName, tehranDate, cancellationToken))
-            return Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
+            return Completed(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
                 CreateSummary(id, startedAtUtc, tehranDate, Feature126RunState.CurrentDaySucceededNoOp,
-                    Feature126LeaseStatus.NotAttempted, false, true, null,
-                    Array.Empty<Feature126MetricOutcome>(), "CurrentDaySucceededNoOp", Feature126HandoffStatus.NotApplicable, null));
+                    Feature126LeaseStatus.NotAttempted, false, true, null, Array.Empty<Feature126MetricOutcome>(),
+                    "CurrentDaySucceededNoOp", Feature126HandoffStatus.NotApplicable, null));
 
         LeaseHandle? owner;
         try
@@ -114,39 +115,45 @@ public sealed class RelativeValuationPipeline(
         }
         catch (Exception)
         {
-            var acquisitionFailure = cancellationToken.IsCancellationRequested
-                ? Feature126RunState.Cancelled
-                : Feature126RunState.Failed;
-            var acquisitionCode = cancellationToken.IsCancellationRequested ? "Cancelled" : "UnexpectedFailure";
-            var acquisitionSummary = CreateSummary(id, startedAtUtc, tehranDate, acquisitionFailure,
-                Feature126LeaseStatus.NotAttempted, false, true, null, Array.Empty<Feature126MetricOutcome>(),
-                acquisitionCode, Feature126HandoffStatus.NotApplicable, acquisitionCode);
-            Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()), acquisitionSummary);
+            var code = cancellationToken.IsCancellationRequested ? "Cancelled" : "UnexpectedFailure";
+            Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, Array.Empty<Feature126MetricOutcome>()),
+                CreateSummary(id, startedAtUtc, tehranDate,
+                    cancellationToken.IsCancellationRequested ? Feature126RunState.Cancelled : Feature126RunState.Failed,
+                    Feature126LeaseStatus.NotAttempted, false, true, null, Array.Empty<Feature126MetricOutcome>(),
+                    code, Feature126HandoffStatus.NotApplicable, code));
             throw;
         }
         if (owner is null)
         {
-            var contentionOutcomes = new[] { new Feature126MetricOutcome(null, null, RelativeValuationSourceKind.PEGauge, "Skipped", "LeaseContended") };
-            return Publish(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, contentionOutcomes),
+            var outcomes = new[] { new Feature126MetricOutcome(null, null, RelativeValuationSourceKind.PEGauge, "Skipped", "LeaseContended") };
+            return Completed(new(id, tehranDate, 0, 0, 0, 0, 0, 0, 0, 0, outcomes),
                 CreateSummary(id, startedAtUtc, tehranDate, Feature126RunState.Failed,
-                    Feature126LeaseStatus.Contended, false, true, null, contentionOutcomes,
-                    "LeaseContended", Feature126HandoffStatus.NotApplicable, "LeaseContended"));
+                    Feature126LeaseStatus.Contended, false, true, null, outcomes, "LeaseContended",
+                    Feature126HandoffStatus.NotApplicable, "LeaseContended"));
         }
 
-        // Allocation is not evidence. The durable acknowledgement below is the sole gate before
-        // any universe read or provider call. A scheduled attempt always gets a new sortable id.
         await AppendRequiredAsync(new Feature126EventAppendRequest(
-            EventId: $"{id}:run_started", RunId: id, EventType: Feature126LifecycleEventType.RunStarted,
-            ExpectedPredecessorState: "None", OwnerId: settings.DeploymentIdentifier,
-            FencingToken: owner.FencingToken, TehranDate: tehranDate.ToString("yyyy-MM-dd"),
-            AttemptReason: owner.RecoveredLease ? "takeover" : "scheduled", RecoveredFromRunId: owner.SupersededRunId,
-            OccurredAtUtc: startedAtUtc, Fields: new Dictionary<string, object?>
+            $"{id}:run_started", id, Feature126LifecycleEventType.RunStarted, "None", settings.DeploymentIdentifier,
+            owner.FencingToken, tehranDate.ToString("yyyy-MM-dd"), owner.RecoveredLease ? "takeover" : "scheduled",
+            owner.SupersededRunId, startedAtUtc, new Dictionary<string, object?>
             {
                 ["lifecycle_state"] = "Running", ["lease_name"] = LeaseName,
                 ["configuration_revision"] = settings.ConfigurationRevision,
                 ["lease_status"] = owner.RecoveredLease ? "Recovered" : "Owned"
             }, ExpectedNextSequence: 1), cancellationToken);
         lifecycleObserver?.MarkRunning(id, tehranDate);
+        return new(null, new RunPreparation(id, startedAtUtc, tehranDate, owner));
+    }
+
+    private RunPreparationResult Completed(Feature126IngestionRunResult result, Feature126OperationalSummary summary) =>
+        new(Publish(result, summary), null);
+
+    private async Task<Feature126IngestionRunResult> ExecuteOwnedRunAsync(RunPreparation preparation, CancellationToken cancellationToken)
+    {
+        var id = preparation.Id;
+        var startedAtUtc = preparation.StartedAtUtc;
+        var tehranDate = preparation.TehranDate;
+        var owner = preparation.Owner;
 
         var outcomes = new List<Feature126MetricOutcome>();
         var persisted = 0;
@@ -332,9 +339,9 @@ public sealed class RelativeValuationPipeline(
         var acquisitions = new List<Acquisition>(3);
         foreach (var metric in new[]
         {
+            RelativeValuationSourceKind.EquilibriumGauge,
             RelativeValuationSourceKind.PEGauge,
-            RelativeValuationSourceKind.PSGauge,
-            RelativeValuationSourceKind.EquilibriumGauge
+            RelativeValuationSourceKind.PSGauge
         })
         {
             acquisitions.Add(await AcquireAsync(metric, symbol.SymbolIsin!, companyTimeout.Token, runToken));
@@ -459,6 +466,8 @@ public sealed class RelativeValuationPipeline(
             .ToArray();
 
     private sealed record CompanyResult(int Persisted, int Unchanged, int Failed, int Partial, int Skipped, IReadOnlyList<Feature126MetricOutcome> Outcomes);
+    private sealed record RunPreparation(string Id, DateTimeOffset StartedAtUtc, DateOnly TehranDate, LeaseHandle Owner);
+    private sealed record RunPreparationResult(Feature126IngestionRunResult? Completed, RunPreparation? Active);
 
     private async Task<Acquisition> AcquireAsync(
         RelativeValuationSourceKind metric,

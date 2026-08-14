@@ -55,6 +55,19 @@ public sealed class IndustryRelativeValuationSourceTests
     }
 
     [Fact]
+    public async Task EquilibriumGauge_AcceptsProviderPeriodCode()
+    {
+        var client = CreateProviderClient((_, _) => JsonResponse(
+            "{\"enticker\":\"IRO1ABAD0001\",\"ticker\":\"آباد\",\"per\":\"d\",\"lastcaldate\":\"2026-06-21\",\"close\":754,\"balance\":3628.037521232403,\"maxbalance\":5224.031241503313,\"minbalance\":2032.043800961493,\"volume\":93653077,\"date\":\"20260622\",\"growth\":-0.38,\"a\":681,\"b\":699,\"c\":369,\"d\":140,\"e\":78,\"f\":1046}"));
+
+        var result = await client.GetEquilibriumGaugeAsync("IRO1ABAD0001", CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(754m, result.CurrentValue);
+        Assert.Equal(3628.037521232403m, result.ReferenceValue);
+    }
+
+    [Fact]
     public async Task ProviderContracts_DistinguishMalformedIdentityAndNumericFailures()
     {
         var malformed = CreateProviderClient((_, _) => JsonResponse("{bad"));

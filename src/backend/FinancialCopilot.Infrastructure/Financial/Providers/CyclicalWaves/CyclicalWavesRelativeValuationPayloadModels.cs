@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
@@ -19,7 +20,9 @@ internal sealed record CyclicalWavesPeGaugePayload(
 internal sealed record CyclicalWavesEquilibriumGaugePayload(
     [property: JsonPropertyName("enticker")] string? EnTicker,
     [property: JsonPropertyName("ticker")] string? Ticker,
-    [property: JsonPropertyName("per")] decimal? Per,
+    // The provider returns this as a period code such as "d" (and has returned
+    // numeric values in other payload variants). It is not used for valuation.
+    [property: JsonPropertyName("per")] JsonElement? Per,
     [property: JsonPropertyName("lastcaldate")] string? LastCalculationDate,
     [property: JsonPropertyName("close")] decimal? Close,
     [property: JsonPropertyName("balance")] decimal? Balance,

@@ -144,6 +144,39 @@ public sealed class CleanArchitectureDependencyTests
     }
 
     [Fact]
+    public void IndustryRelativeValuationRuntime_ConsumesPersistedCyclicalWavesSnapshots()
+    {
+        var root = FindSolutionRoot();
+        var workerProgram = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Worker", "Program.cs"));
+        var registrations = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Infrastructure",
+            "ServiceCollectionExtensions.cs"));
+        var acquisitionWorker = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Worker",
+            "CyclicalWavesDataAcquisitionWorker.cs"));
+        var calculationWorker = File.ReadAllText(Path.Combine(
+            root,
+            "FinancialCopilot.Worker",
+            "IndustryRelativeValuationCalculationWorker.cs"));
+
+        Assert.Contains("AddHostedService<CyclicalWavesDataAcquisitionWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.Contains("AddHostedService<IndustryRelativeValuationCalculationWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddHostedService<CyclicalWavesRelativeValuationWorker>", workerProgram, StringComparison.Ordinal);
+        Assert.Contains("ICyclicalWavesMetricSnapshotReader, CyclicalWavesMetricSnapshotReader", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<ICyclicalWavesRelativeValuationProviderClient>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IFeature126RelativeValuationPipeline>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IFeature125HandoffSubmissionBoundary>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddScoped<IIndustryRelativeValuationSourceIngestionService>", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("IIndustryRelativeValuationOrchestrationService", acquisitionWorker, StringComparison.Ordinal);
+        Assert.Contains("IIndustryRelativeValuationOrchestrationService", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("CyclicalWavesTokenCache", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICyclicalWavesDataAcquisitionService", calculationWorker, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICyclicalWavesRelativeValuationProviderClient", calculationWorker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StockMarketDb_IsModeledAsMigrationBridge()
     {
         // Spec 054 AC #2/#7: StockMarketDB must remain classified as MigrationBridge, not as

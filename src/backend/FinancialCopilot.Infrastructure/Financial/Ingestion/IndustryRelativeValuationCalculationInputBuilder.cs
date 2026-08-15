@@ -14,12 +14,45 @@ public sealed record IndustryRelativeValuationCalculationInput(
     IndustryRelativeValuationResult Result);
 
 /// <summary>
-/// Builds a calculation from the latest acceptable persisted fact for each
+/// Builds a calculation from the latest acceptable persisted snapshot for each
 /// company/metric independently. It deliberately does not join or compare
 /// provider business dates or provider generations.
 /// </summary>
-public sealed class IndustryRelativeValuationCalculationInputBuilder(FinancialIngestionDbContext db)
+public sealed class IndustryRelativeValuationCalculationInputBuilder(
+    FinancialIngestionDbContext db,
+    ICyclicalWavesMetricSnapshotReader snapshotReader)
 {
+    public IndustryRelativeValuationCalculationInputBuilder(FinancialIngestionDbContext db)
+        : this(db, new CyclicalWavesMetricSnapshotReader(db))
+    {
+    }
+
+    public async Task<IReadOnlyList<IndustryRelativeValuationCalculationInput>> BuildAsync(
+        string canonicalProviderName,
+        DateTimeOffset calculatedAtUtc,
+        TimeSpan freshnessWindow,
+        CancellationToken cancellationToken)
+    {
+        var companies = await db.Companies.AsNoTracking()
+            .Where(row => row.ProviderName == canonicalProviderName && row.IndustryId != null)
+            .Select(row => new CompanyMembership(row.Id, row.IndustryId!.Value))
+            .ToArrayAsync(cancellationToken);
+        var snapshots = await snapshotReader.ReadLatestAsync(
+            companies.Select(row => row.Id).ToArray(),
+            cancellationToken);
+        var facts = snapshots.Select(IndustryRelativeValuationSourceMapper.Map).ToArray();
+
+        return await BuildInputsAsync(
+            canonicalProviderName,
+            calculatedAtUtc,
+            freshnessWindow,
+            companies,
+            facts,
+            cancellationToken);
+    }
+
+    // Retained only so historical handoff replays remain source-compatible. The registered
+    // calculation path uses the persisted-snapshot overload above.
     public async Task<IReadOnlyList<IndustryRelativeValuationCalculationInput>> BuildAsync(
         string canonicalProviderName,
         DateTimeOffset calculatedAtUtc,
@@ -31,12 +64,8 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(FinancialIn
         var companies = await db.Companies.AsNoTracking()
             .Where(row => row.ProviderName == canonicalProviderName && row.IndustryId != null)
             .Where(row => admittedCompanyIds.Contains(row.Id))
-            .Select(row => new { row.Id, row.IndustryId })
+            .Select(row => new CompanyMembership(row.Id, row.IndustryId!.Value))
             .ToArrayAsync(cancellationToken);
-        var industryIds = companies.Select(row => row.IndustryId!.Value).Distinct().ToArray();
-        var industries = await db.Industries.AsNoTracking()
-            .Where(row => row.ProviderName == canonicalProviderName && industryIds.Contains(row.Id))
-            .ToDictionaryAsync(row => row.Id, cancellationToken);
         var admittedFactIds = manifest.Facts.Where(fact => fact.FactId.HasValue).Select(fact => fact.FactId!.Value).ToArray();
         var persistedFacts = await db.IndustryRelativeValuationSourceFacts.AsNoTracking()
             .Where(row => row.ProviderName == "CyclicalWaves" && admittedFactIds.Contains(row.Id))
@@ -47,8 +76,30 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(FinancialIn
             .Select(fact => fact!)
             .ToArray();
 
+        return await BuildInputsAsync(
+            canonicalProviderName,
+            calculatedAtUtc,
+            freshnessWindow,
+            companies,
+            facts,
+            cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<IndustryRelativeValuationCalculationInput>> BuildInputsAsync(
+        string canonicalProviderName,
+        DateTimeOffset calculatedAtUtc,
+        TimeSpan freshnessWindow,
+        IReadOnlyCollection<CompanyMembership> companies,
+        IReadOnlyCollection<RelativeValuationSourceFact> facts,
+        CancellationToken cancellationToken)
+    {
+        var industryIds = companies.Select(row => row.IndustryId).Distinct().ToArray();
+        var industries = await db.Industries.AsNoTracking()
+            .Where(row => row.ProviderName == canonicalProviderName && industryIds.Contains(row.Id))
+            .ToDictionaryAsync(row => row.Id, cancellationToken);
+
         var results = new List<IndustryRelativeValuationCalculationInput>();
-        foreach (var group in companies.GroupBy(row => row.IndustryId!.Value).OrderBy(group => group.Key))
+        foreach (var group in companies.GroupBy(row => row.IndustryId).OrderBy(group => group.Key))
         {
             if (!industries.TryGetValue(group.Key, out var industry)) continue;
             var members = group
@@ -66,6 +117,8 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(FinancialIn
 
         return results;
     }
+
+    private sealed record CompanyMembership(Guid Id, Guid IndustryId);
 }
 
 public static class IndustryRelativeValuationSourceFactMapper

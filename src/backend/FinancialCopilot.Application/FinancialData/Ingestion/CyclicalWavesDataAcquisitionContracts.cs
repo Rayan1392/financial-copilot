@@ -139,3 +139,23 @@ public interface ICyclicalWavesDataAcquisitionService
         DateOnly cycleDateUtc,
         CancellationToken cancellationToken);
 }
+
+public sealed record CyclicalWavesMetricSnapshot(
+    Guid SnapshotId,
+    Guid CompanyId,
+    string ProviderName,
+    CyclicalWavesMetricType MetricType,
+    string RawResponseJson,
+    string ResponseHash,
+    DateTimeOffset AcquisitionDateUtc,
+    DateTimeOffset SnapshotCreatedAtUtc,
+    Guid AcquisitionCheckId,
+    DateTimeOffset CompletedAtUtc,
+    DateTimeOffset CheckCreatedAtUtc);
+
+public interface ICyclicalWavesMetricSnapshotReader
+{
+    Task<IReadOnlyList<CyclicalWavesMetricSnapshot>> ReadLatestAsync(
+        IReadOnlyCollection<Guid> companyIds,
+        CancellationToken cancellationToken);
+}

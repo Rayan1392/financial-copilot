@@ -76,11 +76,6 @@ builder.Services
     .AddOptions<StockMarketDbPollingOptions>()
     .BindConfiguration(StockMarketDbPollingOptions.SectionName);
 builder.Services.AddHttpClient();
-builder.Services.AddOptions<Feature126ManagementOptions>()
-    .BindConfiguration(Feature126ManagementOptions.SectionName);
-builder.Services.AddSingleton<Feature126WorkerHealth>();
-builder.Services.AddSingleton<IFeature126RuntimeLifecycleObserver>(sp => sp.GetRequiredService<Feature126WorkerHealth>());
-builder.Services.AddHostedService<Feature126ManagementServer>();
 builder.Services.AddHostedService<TelegramMembershipRevalidationWorker>();
 builder.Services.AddHostedService<NotificationDispatchWorker>();
 builder.Services.AddHostedService<AlertHistoryHandoffWorker>();
@@ -127,9 +122,10 @@ builder.Services.AddHostedService<MetricAliasLearningWorker>();
 builder.Services.AddHostedService<TsetmcPollingWorker>();
 builder.Services.AddHostedService<ComprehensiveAnalysisDailySyncWorker>();
 builder.Services.AddHostedService<CyclicalWavesDataAcquisitionWorker>();
+builder.Services.AddHostedService<IndustryRelativeValuationCalculationWorker>();
 // Feature 114 remains available for visualization reads and retained admin read paths only.
-// Its former scheduled provider-fetch owner is detached; Feature 126 owns daily acquisition.
-builder.Services.AddHostedService<CyclicalWavesRelativeValuationWorker>();
+// Persisted CyclicalWaves acquisition owns provider interaction. Industry-relative valuation
+// runs independently and consumes only stored snapshots and successful acquisition checks.
 
 var host = builder.Build();
 host.Run();

@@ -5,34 +5,108 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
 /// <summary>
-/// Executes Feature 125 after the existing ingestion workflow. This service owns no schedule or
-/// parallel lease; those remain with the existing worker/coordinator and the established
-/// publication/watch persistence boundaries.
+/// Executes industry-relative valuation from persisted CyclicalWaves snapshots after acquisition.
+/// Publication and watch persistence remain at their established boundaries.
 /// </summary>
-public sealed class IndustryRelativeValuationOrchestrationService(
-    IIndustryRelativeValuationSourceIngestionService sourceIngestion,
-    IndustryRelativeValuationCalculationInputBuilder inputBuilder,
-    IndustryRelativeValuationCalculationSnapshotWriter snapshotWriter,
-    IOptions<IndustryRelativeValuationOptions> featureOptions,
-    IOptions<IndustryRelativeValuationSourceOptions> sourceOptions,
-    TimeProvider timeProvider,
-    ILogger<IndustryRelativeValuationOrchestrationService> logger,
-    IFeature126SourceFactStore? sourceFacts = null,
-    IFeature125HandoffConsumer? handoffConsumer = null,
-    IFeature126LeaseStore? leaseStore = null)
+public sealed class IndustryRelativeValuationOrchestrationService
     : IIndustryRelativeValuationOrchestrationService, IFeature125HandoffSubmissionBoundary
 {
+    private readonly IndustryRelativeValuationCalculationInputBuilder inputBuilder;
+    private readonly IndustryRelativeValuationCalculationSnapshotWriter snapshotWriter;
+    private readonly IOptions<IndustryRelativeValuationOptions> featureOptions;
+    private readonly IOptions<IndustryRelativeValuationSourceOptions> sourceOptions;
+    private readonly TimeProvider timeProvider;
+    private readonly ILogger<IndustryRelativeValuationOrchestrationService> logger;
+    private readonly IFeature126SourceFactStore? sourceFacts;
+    private readonly IFeature125HandoffConsumer? handoffConsumer;
+    private readonly IFeature126LeaseStore? leaseStore;
+
+    public IndustryRelativeValuationOrchestrationService(
+        IndustryRelativeValuationCalculationInputBuilder inputBuilder,
+        IndustryRelativeValuationCalculationSnapshotWriter snapshotWriter,
+        IOptions<IndustryRelativeValuationOptions> featureOptions,
+        IOptions<IndustryRelativeValuationSourceOptions> sourceOptions,
+        TimeProvider timeProvider,
+        ILogger<IndustryRelativeValuationOrchestrationService> logger)
+    {
+        this.inputBuilder = inputBuilder;
+        this.snapshotWriter = snapshotWriter;
+        this.featureOptions = featureOptions;
+        this.sourceOptions = sourceOptions;
+        this.timeProvider = timeProvider;
+        this.logger = logger;
+    }
+
+    // Retained for historical handoff replay compatibility. Production registration resolves
+    // the persisted-snapshot constructor above and does not register this legacy boundary.
+    public IndustryRelativeValuationOrchestrationService(
+        IIndustryRelativeValuationSourceIngestionService sourceIngestion,
+        IndustryRelativeValuationCalculationInputBuilder inputBuilder,
+        IndustryRelativeValuationCalculationSnapshotWriter snapshotWriter,
+        IOptions<IndustryRelativeValuationOptions> featureOptions,
+        IOptions<IndustryRelativeValuationSourceOptions> sourceOptions,
+        TimeProvider timeProvider,
+        ILogger<IndustryRelativeValuationOrchestrationService> logger,
+        IFeature126SourceFactStore? sourceFacts = null,
+        IFeature125HandoffConsumer? handoffConsumer = null,
+        IFeature126LeaseStore? leaseStore = null)
+        : this(inputBuilder, snapshotWriter, featureOptions, sourceOptions, timeProvider, logger)
+    {
+        _ = sourceIngestion;
+        this.sourceFacts = sourceFacts;
+        this.handoffConsumer = handoffConsumer;
+        this.leaseStore = leaseStore;
+    }
+
     public async Task<IndustryRelativeValuationOrchestrationResult> RunAsync(
         string correlationId,
         CancellationToken cancellationToken)
     {
-        _ = sourceIngestion; // retained for constructor compatibility; Feature 125 no longer invokes acquisition.
-        logger.LogWarning(
-            "Feature 125 direct orchestration request was rejected because a validated Feature 126 handoff is required. correlationId={CorrelationId}.",
-            correlationId);
+        var normalizedCorrelationId = string.IsNullOrWhiteSpace(correlationId)
+            ? Guid.NewGuid().ToString("N")
+            : correlationId.Trim();
+        var settings = featureOptions.Value;
+        if (!settings.Enabled)
+            return new(normalizedCorrelationId, 0, 0, 0, 0, 0, 0, 0);
+
+        var calculatedAtUtc = timeProvider.GetUtcNow();
+        var calculationDate = TehranCalculationDate(calculatedAtUtc);
+        var inputs = await inputBuilder.BuildAsync(
+            sourceOptions.Value.CanonicalProviderName,
+            calculatedAtUtc,
+            TimeSpan.FromHours(settings.SourceFreshnessHours),
+            cancellationToken);
+
+        var published = 0;
+        var inconclusive = 0;
+        foreach (var input in inputs)
+        {
+            var write = await snapshotWriter.WriteAsync(
+                calculationDate,
+                input,
+                calculatedAtUtc,
+                cancellationToken);
+            if (write.Status == "Published") published++;
+            if (write.Status == "Inconclusive") inconclusive++;
+        }
+
+        var companiesConsidered = inputs.Sum(input => input.Members.Count);
+        logger.LogInformation(
+            "Industry relative valuation calculation completed from persisted snapshots. correlationId={CorrelationId} companies={Companies} industries={Industries} published={Published} inconclusive={Inconclusive}.",
+            normalizedCorrelationId,
+            companiesConsidered,
+            inputs.Count,
+            published,
+            inconclusive);
         return new(
-            string.IsNullOrWhiteSpace(correlationId) ? Guid.NewGuid().ToString("N") : correlationId.Trim(),
-            0, 0, 0, 0, 0, 0, 0);
+            normalizedCorrelationId,
+            companiesConsidered,
+            0,
+            0,
+            0,
+            inputs.Count,
+            published,
+            inconclusive);
     }
 
     public async Task<Feature125HandoffValidationResult> SubmitAsync(

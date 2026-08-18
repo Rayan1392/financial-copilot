@@ -228,6 +228,9 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
         await using var context = database.CreateContext();
         Assert.Contains("20260812063122_Feature125Slice3Persistence",
             await context.Database.GetAppliedMigrationsAsync());
+        Assert.Contains(
+            (await context.Database.GetAppliedMigrationsAsync()),
+            migration => migration.EndsWith("_AddIndustryRelativeValuationGroupCohort", StringComparison.Ordinal));
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
 
         await using var connection = new NpgsqlConnection(database.ConnectionString);
@@ -250,6 +253,10 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
             "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='IndustryWatchEvaluations' AND indexdef LIKE 'CREATE UNIQUE INDEX%')"));
         Assert.True(await ScalarBoolAsync(connection,
             "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='IndustryRelativeValuationCalculations' AND indexdef LIKE '%IsSelectedCurrent%' AND indexdef LIKE '%WHERE%')"));
+        Assert.True(await ScalarBoolAsync(connection,
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='IndustryRelativeValuationCalculations' AND column_name='GroupId' AND is_nullable='YES')"));
+        Assert.True(await ScalarBoolAsync(connection,
+            "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='IndustryRelativeValuationCalculations' AND indexdef LIKE '%GroupId%' AND indexdef LIKE '%WHERE%')"));
         Assert.True(await ScalarBoolAsync(connection,
             "SELECT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_schema='public' AND table_name='IndustryWatchEvaluations' AND constraint_type='FOREIGN KEY')"));
     }
@@ -385,6 +392,14 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
             Name = "Feature 125 Test Industry",
             LastSynchronizedAt = Now
         });
+        context.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = industry,
+            ProviderName = "NADPCO",
+            ExternalId = $"group-{industry:N}",
+            Name = "Feature 125 Test Group",
+            LastSynchronizedAt = Now
+        });
         await context.SaveChangesAsync();
     }
 
@@ -399,6 +414,7 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
                 ExternalCompanyId = $"company-{companies[index]:N}",
                 Name = $"Company {index + 1}",
                 IndustryId = industry,
+                GroupId = industry,
                 SymbolIsin = $"IRTEST{index + 1:000}",
                 LastSynchronizedAt = Now
             });
@@ -418,6 +434,9 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
         context.IndustryRelativeValuationCalculations.Add(new IndustryRelativeValuationCalculationRow
         {
             Id = id,
+            GroupId = industry,
+            GroupExternalId = $"group-{industry:N}",
+            GroupTitleSnapshot = "Feature 125 Test Group",
             IndustryId = industry,
             CalculationDate = date,
             CalculationVersion = version,
@@ -474,7 +493,9 @@ public sealed class Feature125PostgreSqlIntegrationTests(PostgreSqlIntegrationFi
         var barrier = IndustryRelativeValuationSourceBarrierBuilder.Build(members, facts, Now, TimeSpan.FromHours(26));
         var result = IndustryRelativeValuationEngine.Calculate(members, barrier.SelectedFacts,
             new RelativeValuationCalculationContext("NADPCO", Now, TimeSpan.FromHours(26)));
-        return new(industry, $"industry-{industry:N}", "Feature 125 Test Industry", members, barrier, result);
+        return new(
+            industry, $"group-{industry:N}", "Feature 125 Test Group", members, barrier, result,
+            industry, $"industry-{industry:N}", "Feature 125 Test Industry");
     }
 
     private static (int CleanCount, decimal? Average) MetricValue(WatchOutcome outcome, RelativeValuationMetric metric) =>

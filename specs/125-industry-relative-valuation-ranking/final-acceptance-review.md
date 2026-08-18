@@ -1,5 +1,11 @@
 # Feature 125 — Final Acceptance Review
 
+> **Superseded scope notice (2026-08-17):** This historical verdict reviewed an
+> `IndustryId`/`IndustryTitle` comparison cohort. The active requirement now uses exact
+> `GroupId`/`GroupTitle` equality. This verdict is not approval for the group-cohort correction and
+> must not be used as production-rollout authorization for it. See `README.md`, `design.md`,
+> `user-story.md`, `tasks.md`, and BUG-001.
+
 ## Verdict
 
 **APPROVED**

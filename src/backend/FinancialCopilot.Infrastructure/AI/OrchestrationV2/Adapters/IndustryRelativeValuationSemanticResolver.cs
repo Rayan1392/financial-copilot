@@ -43,7 +43,7 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
             return AmbiguousIndustries(ambiguousIndustry);
 
         var requiresPair = string.Equals(capabilityCode, "symbol_pair_within_industry", StringComparison.Ordinal);
-        if (requiresPair && resolvedCompanies.Length < 2)
+        if (requiresPair && resolvedCompanies.Length != 2)
             return companyNotFound is not null
                 ? new(IndustryRelativeValuationResolutionStatus.NotFound, Detail: "CompanyOrSymbol", Candidates: [companyNotFound.NormalizedMention])
                 : new(IndustryRelativeValuationResolutionStatus.Missing, Detail: "CompanyOrSymbol");
@@ -57,12 +57,23 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
             return new(IndustryRelativeValuationResolutionStatus.Missing, Detail: IsIndustryRequired(capabilityCode) ? "Industry" : "CompanyOrSymbol");
         }
 
-        var companyIds = resolvedCompanies.Select(result => result.Entity.CanonicalId).Take(2).ToArray();
+        var companyIds = resolvedCompanies.Select(result => result.Entity.CanonicalId).ToArray();
         var memberships = companyIds.Length == 0
             ? []
-            : await db.Companies.AsNoTracking()
-                .Where(row => companyIds.Contains(row.Id))
-                .Select(row => new { row.Id, row.IndustryId })
+            : await (
+                    from eligible in db.NoavaranEligibleCompanies.AsNoTracking()
+                    join industryGroup in db.IndustryGroups.AsNoTracking()
+                        on new { Id = eligible.GroupId!.Value, eligible.ProviderName }
+                        equals new { industryGroup.Id, industryGroup.ProviderName }
+                    where companyIds.Contains(eligible.Id) && eligible.GroupId != null
+                    select new
+                    {
+                        eligible.Id,
+                        eligible.IndustryId,
+                        GroupId = industryGroup.Id,
+                        GroupTitle = industryGroup.Name,
+                        GroupExternalId = industryGroup.ExternalId
+                    })
                 .ToArrayAsync(cancellationToken);
         var companyIndustryIds = memberships
             .Where(row => row.IndustryId.HasValue)
@@ -71,36 +82,77 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
             .ToArray();
         var selectedIndustry = explicitIndustry?.Industry;
 
-        if (companyIds.Length > 0 && memberships.Length != companyIds.Length)
+        if (companyIds.Length > 0 && memberships.Select(row => row.Id).Distinct().Count() != companyIds.Length)
             return new(IndustryRelativeValuationResolutionStatus.NotFound, CompanyIds: companyIds, Detail: "CompanyOrSymbol");
-        if (companyIndustryIds.Length == 0)
-            return selectedIndustry is not null
-                ? new(IndustryRelativeValuationResolutionStatus.Resolved, selectedIndustry.CanonicalId, selectedIndustry.DisplayName, CompanyIds: [], Symbols: [])
-                : new(IndustryRelativeValuationResolutionStatus.Missing, CompanyIds: companyIds, Detail: "Industry");
-        if (companyIndustryIds.Length > 1)
+        var companyGroups = memberships
+            .GroupBy(row => row.GroupId)
+            .Select(group => group.First())
+            .ToArray();
+        if (companyGroups.Length > 1)
             return new(
                 IndustryRelativeValuationResolutionStatus.DifferentIndustries,
                 CompanyIds: companyIds,
-                Symbols: resolvedCompanies.Select(result => result.Entity.DisplaySymbol).Take(2).ToArray(),
+                Symbols: resolvedCompanies.Select(result => result.Entity.DisplaySymbol).ToArray(),
                 Detail: DialogueOutcomeReasonCodes.DifferentIndustries);
 
-        if (selectedIndustry is not null && selectedIndustry.CanonicalId != companyIndustryIds[0])
+        if (companyIds.Length > 0 && selectedIndustry is not null &&
+            (companyIndustryIds.Length != 1 || selectedIndustry.CanonicalId != companyIndustryIds[0]))
             return new(
                 IndustryRelativeValuationResolutionStatus.InvalidIndustryMembership,
-                selectedIndustry.CanonicalId,
-                selectedIndustry.DisplayName,
-                companyIds,
-                resolvedCompanies.Select(result => result.Entity.DisplaySymbol).ToArray(),
-                DialogueOutcomeReasonCodes.InvalidIndustryMembership,
+                IndustryId: selectedIndustry.CanonicalId,
+                IndustryName: selectedIndustry.DisplayName,
+                CompanyIds: companyIds,
+                Symbols: resolvedCompanies.Select(result => result.Entity.DisplaySymbol).ToArray(),
+                Detail: DialogueOutcomeReasonCodes.InvalidIndustryMembership,
                 CandidateIds: [selectedIndustry.CanonicalId]);
 
-        var industryId = selectedIndustry?.CanonicalId ?? companyIndustryIds[0];
+        if (companyGroups.Length == 0 && selectedIndustry is not null)
+        {
+            var eligibleGroups = await (
+                    from eligible in db.NoavaranEligibleCompanies.AsNoTracking()
+                    join industryGroup in db.IndustryGroups.AsNoTracking()
+                        on new { Id = eligible.GroupId!.Value, eligible.ProviderName }
+                        equals new { industryGroup.Id, industryGroup.ProviderName }
+                    where eligible.IndustryId == selectedIndustry.CanonicalId && eligible.GroupId != null
+                    select new { GroupId = industryGroup.Id, GroupTitle = industryGroup.Name })
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+            if (eligibleGroups.Length == 1)
+                return new(
+                    IndustryRelativeValuationResolutionStatus.Resolved,
+                    eligibleGroups[0].GroupId,
+                    eligibleGroups[0].GroupTitle,
+                    selectedIndustry.CanonicalId,
+                    selectedIndustry.DisplayName,
+                    CompanyIds: [],
+                    Symbols: []);
+            if (eligibleGroups.Length > 1)
+                return new(
+                    IndustryRelativeValuationResolutionStatus.Ambiguous,
+                    IndustryId: selectedIndustry.CanonicalId,
+                    IndustryName: selectedIndustry.DisplayName,
+                    Detail: DialogueOutcomeReasonCodes.EntityAmbiguous,
+                    Candidates: eligibleGroups.Select(group => group.GroupTitle).ToArray(),
+                    CandidateIds: eligibleGroups.Select(group => group.GroupId).ToArray());
+            return new(
+                IndustryRelativeValuationResolutionStatus.NotFound,
+                IndustryId: selectedIndustry.CanonicalId,
+                IndustryName: selectedIndustry.DisplayName,
+                Detail: "IndustryGroup");
+        }
+
+        if (companyGroups.Length == 0)
+            return new(IndustryRelativeValuationResolutionStatus.Missing, CompanyIds: companyIds, Detail: "IndustryGroup");
+
+        var companyGroup = companyGroups[0];
         return new(
             IndustryRelativeValuationResolutionStatus.Resolved,
-            industryId,
+            companyGroup.GroupId,
+            companyGroup.GroupTitle,
+            selectedIndustry?.CanonicalId ?? (companyIndustryIds.Length == 1 ? companyIndustryIds[0] : null),
             selectedIndustry?.DisplayName,
             companyIds,
-            resolvedCompanies.Select(result => result.Entity.DisplaySymbol).Take(2).ToArray());
+            resolvedCompanies.Select(result => result.Entity.DisplaySymbol).ToArray());
     }
 
     private static bool IsIndustryRequired(string capabilityCode) =>

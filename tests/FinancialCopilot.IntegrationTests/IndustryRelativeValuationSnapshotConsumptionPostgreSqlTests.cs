@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.RelativeValuation;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -11,7 +12,9 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
     PostgreSqlIntegrationFixture fixture)
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 15, 10, 0, 0, TimeSpan.Zero);
-    private const string CanonicalProvider = "NADPCO";
+    private const string CanonicalProvider = ProviderSources.NoavaranCurrentApiName;
+    private static readonly Guid EligibleMarketId =
+        Guid.Parse("037c69ad-f519-419f-ae62-59003b6b2428");
 
     [SkippableFact]
     public async Task Reader_SelectsLatestSnapshot_ThenOrdersMatchingSuccessfulChecksDeterministically()
@@ -102,12 +105,8 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
         Assert.Contains(fresh.SourceBarrier.Selections,
             selection => selection.CompanyId == companyId && selection.Metric == RelativeValuationMetric.Ps);
 
-        var expired = Assert.Single(await builder.BuildAsync(
+        Assert.Empty(await builder.BuildAsync(
             CanonicalProvider, Now.AddHours(2), TimeSpan.FromHours(2), CancellationToken.None));
-        Assert.DoesNotContain(expired.SourceBarrier.Selections,
-            selection => selection.CompanyId == companyId && selection.Metric == RelativeValuationMetric.Ps);
-        Assert.Equal(RelativeValuationQuality.Missing,
-            expired.Result.Companies.Single().Metrics.Single(x => x.Metric == RelativeValuationMetric.Ps).Quality);
     }
 
     [SkippableFact]
@@ -125,12 +124,10 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
         await db.SaveChangesAsync();
 
         var reader = new CyclicalWavesMetricSnapshotReader(db);
-        var input = Assert.Single(await new IndustryRelativeValuationCalculationInputBuilder(db, reader)
-            .BuildAsync(CanonicalProvider, Now, TimeSpan.FromHours(26), CancellationToken.None));
+        var inputs = await new IndustryRelativeValuationCalculationInputBuilder(db, reader)
+            .BuildAsync(CanonicalProvider, Now, TimeSpan.FromHours(26), CancellationToken.None);
 
-        Assert.Empty(input.SourceBarrier.Selections);
-        Assert.All(input.Result.Companies.Single().Metrics,
-            metric => Assert.Equal(RelativeValuationQuality.Missing, metric.Quality));
+        Assert.Empty(inputs);
         Assert.Single(await db.IndustryRelativeValuationSourceFacts.ToArrayAsync());
         Assert.Single(await db.CompanyPsGaugeSnapshots.ToArrayAsync());
         Assert.Equal(
@@ -190,12 +187,29 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
         int companyCount)
     {
         var industryId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
         db.Industries.Add(new NormalizedIndustryRow
         {
             Id = industryId,
             ProviderName = CanonicalProvider,
             ExternalId = "10",
             Name = "Test Industry",
+            LastSynchronizedAt = Now
+        });
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = groupId,
+            ProviderName = CanonicalProvider,
+            ExternalId = "group-10",
+            Name = "Test Group",
+            LastSynchronizedAt = Now
+        });
+        db.Markets.Add(new NormalizedMarketRow
+        {
+            Id = EligibleMarketId,
+            ProviderName = CanonicalProvider,
+            ExternalId = "1",
+            Name = "Eligible Market",
             LastSynchronizedAt = Now
         });
         var companies = Enumerable.Range(1, companyCount).Select(_ => Guid.NewGuid()).ToArray();
@@ -207,6 +221,9 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionPostgreSqlTests(
                 ExternalCompanyId = (index + 1).ToString(),
                 Name = $"Company {index + 1}",
                 IndustryId = industryId,
+                GroupId = groupId,
+                MarketId = EligibleMarketId,
+                PrecedencyRight = 0,
                 SymbolIsin = $"IRTEST{index + 1:000}",
                 LastSynchronizedAt = Now
             });

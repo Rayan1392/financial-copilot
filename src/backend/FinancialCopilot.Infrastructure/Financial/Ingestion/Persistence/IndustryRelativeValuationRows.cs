@@ -4,6 +4,9 @@ public sealed class IndustryRelativeValuationCalculationRow
 {
     public Guid Id { get; set; }
     public DateOnly CalculationDate { get; set; }
+    public Guid? GroupId { get; set; }
+    public string? GroupExternalId { get; set; }
+    public string? GroupTitleSnapshot { get; set; }
     public Guid IndustryId { get; set; }
     public string IndustryExternalId { get; set; } = string.Empty;
     public string IndustryTitleSnapshot { get; set; } = string.Empty;
@@ -89,6 +92,7 @@ public sealed class CompanyIndustryRelativeValuationRow
 public sealed class IndustryWatchStateRow
 {
     public Guid Id { get; set; }
+    public Guid? GroupId { get; set; }
     public Guid IndustryId { get; set; }
     public string State { get; set; } = "NotWatching";
     public int EntryStreak { get; set; }
@@ -102,6 +106,7 @@ public sealed class IndustryWatchStateRow
 public sealed class IndustryWatchTransitionRow
 {
     public Guid Id { get; set; }
+    public Guid? GroupId { get; set; }
     public Guid IndustryId { get; set; }
     public Guid CalculationId { get; set; }
     public string EvaluationKind { get; set; } = string.Empty;
@@ -122,6 +127,7 @@ public sealed class IndustryWatchTransitionRow
 public sealed class IndustryWatchEvaluationRow
 {
     public Guid Id { get; set; }
+    public Guid? GroupId { get; set; }
     public Guid IndustryId { get; set; }
     public Guid CalculationId { get; set; }
     public string EvaluationKind { get; set; } = string.Empty;
@@ -143,6 +149,7 @@ public sealed class IndustryRelativeValuationOutboxRow
 {
     public Guid Id { get; set; }
     public Guid CalculationId { get; set; }
+    public Guid? GroupId { get; set; }
     public Guid IndustryId { get; set; }
     public string EventIdentity { get; set; } = string.Empty;
     public string EventType { get; set; } = string.Empty;

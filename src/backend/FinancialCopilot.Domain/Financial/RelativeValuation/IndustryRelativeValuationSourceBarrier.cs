@@ -41,28 +41,21 @@ public static class IndustryRelativeValuationSourceBarrierBuilder
         if (freshnessWindow <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(freshnessWindow));
 
-        var memberList = members
-            .OrderBy(x => x.IndustryId)
-            .ThenBy(x => x.CompanyId)
-            .ToArray();
-        var factList = facts.ToArray();
-        var selections = new List<RelativeValuationSourceSelection>();
-
-        foreach (var member in memberList)
-        foreach (var metric in Enum.GetValues<RelativeValuationMetric>())
-        {
-            var selected = factList
-                .Where(fact => fact.CompanyId == member.CompanyId && fact.Metric == metric)
-                .Where(fact => IsLatestValidCandidate(fact, calculatedAtUtc, freshnessWindow))
+        var memberIds = members
+            .Select(member => member.CompanyId)
+            .ToHashSet();
+        var selections = facts
+            .Where(fact => memberIds.Contains(fact.CompanyId))
+            .Where(fact => IsUsableCandidate(fact, calculatedAtUtc, freshnessWindow))
+            .GroupBy(fact => new { fact.CompanyId, fact.Metric })
+            .Select(group => group
                 .OrderByDescending(fact => fact.PersistedAtUtc!.Value)
                 .ThenByDescending(fact => fact.SourceObservationTimestamp ?? DateTimeOffset.MinValue)
                 .ThenByDescending(fact => fact.SourceObservationId ?? string.Empty, StringComparer.Ordinal)
                 .ThenByDescending(fact => fact.SourceVersion ?? string.Empty, StringComparer.Ordinal)
                 .ThenByDescending(fact => fact.SourceFactId ?? Guid.Empty)
-                .FirstOrDefault();
-
-            if (selected is null) continue;
-            selections.Add(new(
+                .First())
+            .Select(selected => new RelativeValuationSourceSelection(
                 selected.CompanyId,
                 selected.Metric,
                 selected,
@@ -71,8 +64,8 @@ public static class IndustryRelativeValuationSourceBarrierBuilder
                 selected.SourceObservationTimestamp,
                 selected.PersistedAtUtc!.Value,
                 selected.SourceObservationId ?? string.Empty,
-                selected.SourceWatermark ?? string.Empty));
-        }
+                selected.SourceWatermark ?? string.Empty))
+            .ToArray();
 
         var orderedSelections = selections
             .OrderBy(x => x.CompanyId)
@@ -85,27 +78,39 @@ public static class IndustryRelativeValuationSourceBarrierBuilder
             $"{x.CompanyId:D}|{x.Metric}|{x.SourceFactId?.ToString("D") ?? string.Empty}|{x.SourceVersion}|" +
             $"{x.SourceObservationId}|{x.SourceObservationTimestamp?.ToUniversalTime():O}|{x.PersistedAtUtc.ToUniversalTime():O}|{x.SourceWatermark}"));
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
-        var required = memberList.Length * Enum.GetValues<RelativeValuationMetric>().Length;
-        var complete = orderedSelections.Length == required;
+        var selectedCount = orderedSelections.Length;
 
         return new(
             orderedSelections,
             hash,
-            complete,
-            required,
-            complete ? null : "MissingOrStaleLatestValidMetricObservation");
+            IsComplete: true,
+            RequiredSelectionCount: selectedCount,
+            IncompleteReason: null);
     }
 
-    private static bool IsLatestValidCandidate(
+    private static bool IsUsableCandidate(
         RelativeValuationSourceFact fact,
         DateTimeOffset calculatedAtUtc,
-        TimeSpan freshnessWindow) =>
-        fact.IsAvailable &&
-        fact.IsFresh &&
-        fact.IdentityValid &&
-        fact.CurrentValue is > 0m &&
-        fact.ReferenceValue is > 0m &&
-        fact.PersistedAtUtc is not null &&
-        fact.PersistedAtUtc.Value <= calculatedAtUtc &&
-        fact.PersistedAtUtc.Value >= calculatedAtUtc - freshnessWindow;
+        TimeSpan freshnessWindow)
+    {
+        if (!fact.IsAvailable ||
+            !fact.IsFresh ||
+            !fact.IdentityValid ||
+            fact.CurrentValue is not > 0m ||
+            fact.ReferenceValue is not > 0m ||
+            fact.PersistedAtUtc is null ||
+            fact.PersistedAtUtc.Value > calculatedAtUtc ||
+            fact.PersistedAtUtc.Value < calculatedAtUtc - freshnessWindow)
+            return false;
+
+        try
+        {
+            _ = checked(fact.CurrentValue.Value / fact.ReferenceValue.Value * 100m);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
 }

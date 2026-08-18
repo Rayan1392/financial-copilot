@@ -28,7 +28,7 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
         Feature126HandoffLeaseState? fence,
         CancellationToken cancellationToken)
     {
-        var lockKey = $"industry-relative-valuation:{input.IndustryId:D}:{calculationDate:yyyy-MM-dd}";
+        var lockKey = $"industry-relative-valuation-group:{input.GroupId:D}:{calculationDate:yyyy-MM-dd}";
         SemaphoreSlim? testLock = null;
         if (!db.Database.IsRelational())
         {
@@ -51,12 +51,12 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
 
             var existing = await db.IndustryRelativeValuationCalculations
                 .SingleOrDefaultAsync(row => row.CalculationDate == calculationDate &&
-                                             row.IndustryId == input.IndustryId &&
+                                             row.GroupId == input.GroupId &&
                                              row.SourceBarrierHash == input.SourceBarrier.SourceBarrierHash,
                     cancellationToken);
             if (existing is not null)
             {
-                logger?.LogInformation("Feature 125 calculation retry is idempotent for industry {IndustryId}, date {CalculationDate}, calculation {CalculationId}, version {Version}.", input.IndustryId, calculationDate, existing.Id, existing.CalculationVersion);
+                logger?.LogInformation("Feature 125 calculation retry is idempotent for group {GroupId}, date {CalculationDate}, calculation {CalculationId}, version {Version}.", input.GroupId, calculationDate, existing.Id, existing.CalculationVersion);
                 return new(existing.Id, existing.CalculationVersion, existing.Status, true);
             }
 
@@ -64,11 +64,11 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
             var status = benchmarkReady ? "Published" : "Inconclusive";
             var latest = await db.IndustryRelativeValuationCalculations
                 .SingleOrDefaultAsync(row => row.CalculationDate == calculationDate &&
-                                             row.IndustryId == input.IndustryId &&
+                                             row.GroupId == input.GroupId &&
                                              row.IsLatestEvaluation,
                     cancellationToken);
             var nextVersion = await db.IndustryRelativeValuationCalculations
-                .Where(row => row.CalculationDate == calculationDate && row.IndustryId == input.IndustryId)
+                .Where(row => row.CalculationDate == calculationDate && row.GroupId == input.GroupId)
                 .Select(row => (int?)row.CalculationVersion)
                 .MaxAsync(cancellationToken) ?? 0;
 
@@ -77,6 +77,9 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
             {
                 Id = Guid.NewGuid(),
                 CalculationDate = calculationDate,
+                GroupId = input.GroupId,
+                GroupExternalId = input.GroupExternalId,
+                GroupTitleSnapshot = input.GroupTitle,
                 IndustryId = input.IndustryId,
                 IndustryExternalId = input.IndustryExternalId,
                 IndustryTitleSnapshot = input.IndustryTitle,
@@ -107,7 +110,7 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
             {
                 var published = await db.IndustryRelativeValuationCalculations
                     .SingleOrDefaultAsync(row => row.CalculationDate == calculationDate &&
-                                                 row.IndustryId == input.IndustryId && row.IsSelectedCurrent,
+                                                 row.GroupId == input.GroupId && row.IsSelectedCurrent,
                         cancellationToken);
                 if (published is not null) published.IsSelectedCurrent = false;
             }
@@ -147,9 +150,9 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
             await db.SaveChangesAsync(cancellationToken);
             if (status == "Published")
                 await (watchEvaluationService ?? new IndustryWatchEvaluationService(db, new()))
-                    .EvaluateAsync(input.IndustryId, calculation.Id, "Daily", calculatedAtUtc, cancellationToken, manageTransaction: false);
+                    .EvaluateAsync(input.GroupId, calculation.Id, "Daily", calculatedAtUtc, cancellationToken, manageTransaction: false);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-            logger?.LogInformation("Feature 125 calculation completed for industry {IndustryId}, date {CalculationDate}, calculation {CalculationId}, version {Version}, status {Status}, members {Members}, barrier complete {BarrierComplete}.", input.IndustryId, calculationDate, calculation.Id, calculation.CalculationVersion, status, input.Result.Companies.Count, input.SourceBarrier.IsComplete);
+            logger?.LogInformation("Feature 125 calculation completed for group {GroupId}, date {CalculationDate}, calculation {CalculationId}, version {Version}, status {Status}, members {Members}, barrier complete {BarrierComplete}.", input.GroupId, calculationDate, calculation.Id, calculation.CalculationVersion, status, input.Result.Companies.Count, input.SourceBarrier.IsComplete);
             return new(calculation.Id, calculation.CalculationVersion, status, false);
         }
         finally
@@ -227,8 +230,8 @@ public sealed class IndustryRelativeValuationCalculationSnapshotWriter(
 
     private static string MembershipHash(IReadOnlyList<CanonicalIndustryMember> members)
     {
-        var canonical = string.Join("\n", members.OrderBy(x => x.IndustryId).ThenBy(x => x.CompanyId)
-            .Select(x => $"{x.IndustryId:D}|{x.IndustryExternalId}|{x.CompanyId:D}"));
+        var canonical = string.Join("\n", members.OrderBy(x => x.GroupId).ThenBy(x => x.CompanyId)
+            .Select(x => $"{x.GroupId:D}|{x.GroupExternalId}|{x.CompanyId:D}"));
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
 }

@@ -109,13 +109,15 @@ public sealed class IndustryRelativeValuationSnapshotWriterTests
         var result = IndustryRelativeValuationEngine.Calculate(members, barrier.SelectedFacts,
             new("NADPCO", CalculatedAt, TimeSpan.FromHours(26)));
         return await new IndustryRelativeValuationCalculationSnapshotWriter(db).WriteAsync(
-            new(2026, 8, 11), new(Industry, "industry-201", "Industry", members, barrier, result),
+            new(2026, 8, 11), new(Industry, "group-201", "Group", members, barrier, result,
+                Industry, "industry-201", "Industry"),
             CalculatedAt, CancellationToken.None);
     }
 
     private static IndustryRelativeValuationCalculationRow ManualRow(int version, string status, bool latest) => new()
     {
-        Id = Guid.NewGuid(), CalculationDate = new(2026, 8, 11), IndustryId = Industry,
+        Id = Guid.NewGuid(), CalculationDate = new(2026, 8, 11), GroupId = Industry,
+        GroupExternalId = "industry-201", GroupTitleSnapshot = "Industry", IndustryId = Industry,
         IndustryExternalId = "industry-201", IndustryTitleSnapshot = "Industry", CalculationVersion = version,
         Status = status, AlgorithmVersion = IndustryRelativeValuationEngine.AlgorithmVersion,
         MembershipHash = "membership", SourceBarrierHash = $"manual-{version}", SourceBarrierEvidenceJson = "{}",

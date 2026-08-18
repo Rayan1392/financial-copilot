@@ -87,6 +87,7 @@ public enum QuerySlotType
     PublishedFrom,
     PublishedTo,
     Industry,
+    IndustryGroup,
     Presentation,
     ResultLimit,
     Sort
@@ -116,6 +117,7 @@ public static class QuerySlotSchema
             ["publishedFrom"] = QuerySlotType.PublishedFrom,
             ["publishedTo"] = QuerySlotType.PublishedTo,
             ["industry"] = QuerySlotType.Industry,
+            ["industryGroup"] = QuerySlotType.IndustryGroup,
             ["presentation"] = QuerySlotType.Presentation,
             ["limit"] = QuerySlotType.ResultLimit,
             ["sort"] = QuerySlotType.Sort

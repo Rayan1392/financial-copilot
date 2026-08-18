@@ -17,17 +17,17 @@ public sealed class IndustryRelativeValuationEngineTests
             new RelativeValuationCatalogCompany(Guid.NewGuid(), "Other", Industry),
             new RelativeValuationCatalogCompany(Guid.NewGuid(), "NADPCO", Industry, false)
         };
-        var industries = new[] { new RelativeValuationCatalogIndustry(Industry, "NADPCO", "42", "Display") };
+        var industries = new[] { new RelativeValuationCatalogGroup(Industry, "NADPCO", "42", "Display") };
         var result = IndustryRelativeValuationEngine.ResolveCanonicalMembership(companies, industries, "NADPCO");
         Assert.Single(result);
-        Assert.Equal("42", result[0].IndustryExternalId);
+        Assert.Equal("42", result[0].GroupExternalId);
     }
 
     [Fact]
     public void MembershipSnapshot_HashIsStableForSameCanonicalSet()
     {
         var company = new RelativeValuationCatalogCompany(Guid.NewGuid(), "NADPCO", Industry);
-        var industry = new RelativeValuationCatalogIndustry(Industry, "NADPCO", "42", "Display");
+        var industry = new RelativeValuationCatalogGroup(Industry, "NADPCO", "42", "Display");
         var first = IndustryRelativeValuationEngine.ResolveCanonicalMembershipSnapshot(new[] { company }, new[] { industry }, "NADPCO");
         var second = IndustryRelativeValuationEngine.ResolveCanonicalMembershipSnapshot(new[] { company }, new[] { industry }, "NADPCO");
         Assert.Equal(first.MembershipHash, second.MembershipHash);

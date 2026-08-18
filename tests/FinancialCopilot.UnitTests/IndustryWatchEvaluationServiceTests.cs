@@ -66,7 +66,8 @@ public sealed class IndustryWatchEvaluationServiceTests
         var id = Guid.NewGuid();
         db.IndustryRelativeValuationCalculations.Add(new()
         {
-            Id = id, IndustryId = Industry, CalculationDate = Date, CalculationVersion = version,
+            Id = id, GroupId = Industry, GroupExternalId = "group-901", GroupTitleSnapshot = "Group",
+            IndustryId = Industry, CalculationDate = Date, CalculationVersion = version,
             Status = status, IsSelectedCurrent = selected, IsLatestEvaluation = true,
             IndustryExternalId = "industry-901", IndustryTitleSnapshot = "Industry",
             AlgorithmVersion = "calc-v1", MembershipHash = "membership", SourceBarrierHash = $"source-{name}", SourceBarrierEvidenceJson = "{}", CalculatedAtUtc = Now

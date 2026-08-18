@@ -30,7 +30,8 @@ public sealed class DeterministicCapabilityInterpreter(
         "ماهانه", "سهام", "با", "زیر", "بالای", "تحلیل", "بنیادی", "تکنیکال", "بررسی", "آخرین", "جدول", "صورت", "مالی", "قیمت", "محصول", "محصولات", "ترکیب", "رکیب",
         "ytd", "چقدر", "بوده", "است", "هست", "چیست", "چیه", "را", "کن", "بده", "نشان", "نمایش", "لطفا", "لطفاً",
         "month", "quarter", "year", "week", "previous", "prior", "last", "latest", "same", "before", "current", "and", "or",
-        "ماه", "فصل", "سال", "هفته", "قبل", "قبلی", "گذشته", "اخیر", "مشابه", "جاری", "امسال", "پارسال", "و", "یا", "برای", "از", "به"
+        "ماه", "فصل", "سال", "هفته", "قبل", "قبلی", "گذشته", "اخیر", "مشابه", "جاری", "امسال", "پارسال", "و", "یا", "برای", "از", "به",
+        "خود", "خودش", "همان", "مقایسه"
     };
 
     static DeterministicCapabilityInterpreter()
@@ -70,14 +71,23 @@ public sealed class DeterministicCapabilityInterpreter(
         var entities = ExtractEntities(original, normalized);
 
         if (ContainsAny(normalized, RelativeWords) ||
-            ContainsAny(normalized, IndustryWords) && ContainsAny(normalized, ["compare", "rank", "ranking", "analysis", "analyze", "review", "ØªØ­Ù„ÛŒÙ„", "Ø¨Ø±Ø±Ø³ÛŒ", "Ù…Ù‚Ø§ÛŒØ³Ù‡", "Ø±ØªØ¨Ù‡"]))
+            ContainsAny(normalized, IndustryWords) && ContainsAny(normalized, ["compare", "rank", "ranking", "analysis", "analyze", "review", "تحلیل", "بررسی", "مقایسه", "رتبه"]))
         {
-            var pair = entities.Count > 1 || ContainsAny(normalized, ["pair", "two symbols", "Ø¯Ùˆ Ù†Ù…Ø§Ø¯"]);
+            var pair = ContainsAny(normalized, ["pair", "two symbols", "دو نماد"]);
             var ranking = ContainsAny(normalized, RankingWords);
-            var summary = !ranking && !pair && !ContainsAny(normalized, ["compare", "Ù…Ù‚Ø§ÛŒØ³Ù‡"]);
+            var summary = !ranking && !pair && !ContainsAny(normalized, ["compare", "مقایسه"]);
             var code = pair ? "symbol_pair_within_industry" : ranking ? "industry_relative_valuation_ranking" : summary ? "industry_relative_valuation_summary" : "symbol_vs_industry_relative_valuation";
             scores[code] = Math.Max(scores.GetValueOrDefault(code), 0.98m);
             evidence.Add(new InterpretationEvidence(code, "feature-125-relative-valuation", QueryValueProvenance.UserExplicit));
+        }
+
+        // This only enters the Feature 125 comparison family. The dialogue gate
+        // promotes it to the pair capability only after two canonical companies resolve.
+        if (ContainsAny(normalized, ["compare", "مقایسه"]) && HasPairConjunction(normalized))
+        {
+            const string code = "symbol_vs_industry_relative_valuation";
+            scores[code] = Math.Max(scores.GetValueOrDefault(code), 0.98m);
+            evidence.Add(new InterpretationEvidence(code, "feature-125-canonical-pair-candidate", QueryValueProvenance.UserExplicit));
         }
 
         if (ContainsAny(normalized, MetricWords) && ContainsAny(normalized,
@@ -228,4 +238,8 @@ public sealed class DeterministicCapabilityInterpreter(
 
     private static bool ContainsAny(string value, IEnumerable<string> candidates) =>
         candidates.Any(candidate => value.Contains(QueryNormalization.Normalize(candidate), StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasPairConjunction(string normalized) =>
+        normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(token => token.Equals("and", StringComparison.OrdinalIgnoreCase) || token == "و");
 }

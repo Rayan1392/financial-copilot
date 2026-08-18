@@ -75,7 +75,7 @@ public sealed class IndustryRelativeValuationSemanticTests
 
         Assert.Equal(CapabilityExecutionStatus.NoData, result.Status);
         Assert.Equal(3, repository.Request!.Limit);
-        Assert.Equal(industryId, repository.Request.IndustryId);
+        Assert.Equal(industryId, repository.Request.GroupId);
     }
 
     [Fact]

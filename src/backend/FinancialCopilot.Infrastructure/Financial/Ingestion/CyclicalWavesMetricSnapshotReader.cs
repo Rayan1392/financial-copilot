@@ -8,6 +8,12 @@ public sealed class CyclicalWavesMetricSnapshotReader(FinancialIngestionDbContex
     : ICyclicalWavesMetricSnapshotReader
 {
     private const string ProviderName = "CyclicalWaves";
+    private static readonly string[] SupportedMetricTypes =
+    [
+        nameof(CyclicalWavesMetricType.PS),
+        nameof(CyclicalWavesMetricType.PE),
+        nameof(CyclicalWavesMetricType.Equilibrium)
+    ];
 
     public async Task<IReadOnlyList<CyclicalWavesMetricSnapshot>> ReadLatestAsync(
         IReadOnlyCollection<Guid> companyIds,
@@ -18,7 +24,8 @@ public sealed class CyclicalWavesMetricSnapshotReader(FinancialIngestionDbContex
 
         var snapshots = await db.CyclicalWavesMetricSnapshots.AsNoTracking()
             .Where(snapshot => companyIds.Contains(snapshot.CompanyId) &&
-                               snapshot.ProviderName == ProviderName)
+                               snapshot.ProviderName == ProviderName &&
+                               SupportedMetricTypes.Contains(snapshot.MetricType))
             .ToArrayAsync(cancellationToken);
         var selectedSnapshots = snapshots
             .GroupBy(snapshot => new

@@ -41,7 +41,7 @@ public sealed class IndustryRelativeValuationCapabilityExecutor(
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
         if (!Codes.Contains(frame.CapabilityCode)) return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "unsupported_feature_125_capability");
-        var industry = ParseId(frame.Value(QuerySlotType.Industry));
+        var group = ParseId(frame.Value(QuerySlotType.IndustryGroup) ?? frame.Value(QuerySlotType.Industry));
         var ids = ParseIds(frame.Value(QuerySlotType.CompaniesOrSymbols) ?? frame.Value(QuerySlotType.CompanyOrSymbol));
         var options = readOptions;
         options.Validate();
@@ -55,7 +55,7 @@ public sealed class IndustryRelativeValuationCapabilityExecutor(
         var limit = requestedLimit;
         try
         {
-            var read = await repository.ReadAsync(new IndustryRelativeValuationReadRequest(industry, ids, frame.CapabilityCode, limit), cancellationToken);
+            var read = await repository.ReadAsync(new IndustryRelativeValuationReadRequest(group, ids, frame.CapabilityCode, limit), cancellationToken);
             if (read is null)
             {
                 return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows);

@@ -212,7 +212,7 @@ public sealed record IndustryRelativeValuationOrchestrationResult(
     int FactsPersisted,
     int FactsUnchanged,
     int SourceFailures,
-    int IndustriesCalculated,
+    int GroupsCalculated,
     int PublishedSnapshots,
     int InconclusiveSnapshots);
 

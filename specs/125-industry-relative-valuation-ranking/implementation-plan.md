@@ -1,5 +1,9 @@
 # Feature 125 — Implementation Execution Plan
 
+> **Superseded scope notice (2026-08-17):** Cohort membership in this historical plan is based on
+> `IndustryId`. The active correction uses `GroupId`/`GroupTitle`; follow the amended `design.md`,
+> `user-story.md`, and `tasks.md` before implementation.
+
 ## Status and execution boundary
 
 This plan is for Stage 5 implementation execution after the approved design,

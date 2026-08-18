@@ -1,5 +1,8 @@
 # Feature 125 Design Review
 
+> **Superseded scope notice (2026-08-17):** This review approved an `IndustryId`-keyed cohort. The
+> amended design uses exact `GroupId`/`GroupTitle` identity and requires a new architecture review.
+
 ## Review Status
 
 APPROVED

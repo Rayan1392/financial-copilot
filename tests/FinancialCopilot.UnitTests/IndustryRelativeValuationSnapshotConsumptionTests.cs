@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Domain.Financial.RelativeValuation;
@@ -126,7 +127,15 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
         Assert.Equal(0, providerSpy.CallCount);
         Assert.Equal(2, result.CompaniesConsidered);
         Assert.Equal(1, result.PublishedSnapshots);
-        Assert.Equal(industryId, (await db.IndustryRelativeValuationCalculations.SingleAsync()).IndustryId);
+        var calculation = await db.IndustryRelativeValuationCalculations.SingleAsync();
+        Assert.Equal(industryId, calculation.IndustryId);
+        Assert.NotNull(calculation.GroupId);
+        var read = await new IndustryRelativeValuationReadRepository(db).ReadAsync(
+            new(calculation.GroupId, [companies[0]], "symbol_vs_industry_relative_valuation"));
+        Assert.NotNull(read);
+        Assert.Equal(calculation.GroupId, read.GroupId);
+        Assert.Equal("Test Group", read.GroupTitle);
+        Assert.Equal(companies[0], Assert.Single(read.Members).CompanyId);
         Assert.Empty(await db.IndustryRelativeValuationSourceFacts.ToArrayAsync());
         Assert.Equal(
             [typeof(FinancialIngestionDbContext)],
@@ -170,6 +179,97 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
         Assert.Equal(2m, ps.ReferenceValue);
         Assert.NotEqual(400m, ps.CurrentValue);
         Assert.NotEqual(999m, ps.ReferenceValue);
+    }
+
+    [Fact]
+    public async Task InputBuilder_UsesEligibleUniverse_ExcludesZeroMetricCompanies_AndRetainsPartialMembers()
+    {
+        await using var db = CreateDb();
+        var (_, companies) = await SeedCatalogAsync(db, 6, eligibleCompanyCount: 5);
+        for (var index = 0; index < 3; index++)
+        {
+            AddSnapshot(db, companies[index], CyclicalWavesMetricType.PE,
+                $"{{\"close\":{50 + index},\"avg\":100}}", new string('a', 64), Now.AddMinutes(-1));
+            AddSnapshot(db, companies[index], CyclicalWavesMetricType.PS,
+                $"{{\"close\":{60 + index},\"avg\":100}}", new string('b', 64), Now.AddMinutes(-1));
+        }
+        for (var index = 0; index < 2; index++)
+            AddSnapshot(db, companies[index], CyclicalWavesMetricType.Equilibrium,
+                $"{{\"close\":{70 + index},\"balance\":100}}", new string('c', 64), Now.AddMinutes(-1));
+        AddCompleteSnapshotSet(db, companies[5], 1m);
+        await db.SaveChangesAsync();
+
+        var input = Assert.Single(await new IndustryRelativeValuationCalculationInputBuilder(
+                db, new CyclicalWavesMetricSnapshotReader(db))
+            .BuildAsync(ProviderSources.NoavaranCurrentApiName, Now, TimeSpan.FromHours(26), CancellationToken.None));
+
+        Assert.Equal(companies.Take(3).Order(), input.Members.Select(member => member.CompanyId).Order());
+        Assert.DoesNotContain(input.Result.Companies, company => company.CompanyId == companies[3]);
+        Assert.DoesNotContain(input.Result.Companies, company => company.CompanyId == companies[4]);
+        Assert.DoesNotContain(input.Result.Companies, company => company.CompanyId == companies[5]);
+        Assert.Equal(8, input.SourceBarrier.Selections.Count);
+        Assert.Equal(8, input.SourceBarrier.RequiredSelectionCount);
+        Assert.True(input.SourceBarrier.IsComplete);
+        Assert.All(input.Result.Benchmarks, benchmark => Assert.True(benchmark.IsAvailable));
+        var write = await new IndustryRelativeValuationCalculationSnapshotWriter(db)
+            .WriteAsync(DateOnly.FromDateTime(Now.UtcDateTime), input, Now, CancellationToken.None);
+        Assert.Equal("Published", write.Status);
+        Assert.Equal(3, await db.CompanyIndustryRelativeValuations.CountAsync());
+    }
+
+    [Fact]
+    public async Task InputBuilder_IsolatesGroupsThatShareTheSameIndustry()
+    {
+        await using var db = CreateDb();
+        var (_, companies) = await SeedCatalogAsync(db, 4);
+        var firstGroupId = (await db.NoavaranEligibleCompanies.FindAsync(companies[0]))!.GroupId!.Value;
+        var secondGroupId = Guid.NewGuid();
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = secondGroupId,
+            ProviderName = ProviderSources.NoavaranCurrentApiName,
+            ExternalId = "group-20",
+            Name = "Second Test Group",
+            LastSynchronizedAt = Now
+        });
+        foreach (var companyId in companies.Skip(2))
+        {
+            (await db.Companies.FindAsync(companyId))!.GroupId = secondGroupId;
+            (await db.NoavaranEligibleCompanies.FindAsync(companyId))!.GroupId = secondGroupId;
+        }
+        for (var index = 0; index < companies.Length; index++)
+            AddCompleteSnapshotSet(db, companies[index], index < 2 ? 10m + index : 90m + index);
+        await db.SaveChangesAsync();
+
+        var inputs = await new IndustryRelativeValuationCalculationInputBuilder(
+                db, new CyclicalWavesMetricSnapshotReader(db))
+            .BuildAsync(ProviderSources.NoavaranCurrentApiName, Now, TimeSpan.FromHours(26), CancellationToken.None);
+
+        Assert.Equal(2, inputs.Count);
+        var first = Assert.Single(inputs, input => input.GroupId == firstGroupId);
+        var second = Assert.Single(inputs, input => input.GroupId == secondGroupId);
+        Assert.Equal(companies.Take(2).Order(), first.Members.Select(member => member.CompanyId).Order());
+        Assert.Equal(companies.Skip(2).Order(), second.Members.Select(member => member.CompanyId).Order());
+        Assert.All(first.Result.Companies, company => Assert.Equal(firstGroupId, company.GroupId));
+        Assert.All(second.Result.Companies, company => Assert.Equal(secondGroupId, company.GroupId));
+        Assert.True(first.Result.Benchmarks.Single(benchmark => benchmark.Metric == RelativeValuationMetric.Pe).CleanAverage < 20m);
+        Assert.True(second.Result.Benchmarks.Single(benchmark => benchmark.Metric == RelativeValuationMetric.Pe).CleanAverage > 80m);
+    }
+
+    [Fact]
+    public async Task InputBuilder_EmitsNoIndustryWhenEligibleCompaniesHaveNoUsableMetric()
+    {
+        await using var db = CreateDb();
+        var (_, companies) = await SeedCatalogAsync(db, 1);
+        AddSnapshot(db, companies[0], CyclicalWavesMetricType.PE,
+            "{\"close\":0,\"avg\":100}", new string('a', 64), Now.AddMinutes(-1));
+        await db.SaveChangesAsync();
+
+        var inputs = await new IndustryRelativeValuationCalculationInputBuilder(
+                db, new CyclicalWavesMetricSnapshotReader(db))
+            .BuildAsync(ProviderSources.NoavaranCurrentApiName, Now, TimeSpan.FromHours(26), CancellationToken.None);
+
+        Assert.Empty(inputs);
     }
 
     [Fact]
@@ -225,9 +325,11 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
 
     private static async Task<(Guid IndustryId, Guid[] Companies)> SeedCatalogAsync(
         FinancialIngestionDbContext db,
-        int companyCount)
+        int companyCount,
+        int? eligibleCompanyCount = null)
     {
         var industryId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
         db.Industries.Add(new NormalizedIndustryRow
         {
             Id = industryId,
@@ -236,8 +338,17 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
             Name = "Test Industry",
             LastSynchronizedAt = Now
         });
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = groupId,
+            ProviderName = ProviderSources.NoavaranCurrentApiName,
+            ExternalId = "group-10",
+            Name = "Test Group",
+            LastSynchronizedAt = Now
+        });
         var companies = Enumerable.Range(1, companyCount).Select(_ => Guid.NewGuid()).ToArray();
         for (var index = 0; index < companies.Length; index++)
+        {
             db.Companies.Add(new NormalizedCompanyRow
             {
                 Id = companies[index],
@@ -245,9 +356,22 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
                 ExternalCompanyId = (index + 1).ToString(),
                 Name = $"Company {index + 1}",
                 IndustryId = industryId,
+                GroupId = groupId,
                 SymbolIsin = $"IRTEST{index + 1:000}",
                 LastSynchronizedAt = Now
             });
+            if (index < (eligibleCompanyCount ?? companyCount))
+                db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+                {
+                    Id = companies[index],
+                    ProviderName = ProviderSources.NoavaranCurrentApiName,
+                    ExternalCompanyId = (index + 1).ToString(),
+                    Name = $"Company {index + 1}",
+                    IndustryId = industryId,
+                    GroupId = groupId,
+                    SymbolIsin = $"IRTEST{index + 1:000}"
+                });
+        }
         await db.SaveChangesAsync();
         return (industryId, companies);
     }

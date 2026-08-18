@@ -12,16 +12,23 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
     {
         var started = Stopwatch.GetTimestamp();
         logger?.LogDebug("Feature 125 read started for {CapabilityCode}, member count {MemberCount}, limit {Limit}.", request.CapabilityCode, request.CompanyIds.Count, request.Limit);
-        var industryId = request.IndustryId;
-        if (industryId is null && request.CompanyIds.Count > 0)
-            industryId = await db.Companies.AsNoTracking().Where(x => request.CompanyIds.Contains(x.Id)).Select(x => x.IndustryId).FirstOrDefaultAsync(cancellationToken);
-        if (industryId is null) { logger?.LogInformation("Feature 125 read unavailable: industry could not be resolved."); return null; }
+        var groupId = request.GroupId;
+        if (groupId is null && request.CompanyIds.Count > 0)
+        {
+            var resolvedGroups = await db.NoavaranEligibleCompanies.AsNoTracking()
+                .Where(row => request.CompanyIds.Contains(row.Id) && row.GroupId != null)
+                .Select(row => row.GroupId!.Value)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+            if (resolvedGroups.Length == 1) groupId = resolvedGroups[0];
+        }
+        if (groupId is null) { logger?.LogInformation("Feature 125 read unavailable: comparison group could not be resolved."); return null; }
 
         var calculation = await db.IndustryRelativeValuationCalculations.AsNoTracking()
-            .Where(x => x.IndustryId == industryId && x.Status == "Published" && x.IsSelectedCurrent)
+            .Where(x => x.GroupId == groupId && x.Status == "Published" && x.IsSelectedCurrent)
             .OrderByDescending(x => x.CalculationDate).ThenByDescending(x => x.CalculationVersion)
             .FirstOrDefaultAsync(cancellationToken);
-        if (calculation is null) { logger?.LogInformation("Feature 125 read unavailable for industry {IndustryId}: no selected Published snapshot.", industryId); return null; }
+        if (calculation is null) { logger?.LogInformation("Feature 125 read unavailable for group {GroupId}: no selected Published snapshot.", groupId); return null; }
         var members = await db.CompanyIndustryRelativeValuations.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
         var companies = await db.Companies.AsNoTracking().Where(x => members.Select(m => m.CompanyId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, cancellationToken);
         var metrics = await db.IndustryRelativeValuationMetrics.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
@@ -29,7 +36,7 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
         var selected = request.CompanyIds.Count == 0 ? members : members.Where(x => request.CompanyIds.Contains(x.CompanyId)).ToArray();
         if (request.CompanyIds.Count > 0 && selected.Length != request.CompanyIds.Distinct().Count())
         {
-            logger?.LogWarning("Feature 125 read rejected members not present in selected snapshot for industry {IndustryId}.", industryId);
+            logger?.LogWarning("Feature 125 read rejected members not present in selected snapshot for group {GroupId}.", groupId);
             return null;
         }
         var ordered = selected.OrderBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).Take(request.Limit).ToArray();
@@ -66,9 +73,9 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
         var insufficientReason = metrics.FirstOrDefault(metric => metric.CleanCount < 2)?.Reason ?? string.Empty;
         var result = new IndustryRelativeValuationReadModel(
             request.CapabilityCode,
-            calculation.IndustryId,
-            calculation.IndustryExternalId,
-            calculation.IndustryTitleSnapshot,
+            calculation.GroupId!.Value,
+            calculation.GroupExternalId ?? string.Empty,
+            calculation.GroupTitleSnapshot ?? string.Empty,
             calculation.CalculationDate,
             calculation.Id,
             calculation.CalculationVersion,
@@ -85,8 +92,11 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
             sourceEvidence,
             calculation.Status,
             readiness,
-            insufficientReason);
-        logger?.LogInformation("Feature 125 read completed for industry {IndustryId}, calculation {CalculationId}, returned {ReturnedMembers}/{TotalMembers} members in {ElapsedMs} ms; status {Status}.", industryId, calculation.Id, result.Members.Count, result.TotalMembers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, result.PublicationStatus);
+            insufficientReason,
+            calculation.IndustryId,
+            calculation.IndustryExternalId,
+            calculation.IndustryTitleSnapshot);
+        logger?.LogInformation("Feature 125 read completed for group {GroupId}, calculation {CalculationId}, returned {ReturnedMembers}/{TotalMembers} members in {ElapsedMs} ms; status {Status}.", groupId, calculation.Id, result.Members.Count, result.TotalMembers, Stopwatch.GetElapsedTime(started).TotalMilliseconds, result.PublicationStatus);
         return result;
     }
 

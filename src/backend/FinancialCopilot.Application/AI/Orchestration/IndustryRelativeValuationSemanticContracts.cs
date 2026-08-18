@@ -24,6 +24,8 @@ public enum IndustryRelativeValuationResolutionStatus
 
 public sealed record IndustryRelativeValuationResolution(
     IndustryRelativeValuationResolutionStatus Status,
+    Guid? GroupId = null,
+    string? GroupTitle = null,
     Guid? IndustryId = null,
     string? IndustryName = null,
     IReadOnlyList<Guid>? CompanyIds = null,
@@ -41,7 +43,7 @@ public interface IIndustryRelativeValuationSemanticResolver
 }
 
 public sealed record IndustryRelativeValuationReadRequest(
-    Guid? IndustryId,
+    Guid? GroupId,
     IReadOnlyList<Guid> CompanyIds,
     string CapabilityCode,
     int Limit = 3);
@@ -80,9 +82,9 @@ public sealed record RelativeValuationMemberReadModel(
 
 public sealed record IndustryRelativeValuationReadModel(
     string CapabilityCode,
-    Guid IndustryId,
-    string IndustryExternalId,
-    string Industry,
+    Guid GroupId,
+    string GroupExternalId,
+    string GroupTitle,
     DateOnly CalculationDate,
     Guid CalculationId,
     int CalculationVersion,
@@ -99,7 +101,10 @@ public sealed record IndustryRelativeValuationReadModel(
     IReadOnlyList<RelativeValuationSourceEvidence>? SourceFreshnessEvidence = null,
     string BarrierStatus = "",
     string ReadinessStatus = "",
-    string InsufficientBenchmarkReason = "");
+    string InsufficientBenchmarkReason = "",
+    Guid? IndustryId = null,
+    string? IndustryExternalId = null,
+    string? IndustryTitle = null);
 
 public interface IIndustryRelativeValuationReadRepository
 {
@@ -127,7 +132,7 @@ public static class IndustryRelativeValuationPresentation
         };
         var lines = new List<string>
         {
-            $"{title}: {model.Industry}",
+            $"{title}: {model.GroupTitle}",
             $"Published snapshot: {model.PublicationStatus}; calculation date: {model.CalculationDate:yyyy-MM-dd}; calculated: {model.CalculatedAtUtc:O}; published: {model.PublishedAtUtc:O}",
             $"Members: {model.TotalMembers}; ranked members: {model.TotalRankedMembers}; barrier/readiness: {model.BarrierStatus}/{model.ReadinessStatus}"
         };
@@ -151,7 +156,7 @@ public static class IndustryRelativeValuationPresentation
         };
         var lines = new List<string>
         {
-            $"{title}: {model.Industry}",
+            $"{title}: {model.GroupTitle}",
             $"\u0627\u0633\u0646\u067e\u0634\u0627\u062a \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647: {model.PublicationStatus} | \u062a\u0627\u0631\u06cc\u062e \u0645\u062d\u0627\u0633\u0628\u0647: {model.CalculationDate:yyyy-MM-dd} | \u0645\u062d\u0627\u0633\u0628\u0647: {model.CalculatedAtUtc:O} | \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647: {model.PublishedAtUtc:O}",
             $"\u062a\u0639\u062f\u0627\u062f \u0627\u0639\u0636\u0627: {model.TotalMembers} | \u0627\u0639\u0636\u0627\u06cc \u0631\u062a\u0628\u0647\u200c\u067e\u0630\u06cc\u0631: {model.TotalRankedMembers} | \u0648\u0636\u0639\u06cc\u062a \u0628\u0627\u0631\u06cc\u0631/\u0622\u0645\u0627\u062f\u06af\u06cc: {model.BarrierStatus}/{model.ReadinessStatus}"
         };

@@ -22,20 +22,23 @@ public enum RelativeValuationQuality
 public sealed record RelativeValuationCatalogCompany(
     Guid CompanyId,
     string ProviderName,
-    Guid? IndustryId,
+    Guid? GroupId,
     bool IsActive = true);
 
-public sealed record RelativeValuationCatalogIndustry(
-    Guid IndustryId,
+public sealed record RelativeValuationCatalogGroup(
+    Guid GroupId,
     string ProviderName,
     string ExternalId,
     string DisplayName);
 
 public sealed record CanonicalIndustryMember(
     Guid CompanyId,
-    Guid IndustryId,
-    string IndustryExternalId,
-    string IndustryDisplayName);
+    Guid GroupId,
+    string GroupExternalId,
+    string GroupDisplayName,
+    Guid? IndustryId = null,
+    string? IndustryExternalId = null,
+    string? IndustryDisplayName = null);
 
 public sealed record CanonicalMembershipSnapshot(
     IReadOnlyList<CanonicalIndustryMember> Members,
@@ -71,7 +74,7 @@ public sealed record NormalizedRelativeMetric(
 }
 
 public sealed record IndustryBenchmark(
-    Guid IndustryId,
+    Guid GroupId,
     RelativeValuationMetric Metric,
     int CandidateCount,
     int CleanCount,
@@ -95,7 +98,7 @@ public sealed record CompanyRelativeMetric(
 
 public sealed record CompanyRelativeValuation(
     Guid CompanyId,
-    Guid IndustryId,
+    Guid GroupId,
     IReadOnlyList<CompanyRelativeMetric> Metrics,
     int PositiveMetricCount,
     int ValidMetricCount,
@@ -114,33 +117,33 @@ public static class IndustryRelativeValuationEngine
 
     public static IReadOnlyList<CanonicalIndustryMember> ResolveCanonicalMembership(
         IEnumerable<RelativeValuationCatalogCompany> companies,
-        IEnumerable<RelativeValuationCatalogIndustry> industries,
+        IEnumerable<RelativeValuationCatalogGroup> groups,
         string canonicalProviderName)
     {
-        var industryById = industries
+        var groupById = groups
             .Where(x => string.Equals(x.ProviderName, canonicalProviderName, StringComparison.OrdinalIgnoreCase))
-            .GroupBy(x => x.IndustryId).ToDictionary(x => x.Key, x => x.Single());
+            .GroupBy(x => x.GroupId).ToDictionary(x => x.Key, x => x.Single());
 
         return companies
             .Where(x => x.IsActive && string.Equals(x.ProviderName, canonicalProviderName, StringComparison.OrdinalIgnoreCase))
-            .Where(x => x.IndustryId is not null && industryById.ContainsKey(x.IndustryId.Value))
+            .Where(x => x.GroupId is not null && groupById.ContainsKey(x.GroupId.Value))
             .Select(x =>
             {
-                var industry = industryById[x.IndustryId!.Value];
-                return new CanonicalIndustryMember(x.CompanyId, industry.IndustryId, industry.ExternalId, industry.DisplayName);
+                var group = groupById[x.GroupId!.Value];
+                return new CanonicalIndustryMember(x.CompanyId, group.GroupId, group.ExternalId, group.DisplayName);
             })
-            .OrderBy(x => x.IndustryId).ThenBy(x => x.CompanyId)
+            .OrderBy(x => x.GroupId).ThenBy(x => x.CompanyId)
             .ToArray();
     }
 
     public static CanonicalMembershipSnapshot ResolveCanonicalMembershipSnapshot(
         IEnumerable<RelativeValuationCatalogCompany> companies,
-        IEnumerable<RelativeValuationCatalogIndustry> industries,
+        IEnumerable<RelativeValuationCatalogGroup> groups,
         string canonicalProviderName)
     {
-        var members = ResolveCanonicalMembership(companies, industries, canonicalProviderName);
+        var members = ResolveCanonicalMembership(companies, groups, canonicalProviderName);
         var canonical = string.Join("\n", members.Select(x =>
-            $"{x.IndustryId:D}|{x.IndustryExternalId}|{x.CompanyId:D}"));
+            $"{x.GroupId:D}|{x.GroupExternalId}|{x.CompanyId:D}"));
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
         return new(members, hash);
     }
@@ -170,7 +173,7 @@ public static class IndustryRelativeValuationEngine
         IEnumerable<RelativeValuationSourceFact> facts,
         RelativeValuationCalculationContext context)
     {
-        var memberList = members.OrderBy(x => x.IndustryId).ThenBy(x => x.CompanyId).ToArray();
+        var memberList = members.OrderBy(x => x.GroupId).ThenBy(x => x.CompanyId).ToArray();
         var factMap = facts
             .GroupBy(x => (x.CompanyId, x.Metric))
             .ToDictionary(x => x.Key, x => SelectCanonicalFact(x));
@@ -181,14 +184,14 @@ public static class IndustryRelativeValuationEngine
 
         var benchmarks = new List<IndustryBenchmark>();
         var allResults = new List<CompanyRelativeValuation>();
-        foreach (var industry in memberList.GroupBy(x => x.IndustryId))
+        foreach (var group in memberList.GroupBy(x => x.GroupId))
         {
             var benchmarkData = Enum.GetValues<RelativeValuationMetric>()
-                .Select(metric => BuildBenchmark(industry.Key, metric, industry.Select(x => normalized[x.CompanyId].Single(y => y.Metric == metric)).ToArray()))
+                .Select(metric => BuildBenchmark(group.Key, metric, group.Select(x => normalized[x.CompanyId].Single(y => y.Metric == metric)).ToArray()))
                 .ToArray();
             benchmarks.AddRange(benchmarkData.Select(x => x.Benchmark));
 
-            var companies = industry.Select(member =>
+            var companies = group.Select(member =>
             {
                 var metrics = normalized[member.CompanyId].Select(value =>
                 {
@@ -202,7 +205,7 @@ public static class IndustryRelativeValuationEngine
                     return new CompanyRelativeMetric(value.Metric, value.Percent, quality, classification, isOutlier,
                         isOutlier ? "ExcludedFromIndustryBenchmark" : null);
                 }).ToArray();
-                return new CompanyRelativeValuation(member.CompanyId, member.IndustryId, metrics,
+                return new CompanyRelativeValuation(member.CompanyId, member.GroupId, metrics,
                     metrics.Count(x => x.Classification == RelativeValuationClassification.Green),
                     metrics.Count(x => x.Percent is not null && x.Quality is RelativeValuationQuality.Valid or RelativeValuationQuality.ExcludedFromIndustryBenchmark),
                     metrics.Any(x => x.Classification is RelativeValuationClassification.Green or RelativeValuationClassification.Red), null);
@@ -220,19 +223,19 @@ public static class IndustryRelativeValuationEngine
             var ranks = ranked.Select((company, index) => (company.CompanyId, Rank: index + 1)).ToDictionary(x => x.CompanyId, x => x.Rank);
             allResults.AddRange(companies.Select(x => x with { GlobalRank = ranks.TryGetValue(x.CompanyId, out var rank) ? rank : null }));
         }
-        return new(benchmarks, allResults.OrderBy(x => x.IndustryId).ThenBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).ToArray());
+        return new(benchmarks, allResults.OrderBy(x => x.GroupId).ThenBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).ToArray());
     }
 
     public const int DefaultResultLimit = 3;
     public const int MaximumResultLimit = 100;
 
     public static IReadOnlyList<CompanyRelativeValuation> TopN(
-        IndustryRelativeValuationResult result, Guid industryId, int? topN = null)
+        IndustryRelativeValuationResult result, Guid groupId, int? topN = null)
     {
         var limit = topN ?? DefaultResultLimit;
         if (limit is < 1 or > MaximumResultLimit)
             throw new ArgumentOutOfRangeException(nameof(topN), $"Top-N must be between 1 and {MaximumResultLimit}.");
-        return result.Companies.Where(x => x.IndustryId == industryId && x.GlobalRank is not null)
+        return result.Companies.Where(x => x.GroupId == groupId && x.GlobalRank is not null)
             .OrderBy(x => x.GlobalRank).Take(limit).ToArray();
     }
 
@@ -256,16 +259,16 @@ public static class IndustryRelativeValuationEngine
             .ThenByDescending(x => x.IdentityValid)
             .First();
 
-    private static BenchmarkData BuildBenchmark(Guid industryId, RelativeValuationMetric metric, IEnumerable<NormalizedRelativeMetric> values)
+    private static BenchmarkData BuildBenchmark(Guid groupId, RelativeValuationMetric metric, IEnumerable<NormalizedRelativeMetric> values)
     {
         var valid = values.Where(x => x.IsValid && x.Percent is not null).Select(x => x.Percent!.Value).OrderBy(x => x).ToArray();
-        if (valid.Length == 0) return new(new(industryId, metric, 0, 0, 0, null, null, null, null, null, false, "NoValidObservations"), []);
+        if (valid.Length == 0) return new(new(groupId, metric, 0, 0, 0, null, null, null, null, null, false, "NoValidObservations"), []);
         var q1 = R7(valid, .25m); var q3 = R7(valid, .75m); var iqr = q3 - q1;
         var lower = q1 - IqrMultiplier * iqr; var upper = q3 + IqrMultiplier * iqr;
         var clean = valid.Where(x => x >= lower && x <= upper).ToArray();
         var outliers = valid.Where(x => x < lower || x > upper).ToHashSet();
         var available = clean.Length >= 2;
-        return new(new(industryId, metric, valid.Length, clean.Length, outliers.Count, q1, q3, lower, upper,
+        return new(new(groupId, metric, valid.Length, clean.Length, outliers.Count, q1, q3, lower, upper,
             available ? clean.Average() : null, available, available ? "Ready" : "InsufficientCleanObservations"), outliers);
     }
 

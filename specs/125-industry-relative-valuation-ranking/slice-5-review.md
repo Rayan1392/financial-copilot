@@ -1,5 +1,10 @@
 # Feature 125 — Slice 5 Review
 
+> **Superseded scope notice (2026-08-17):** The semantic review below validated same-`IndustryId`
+> behavior. The active requirement validates and compares by exact `GroupId`, with `GroupTitle` as
+> the cohort title. A new semantic/read review is required; this historical verdict does not approve
+> the group-cohort behavior.
+
 ## Verdict
 
 APPROVED

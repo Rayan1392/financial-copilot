@@ -22,7 +22,7 @@ public sealed class IndustryRelativeValuationOrchestrationServiceTests
         var result = await service.RunAsync("disabled-test", CancellationToken.None);
 
         Assert.Equal("disabled-test", result.CorrelationId);
-        Assert.Equal(0, result.IndustriesCalculated);
+        Assert.Equal(0, result.GroupsCalculated);
         Assert.Equal(0, result.PublishedSnapshots);
     }
 }

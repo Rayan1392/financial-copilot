@@ -55,7 +55,7 @@ public sealed class CyclicalWavesTokenCache(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw;
+            return null;
         }
         catch (Exception exception)
         {

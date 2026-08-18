@@ -9,6 +9,8 @@ public sealed class IndustryRelativeValuationCalculationRowConfiguration : IEnti
     {
         builder.ToTable("IndustryRelativeValuationCalculations");
         builder.HasKey(row => row.Id);
+        builder.Property(row => row.GroupExternalId).HasMaxLength(128);
+        builder.Property(row => row.GroupTitleSnapshot).HasMaxLength(512);
         builder.Property(row => row.IndustryExternalId).HasMaxLength(128).IsRequired();
         builder.Property(row => row.IndustryTitleSnapshot).HasMaxLength(512).IsRequired();
         builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
@@ -16,12 +18,23 @@ public sealed class IndustryRelativeValuationCalculationRowConfiguration : IEnti
         builder.Property(row => row.MembershipHash).HasMaxLength(64).IsRequired();
         builder.Property(row => row.SourceBarrierHash).HasMaxLength(64).IsRequired();
         builder.Property(row => row.SourceBarrierEvidenceJson).HasColumnType("text").IsRequired();
-        builder.HasIndex(row => new { row.CalculationDate, row.IndustryId, row.CalculationVersion }).IsUnique();
-        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.Status });
+        builder.HasIndex(row => new { row.CalculationDate, row.GroupId, row.CalculationVersion })
+            .IsUnique().HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.CalculationDate, row.IndustryId, row.CalculationVersion })
+            .IsUnique().HasFilter("\"GroupId\" IS NULL");
+        builder.HasIndex(row => new { row.GroupId, row.CalculationDate, row.Status })
+            .HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.Status })
+            .HasFilter("\"GroupId\" IS NULL");
+        builder.HasIndex(row => new { row.GroupId, row.CalculationDate, row.IsLatestEvaluation })
+            .IsUnique().HasFilter("\"GroupId\" IS NOT NULL AND \"IsLatestEvaluation\" = TRUE");
+        builder.HasIndex(row => new { row.GroupId, row.CalculationDate, row.IsSelectedCurrent })
+            .IsUnique().HasFilter("\"GroupId\" IS NOT NULL AND \"IsSelectedCurrent\" = TRUE");
         builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsLatestEvaluation })
-            .IsUnique().HasFilter("\"IsLatestEvaluation\" = TRUE");
+            .IsUnique().HasFilter("\"GroupId\" IS NULL AND \"IsLatestEvaluation\" = TRUE");
         builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsSelectedCurrent })
-            .IsUnique().HasFilter("\"IsSelectedCurrent\" = TRUE");
+            .IsUnique().HasFilter("\"GroupId\" IS NULL AND \"IsSelectedCurrent\" = TRUE");
+        builder.HasOne<NormalizedIndustryGroupRow>().WithMany().HasForeignKey(row => row.GroupId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -67,7 +80,9 @@ public sealed class IndustryWatchStateRowConfiguration : IEntityTypeConfiguratio
         builder.Property(row => row.State).HasMaxLength(32).IsRequired();
         builder.Property(row => row.LastTransitionReason).HasMaxLength(256).IsRequired();
         builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
-        builder.HasIndex(row => row.IndustryId).IsUnique();
+        builder.HasIndex(row => row.GroupId).IsUnique().HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => row.IndustryId).IsUnique().HasFilter("\"GroupId\" IS NULL");
+        builder.HasOne<NormalizedIndustryGroupRow>().WithMany().HasForeignKey(row => row.GroupId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -86,8 +101,13 @@ public sealed class IndustryWatchTransitionRowConfiguration : IEntityTypeConfigu
         builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
         builder.Property(row => row.EventIdentity).HasMaxLength(256).IsRequired();
         builder.Property(row => row.CreatedAtUtc).IsRequired();
-        builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind }).IsUnique();
-        builder.HasIndex(row => new { row.IndustryId, row.TransitionDate });
+        builder.HasIndex(row => new { row.GroupId, row.CalculationId, row.EvaluationKind })
+            .IsUnique().HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind })
+            .IsUnique().HasFilter("\"GroupId\" IS NULL");
+        builder.HasIndex(row => new { row.GroupId, row.TransitionDate }).HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.IndustryId, row.TransitionDate }).HasFilter("\"GroupId\" IS NULL");
+        builder.HasOne<NormalizedIndustryGroupRow>().WithMany().HasForeignKey(row => row.GroupId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<IndustryRelativeValuationCalculationRow>().WithMany().HasForeignKey(row => row.CalculationId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -105,8 +125,13 @@ public sealed class IndustryWatchEvaluationRowConfiguration : IEntityTypeConfigu
         builder.Property(row => row.NewState).HasMaxLength(32).IsRequired();
         builder.Property(row => row.TransitionReason).HasMaxLength(256).IsRequired();
         builder.Property(row => row.AlgorithmVersion).HasMaxLength(64).IsRequired();
-        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsEffective });
-        builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind }).IsUnique();
+        builder.HasIndex(row => new { row.GroupId, row.CalculationDate, row.IsEffective }).HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationDate, row.IsEffective }).HasFilter("\"GroupId\" IS NULL");
+        builder.HasIndex(row => new { row.GroupId, row.CalculationId, row.EvaluationKind })
+            .IsUnique().HasFilter("\"GroupId\" IS NOT NULL");
+        builder.HasIndex(row => new { row.IndustryId, row.CalculationId, row.EvaluationKind })
+            .IsUnique().HasFilter("\"GroupId\" IS NULL");
+        builder.HasOne<NormalizedIndustryGroupRow>().WithMany().HasForeignKey(row => row.GroupId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<IndustryRelativeValuationCalculationRow>().WithMany().HasForeignKey(row => row.CalculationId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -123,6 +148,7 @@ public sealed class IndustryRelativeValuationOutboxRowConfiguration : IEntityTyp
         builder.Property(row => row.Payload).HasColumnType("text").IsRequired();
         builder.HasIndex(row => row.EventIdentity).IsUnique();
         builder.HasIndex(row => new { row.PublishedAtUtc, row.CreatedAtUtc });
+        builder.HasOne<NormalizedIndustryGroupRow>().WithMany().HasForeignKey(row => row.GroupId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<NormalizedIndustryRow>().WithMany().HasForeignKey(row => row.IndustryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<IndustryRelativeValuationCalculationRow>().WithMany().HasForeignKey(row => row.CalculationId).OnDelete(DeleteBehavior.Restrict);
     }

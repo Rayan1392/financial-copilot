@@ -22,7 +22,7 @@ public static class IndustryRelativeValuationSourceMapper
             metric,
             currentValue,
             referenceValue,
-            IsAvailable: true,
+            IsAvailable: currentValue is not null && referenceValue is not null,
             IsFresh: true,
             IdentityValid: true,
             SourceObservationTimestamp: snapshot.AcquisitionDateUtc,

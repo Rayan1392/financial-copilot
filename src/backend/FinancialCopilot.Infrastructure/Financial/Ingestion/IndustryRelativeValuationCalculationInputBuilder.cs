@@ -6,12 +6,15 @@ using Microsoft.EntityFrameworkCore;
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 
 public sealed record IndustryRelativeValuationCalculationInput(
-    Guid IndustryId,
-    string IndustryExternalId,
-    string IndustryTitle,
+    Guid GroupId,
+    string GroupExternalId,
+    string GroupTitle,
     IReadOnlyList<CanonicalIndustryMember> Members,
     RelativeValuationSourceBarrier SourceBarrier,
-    IndustryRelativeValuationResult Result);
+    IndustryRelativeValuationResult Result,
+    Guid IndustryId,
+    string IndustryExternalId,
+    string IndustryTitle);
 
 /// <summary>
 /// Builds a calculation from the latest acceptable persisted snapshot for each
@@ -33,10 +36,29 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         TimeSpan freshnessWindow,
         CancellationToken cancellationToken)
     {
-        var companies = await db.Companies.AsNoTracking()
-            .Where(row => row.ProviderName == canonicalProviderName && row.IndustryId != null)
-            .Select(row => new CompanyMembership(row.Id, row.IndustryId!.Value))
+        var eligibleCompanies = await (
+                from eligible in db.NoavaranEligibleCompanies.AsNoTracking()
+                join company in db.Companies.AsNoTracking()
+                    on new { eligible.Id, eligible.ProviderName }
+                    equals new { company.Id, company.ProviderName }
+                join industryGroup in db.IndustryGroups.AsNoTracking()
+                    on new { Id = eligible.GroupId!.Value, eligible.ProviderName }
+                    equals new { industryGroup.Id, industryGroup.ProviderName }
+                where eligible.ProviderName == canonicalProviderName && eligible.GroupId != null
+                select new CompanyMembership(
+                    company.Id,
+                    industryGroup.Id,
+                    industryGroup.ExternalId,
+                    industryGroup.Name,
+                    company.IndustryId))
             .ToArrayAsync(cancellationToken);
+        var companies = eligibleCompanies
+            .GroupBy(row => row.Id)
+            .Where(group => group.Select(row => row.GroupId).Distinct().Count() == 1)
+            .Select(group => group.First())
+            .OrderBy(row => row.GroupId)
+            .ThenBy(row => row.Id)
+            .ToArray();
         var snapshots = await snapshotReader.ReadLatestAsync(
             companies.Select(row => row.Id).ToArray(),
             cancellationToken);
@@ -61,10 +83,19 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         CancellationToken cancellationToken)
     {
         var admittedCompanyIds = manifest.Facts.Select(fact => fact.CompanyId).Distinct().ToArray();
-        var companies = await db.Companies.AsNoTracking()
-            .Where(row => row.ProviderName == canonicalProviderName && row.IndustryId != null)
-            .Where(row => admittedCompanyIds.Contains(row.Id))
-            .Select(row => new CompanyMembership(row.Id, row.IndustryId!.Value))
+        var companies = await (
+                from company in db.Companies.AsNoTracking()
+                join industryGroup in db.IndustryGroups.AsNoTracking()
+                    on new { Id = company.GroupId!.Value, company.ProviderName }
+                    equals new { industryGroup.Id, industryGroup.ProviderName }
+                where company.ProviderName == canonicalProviderName &&
+                      company.GroupId != null && admittedCompanyIds.Contains(company.Id)
+                select new CompanyMembership(
+                    company.Id,
+                    industryGroup.Id,
+                    industryGroup.ExternalId,
+                    industryGroup.Name,
+                    company.IndustryId))
             .ToArrayAsync(cancellationToken);
         var admittedFactIds = manifest.Facts.Where(fact => fact.FactId.HasValue).Select(fact => fact.FactId!.Value).ToArray();
         var persistedFacts = await db.IndustryRelativeValuationSourceFacts.AsNoTracking()
@@ -93,32 +124,74 @@ public sealed class IndustryRelativeValuationCalculationInputBuilder(
         IReadOnlyCollection<RelativeValuationSourceFact> facts,
         CancellationToken cancellationToken)
     {
-        var industryIds = companies.Select(row => row.IndustryId).Distinct().ToArray();
+        var industryIds = companies
+            .Where(row => row.IndustryId.HasValue)
+            .Select(row => row.IndustryId!.Value)
+            .Distinct()
+            .ToArray();
         var industries = await db.Industries.AsNoTracking()
             .Where(row => row.ProviderName == canonicalProviderName && industryIds.Contains(row.Id))
             .ToDictionaryAsync(row => row.Id, cancellationToken);
 
         var results = new List<IndustryRelativeValuationCalculationInput>();
-        foreach (var group in companies.GroupBy(row => row.IndustryId).OrderBy(group => group.Key))
+        foreach (var group in companies.GroupBy(row => row.GroupId).OrderBy(group => group.Key))
         {
-            if (!industries.TryGetValue(group.Key, out var industry)) continue;
+            var groupIdentity = group.First();
+            var groupIndustryIds = group
+                .Where(row => row.IndustryId.HasValue)
+                .Select(row => row.IndustryId!.Value)
+                .Distinct()
+                .ToArray();
+            var industry = groupIndustryIds.Length == 1 && industries.TryGetValue(groupIndustryIds[0], out var matchedIndustry)
+                ? matchedIndustry
+                : null;
+            if (industry is null) continue;
             var members = group
-                .Select(row => new CanonicalIndustryMember(row.Id, group.Key, industry.ExternalId, industry.Name))
+                .Select(row => new CanonicalIndustryMember(
+                    row.Id,
+                    group.Key,
+                    groupIdentity.GroupExternalId,
+                    groupIdentity.GroupTitle,
+                    industry.Id,
+                    industry.ExternalId,
+                    industry.Name))
                 .OrderBy(member => member.CompanyId)
                 .ToArray();
             var barrier = IndustryRelativeValuationSourceBarrierBuilder.Build(
                 members, facts, calculatedAtUtc, freshnessWindow);
+            var admittedCompanyIds = barrier.Selections
+                .Select(selection => selection.CompanyId)
+                .ToHashSet();
+            members = members
+                .Where(member => admittedCompanyIds.Contains(member.CompanyId))
+                .ToArray();
+            if (members.Length == 0) continue;
+
             var calculation = IndustryRelativeValuationEngine.Calculate(
                 members,
                 barrier.SelectedFacts,
                 new(canonicalProviderName, calculatedAtUtc, freshnessWindow));
-            results.Add(new(group.Key, industry.ExternalId, industry.Name, members, barrier, calculation));
+            results.Add(new(
+                group.Key,
+                groupIdentity.GroupExternalId,
+                groupIdentity.GroupTitle,
+                members,
+                barrier,
+                calculation,
+                industry.Id,
+                industry.ExternalId,
+                industry.Name));
         }
 
         return results;
     }
 
-    private sealed record CompanyMembership(Guid Id, Guid IndustryId);
+    private sealed record CompanyMembership(
+        Guid Id,
+        Guid GroupId,
+        string GroupExternalId,
+        string GroupTitle,
+        Guid? IndustryId);
 }
 
 public static class IndustryRelativeValuationSourceFactMapper

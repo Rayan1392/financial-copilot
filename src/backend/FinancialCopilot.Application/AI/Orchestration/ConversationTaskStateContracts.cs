@@ -178,14 +178,25 @@ public sealed class ConversationDialogueGate(
                 timeProvider.GetUtcNow()).ToArray();
         IndustryRelativeValuationResolution? relativeResolution = null;
         PendingDialogueAction? relativePendingAction = null;
-        if (industryRelativeValuationResolver is not null && capability is not null && capability.Contains("relative_valuation", StringComparison.Ordinal))
+        if (industryRelativeValuationResolver is not null && IsIndustryRelativeValuationCapability(capability))
         {
-            relativeResolution = await industryRelativeValuationResolver.ResolveAsync(capability, interpretation, cancellationToken);
+            relativeResolution = await industryRelativeValuationResolver.ResolveAsync(capability!, interpretation, cancellationToken);
+            if ((relativeResolution.Status is IndustryRelativeValuationResolutionStatus.Resolved or
+                    IndustryRelativeValuationResolutionStatus.DifferentIndustries or
+                    IndustryRelativeValuationResolutionStatus.InvalidIndustryMembership) &&
+                relativeResolution.CompanyIds is { Count: 2 } &&
+                capability == "symbol_vs_industry_relative_valuation")
+            {
+                capability = "symbol_pair_within_industry";
+                validatedFrameSlots = slotValidator.Validate(capability, interpretation, entity).Slots.ToArray();
+            }
             if (relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Resolved)
             {
                 validatedFrameSlots = validatedFrameSlots
-                    .Where(slot => slot.Type is not QuerySlotType.Industry and not QuerySlotType.CompanyOrSymbol and not QuerySlotType.CompaniesOrSymbols)
-                    .Append(new ResolvedQuerySlot(QuerySlotType.Industry, relativeResolution.IndustryId!.Value.ToString("D"), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, relativeResolution.IndustryName))
+                    .Where(slot => slot.Type is not QuerySlotType.Industry and not QuerySlotType.IndustryGroup and not QuerySlotType.CompanyOrSymbol and not QuerySlotType.CompaniesOrSymbols)
+                    .Concat(capability == "symbol_pair_within_industry"
+                        ? []
+                        : new[] { new ResolvedQuerySlot(QuerySlotType.IndustryGroup, relativeResolution.GroupId!.Value.ToString("D"), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, relativeResolution.GroupTitle) })
                     .Concat(relativeResolution.CompanyIds is { Count: 1 } ? [new ResolvedQuerySlot(QuerySlotType.CompanyOrSymbol, relativeResolution.CompanyIds[0].ToString("D"), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, relativeResolution.Symbols?.FirstOrDefault())] : [])
                     .Concat(relativeResolution.CompanyIds is { Count: > 1 } ? [new ResolvedQuerySlot(QuerySlotType.CompaniesOrSymbols, string.Join(',', relativeResolution.CompanyIds), QueryValueProvenance.UserExplicit, 1m, QuerySlotValidationState.Valid, capability, string.Join(',', relativeResolution.Symbols ?? []))] : [])
                     .ToArray();
@@ -195,8 +206,8 @@ public sealed class ConversationDialogueGate(
                 var companyIssue = relativeResolution.Status is IndustryRelativeValuationResolutionStatus.DifferentIndustries or IndustryRelativeValuationResolutionStatus.InvalidIndustryMembership;
                 var expected = companyIssue
                     ? QuerySlotType.CompaniesOrSymbols
-                    : relativeResolution.Detail == "Industry"
-                        ? QuerySlotType.Industry
+                    : relativeResolution.Detail is "Industry" or "IndustryGroup" || capability is "industry_relative_valuation_ranking" or "industry_relative_valuation_summary"
+                        ? QuerySlotType.IndustryGroup
                         : QuerySlotType.CompanyOrSymbol;
                 var validation = relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Ambiguous
                     ? QuerySlotValidationState.Ambiguous
@@ -354,7 +365,7 @@ public sealed class ConversationDialogueGate(
             slots = slots.Where(slot => slot.Type is not QuerySlotType.Metric and not QuerySlotType.Metrics and not QuerySlotType.Period).ToArray();
         }
         var hasExplicitUnresolvedEntity = relativePendingAction is not null || validatedFrameSlots.Any(slot =>
-            (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Industry) &&
+            (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Industry or QuerySlotType.IndustryGroup) &&
             slot.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Missing);
         ConversationTaskStateTransition? transition;
         if (relativePendingAction is not null)
@@ -422,6 +433,12 @@ public sealed class ConversationDialogueGate(
                 .Select(action => ((SuggestedAction Action, DateTimeOffset CreatedAt)?)(action, message.CreatedAt)))
             .FirstOrDefault();
     }
+
+    private static bool IsIndustryRelativeValuationCapability(string? capability) =>
+        capability is "symbol_vs_industry_relative_valuation" or
+            "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or
+            "symbol_pair_within_industry";
 
     public async Task RecordOutcomeAsync(AiQueryRequest request, Guid conversationId, bool clarificationRequired, string? clarificationReason, CancellationToken cancellationToken)
     {

@@ -80,7 +80,7 @@ public sealed class IndustryRelativeValuationSourceBarrierTests
     }
 
     [Fact]
-    public void Barrier_IsIncompleteWhenAnyMetricHasNoFreshLatestValidObservation()
+    public void Barrier_RecordsOnlyUsableProvenanceWithoutTreatingMissingMetricsAsIncomplete()
     {
         var barrier = IndustryRelativeValuationSourceBarrierBuilder.Build(
             new[] { Member() },
@@ -93,9 +93,30 @@ public sealed class IndustryRelativeValuationSourceBarrierTests
             CalculatedAt,
             TimeSpan.FromHours(26));
 
-        Assert.False(barrier.IsComplete);
-        Assert.Equal("MissingOrStaleLatestValidMetricObservation", barrier.IncompleteReason);
+        Assert.True(barrier.IsComplete);
+        Assert.Null(barrier.IncompleteReason);
         Assert.Equal(2, barrier.Selections.Count);
+        Assert.Equal(barrier.Selections.Count, barrier.RequiredSelectionCount);
+    }
+
+    [Fact]
+    public void Barrier_ExcludesFutureAndOverflowingObservationsFromProvenance()
+    {
+        var barrier = IndustryRelativeValuationSourceBarrierBuilder.Build(
+            new[] { Member() },
+            new[]
+            {
+                Fact(RelativeValuationMetric.Pe, 5m, 7m, "future", CalculatedAt, CalculatedAt.AddMinutes(1)),
+                Fact(RelativeValuationMetric.Ps, decimal.MaxValue, 0.1m, "overflow", CalculatedAt, CalculatedAt),
+                Fact(RelativeValuationMetric.Equilibrium, 100m, 120m, "usable", CalculatedAt, CalculatedAt)
+            },
+            CalculatedAt,
+            TimeSpan.FromHours(26));
+
+        var selected = Assert.Single(barrier.Selections);
+        Assert.Equal(RelativeValuationMetric.Equilibrium, selected.Metric);
+        Assert.True(barrier.IsComplete);
+        Assert.Equal(1, barrier.RequiredSelectionCount);
     }
 
     [Fact]
@@ -113,7 +134,9 @@ public sealed class IndustryRelativeValuationSourceBarrierTests
         var members = new[] { Member() };
         var barrier = IndustryRelativeValuationSourceBarrierBuilder.Build(members, facts, CalculatedAt, TimeSpan.FromHours(26));
         var result = IndustryRelativeValuationEngine.Calculate(members, barrier.SelectedFacts, new("NADPCO", CalculatedAt, TimeSpan.FromHours(26)));
-        var input = new IndustryRelativeValuationCalculationInput(Industry, "industry-101", "Industry", members, barrier, result);
+        var input = new IndustryRelativeValuationCalculationInput(
+            Industry, "group-101", "Group", members, barrier, result,
+            Industry, "industry-101", "Industry");
 
         var written = await new IndustryRelativeValuationCalculationSnapshotWriter(db)
             .WriteAsync(new(2026, 8, 11), input, CalculatedAt, CancellationToken.None);

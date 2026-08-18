@@ -12,9 +12,12 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     {
         await using var db = CreateDb();
         var industry = Guid.NewGuid();
+        var group = Guid.NewGuid();
         var company = Guid.NewGuid();
         db.Industries.Add(new NormalizedIndustryRow { Id = industry, ProviderName = "NoavaranCurrentApi", ExternalId = "7", Name = "Steel" });
-        db.Companies.Add(new NormalizedCompanyRow { Id = company, ProviderName = "NoavaranCurrentApi", IndustryId = industry, Ticker = "AAA", Name = "Alpha" });
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow { Id = group, ProviderName = "NoavaranCurrentApi", ExternalId = "70", Name = "Steel Makers" });
+        db.Companies.Add(new NormalizedCompanyRow { Id = company, ProviderName = "NoavaranCurrentApi", IndustryId = industry, GroupId = group, Ticker = "AAA", Name = "Alpha" });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow { Id = company, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1", IndustryId = industry, GroupId = group, Name = "Alpha" });
         await db.SaveChangesAsync();
 
         var adapter = new IndustryRelativeValuationSemanticAdapter(
@@ -25,6 +28,8 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
         var result = await adapter.ResolveAsync("symbol_vs_industry_relative_valuation", Interpretation("AAA"));
 
         Assert.Equal(IndustryRelativeValuationResolutionStatus.Resolved, result.Status);
+        Assert.Equal(group, result.GroupId);
+        Assert.Equal("Steel Makers", result.GroupTitle);
         Assert.Equal(industry, result.IndustryId);
         Assert.Equal([company], result.CompanyIds);
     }
@@ -54,6 +59,11 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     {
         await using var db = CreateDb();
         var industry = Guid.NewGuid();
+        var group = Guid.NewGuid();
+        var company = Guid.NewGuid();
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow { Id = group, ProviderName = "NoavaranCurrentApi", ExternalId = "70", Name = "Steel Makers" });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow { Id = company, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1", IndustryId = industry, GroupId = group, Name = "Alpha" });
+        await db.SaveChangesAsync();
         var canonicalIndustry = new CanonicalQueryIndustry(industry, "steel", "Steel", "NoavaranCurrentApi", "feature119");
         var adapter = new IndustryRelativeValuationSemanticAdapter(
             new FakeCompanyResolver(new EntityResolutionResult.NotFound("steel")),
@@ -63,21 +73,30 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
         var result = await adapter.ResolveAsync("industry_relative_valuation_ranking", Interpretation("steel"));
 
         Assert.Equal(IndustryRelativeValuationResolutionStatus.Resolved, result.Status);
+        Assert.Equal(group, result.GroupId);
         Assert.Equal(industry, result.IndustryId);
         Assert.Empty(result.CompanyIds!);
     }
 
     [Fact]
-    public async Task Adapter_ReturnsDifferentIndustryWithoutComparison()
+    public async Task Adapter_RejectsDifferentGroupsEvenWhenIndustryMatches()
     {
         await using var db = CreateDb();
         var firstIndustry = Guid.NewGuid();
-        var secondIndustry = Guid.NewGuid();
+        var secondIndustry = firstIndustry;
+        var firstGroup = Guid.NewGuid();
+        var secondGroup = Guid.NewGuid();
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
+        db.IndustryGroups.AddRange(
+            new NormalizedIndustryGroupRow { Id = firstGroup, ProviderName = "NoavaranCurrentApi", ExternalId = "1", Name = "Group A" },
+            new NormalizedIndustryGroupRow { Id = secondGroup, ProviderName = "NoavaranCurrentApi", ExternalId = "2", Name = "Group B" });
         db.Companies.AddRange(
-            new NormalizedCompanyRow { Id = first, ProviderName = "NoavaranCurrentApi", IndustryId = firstIndustry, Ticker = "AAA" },
-            new NormalizedCompanyRow { Id = second, ProviderName = "NoavaranCurrentApi", IndustryId = secondIndustry, Ticker = "BBB" });
+            new NormalizedCompanyRow { Id = first, ProviderName = "NoavaranCurrentApi", IndustryId = firstIndustry, GroupId = firstGroup, Ticker = "AAA" },
+            new NormalizedCompanyRow { Id = second, ProviderName = "NoavaranCurrentApi", IndustryId = secondIndustry, GroupId = secondGroup, Ticker = "BBB" });
+        db.NoavaranEligibleCompanies.AddRange(
+            new NoavaranEligibleCompanyRow { Id = first, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1", IndustryId = firstIndustry, GroupId = firstGroup },
+            new NoavaranEligibleCompanyRow { Id = second, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "2", IndustryId = secondIndustry, GroupId = secondGroup });
         await db.SaveChangesAsync();
         var adapter = new IndustryRelativeValuationSemanticAdapter(
             new FakeCompanyResolver(new EntityResolutionResult.Resolved(new(first, "AAA", "A", "Company", "feature119"), new("exact_ticker", 1m)),
@@ -89,6 +108,35 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
 
         Assert.Equal(IndustryRelativeValuationResolutionStatus.DifferentIndustries, result.Status);
         Assert.Null(result.IndustryId);
+    }
+
+    [Fact]
+    public async Task Adapter_PairCapabilityRequiresExactlyTwoCanonicalCompanies()
+    {
+        await using var db = CreateDb();
+        var industry = Guid.NewGuid();
+        var companies = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).ToArray();
+        db.Companies.AddRange(companies.Select((id, index) => new NormalizedCompanyRow
+        {
+            Id = id,
+            ProviderName = "NoavaranCurrentApi",
+            IndustryId = industry,
+            Ticker = $"S{index}"
+        }));
+        await db.SaveChangesAsync();
+        var adapter = new IndustryRelativeValuationSemanticAdapter(
+            new FakeCompanyResolver(companies.Select((id, index) =>
+                (EntityResolutionResult)new EntityResolutionResult.Resolved(
+                    new(id, $"S{index}", $"Company {index}", "Company", "feature119"),
+                    new("exact_ticker", 1m))).ToArray()),
+            new FakeIndustryResolver(new IndustryResolutionResult.Missing("Industry")),
+            db);
+
+        var result = await adapter.ResolveAsync(
+            "symbol_pair_within_industry",
+            Interpretation("S0", "S1", "S2"));
+
+        Assert.Equal(IndustryRelativeValuationResolutionStatus.Missing, result.Status);
     }
 
     private static QueryInterpretation Interpretation(params string[] mentions) =>

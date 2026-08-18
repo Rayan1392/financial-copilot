@@ -1,5 +1,9 @@
 # Feature 125 User Story Review
 
+> **Superseded scope notice (2026-08-17):** This review predates the `GroupId`/`GroupTitle` cohort
+> correction. The amended user story is ready for review and is not approved by this historical
+> verdict.
+
 ## Review Status
 
 APPROVED

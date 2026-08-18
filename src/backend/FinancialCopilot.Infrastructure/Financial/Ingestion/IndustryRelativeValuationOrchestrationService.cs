@@ -92,7 +92,7 @@ public sealed class IndustryRelativeValuationOrchestrationService
 
         var companiesConsidered = inputs.Sum(input => input.Members.Count);
         logger.LogInformation(
-            "Industry relative valuation calculation completed from persisted snapshots. correlationId={CorrelationId} companies={Companies} industries={Industries} published={Published} inconclusive={Inconclusive}.",
+            "Industry relative valuation calculation completed from persisted snapshots. correlationId={CorrelationId} companies={Companies} groups={Groups} published={Published} inconclusive={Inconclusive}.",
             normalizedCorrelationId,
             companiesConsidered,
             inputs.Count,
@@ -191,7 +191,7 @@ public sealed class IndustryRelativeValuationOrchestrationService
             }
 
             logger.LogInformation(
-                "Feature 125 downstream calculation completed. correlationId={CorrelationId} companies={Companies} factsPersisted={FactsPersisted} factsUnchanged={FactsUnchanged} sourceFailures={SourceFailures} industries={Industries} published={Published} inconclusive={Inconclusive}.",
+                "Feature 125 downstream calculation completed. correlationId={CorrelationId} companies={Companies} factsPersisted={FactsPersisted} factsUnchanged={FactsUnchanged} sourceFailures={SourceFailures} groups={Groups} published={Published} inconclusive={Inconclusive}.",
                 normalizedCorrelationId,
                 sourceRun.CompaniesConsidered,
                 sourceRun.FactsPersisted,

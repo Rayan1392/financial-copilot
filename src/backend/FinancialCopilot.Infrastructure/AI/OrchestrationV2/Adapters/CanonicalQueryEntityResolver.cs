@@ -58,12 +58,12 @@ public sealed class CanonicalQueryEntityResolver(
             return new EntityResolutionResult.Missing("CompanyOrSymbol");
 
         var companies = await dbContext.Companies.AsNoTracking().ToArrayAsync(cancellationToken);
-        var exactTicker = Match(companies, normalized, row => row.Ticker, "exact_ticker");
+        var exactTicker = PreferCanonical(Match(companies, normalized, row => row.Ticker, "exact_ticker"));
         var exactCompanyName = exactTicker.Length == 0
-            ? Match(companies, normalized, row => row.Name, "exact_company_name")
+            ? PreferCanonical(Match(companies, normalized, row => row.Name, "exact_company_name"))
             : [];
         var approvedAlias = exactTicker.Length == 0 && exactCompanyName.Length == 0
-            ? Match(companies, normalized, row => row.TseSymbol, "approved_alias")
+            ? PreferCanonical(Match(companies, normalized, row => row.TseSymbol, "approved_alias"))
                 .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
                 .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
                 .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
@@ -206,6 +206,15 @@ public sealed class CanonicalQueryEntityResolver(
                           string.Equals(NormalizeIdentity(value), normalized, StringComparison.OrdinalIgnoreCase))
             .Select(row => new MatchResult(row, kind))
             .ToArray();
+
+    private static MatchResult[] PreferCanonical(IEnumerable<MatchResult> matches)
+    {
+        var materialized = matches.ToArray();
+        var canonical = materialized
+            .Where(item => item.Row.ProviderName == "NoavaranCurrentApi")
+            .ToArray();
+        return canonical.Length > 0 ? canonical : materialized;
+    }
 
     private static EntityResolutionResult.Resolved ToResolved(MatchResult match) =>
         new(ToEntity(match.Row, match.Kind), new EntityResolutionEvidence(match.Kind, 1m));

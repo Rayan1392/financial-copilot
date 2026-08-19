@@ -5,6 +5,7 @@ using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests;
@@ -252,7 +253,8 @@ public sealed class CyclicalWavesAuthHandlerTests
         new(
             new MemoryDistributedCache(
                 Microsoft.Extensions.Options.Options.Create(new MemoryDistributedCacheOptions())),
-            Microsoft.Extensions.Options.Options.Create(Options));
+            Microsoft.Extensions.Options.Options.Create(Options),
+            NullLogger<CyclicalWavesTokenCache>.Instance);
 
     private sealed class FakeHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
         : HttpMessageHandler

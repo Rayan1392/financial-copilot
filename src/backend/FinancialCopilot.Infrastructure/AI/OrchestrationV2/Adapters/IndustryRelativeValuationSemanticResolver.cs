@@ -21,8 +21,10 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
             .OrderBy(mention => mention.Start)
             .ToArray();
 
-        var companyResults = await Task.WhenAll(
-            mentions.Select(mention => companyResolver.ResolveMentionAsync(mention.Text, cancellationToken)));
+        // The canonical resolver is scoped together with this adapter and uses the
+        // same FinancialIngestionDbContext instance. EF Core does not permit
+        // overlapping operations on that context, so resolve mentions sequentially.
+        var companyResults = await ResolveCompaniesAsync(mentions, cancellationToken);
         var resolvedCompanies = companyResults
             .OfType<EntityResolutionResult.Resolved>()
             .GroupBy(result => result.Entity.CanonicalId)
@@ -31,8 +33,7 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
         var ambiguousCompanies = companyResults.OfType<EntityResolutionResult.Ambiguous>().FirstOrDefault();
         var companyNotFound = companyResults.OfType<EntityResolutionResult.NotFound>().FirstOrDefault();
 
-        var industryResults = await Task.WhenAll(
-            mentions.Select(mention => industryResolver.ResolveIndustryMentionAsync(mention.Text, cancellationToken)));
+        var industryResults = await ResolveIndustriesAsync(mentions, cancellationToken);
         var explicitIndustry = industryResults.OfType<IndustryResolutionResult.Resolved>().FirstOrDefault();
         var ambiguousIndustry = industryResults.OfType<IndustryResolutionResult.Ambiguous>().FirstOrDefault();
         var industryNotFound = industryResults.OfType<IndustryResolutionResult.NotFound>().FirstOrDefault();
@@ -157,6 +158,26 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
 
     private static bool IsIndustryRequired(string capabilityCode) =>
         capabilityCode is "industry_relative_valuation_ranking" or "industry_relative_valuation_summary";
+
+    private async Task<EntityResolutionResult[]> ResolveCompaniesAsync(
+        IReadOnlyList<EntityMention> mentions,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<EntityResolutionResult>(mentions.Count);
+        foreach (var mention in mentions)
+            results.Add(await companyResolver.ResolveMentionAsync(mention.Text, cancellationToken));
+        return results.ToArray();
+    }
+
+    private async Task<IndustryResolutionResult[]> ResolveIndustriesAsync(
+        IReadOnlyList<EntityMention> mentions,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<IndustryResolutionResult>(mentions.Count);
+        foreach (var mention in mentions)
+            results.Add(await industryResolver.ResolveIndustryMentionAsync(mention.Text, cancellationToken));
+        return results.ToArray();
+    }
 
     private static bool IsCompanyRequired(string capabilityCode) =>
         capabilityCode is "symbol_vs_industry_relative_valuation" or "symbol_pair_within_industry";

@@ -45,7 +45,8 @@ public sealed class CyclicalWavesDataAcquisitionWorkerTests
         var providerOptions = Options.Create(new CyclicalWavesProviderOptions());
         var tokenCache = new CyclicalWavesTokenCache(
             new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
-            providerOptions);
+            providerOptions,
+            NullLogger<CyclicalWavesTokenCache>.Instance);
 
         return new CyclicalWavesDataAcquisitionWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),

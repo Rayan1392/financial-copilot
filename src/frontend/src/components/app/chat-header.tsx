@@ -9,7 +9,7 @@ export function ChatHeader() {
           <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
           <span className="text-[10px] text-emerald">متصل به نوآوران‌امین</span>
           <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
-          <span className="text-[10px] text-emerald">متصل به tsetmc</span>
+          <span className="text-[10px] text-emerald">متصل به تحلیل‌اپ</span>
 
         </div>
       </div>

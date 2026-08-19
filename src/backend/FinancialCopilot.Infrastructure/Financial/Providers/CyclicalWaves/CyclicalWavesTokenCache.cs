@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
@@ -16,7 +17,8 @@ public sealed record CyclicalWavesCachedToken(
 
 public sealed class CyclicalWavesTokenCache(
     IDistributedCache distributedCache,
-    IOptions<CyclicalWavesProviderOptions> options)
+    IOptions<CyclicalWavesProviderOptions> options,
+    ILogger<CyclicalWavesTokenCache> logger)
 {
     internal const string CacheKey = "cyclicalwaves:auth:token:v1";
     private const string HealthCheckKey = "cyclicalwaves:auth:cache-health:v1";
@@ -59,7 +61,10 @@ public sealed class CyclicalWavesTokenCache(
         }
         catch (Exception exception)
         {
-            throw CacheFailure(exception);
+            logger.LogWarning(
+                exception,
+                "CyclicalWaves authentication token cache is unavailable; a live token will be requested instead.");
+            return null;
         }
     }
 

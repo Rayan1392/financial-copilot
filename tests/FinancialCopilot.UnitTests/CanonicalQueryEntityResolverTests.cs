@@ -52,6 +52,21 @@ public sealed class CanonicalQueryEntityResolverTests
     }
 
     [Fact]
+    public async Task CanonicalProviderTickerWinsOverDuplicateAuxiliaryProviderTicker()
+    {
+        await using var db = CreateDb();
+        var canonical = AddCompany(db, "کگل", "گل گهر", "kgol");
+        var auxiliary = AddCompany(db, "کگل", "گل گهر قدیمی", "kgol-old");
+        auxiliary.ProviderName = "AuxiliaryProvider";
+        canonical.ProviderName = "NoavaranCurrentApi";
+        await db.SaveChangesAsync();
+
+        var result = await CreateResolver(db).ResolveMentionAsync("کگل");
+
+        Assert.Equal(canonical.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
+    }
+
+    [Fact]
     public async Task Typo_IsAnAmbiguousFuzzyCandidateAndNeverAutoResolved()
     {
         await using var db = CreateDb();

@@ -25,7 +25,7 @@ public sealed class CyclicalWavesAuthHandler(
         AddBearerHeader(request, token);
 
         var response = await base.SendAsync(request, cancellationToken);
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        if (response.StatusCode != HttpStatusCode.Unauthorized && response.StatusCode != HttpStatusCode.MethodNotAllowed)
         {
             return response;
         }

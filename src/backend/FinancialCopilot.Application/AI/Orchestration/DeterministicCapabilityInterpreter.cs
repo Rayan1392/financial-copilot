@@ -85,7 +85,10 @@ public sealed class DeterministicCapabilityInterpreter(
         // promotes it to the pair capability only after two canonical companies resolve.
         if (ContainsAny(normalized, ["compare", "مقایسه"]) && HasPairConjunction(normalized))
         {
-            const string code = "symbol_vs_industry_relative_valuation";
+            var hasIndustryReference = ContainsAny(normalized, IndustryWords);
+            var code = entities.Count > 1 && !hasIndustryReference
+                ? "symbol_pair_within_industry"
+                : "symbol_vs_industry_relative_valuation";
             scores[code] = Math.Max(scores.GetValueOrDefault(code), 0.98m);
             evidence.Add(new InterpretationEvidence(code, "feature-125-canonical-pair-candidate", QueryValueProvenance.UserExplicit));
         }
@@ -241,5 +244,5 @@ public sealed class DeterministicCapabilityInterpreter(
 
     private static bool HasPairConjunction(string normalized) =>
         normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Any(token => token.Equals("and", StringComparison.OrdinalIgnoreCase) || token == "و");
+            .Any(token => token.Equals("and", StringComparison.OrdinalIgnoreCase) || token is "و" or "با");
 }

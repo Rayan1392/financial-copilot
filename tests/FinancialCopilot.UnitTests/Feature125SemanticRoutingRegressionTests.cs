@@ -54,6 +54,29 @@ public sealed class Feature125SemanticRoutingRegressionTests
         AssertNoClarification(frame, prepared.Registry);
     }
 
+    [Theory]
+    [InlineData("نماد کگهر را با کگل مقایسه کن", "symbol_pair_within_industry", "کگهر", "کگل")]
+    [InlineData("کگهر را با کگل مقایسه کن", "symbol_pair_within_industry", "کگهر", "کگل")]
+    [InlineData("کگهر و کگل را مقایسه کن", "symbol_pair_within_industry", "کگهر", "کگل")]
+    [InlineData("مقایسه کگهر با کگل", "symbol_pair_within_industry", "کگهر", "کگل")]
+    [InlineData("نماد کگهر را با صنعت خودش مقایسه کن", "symbol_vs_industry_relative_valuation", "کگهر", "")]
+    [InlineData("کگهر را با صنعت خودش مقایسه کن", "symbol_vs_industry_relative_valuation", "کگهر", "")]
+    public async Task ComparisonForms_SelectTheExpectedFeature125Capability(
+        string query,
+        string expectedCapability,
+        string firstSymbol,
+        string secondSymbol)
+    {
+        var symbols = string.IsNullOrWhiteSpace(secondSymbol)
+            ? new[] { firstSymbol }
+            : new[] { firstSymbol, secondSymbol };
+        var prepared = await PrepareAsync(query, symbols);
+        var frame = Assert.IsType<ValidatedQueryFrame>(prepared.Result.Request.SemanticFrame);
+
+        Assert.Equal(expectedCapability, frame.CapabilityCode);
+        AssertNoClarification(frame, prepared.Registry);
+    }
+
     [Fact]
     public async Task Bug001_ShgolOwnIndustryComparisonResolvesTheAuthoritativeGroup()
     {

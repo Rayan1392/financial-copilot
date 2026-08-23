@@ -41,6 +41,7 @@ public sealed class AdminDataOperationsController(
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
     ICurrentApiGapReader currentApiGapReader,
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
+    IMonthlyActivityBackfillQueue monthlyActivityBackfillQueue,
     IProductRevenueMixBackfillService productRevenueMixBackfillService,
     ICompanyMonthlyActivityTrendSnapshotBackfillService trendSnapshotBackfillService,
     IEligibleFundamentalIndexBulkSyncService eligibleFundamentalIndexBulkSyncService,
@@ -475,15 +476,26 @@ public sealed class AdminDataOperationsController(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.Actor;
-        var result = await monthlyActivityBackfillCoordinator.StartAsync(
-            new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"),
-            cancellationToken);
-        return Ok(new AdminMonthlyActivityBackfillStartResponse(
-            result.Outcome,
-            result.MonthsPlanned,
-            result.CompaniesPlanned,
-            result.RequestsEnqueued,
-            ToMonthlyBackfillProgressResponse(result.Progress)));
+        var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
+        if (progress.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(new AdminMonthlyActivityBackfillStartResponse(
+                "AlreadyInProgress",
+                0,
+                0,
+                0,
+                ToMonthlyBackfillProgressResponse(progress)));
+        }
+
+        var queued = monthlyActivityBackfillQueue.TryQueue(
+            new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"));
+        var response = new AdminMonthlyActivityBackfillStartResponse(
+            queued ? "Queued" : "AlreadyInProgress",
+            0,
+            0,
+            0,
+            ToMonthlyBackfillProgressResponse(progress));
+        return queued ? Accepted(response) : Ok(response);
     }
 
     [HttpPost("noavaran-current/monthly-backfill/single-month")]

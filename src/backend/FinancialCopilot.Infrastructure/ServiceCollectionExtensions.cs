@@ -1383,6 +1383,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MonthlyActivityBackfillCoordinator>();
         services.AddScoped<IMonthlyActivityBackfillCoordinator>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
+        services.AddSingleton<MonthlyActivityBackfillQueue>();
+        services.AddSingleton<IMonthlyActivityBackfillQueue>(provider =>
+            provider.GetRequiredService<MonthlyActivityBackfillQueue>());
         services.AddScoped<IMonthlyActivityBackfillStateReader>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
         services.AddScoped<ISingleCompanyMonthlyIngestionService, SingleCompanyMonthlyIngestionService>();

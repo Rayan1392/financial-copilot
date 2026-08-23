@@ -3,6 +3,7 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
@@ -98,6 +99,7 @@ builder.Services.AddOpenApi(options =>
 });
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<MonthlyActivityBackfillWorker>();
 builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)

@@ -26,6 +26,14 @@ public interface IMonthlyActivityBackfillCoordinator
 }
 
 /// <summary>
+/// Queues a manual backfill request for execution outside the HTTP request lifetime.
+/// </summary>
+public interface IMonthlyActivityBackfillQueue
+{
+    bool TryQueue(MonthlyActivityBackfillRequest request);
+}
+
+/// <summary>
 /// Read-side gate for the steady-state scheduled refresh (spec 057 Phase B): monthly-activity
 /// scheduled syncs request only the previous Shamsi month once the backfill-complete marker
 /// exists, and skip monthly activity entirely while it does not.

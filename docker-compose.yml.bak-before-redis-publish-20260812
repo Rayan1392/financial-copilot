@@ -24,8 +24,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -77,12 +75,12 @@ services:
       OpenApi__Enabled: ${OPENAPI_ENABLED:-false}
       OpenApi__ServerUrl: ${OPENAPI_SERVER_URL:-}
       AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
-      AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      AiProvider__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       AiProvider__OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-luna}
       AiProvider__DeepSeek__ApiKey: ${DEEPSEEK_API_KEY:-}
       FinancialDataProvider__ApiKey: ${FINANCIAL_DATA_PROVIDER_API_KEY:-}
       AiModelProviders__Providers__0__ModelKey: ${OPENAI_MODEL:-gpt-5.6-luna}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AiProvider__Abravran__MaxTokens: ${ABRAVRAN_MAX_TOKENS:-3000}
       AiProvider__Abravran__Temperature: ${ABRAVRAN_TEMPERATURE:-0.7}
       AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
@@ -90,13 +88,13 @@ services:
       Telegram__Membership__RequiredChannelId: ${TELEGRAM_REQUIRED_CHANNEL_ID:-}
       Telegram__Membership__BotTokenEnvironmentVariable: ${TELEGRAM_BOT_TOKEN_ENVIRONMENT_VARIABLE:-TELEGRAM_BOT_TOKEN}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      NadpcoApi__UserName: ${NADPCO_API_USER_NAME:?NADPCO_API_USER_NAME is required}
-      NadpcoApi__Password: ${NADPCO_API_PASSWORD:?NADPCO_API_PASSWORD is required}
+      NadpcoApi__UserName: ${NADPCO_API_USER_NAME:-}
+      NadpcoApi__Password: ${NADPCO_API_PASSWORD:-}
       NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}
       TsetmcWebService__Enabled: ${TSETMC_WEB_SERVICE_ENABLED:-false}
       TsetmcWebService__ServiceUrl: ${TSETMC_WEB_SERVICE_URL:-http://service.tsetmc.com/WebService/TsePublicV2.asmx}
-      TsetmcWebService__UserName: ${TSETMC_WEB_SERVICE_USER_NAME:?TSETMC_WEB_SERVICE_USER_NAME is required}
-      TsetmcWebService__Password: ${TSETMC_WEB_SERVICE_PASSWORD:?TSETMC_WEB_SERVICE_PASSWORD is required}
+      TsetmcWebService__UserName: ${TSETMC_WEB_SERVICE_USER_NAME:-}
+      TsetmcWebService__Password: ${TSETMC_WEB_SERVICE_PASSWORD:-}
       MarketQuoteSourcePriority__PrimarySourceName: ${MARKET_QUOTE_PRIMARY_SOURCE:-TsetmcWebService}
       TsetmcPolling__Enabled: ${TSETMC_POLLING_ENABLED:-true}
       TsetmcWebService__TimeoutSeconds: ${TSETMC_WEB_SERVICE_TIMEOUT_SECONDS:-60}
@@ -113,8 +111,8 @@ services:
       TsetmcWebService__DailyTradeFromDate: ${TSETMC_DAILY_TRADE_FROM_DATE:-20260601}
       TsetmcWebService__DailyIndexFromDate: ${TSETMC_DAILY_INDEX_FROM_DATE:-20260601}
       CyclicalWaves__BaseAddress: ${CYCLICAL_WAVES_BASE_ADDRESS:-https://back1.cyclicalwaves.com/api/}
-      CyclicalWaves__UserName: ${CYCLICAL_WAVES_USER_NAME:?CYCLICAL_WAVES_USER_NAME is required}
-      CyclicalWaves__Password: ${CYCLICAL_WAVES_PASSWORD:?CYCLICAL_WAVES_PASSWORD is required}
+      CyclicalWaves__UserName: ${CYCLICAL_WAVES_USER_NAME:-}
+      CyclicalWaves__Password: ${CYCLICAL_WAVES_PASSWORD:-}
       CyclicalWaves__TimeoutSeconds: ${CYCLICAL_WAVES_TIMEOUT_SECONDS:-30}
       CyclicalWaves__RetryCount: ${CYCLICAL_WAVES_RETRY_COUNT:-2}
       CyclicalWaves__CircuitBreakSeconds: ${CYCLICAL_WAVES_CIRCUIT_BREAK_SECONDS:-60}
@@ -128,40 +126,9 @@ services:
       CyclicalWavesPsVisualization__MaxObservationLagTradingDays: ${CYCLICAL_WAVES_MAX_LAG_TRADING_DAYS:-2}
       CyclicalWavesPsVisualization__MaxHistoryPoints: ${CYCLICAL_WAVES_MAX_HISTORY_POINTS:-5000}
       CyclicalWavesPsVisualization__DisplayPercentageDecimals: ${CYCLICAL_WAVES_PERCENTAGE_DECIMALS:-2}
-      Feature126__Enabled: ${FEATURE126_ENABLED:-false}
-      Feature126__RelativeValuationIngestion__Enabled: ${Feature126__RelativeValuationIngestion__Enabled:?Feature126__RelativeValuationIngestion__Enabled is required}
-      Feature126__RelativeValuationIngestion__DailyCadenceMinutes: ${Feature126__RelativeValuationIngestion__DailyCadenceMinutes:?Feature126__RelativeValuationIngestion__DailyCadenceMinutes is required}
-      Feature126__RelativeValuationIngestion__PageSize: ${Feature126__RelativeValuationIngestion__PageSize:?Feature126__RelativeValuationIngestion__PageSize is required}
-      Feature126__RelativeValuationIngestion__MaximumConcurrency: ${Feature126__RelativeValuationIngestion__MaximumConcurrency:?Feature126__RelativeValuationIngestion__MaximumConcurrency is required}
-      Feature126__RelativeValuationIngestion__RetryCount: ${Feature126__RelativeValuationIngestion__RetryCount:?Feature126__RelativeValuationIngestion__RetryCount is required}
-      Feature126__RelativeValuationIngestion__RetryDelayMilliseconds: ${Feature126__RelativeValuationIngestion__RetryDelayMilliseconds:?Feature126__RelativeValuationIngestion__RetryDelayMilliseconds is required}
-      Feature126__RelativeValuationIngestion__CompanyTimeoutSeconds: ${Feature126__RelativeValuationIngestion__CompanyTimeoutSeconds:?Feature126__RelativeValuationIngestion__CompanyTimeoutSeconds is required}
-      Feature126__RelativeValuationIngestion__LeaseMinutes: ${Feature126__RelativeValuationIngestion__LeaseMinutes:?Feature126__RelativeValuationIngestion__LeaseMinutes is required}
-      Feature126__RelativeValuationIngestion__LeaseHeartbeatSeconds: ${Feature126__RelativeValuationIngestion__LeaseHeartbeatSeconds:?Feature126__RelativeValuationIngestion__LeaseHeartbeatSeconds is required}
-      Feature126__RelativeValuationIngestion__ConfigurationRevision: ${Feature126__RelativeValuationIngestion__ConfigurationRevision:?Feature126__RelativeValuationIngestion__ConfigurationRevision is required}
-      Feature126__RelativeValuationIngestion__DeploymentIdentifier: ${Feature126__RelativeValuationIngestion__DeploymentIdentifier:?Feature126__RelativeValuationIngestion__DeploymentIdentifier is required}
-      Feature126__RelativeValuationIngestion__LegacyFeature114PsOwnerEnabled: ${Feature126__RelativeValuationIngestion__LegacyFeature114PsOwnerEnabled:?Feature126__RelativeValuationIngestion__LegacyFeature114PsOwnerEnabled is required}
-      Feature126__RelativeValuationIngestion__NadpcoFeature125TriggerEnabled: ${Feature126__RelativeValuationIngestion__NadpcoFeature125TriggerEnabled:?Feature126__RelativeValuationIngestion__NadpcoFeature125TriggerEnabled is required}
-      Feature126__Observability__Enabled: ${FEATURE126_OBSERVABILITY_ENABLED:?FEATURE126_OBSERVABILITY_ENABLED is required}
-      Feature126__Observability__SeqEndpoint: ${FEATURE126_SEQ_ENDPOINT:?FEATURE126_SEQ_ENDPOINT is required}
-      Feature126__Observability__SeqApiKey: ${FEATURE126_SEQ_API_KEY:?FEATURE126_SEQ_API_KEY is required}
-      Feature126__Observability__Environment: ${FEATURE126_OBSERVABILITY_ENVIRONMENT:-Production}
-      Feature126__Observability__Stream: ${FEATURE126_OBSERVABILITY_STREAM:-feature126}
-      Feature126__Observability__RequestTimeoutSeconds: ${FEATURE126_SEQ_REQUEST_TIMEOUT_SECONDS:-10}
-      Feature126__Observability__MaxRetryAttempts: ${FEATURE126_SEQ_MAX_RETRY_ATTEMPTS:-3}
-      Feature126__Observability__RetryBudgetSeconds: ${FEATURE126_SEQ_RETRY_BUDGET_SECONDS:-20}
-      Feature126__Observability__RetentionDays: ${FEATURE126_SEQ_RETENTION_DAYS:-730}
-      IndustryRelativeValuation__Enabled: ${IndustryRelativeValuation__Enabled:?IndustryRelativeValuation__Enabled is required}
-      IndustryRelativeValuation__DailyCadenceMinutes: ${IndustryRelativeValuation__DailyCadenceMinutes:-1440}
-      IndustryRelativeValuation__SourceFreshnessHours: ${IndustryRelativeValuation__SourceFreshnessHours:-26}
-      IndustryRelativeValuation__IqrMultiplier: ${IndustryRelativeValuation__IqrMultiplier:-1.5}
-      IndustryRelativeValuation__DefaultResultLimit: ${IndustryRelativeValuation__DefaultResultLimit:-3}
-      IndustryRelativeValuation__MaximumResultLimit: ${IndustryRelativeValuation__MaximumResultLimit:-100}
-      IndustryRelativeValuation__EntryConsecutiveSnapshots: ${IndustryRelativeValuation__EntryConsecutiveSnapshots:-3}
-      IndustryRelativeValuation__ExitConsecutiveSnapshots: ${IndustryRelativeValuation__ExitConsecutiveSnapshots:-3}
       NoavaranCurrentApi__BaseAddress: ${NOAVARAN_API_BASE_ADDRESS:-https://data3.nadpco.com/}
-      NoavaranCurrentApi__UserName: ${NOAVARAN_API_USER_NAME:?NOAVARAN_API_USER_NAME is required}
-      NoavaranCurrentApi__Password: ${NOAVARAN_API_PASSWORD:?NOAVARAN_API_PASSWORD is required}
+      NoavaranCurrentApi__UserName: ${NOAVARAN_API_USER_NAME:-}
+      NoavaranCurrentApi__Password: ${NOAVARAN_API_PASSWORD:-}
       NoavaranCurrentApi__TimeoutSeconds: ${NOAVARAN_API_TIMEOUT_SECONDS:-30}
       NoavaranCurrentApi__RetryCount: ${NOAVARAN_API_RETRY_COUNT:-2}
       NoavaranArchiveSql__ConnectionString: ${NOAVARAN_ARCHIVE_SQL_CONNECTION_STRING:-}
@@ -231,7 +198,7 @@ services:
       CyclicalWaves__ProviderName: "${CyclicalWaves__ProviderName:-CyclicalWaves}"
       CyclicalWavesPsSync__AllowManualSyncWhenWorkerDisabled: "${CyclicalWavesPsSync__AllowManualSyncWhenWorkerDisabled:-True}"
       CyclicalWavesPsSync__CurrentHistoryTolerance: "${CyclicalWavesPsSync__CurrentHistoryTolerance:-0.0001}"
-      CyclicalWavesPsSync__Enabled: "${CyclicalWavesPsSync__Enabled:-False}"
+      CyclicalWavesPsSync__Enabled: "${CyclicalWavesPsSync__Enabled:-True}"
       CyclicalWavesPsSync__HistoryCadenceHours: "${CyclicalWavesPsSync__HistoryCadenceHours:-168}"
       CyclicalWavesPsSync__LeaseDurationMinutes: "${CyclicalWavesPsSync__LeaseDurationMinutes:-120}"
       CyclicalWavesPsSync__LeaseRenewalMinutes: "${CyclicalWavesPsSync__LeaseRenewalMinutes:-10}"

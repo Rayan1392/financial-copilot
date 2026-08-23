@@ -93,8 +93,23 @@ export async function downloadMonthlyTrendChartImage(
   drawRtlText(context, "توضیحات", WIDTH - PADDING, explanationTop);
   context.fillStyle = palette.mutedForeground;
   context.font = '600 22px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  const lines = viewModel.explanationLines.length > 0 ? viewModel.explanationLines : ["دادهٔ گم‌شده‌ای گزارش نشده است."];
-  lines.forEach((line, index) => drawRtlText(context, line, WIDTH - PADDING, explanationTop + 42 * (index + 1)));
+  const lines = viewModel.explanationLines.length > 0
+    ? viewModel.explanationLines
+    : [
+        {
+          beforeValue: "دادهٔ گم‌شده‌ای گزارش نشده است.",
+          valueLabel: null,
+          afterValue: "",
+          tone: "neutral" as const,
+        },
+      ];
+  lines.forEach((line, index) => drawExplanationLine(
+    context,
+    line,
+    WIDTH - PADDING,
+    explanationTop + 42 * (index + 1),
+    viewModel,
+  ));
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Image generation failed.");
@@ -235,4 +250,32 @@ function drawRtlText(context: CanvasRenderingContext2D, value: string, x: number
   context.direction = "rtl";
   context.fillText(`\u202B${value}\u202C`, x, y);
   context.restore();
+}
+
+function drawExplanationLine(
+  context: CanvasRenderingContext2D,
+  line: MonthlyTrendChartCardViewModel["explanationLines"][number],
+  right: number,
+  y: number,
+  viewModel: MonthlyTrendChartCardViewModel,
+) {
+  context.textAlign = "right";
+  context.fillStyle = viewModel.palette.mutedForeground;
+  drawRtlText(context, line.beforeValue, right, y);
+  let cursor = right - context.measureText(line.beforeValue).width;
+  if (line.valueLabel) {
+    context.save();
+    context.direction = "ltr";
+    context.textAlign = "right";
+    context.fillStyle = line.tone === "positive"
+      ? viewModel.palette.positive
+      : line.tone === "negative"
+        ? viewModel.palette.negative
+        : viewModel.palette.mutedForeground;
+    context.fillText(line.valueLabel, cursor, y);
+    cursor -= context.measureText(line.valueLabel).width;
+    context.restore();
+  }
+  context.fillStyle = viewModel.palette.mutedForeground;
+  drawRtlText(context, line.afterValue, cursor, y);
 }

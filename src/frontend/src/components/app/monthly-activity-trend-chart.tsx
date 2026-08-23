@@ -137,7 +137,6 @@ export function MonthlyActivityTrendChart({ data, psVisualization }: Props) {
     average: point.average,
   }));
   const gaugeSide = chooseGaugeSide(chartData);
-  const hasMissingNotes = data.missingDataPoints.length > 0;
   const hasChartData = viewModel.points.some(
     (point) => point.currentYear !== null || point.previousYear !== null || point.average !== null,
   );
@@ -275,20 +274,27 @@ export function MonthlyActivityTrendChart({ data, psVisualization }: Props) {
         )}
       </div>
 
-      {data.insights.length > 0 && (
+      {viewModel.explanationLines.length > 0 && (
         <div className="flex flex-col gap-1">
-          {data.insights.map((insight, index) => (
+          {viewModel.explanationLines.map((line, index) => (
             <p key={index} className="text-[11px] text-muted-foreground">
-              {insight.textFa}
+              {line.beforeValue}
+              {line.valueLabel && (
+                <bdi
+                  dir="ltr"
+                  className={
+                    line.tone === "positive"
+                      ? "font-semibold text-emerald-500 dark:text-emerald-400"
+                      : line.tone === "negative"
+                        ? "font-semibold text-rose-600 dark:text-rose-400"
+                        : undefined
+                  }
+                >
+                  {line.valueLabel}
+                </bdi>
+              )}
+              {line.afterValue}
             </p>
-          ))}
-        </div>
-      )}
-
-      {hasMissingNotes && (
-        <div className="text-[10px] text-muted-foreground/70 space-y-0.5">
-          {data.missingDataPoints.map((point, index) => (
-            <p key={index}>⚠ {point.reasonFa}</p>
           ))}
         </div>
       )}

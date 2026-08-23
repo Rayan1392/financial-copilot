@@ -35,7 +35,9 @@ public interface IMonthlyActivityBackfillStateReader
     Task<bool> IsBackfillCompletedAsync(CancellationToken cancellationToken);
 }
 
-public sealed record MonthlyActivityBackfillRequest(string RequestedBy);
+public sealed record MonthlyActivityBackfillRequest(
+    string RequestedBy,
+    ShamsiMonth? TargetMonth = null);
 
 public sealed record MonthlyActivityBackfillStartResult(
     string Outcome,

@@ -43,6 +43,52 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     }
 
     [Fact]
+    public async Task Start_WithTargetMonth_EnqueuesOnlyThatMonth()
+    {
+        await using var db = CreateDb();
+        SeedEligibleCompany(db, "13150");
+        var publisher = new RecordingPublisher();
+        var coordinator = NewCoordinator(db, publisher);
+
+        var result = await coordinator.StartAsync(
+            new MonthlyActivityBackfillRequest("test:admin", new ShamsiMonth(1405, 5)),
+            CancellationToken.None);
+
+        Assert.Equal("Started", result.Outcome);
+        Assert.Equal(1, result.MonthsPlanned);
+        Assert.Equal(1, result.CompaniesPlanned);
+        Assert.Equal(1, result.RequestsEnqueued);
+        var request = Assert.Single(publisher.Requests);
+        Assert.Equal(ProviderDataset.MonthlyProductionSales, request.Dataset);
+        Assert.Equal("13150", request.ExternalReference);
+        Assert.Equal("1405/05/01", request.SourceDateRangeStartJalali);
+        Assert.Equal("1405/05/31", request.SourceDateRangeEndJalali);
+        Assert.Equal("nadpco-monthlybf-140505-13150", request.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task Start_ActivePlanCrossingShamsiMonthBoundary_AppendsNewlyEligibleMonth()
+    {
+        await using var db = CreateDb();
+        SeedEligibleCompany(db, "13150");
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-08-20T08:00:00Z"));
+        var publisher = new RecordingPublisher();
+        var coordinator = NewCoordinator(db, publisher, clock);
+
+        var initial = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
+        Assert.Equal(16, initial.MonthsPlanned);
+        Assert.DoesNotContain(publisher.Requests, request => request.IdempotencyKey.Contains("140505"));
+
+        clock.UtcNow = DateTimeOffset.Parse("2026-08-23T08:00:00Z");
+        var resumed = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
+
+        Assert.Equal(17, resumed.MonthsPlanned);
+        Assert.Contains(publisher.Requests, request => request.IdempotencyKey == "nadpco-monthlybf-140505-13150");
+        var state = await db.MonthlyActivityBackfillStates.SingleAsync();
+        Assert.Contains("\"Year\":1405,\"Month\":5", state.PlannedMonthsJson);
+    }
+
+    [Fact]
     public async Task Start_SkipsCompanyMonthsWhoseRunsAlreadyCompleted()
     {
         await using var db = CreateDb();
@@ -451,12 +497,13 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
 
     private static MonthlyActivityBackfillCoordinator NewCoordinator(
         FinancialIngestionDbContext db,
-        RecordingPublisher publisher) =>
+        RecordingPublisher publisher,
+        TimeProvider? clock = null) =>
         new(
             db,
             publisher,
             Options.Create(new NadpcoApiProviderOptions()),
-            new FixedTimeProvider(Now),
+            clock ?? new FixedTimeProvider(Now),
             NullLogger<MonthlyActivityBackfillCoordinator>.Instance);
 
     private static FinancialIngestionDbContext CreateDb() =>
@@ -539,5 +586,12 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => UtcNow;
     }
 }

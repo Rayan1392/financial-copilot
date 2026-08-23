@@ -486,6 +486,42 @@ public sealed class AdminDataOperationsController(
             ToMonthlyBackfillProgressResponse(result.Progress)));
     }
 
+    [HttpPost("noavaran-current/monthly-backfill/single-month")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillStartResponse>> StartSingleMonthActivityBackfill(
+        [FromBody] AdminMonthlyActivitySingleMonthBackfillRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ShamsiYear is < 1380 or > 1500)
+        {
+            ModelState.AddModelError(
+                nameof(request.ShamsiYear),
+                "ShamsiYear must be a plausible Shamsi year (1380-1500).");
+        }
+
+        if (request.ShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError(nameof(request.ShamsiMonth), "ShamsiMonth must be between 1 and 12.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await monthlyActivityBackfillCoordinator.StartAsync(
+            new MonthlyActivityBackfillRequest(
+                $"{actor.ActorType}:{actor.ActorId}",
+                new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth)),
+            cancellationToken);
+        return Ok(new AdminMonthlyActivityBackfillStartResponse(
+            result.Outcome,
+            result.MonthsPlanned,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued,
+            ToMonthlyBackfillProgressResponse(result.Progress)));
+    }
+
     [HttpGet("noavaran-current/monthly-backfill")]
     public async Task<ActionResult<AdminMonthlyActivityBackfillProgressResponse>> GetMonthlyActivityBackfillProgress(
         CancellationToken cancellationToken)

@@ -391,6 +391,58 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NoavaranCurrent_SingleMonthBackfill_AsDataAdmin_PassesTargetMonth()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-month",
+            new { shamsiYear = 1405, shamsiMonth = 5 },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, document.RootElement.GetProperty("monthsPlanned").GetInt32());
+        var request = Assert.Single(_factory.MonthlyActivityBackfill.Requests);
+        Assert.Equal(new ShamsiMonth(1405, 5), request.TargetMonth);
+        Assert.StartsWith("User:", request.RequestedBy);
+    }
+
+    [Theory]
+    [InlineData(1379, 5)]
+    [InlineData(1501, 5)]
+    [InlineData(1405, 0)]
+    [InlineData(1405, 13)]
+    public async Task NoavaranCurrent_SingleMonthBackfill_RejectsInvalidDate(int year, int month)
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-month",
+            new { shamsiYear = year, shamsiMonth = month },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(_factory.MonthlyActivityBackfill.Requests);
+    }
+
+    [Fact]
+    public async Task NoavaranCurrent_SingleMonthBackfill_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-month",
+            new { shamsiYear = 1405, shamsiMonth = 5 },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.MonthlyActivityBackfill.Requests);
+    }
+
+    [Fact]
     public async Task ProductRevenueMixBackfill_AsDataAdmin_ReturnsSummary()
     {
         using var client = CreateDataAdminClient();
@@ -867,6 +919,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     private readonly StubStockMarketDbSyncService _stockMarketDbSync = new();
     private readonly StubArchiveImportCoordinator _archiveImport = new();
     private readonly StubCurrentApiIngestion _currentApi = new();
+    private readonly StubMonthlyActivityBackfill _monthlyActivityBackfill = new();
     private readonly StubProductRevenueMixBackfill _productRevenueMixBackfill = new();
     private readonly StubFundamentalIndexCatchUp _fundamentalIndexCatchUp = new();
     private readonly StubMissingAnswerFeedbackRepository _missingAnswerFeedback = new();
@@ -876,6 +929,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public StubMissingAnswerFeedbackRepository MissingAnswerFeedback => _missingAnswerFeedback;
     public StubArchiveImportCoordinator ArchiveImport => _archiveImport;
     public StubCurrentApiIngestion CurrentApi => _currentApi;
+    public StubMonthlyActivityBackfill MonthlyActivityBackfill => _monthlyActivityBackfill;
     public StubProductRevenueMixBackfill ProductRevenueMixBackfill => _productRevenueMixBackfill;
     public StubFundamentalIndexCatchUp FundamentalIndexCatchUp => _fundamentalIndexCatchUp;
     public StubDataSyncActivityMonitor ActivityMonitor => _activityMonitor;
@@ -907,6 +961,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.RemoveAll<IArchiveImportRunReader>();
             services.RemoveAll<ICurrentApiBackfillCoordinator>();
             services.RemoveAll<ICurrentApiGapReader>();
+            services.RemoveAll<IMonthlyActivityBackfillCoordinator>();
             services.RemoveAll<IProductRevenueMixBackfillService>();
             services.RemoveAll<IFundamentalIndexCatchUpCoordinator>();
             services.RemoveAll<IFundamentalIndexCatchUpRunReader>();
@@ -927,6 +982,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             services.AddSingleton<IArchiveImportRunReader>(_archiveImport);
             services.AddSingleton<ICurrentApiBackfillCoordinator>(_currentApi);
             services.AddSingleton<ICurrentApiGapReader>(_currentApi);
+            services.AddSingleton<IMonthlyActivityBackfillCoordinator>(_monthlyActivityBackfill);
             services.AddSingleton<IProductRevenueMixBackfillService>(_productRevenueMixBackfill);
             services.AddSingleton<IFundamentalIndexCatchUpCoordinator>(_fundamentalIndexCatchUp);
             services.AddSingleton<IFundamentalIndexCatchUpRunReader>(_fundamentalIndexCatchUp);
@@ -944,6 +1000,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
         _stockMarketDbSync.Reset();
         _archiveImport.Reset();
         _currentApi.Reset();
+        _monthlyActivityBackfill.Reset();
         _productRevenueMixBackfill.Reset();
         _fundamentalIndexCatchUp.Reset();
         _missingAnswerFeedback.Reset();
@@ -1107,6 +1164,51 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 ]));
 
         public void Reset() => BackfillRequests.Clear();
+    }
+
+    public sealed class StubMonthlyActivityBackfill : IMonthlyActivityBackfillCoordinator
+    {
+        public List<MonthlyActivityBackfillRequest> Requests { get; } = [];
+
+        public Task<MonthlyActivityBackfillStartResult> StartAsync(
+            MonthlyActivityBackfillRequest request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            var target = request.TargetMonth ?? new ShamsiMonth(1405, 2);
+            var progress = CreateProgress(request.RequestedBy, target);
+            return Task.FromResult(new MonthlyActivityBackfillStartResult(
+                "Started",
+                MonthsPlanned: request.TargetMonth is null ? 14 : 1,
+                CompaniesPlanned: 4,
+                RequestsEnqueued: request.TargetMonth is null ? 56 : 4,
+                progress));
+        }
+
+        public Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(CreateProgress("User:test", new ShamsiMonth(1405, 2)));
+
+        public void Reset() => Requests.Clear();
+
+        private static MonthlyActivityBackfillProgress CreateProgress(string requestedBy, ShamsiMonth month) =>
+            new(
+                Started: true,
+                IsCompleted: false,
+                Status: "InProgress",
+                CompletedAt: null,
+                LastStartedAt: DateTimeOffset.Parse("2026-08-23T08:00:00Z"),
+                RequestedBy: requestedBy,
+                Months:
+                [
+                    new MonthlyActivityBackfillMonthProgress(
+                        month.Year,
+                        month.Month,
+                        CompaniesPlanned: 4,
+                        CompaniesCompleted: 0,
+                        CompaniesNoDataYet: 0,
+                        CompaniesFailed: 0,
+                        Status: "Pending")
+                ]);
     }
 
     public sealed class StubProductRevenueMixBackfill : IProductRevenueMixBackfillService

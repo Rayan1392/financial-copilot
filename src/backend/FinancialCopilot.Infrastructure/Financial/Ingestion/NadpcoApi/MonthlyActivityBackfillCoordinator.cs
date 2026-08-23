@@ -34,10 +34,20 @@ public sealed class MonthlyActivityBackfillCoordinator(
     {
         var providerName = providerOptions.Value.ProviderName;
         var state = await GetOrCreateStateAsync(providerName, cancellationToken);
-        if (state.IsCompleted)
+        var now = timeProvider.GetUtcNow();
+        var eligibleMonths = ShamsiMonthCalculator.DescendingMonths(
+            ShamsiMonthCalculator.LatestPublishedMonth(now),
+            ShamsiMonthCalculator.MonthlyActivityFloor);
+        IReadOnlyList<ShamsiMonth> requestedMonths = request.TargetMonth is { } targetMonth
+            ? [targetMonth]
+            : eligibleMonths;
+        var plannedBeforeStart = ParsePlannedMonths(state.PlannedMonthsJson);
+        if (state.IsCompleted && request.TargetMonth is null)
         {
             var progress = await GetProgressAsync(cancellationToken);
-            if (progress.IsCompleted)
+            var planIncludesAllEligibleMonths = eligibleMonths.All(month =>
+                plannedBeforeStart.Any(planned => planned.Year == month.Year && planned.Month == month.Month));
+            if (progress.IsCompleted && planIncludesAllEligibleMonths)
             {
                 return new MonthlyActivityBackfillStartResult(
                     "AlreadyCompleted",
@@ -50,33 +60,37 @@ public sealed class MonthlyActivityBackfillCoordinator(
             await dbContext.Entry(state).ReloadAsync(cancellationToken);
         }
 
-        var now = timeProvider.GetUtcNow();
-        var months = ShamsiMonthCalculator.DescendingMonths(
-            ShamsiMonthCalculator.LatestPublishedMonth(now),
-            ShamsiMonthCalculator.MonthlyActivityFloor);
         var companyIds = await QueryKnownCompanyIdsAsync(providerName, cancellationToken);
         if (companyIds.Count == 0)
         {
             return new MonthlyActivityBackfillStartResult(
                 "NoCompanies",
-                months.Count,
+                requestedMonths.Count,
                 CompaniesPlanned: 0,
                 RequestsEnqueued: 0,
                 await GetProgressAsync(cancellationToken));
         }
 
+        // A backfill can remain active across a Shamsi month boundary. Preserve the existing
+        // plan and append newly eligible months instead of freezing the plan at the first start.
+        // This also allows a completed historical plan to reopen when a new month becomes eligible.
+        var plannedMonths = MergePlannedMonths(plannedBeforeStart, requestedMonths, companyIds.Count);
+
         state.LastStartedAt = now;
         state.RequestedBy = Limit(request.RequestedBy, 256);
         state.PlannedMonthsJson = JsonSerializer.Serialize(
-            months.Select(month => new PlannedMonth(month.Year, month.Month, companyIds.Count)).ToArray());
+            plannedMonths.ToArray());
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // Skip company-months only when a completed run also has persisted monthly report rows.
         // Completed-but-empty runs remain retryable for gradually published months.
         var completedKeys = await QueryCompletedKeysWithPersistedRowsAsync(providerName, cancellationToken);
 
+        var monthsToEnqueue = request.TargetMonth is null
+            ? plannedMonths.Select(month => new ShamsiMonth(month.Year, month.Month)).ToArray()
+            : requestedMonths;
         var enqueued = 0;
-        foreach (var month in months)
+        foreach (var month in monthsToEnqueue)
         {
             var fromDate = month.FirstDayJalali;
             var toDate = ShamsiMonthCalculator.LastDayJalali(month);
@@ -108,15 +122,15 @@ public sealed class MonthlyActivityBackfillCoordinator(
             "Monthly-activity backfill enqueued {Enqueued} company-month requests across {Months} months " +
             "({Newest} → {Oldest}) for {Companies} companies, requested by {RequestedBy}.",
             enqueued,
-            months.Count,
-            months[0],
-            months[^1],
+            monthsToEnqueue.Count,
+            monthsToEnqueue[0],
+            monthsToEnqueue[^1],
             companyIds.Count,
             request.RequestedBy);
 
         return new MonthlyActivityBackfillStartResult(
             enqueued == 0 ? "NothingToEnqueue" : "Started",
-            months.Count,
+            monthsToEnqueue.Count,
             companyIds.Count,
             enqueued,
             await GetProgressAsync(cancellationToken));
@@ -356,6 +370,26 @@ public sealed class MonthlyActivityBackfillCoordinator(
         {
             return [];
         }
+    }
+
+    private static IReadOnlyList<PlannedMonth> MergePlannedMonths(
+        IReadOnlyList<PlannedMonth> existing,
+        IReadOnlyList<ShamsiMonth> eligibleMonths,
+        int companyCount)
+    {
+        var byMonth = existing
+            .GroupBy(month => (month.Year, month.Month))
+            .ToDictionary(group => group.Key, group => group.First() with { Companies = companyCount });
+
+        foreach (var month in eligibleMonths)
+        {
+            byMonth.TryAdd((month.Year, month.Month), new PlannedMonth(month.Year, month.Month, companyCount));
+        }
+
+        return byMonth.Values
+            .OrderByDescending(month => month.Year)
+            .ThenByDescending(month => month.Month)
+            .ToArray();
     }
 
     private static string Limit(string value, int length) =>

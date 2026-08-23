@@ -157,6 +157,10 @@ public sealed record AdminCurrentApiHealthResponse(
 
 // --- Spec 057: NADPCO monthly-activity reverse-chronological backfill ---
 
+public sealed record AdminMonthlyActivitySingleMonthBackfillRequest(
+    int ShamsiYear,
+    int ShamsiMonth);
+
 public sealed record AdminMonthlyActivityBackfillStartResponse(
     string Outcome,
     int MonthsPlanned,

@@ -219,27 +219,27 @@ public static class InitialConversationalCapabilityCatalog
         Definition("ps_gauge_visualization", CapabilityExecutionRoutes.PsGaugeVisualization, "gauge", "valuation",
             [Alias("en", "P/S gauge"), Alias("fa", "گیج P/S")],
             [Example("en", "show the P/S gauge for فولاد"), Example("fa", "گیج P/S فولاد")],
-            [Slot("symbol", "symbol", true)], [Slot("presentation", "presentation", false)]),
+            [Slot("symbol", "symbol", true)], [Slot("presentation", "presentation", false)], false),
         Definition("personalized_insight_explanation", CapabilityExecutionRoutes.PersonalizedInsightExplanation, "summary", "insight",
             [Alias("en", "explain this alert"), Alias("fa", "این هشدار را توضیح بده")],
             [Example("en", "explain this alert"), Example("fa", "این هشدار را توضیح بده")],
-            [Slot("insight", "insight", true)], []),
+            [Slot("insight", "insight", true)], [], false),
         Definition("symbol_vs_industry_relative_valuation", CapabilityExecutionRoutes.IndustryRelativeValuation, "comparison", "relative-valuation",
             [Alias("en", "compare symbol with its industry"), Alias("fa", "مقایسه نماد با صنعت"), Alias("fa", "ارزش‌گذاری نسبی نماد")],
             [Example("en", "compare فولاد with its industry"), Example("fa", "نماد شگل را با صنعت خودش مقایسه کن")],
-            [Slot("symbol", "symbol", true)], [Slot("industryGroup", "industry-group", false), Slot("limit", "integer", false), Slot("presentation", "presentation", false)]),
+            [Slot("symbol", "symbol", true)], [Slot("industryGroup", "industry-group", false), Slot("limit", "integer", false), Slot("presentation", "presentation", false)], false),
         Definition("industry_relative_valuation_ranking", CapabilityExecutionRoutes.IndustryRelativeValuation, "ranking", "relative-valuation",
             [Alias("en", "industry relative valuation ranking"), Alias("fa", "رتبه بندی ارزش گذاری نسبی صنعت")],
             [Example("en", "rank companies in an industry"), Example("fa", "نمادهای صنعت شوینده را رتبه بندی کن")],
-            [Slot("industryGroup", "industry-group", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)]),
+            [Slot("industryGroup", "industry-group", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)], false),
         Definition("industry_relative_valuation_summary", CapabilityExecutionRoutes.IndustryRelativeValuation, "summary", "relative-valuation",
             [Alias("en", "industry relative valuation summary"), Alias("fa", "خلاصه ارزش گذاری نسبی صنعت")],
             [Example("en", "summarize the industry's relative valuation"), Example("fa", "وضعیت ارزش گذاری صنعت شوینده")],
-            [], [Slot("industryGroup", "industry-group", false), Slot("symbol", "symbol", false)]),
+            [], [Slot("industryGroup", "industry-group", false), Slot("symbol", "symbol", false)], false),
         Definition("symbol_pair_within_industry", CapabilityExecutionRoutes.IndustryRelativeValuation, "comparison", "relative-valuation",
             [Alias("en", "compare two symbols within their industry"), Alias("fa", "مقایسه دو نماد در یک صنعت")],
             [Example("en", "compare فولاد and فملی within their industry"), Example("fa", "شگل و شوینده را مقایسه کن")],
-            [Slot("symbols", "symbol-list", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)])
+            [Slot("symbols", "symbol-list", true)], [Slot("limit", "integer", false), Slot("presentation", "presentation", false)], false)
     ];
 
     private static CapabilityDefinition Definition(
@@ -250,9 +250,10 @@ public static class InitialConversationalCapabilityCatalog
         IReadOnlyList<LocalizedAlias> aliases,
         IReadOnlyList<LocalizedExample> examples,
         IReadOnlyList<SlotDefinition> required,
-        IReadOnlyList<SlotDefinition> optional) =>
+        IReadOnlyList<SlotDefinition> optional,
+        bool includeInGuidance = true) =>
         new(code, 1, true, aliases, examples, required, optional, route, output,
-            DataRequirementsFor(route), precedence, new SuggestionPolicy(true));
+            DataRequirementsFor(route), precedence, new SuggestionPolicy(includeInGuidance));
 
     private static IReadOnlyList<string> DataRequirementsFor(string route) => route switch
     {

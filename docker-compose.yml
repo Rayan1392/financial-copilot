@@ -121,7 +121,7 @@ services:
       CyclicalWaves__CircuitFailureThreshold: ${CYCLICAL_WAVES_CIRCUIT_FAILURE_THRESHOLD:-5}
       CyclicalWavesPsVisualization__Enabled: ${CYCLICAL_WAVES_PS_VISUALIZATION_ENABLED:-true}
       CyclicalWavesPsVisualization__EnableStandaloneGauge: ${CYCLICAL_WAVES_STANDALONE_GAUGE:-true}
-      CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-true}
+      CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-false}
       CyclicalWavesPsVisualization__IncludeHistoryInStandaloneGauge: ${CYCLICAL_WAVES_INCLUDE_HISTORY:-true}
       CyclicalWavesPsVisualization__AllowStaleStandaloneGauge: ${CYCLICAL_WAVES_ALLOW_STALE:-true}
       CyclicalWavesPsVisualization__MaxSyncAgeHours: ${CYCLICAL_WAVES_MAX_SYNC_AGE_HOURS:-48}

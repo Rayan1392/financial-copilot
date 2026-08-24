@@ -41,7 +41,6 @@ public sealed class AdminDataOperationsController(
     ICurrentApiBackfillCoordinator currentApiBackfillCoordinator,
     ICurrentApiGapReader currentApiGapReader,
     IMonthlyActivityBackfillCoordinator monthlyActivityBackfillCoordinator,
-    IMonthlyActivityBackfillQueue monthlyActivityBackfillQueue,
     IProductRevenueMixBackfillService productRevenueMixBackfillService,
     ICompanyMonthlyActivityTrendSnapshotBackfillService trendSnapshotBackfillService,
     IEligibleFundamentalIndexBulkSyncService eligibleFundamentalIndexBulkSyncService,
@@ -476,26 +475,17 @@ public sealed class AdminDataOperationsController(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.Actor;
-        var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
-        if (progress.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase))
-        {
-            return Ok(new AdminMonthlyActivityBackfillStartResponse(
-                "AlreadyInProgress",
-                0,
-                0,
-                0,
-                ToMonthlyBackfillProgressResponse(progress)));
-        }
-
-        var queued = monthlyActivityBackfillQueue.TryQueue(
-            new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"));
+        var result = await monthlyActivityBackfillCoordinator.StartAsync(
+            new MonthlyActivityBackfillRequest($"{actor.ActorType}:{actor.ActorId}"),
+            cancellationToken);
         var response = new AdminMonthlyActivityBackfillStartResponse(
-            queued ? "Queued" : "AlreadyInProgress",
-            0,
-            0,
-            0,
-            ToMonthlyBackfillProgressResponse(progress));
-        return queued ? Accepted(response) : Ok(response);
+            result.BatchId,
+            result.Outcome,
+            result.MonthsPlanned,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued,
+            ToMonthlyBackfillProgressResponse(result.Progress));
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
     }
 
     [HttpPost("noavaran-current/monthly-backfill/single-month")]
@@ -526,12 +516,62 @@ public sealed class AdminDataOperationsController(
                 $"{actor.ActorType}:{actor.ActorId}",
                 new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth)),
             cancellationToken);
-        return Ok(new AdminMonthlyActivityBackfillStartResponse(
+        var response = new AdminMonthlyActivityBackfillStartResponse(
+            result.BatchId,
             result.Outcome,
             result.MonthsPlanned,
             result.CompaniesPlanned,
             result.RequestsEnqueued,
-            ToMonthlyBackfillProgressResponse(result.Progress)));
+            ToMonthlyBackfillProgressResponse(result.Progress));
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
+    }
+
+    [HttpPost("noavaran-current/monthly-backfill/single-company-month")]
+    public async Task<ActionResult<AdminMonthlyActivitySingleCompanyMonthDirectResponse>>
+        RunSingleCompanyMonthActivityDirect(
+            [FromBody] AdminMonthlyActivitySingleCompanyMonthDirectRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (request.CompanyId <= 0)
+        {
+            ModelState.AddModelError(nameof(request.CompanyId), "CompanyId must be a positive integer.");
+        }
+
+        if (request.ShamsiYear is < 1404 or > 1500)
+        {
+            ModelState.AddModelError(
+                nameof(request.ShamsiYear),
+                "ShamsiYear must be between 1404 and 1500 for NADPCO monthly activity.");
+        }
+
+        if (request.ShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError(nameof(request.ShamsiMonth), "ShamsiMonth must be between 1 and 12.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await singleCompanyIngestion.ExecuteDirectAsync(
+            new SingleCompanyMonthlyDirectIngestionRequest(
+                request.CompanyId,
+                request.ShamsiYear,
+                request.ShamsiMonth),
+            cancellationToken);
+
+        return Ok(new AdminMonthlyActivitySingleCompanyMonthDirectResponse(
+            result.Run.Id,
+            request.CompanyId,
+            request.ShamsiYear,
+            request.ShamsiMonth,
+            result.Run.Status.ToString(),
+            result.AlreadyProcessed,
+            result.Run.ProcessedRecords,
+            result.Run.ErrorCount,
+            result.Run.ErrorMessage,
+            result.Run.CompletedAt));
     }
 
     [HttpGet("noavaran-current/monthly-backfill")]
@@ -540,6 +580,29 @@ public sealed class AdminDataOperationsController(
     {
         var progress = await monthlyActivityBackfillCoordinator.GetProgressAsync(cancellationToken);
         return Ok(ToMonthlyBackfillProgressResponse(progress));
+    }
+
+    [HttpGet("noavaran-current/monthly-backfill/batches/{batchId:guid}")]
+    public async Task<ActionResult<AdminMonthlyActivityBackfillBatchResponse>> GetMonthlyActivityBackfillBatch(
+        Guid batchId,
+        CancellationToken cancellationToken)
+    {
+        var batch = await monthlyActivityBackfillCoordinator.GetBatchAsync(batchId, cancellationToken);
+        return batch is null ? NotFound() : Ok(ToMonthlyBackfillBatchResponse(batch));
+    }
+
+    [HttpGet("noavaran-current/monthly-backfill/batches")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminMonthlyActivityBackfillBatchResponse>>> ListMonthlyActivityBackfillBatches(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 100)
+        {
+            return BadRequest("limit must be between 1 and 100.");
+        }
+
+        var batches = await monthlyActivityBackfillCoordinator.ListBatchesAsync(limit, cancellationToken);
+        return Ok(batches.Select(ToMonthlyBackfillBatchResponse).ToArray());
     }
 
     // --- Spec 075: one-time backfill of persisted company product revenue mix rows (DataAdmin only) ---
@@ -652,6 +715,25 @@ public sealed class AdminDataOperationsController(
                 month.CompaniesFailed,
                 month.Status)).ToArray(),
             progress.OutputTypeCounts);
+
+    private static AdminMonthlyActivityBackfillBatchResponse ToMonthlyBackfillBatchResponse(
+        MonthlyActivityBackfillBatch batch) =>
+        new(
+            batch.BatchId,
+            batch.Status,
+            batch.RequestedBy,
+            batch.CreatedAt,
+            batch.PublishingStartedAt,
+            batch.PublishedAt,
+            batch.CompletedAt,
+            batch.TargetShamsiYear,
+            batch.TargetShamsiMonth,
+            batch.PlannedCount,
+            batch.PublishedCount,
+            batch.ProcessedCount,
+            batch.FailedCount,
+            batch.RetryableCount,
+            batch.LastError);
 
     // --- Spec 050: NADPCO all-index fundamental-index catch-up coverage (DataAdmin only) ---
     // Distinct from the curated 041 fundamental-index sync: this fetches EVERY vendor index

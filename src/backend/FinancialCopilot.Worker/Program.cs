@@ -108,6 +108,7 @@ builder.Services
     .BindConfiguration(ComprehensiveAnalysisBlogOptions.SectionName);
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<DataSyncConsumerWorker>();
+builder.Services.AddHostedService<MonthlyActivityBackfillOutboxWorker>();
 builder.Services.AddHostedService<FeatureComputationConsumerWorker>();
 builder.Services.AddHostedService<DerivedMetricRecalculationWorker>();
 builder.Services.AddHostedService<ConditionalTrackerEvaluationWorker>();

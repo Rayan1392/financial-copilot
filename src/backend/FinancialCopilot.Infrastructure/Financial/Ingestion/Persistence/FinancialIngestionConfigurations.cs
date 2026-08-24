@@ -255,6 +255,47 @@ public sealed class MonthlyActivityBackfillStateRowConfiguration :
     }
 }
 
+public sealed class MonthlyActivityBackfillBatchRowConfiguration :
+    IEntityTypeConfiguration<MonthlyActivityBackfillBatchRow>
+{
+    public void Configure(EntityTypeBuilder<MonthlyActivityBackfillBatchRow> builder)
+    {
+        builder.ToTable("MonthlyActivityBackfillBatches");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.SourceName).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.RequestedBy).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(40).IsRequired();
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+        builder.HasIndex(row => row.CreatedAt);
+        builder.HasIndex(row => row.Status);
+        builder.HasIndex(row => row.ActiveSlot)
+            .IsUnique()
+            .HasFilter("\"ActiveSlot\" IS NOT NULL");
+    }
+}
+
+public sealed class MonthlyActivityBackfillOutboxRowConfiguration :
+    IEntityTypeConfiguration<MonthlyActivityBackfillOutboxRow>
+{
+    public void Configure(EntityTypeBuilder<MonthlyActivityBackfillOutboxRow> builder)
+    {
+        builder.ToTable("MonthlyActivityBackfillOutbox");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+        builder.Property(row => row.PayloadJson).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.LeaseOwner).HasMaxLength(256);
+        builder.Property(row => row.LastError).HasMaxLength(1000);
+        builder.HasOne<MonthlyActivityBackfillBatchRow>()
+            .WithMany()
+            .HasForeignKey(row => row.BatchId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(row => new { row.BatchId, row.IdempotencyKey }).IsUnique();
+        builder.HasIndex(row => new { row.BatchId, row.Sequence }).IsUnique();
+        builder.HasIndex(row => new { row.Status, row.LeaseExpiresAt, row.CreatedAt });
+    }
+}
+
 public sealed class DataSyncRunRowConfiguration : IEntityTypeConfiguration<DataSyncRunRow>
 {
     public void Configure(EntityTypeBuilder<DataSyncRunRow> builder)

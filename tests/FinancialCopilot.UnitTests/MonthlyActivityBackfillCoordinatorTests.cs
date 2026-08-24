@@ -1,4 +1,4 @@
-using FinancialCopilot.Application.FinancialData.Ingestion;
+﻿using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
@@ -8,13 +8,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Globalization;
+using System.Text.Json;
 
 namespace FinancialCopilot.UnitTests;
 
 public sealed class MonthlyActivityBackfillCoordinatorTests
 {
-    // 2026-06-10 = 20 Khordad 1405 → newest backfill month is Ordibehesht 1405 (1405/02);
-    // permitted floor is 1404/01 → 14 months total.
+    // 2026-06-10 = 20 Khordad 1405 â†’ newest backfill month is Ordibehesht 1405 (1405/02);
+    // permitted floor is 1404/01 â†’ 14 months total.
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-10T08:00:00Z");
 
     [Fact]
@@ -22,7 +23,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -40,6 +41,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         var last = publisher.Requests[^1];
         Assert.Equal("1404/01/01", last.SourceDateRangeStartJalali);
         Assert.Equal("nadpco-monthlybf-140401-13150", last.IdempotencyKey);
+        Assert.Equal(1, publisher.DurableBatchCount);
     }
 
     [Fact]
@@ -47,7 +49,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(
@@ -64,6 +66,29 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         Assert.Equal("1405/05/01", request.SourceDateRangeStartJalali);
         Assert.Equal("1405/05/31", request.SourceDateRangeEndJalali);
         Assert.Equal("nadpco-monthlybf-140505-13150", request.IdempotencyKey);
+        Assert.Equal(1, publisher.DurableBatchCount);
+    }
+
+    [Fact]
+    public async Task Start_WhenDurableBatchIsActive_ReturnsSameBatchWithoutDuplicateOutboxRows()
+    {
+        await using var db = CreateDb();
+        SeedEligibleCompany(db, "13150");
+        var relay = new RecordingPublisher(db);
+        var coordinator = NewCoordinator(db, relay);
+
+        var first = await coordinator.StartAsync(
+            new MonthlyActivityBackfillRequest("test:admin", new ShamsiMonth(1405, 5)),
+            CancellationToken.None);
+        var second = await coordinator.StartAsync(
+            new MonthlyActivityBackfillRequest("test:admin", new ShamsiMonth(1405, 5)),
+            CancellationToken.None);
+
+        Assert.Equal("Started", first.Outcome);
+        Assert.Equal("AlreadyInProgress", second.Outcome);
+        Assert.Equal(first.BatchId, second.BatchId);
+        Assert.Single(db.MonthlyActivityBackfillBatches);
+        Assert.Single(db.MonthlyActivityBackfillOutbox);
     }
 
     [Fact]
@@ -72,12 +97,18 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
         var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-08-20T08:00:00Z"));
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher, clock);
 
         var initial = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
         Assert.Equal(16, initial.MonthsPlanned);
         Assert.DoesNotContain(publisher.Requests, request => request.IdempotencyKey.Contains("140505"));
+
+        var activeBatch = await db.MonthlyActivityBackfillBatches.SingleAsync(batch => batch.ActiveSlot != null);
+        activeBatch.ActiveSlot = null;
+        activeBatch.Status = "CompletedWithRetryables";
+        activeBatch.CompletedAt = clock.GetUtcNow();
+        await db.SaveChangesAsync();
 
         clock.UtcNow = DateTimeOffset.Parse("2026-08-23T08:00:00Z");
         var resumed = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -108,7 +139,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         });
         SeedPersistedMonthlyReport(db, "13150", 1405, 2);
         await db.SaveChangesAsync();
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -136,7 +167,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             SourceDateRangeEndJalali = "1405/02/31"
         });
         await db.SaveChangesAsync();
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -150,7 +181,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
         await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -191,7 +222,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
         await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -236,7 +267,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
         await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -270,7 +301,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
         SeedEligibleCompany(db, "13151");
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
         await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -321,7 +352,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
 
-        var initialPublisher = new RecordingPublisher();
+        var initialPublisher = new RecordingPublisher(db);
         var initialCoordinator = NewCoordinator(db, initialPublisher);
         await initialCoordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -356,7 +387,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         state.CompletedAt = Now;
         await db.SaveChangesAsync();
 
-        var retryPublisher = new RecordingPublisher();
+        var retryPublisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, retryPublisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -379,7 +410,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
 
-        var initialPublisher = new RecordingPublisher();
+        var initialPublisher = new RecordingPublisher(db);
         var initialCoordinator = NewCoordinator(db, initialPublisher);
         await initialCoordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -414,7 +445,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         state.CompletedAt = Now;
         await db.SaveChangesAsync();
 
-        var retryPublisher = new RecordingPublisher();
+        var retryPublisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, retryPublisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -433,7 +464,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
 
-        var initialPublisher = new RecordingPublisher();
+        var initialPublisher = new RecordingPublisher(db);
         var initialCoordinator = NewCoordinator(db, initialPublisher);
         await initialCoordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
@@ -461,7 +492,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         state.CompletedAt = Now;
         await db.SaveChangesAsync();
 
-        var retryPublisher = new RecordingPublisher();
+        var retryPublisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, retryPublisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -478,7 +509,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     {
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
-        // حق تقدم and off-market listings must never reach the vendor.
+        // Ø­Ù‚ ØªÙ‚Ø¯Ù… and off-market listings must never reach the vendor.
         var rights = EligibleCompany("9001");
         rights.PrecedencyRight = 1;
         db.Companies.Add(rights);
@@ -486,7 +517,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         fund.MarketId = Guid.NewGuid();
         db.Companies.Add(fund);
         await db.SaveChangesAsync();
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
@@ -572,15 +603,65 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             LastSynchronizedAt = Now
         };
 
-    private sealed class RecordingPublisher : IDataSyncRequestPublisher
+    private sealed class RecordingPublisher : IMonthlyActivityBackfillOutboxRelay
     {
-        public List<DataSyncRequest> Requests { get; } = [];
+        private readonly FinancialIngestionDbContext _db;
+        private readonly HashSet<Guid> _existingMessageIds;
 
-        public Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
+        public RecordingPublisher(FinancialIngestionDbContext db)
         {
-            Requests.Add(request);
-            return Task.CompletedTask;
+            _db = db;
+            _existingMessageIds = db.MonthlyActivityBackfillOutbox
+                .Select(row => row.Id)
+                .ToHashSet();
         }
+
+        public IReadOnlyList<DataSyncRequest> Requests =>
+            _db.MonthlyActivityBackfillOutbox.AsNoTracking()
+                .Where(row => !_existingMessageIds.Contains(row.Id))
+                .OrderBy(row => row.CreatedAt)
+                .ThenBy(row => row.Sequence)
+                .AsEnumerable()
+                .Select(row => JsonSerializer.Deserialize<DataSyncRequest>(row.PayloadJson, JsonOptions)!)
+                .ToArray();
+
+        public int DurableBatchCount =>
+            _db.MonthlyActivityBackfillOutbox.AsNoTracking()
+                .Where(row => !_existingMessageIds.Contains(row.Id))
+                .Select(row => row.BatchId)
+                .Distinct()
+                .Count();
+
+        public Task<int> RelayPendingAsync(int maximumCount, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
+
+        public async Task<int> ReconcileActiveBatchesAsync(CancellationToken cancellationToken)
+        {
+            var active = await _db.MonthlyActivityBackfillBatches
+                .Where(batch => batch.ActiveSlot != null)
+                .ToArrayAsync(cancellationToken);
+            foreach (var batch in active)
+            {
+                var keys = await _db.MonthlyActivityBackfillOutbox.AsNoTracking()
+                    .Where(row => row.BatchId == batch.Id)
+                    .Select(row => row.IdempotencyKey)
+                    .ToArrayAsync(cancellationToken);
+                var terminalCount = await _db.SyncRuns.AsNoTracking()
+                    .CountAsync(run => keys.Contains(run.IdempotencyKey) &&
+                        (run.Status == "Completed" || run.Status == "Failed"), cancellationToken);
+                if (terminalCount == keys.Length)
+                {
+                    batch.ActiveSlot = null;
+                    batch.Status = "CompletedWithRetryables";
+                    batch.CompletedAt = Now;
+                }
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return active.Length;
+        }
+
+        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

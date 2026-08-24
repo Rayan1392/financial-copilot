@@ -63,7 +63,10 @@ public sealed class CapabilityGuidanceService(
     }
 
     public IReadOnlyList<CapabilityHelpSummary> StarterPrompts(string language, IReadOnlyCollection<string>? actorAvailableCapabilities = null) =>
-        Enabled(actorAvailableCapabilities).Select(definition => new CapabilityHelpSummary(definition.Code, Alias(definition, language), Example(definition, language), registry.Version)).ToArray();
+        Enabled(actorAvailableCapabilities)
+            .Where(definition => definition.SuggestionPolicy.IncludeInGuidance)
+            .Select(definition => new CapabilityHelpSummary(definition.Code, Alias(definition, language), Example(definition, language), registry.Version))
+            .ToArray();
 
     private IEnumerable<CapabilityDefinition> Enabled(IReadOnlyCollection<string>? available) => registry.GetEnabled().Where(definition => available is null || available.Contains(definition.Code, StringComparer.Ordinal));
     private SuggestedAction Action(string id, SuggestedActionKind kind, string label, string message, string capability, IReadOnlyDictionary<string, string> slots, string reason, string language)

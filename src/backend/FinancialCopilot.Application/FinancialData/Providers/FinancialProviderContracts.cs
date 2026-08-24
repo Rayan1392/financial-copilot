@@ -68,6 +68,19 @@ public interface IMonthlyProductionSalesProvider
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Fetches exactly one NADPCO ProductSales output for an explicit company-month. This targeted
+/// operator path intentionally excludes the other output types and ServiceSales.
+/// </summary>
+public interface INadpcoMonthlyProductSalesDirectProvider
+{
+    Task<ProviderRawPayload> FetchProductSalesOutputTypeZeroAsync(
+        string externalCompanyId,
+        int shamsiYear,
+        int shamsiMonth,
+        CancellationToken cancellationToken);
+}
+
 public interface IFinancialRatioProvider
 {
     Task<ProviderRawPayload> FetchFinancialRatiosAsync(

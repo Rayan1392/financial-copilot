@@ -23,14 +23,19 @@ public interface IMonthlyActivityBackfillCoordinator
     /// backfill-complete marker once every planned month has fully completed.
     /// </summary>
     Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken cancellationToken);
+
+    Task<MonthlyActivityBackfillBatch?> GetBatchAsync(Guid batchId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<MonthlyActivityBackfillBatch>> ListBatchesAsync(
+        int limit,
+        CancellationToken cancellationToken);
 }
 
-/// <summary>
-/// Queues a manual backfill request for execution outside the HTTP request lifetime.
-/// </summary>
-public interface IMonthlyActivityBackfillQueue
+public interface IMonthlyActivityBackfillOutboxRelay
 {
-    bool TryQueue(MonthlyActivityBackfillRequest request);
+    Task<int> RelayPendingAsync(int maximumCount, CancellationToken cancellationToken);
+
+    Task<int> ReconcileActiveBatchesAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -52,7 +57,25 @@ public sealed record MonthlyActivityBackfillStartResult(
     int MonthsPlanned,
     int CompaniesPlanned,
     int RequestsEnqueued,
-    MonthlyActivityBackfillProgress Progress);
+    MonthlyActivityBackfillProgress Progress,
+    Guid? BatchId = null);
+
+public sealed record MonthlyActivityBackfillBatch(
+    Guid BatchId,
+    string Status,
+    string RequestedBy,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishingStartedAt,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset? CompletedAt,
+    int? TargetShamsiYear,
+    int? TargetShamsiMonth,
+    int PlannedCount,
+    int PublishedCount,
+    int ProcessedCount,
+    int FailedCount,
+    int RetryableCount,
+    string? LastError);
 
 public sealed record MonthlyActivityBackfillMonthProgress(
     int ShamsiYear,

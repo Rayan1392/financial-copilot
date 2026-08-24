@@ -161,12 +161,47 @@ public sealed record AdminMonthlyActivitySingleMonthBackfillRequest(
     int ShamsiYear,
     int ShamsiMonth);
 
+public sealed record AdminMonthlyActivitySingleCompanyMonthDirectRequest(
+    int CompanyId,
+    int ShamsiYear,
+    int ShamsiMonth);
+
+public sealed record AdminMonthlyActivitySingleCompanyMonthDirectResponse(
+    Guid RequestId,
+    int CompanyId,
+    int ShamsiYear,
+    int ShamsiMonth,
+    string Status,
+    bool AlreadyProcessed,
+    int ProcessedRecords,
+    int ErrorCount,
+    string? ErrorMessage,
+    DateTimeOffset? CompletedAt);
+
 public sealed record AdminMonthlyActivityBackfillStartResponse(
+    Guid? BatchId,
     string Outcome,
     int MonthsPlanned,
     int CompaniesPlanned,
     int RequestsEnqueued,
     AdminMonthlyActivityBackfillProgressResponse Progress);
+
+public sealed record AdminMonthlyActivityBackfillBatchResponse(
+    Guid BatchId,
+    string Status,
+    string RequestedBy,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishingStartedAt,
+    DateTimeOffset? PublishedAt,
+    DateTimeOffset? CompletedAt,
+    int? TargetShamsiYear,
+    int? TargetShamsiMonth,
+    int PlannedCount,
+    int PublishedCount,
+    int ProcessedCount,
+    int FailedCount,
+    int RetryableCount,
+    string? LastError);
 
 public sealed record AdminMonthlyActivityBackfillMonthResponse(
     int ShamsiYear,

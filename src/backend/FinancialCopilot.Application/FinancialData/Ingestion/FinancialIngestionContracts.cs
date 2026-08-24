@@ -65,6 +65,16 @@ public sealed record DerivedMetricRecalculationRequested(
 public interface IDataSyncRequestPublisher
 {
     Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken);
+
+    async Task PublishBatchAsync(
+        IReadOnlyCollection<DataSyncRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        foreach (var request in requests)
+        {
+            await PublishAsync(request, cancellationToken);
+        }
+    }
 }
 
 public interface IDataSyncRequestConsumer

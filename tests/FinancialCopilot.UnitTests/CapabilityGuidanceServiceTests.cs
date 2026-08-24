@@ -36,6 +36,21 @@ public sealed class CapabilityGuidanceServiceTests
         Assert.Equal("monthly_activity_trend", prompt.CapabilityCode);
     }
 
+    [Fact]
+    public void StarterPrompts_ExcludeCapabilitiesDisabledForGuidance()
+    {
+        var prompts = Create().StarterPrompts("fa");
+
+        Assert.DoesNotContain(prompts, prompt => prompt.CapabilityCode is
+            "ps_gauge_visualization" or
+            "personalized_insight_explanation" or
+            "symbol_vs_industry_relative_valuation" or
+            "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or
+            "symbol_pair_within_industry");
+        Assert.Contains(prompts, prompt => prompt.CapabilityCode == "monthly_sales_quality_ranking");
+    }
+
     [Theory]
     [InlineData(DialogueOutcome.PartialAnswer, DialogueOutcomeReasonCodes.PartialEvidence)]
     [InlineData(DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.RequiredInputMissing)]

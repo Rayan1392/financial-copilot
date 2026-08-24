@@ -14,12 +14,14 @@ import {
   type AdminNadpcoApiSyncStateItem,
   type AdminNadpcoScheduledSyncStatusResponse,
   type AdminMonthlyActivityBackfillProgressResponse,
+  type AdminMonthlyActivityBackfillBatchResponse,
   type AdminFundamentalIndexCatchUpRunResponse,
   getNadpcoHealth,
   getNadpcoSyncState,
   getNadpcoScheduledSyncStatus,
   getNadpcoScheduledSyncRuns,
   getMonthlyActivityBackfillProgress,
+  getMonthlyActivityBackfillBatches,
   getFundamentalIndexCatchUpRuns,
   runNadpcoScheduledSync,
   runNadpcoIncrementalSync,
@@ -31,27 +33,47 @@ function formatDt(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "medium" });
 }
-
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     Running: "bg-emerald-500/15 text-emerald-600",
     Completed: "bg-blue-500/15 text-blue-600",
+    CompletedWithRetryables: "bg-amber-500/15 text-amber-600",
+    CompletedWithFailures: "bg-destructive/15 text-destructive",
     Failed: "bg-destructive/15 text-destructive",
+    PublishFailed: "bg-destructive/15 text-destructive",
     Queued: "bg-amber-500/15 text-amber-600",
+    Publishing: "bg-amber-500/15 text-amber-600",
+    InProgress: "bg-emerald-500/15 text-emerald-600",
+    NothingToEnqueue: "bg-muted text-muted-foreground",
     Pending: "bg-muted text-muted-foreground",
   };
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${map[status] ?? "bg-muted text-muted-foreground"}`}>
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full ${map[status] ?? "bg-muted text-muted-foreground"}`}
+    >
       {status}
     </span>
+  );
+}
+
+function isActiveBackfillBatch(batch: AdminMonthlyActivityBackfillBatchResponse) {
+  return (
+    batch.completedAt === null &&
+    ["Queued", "Publishing", "InProgress", "PublishFailed"].includes(batch.status)
   );
 }
 
 export function NadpcoCurrentApiPage() {
   const [health, setHealth] = useState<AdminCurrentApiHealthResponse | null>(null);
   const [syncState, setSyncState] = useState<AdminNadpcoApiSyncStateItem[]>([]);
-  const [scheduledStatus, setScheduledStatus] = useState<AdminNadpcoScheduledSyncStatusResponse | null>(null);
-  const [backfill, setBackfill] = useState<AdminMonthlyActivityBackfillProgressResponse | null>(null);
+  const [scheduledStatus, setScheduledStatus] =
+    useState<AdminNadpcoScheduledSyncStatusResponse | null>(null);
+  const [backfill, setBackfill] = useState<AdminMonthlyActivityBackfillProgressResponse | null>(
+    null,
+  );
+  const [backfillBatches, setBackfillBatches] = useState<
+    AdminMonthlyActivityBackfillBatchResponse[]
+  >([]);
   const [catchUpRuns, setCatchUpRuns] = useState<AdminFundamentalIndexCatchUpRunResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,17 +85,19 @@ export function NadpcoCurrentApiPage() {
     setLoading(true);
     setError(null);
     try {
-      const [h, ss, sched, bf, cu] = await Promise.all([
+      const [h, ss, sched, bf, batches, cu] = await Promise.all([
         getNadpcoHealth(),
         getNadpcoSyncState(),
         getNadpcoScheduledSyncStatus(),
         getMonthlyActivityBackfillProgress(),
+        getMonthlyActivityBackfillBatches(20),
         getFundamentalIndexCatchUpRuns(10),
       ]);
       setHealth(h);
       setSyncState(ss);
       setScheduledStatus(sched);
       setBackfill(bf);
+      setBackfillBatches(batches);
       setCatchUpRuns(cu);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load Noavaran Current API state.");
@@ -82,7 +106,9 @@ export function NadpcoCurrentApiPage() {
     }
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   async function doAction(key: string, fn: () => Promise<unknown>, msg: string) {
     setBusy(key);
@@ -102,7 +128,9 @@ export function NadpcoCurrentApiPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+        ))}
       </div>
     );
   }
@@ -125,19 +153,22 @@ export function NadpcoCurrentApiPage() {
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex gap-2">
-          <AlertCircle className="size-4 mt-0.5 shrink-0" />{error}
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          {error}
         </div>
       )}
 
       {actionError && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex gap-2">
-          <AlertCircle className="size-4 mt-0.5 shrink-0" />{actionError}
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          {actionError}
         </div>
       )}
 
       {lastMsg && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-600 flex gap-2">
-          <CheckCircle2 className="size-4 mt-0.5 shrink-0" />{lastMsg}
+          <CheckCircle2 className="size-4 mt-0.5 shrink-0" />
+          {lastMsg}
         </div>
       )}
 
@@ -147,7 +178,8 @@ export function NadpcoCurrentApiPage() {
           <h2 className="text-sm font-semibold">API Health</h2>
           {health?.isReachable ? (
             <span className="flex items-center gap-1 text-xs text-emerald-600">
-              <Wifi className="size-3.5" /> Reachable {health.latencyMs != null ? `(${health.latencyMs} ms)` : ""}
+              <Wifi className="size-3.5" /> Reachable{" "}
+              {health.latencyMs != null ? `(${health.latencyMs} ms)` : ""}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs text-destructive">
@@ -155,10 +187,10 @@ export function NadpcoCurrentApiPage() {
             </span>
           )}
         </div>
-        {health?.errorMessage && (
-          <p className="text-xs text-destructive">{health.errorMessage}</p>
-        )}
-        <p className="text-xs text-muted-foreground">Checked: {formatDt(health?.lastCheckedAt ?? null)}</p>
+        {health?.errorMessage && <p className="text-xs text-destructive">{health.errorMessage}</p>}
+        <p className="text-xs text-muted-foreground">
+          Checked: {formatDt(health?.lastCheckedAt ?? null)}
+        </p>
       </div>
 
       {/* Scheduled sync section */}
@@ -167,7 +199,9 @@ export function NadpcoCurrentApiPage() {
           <h2 className="text-sm font-semibold">Scheduled Sync</h2>
           <Button
             size="sm"
-            onClick={() => doAction("scheduled", () => runNadpcoScheduledSync(), "Scheduled sync triggered.")}
+            onClick={() =>
+              doAction("scheduled", () => runNadpcoScheduledSync(), "Scheduled sync triggered.")
+            }
             disabled={busy !== null}
             className="gap-1.5"
           >
@@ -177,12 +211,15 @@ export function NadpcoCurrentApiPage() {
         </div>
         {scheduledStatus?.currentRun && (
           <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 text-xs">
-            <span className="font-medium text-emerald-600">Running</span> — started {formatDt(scheduledStatus.currentRun.startedAt)},
-            {" "}{scheduledStatus.currentRun.processedCompanies} companies processed
+            <span className="font-medium text-emerald-600">Running</span> — started{" "}
+            {formatDt(scheduledStatus.currentRun.startedAt)},{" "}
+            {scheduledStatus.currentRun.processedCompanies} companies processed
           </div>
         )}
         {scheduledStatus?.nextScheduledAt && (
-          <p className="text-xs text-muted-foreground">Next run: {formatDt(scheduledStatus.nextScheduledAt)}</p>
+          <p className="text-xs text-muted-foreground">
+            Next run: {formatDt(scheduledStatus.nextScheduledAt)}
+          </p>
         )}
         {scheduledStatus && scheduledStatus.recentRuns.length > 0 && (
           <div className="overflow-x-auto">
@@ -200,12 +237,22 @@ export function NadpcoCurrentApiPage() {
               <TableBody>
                 {scheduledStatus.recentRuns.map((run) => (
                   <TableRow key={run.runId}>
-                    <TableCell><StatusBadge status={run.status} /></TableCell>
+                    <TableCell>
+                      <StatusBadge status={run.status} />
+                    </TableCell>
                     <TableCell className="text-xs">{formatDt(run.startedAt)}</TableCell>
                     <TableCell className="text-xs">{formatDt(run.completedAt)}</TableCell>
                     <TableCell className="text-xs">{run.processedCompanies}</TableCell>
-                    <TableCell className="text-xs">{run.errorCount > 0 ? <span className="text-destructive">{run.errorCount}</span> : 0}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{run.triggerSource}</TableCell>
+                    <TableCell className="text-xs">
+                      {run.errorCount > 0 ? (
+                        <span className="text-destructive">{run.errorCount}</span>
+                      ) : (
+                        0
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {run.triggerSource}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -244,7 +291,13 @@ export function NadpcoCurrentApiPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => doAction("incremental", () => runNadpcoIncrementalSync(), "Incremental sync triggered.")}
+              onClick={() =>
+                doAction(
+                  "incremental",
+                  () => runNadpcoIncrementalSync(),
+                  "Incremental sync triggered.",
+                )
+              }
               disabled={busy !== null}
               className="gap-1.5"
             >
@@ -267,21 +320,43 @@ export function NadpcoCurrentApiPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => doAction("backfill", () => startMonthlyActivityBackfill(), "Monthly backfill started.")}
-            disabled={busy !== null || backfill?.isRunning}
+            onClick={() =>
+              doAction(
+                "backfill",
+                () => startMonthlyActivityBackfill(),
+                "Monthly backfill started.",
+              )
+            }
+            disabled={busy !== null || backfillBatches.some(isActiveBackfillBatch)}
             className="gap-1.5"
           >
             {busy === "backfill" ? <RefreshCw className="size-3.5 animate-spin" /> : null}
-            {backfill?.isRunning ? "Running…" : "Start Backfill"}
+            {backfillBatches.some(isActiveBackfillBatch) ? "Running..." : "Start Backfill"}
           </Button>
         </div>
         {backfill && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Completed", value: backfill.completedMonths, color: "text-emerald-600" },
-              { label: "Pending", value: backfill.pendingMonths, color: "text-amber-600" },
-              { label: "Failed", value: backfill.failedMonths, color: "text-destructive" },
-              { label: "Last Month", value: backfill.lastMonth ?? "—", color: "text-foreground" },
+              {
+                label: "Completed",
+                value: backfill.months.filter((month) => month.status === "Completed").length,
+                color: "text-emerald-600",
+              },
+              {
+                label: "Pending",
+                value: backfill.months.filter((month) => month.status === "Pending").length,
+                color: "text-amber-600",
+              },
+              {
+                label: "Failed",
+                value: backfill.months.reduce((sum, month) => sum + month.companiesFailed, 0),
+                color: "text-destructive",
+              },
+              {
+                label: "Retryable",
+                value: backfill.months.reduce((sum, month) => sum + month.companiesNoDataYet, 0),
+                color: "text-foreground",
+              },
             ].map(({ label, value, color }) => (
               <div key={label} className="text-center">
                 <div className={`text-xl font-bold ${color}`}>{value}</div>
@@ -290,9 +365,61 @@ export function NadpcoCurrentApiPage() {
             ))}
           </div>
         )}
-        {backfill?.isComplete && (
+        {backfill?.isCompleted && (
           <div className="text-xs text-emerald-600 flex gap-1">
             <CheckCircle2 className="size-3.5 mt-0.5" /> Backfill complete.
+          </div>
+        )}
+        {backfillBatches.length > 0 && (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Batch</TableHead>
+                  <TableHead>Scope</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Published</TableHead>
+                  <TableHead>Processed</TableHead>
+                  <TableHead>Failed</TableHead>
+                  <TableHead>Retryable</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Last error</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {backfillBatches.map((batch) => (
+                  <TableRow key={batch.batchId}>
+                    <TableCell className="font-mono text-xs" title={batch.batchId}>
+                      {batch.batchId.slice(0, 8)}
+                    </TableCell>
+                    <TableCell>
+                      {batch.targetShamsiYear && batch.targetShamsiMonth
+                        ? `${batch.targetShamsiYear}/${String(batch.targetShamsiMonth).padStart(2, "0")}`
+                        : "Full"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={batch.status} />
+                    </TableCell>
+                    <TableCell>
+                      {batch.publishedCount}/{batch.plannedCount}
+                    </TableCell>
+                    <TableCell>
+                      {batch.processedCount}/{batch.plannedCount}
+                    </TableCell>
+                    <TableCell className={batch.failedCount > 0 ? "text-destructive" : undefined}>
+                      {batch.failedCount}
+                    </TableCell>
+                    <TableCell className={batch.retryableCount > 0 ? "text-amber-600" : undefined}>
+                      {batch.retryableCount}
+                    </TableCell>
+                    <TableCell>{formatDt(batch.createdAt)}</TableCell>
+                    <TableCell className="max-w-64 truncate" title={batch.lastError ?? undefined}>
+                      {batch.lastError ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -309,7 +436,13 @@ export function NadpcoCurrentApiPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => doAction("catchup", () => runFundamentalIndexCatchUp(1403, 1405), "Fundamental index catch-up started.")}
+            onClick={() =>
+              doAction(
+                "catchup",
+                () => runFundamentalIndexCatchUp(1403, 1405),
+                "Fundamental index catch-up started.",
+              )
+            }
             disabled={busy !== null}
             className="gap-1.5"
           >
@@ -332,11 +465,21 @@ export function NadpcoCurrentApiPage() {
               <TableBody>
                 {catchUpRuns.map((run) => (
                   <TableRow key={run.runId}>
-                    <TableCell><StatusBadge status={run.status} /></TableCell>
+                    <TableCell>
+                      <StatusBadge status={run.status} />
+                    </TableCell>
                     <TableCell className="text-xs">{formatDt(run.startedAt)}</TableCell>
-                    <TableCell className="text-xs">{run.fromShamsiYear}–{run.toShamsiYear}</TableCell>
+                    <TableCell className="text-xs">
+                      {run.fromShamsiYear}–{run.toShamsiYear}
+                    </TableCell>
                     <TableCell className="text-xs">{run.processedCompanies}</TableCell>
-                    <TableCell className="text-xs">{run.errorCount > 0 ? <span className="text-destructive">{run.errorCount}</span> : 0}</TableCell>
+                    <TableCell className="text-xs">
+                      {run.errorCount > 0 ? (
+                        <span className="text-destructive">{run.errorCount}</span>
+                      ) : (
+                        0
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

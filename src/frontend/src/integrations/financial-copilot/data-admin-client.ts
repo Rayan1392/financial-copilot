@@ -84,13 +84,49 @@ export type AdminNadpcoScheduledSyncStatusResponse = {
 };
 
 export type AdminMonthlyActivityBackfillProgressResponse = {
-  isRunning: boolean;
-  isComplete: boolean;
-  lastMonth: string | null;
-  completedMonths: number;
-  failedMonths: number;
-  pendingMonths: number;
-  monthRows: { shamsiMonth: string; status: string; completedAt: string | null; errorMessage: string | null }[];
+  started: boolean;
+  isCompleted: boolean;
+  status: string;
+  completedAt: string | null;
+  lastStartedAt: string | null;
+  requestedBy: string | null;
+  months: {
+    shamsiYear: number;
+    shamsiMonth: number;
+    companiesPlanned: number;
+    companiesCompleted: number;
+    companiesNoDataYet: number;
+    companiesFailed: number;
+    status: string;
+  }[];
+  outputTypeCounts: Record<string, number> | null;
+};
+
+export type AdminMonthlyActivityBackfillStartResponse = {
+  batchId: string | null;
+  outcome: string;
+  monthsPlanned: number;
+  companiesPlanned: number;
+  requestsEnqueued: number;
+  progress: AdminMonthlyActivityBackfillProgressResponse;
+};
+
+export type AdminMonthlyActivityBackfillBatchResponse = {
+  batchId: string;
+  status: string;
+  requestedBy: string;
+  createdAt: string;
+  publishingStartedAt: string | null;
+  publishedAt: string | null;
+  completedAt: string | null;
+  targetShamsiYear: number | null;
+  targetShamsiMonth: number | null;
+  plannedCount: number;
+  publishedCount: number;
+  processedCount: number;
+  failedCount: number;
+  retryableCount: number;
+  lastError: string | null;
 };
 
 export type AdminFundamentalIndexCatchUpRunResponse = {
@@ -128,7 +164,10 @@ async function archiveAction(
 ): Promise<AdminArchiveImportRunResponse> {
   return financialCopilotApi<AdminArchiveImportRunResponse>(
     `/api/v1/admin/noavaran-archive/${action}`,
-    { method: "POST", body: JSON.stringify({ datasets: datasets ?? null, reason: reason ?? null }) },
+    {
+      method: "POST",
+      body: JSON.stringify({ datasets: datasets ?? null, reason: reason ?? null }),
+    },
   );
 }
 
@@ -144,7 +183,9 @@ export const runArchiveFreeze = (datasets?: string[], reason?: string) =>
   archiveAction("freeze", datasets, reason);
 
 export const getArchiveFreezeState = () =>
-  financialCopilotApi<AdminArchiveFreezeStateResponse>("/api/v1/admin/noavaran-archive/freeze-state");
+  financialCopilotApi<AdminArchiveFreezeStateResponse>(
+    "/api/v1/admin/noavaran-archive/freeze-state",
+  );
 
 export const getArchiveRuns = (limit = 20) =>
   financialCopilotApi<AdminArchiveImportRunResponse[]>(
@@ -152,7 +193,9 @@ export const getArchiveRuns = (limit = 20) =>
   );
 
 export const getArchiveCoverage = () =>
-  financialCopilotApi<AdminArchiveImportValidationResponse>("/api/v1/admin/noavaran-archive/coverage");
+  financialCopilotApi<AdminArchiveImportValidationResponse>(
+    "/api/v1/admin/noavaran-archive/coverage",
+  );
 
 // --------------------------------------------------------------------------
 // Spec 055 — Noavaran Current API functions
@@ -171,7 +214,9 @@ export const runNadpcoFullSync = () =>
   financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/full-sync", { method: "POST" });
 
 export const runNadpcoIncrementalSync = () =>
-  financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/incremental-sync", { method: "POST" });
+  financialCopilotApi<{ runId: string }>("/api/v1/admin/nadpcoapi/incremental-sync", {
+    method: "POST",
+  });
 
 export const runNadpcoScheduledSync = (reason?: string) =>
   financialCopilotApi<AdminNadpcoScheduledSyncRunResponse>(
@@ -190,13 +235,26 @@ export const getNadpcoScheduledSyncRuns = (limit = 20) =>
   );
 
 export const startMonthlyActivityBackfill = () =>
-  financialCopilotApi<{ started: boolean }>("/api/v1/admin/noavaran-current/monthly-backfill", {
-    method: "POST",
-  });
+  financialCopilotApi<AdminMonthlyActivityBackfillStartResponse>(
+    "/api/v1/admin/noavaran-current/monthly-backfill",
+    {
+      method: "POST",
+    },
+  );
 
 export const getMonthlyActivityBackfillProgress = () =>
   financialCopilotApi<AdminMonthlyActivityBackfillProgressResponse>(
     "/api/v1/admin/noavaran-current/monthly-backfill",
+  );
+
+export const getMonthlyActivityBackfillBatches = (limit = 20) =>
+  financialCopilotApi<AdminMonthlyActivityBackfillBatchResponse[]>(
+    `/api/v1/admin/noavaran-current/monthly-backfill/batches?limit=${limit}`,
+  );
+
+export const getMonthlyActivityBackfillBatch = (batchId: string) =>
+  financialCopilotApi<AdminMonthlyActivityBackfillBatchResponse>(
+    `/api/v1/admin/noavaran-current/monthly-backfill/batches/${batchId}`,
   );
 
 export const runFundamentalIndexCatchUp = (fromShamsiYear = 1403, toShamsiYear = 1405) =>
@@ -215,7 +273,9 @@ export const getFundamentalIndexCatchUpRuns = (limit = 20) =>
 // --------------------------------------------------------------------------
 
 export const getStockMarketSyncState = () =>
-  financialCopilotApi<AdminStockMarketSyncStateResponse[]>("/api/v1/admin/stockmarketdb/sync-state");
+  financialCopilotApi<AdminStockMarketSyncStateResponse[]>(
+    "/api/v1/admin/stockmarketdb/sync-state",
+  );
 
 export const runStockMarketSync = (dataset: string, fullReload = false) =>
   financialCopilotApi<{ rowsRead: number; rowsPersisted: number }>(
@@ -285,9 +345,7 @@ export function openDataSyncActivityStream(
 
   async function connect() {
     const token = await getAccessToken();
-    const fullUrl = token
-      ? `${url}?_token=${encodeURIComponent(token)}`
-      : url.toString();
+    const fullUrl = token ? `${url}?_token=${encodeURIComponent(token)}` : url.toString();
 
     es = new EventSource(fullUrl, { withCredentials: true });
 
@@ -295,28 +353,36 @@ export function openDataSyncActivityStream(
       try {
         const snapshot: DataSyncActivitySnapshot = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Snapshot", snapshot });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("update", (e) => {
       try {
         const updatedItems: DataSyncActivityItem[] = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Update", updatedItems });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("heartbeat", (e) => {
       try {
         const heartbeatAt: string = JSON.parse((e as MessageEvent).data);
         onEvent({ kind: "Heartbeat", heartbeatAt });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
     });
 
     es.addEventListener("close", (e) => {
       try {
         const closeReason: string = JSON.parse((e as MessageEvent).data) ?? "Server closed.";
         onEvent({ kind: "Close", closeReason });
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
       es?.close();
     });
 
@@ -327,7 +393,10 @@ export function openDataSyncActivityStream(
 
   connect();
 
-  const cleanup = () => { es?.close(); es = null; };
+  const cleanup = () => {
+    es?.close();
+    es = null;
+  };
   signal.addEventListener("abort", cleanup);
   return cleanup;
 }

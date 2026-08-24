@@ -23,6 +23,7 @@ public sealed class NadpcoApiDataProviderClient(
     ISymbolDataProvider,
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
+    INadpcoMonthlyProductSalesDirectProvider,
     IFinancialRatioProvider,
     IFundamentalIndexCoverageProvider,
     IFinancialDataProviderHealthService
@@ -166,6 +167,50 @@ public sealed class NadpcoApiDataProviderClient(
             "api/v*/MonthlyActivity/*Sales",
             companyId,
             json,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchProductSalesOutputTypeZeroAsync(
+        string externalCompanyId,
+        int shamsiYear,
+        int shamsiMonth,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        if (shamsiYear < MonthlyActivityMinimumShamsiYear || shamsiMonth is < 1 or > 12)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(shamsiYear),
+                $"NADPCO monthly activity supports Shamsi year {MonthlyActivityMinimumShamsiYear} onward and months 1-12.");
+        }
+
+        var monthToken = string.Create(CultureInfo.InvariantCulture, $"{shamsiYear:D4}{shamsiMonth:D2}");
+        var body = new NadpcoApiMonthlyActivityRequest(
+            new[] { ParseCompanyId(companyId) },
+            FromDate: null,
+            ToDate: null,
+            OutputType: null);
+        var productSales = await PostJsonForPayloadAsync(
+            BuildMonthlyActivityEndpoint(
+                "api/v2/MonthlyActivity/ProductSales",
+                monthToken,
+                monthToken,
+                outputType: 0),
+            body,
+            cancellationToken);
+        var envelope = new NadpcoMonthlyActivityEnvelope(
+            productSales,
+            ProductSalesType1: null,
+            ProductSalesType2: null,
+            ProductSalesType3: null,
+            ProductSalesType4: null,
+            ServiceSales: "[]");
+
+        return await StorePayloadAsync(
+            ProviderDataset.MonthlyProductionSales,
+            "api/v2/MonthlyActivity/ProductSales?outputTypeId=0",
+            companyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
             cancellationToken);
     }
 

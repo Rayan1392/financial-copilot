@@ -43,19 +43,47 @@ public sealed class RabbitMqDataSyncRequestBus(
 {
     public async Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
     {
+        await PublishBatchAsync([request], cancellationToken);
+    }
+
+    public async Task PublishBatchAsync(
+        IReadOnlyCollection<DataSyncRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        if (requests.Count == 0)
+        {
+            return;
+        }
+
         var settings = options.Value;
         EnsureEnabled(settings);
         await using var connection = await CreateConnectionAsync(settings, cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(
+            new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true),
+            cancellationToken);
         await DeclareQueueAsync(channel, settings.RequestQueue, settings.ConsumerTimeoutMilliseconds, cancellationToken);
-        var body = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
 
-        await channel.BasicPublishAsync(
-            exchange: string.Empty,
-            routingKey: settings.RequestQueue,
-            mandatory: false,
-            body: body,
-            cancellationToken: cancellationToken);
+        foreach (var request in requests)
+        {
+            var body = JsonSerializer.SerializeToUtf8Bytes(request, JsonOptions);
+            var properties = new BasicProperties
+            {
+                Persistent = true,
+                ContentType = "application/json",
+                MessageId = request.RequestId.ToString(),
+                CorrelationId = request.IdempotencyKey
+            };
+
+            await channel.BasicPublishAsync(
+                exchange: string.Empty,
+                routingKey: settings.RequestQueue,
+                mandatory: true,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken);
+        }
     }
 
     public async Task ConsumeAsync(

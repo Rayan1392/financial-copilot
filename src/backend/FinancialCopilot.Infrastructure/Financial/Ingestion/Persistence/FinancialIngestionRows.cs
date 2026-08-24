@@ -622,6 +622,44 @@ public sealed class MonthlyActivityBackfillStateRow
     public string PlannedMonthsJson { get; set; } = "[]";
 }
 
+public sealed class MonthlyActivityBackfillBatchRow
+{
+    public Guid Id { get; set; }
+    public string SourceName { get; set; } = string.Empty;
+    public string RequestedBy { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int? ActiveSlot { get; set; }
+    public int? TargetShamsiYear { get; set; }
+    public int? TargetShamsiMonth { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? PublishingStartedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public int PlannedCount { get; set; }
+    public int PublishedCount { get; set; }
+    public int ProcessedCount { get; set; }
+    public int FailedCount { get; set; }
+    public int RetryableCount { get; set; }
+    public string? LastError { get; set; }
+}
+
+public sealed class MonthlyActivityBackfillOutboxRow
+{
+    public Guid Id { get; set; }
+    public Guid BatchId { get; set; }
+    public int Sequence { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public string PayloadJson { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
+    public DateTimeOffset? LastAttemptAt { get; set; }
+    public int AttemptCount { get; set; }
+    public string? LeaseOwner { get; set; }
+    public DateTimeOffset? LeaseExpiresAt { get; set; }
+    public string? LastError { get; set; }
+}
+
 /// <summary>
 /// All-index fundamental-index coverage observation (spec 050). One row per canonical
 /// (provider, company, index, period type, period end) vendor index value. This is a NON-SCANNABLE

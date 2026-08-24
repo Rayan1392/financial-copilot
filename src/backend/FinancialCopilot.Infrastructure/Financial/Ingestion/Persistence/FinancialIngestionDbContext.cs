@@ -49,6 +49,12 @@ public sealed class FinancialIngestionDbContext(DbContextOptions<FinancialIngest
     public DbSet<MonthlyActivityBackfillStateRow> MonthlyActivityBackfillStates =>
         Set<MonthlyActivityBackfillStateRow>();
 
+    public DbSet<MonthlyActivityBackfillBatchRow> MonthlyActivityBackfillBatches =>
+        Set<MonthlyActivityBackfillBatchRow>();
+
+    public DbSet<MonthlyActivityBackfillOutboxRow> MonthlyActivityBackfillOutbox =>
+        Set<MonthlyActivityBackfillOutboxRow>();
+
     public DbSet<NadpcoFundamentalIndexObservationRow> NadpcoFundamentalIndexObservations =>
         Set<NadpcoFundamentalIndexObservationRow>();
 

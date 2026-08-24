@@ -1115,6 +1115,8 @@ public static class ServiceCollectionExtensions
             })
             .AddHttpMessageHandler<NadpcoApiAuthHandler>()
             .AddHttpMessageHandler<NadpcoApiResilienceHandler>();
+        services.AddScoped<INadpcoMonthlyProductSalesDirectProvider>(provider =>
+            provider.GetRequiredService<NadpcoApiDataProviderClient>());
 
         // CodalDb data provider (read-only SQL Server; coexists with CyclicalWaves). It is NOT
         // registered as the default ISymbolDataProvider/etc. nor as IMarketDataProvider; it is
@@ -1383,9 +1385,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MonthlyActivityBackfillCoordinator>();
         services.AddScoped<IMonthlyActivityBackfillCoordinator>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
-        services.AddSingleton<MonthlyActivityBackfillQueue>();
-        services.AddSingleton<IMonthlyActivityBackfillQueue>(provider =>
-            provider.GetRequiredService<MonthlyActivityBackfillQueue>());
+        services.AddScoped<IMonthlyActivityBackfillOutboxRelay, MonthlyActivityBackfillOutboxRelay>();
+        services.AddOptions<MonthlyActivityBackfillOutboxOptions>()
+            .BindConfiguration(MonthlyActivityBackfillOutboxOptions.SectionName)
+            .Validate(options =>
+                options.PollSeconds > 0 &&
+                options.BatchSize is > 0 and <= 5000 &&
+                options.LeaseSeconds is >= 10 and <= 3600 &&
+                options.MaximumAttempts is > 0 and <= 100,
+                "Monthly-activity outbox options must be positive and bounded.")
+            .ValidateOnStart();
         services.AddScoped<IMonthlyActivityBackfillStateReader>(provider =>
             provider.GetRequiredService<MonthlyActivityBackfillCoordinator>());
         services.AddScoped<ISingleCompanyMonthlyIngestionService, SingleCompanyMonthlyIngestionService>();

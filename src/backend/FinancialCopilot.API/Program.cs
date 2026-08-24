@@ -99,7 +99,6 @@ builder.Services.AddOpenApi(options =>
 });
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
-builder.Services.AddHostedService<MonthlyActivityBackfillWorker>();
 builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)

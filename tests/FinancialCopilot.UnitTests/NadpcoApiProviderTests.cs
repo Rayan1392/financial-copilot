@@ -496,6 +496,48 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
+    public async Task DataProvider_DirectProductSales_PostsExactlyOneCompanyMonthOutputTypeZeroRequest()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((
+                request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchProductSalesOutputTypeZeroAsync(
+            "19",
+            1405,
+            5,
+            CancellationToken.None);
+
+        var request = Assert.Single(requests);
+        Assert.EndsWith(
+            "api/v2/MonthlyActivity/ProductSales?fromDate=140505&toDate=140505&outputTypeId=0",
+            request.Uri);
+        Assert.Contains("\"companyIds\":[19]", request.Body);
+        Assert.DoesNotContain("\"fromDate\"", request.Body);
+        Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope.ProductSalesType0);
+        Assert.Null(envelope.ProductSalesType1);
+        Assert.Equal("[]", envelope.ServiceSales);
+    }
+
+    [Fact]
     public async Task DataProvider_FetchMonthlyReports_OmitsNullMonthlyActivityFields()
     {
         await using var dbContext = CreateProviderDbContext();

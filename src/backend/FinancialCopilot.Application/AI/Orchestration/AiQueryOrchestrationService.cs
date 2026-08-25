@@ -1080,17 +1080,20 @@ public sealed class AiQueryOrchestrationService(
             ? $"{result.CompanyName} ({result.CompanySymbol})"
             : result.CompanySymbol;
         sb.AppendLine($"### ترکیب درآمد محصولات — {companyLabel}");
-        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2} | کل فروش: {result.TotalSalesAmount:N0} ریال");
+        sb.AppendLine($"دوره: {result.ReportYear}/{result.ReportMonth:D2}");
         sb.AppendLine();
-        sb.AppendLine("| ردیف | محصول | فروش (ریال) | سهم (٪) | غالب |");
+        sb.AppendLine("| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |");
         sb.AppendLine("|------|-------|------------|---------|------|");
         foreach (var p in result.Products)
         {
             var dominant = p.IsDominantProduct ? "✓" : "";
-            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {p.SalesAmount:N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
+            sb.AppendLine($"| {p.Rank} | {p.ProductName} | {ToToman(p.SalesAmount):N0} | {p.RevenueSharePercentage:F1}٪ | {dominant} |");
         }
         return sb.ToString().TrimEnd();
     }
+
+    // Persisted product sales are in million rials; display them as tomans.
+    private static decimal ToToman(decimal millionRial) => millionRial * 100_000m;
 
     private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
     {

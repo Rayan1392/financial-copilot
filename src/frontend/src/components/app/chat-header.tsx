@@ -1,11 +1,27 @@
+import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
+import {
+  getStoredAuthenticatedUser,
+  subscribeToAuthChanges,
+} from "@/integrations/financial-copilot/auth";
 
 export function ChatHeader() {
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    const updateAccess = () => setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser()));
+    updateAccess();
+    return subscribeToAuthChanges(updateAccess);
+  }, []);
+
   return (
-    <header className="h-14 border-b border-hairline flex items-center justify-between px-6 flex-shrink-0">
+    <header className="h-14 border-b border-hairline flex items-center justify-between gap-3 px-4 sm:px-6 flex-shrink-0">
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-muted-foreground">تحلیل لحظه‌ای بازار</span>
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface ring-1 ring-hairline">
+        <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface ring-1 ring-hairline">
           <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
           <span className="text-[10px] text-emerald">متصل به نوآوران‌امین</span>
           <div className="size-1.5 rounded-full bg-emerald animate-pulse" />
@@ -13,7 +29,19 @@ export function ChatHeader() {
 
         </div>
       </div>
-      <ThemeToggle />
+      <div className="flex items-center gap-2">
+        {showAdmin && (
+          <Link
+            to="/admin"
+            className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+            aria-label="پنل مدیریت"
+            title="پنل مدیریت"
+          >
+            <Settings className="size-4" />
+          </Link>
+        )}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

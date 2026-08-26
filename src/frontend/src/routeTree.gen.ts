@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompanyId'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
@@ -44,6 +45,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminGetCompanyIdRoute = AdminGetCompanyIdRouteImport.update({
+  id: '/admin_/getCompanyId',
+  path: '/admin/getCompanyId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/telegram-link': typeof AppTelegramLinkRoute
+  '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
   '/admin/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin/data/archive': typeof AdminDataArchiveRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
+  '/admin_/getCompanyId': typeof AdminGetCompanyIdRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
   '/admin_/data-management/fund-reports': typeof AdminDataManagementFundReportsRoute
   '/admin_/data/archive': typeof AdminDataArchiveRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/followed-symbols'
     | '/telegram-link'
+    | '/admin/getCompanyId'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/followed-symbols'
     | '/telegram-link'
+    | '/admin/getCompanyId'
     | '/c/$threadId'
     | '/admin/data-management/fund-reports'
     | '/admin/data/archive'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/_app/disclosures'
     | '/_app/followed-symbols'
     | '/_app/telegram-link'
+    | '/admin_/getCompanyId'
     | '/_app/c/$threadId'
     | '/admin_/data-management/fund-reports'
     | '/admin_/data/archive'
@@ -232,6 +244,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
   AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
   AdminDataMonitorRoute: typeof AdminDataMonitorRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/getCompanyId': {
+      id: '/admin_/getCompanyId'
+      path: '/admin/getCompanyId'
+      fullPath: '/admin/getCompanyId'
+      preLoaderRoute: typeof AdminGetCompanyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/telegram-link': {
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,
   AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,
   AdminDataMonitorRoute: AdminDataMonitorRoute,

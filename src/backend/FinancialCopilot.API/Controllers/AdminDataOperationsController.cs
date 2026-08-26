@@ -8,10 +8,12 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.MissingAnswer;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.API.Controllers;
 
@@ -55,7 +57,8 @@ public sealed class AdminDataOperationsController(
     IComprehensiveAnalysisSyncRunReader comprehensiveAnalysisSyncRunReader,
     IComprehensiveAnalysisPlainTextBackfillService comprehensiveAnalysisBackfill,
     IBackfillCyclicalWavesCompanyIdService cyclicalWavesCompanyIdBackfill,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    FinancialIngestionDbContext dbContext) : ControllerBase
 {
     [HttpPost("data-sync/symbols")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueSymbolSync(
@@ -532,7 +535,28 @@ public sealed class AdminDataOperationsController(
             [FromBody] AdminMonthlyActivitySingleCompanyMonthDirectRequest request,
             CancellationToken cancellationToken)
     {
-        if (request.CompanyId <= 0)
+        var companyId = request.CompanyId;
+
+        if (!string.IsNullOrWhiteSpace(request.Symbol))
+        {
+            var externalCompanyId = await dbContext.NoavaranEligibleCompanies
+                .AsNoTracking()
+                .Where(company => company.TseSymbol == request.Symbol.Trim())
+                .Select(company => company.ExternalCompanyId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (externalCompanyId is null)
+            {
+                return NotFound(new { message = $"No eligible company was found for symbol '{request.Symbol}'." });
+            }
+
+            if (!int.TryParse(externalCompanyId, out companyId))
+            {
+                return Problem("The resolved ExternalCompanyId is not a valid integer.");
+            }
+        }
+
+        if (companyId <= 0)
         {
             ModelState.AddModelError(nameof(request.CompanyId), "CompanyId must be a positive integer.");
         }
@@ -556,14 +580,14 @@ public sealed class AdminDataOperationsController(
 
         var result = await singleCompanyIngestion.ExecuteDirectAsync(
             new SingleCompanyMonthlyDirectIngestionRequest(
-                request.CompanyId,
+                companyId,
                 request.ShamsiYear,
                 request.ShamsiMonth),
             cancellationToken);
 
         return Ok(new AdminMonthlyActivitySingleCompanyMonthDirectResponse(
             result.Run.Id,
-            request.CompanyId,
+            companyId,
             request.ShamsiYear,
             request.ShamsiMonth,
             result.Run.Status.ToString(),

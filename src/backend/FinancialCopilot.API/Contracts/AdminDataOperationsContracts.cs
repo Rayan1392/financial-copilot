@@ -164,7 +164,8 @@ public sealed record AdminMonthlyActivitySingleMonthBackfillRequest(
 public sealed record AdminMonthlyActivitySingleCompanyMonthDirectRequest(
     int CompanyId,
     int ShamsiYear,
-    int ShamsiMonth);
+    int ShamsiMonth,
+    string? Symbol = null);
 
 public sealed record AdminMonthlyActivitySingleCompanyMonthDirectResponse(
     Guid RequestId,

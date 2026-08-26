@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, ArrowRight, Database, RefreshCw, Shield } from "lucide-react";
+import { Activity, ArrowRight, Database, RefreshCw, Search, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -96,6 +96,11 @@ export function AdminPage({ user }: { user: AuthUser }) {
                 </Button>
               </>
             )}
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/admin/getCompanyId">
+                <Search className="size-4 mr-1.5" /> دریافت شناسه شرکت
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link to="/chat">
                 <ArrowRight /> بازگشت به گفتگو

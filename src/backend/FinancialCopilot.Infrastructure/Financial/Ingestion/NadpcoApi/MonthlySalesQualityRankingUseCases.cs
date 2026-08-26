@@ -3,11 +3,13 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 internal sealed class MonthlySalesQualityRankingQueryUseCase(
-    IMonthlySalesQualityRankingRepository repository)
+    IMonthlySalesQualityRankingRepository repository,
+    IOptions<MonthlySalesQualityRankingOptions> options)
     : IMonthlySalesQualityRankingQueryUseCase
 {
     public Task<MonthlySalesQualityRankingResponse> ExecuteAsync(
@@ -15,7 +17,10 @@ internal sealed class MonthlySalesQualityRankingQueryUseCase(
         CancellationToken ct = default) =>
         repository.GetRankingAsync(query with
         {
-            Limit = Math.Clamp(query.Limit <= 0 ? 10 : query.Limit, 1, 50)
+            Limit = Math.Clamp(
+                query.Limit <= 0 ? options.Value.DefaultLimit : query.Limit,
+                1,
+                options.Value.MaximumLimit)
         }, ct);
 }
 

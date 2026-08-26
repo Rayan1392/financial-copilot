@@ -71,6 +71,12 @@ services:
       FeatureMessaging__UserName: ${RABBITMQ_USER:-financial_copilot}
       FeatureMessaging__Password: ${RABBITMQ_PASSWORD}
       ScannerCache__UseRedis: "true"
+      FundPortfolio__LocalSource__ProviderName: ${FUND_PORTFOLIO_PROVIDER_NAME:-ConfiguredLocalStorage}
+      FundPortfolio__LocalSource__RootPath: ${FUND_PORTFOLIO_CONTAINER_PATH:-/data/fund-portfolios}
+      FundPortfolio__LocalSource__AllowedPrefix: ${FUND_PORTFOLIO_ALLOWED_PREFIX:-}
+      FundPortfolio__LocalSource__MaximumItemsPerPage: ${FUND_PORTFOLIO_MAXIMUM_ITEMS_PER_PAGE:-100}
+      MonthlySalesQualityRanking__DefaultLimit: ${MonthlySalesQualityRanking__DefaultLimit:-10}
+      MonthlySalesQualityRanking__MaximumLimit: ${MonthlySalesQualityRanking__MaximumLimit:-50}
       Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
       Cors__AllowedOrigins__1: ${FRONTEND_PUBLIC_ORIGIN_ALT:-https://sapio.ir}
       Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
@@ -451,6 +457,11 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - type: bind
+        source: ${FUND_PORTFOLIO_HOST_PATH:-/opt/sapio/financial-copilot/data/fund-portfolios}
+        target: ${FUND_PORTFOLIO_CONTAINER_PATH:-/data/fund-portfolios}
+        read_only: true
     ports:
       - "${API_PORT:-5074}:8080"
 
@@ -463,6 +474,11 @@ services:
     environment:
       <<: *application-environment
       DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}
+    volumes:
+      - type: bind
+        source: ${FUND_PORTFOLIO_HOST_PATH:-/opt/sapio/financial-copilot/data/fund-portfolios}
+        target: ${FUND_PORTFOLIO_CONTAINER_PATH:-/data/fund-portfolios}
+        read_only: true
     depends_on:
       postgres:
         condition: service_healthy

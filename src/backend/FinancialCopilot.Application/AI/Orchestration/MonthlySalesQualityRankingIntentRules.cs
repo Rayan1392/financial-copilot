@@ -62,7 +62,7 @@ public static class MonthlySalesQualityRankingIntentRules
             IndustryTitle: industryTitle,
             Scope: scope,
             Direction: direction,
-            Limit: ExtractLimit(normalized) ?? 10,
+            Limit: ExtractLimit(normalized) ?? 0,
             IncludeExplanation: true,
             IncludeDimensionScores: false,
             OnlyEligibleRows: true);

@@ -13,6 +13,14 @@ public enum MonthlySalesQualityScope
     Symbols
 }
 
+public sealed class MonthlySalesQualityRankingOptions
+{
+    public const string SectionName = "MonthlySalesQualityRanking";
+
+    public int DefaultLimit { get; set; } = 20;
+    public int MaximumLimit { get; set; } = 50;
+}
+
 public sealed record MonthlySalesQualityRankingQuery(
     int? ReportYear = null,
     byte? ReportMonth = null,
@@ -21,7 +29,7 @@ public sealed record MonthlySalesQualityRankingQuery(
     IReadOnlyList<string>? Symbols = null,
     MonthlySalesQualityScope Scope = MonthlySalesQualityScope.Market,
     MonthlySalesQualityDirection Direction = MonthlySalesQualityDirection.Top,
-    int Limit = 10,
+    int Limit = 0,
     decimal? MinimumSalesAmount = null,
     bool IncludeExplanation = true,
     bool IncludeDimensionScores = true,

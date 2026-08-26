@@ -264,7 +264,7 @@ public sealed class MonthlySalesQualityCapabilityExecutor(IMonthlySalesQualityRa
             IndustryTitle: industry,
             Scope: string.IsNullOrWhiteSpace(industry) ? MonthlySalesQualityScope.Market : MonthlySalesQualityScope.Industry,
             Direction: ParseEnum<MonthlySalesQualityDirection>(frame.Value(QuerySlotType.Sort)) ?? MonthlySalesQualityDirection.Top,
-            Limit: Math.Clamp(ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 10, 1, 50),
+            Limit: ParseInt(frame.Value(QuerySlotType.ResultLimit)) ?? 0,
             IncludeExplanation: true,
             IncludeDimensionScores: false,
             OnlyEligibleRows: true);

@@ -1238,6 +1238,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMonthlySalesQualityScoreCalculator, MonthlySalesQualityScoreCalculator>();
         services.AddScoped<IMonthlySalesQualityRankingRepository, MonthlySalesQualityRankingRepository>();
         services.AddScoped<IRecalculateMonthlySalesQualityRankingUseCase, RecalculateMonthlySalesQualityRankingUseCase>();
+        services.AddOptions<MonthlySalesQualityRankingOptions>()
+            .BindConfiguration(MonthlySalesQualityRankingOptions.SectionName)
+            .Validate(options => options.DefaultLimit is >= 1 && options.DefaultLimit <= options.MaximumLimit && options.MaximumLimit <= 50,
+                "Monthly sales quality ranking limits must be between 1 and 50.")
+            .ValidateOnStart();
         services.AddScoped<IMonthlySalesQualityRankingQueryUseCase, MonthlySalesQualityRankingQueryUseCase>();
         // Spec 084 — proactive market event intelligence.
         services.AddSingleton<IInsightScoringService, DeterministicInsightScoringService>();

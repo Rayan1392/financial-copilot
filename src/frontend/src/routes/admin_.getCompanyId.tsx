@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { GetCompanyIdPage } from "@/components/admin/get-company-id-page";
-import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
+import {
+  adminPermissions,
+  hasPermission,
+} from "@/integrations/financial-copilot/admin-permissions";
 import { getAuthenticatedUser, type AuthUser } from "@/integrations/financial-copilot/auth";
 
 export const Route = createFileRoute("/admin_/getCompanyId")({
@@ -22,7 +25,10 @@ function GetCompanyIdRoute() {
     getAuthenticatedUser().then((user) => {
       if (!user) {
         setState({ status: "unauthenticated" });
-      } else if (!canAccessAdmin(user)) {
+      } else if (
+        !hasPermission(user, adminPermissions.noavaranMonthlyBackfillExecute) &&
+        !hasPermission(user, adminPermissions.dataSyncManage)
+      ) {
         setState({ status: "denied", user });
       } else {
         setState({ status: "ready" });

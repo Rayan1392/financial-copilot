@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, LogOut, Settings, Send, Upload } from "lucide-react";
+import { Plus, Trash2, LogOut, Settings, Send } from "lucide-react";
 import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
 import { getUsage, getWatchlist } from "@/lib/market-view.functions";
 import {
@@ -10,7 +10,7 @@ import {
   logout,
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
-import { adminPermissions, canAccessAdmin, hasPermission } from "@/integrations/financial-copilot/admin-permissions";
+import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
 import { formatPercent, toPersianDigits } from "@/lib/format/persian";
 
 export function ConversationSidebar() {
@@ -69,12 +69,10 @@ export function ConversationSidebar() {
       )
     : 0;
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showFundPortfolioUpload, setShowFundPortfolioUpload] = useState(false);
   useEffect(() => {
     const updateAccess = () => {
       const user = getStoredAuthenticatedUser();
       setShowAdmin(canAccessAdmin(user));
-      setShowFundPortfolioUpload(hasPermission(user, adminPermissions.dataSyncManage));
     };
     updateAccess();
     return subscribeToAuthChanges(updateAccess);
@@ -116,15 +114,6 @@ export function ConversationSidebar() {
         >
           اطلاعیه‌ها
         </Link>
-        {showFundPortfolioUpload && (
-          <Link
-            to="/admin/data-management/fund-reports"
-            className="mb-6 flex items-center gap-2 rounded-lg border border-emerald/30 bg-emerald-soft/40 px-3 py-2 text-sm text-foreground transition hover:border-emerald hover:bg-emerald-soft"
-          >
-            <Upload className="size-4 text-emerald" />
-            <span>آپلود اکسل پرتفوی صندوق</span>
-          </Link>
-        )}
         <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر
@@ -229,16 +218,6 @@ export function ConversationSidebar() {
               aria-label="پنل مدیریت"
             >
               <Settings className="size-4" />
-            </Link>
-          )}
-          {showFundPortfolioUpload && (
-            <Link
-              to="/admin/data-management/fund-reports"
-              className="p-1.5 text-muted-foreground hover:text-foreground transition"
-              aria-label="آپلود اکسل پرتفوی صندوق"
-              title="آپلود اکسل پرتفوی صندوق"
-            >
-              <Upload className="size-4" />
             </Link>
           )}
           <button

@@ -149,6 +149,15 @@ public static class ServiceCollectionExtensions
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminCreditsAdjust, FinancialCopilotPermissions.AdminCreditsAdjust);
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminBillingAuditRead, FinancialCopilotPermissions.AdminBillingAuditRead);
             AddWebAdminPermissionPolicy(options, AuthorizationPolicies.AdminSecurityAuditRead, FinancialCopilotPermissions.AdminSecurityAuditRead);
+            options.AddPolicy(AuthorizationPolicies.NoavaranMonthlyBackfill, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                    HasValidActorContext(context.User) &&
+                    IsMode(context.User, AuthenticationMode.WebAppUser) &&
+                    (context.User.HasClaim(FinancialCopilotClaimTypes.Permission, FinancialCopilotPermissions.NoavaranMonthlyBackfillExecute) ||
+                     context.User.HasClaim(FinancialCopilotClaimTypes.Permission, FinancialCopilotPermissions.DataSyncManage)));
+            });
         });
 
         return services;

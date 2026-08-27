@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings } from "lucide-react";
+import { FileSearch, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
+import {
+  adminPermissions,
+  canAccessAdmin,
+  hasPermission,
+} from "@/integrations/financial-copilot/admin-permissions";
 import {
   getStoredAuthenticatedUser,
   subscribeToAuthChanges,
@@ -10,9 +14,17 @@ import {
 
 export function ChatHeader() {
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showMonthlyBackfill, setShowMonthlyBackfill] = useState(false);
 
   useEffect(() => {
-    const updateAccess = () => setShowAdmin(canAccessAdmin(getStoredAuthenticatedUser()));
+    const updateAccess = () => {
+      const user = getStoredAuthenticatedUser();
+      setShowAdmin(canAccessAdmin(user));
+      setShowMonthlyBackfill(
+        hasPermission(user, adminPermissions.noavaranMonthlyBackfillExecute) ||
+          hasPermission(user, adminPermissions.dataSyncManage),
+      );
+    };
     updateAccess();
     return subscribeToAuthChanges(updateAccess);
   }, []);
@@ -30,6 +42,16 @@ export function ChatHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {showMonthlyBackfill && (
+          <Link
+            to="/admin/getCompanyId"
+            className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+            aria-label="Monthly production and sales"
+            title="Monthly production and sales"
+          >
+            <FileSearch className="size-4" />
+          </Link>
+        )}
         {showAdmin && (
           <Link
             to="/admin"

@@ -25,6 +25,7 @@ public static class FinancialCopilotPermissions
     public const string TelegramLinkManageSelf = "telegram.link.manage.self";
     public const string TelegramMembershipReadSelf = "telegram.membership.read.self";
     public const string DataSyncManage = "data.sync.manage";
+    public const string NoavaranMonthlyBackfillExecute = "noavaran.monthly-backfill.execute";
     public const string BillingManage = "billing.manage";
     public const string AdminUsersRead = "admin.users.read";
     public const string AdminUsersManage = "admin.users.manage";
@@ -68,6 +69,7 @@ public static class FinancialCopilotPermissions
         TelegramLinkManageSelf,
         TelegramMembershipReadSelf,
         DataSyncManage,
+        NoavaranMonthlyBackfillExecute,
         BillingManage,
         AdminUsersRead,
         AdminUsersManage,

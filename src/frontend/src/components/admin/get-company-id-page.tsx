@@ -107,7 +107,7 @@ export function GetCompanyIdPage() {
       <div className="mx-auto max-w-3xl">
         <div className="mb-6">
           <p className="mb-2 text-sm text-muted-foreground">ابزارهای مدیریتی</p>
-          <h1 className="text-2xl font-bold">دریافت شناسه شرکت</h1>
+          <h1 className="text-2xl font-bold">دریافت تولید و فروش ماهانه یک شرکت</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             نماد بورسی را وارد کنید تا ExternalCompanyId مربوط به آن نمایش داده شود.
           </p>

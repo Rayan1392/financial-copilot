@@ -96,11 +96,14 @@ export function AdminPage({ user }: { user: AuthUser }) {
                 </Button>
               </>
             )}
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/admin/getCompanyId">
-                <Search className="size-4 mr-1.5" /> دریافت شناسه شرکت
-              </Link>
-            </Button>
+            {(hasPermission(user, adminPermissions.noavaranMonthlyBackfillExecute) ||
+              hasPermission(user, adminPermissions.dataSyncManage)) && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/admin/getCompanyId">
+                  <Search className="size-4 mr-1.5" /> دریافت تولید و فروش ماهانه
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="outline">
               <Link to="/chat">
                 <ArrowRight /> بازگشت به گفتگو

@@ -474,6 +474,11 @@ services:
     environment:
       <<: *application-environment
       DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}
+      CyclicalWavesDataAcquisition__Enabled: ${CYCLICAL_WAVES_DATA_ACQUISITION_ENABLED:-true}
+      CyclicalWavesDataAcquisition__Schedule: ${CYCLICAL_WAVES_DATA_ACQUISITION_SCHEDULE:-0 2 * * *}
+      CyclicalWavesDataAcquisition__RequestDelayMilliseconds: ${CYCLICAL_WAVES_DATA_ACQUISITION_REQUEST_DELAY_MILLISECONDS:-1000}
+      CyclicalWavesDataAcquisition__TimeoutSeconds: ${CYCLICAL_WAVES_DATA_ACQUISITION_TIMEOUT_SECONDS:-30}
+      CyclicalWavesDataAcquisition__RetryCount: ${CYCLICAL_WAVES_DATA_ACQUISITION_RETRY_COUNT:-1}
     volumes:
       - type: bind
         source: ${FUND_PORTFOLIO_HOST_PATH:-/opt/sapio/financial-copilot/data/fund-portfolios}

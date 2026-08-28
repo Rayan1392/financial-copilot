@@ -42,6 +42,29 @@ public sealed class CyclicalWavesDataAcquisitionClientTests
         Assert.NotNull(result.AcquisitionDateUtc);
     }
 
+    [Theory]
+    [InlineData(CyclicalWavesMetricType.LastPS, "ps-data/IRO1TEST0001")]
+    [InlineData(CyclicalWavesMetricType.LastPE, "pe-data/IRO1TEST0001")]
+    public async Task LatestValuationEndpoints_ValidateEnvelopeAndExposeProviderDate(
+        CyclicalWavesMetricType metricType,
+        string expectedEndpoint)
+    {
+        const string payload =
+            "{\"data\":{\"symbol\":\"IRO1TEST0001\",\"ticker\":\"IRO1TEST0001\"," +
+            "\"ps_ratio\":1.2,\"pe_ratio\":8.4,\"close\":100,\"date\":\"2026-08-14\"}}";
+        var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+        });
+
+        var result = await client.AcquireAsync(metricType, "IRO1TEST0001", CancellationToken.None);
+
+        Assert.True(result.IsAccepted);
+        Assert.Equal(expectedEndpoint, result.SourceEndpoint);
+        Assert.Equal(new DateOnly(2026, 8, 14), result.ProviderObservationDate);
+        Assert.Equal(payload, result.RawResponseJson);
+    }
+
     [Fact]
     public async Task LargeResponseBody_PreservesCompleteRawResponse()
     {

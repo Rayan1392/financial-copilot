@@ -17,7 +17,7 @@ public sealed class CyclicalWavesMetricSnapshotRowConfiguration :
                     "\"ProviderName\" = 'CyclicalWaves'");
                 table.HasCheckConstraint(
                     "CK_CyclicalWavesMetricSnapshots_MetricType",
-                    "\"MetricType\" IN ('PS', 'PE', 'Equilibrium')");
+                    "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
                 table.HasCheckConstraint(
                     "CK_CyclicalWavesMetricSnapshots_ResponseHash",
                     "length(\"ResponseHash\") = 64 AND lower(\"ResponseHash\") = \"ResponseHash\"");
@@ -29,6 +29,7 @@ public sealed class CyclicalWavesMetricSnapshotRowConfiguration :
         builder.Property(row => row.MetricType).HasMaxLength(16).IsRequired();
         builder.Property(row => row.RawResponseJson).HasColumnType("text").IsRequired();
         builder.Property(row => row.ResponseHash).HasColumnType("char(64)").IsRequired();
+        builder.Property(row => row.ProviderObservationDate).HasColumnType("date");
         builder.Property(row => row.SourceEndpoint).HasMaxLength(512).IsRequired();
 
         builder.HasOne<NormalizedCompanyRow>()
@@ -66,6 +67,16 @@ public sealed class CyclicalWavesMetricSnapshotRowConfiguration :
                 row.CompanyId,
                 row.ProviderName,
                 row.MetricType,
+                row.ProviderObservationDate
+            })
+            .IsUnique()
+            .HasDatabaseName("UX_CyclicalWavesMetricSnapshots_ProviderObservationDate");
+
+        builder.HasIndex(row => new
+            {
+                row.CompanyId,
+                row.ProviderName,
+                row.MetricType,
                 row.PreviousSnapshotId
             })
             .IsUnique()
@@ -88,7 +99,7 @@ public sealed class CyclicalWavesAcquisitionCheckRowConfiguration :
                     "\"ProviderName\" = 'CyclicalWaves'");
                 table.HasCheckConstraint(
                     "CK_CyclicalWavesAcquisitionChecks_MetricType",
-                    "\"MetricType\" IN ('PS', 'PE', 'Equilibrium')");
+                    "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
                 table.HasCheckConstraint(
                     "CK_CyclicalWavesAcquisitionChecks_Result",
                     "\"Result\" IN ('Changed', 'NoChange', 'Failed')");

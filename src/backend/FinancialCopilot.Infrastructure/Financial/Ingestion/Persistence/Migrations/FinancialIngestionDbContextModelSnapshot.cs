@@ -1521,7 +1521,7 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
 
                             t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_Consistency", "((\"Result\" IN ('Changed', 'NoChange') AND \"ResponseHash\" IS NOT NULL AND \"SnapshotId\" IS NOT NULL AND \"FailureCode\" IS NULL) OR (\"Result\" = 'Failed' AND \"ResponseHash\" IS NULL AND \"SnapshotId\" IS NULL AND \"FailureCode\" IS NOT NULL))");
 
-                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_MetricType", "\"MetricType\" IN ('PS', 'PE', 'Equilibrium')");
+                            t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_MetricType", "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
 
                             t.HasCheckConstraint("CK_CyclicalWavesAcquisitionChecks_ProviderName", "\"ProviderName\" = 'CyclicalWaves'");
 
@@ -1557,6 +1557,9 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<DateOnly?>("ProviderObservationDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("RawResponseJson")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1588,13 +1591,17 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.Migrat
                     b.HasIndex("CompanyId", "ProviderName", "MetricType", "ResponseHash")
                         .HasDatabaseName("IX_CyclicalWavesMetricSnapshots_Hash");
 
+                    b.HasIndex("CompanyId", "ProviderName", "MetricType", "ProviderObservationDate")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CyclicalWavesMetricSnapshots_ProviderObservationDate");
+
                     b.HasIndex("CompanyId", "ProviderName", "MetricType", "AcquisitionDateUtc", "CreatedAtUtc")
                         .IsDescending(false, false, false, true, true)
                         .HasDatabaseName("IX_CyclicalWavesMetricSnapshots_Latest");
 
                     b.ToTable("CyclicalWavesMetricSnapshots", null, t =>
                         {
-                            t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_MetricType", "\"MetricType\" IN ('PS', 'PE', 'Equilibrium')");
+                            t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_MetricType", "\"MetricType\" IN ('PS', 'LastPS', 'PE', 'LastPE', 'Equilibrium')");
 
                             t.HasCheckConstraint("CK_CyclicalWavesMetricSnapshots_ProviderName", "\"ProviderName\" = 'CyclicalWaves'");
 

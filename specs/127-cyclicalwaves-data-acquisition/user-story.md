@@ -5,13 +5,13 @@ Status: Implementation planning only
 ## User story
 
 As a Financial Copilot data platform,
-I want to automatically acquire CyclicalWaves P/S, P/E, and Equilibrium data every day,
+I want to automatically acquire CyclicalWaves P/S gauge, Last P/S, P/E gauge, Last P/E, and Equilibrium data every day,
 so that the system has a reliable, complete, historical, and replayable source of valuation data.
 
 ## Problem statement
 
 Financial Copilot does not yet have one simple acquisition boundary that reliably captures all
-three required CyclicalWaves valuation responses for every company exposed by
+five required CyclicalWaves valuation responses for every company exposed by
 `NoavaranEligibleCompanies`. Provider responses can change between daily checks, and a provider or
 worker failure must not erase previously acquired evidence or force the complete cycle to restart
 unsafely.
@@ -27,8 +27,8 @@ snapshots.
 
 ## Business value
 
-- Establishes one authoritative acquisition source for CyclicalWaves P/S, P/E, and equilibrium
-  data.
+- Establishes one authoritative acquisition source for CyclicalWaves P/S gauge, Last P/S, P/E gauge,
+  Last P/E, and equilibrium data.
 - Preserves full provider evidence for audit, debugging, replay, and future projections.
 - Builds immutable response history only when provider data changes, avoiding redundant snapshots.
 - Proves daily provider coverage through separate acquisition-check history, including failures and
@@ -43,9 +43,9 @@ snapshots.
 - A configuration-controlled daily UTC worker, disabled by default.
 - Startup continuation for an incomplete current UTC acquisition cycle.
 - Deterministic company traversal using the existing `NoavaranEligibleCompanies` view.
-- Deterministic per-company request order: P/S, then P/E, then equilibrium.
+- Deterministic per-company request order: P/S gauge, Last P/S, P/E gauge, Last P/E, then equilibrium.
 - Sequential provider communication with at most one request in flight.
-- Integration with the three approved CyclicalWaves endpoints.
+- Integration with the five approved CyclicalWaves endpoints.
 - Complete successful raw JSON response preservation in immutable snapshots.
 - Canonical JSON hashing, latest-response comparison, and changed/no-change detection.
 - Separate acquisition-check records for `Changed`, `NoChange`, and `Failed` results.
@@ -81,12 +81,12 @@ snapshots.
    `ExternalCompanyId`, `CompanySymbol`, and `SymbolIsin`, and must not apply another downstream
    eligibility, ranking, or visualization filter. The view row's `Id` may also be retained solely
    for the existing `Companies.Id` persistence foreign key.
-3. For each company with a valid symbol ISIN, the worker must call the P/S, P/E, and equilibrium
-   endpoints in that exact order.
+3. For each company with a valid symbol ISIN, the worker must call the P/S gauge, Last P/S, P/E gauge,
+   Last P/E, and equilibrium endpoints in that exact order.
 4. Provider calls must be awaited sequentially. At most one logical or physical provider request,
    including retries, may be in flight.
 5. A missing or invalid `SymbolIsin` in an eligible-company view row must create explicit failed
-   checks for all three metrics without silently reducing expected coverage.
+   checks for all five metrics without silently reducing expected coverage.
 6. P/S acquisition is mandatory even while Feature114 independently fetches P/S for its current
    behavior.
 
@@ -94,8 +94,10 @@ snapshots.
 
 7. The acquisition client must retain the exact successful JSON response text and the transport
    metadata needed for persistence and diagnostics.
-8. P/S and P/E responses must satisfy the approved gauge contract. Equilibrium responses must
-   satisfy their contract and, when `enticker` is present, match the requested normalized ISIN.
+8. P/S and P/E responses must satisfy the approved gauge contract. Last P/S and Last P/E responses must contain
+   the required `data.symbol`, `data.ticker`, `data.ps_ratio`, `data.close`, and `data.date` fields.
+   Equilibrium responses must satisfy their contract and, when `enticker` is present, match the
+   requested normalized ISIN.
 9. Unknown additive JSON properties must be accepted and preserved.
 10. Malformed, truncated, non-object, contract-invalid, or identity-mismatched responses must be
     recorded as failures and must not replace a previous valid snapshot.
@@ -163,13 +165,13 @@ snapshots.
 ### Data acquisition
 
 1. Given the feature is enabled and a daily cycle begins, when a company has a valid ISIN, then the
-   worker attempts all three provider datasets: P/S, P/E, and equilibrium.
+   worker attempts all four provider datasets: P/S gauge, Last P/S, P/E, and equilibrium.
 2. Given eligible and ineligible company rows exist in `Companies`, when the company source is
    queried and the cycle executes, then only rows exposed by `NoavaranEligibleCompanies` are
    acquired in stable normalized-ISIN and `CompanyId` order, using the view's `SymbolIsin` without
    an `EnTicker` fallback.
 3. Given one company, when its metrics execute, then the logical order is exactly
-   `PS -> PE -> Equilibrium`.
+   `PS -> LastPS -> PE -> Equilibrium`.
 4. Given any acquisition cycle, when provider requests are observed, then no more than one logical
    or physical provider request is in flight at any time.
 5. Given an accepted provider response, when it is persisted, then the complete response is
@@ -232,7 +234,7 @@ snapshots.
 
 ### Future boundary
 
-28. This feature owns CyclicalWaves P/S, P/E, and equilibrium acquisition, raw response
+28. This feature owns CyclicalWaves P/S gauge, Last P/S, P/E, and equilibrium acquisition, raw response
     preservation, snapshot/check history, and duplicate detection only; it performs no rendering,
     visualization, frontend, ranking, or valuation calculation work.
 29. The system acquires P/S data even before Feature114 migration is completed. Feature114

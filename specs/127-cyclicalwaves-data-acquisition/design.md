@@ -4,12 +4,14 @@ Status: Design only. No implementation is authorized by this specification.
 
 ## 1. Problem statement
 
-Financial Copilot needs a small, reliable worker that acquires three CyclicalWaves responses for
+Financial Copilot needs a small, reliable worker that acquires five CyclicalWaves responses for
 every company exposed by the `NoavaranEligibleCompanies` view each day:
 
 1. P/S gauge: `GET /api/ps/circle-chart-data/{ISIN}`
-2. P/E gauge: `GET /api/pe/circle-chart-data/{ISIN}`
-3. Equilibrium gauge: `GET /api/equilibrium/gauge/{ISIN}`
+2. Last P/S: `GET /api/ps-data/{ISIN}`
+3. P/E gauge: `GET /api/pe/circle-chart-data/{ISIN}`
+4. Last P/E: `GET /api/pe-data/{ISIN}`
+5. Equilibrium gauge: `GET /api/equilibrium/gauge/{ISIN}`
 
 The provider does not reliably supply the business acquisition timestamp. The platform must
 therefore record UTC timestamps captured by the platform at the moment each HTTP request is sent.
@@ -32,7 +34,7 @@ The design separates two facts:
 
 ### In scope
 
-- Daily scheduled acquisition for P/S, P/E, and equilibrium responses.
+- Daily scheduled acquisition for P/S gauge, Last P/S, P/E gauge, Last P/E, and equilibrium responses.
 - Full successful response preservation as raw JSON text.
 - Deterministic response hashing and change detection.
 - Snapshot and acquisition-check persistence.
@@ -105,7 +107,7 @@ flowchart TD
 | --- | --- |
 | `CyclicalWavesDataAcquisitionWorker` | Wait for the configured UTC schedule, invoke one run at a time, and perform startup recovery. |
 | Data acquisition service | Load companies, enforce fixed metric order, skip already completed daily work, isolate failures, and apply inter-request delay. |
-| Acquisition client | Send the three GET requests and return the exact response text plus transport metadata and request timestamps. |
+| Acquisition client | Send the four GET requests and return the exact response text plus transport metadata and request timestamps. |
 | Existing `CyclicalWavesAuthHandler` | Reuse the current login and bearer-header flow, resolve cached tokens, single-flight token acquisition, and perform at most one controlled 401 recovery. |
 | Existing CyclicalWaves token cache abstraction | Store and retrieve the authentication token envelope from Redis with expiry-aware validation and a safety margin. |
 | JSON canonicalizer | Validate JSON, canonicalize the complete document, and calculate SHA-256. It never changes the stored raw text. |
@@ -122,14 +124,15 @@ token provider, credential store, or authentication handler.
 
 ## 5. Future Feature114 Data Consumption Boundary
 
-This acquisition feature is the single data acquisition source for all three CyclicalWaves metric
+This acquisition feature is the single data acquisition source for all four CyclicalWaves metric
 services in its scope:
 
 - P/S
+- Last P/S
 - P/E
 - Equilibrium
 
-The worker must call and persist all three services for every eligible company in each daily cycle.
+The worker must call and persist all four services for every eligible company in each daily cycle.
 P/S is not optional and must not be skipped because Feature 114 currently fetches or consumes P/S
 data for gauge visualization. Until Feature 114 is migrated, the existing Feature 114 provider
 call and this worker's P/S acquisition may temporarily coexist. That temporary overlap does not
@@ -169,7 +172,7 @@ CyclicalWaves provider endpoint directly. This design does not implement or sche
 
 This acquisition feature owns:
 
-- Provider communication for P/S, P/E, and equilibrium.
+- Provider communication for P/S gauge, Last P/S, P/E, and equilibrium.
 - Complete raw response preservation.
 - Immutable snapshot history.
 - Acquisition-check history.
@@ -201,13 +204,21 @@ but they must retain traceability to the source snapshot, normally through `Snap
 | MetricType | Relative endpoint | Minimum contract validation |
 | --- | --- | --- |
 | `PS` | `ps/circle-chart-data/{ISIN}` | A JSON object containing numeric `a` through `f`, `close`, `start`, `end`, `min`, `max`, and `avg`. |
+| `LastPS` | `ps-data/{ISIN}` | A JSON object containing a `data` object with string `symbol`, string `ticker`, numeric `ps_ratio`, numeric `close`, and ISO date `date`. |
 | `PE` | `pe/circle-chart-data/{ISIN}` | A JSON object containing numeric `a` through `f`, `close`, `start`, `end`, `min`, `max`, and `avg`. |
+| `LastPE` | `pe-data/{ISIN}` | A JSON object containing a `data` object with string `symbol`, string `ticker`, numeric `pe_ratio`, numeric `close`, and ISO date `date`. |
 | `Equilibrium` | `equilibrium/gauge/{ISIN}` | A JSON object containing the documented gauge fields. `enticker`, when present, must match the requested normalized ISIN. |
 
 Unknown additive JSON properties are accepted and retained because the raw response is the source
 of truth. Arrays retain provider order. Numeric values must be valid JSON numbers; non-finite
 values, malformed/truncated JSON, a non-object root, or a response that lacks the minimum contract
 are failed checks and do not replace the latest accepted snapshot.
+
+For `LastPS`, the required fields are located under `data`. The provider's `ticker` is preserved
+exactly as returned and is not treated as the platform's company identifier. The provider `date`
+is an observation date only; it must not replace the platform's `AcquisitionDateUtc` or
+`RequestedAtUtc`. A missing `data` object, missing required field, invalid number/date, or
+non-object response is a contract failure.
 
 `204` and `404` are recorded as `Failed` with `NotFoundOrNoData`. Other non-success status codes
 are also failed checks after the retry policy, if applicable. A failed response never deletes,
@@ -327,7 +338,7 @@ One row represents one accepted response version for one company and metric.
 | `CompanyId` | `uuid` | No | FK to `Companies.Id`, delete restricted. |
 | `SymbolIsin` | `varchar(32)` | No | Trimmed, uppercase ISIN used in the request; retained as acquisition-time identity evidence. |
 | `ProviderName` | `varchar(64)` | No | Always `CyclicalWaves`. |
-| `MetricType` | `varchar(16)` | No | `PS`, `PE`, or `Equilibrium`. |
+| `MetricType` | `varchar(16)` | No | `PS`, `LastPS`, `PE`, or `Equilibrium`. |
 | `RawResponseJson` | `text` | No | Exact successful response text as received. `text`, rather than `jsonb`, preserves formatting and property order. |
 | `ResponseHash` | `char(64)` | No | Lowercase hexadecimal SHA-256 of the canonical complete JSON document. |
 | `AcquisitionDateUtc` | `timestamptz` | No | Time immediately before the successful physical HTTP attempt. |
@@ -344,7 +355,7 @@ Required constraints and indexes:
 - Primary key on `Id`.
 - FK `CompanyId -> Companies.Id` with `Restrict`/`NoAction` delete behavior.
 - Self FK `PreviousSnapshotId -> CyclicalWavesMetricSnapshots.Id` with restricted delete behavior.
-- Check constraint for the three `MetricType` values.
+- Check constraint for the four `MetricType` values.
 - Check constraint for `ProviderName = 'CyclicalWaves'`.
 - Check constraint that `ResponseHash` is 64 lowercase hexadecimal characters.
 - Latest-read index on
@@ -372,7 +383,7 @@ additional check rows.
 | `CompanyId` | `uuid` | No | FK to `Companies.Id`, delete restricted. |
 | `SymbolIsin` | `varchar(32)` | Yes | ISIN used for the request; null only when identity validation failed before an HTTP call. |
 | `ProviderName` | `varchar(64)` | No | Always `CyclicalWaves`. |
-| `MetricType` | `varchar(16)` | No | `PS`, `PE`, or `Equilibrium`. |
+| `MetricType` | `varchar(16)` | No | `PS`, `LastPS`, `PE`, or `Equilibrium`. |
 | `CheckedAtUtc` | `timestamptz` | No | Time the logical metric evaluation began. |
 | `RequestedAtUtc` | `timestamptz` | Yes | Time immediately before its first physical HTTP attempt. |
 | `CompletedAtUtc` | `timestamptz` | No | Time the logical check reached a terminal result. |
@@ -487,10 +498,10 @@ On startup or daily schedule
   for each company:
     resolve one SymbolIsin
     if no valid ISIN:
-      record Failed checks for PS, PE, and Equilibrium
+      record Failed checks for PS, LastPS, PE, and Equilibrium
       continue to next company
 
-    for metric in [PS, PE, Equilibrium]:
+    for metric in [PS, LastPS, PE, Equilibrium]:
       if successful check already exists for this cycle/company/metric:
         continue
 
@@ -518,10 +529,10 @@ On startup or daily schedule
   ```
 - Use the view's `SymbolIsin` as the CyclicalWaves request identity after trimming, uppercasing,
   and validation. Do not fall back to `EnTicker` and do not apply another eligibility filter.
-- If no valid ISIN exists, record three `MissingSymbolIsin` failures. Missing identity is visible
+- If no valid ISIN exists, record four `MissingSymbolIsin` failures. Missing identity is visible
   and must never silently reduce coverage.
-- Company order is stable: normalized ISIN, then `CompanyId`. Metric order is always P/S, P/E,
-  equilibrium.
+- Company order is stable: normalized ISIN, then `CompanyId`. Metric order is always P/S, Last P/S,
+  P/E, equilibrium.
 
 ### Scheduling behavior
 
@@ -652,8 +663,8 @@ recovery; dropping them is a separate explicit destructive operation, not part o
 - Endpoint construction correctly escapes and normalizes ISINs.
 - Request timestamps come from `TimeProvider` and distinguish first request, successful retry, and
   completion times.
-- Worker order is company-sequential and exactly `PS -> PE -> Equilibrium`.
-- A failed P/S operation still executes P/E and equilibrium.
+- Worker order is company-sequential and exactly `PS -> LastPS -> PE -> Equilibrium`.
+- A failed P/S or Last P/S operation still executes the remaining metrics.
 - Request delay is applied once between logical calls and is cancellation-aware.
 - Missing and invalid eligible-company ISINs produce the required failed checks without HTTP calls.
 - A successful same-cycle check is skipped during restart; a failed check is retried.
@@ -722,13 +733,13 @@ After a controlled test run, operators should be able to answer with simple quer
 - Which company/metric checks failed in the latest UTC cycle?
 - Which checks were `Changed` versus `NoChange`?
 - What is the latest snapshot hash and acquisition timestamp for each company/metric?
-- Does every company in `NoavaranEligibleCompanies` have three successful checks for the cycle, or
+- Does every company in `NoavaranEligibleCompanies` have four successful checks for the cycle, or
   explicit identity/provider failures explaining the gap?
 
 ## 16. Acceptance criteria
 
 1. When disabled, the feature makes no provider calls and writes no feature rows.
-2. Each enabled daily cycle evaluates every company from `NoavaranEligibleCompanies` and all three
+2. Each enabled daily cycle evaluates every company from `NoavaranEligibleCompanies` and all four
    metrics in the fixed sequential order, with no parallel calls.
 3. Every accepted changed response is stored completely in a new immutable snapshot.
 4. An unchanged accepted response creates no snapshot and creates one `NoChange` check.

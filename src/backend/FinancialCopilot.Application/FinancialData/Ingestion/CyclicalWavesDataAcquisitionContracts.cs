@@ -3,7 +3,9 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 public enum CyclicalWavesMetricType
 {
     PS,
+    LastPS,
     PE,
+    LastPE,
     Equilibrium
 }
 
@@ -48,7 +50,8 @@ public sealed record CyclicalWavesProviderAcquisitionResult(
     int? HttpStatusCode,
     short AttemptCount,
     string? FailureCode,
-    string? FailureMessage)
+    string? FailureMessage,
+    DateOnly? ProviderObservationDate = null)
 {
     public bool IsAccepted =>
         RawResponseJson is not null &&
@@ -69,7 +72,8 @@ public sealed record CyclicalWavesAcceptedAcquisition(
     DateTimeOffset CompletedAtUtc,
     string SourceEndpoint,
     int HttpStatusCode,
-    short AttemptCount);
+    short AttemptCount,
+    DateOnly? ProviderObservationDate = null);
 
 public sealed record CyclicalWavesFailedAcquisition(
     DateOnly CycleDateUtc,

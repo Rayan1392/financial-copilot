@@ -56,6 +56,15 @@ public sealed class CyclicalWavesDataAcquisitionRepository(
             try
             {
                 var metric = acquisition.MetricType.ToString();
+                var existingProviderDateSnapshot = acquisition.ProviderObservationDate is null
+                    ? null
+                    : await dbContext.CyclicalWavesMetricSnapshots.FirstOrDefaultAsync(
+                        row => row.CompanyId == acquisition.CompanyId &&
+                               row.ProviderName == ProviderName &&
+                               row.MetricType == metric &&
+                               row.ProviderObservationDate == acquisition.ProviderObservationDate,
+                        cancellationToken);
+                var providerDateAlreadyStored = existingProviderDateSnapshot is not null;
                 var latest = await dbContext.CyclicalWavesMetricSnapshots
                     .Where(row => row.CompanyId == acquisition.CompanyId &&
                                   row.ProviderName == ProviderName &&
@@ -67,9 +76,12 @@ public sealed class CyclicalWavesDataAcquisitionRepository(
                 CyclicalWavesMetricSnapshotRow snapshot;
                 CyclicalWavesAcquisitionResult result;
                 if (latest is not null &&
-                    string.Equals(latest.ResponseHash, acquisition.ResponseHash, StringComparison.Ordinal))
+                    (providerDateAlreadyStored ||
+                     (acquisition.ProviderObservationDate is null &&
+                      latest.ProviderObservationDate is null &&
+                      string.Equals(latest.ResponseHash, acquisition.ResponseHash, StringComparison.Ordinal))))
                 {
-                    snapshot = latest;
+                    snapshot = existingProviderDateSnapshot ?? latest;
                     result = CyclicalWavesAcquisitionResult.NoChange;
                 }
                 else
@@ -84,6 +96,7 @@ public sealed class CyclicalWavesDataAcquisitionRepository(
                         RawResponseJson = acquisition.RawResponseJson,
                         ResponseHash = acquisition.ResponseHash,
                         AcquisitionDateUtc = acquisition.AcquisitionDateUtc,
+                        ProviderObservationDate = acquisition.ProviderObservationDate,
                         SourceEndpoint = acquisition.SourceEndpoint,
                         PreviousSnapshotId = latest?.Id,
                         CreatedAtUtc = timeProvider.GetUtcNow()

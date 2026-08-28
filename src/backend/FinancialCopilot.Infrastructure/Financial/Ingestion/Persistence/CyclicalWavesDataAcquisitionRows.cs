@@ -10,6 +10,7 @@ public sealed class CyclicalWavesMetricSnapshotRow
     public string RawResponseJson { get; set; } = string.Empty;
     public string ResponseHash { get; set; } = string.Empty;
     public DateTimeOffset AcquisitionDateUtc { get; set; }
+    public DateOnly? ProviderObservationDate { get; set; }
     public string SourceEndpoint { get; set; } = string.Empty;
     public Guid? PreviousSnapshotId { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }

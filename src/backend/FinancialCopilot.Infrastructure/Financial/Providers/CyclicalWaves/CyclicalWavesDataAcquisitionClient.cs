@@ -96,7 +96,8 @@ public sealed class CyclicalWavesDataAcquisitionClient(
                 (int)response.StatusCode,
                 attemptContext.AttemptCount,
                 null,
-                null);
+                null,
+                ExtractProviderObservationDate(metricType, rawResponseJson));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -140,7 +141,9 @@ public sealed class CyclicalWavesDataAcquisitionClient(
         return metricType switch
         {
             CyclicalWavesMetricType.PS => $"ps/circle-chart-data/{escapedIsin}",
+            CyclicalWavesMetricType.LastPS => $"ps-data/{escapedIsin}",
             CyclicalWavesMetricType.PE => $"pe/circle-chart-data/{escapedIsin}",
+            CyclicalWavesMetricType.LastPE => $"pe-data/{escapedIsin}",
             CyclicalWavesMetricType.Equilibrium => $"equilibrium/gauge/{escapedIsin}",
             _ => throw new ArgumentOutOfRangeException(nameof(metricType), metricType, null)
         };
@@ -188,6 +191,33 @@ public sealed class CyclicalWavesDataAcquisitionClient(
                 return (CyclicalWavesAcquisitionFailureCodes.InvalidJson, "Provider response contained duplicate object properties.");
             }
 
+            if (metricType is CyclicalWavesMetricType.LastPS or CyclicalWavesMetricType.LastPE)
+            {
+                var ratioField = metricType == CyclicalWavesMetricType.LastPS ? "ps_ratio" : "pe_ratio";
+                if (!document.RootElement.TryGetProperty("data", out var data) ||
+                    data.ValueKind != JsonValueKind.Object ||
+                    !HasString(data, "symbol") ||
+                    !HasString(data, "ticker") ||
+                    !HasSupportedNumber(data, ratioField) ||
+                    !HasSupportedNumber(data, "close") ||
+                    !TryGetProviderDate(data, out _))
+                {
+                    return (CyclicalWavesAcquisitionFailureCodes.ContractMismatch,
+                        "Provider response lacked the required latest valuation data fields.");
+                }
+
+                if (!string.Equals(
+                        NormalizeIsin(data.GetProperty("ticker").GetString()),
+                        normalizedIsin,
+                        StringComparison.Ordinal))
+                {
+                    return (CyclicalWavesAcquisitionFailureCodes.IdentityMismatch,
+                        "Provider response identity did not match the requested ISIN.");
+                }
+
+                return null;
+            }
+
             var requiredFields = metricType == CyclicalWavesMetricType.Equilibrium
                 ? EquilibriumNumericFields
                 : CircleChartNumericFields;
@@ -218,6 +248,33 @@ public sealed class CyclicalWavesDataAcquisitionClient(
         root.TryGetProperty(propertyName, out var value) &&
         value.ValueKind == JsonValueKind.Number &&
         value.TryGetDecimal(out _);
+
+    private static bool HasString(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.String &&
+        !string.IsNullOrWhiteSpace(value.GetString());
+
+    private static bool TryGetProviderDate(JsonElement data, out DateOnly date)
+    {
+        date = default;
+        return data.TryGetProperty("date", out var value) &&
+               value.ValueKind == JsonValueKind.String &&
+               DateOnly.TryParse(value.GetString(), out date);
+    }
+
+    private static DateOnly? ExtractProviderObservationDate(
+        CyclicalWavesMetricType metricType,
+        string rawResponseJson)
+    {
+        if (metricType is not (CyclicalWavesMetricType.LastPS or CyclicalWavesMetricType.LastPE))
+            return null;
+
+        using var document = JsonDocument.Parse(rawResponseJson);
+        return document.RootElement.TryGetProperty("data", out var data) &&
+               TryGetProviderDate(data, out var date)
+            ? date
+            : null;
+    }
 
     private static bool AllNumbersAreSupported(JsonElement element)
     {

@@ -14,7 +14,13 @@ public sealed class CyclicalWavesDataAcquisitionService(
     ILogger<CyclicalWavesDataAcquisitionService> logger) : ICyclicalWavesDataAcquisitionService
 {
     private static readonly CyclicalWavesMetricType[] MetricOrder =
-        [CyclicalWavesMetricType.PS, CyclicalWavesMetricType.PE, CyclicalWavesMetricType.Equilibrium];
+        [
+            CyclicalWavesMetricType.PS,
+            CyclicalWavesMetricType.LastPS,
+            CyclicalWavesMetricType.PE,
+            CyclicalWavesMetricType.LastPE,
+            CyclicalWavesMetricType.Equilibrium
+        ];
 
     public async Task<CyclicalWavesAcquisitionCycleSummary> ExecuteAsync(
         DateOnly cycleDateUtc,
@@ -110,7 +116,8 @@ public sealed class CyclicalWavesDataAcquisitionService(
                                 acquisition.CompletedAtUtc,
                                 acquisition.SourceEndpoint,
                                 acquisition.HttpStatusCode!.Value,
-                                acquisition.AttemptCount),
+                                acquisition.AttemptCount,
+                                acquisition.ProviderObservationDate),
                             cancellationToken);
 
                         if (persisted.Result == CyclicalWavesAcquisitionResult.Changed)
@@ -237,7 +244,9 @@ public sealed class CyclicalWavesDataAcquisitionService(
     private static string GetIntendedEndpoint(CyclicalWavesMetricType metricType) => metricType switch
     {
         CyclicalWavesMetricType.PS => "ps/circle-chart-data/{ISIN}",
+        CyclicalWavesMetricType.LastPS => "ps-data/{ISIN}",
         CyclicalWavesMetricType.PE => "pe/circle-chart-data/{ISIN}",
+        CyclicalWavesMetricType.LastPE => "pe-data/{ISIN}",
         CyclicalWavesMetricType.Equilibrium => "equilibrium/gauge/{ISIN}",
         _ => throw new ArgumentOutOfRangeException(nameof(metricType), metricType, null)
     };

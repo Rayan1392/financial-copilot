@@ -4,7 +4,7 @@ Status: Implementation plan only. These tasks do not authorize code changes.
 
 Source of truth: `specs/127-cyclicalwaves-data-acquisition/design.md`
 
-The phases below implement only daily CyclicalWaves P/S, P/E, and equilibrium acquisition,
+The phases below implement only daily CyclicalWaves P/S gauge, Last P/S, P/E, and equilibrium acquisition,
 immutable raw snapshots, acquisition checks, recovery, and provider protection. Structured consumer
 read models are separate future work; `RawResponseJson` remains the canonical source of truth.
 
@@ -210,6 +210,52 @@ response for persistence; do not map the response into consumer gauge fields.
 - Malformed, non-object, truncated, or missing-field responses return stable contract failures and
   do not return an accepted payload.
 - P/S acquisition is available and executed independently of any current P/S consumer.
+
+## 127-P2-T09 - Implement Last P/S endpoint integration
+
+**Task description**
+
+Add the Last P/S operation for `GET ps-data/{ISIN}`. Escape the normalized ISIN and preserve the
+actual relative endpoint. Validate the response envelope as an object containing `data`, with the
+required fields `data.symbol` (string), `data.ticker` (string), `data.ps_ratio` (finite JSON
+number), `data.close` (finite JSON number), and `data.date` (ISO calendar date). Preserve the
+complete successful response as raw JSON; do not discard the nested envelope or map it directly
+into the existing P/S gauge representation.
+
+The Last P/S operation is a distinct `LastPS` metric stream. It must have its own checkpoint,
+snapshot history, hash, timestamps, failure result, and endpoint metadata. The provider's `ticker`
+and `date` fields are provider evidence and must not replace the platform company identity or
+acquisition timestamp.
+
+**Expected files/components**
+
+- Last P/S method on `CyclicalWavesDataAcquisitionClient`.
+- Minimal Last P/S envelope/field validator.
+- Last P/S provider-contract fixtures and request tests.
+- Metric descriptor and `LastPS` persistence mapping.
+
+**Dependencies**
+
+- Task 127-P2-T01.
+- Task 127-P3-T01 for the metric-stream persistence contract.
+
+**Acceptance criteria**
+
+- The endpoint is exactly `ps-data/{escaped ISIN}` relative to the configured API base.
+- A valid sample response is accepted with all five required nested fields preserved in raw JSON.
+- `ps_ratio` and `close` accept zero and other finite JSON numbers.
+- Missing envelope/fields, invalid types, invalid date, malformed JSON, and non-object responses
+  produce stable contract failures and no accepted payload.
+- Unknown additive properties at the root or under `data` are accepted and retained.
+- Last P/S has `MetricType = LastPS` and is not conflated with the existing `PS` gauge stream.
+
+## 127-P2-T10 - Implement Last P/E endpoint integration
+
+Add the independent latest P/E operation for `GET pe-data/{ISIN}`. Validate the same nested
+`data` envelope as Last P/S, using `data.pe_ratio`, `data.close`, and provider `data.date`; preserve
+the complete response and use the provider date for duplicate detection.
+
+- Last P/E has `MetricType = LastPE` and is not conflated with the P/E gauge stream.
 
 ## 127-P2-T03 - Implement P/E endpoint integration
 
@@ -555,6 +601,38 @@ the successful snapshot transaction.
   infrastructure.
 - Previously committed snapshots remain untouched on every failure path.
 
+## 127-P3-T07 - Extend persistence for Last P/S metric stream
+
+**Task description**
+
+Extend the acquisition persistence model and additive PostgreSQL migration to support the distinct
+`LastPS` metric stream in `CyclicalWavesMetricSnapshots` and `CyclicalWavesAcquisitionChecks`.
+Update metric validation, enum/descriptor mappings, indexes, and any persistence contract tests.
+Do not add consumer-specific parsed columns: the complete Last P/S response remains in
+`RawResponseJson`, including `data.symbol`, `data.ticker`, `data.ps_ratio`, `data.close`, and
+`data.date`.
+
+**Expected files/components**
+
+- Metric type constants/descriptors and persistence mapping.
+- Additive EF Core migration updating metric-type check constraints.
+- Snapshot/check repository tests for `LastPS`.
+- Schema and model snapshot updates.
+
+**Dependencies**
+
+- Tasks 127-P1-T02 and 127-P1-T03.
+- Task 127-P2-T09.
+
+**Acceptance criteria**
+
+- `LastPS` is accepted by both acquisition tables without weakening validation for `PS`, `PE`, or
+  `Equilibrium`.
+- Last P/S snapshots and checks use the same predecessor, hash, and restart semantics as the
+  existing metric streams.
+- The migration is additive and does not rewrite or invalidate existing snapshots/checks.
+- The stored raw response round-trips without loss or field extraction.
+
 # Phase 4 - Worker
 
 ## 127-P4-T01 - Implement scheduled worker
@@ -597,7 +675,7 @@ Implement the company source and acquisition service traversal over every row in
 `NoavaranEligibleCompanies` view. Project `ExternalCompanyId`, `CompanySymbol`, and `SymbolIsin`
 from the view, retaining its `Id` only for the existing `Companies.Id` persistence foreign key. Use
 the view's `SymbolIsin` as the request identity with no `EnTicker` fallback. Reject a missing or
-invalid ISIN by recording three failed checks. Sort valid companies by normalized ISIN and then
+invalid ISIN by recording four failed checks. Sort valid companies by normalized ISIN and then
 `CompanyId`; do not mutate the company catalog/view or apply another eligibility filter.
 
 **Expected files/components**
@@ -614,7 +692,7 @@ invalid ISIN by recording three failed checks. Sort valid companies by normalize
 
 **Acceptance criteria**
 
-- Every row exposed by `NoavaranEligibleCompanies` reaches valid processing or three explicit
+- Every row exposed by `NoavaranEligibleCompanies` reaches valid processing or four explicit
   identity-failure checks.
 - The source reads `ExternalCompanyId`, `CompanySymbol`, and `SymbolIsin` from
   `NoavaranEligibleCompanies`; it does not enumerate the full `Companies` table.
@@ -624,15 +702,15 @@ invalid ISIN by recording three failed checks. Sort valid companies by normalize
 - The implementation performs no company/view insert, update, delete, or additional eligibility
   filter.
 
-## 127-P4-T03 - Implement PS -> PE -> Equilibrium execution order
+## 127-P4-T03 - Implement PS -> LastPS -> PE -> Equilibrium execution order
 
 **Task description**
 
-For each valid company, execute the three metric operations in the fixed order P/S, P/E, then
-equilibrium. For each metric, perform checkpoint lookup, provider acquisition, canonical hashing,
-atomic accepted-response persistence or failed-check persistence, and request pacing before moving
-to the next logical operation. P/S must always remain part of this worker regardless of current
-consumer behavior.
+For each valid company, execute the four metric operations in the fixed order P/S gauge, Last P/S,
+P/E, then equilibrium. For each metric, perform checkpoint lookup, provider acquisition, canonical
+hashing, atomic accepted-response persistence or failed-check persistence, and request pacing before
+moving to the next logical operation. Both P/S streams must remain part of this worker regardless of
+current consumer behavior.
 
 **Expected files/components**
 
@@ -648,12 +726,12 @@ consumer behavior.
 
 **Acceptance criteria**
 
-- The ordered list is exactly `PS`, `PE`, `Equilibrium` and is not data-dependent.
+- The ordered list is exactly `PS`, `LastPS`, `PE`, `Equilibrium` and is not data-dependent.
 - The next metric does not start until the preceding metric reaches a terminal outcome and pacing
   completes.
 - A successful response is persisted before the next provider call.
-- All three metric checks retain independent timestamps, hash/result, attempts, and endpoint.
-- P/S is acquired even before any future database-backed consumer migration.
+- All four metric checks retain independent timestamps, hash/result, attempts, and endpoint.
+- Both P/S streams are acquired even before any future database-backed consumer migration.
 
 ## 127-P4-T04 - Implement restart continuation
 
@@ -723,7 +801,8 @@ Allow host cancellation to escape promptly. Preserve all previously committed sn
 Add deterministic unit coverage for configuration validation, ISIN resolution, endpoint
 construction, timestamp capture, JSON contract validation, canonical hashing, change
 classification, metric ordering, pacing, checkpoint decisions, failure mapping, and diagnostic
-sanitization. Use fakes and controlled time; do not make live provider or database calls.
+sanitization. Include the nested Last P/S response contract and `LastPS` metric mapping. Use fakes
+and controlled time; do not make live provider or database calls.
 
 **Expected files/components**
 
@@ -742,7 +821,7 @@ sanitization. Use fakes and controlled time; do not make live provider or databa
 - Tests cover enabled/disabled and all invalid configuration boundaries.
 - Canonical hash tests cover whitespace, property order, numbers, nested objects, arrays, Unicode,
   escapes, semantic changes, and exact 64-character lowercase output.
-- Service tests prove deterministic company and `PS -> PE -> Equilibrium` order with concurrency
+- Service tests prove deterministic company and `PS -> LastPS -> PE -> Equilibrium` order with concurrency
   never exceeding one.
 - Tests prove P/S acquisition is independent of current consumer behavior.
 - Tests prove missing/invalid eligible-company ISIN behavior and cancellation-aware pacing.
@@ -760,7 +839,7 @@ calling the live provider.
 **Expected files/components**
 
 - `CyclicalWavesDataAcquisitionProviderContractTests`.
-- P/S, P/E, and equilibrium JSON fixtures.
+- P/S, Last P/S, P/E, and equilibrium JSON fixtures.
 - Scripted HTTP/authentication handler and deterministic time fixture.
 
 **Dependencies**
@@ -771,6 +850,8 @@ calling the live provider.
 **Acceptance criteria**
 
 - Each endpoint accepts its representative contract and preserves every raw field.
+- Last P/S validates and preserves the nested `data.symbol`, `data.ticker`, `data.ps_ratio`,
+  `data.close`, and `data.date` fields, including valid zero values.
 - Coverage includes unknown properties, reordered properties, Unicode ticker text, and zero numeric
   values.
 - Coverage includes `204`, `400`, `401`, `404`, `408`, `429` with `Retry-After`, `5xx`, network
@@ -888,7 +969,7 @@ metrics and companies continue and that maximum observed provider concurrency re
 
 **Acceptance criteria**
 
-- P/S failure still permits P/E and equilibrium for the same company.
+- P/S or Last P/S failure still permits the remaining metrics for the same company.
 - Any company failure still permits every later company to run.
 - Provider and persistence failures retain all earlier committed snapshots/checks.
 - Maximum observed logical and physical provider concurrency is one.

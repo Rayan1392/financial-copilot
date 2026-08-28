@@ -35,11 +35,11 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
 
         Assert.Equal(
             [
-                "IRO1AAAA0001:PS", "IRO1AAAA0001:PE", "IRO1AAAA0001:Equilibrium",
-                "IRO1BBBB0002:PS", "IRO1BBBB0002:PE", "IRO1BBBB0002:Equilibrium"
+                "IRO1AAAA0001:PS", "IRO1AAAA0001:LastPS", "IRO1AAAA0001:PE", "IRO1AAAA0001:LastPE", "IRO1AAAA0001:Equilibrium",
+                "IRO1BBBB0002:PS", "IRO1BBBB0002:LastPS", "IRO1BBBB0002:PE", "IRO1BBBB0002:LastPE", "IRO1BBBB0002:Equilibrium"
             ],
             client.Calls);
-        Assert.Equal(6, summary.Changed);
+        Assert.Equal(10, summary.Changed);
         Assert.Equal(1, client.MaximumConcurrency);
     }
 
@@ -58,9 +58,9 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
 
         var summary = await service.ExecuteAsync(new DateOnly(2026, 8, 14), CancellationToken.None);
 
-        Assert.Equal(["IRO1TEST0001:PS", "IRO1TEST0001:Equilibrium"], client.Calls);
+        Assert.Equal(["IRO1TEST0001:PS", "IRO1TEST0001:LastPS", "IRO1TEST0001:LastPE", "IRO1TEST0001:Equilibrium"], client.Calls);
         Assert.Equal(1, summary.Failed);
-        Assert.Equal(1, summary.Changed);
+        Assert.Equal(3, summary.Changed);
         Assert.Equal(1, summary.Skipped);
         Assert.Single(repository.Failures);
     }
@@ -89,6 +89,8 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
             CompletedMetrics =
             [
                 CyclicalWavesMetricType.PE,
+                CyclicalWavesMetricType.LastPS,
+                CyclicalWavesMetricType.LastPE,
                 CyclicalWavesMetricType.Equilibrium
             ]
         };
@@ -98,7 +100,7 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
 
         Assert.Equal(2, attempts);
         Assert.Equal(1, summary.Failed);
-        Assert.Equal(2, summary.Skipped);
+        Assert.Equal(4, summary.Skipped);
         var failure = Assert.Single(repository.Failures);
         Assert.Equal(CyclicalWavesAcquisitionResult.Failed, failure.Result);
         Assert.Equal(CyclicalWavesAcquisitionFailureCodes.Timeout, failure.Acquisition.FailureCode);
@@ -127,7 +129,10 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
 
                 var payload = path.Contains("/equilibrium/", StringComparison.Ordinal)
                     ? EquilibriumPayload
-                    : CirclePayload;
+                    : path.Contains("/ps-data/", StringComparison.Ordinal) ||
+                      path.Contains("/pe-data/", StringComparison.Ordinal)
+                        ? "{\"data\":{\"symbol\":\"IRO1TEST0001\",\"ticker\":\"IRO1TEST0001\",\"ps_ratio\":1,\"pe_ratio\":2,\"close\":3,\"date\":\"2026-08-14\"}}"
+                        : CirclePayload;
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(payload, Encoding.UTF8, "application/json")
@@ -145,17 +150,19 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
             [
                 "/api/ps/circle-chart-data/IRO1TEST0001",
                 "/api/ps/circle-chart-data/IRO1TEST0001",
+                "/api/ps-data/IRO1TEST0001",
                 "/api/pe/circle-chart-data/IRO1TEST0001",
+                "/api/pe-data/IRO1TEST0001",
                 "/api/equilibrium/gauge/IRO1TEST0001"
             ],
             requestedPaths);
         Assert.Equal(1, summary.Failed);
-        Assert.Equal(2, summary.Changed);
+        Assert.Equal(4, summary.Changed);
         var failure = Assert.Single(repository.Failures);
         Assert.Equal(CyclicalWavesAcquisitionFailureCodes.NetworkError, failure.Acquisition.FailureCode);
         Assert.Equal(2, failure.Acquisition.AttemptCount);
         Assert.Equal(
-            [CyclicalWavesMetricType.PE, CyclicalWavesMetricType.Equilibrium],
+            [CyclicalWavesMetricType.LastPS, CyclicalWavesMetricType.PE, CyclicalWavesMetricType.LastPE, CyclicalWavesMetricType.Equilibrium],
             repository.Accepted.Select(item => item.MetricType));
     }
 
@@ -268,7 +275,9 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
                     now,
                     now,
                     now,
-                    "{\"value\":1}",
+                    metricType is CyclicalWavesMetricType.LastPS or CyclicalWavesMetricType.LastPE
+                        ? "{\"data\":{\"symbol\":\"IRO1TEST0001\",\"ticker\":\"IRO1TEST0001\",\"ps_ratio\":1,\"pe_ratio\":2,\"close\":3,\"date\":\"2026-08-14\"}}"
+                        : "{\"value\":1}",
                     200,
                     1,
                     null,

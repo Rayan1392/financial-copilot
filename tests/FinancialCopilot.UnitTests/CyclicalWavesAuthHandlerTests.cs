@@ -238,7 +238,8 @@ public sealed class CyclicalWavesAuthHandlerTests
         var authHandler = new CyclicalWavesAuthHandler(
             tokenCache,
             Microsoft.Extensions.Options.Options.Create(Options),
-            TimeProvider.System)
+            TimeProvider.System,
+            NullLogger<CyclicalWavesAuthHandler>.Instance)
         {
             InnerHandler = innerHandler
         };

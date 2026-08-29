@@ -174,21 +174,106 @@ public sealed class CyclicalWavesPsVisualizationSyncService(
         var points = await db.CompanyPsHistoryPoints.AsNoTracking().Where(x => x.CompanyId == companyId && x.ProviderName == ProviderName && x.IsActiveInLatestSuccessfulSeries).OrderBy(x => x.ObservationDate).ThenBy(x => x.ProviderPointId).Select(x => new PsHistoryPoint(x.ProviderPointId, x.ObservationDate, x.PsRatio)).ToArrayAsync(cancellationToken);
         if (snapshot is null && state is null && points.Length == 0) return null;
         var warnings = state is null ? Array.Empty<string>() : ParseWarnings(state.LastWarningCodesJson);
+        var lastPs = snapshot is null ? null : await ReadLatestLastPsAsync(
+            companyId,
+            snapshot.SourceCompanyIsin,
+            cancellationToken);
         return new PsVisualizationReadModel(
             companyId,
             snapshot is null ? PsVisualizationComponentStatus.Partial : PsVisualizationComponentStatus.Complete,
             snapshot is null ? GaugeRenderabilityStatus.UnverifiedSemantics : GaugeRenderabilityStatus.Renderable,
-            snapshot?.ObservationDate,
+            lastPs?.ObservationDate ?? snapshot?.ObservationDate,
             snapshot?.LastSyncedAtUtc,
             state?.LastHistorySuccessAtUtc,
             warnings,
             points,
             snapshot is null ? null : new PsPersistedSnapshotFacts(
-                snapshot.ProviderName, snapshot.ProviderSymbol, snapshot.TtmPsRatio, snapshot.ForwardPsRatio,
+                snapshot.ProviderName, snapshot.ProviderSymbol, lastPs?.Value, snapshot.ForwardPsRatio,
                 snapshot.GaugeClose, snapshot.BoundaryStart, snapshot.BoundaryMin, snapshot.BoundaryAverage,
                 snapshot.BoundaryMax, snapshot.BoundaryEnd, snapshot.BucketA, snapshot.BucketB, snapshot.BucketC,
-                snapshot.BucketD, snapshot.BucketE, snapshot.BucketF, snapshot.LastSyncedAtUtc));
+                snapshot.BucketD, snapshot.BucketE, snapshot.BucketF, snapshot.LastSyncedAtUtc,
+                lastPs?.SnapshotId, lastPs?.SymbolIsin, lastPs?.AcquiredAtUtc, lastPs?.ObservationDate));
     }
+
+    private async Task<LastPsMarker?> ReadLatestLastPsAsync(
+        Guid companyId,
+        string symbolIsin,
+        CancellationToken cancellationToken)
+    {
+        var normalizedIsin = symbolIsin.Trim().ToUpperInvariant();
+        if (normalizedIsin.Length == 0) return null;
+
+        var candidates = await db.CyclicalWavesMetricSnapshots.AsNoTracking()
+            .Where(x => x.CompanyId == companyId &&
+                        x.ProviderName == ProviderName &&
+                        x.MetricType == "LastPS" &&
+                        x.SymbolIsin == normalizedIsin)
+            .OrderByDescending(x => x.AcquisitionDateUtc)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .ToArrayAsync(cancellationToken);
+        if (candidates.Length == 0) return null;
+
+        var snapshotIds = candidates.Select(x => x.Id).ToArray();
+        var acceptedChecks = await db.CyclicalWavesAcquisitionChecks.AsNoTracking()
+            .Where(x => x.CompanyId == companyId &&
+                        x.ProviderName == ProviderName &&
+                        x.MetricType == "LastPS" &&
+                        x.SnapshotId.HasValue &&
+                        snapshotIds.Contains(x.SnapshotId.Value) &&
+                        (x.Result == "Changed" || x.Result == "NoChange"))
+            .ToArrayAsync(cancellationToken);
+
+        foreach (var candidate in candidates)
+        {
+            var accepted = acceptedChecks
+                .Where(x => x.SnapshotId == candidate.Id &&
+                            x.ResponseHash == candidate.ResponseHash &&
+                            string.Equals(x.SymbolIsin?.Trim(), candidate.SymbolIsin, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.CompletedAtUtc)
+                .ThenByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
+            if (accepted is null) continue;
+            if (!TryReadPsRatio(candidate.RawResponseJson, out var value)) continue;
+
+            return new LastPsMarker(candidate.Id, candidate.SymbolIsin, candidate.AcquisitionDateUtc, candidate.ProviderObservationDate, value);
+        }
+
+        return null;
+    }
+
+    private static bool TryReadPsRatio(string rawResponseJson, out decimal value)
+    {
+        value = default;
+        try
+        {
+            using var document = JsonDocument.Parse(rawResponseJson);
+            if (!document.RootElement.TryGetProperty("data", out var data) ||
+                !data.TryGetProperty("ps_ratio", out var ratio) ||
+                ratio.ValueKind != JsonValueKind.Number ||
+                !ratio.TryGetDecimal(out value) ||
+                value < 0m)
+            {
+                value = default;
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    private sealed record LastPsMarker(
+        Guid SnapshotId,
+        string SymbolIsin,
+        DateTimeOffset AcquiredAtUtc,
+        DateOnly? ObservationDate,
+        decimal Value);
 
     private sealed record SnapshotSyncOutcome(bool Changed, bool ClientError);
 

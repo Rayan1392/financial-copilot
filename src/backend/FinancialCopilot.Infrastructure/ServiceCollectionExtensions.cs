@@ -1016,6 +1016,7 @@ public static class ServiceCollectionExtensions
                     Microsoft.Extensions.Options.IOptions<CyclicalWavesProviderOptions>>().Value;
                 client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
             })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
             .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
             .AddHttpMessageHandler<FinancialProviderResilienceHandler>();
         services.AddTransient<CyclicalWavesDataAcquisitionResilienceHandler>();
@@ -1027,6 +1028,7 @@ public static class ServiceCollectionExtensions
                 client.BaseAddress = new Uri(settings.BaseAddress, UriKind.Absolute);
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
             .AddHttpMessageHandler<CyclicalWavesAuthHandler>()
             .AddHttpMessageHandler<CyclicalWavesDataAcquisitionResilienceHandler>();
         services.AddScoped<ICyclicalWavesDataAcquisitionClient>(provider =>

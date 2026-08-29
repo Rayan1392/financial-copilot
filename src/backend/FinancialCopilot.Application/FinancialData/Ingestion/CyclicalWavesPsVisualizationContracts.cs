@@ -102,7 +102,7 @@ public sealed record PsVisualizationReadModel(
 public sealed record PsPersistedSnapshotFacts(
     string ProviderName,
     string? ProviderSymbol,
-    decimal TtmPsRatio,
+    decimal? TtmPsRatio,
     decimal ForwardPsRatio,
     decimal GaugeClose,
     decimal BoundaryStart,
@@ -116,7 +116,11 @@ public sealed record PsPersistedSnapshotFacts(
     long BucketD,
     long BucketE,
     long BucketF,
-    DateTimeOffset LastSyncedAtUtc);
+    DateTimeOffset LastSyncedAtUtc,
+    Guid? TtmSourceSnapshotId = null,
+    string? TtmSourceSymbolIsin = null,
+    DateTimeOffset? TtmSourceAcquiredAtUtc = null,
+    DateOnly? TtmSourceObservationDate = null);
 
 public interface ICompanyPsVisualizationReader
 {

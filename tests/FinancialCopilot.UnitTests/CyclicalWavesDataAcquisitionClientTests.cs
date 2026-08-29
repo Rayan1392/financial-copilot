@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.UnitTests;
@@ -125,6 +126,26 @@ public sealed class CyclicalWavesDataAcquisitionClientTests
     }
 
     [Fact]
+    public async Task RedirectToLogin_IsRejectedAsAuthenticationFailure()
+    {
+        var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            Headers = { Location = new Uri("https://api.example.test/api/auth/login") },
+            Content = new StringContent("<html>login</html>", Encoding.UTF8, "text/html")
+        });
+
+        var result = await client.AcquireAsync(
+            CyclicalWavesMetricType.LastPS,
+            "IRO1TEST0001",
+            CancellationToken.None);
+
+        Assert.False(result.IsAccepted);
+        Assert.Equal(CyclicalWavesAcquisitionFailureCodes.AuthenticationFailed, result.FailureCode);
+        Assert.Equal(302, result.HttpStatusCode);
+        Assert.Contains("login", result.FailureMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ServerFailure_IsRetriedWithinBoundAndThenAccepted()
     {
         var calls = 0;
@@ -223,7 +244,10 @@ public sealed class CyclicalWavesDataAcquisitionClientTests
         {
             BaseAddress = new Uri("https://api.example.test/api/")
         };
-        return new CyclicalWavesDataAcquisitionClient(httpClient, TimeProvider.System);
+        return new CyclicalWavesDataAcquisitionClient(
+            httpClient,
+            TimeProvider.System,
+            NullLogger<CyclicalWavesDataAcquisitionClient>.Instance);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) :

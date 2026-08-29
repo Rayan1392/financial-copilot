@@ -66,6 +66,31 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_RejectsObservationOlderThanLatestStoredDate()
+    {
+        var source = new FakeCompanySource(
+            new CyclicalWavesAcquisitionCompany(Guid.NewGuid(), "271", "ÙØ§Ø³Ù…ÛŒÙ†", "IRO1TEST0001"));
+        var repository = new RecordingRepository
+        {
+            LatestProviderObservationDate = new DateOnly(2026, 8, 15)
+        };
+        var service = CreateService(source, new RecordingClient(), repository);
+
+        var summary = await service.ExecuteAsync(new DateOnly(2026, 8, 15), CancellationToken.None);
+
+        Assert.Equal(2, summary.Failed);
+        Assert.Equal(3, summary.Changed);
+        Assert.Equal(
+            [CyclicalWavesMetricType.LastPS, CyclicalWavesMetricType.LastPE],
+            repository.Failures.Select(item => item.Acquisition.MetricType));
+        Assert.All(
+            repository.Failures,
+            failure => Assert.Equal(
+                CyclicalWavesAcquisitionFailureCodes.StaleProviderObservationDate,
+                failure.Acquisition.FailureCode));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ResponseBodyTimeoutAfterHeaders_RetriesAndPersistsFailedCheck()
     {
         var companyId = Guid.NewGuid();
@@ -83,7 +108,10 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
             },
             retryCount: 1,
             timeoutSeconds: 1);
-        var client = new CyclicalWavesDataAcquisitionClient(httpClient, TimeProvider.System);
+        var client = new CyclicalWavesDataAcquisitionClient(
+            httpClient,
+            TimeProvider.System,
+            NullLogger<CyclicalWavesDataAcquisitionClient>.Instance);
         var repository = new RecordingRepository
         {
             CompletedMetrics =
@@ -140,7 +168,10 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
             },
             retryCount: 1,
             timeoutSeconds: 5);
-        var client = new CyclicalWavesDataAcquisitionClient(httpClient, TimeProvider.System);
+        var client = new CyclicalWavesDataAcquisitionClient(
+            httpClient,
+            TimeProvider.System,
+            NullLogger<CyclicalWavesDataAcquisitionClient>.Instance);
         var repository = new RecordingRepository();
         var service = CreateService(source, client, repository);
 
@@ -281,7 +312,10 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
                     200,
                     1,
                     null,
-                    null));
+                    null,
+                    metricType is CyclicalWavesMetricType.LastPS or CyclicalWavesMetricType.LastPE
+                        ? new DateOnly(2026, 8, 14)
+                        : null));
         }
     }
 
@@ -290,6 +324,14 @@ public sealed class CyclicalWavesDataAcquisitionServiceTests
         public HashSet<CyclicalWavesMetricType> CompletedMetrics { get; init; } = [];
         public List<CyclicalWavesAcceptedAcquisition> Accepted { get; } = [];
         public List<RecordedFailure> Failures { get; } = [];
+
+        public DateOnly? LatestProviderObservationDate { get; init; }
+
+        public Task<DateOnly?> GetLatestProviderObservationDateAsync(
+            Guid companyId,
+            CyclicalWavesMetricType metricType,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(LatestProviderObservationDate);
 
         public Task<bool> HasSuccessfulCheckAsync(
             DateOnly cycleDateUtc,

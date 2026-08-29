@@ -157,14 +157,25 @@ public sealed class CyclicalWavesDataProviderClient(
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Accept.ParseAdd("application/json, text/plain, */*");
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            request.Headers.Pragma.ParseAdd("no-cache");
             request.Headers.TryAddWithoutValidation("Origin", "https://tahlilapp.com");
             request.Headers.Referrer = new Uri("https://tahlilapp.com/");
             request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
                 return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.NotFoundOrNoData, "NotFoundOrNoData");
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
                 return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.AuthenticationFailed, "AuthenticationFailed");
+            }
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 return Failure(sourceKind, endpoint, RelativeValuationFactReadiness.RateLimited, "RateLimited");
             if ((int)response.StatusCode >= 500)
@@ -237,12 +248,25 @@ public sealed class CyclicalWavesDataProviderClient(
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Accept.ParseAdd("application/json, text/plain, */*");
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            request.Headers.Pragma.ParseAdd("no-cache");
             request.Headers.TryAddWithoutValidation("Origin", "https://tahlilapp.com");
             request.Headers.Referrer = new Uri("https://tahlilapp.com/");
             request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
                 return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.NotFoundOrNoData);
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
+                return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.AuthenticationFailed);
+            }
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 return new PsProviderResult<T>(default, PsVisualizationSyncErrorCode.RateLimited, response.Headers.RetryAfter?.Delta is { } retry ? $"RetryAfterSeconds:{(int)retry.TotalSeconds}" : null);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -294,6 +318,20 @@ public sealed class CyclicalWavesDataProviderClient(
         {
             using var response = await httpClient.GetAsync(endpoint, cancellationToken);
 
+            if (IsAuthenticationFailure(response.StatusCode))
+            {
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Endpoint={Endpoint} StatusCode={StatusCode} " +
+                    "ContentType={ContentType} RedirectLocation={RedirectLocation}",
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString());
+                throw new FinancialProviderException(
+                    FinancialProviderErrorCode.Unauthorized,
+                    $"CyclicalWaves authentication failed for '{endpoint}' with status {(int)response.StatusCode}.");
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 throw new FinancialProviderException(
@@ -337,6 +375,10 @@ public sealed class CyclicalWavesDataProviderClient(
         string.IsNullOrWhiteSpace(ticker)
             ? throw new ArgumentException("Ticker is required.", nameof(ticker))
             : ticker.Trim();
+
+    private static bool IsAuthenticationFailure(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
+        (int)statusCode is >= 300 and <= 399;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

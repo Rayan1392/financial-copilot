@@ -2,13 +2,16 @@ using System.Net;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 
 public sealed class CyclicalWavesDataAcquisitionClient(
     HttpClient httpClient,
-    TimeProvider timeProvider) : ICyclicalWavesDataAcquisitionClient
+    TimeProvider timeProvider,
+    ILogger<CyclicalWavesDataAcquisitionClient> logger) : ICyclicalWavesDataAcquisitionClient
 {
+    private const int ResponsePreviewMaximumLength = 512;
     private static readonly string[] CircleChartNumericFields =
         ["a", "b", "c", "d", "e", "f", "close", "start", "end", "min", "max", "avg"];
 
@@ -29,6 +32,8 @@ public sealed class CyclicalWavesDataAcquisitionClient(
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            request.Headers.Pragma.ParseAdd("no-cache");
             request.Options.Set(CyclicalWavesAcquisitionRequestOptions.Context, attemptContext);
             using var response = await httpClient.SendAsync(
                 request,
@@ -49,6 +54,17 @@ public sealed class CyclicalWavesDataAcquisitionClient(
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
+                var preview = await ReadPreviewAsync(response, cancellationToken);
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected after recovery. Metric={Metric} Endpoint={Endpoint} " +
+                    "StatusCode={StatusCode} ContentType={ContentType} RedirectLocation={RedirectLocation} " +
+                    "ResponsePreview={ResponsePreview}",
+                    metricType,
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString(),
+                    preview);
                 return Failure(
                     metricType,
                     endpoint,
@@ -56,11 +72,46 @@ public sealed class CyclicalWavesDataAcquisitionClient(
                     attemptContext,
                     response.StatusCode,
                     CyclicalWavesAcquisitionFailureCodes.AuthenticationFailed,
-                    "CyclicalWaves authentication failed after controlled token recovery.");
+                    $"CyclicalWaves authentication failed after controlled token recovery. {preview}");
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden ||
+                (int)response.StatusCode is >= 300 and <= 399)
+            {
+                var preview = await ReadPreviewAsync(response, cancellationToken);
+                logger.LogWarning(
+                    "CyclicalWaves authentication response rejected. Metric={Metric} Endpoint={Endpoint} " +
+                    "StatusCode={StatusCode} ContentType={ContentType} RedirectLocation={RedirectLocation} " +
+                    "ResponsePreview={ResponsePreview}",
+                    metricType,
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString(),
+                    preview);
+                return Failure(
+                    metricType,
+                    endpoint,
+                    checkedAtUtc,
+                    attemptContext,
+                    response.StatusCode,
+                    CyclicalWavesAcquisitionFailureCodes.AuthenticationFailed,
+                    $"CyclicalWaves authentication response was rejected: HTTP {(int)response.StatusCode}. {preview}");
             }
 
             if (!response.IsSuccessStatusCode)
             {
+                var preview = await ReadPreviewAsync(response, cancellationToken);
+                logger.LogWarning(
+                    "CyclicalWaves request returned an unsuccessful response. Metric={Metric} Endpoint={Endpoint} " +
+                    "StatusCode={StatusCode} ContentType={ContentType} RedirectLocation={RedirectLocation} " +
+                    "ResponsePreview={ResponsePreview}",
+                    metricType,
+                    endpoint,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString(),
+                    response.Headers.Location?.ToString(),
+                    preview);
                 return Failure(
                     metricType,
                     endpoint,
@@ -342,4 +393,12 @@ public sealed class CyclicalWavesDataAcquisitionClient(
 
     private static string Sanitize(string value) =>
         value.Replace('\r', ' ').Replace('\n', ' ')[..Math.Min(value.Length, 1_000)];
+
+    private static async Task<string> ReadPreviewAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        return Sanitize(body)[..Math.Min(body.Length, ResponsePreviewMaximumLength)];
+    }
 }

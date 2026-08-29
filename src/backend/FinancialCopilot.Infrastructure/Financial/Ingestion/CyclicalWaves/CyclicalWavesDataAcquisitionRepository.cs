@@ -27,6 +27,19 @@ public sealed class CyclicalWavesDataAcquisitionRepository(
     private const string ProviderName = "CyclicalWaves";
     private const string PredecessorConstraint = "UX_CyclicalWavesMetricSnapshots_Predecessor";
 
+    public Task<DateOnly?> GetLatestProviderObservationDateAsync(
+        Guid companyId,
+        CyclicalWavesMetricType metricType,
+        CancellationToken cancellationToken) =>
+        dbContext.CyclicalWavesMetricSnapshots
+            .AsNoTracking()
+            .Where(row => row.CompanyId == companyId &&
+                         row.ProviderName == ProviderName &&
+                         row.MetricType == metricType.ToString() &&
+                         row.ProviderObservationDate != null)
+            .Select(row => row.ProviderObservationDate)
+            .MaxAsync(cancellationToken);
+
     public Task<bool> HasSuccessfulCheckAsync(
         DateOnly cycleDateUtc,
         Guid companyId,

@@ -101,6 +101,43 @@ public sealed class CyclicalWavesDataAcquisitionService(
 
                     if (acquisition.IsAccepted)
                     {
+                        if (acquisition.ProviderObservationDate is { } providerDate &&
+                            metricType is CyclicalWavesMetricType.LastPS or CyclicalWavesMetricType.LastPE)
+                        {
+                            var latestProviderDate = await repository.GetLatestProviderObservationDateAsync(
+                                item.Company.CompanyId,
+                                metricType,
+                                cancellationToken);
+                            if (latestProviderDate is { } latest && providerDate < latest)
+                            {
+                                await repository.PersistFailedAsync(
+                                    new CyclicalWavesFailedAcquisition(
+                                        cycleDateUtc,
+                                        item.Company.CompanyId,
+                                        item.Identity.NormalizedIsin!,
+                                        metricType,
+                                        acquisition.CheckedAtUtc,
+                                        acquisition.RequestedAtUtc,
+                                        acquisition.CompletedAtUtc,
+                                        acquisition.SourceEndpoint,
+                                        acquisition.HttpStatusCode,
+                                        acquisition.AttemptCount,
+                                        CyclicalWavesAcquisitionFailureCodes.StaleProviderObservationDate,
+                                        $"Provider observation date {providerDate:yyyy-MM-dd} is older than the latest stored date {latest:yyyy-MM-dd}."),
+                                    cancellationToken);
+                                failed++;
+                                logger.LogWarning(
+                                    "Rejected stale CyclicalWaves observation. CompanyId={CompanyId} Isin={Isin} " +
+                                    "Metric={Metric} ProviderDate={ProviderDate} LatestStoredDate={LatestStoredDate}",
+                                    item.Company.CompanyId,
+                                    item.Identity.NormalizedIsin,
+                                    metricType,
+                                    providerDate,
+                                    latest);
+                                continue;
+                            }
+                        }
+
                         var hash = canonicalJsonHasher.ComputeHash(acquisition.RawResponseJson!);
                         var persisted = await repository.PersistAcceptedAsync(
                             new CyclicalWavesAcceptedAcquisition(

@@ -27,7 +27,8 @@ public sealed class PsVisualizationExperienceUseCase(
     public async Task<PsVisualizationResult?> ExecuteAsync(PsVisualizationQuery query, CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
-        if (!settings.Enabled || !settings.EnableStandaloneGauge || string.IsNullOrWhiteSpace(query.SymbolOrCompanyName)) return null;
+        if (!settings.Enabled || string.IsNullOrWhiteSpace(query.SymbolOrCompanyName)) return null;
+        if (!query.IncludeInMonthlySalesTrendChart && !settings.EnableStandaloneGauge) return null;
         if (query.IncludeInMonthlySalesTrendChart && !settings.IncludeGaugeInMonthlySalesTrendChart) return null;
         var company = await companyResolver.ResolveBySymbolAsync(query.SymbolOrCompanyName, cancellationToken);
         if (company is null) return null;
@@ -40,6 +41,8 @@ public sealed class PsVisualizationExperienceUseCase(
         var fresh = age <= TimeSpan.FromHours(settings.MaxSyncAgeHours);
         if (!fresh && !settings.AllowStaleStandaloneGauge)
             return new PsVisualizationResult(1, company.Id, company.Ticker ?? query.SymbolOrCompanyName, company.CompanySymbol, local.Snapshot.ProviderName, local.SnapshotObservationDate, PsVisualizationStatus.Stale, local.GaugeRenderabilityStatus, Present(local.Snapshot.TtmPsRatio), Present(local.Snapshot.ForwardPsRatio), Present(local.Snapshot.GaugeClose), Array.Empty<PsGaugeBand>(), null, local.Snapshot.BoundaryStart, local.Snapshot.BoundaryEnd, local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.BoundaryAverage, false, PsVisualizationStatus.NotRequested, Array.Empty<PsVisualizationHistoryPoint>(), local.HistoryPoints.Count, false, local.Snapshot.LastSyncedAtUtc, new[] { "StaleSnapshotHidden" });
+        if (local.Snapshot.TtmPsRatio is not { } currentTtmPs)
+            return new PsVisualizationResult(1, company.Id, company.Ticker ?? query.SymbolOrCompanyName, company.CompanySymbol, local.Snapshot.ProviderName, local.SnapshotObservationDate, PsVisualizationStatus.Partial, local.GaugeRenderabilityStatus, Missing(), Present(local.Snapshot.ForwardPsRatio), Present(local.Snapshot.GaugeClose), Array.Empty<PsGaugeBand>(), null, local.Snapshot.BoundaryStart, local.Snapshot.BoundaryEnd, local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.BoundaryAverage, false, PsVisualizationStatus.NotRequested, Array.Empty<PsVisualizationHistoryPoint>(), local.HistoryPoints.Count, false, local.Snapshot.LastSyncedAtUtc, new[] { "LastPsRatioUnavailable" });
         var ordered = local.HistoryPoints.OrderBy(x => x.ObservationDate).ThenBy(x => x.ProviderPointId, StringComparer.Ordinal).ToArray();
         var projected = includeHistory ? ordered.TakeLast(settings.MaxHistoryPoints).Select(x => new PsVisualizationHistoryPoint(x.ProviderPointId, x.ObservationDate, x.PsRatio)).ToArray() : Array.Empty<PsVisualizationHistoryPoint>();
         var gauge = PsGaugeCalculator.Calculate(
@@ -48,10 +51,11 @@ public sealed class PsVisualizationExperienceUseCase(
             local.Snapshot.BoundaryMin,
             local.Snapshot.BoundaryMax,
             local.Snapshot.BoundaryEnd,
-            local.Snapshot.TtmPsRatio,
+            currentTtmPs,
             settings.DisplayPercentageDecimals);
-        return new PsVisualizationResult(1, company.Id, company.Ticker ?? query.SymbolOrCompanyName, company.CompanySymbol, local.Snapshot.ProviderName, local.SnapshotObservationDate, fresh ? PsVisualizationStatus.Fresh : PsVisualizationStatus.Stale, local.GaugeRenderabilityStatus, Present(local.Snapshot.TtmPsRatio), Present(local.Snapshot.ForwardPsRatio), Present(local.Snapshot.GaugeClose), gauge.Bands, gauge.Needle, local.Snapshot.BoundaryStart, local.Snapshot.BoundaryEnd, local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.BoundaryAverage, includeHistory, includeHistory ? PsVisualizationStatus.Fresh : PsVisualizationStatus.NotRequested, projected, ordered.Length, includeHistory && ordered.Length > projected.Length, local.Snapshot.LastSyncedAtUtc, local.WarningCodes);
+        return new PsVisualizationResult(1, company.Id, company.Ticker ?? query.SymbolOrCompanyName, company.CompanySymbol, local.Snapshot.ProviderName, local.SnapshotObservationDate, fresh ? PsVisualizationStatus.Fresh : PsVisualizationStatus.Stale, local.GaugeRenderabilityStatus, Present(currentTtmPs), Present(local.Snapshot.ForwardPsRatio), Present(local.Snapshot.GaugeClose), gauge.Bands, gauge.Needle, local.Snapshot.BoundaryStart, local.Snapshot.BoundaryEnd, local.Snapshot.BoundaryMin, local.Snapshot.BoundaryMax, local.Snapshot.BoundaryAverage, includeHistory, includeHistory ? PsVisualizationStatus.Fresh : PsVisualizationStatus.NotRequested, projected, ordered.Length, includeHistory && ordered.Length > projected.Length, local.Snapshot.LastSyncedAtUtc, local.WarningCodes);
     }
     private static PsVisualizationCurrentValue Present(decimal value) => new(value, PsValueState.Present);
+    private static PsVisualizationCurrentValue Present(decimal? value) => value is { } present ? Present(present) : Missing();
     private static PsVisualizationCurrentValue Missing() => new(null, PsValueState.Missing);
 }

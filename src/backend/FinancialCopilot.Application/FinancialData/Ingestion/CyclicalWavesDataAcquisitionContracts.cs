@@ -29,6 +29,7 @@ public static class CyclicalWavesAcquisitionFailureCodes
     public const string PersistenceFailure = nameof(PersistenceFailure);
     public const string ProviderServerError = nameof(ProviderServerError);
     public const string RateLimited = nameof(RateLimited);
+    public const string StaleProviderObservationDate = nameof(StaleProviderObservationDate);
     public const string Timeout = nameof(Timeout);
     public const string UnexpectedFailure = nameof(UnexpectedFailure);
 }
@@ -122,6 +123,11 @@ public interface ICanonicalJsonHasher
 
 public interface ICyclicalWavesDataAcquisitionRepository
 {
+    Task<DateOnly?> GetLatestProviderObservationDateAsync(
+        Guid companyId,
+        CyclicalWavesMetricType metricType,
+        CancellationToken cancellationToken);
+
     Task<bool> HasSuccessfulCheckAsync(
         DateOnly cycleDateUtc,
         Guid companyId,

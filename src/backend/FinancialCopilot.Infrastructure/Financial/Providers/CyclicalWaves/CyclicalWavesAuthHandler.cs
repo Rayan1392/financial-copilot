@@ -4,13 +4,15 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Providers;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Providers.CyclicalWaves;
 
 public sealed class CyclicalWavesAuthHandler(
     CyclicalWavesTokenCache tokenCache,
     IOptions<CyclicalWavesProviderOptions> options,
-    TimeProvider timeProvider) : DelegatingHandler
+    TimeProvider timeProvider,
+    ILogger<CyclicalWavesAuthHandler> logger) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -25,11 +27,17 @@ public sealed class CyclicalWavesAuthHandler(
         AddBearerHeader(request, token);
 
         var response = await base.SendAsync(request, cancellationToken);
-        if (response.StatusCode != HttpStatusCode.Unauthorized && response.StatusCode != HttpStatusCode.MethodNotAllowed)
+        if (!IsAuthenticationFailure(response.StatusCode))
         {
             return response;
         }
 
+        logger.LogWarning(
+            "CyclicalWaves authentication recovery triggered. StatusCode={StatusCode} " +
+            "RequestUri={RequestUri} RedirectLocation={RedirectLocation}",
+            (int)response.StatusCode,
+            request.RequestUri,
+            response.Headers.Location);
         response.Dispose();
         var replacement = await RecoverAfterUnauthorizedAsync(token.AccessToken, cancellationToken);
         using var replay = await CloneAsync(request, cancellationToken);
@@ -171,6 +179,10 @@ public sealed class CyclicalWavesAuthHandler(
 
     private static bool IsAuthRequest(HttpRequestMessage request) =>
         request.RequestUri?.OriginalString.Contains("auth/login", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool IsAuthenticationFailure(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.MethodNotAllowed ||
+        (int)statusCode is >= 300 and <= 399;
 
     private static FinancialProviderException InvalidLoginResponse(string message) =>
         new(FinancialProviderErrorCode.InvalidResponse, message);

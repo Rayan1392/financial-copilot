@@ -19,7 +19,23 @@ the current value. A value below `start` clamps to the left edge; a value
 above `end` clamps to the right edge. `min` and `max` are internal boundaries,
 not the complete rendered axis.
 
-Needle: current TTM `ps_ratio` is mapped using the piecewise ranges above.
+Needle: the P/S TTM marker is mapped from the numeric value at
+`CyclicalWavesMetricSnapshots.RawResponseJson.data.ps_ratio` on the latest
+accepted row where `MetricType = 'LastPS'` and `SymbolIsin` equals the resolved
+company’s `SymbolIsin`. It is not sourced from normalized `PS_TTM`, the PS gauge
+`close`, or Forward P/S. The Forward marker is unchanged and out of scope.
+
+The persisted-snapshot reader must include `LastPS` in its supported metric
+types. An accepted row requires a successful `Changed` or `NoChange` acquisition
+check with matching snapshot/hash identity. Only rows with a valid numeric
+`data.ps_ratio` participate in newest-row selection, ordered by
+`AcquisitionDateUtc`, `CreatedAtUtc`, then `Id`, descending. A successful
+acquisition with an invalid marker is not renderable; if fallback to an older
+valid row is permitted, the result must identify it as older/fallback data.
+
+In the structured result, `ttmPs.value` and `needle.sourceValue` represent the
+same selected `LastPS.data.ps_ratio`; neither is an independent fallback to
+normalized `PS_TTM`.
 
 Boundary and percentage labels must use high-contrast foreground text,
 visible in both light and dark themes, with sufficient font weight and size
@@ -48,7 +64,8 @@ Spec 114 persists three CyclicalWaves data components:
 
 six gauge distribution buckets and verified provider boundary semantics;
 
-current TTM and Forward P/S values;
+current/TTM P/S marker input from the accepted `LastPS` snapshot and Forward P/S
+values;
 
 the latest successful active historical P/S series.
 
@@ -216,7 +233,7 @@ bounded localized warning codes/messages
 
 Current values
 
-TTM P/S
+TTM P/S marker value projected from `LastPS.data.ps_ratio`
 
 Forward P/S
 
@@ -232,7 +249,8 @@ six stable ordered bands
 
 each band's semantic color role, provider count, exact percentage, display percentage, and verifiedboundary labels
 
-needle source value
+needle source value (`LastPS.data.ps_ratio` for the P/S TTM marker)
+needle source snapshot ID, `SymbolIsin`, and observation date
 
 needle band
 
@@ -416,7 +434,8 @@ Every band has textual order, range/boundary, count, and percentage information.
 
 Color is never the only carrier of meaning.
 
-Needle/current values are announced to assistive technology.
+Needle/current values are announced to assistive technology, including the
+semantic source label for the TTM marker (`LastPS.ps_ratio`).
 
 The history chart has an accessible summary and keyboard-reachable point details or equivalenttabular data.
 
@@ -454,7 +473,11 @@ The supplied 1,124-point series returns all points and all eight duplicate-date 
 
 Standalone Gauge and History
 
-Six bands, exact/display percentages, boundaries, needle, TTM, Forward, GaugeClose, and datesmatch the persisted source facts/reference algorithm.
+Six bands, exact/display percentages, boundaries, the TTM needle sourced from
+`LastPS.data.ps_ratio`, Forward, GaugeClose, and dates match the persisted
+source facts/reference algorithm.
+- The production snapshot reader includes `LastPS`, and a differing normalized
+  `PS_TTM`, gauge `close`, or Forward P/S value cannot change the TTM needle.
 
 Display percentages reconcile deterministically to 100 at configured precision.
 

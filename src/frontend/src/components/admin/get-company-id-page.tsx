@@ -103,7 +103,7 @@ export function GetCompanyIdPage() {
     !["failed", "error"].includes(backfillResult.status.toLowerCase());
 
   return (
-    <div dir="rtl" className="min-h-screen bg-background px-6 py-8 text-foreground">
+    <div dir="rtl" className="min-h-full w-full bg-background px-4 py-6 text-foreground sm:px-6 sm:py-8">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6">
           <p className="mb-2 text-sm text-muted-foreground">ابزارهای مدیریتی</p>

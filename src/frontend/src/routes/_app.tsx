@@ -16,9 +16,11 @@ function AppLayout() {
   return (
     <div dir="rtl" className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       <ConversationSidebar />
-      <main className="flex-1 flex flex-col relative min-w-0">
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader />
-        <Outlet />
+        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+          <Outlet />
+        </div>
       </main>
       <ContextPanel />
     </div>

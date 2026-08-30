@@ -28,10 +28,10 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         Assert.Equal(NadpcoApiSyncRunMode.FullSync, result.RunMode);
         Assert.Equal(2, result.CompaniesConsidered);
         Assert.Equal(2, result.CompaniesEnqueued);
-        Assert.Equal(1 + 2 * 3, result.RequestsEnqueued);
+        Assert.Equal(1 + 2 * 2 + 2 * 5, result.RequestsEnqueued);
         Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.Symbols && request.ProviderName == ProviderSources.NoavaranCurrentApiName);
-        Assert.Equal(3, publisher.Requests.Count(request => request.ExternalReference == "3"));
-        Assert.Equal(3, publisher.Requests.Count(request => request.ExternalReference == "4"));
+        Assert.Equal(7, publisher.Requests.Count(request => request.ExternalReference == "3"));
+        Assert.Equal(7, publisher.Requests.Count(request => request.ExternalReference == "4"));
         Assert.Contains(publisher.Requests, request => request.Dataset == ProviderDataset.FundamentalIndexes);
     }
 
@@ -191,7 +191,7 @@ public sealed class NadpcoApiScheduledSyncServiceTests
         var result = await service.ExecuteAsync(fullReload: true, CancellationToken.None);
 
         Assert.Equal(1, result.CompaniesConsidered);
-        Assert.Equal(3, publisher.Requests.Count(request => request.ExternalReference == "3"));
+        Assert.Equal(7, publisher.Requests.Count(request => request.ExternalReference == "3"));
         Assert.DoesNotContain(publisher.Requests, request => request.ExternalReference == "4");
     }
 
@@ -248,13 +248,18 @@ public sealed class NadpcoApiScheduledSyncServiceTests
 
         await service.ExecuteAsync(fullReload: false, CancellationToken.None);
 
-        var monthly = Assert.Single(
-            publisher.Requests,
-            request => request.Dataset == ProviderDataset.MonthlyProductionSales);
+        var monthly = publisher.Requests
+            .Where(request => request.Dataset == ProviderDataset.MonthlyProductionSales)
+            .ToArray();
+        Assert.Equal(5, monthly.Length);
+        Assert.Equal([0, 1, 2, 3, 4], monthly.Select(request => request.MonthlyActivityOutputType));
         // 2026-06-03 = 13 Khordad 1405 → previous Shamsi month is Ordibehesht 1405 (1405/02).
-        Assert.Equal("1405/02/01", monthly.SourceDateRangeStartJalali);
-        Assert.Equal("1405/02/31", monthly.SourceDateRangeEndJalali);
-        Assert.Contains("-m140502", monthly.IdempotencyKey);
+        Assert.All(monthly, request =>
+        {
+            Assert.Equal("1405/02/01", request.SourceDateRangeStartJalali);
+            Assert.Equal("1405/02/31", request.SourceDateRangeEndJalali);
+        });
+        Assert.All(monthly, request => Assert.Contains("-ot", request.IdempotencyKey));
     }
 
     [Fact]
@@ -267,11 +272,16 @@ public sealed class NadpcoApiScheduledSyncServiceTests
 
         await service.ExecuteAsync(fullReload: true, CancellationToken.None);
 
-        var monthly = Assert.Single(
-            publisher.Requests,
-            request => request.Dataset == ProviderDataset.MonthlyProductionSales);
-        Assert.Null(monthly.SourceDateRangeStartJalali);
-        Assert.Null(monthly.SourceDateRangeEndJalali);
+        var monthly = publisher.Requests
+            .Where(request => request.Dataset == ProviderDataset.MonthlyProductionSales)
+            .ToArray();
+        Assert.Equal(5, monthly.Length);
+        Assert.Equal([0, 1, 2, 3, 4], monthly.Select(request => request.MonthlyActivityOutputType));
+        Assert.All(monthly, request =>
+        {
+            Assert.Null(request.SourceDateRangeStartJalali);
+            Assert.Null(request.SourceDateRangeEndJalali);
+        });
     }
 
     private static NadpcoApiScheduledSyncService NewService(

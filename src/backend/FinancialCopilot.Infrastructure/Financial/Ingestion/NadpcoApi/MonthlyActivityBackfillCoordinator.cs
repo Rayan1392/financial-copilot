@@ -102,29 +102,36 @@ public sealed class MonthlyActivityBackfillCoordinator(
             ? plannedMonths.Select(month => new ShamsiMonth(month.Year, month.Month)).ToArray()
             : requestedMonths;
         var requestsToEnqueue = new List<DataSyncRequest>();
-        foreach (var month in monthsToEnqueue)
+        // Publish in output-type waves: all eligible companies/months for type 0, then type 1,
+        // through type 4. The output type is carried with the request so the provider performs one
+        // corresponding vendor call per message instead of fetching all types per company.
+        for (var outputType = 0; outputType <= 4; outputType++)
         {
-            var fromDate = month.FirstDayJalali;
-            var toDate = ShamsiMonthCalculator.LastDayJalali(month);
-            foreach (var companyId in companyIds)
+            foreach (var month in monthsToEnqueue)
             {
-                var key = BuildKey(month, companyId);
-                if (completedKeys.Contains(key))
+                var fromDate = month.FirstDayJalali;
+                var toDate = ShamsiMonthCalculator.LastDayJalali(month);
+                foreach (var companyId in companyIds)
                 {
-                    continue;
-                }
+                    var key = BuildKey(month, companyId, outputType);
+                    if (completedKeys.Contains(key))
+                    {
+                        continue;
+                    }
 
-                requestsToEnqueue.Add(
-                    new DataSyncRequest(
-                        Guid.NewGuid(),
-                        ProviderDataset.MonthlyProductionSales,
-                        companyId.ToString(CultureInfo.InvariantCulture),
-                        timeProvider.GetUtcNow(),
-                        IdempotencyKey: key,
-                        ProviderName: providerName,
-                        Mode: SourceMode.CurrentIncremental,
-                        SourceDateRangeStartJalali: fromDate,
-                        SourceDateRangeEndJalali: toDate));
+                    requestsToEnqueue.Add(
+                        new DataSyncRequest(
+                            Guid.NewGuid(),
+                            ProviderDataset.MonthlyProductionSales,
+                            companyId.ToString(CultureInfo.InvariantCulture),
+                            timeProvider.GetUtcNow(),
+                            IdempotencyKey: key,
+                            ProviderName: providerName,
+                            Mode: SourceMode.CurrentIncremental,
+                            SourceDateRangeStartJalali: fromDate,
+                            SourceDateRangeEndJalali: toDate,
+                            MonthlyActivityOutputType: outputType));
+                }
             }
         }
 
@@ -255,13 +262,11 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var persistedCompanyMonths = await QueryPersistedCompanyMonthKeysAsync(providerName, cancellationToken);
         var runs = await dbContext.SyncRuns.AsNoTracking()
             .Where(run => run.IdempotencyKey.StartsWith(KeyPrefix))
-            .Select(run => new
-            {
+            .Select(run => new BackfillRun(
                 run.IdempotencyKey,
                 run.Status,
                 run.ExternalReference,
-                run.ErrorMessage
-            })
+                run.ErrorMessage))
             .ToListAsync(cancellationToken);
         var byMonthToken = runs
             .GroupBy(run => MonthTokenOf(run.IdempotencyKey))
@@ -270,15 +275,21 @@ public sealed class MonthlyActivityBackfillCoordinator(
         var months = planned.Select(month =>
         {
             byMonthToken.TryGetValue(MonthToken(month.Year, month.Month), out var monthRuns);
-            var completed = monthRuns?.Count(run =>
-                run.Status == DataSyncRunStatus.Completed.ToString() &&
-                HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ?? 0;
-            var noDataYet = monthRuns?.Count(run =>
-                (run.Status == DataSyncRunStatus.Completed.ToString() &&
-                    !HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)) ||
-                (run.Status == DataSyncRunStatus.Failed.ToString() && IsNoDataYet(run.ErrorMessage))) ?? 0;
-            var failed = monthRuns?.Count(run =>
-                run.Status == DataSyncRunStatus.Failed.ToString() && !IsNoDataYet(run.ErrorMessage)) ?? 0;
+            var companyGroups = monthRuns?
+                .Where(run => !string.IsNullOrWhiteSpace(run.ExternalReference))
+                .GroupBy(run => run.ExternalReference!, StringComparer.Ordinal)
+                .ToArray() ?? [];
+            var completed = companyGroups.Count(group =>
+                IsCompletedCompanyMonth(group, persistedCompanyMonths));
+            var noDataYet = companyGroups.Count(group =>
+                !IsCompletedCompanyMonth(group, persistedCompanyMonths) &&
+                IsTerminalCompanyMonth(group) &&
+                group.Any(run => IsNoDataRun(run, persistedCompanyMonths)) &&
+                group.All(run => run.Status != DataSyncRunStatus.Failed.ToString() || IsNoDataYet(run.ErrorMessage)));
+            var failed = companyGroups.Count(group =>
+                !IsCompletedCompanyMonth(group, persistedCompanyMonths) &&
+                IsTerminalCompanyMonth(group) &&
+                group.Any(run => run.Status == DataSyncRunStatus.Failed.ToString() && !IsNoDataYet(run.ErrorMessage)));
             var terminal = completed + noDataYet + failed;
             var status = completed >= month.Companies
                 ? "Completed"
@@ -369,10 +380,9 @@ public sealed class MonthlyActivityBackfillCoordinator(
     private static string MonthToken(int year, int month) =>
         string.Create(CultureInfo.InvariantCulture, $"{year:D4}{month:D2}");
 
-    internal static string BuildKey(ShamsiMonth month, int companyId) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}");
+    internal static string BuildKey(ShamsiMonth month, int companyId, int? outputType = null) =>
+        $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}" +
+        (outputType is { } type ? $"-ot{type}" : string.Empty);
 
     // Key shape: nadpco-monthlybf-{yyyyMM}-{companyId}.
     private static string MonthTokenOf(string idempotencyKey)
@@ -404,12 +414,18 @@ public sealed class MonthlyActivityBackfillCoordinator(
     {
         var reports = await dbContext.MonthlyReports.AsNoTracking()
             .Where(row => row.ProviderName == providerName)
-            .Select(row => new { row.ExternalCompanyId, row.PeriodStart })
+            .Select(row => new { row.ExternalCompanyId, row.PeriodStart, row.OutputType })
             .ToListAsync(cancellationToken);
 
         return reports
             .Where(row => !string.IsNullOrWhiteSpace(row.ExternalCompanyId))
-            .Select(row => CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart)))
+            .SelectMany(row =>
+            {
+                var companyMonth = CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart));
+                return row.OutputType is { } outputType
+                    ? new[] { companyMonth, $"{companyMonth}:ot{outputType}" }
+                    : new[] { companyMonth };
+            })
             .ToHashSet(StringComparer.Ordinal);
     }
 
@@ -418,7 +434,68 @@ public sealed class MonthlyActivityBackfillCoordinator(
         string? externalReference,
         HashSet<string> persistedCompanyMonths) =>
         !string.IsNullOrWhiteSpace(externalReference) &&
-        persistedCompanyMonths.Contains(CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey)));
+        persistedCompanyMonths.Contains(CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey))) &&
+        (OutputTypeOf(idempotencyKey) is not { } outputType ||
+            persistedCompanyMonths.Contains($"{CompanyMonthToken(externalReference, MonthTokenOf(idempotencyKey))}:ot{outputType}"));
+
+    private static bool IsCompletedCompanyMonth(
+        IEnumerable<BackfillRun> runs,
+        HashSet<string> persistedCompanyMonths)
+    {
+        var runArray = runs.ToArray();
+        var typedRuns = runArray.Where(run => OutputTypeOf(run.IdempotencyKey) is not null).ToArray();
+        if (typedRuns.Length == 0)
+        {
+            return runArray.Any(run =>
+                run.Status == DataSyncRunStatus.Completed.ToString() &&
+                HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths));
+        }
+
+        return Enumerable.Range(0, 5).All(outputType => typedRuns.Any(run =>
+            OutputTypeOf(run.IdempotencyKey) == outputType &&
+            run.Status == DataSyncRunStatus.Completed.ToString() &&
+            HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths)));
+    }
+
+    private static bool IsTerminalCompanyMonth(IEnumerable<BackfillRun> runs)
+    {
+        var runArray = runs.ToArray();
+        var typedRuns = runArray.Where(run => OutputTypeOf(run.IdempotencyKey) is not null).ToArray();
+        return typedRuns.Length == 0
+            ? runArray.All(run => run.Status is "Completed" or "Failed")
+            : Enumerable.Range(0, 5).All(outputType => typedRuns.Any(run =>
+                OutputTypeOf(run.IdempotencyKey) == outputType &&
+                run.Status is "Completed" or "Failed"));
+    }
+
+    private static bool IsNoDataRun(BackfillRun run, HashSet<string> persistedCompanyMonths) =>
+        run.Status == DataSyncRunStatus.Failed.ToString()
+            ? IsNoDataYet(run.ErrorMessage)
+            : !HasPersistedRows(run.IdempotencyKey, run.ExternalReference, persistedCompanyMonths);
+
+    private static int? OutputTypeOf(string idempotencyKey)
+    {
+        var markerIndex = idempotencyKey.LastIndexOf("-ot", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var valueStart = markerIndex + 3;
+        var valueEnd = idempotencyKey.IndexOf('-', valueStart);
+        var token = valueEnd < 0
+            ? idempotencyKey[valueStart..]
+            : idempotencyKey[valueStart..valueEnd];
+        return int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var outputType)
+            ? outputType
+            : null;
+    }
+
+    private sealed record BackfillRun(
+        string IdempotencyKey,
+        string Status,
+        string? ExternalReference,
+        string? ErrorMessage);
 
     private static bool IsNoDataYet(string? errorMessage) =>
         !string.IsNullOrWhiteSpace(errorMessage) &&

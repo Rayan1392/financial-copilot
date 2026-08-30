@@ -132,8 +132,8 @@ public sealed class NadpcoApiScheduledSyncService(
                     started,
                     overlapFrom,
                     fromShamsiYearOverride,
-                    includeMonthlyActivity,
-                    monthlyWindow,
+                    includeMonthlyActivity: false,
+                    monthlyWindow: null,
                     cancellationToken);
                 Interlocked.Add(ref requestCounter, requestCount);
                 Interlocked.Increment(ref enqueuedCompanies);
@@ -150,7 +150,52 @@ public sealed class NadpcoApiScheduledSyncService(
         });
         await Task.WhenAll(tasks);
 
-        var failedIds = failed.OrderBy(id => id).ToArray();
+        if (includeMonthlyActivity)
+        {
+            // Monthly ProductSales are published in output-type waves. This guarantees that the
+            // queue receives every eligible company for type 0 before type 1, and so on through 4.
+            for (var outputType = 0; outputType <= 4; outputType++)
+            {
+                foreach (var companyId in companyIds)
+                {
+                    try
+                    {
+                        await publisher.PublishAsync(
+                            new DataSyncRequest(
+                                Guid.NewGuid(),
+                                ProviderDataset.MonthlyProductionSales,
+                                companyId.ToString(CultureInfo.InvariantCulture),
+                                timeProvider.GetUtcNow(),
+                                IdempotencyKey: BuildMonthlyActivityKey(
+                                    companyId,
+                                    started,
+                                    overlapFrom,
+                                    fromShamsiYearOverride,
+                                    monthlyWindow,
+                                    outputType),
+                                ProviderName: providerName,
+                                Mode: SourceMode.CurrentIncremental,
+                                SourceDateRangeStartJalali: monthlyWindow?.FromDate,
+                                SourceDateRangeEndJalali: monthlyWindow?.ToDate,
+                                FromShamsiYearOverride: fromShamsiYearOverride,
+                                MonthlyActivityOutputType: outputType),
+                            cancellationToken);
+                        Interlocked.Increment(ref requestCounter);
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        logger.LogWarning(
+                            exception,
+                            "NADPCO API sync failed to enqueue monthly activity output type {OutputType} for company {CompanyId}.",
+                            outputType,
+                            companyId);
+                        failed.Add(companyId);
+                    }
+                }
+            }
+        }
+
+        var failedIds = failed.Distinct().OrderBy(id => id).ToArray();
         var completed = timeProvider.GetUtcNow();
         var error = failedIds.Length == 0
             ? null
@@ -375,6 +420,23 @@ public sealed class NadpcoApiScheduledSyncService(
         }
 
         return count;
+    }
+
+    private static string BuildMonthlyActivityKey(
+        int companyId,
+        DateTimeOffset started,
+        DateTimeOffset? overlapFrom,
+        int? fromShamsiYearOverride,
+        MonthlyActivityWindow? monthlyWindow,
+        int outputType)
+    {
+        var keySuffix = fromShamsiYearOverride is { } year ? $"-bf{year}" : string.Empty;
+        var windowSuffix = monthlyWindow is null ? string.Empty : monthlyWindow.KeySuffix;
+        return BuildKey(
+            ProviderDataset.MonthlyProductionSales.ToString(),
+            companyId,
+            started,
+            overlapFrom) + $"-ot{outputType}" + keySuffix + windowSuffix;
     }
 
     private static string BuildKey(

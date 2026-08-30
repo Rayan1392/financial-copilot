@@ -496,7 +496,7 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
-    public async Task DataProvider_DirectProductSales_PostsExactlyOneCompanyMonthOutputTypeZeroRequest()
+    public async Task DataProvider_DirectProductSales_PostsAllFiveCompanyMonthOutputTypeRequests()
     {
         await using var dbContext = CreateProviderDbContext();
         var requests = new List<(string Uri, string Body)>();
@@ -515,26 +515,73 @@ public sealed class NadpcoApiProviderTests
         };
         var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
 
-        var payload = await client.FetchProductSalesOutputTypeZeroAsync(
+        var payload = await client.FetchProductSalesAllOutputTypesAsync(
             "19",
             1405,
             5,
             CancellationToken.None);
 
-        var request = Assert.Single(requests);
-        Assert.EndsWith(
-            "api/v2/MonthlyActivity/ProductSales?fromDate=140505&toDate=140505&outputTypeId=0",
-            request.Uri);
-        Assert.Contains("\"companyIds\":[19]", request.Body);
-        Assert.DoesNotContain("\"fromDate\"", request.Body);
+        Assert.Equal(5, requests.Count);
+        for (var outputType = 0; outputType <= 4; outputType++)
+        {
+            var request = Assert.Single(requests, item =>
+                item.Uri.EndsWith($"outputTypeId={outputType}", StringComparison.Ordinal));
+            Assert.Contains("\"companyIds\":[19]", request.Body);
+            Assert.DoesNotContain("\"fromDate\"", request.Body);
+        }
         Assert.Equal(ProviderDataset.MonthlyProductionSales, payload.Dataset);
         var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
             payload.Payload,
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.NotNull(envelope);
         Assert.Equal("[]", envelope.ProductSalesType0);
-        Assert.Null(envelope.ProductSalesType1);
+        Assert.Equal("[]", envelope.ProductSalesType1);
+        Assert.Equal("[]", envelope.ProductSalesType2);
+        Assert.Equal("[]", envelope.ProductSalesType3);
+        Assert.Equal("[]", envelope.ProductSalesType4);
         Assert.Equal("[]", envelope.ServiceSales);
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_IsolatesOutputTypeFailure()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.EndsWith("outputTypeId=2", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var payload = await client.FetchProductSalesAllOutputTypesAsync(
+            "19",
+            1405,
+            5,
+            CancellationToken.None);
+
+        Assert.Equal(5, requests.Count);
+        var envelope = JsonSerializer.Deserialize<NadpcoMonthlyActivityEnvelope>(
+            payload.Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(envelope);
+        Assert.Equal("[]", envelope.ProductSalesType0);
+        Assert.Equal("[]", envelope.ProductSalesType1);
+        Assert.Null(envelope.ProductSalesType2);
+        Assert.Equal("[]", envelope.ProductSalesType3);
+        Assert.Equal("[]", envelope.ProductSalesType4);
     }
 
     [Fact]

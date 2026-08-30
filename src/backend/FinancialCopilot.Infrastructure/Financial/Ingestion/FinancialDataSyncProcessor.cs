@@ -110,6 +110,11 @@ public sealed class FinancialDataSyncProcessor(
                     request.SourceDateRangeEndJalali);
             }
 
+            if (request.Dataset == ProviderDataset.MonthlyProductionSales)
+            {
+                boundaryOverride?.SetMonthlyActivityOutputType(request.MonthlyActivityOutputType);
+            }
+
             var payload = await payloadFactory();
             await rawPayloads.StoreAsync(payload, cancellationToken);
             var normalizationPayload = payload with { Dataset = request.Dataset };
@@ -318,7 +323,30 @@ public sealed class FinancialDataSyncProcessor(
             query = query.Where(row => row.ProviderName == run.ProviderName);
         }
 
+        if (TryGetMonthlyActivityOutputType(run.IdempotencyKey) is { } outputType)
+        {
+            query = query.Where(row => row.OutputType == outputType);
+        }
+
         return await query.AnyAsync(cancellationToken);
+    }
+
+    private static int? TryGetMonthlyActivityOutputType(string idempotencyKey)
+    {
+        var markerIndex = idempotencyKey.LastIndexOf("-ot", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var valueStart = markerIndex + 3;
+        var valueEnd = idempotencyKey.IndexOf('-', valueStart);
+        var token = valueEnd < 0
+            ? idempotencyKey[valueStart..]
+            : idempotencyKey[valueStart..valueEnd];
+        return int.TryParse(token, out var outputType) && outputType is >= 0 and <= 4
+            ? outputType
+            : null;
     }
 
     private static bool TryResolveRunPeriod(

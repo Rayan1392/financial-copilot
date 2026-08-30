@@ -56,7 +56,7 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
             "checksum",
             Now);
 
-        public Task<ProviderRawPayload> FetchProductSalesOutputTypeZeroAsync(
+        public Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
             string externalCompanyId,
             int shamsiYear,
             int shamsiMonth,

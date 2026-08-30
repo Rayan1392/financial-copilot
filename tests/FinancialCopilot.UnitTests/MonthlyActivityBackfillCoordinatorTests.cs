@@ -31,16 +31,18 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         Assert.Equal("Started", result.Outcome);
         Assert.Equal(14, result.MonthsPlanned);
         Assert.Equal(1, result.CompaniesPlanned);
-        Assert.Equal(14, result.RequestsEnqueued);
+        Assert.Equal(14 * 5, result.RequestsEnqueued);
         var first = publisher.Requests[0];
         Assert.Equal(ProviderDataset.MonthlyProductionSales, first.Dataset);
         Assert.Equal("13150", first.ExternalReference);
         Assert.Equal("1405/02/01", first.SourceDateRangeStartJalali);
         Assert.Equal("1405/02/31", first.SourceDateRangeEndJalali);
-        Assert.Equal("nadpco-monthlybf-140502-13150", first.IdempotencyKey);
+        Assert.Equal(0, first.MonthlyActivityOutputType);
+        Assert.Equal("nadpco-monthlybf-140502-13150-ot0", first.IdempotencyKey);
         var last = publisher.Requests[^1];
+        Assert.Equal(4, last.MonthlyActivityOutputType);
         Assert.Equal("1404/01/01", last.SourceDateRangeStartJalali);
-        Assert.Equal("nadpco-monthlybf-140401-13150", last.IdempotencyKey);
+        Assert.Equal("nadpco-monthlybf-140401-13150-ot4", last.IdempotencyKey);
         Assert.Equal(1, publisher.DurableBatchCount);
     }
 
@@ -59,13 +61,16 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         Assert.Equal("Started", result.Outcome);
         Assert.Equal(1, result.MonthsPlanned);
         Assert.Equal(1, result.CompaniesPlanned);
-        Assert.Equal(1, result.RequestsEnqueued);
-        var request = Assert.Single(publisher.Requests);
+        Assert.Equal(5, result.RequestsEnqueued);
+        var requests = publisher.Requests;
+        Assert.Equal(5, requests.Count);
+        Assert.Equal([0, 1, 2, 3, 4], requests.Select(request => request.MonthlyActivityOutputType));
+        var request = requests[0];
         Assert.Equal(ProviderDataset.MonthlyProductionSales, request.Dataset);
         Assert.Equal("13150", request.ExternalReference);
         Assert.Equal("1405/05/01", request.SourceDateRangeStartJalali);
         Assert.Equal("1405/05/31", request.SourceDateRangeEndJalali);
-        Assert.Equal("nadpco-monthlybf-140505-13150", request.IdempotencyKey);
+        Assert.Equal("nadpco-monthlybf-140505-13150-ot0", request.IdempotencyKey);
         Assert.Equal(1, publisher.DurableBatchCount);
     }
 
@@ -88,7 +93,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         Assert.Equal("AlreadyInProgress", second.Outcome);
         Assert.Equal(first.BatchId, second.BatchId);
         Assert.Single(db.MonthlyActivityBackfillBatches);
-        Assert.Single(db.MonthlyActivityBackfillOutbox);
+        Assert.Equal(5, db.MonthlyActivityBackfillOutbox.Count());
     }
 
     [Fact]
@@ -114,7 +119,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         var resumed = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
         Assert.Equal(17, resumed.MonthsPlanned);
-        Assert.Contains(publisher.Requests, request => request.IdempotencyKey == "nadpco-monthlybf-140505-13150");
+        Assert.Contains(publisher.Requests, request => request.IdempotencyKey == "nadpco-monthlybf-140505-13150-ot0");
         var state = await db.MonthlyActivityBackfillStates.SingleAsync();
         Assert.Contains("\"Year\":1405,\"Month\":5", state.PlannedMonthsJson);
     }
@@ -125,26 +130,29 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         await using var db = CreateDb();
         SeedEligibleCompany(db, "13150");
         // The newest month already completed in a previous invocation.
-        db.SyncRuns.Add(new DataSyncRunRow
+        for (var outputType = 0; outputType <= 4; outputType++)
         {
-            Id = Guid.NewGuid(),
-            IdempotencyKey = "nadpco-monthlybf-140502-13150",
-            Dataset = ProviderDataset.MonthlyProductionSales.ToString(),
-            Status = DataSyncRunStatus.Completed.ToString(),
-            RequestedAt = Now.AddHours(-1),
-            ProviderName = ProviderSources.NoavaranCurrentApiName,
-            ExternalReference = "13150",
-            SourceDateRangeStartJalali = "1405/02/01",
-            SourceDateRangeEndJalali = "1405/02/31"
-        });
-        SeedPersistedMonthlyReport(db, "13150", 1405, 2);
+            db.SyncRuns.Add(new DataSyncRunRow
+            {
+                Id = Guid.NewGuid(),
+                IdempotencyKey = $"nadpco-monthlybf-140502-13150-ot{outputType}",
+                Dataset = ProviderDataset.MonthlyProductionSales.ToString(),
+                Status = DataSyncRunStatus.Completed.ToString(),
+                RequestedAt = Now.AddHours(-1),
+                ProviderName = ProviderSources.NoavaranCurrentApiName,
+                ExternalReference = "13150",
+                SourceDateRangeStartJalali = "1405/02/01",
+                SourceDateRangeEndJalali = "1405/02/31"
+            });
+            SeedPersistedMonthlyReport(db, "13150", 1405, 2, outputType);
+        }
         await db.SaveChangesAsync();
         var publisher = new RecordingPublisher(db);
         var coordinator = NewCoordinator(db, publisher);
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
-        Assert.Equal(13, result.RequestsEnqueued);
+        Assert.Equal(13 * 5, result.RequestsEnqueued);
         Assert.DoesNotContain(publisher.Requests, request => request.IdempotencyKey.Contains("140502"));
     }
 
@@ -172,8 +180,8 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
 
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
-        Assert.Equal(14, result.RequestsEnqueued);
-        Assert.Contains(publisher.Requests, request => request.IdempotencyKey == "nadpco-monthlybf-140502-13150");
+        Assert.Equal(14 * 5, result.RequestsEnqueued);
+        Assert.Contains(publisher.Requests, request => request.IdempotencyKey == "nadpco-monthlybf-140502-13150-ot0");
     }
 
     [Fact]
@@ -201,7 +209,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
                 SourceDateRangeEndJalali = request.SourceDateRangeEndJalali
             });
             var (year, month) = ParseMonthFromKey(request.IdempotencyKey);
-            SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month);
+            SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month, request.MonthlyActivityOutputType ?? 0);
         }
         await db.SaveChangesAsync();
 
@@ -248,7 +256,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             if (!isFailed)
             {
                 var (year, month) = ParseMonthFromKey(request.IdempotencyKey);
-                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month);
+                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month, request.MonthlyActivityOutputType ?? 0);
             }
         }
         await db.SaveChangesAsync();
@@ -378,7 +386,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             if (!isFailed)
             {
                 var (year, month) = ParseMonthFromKey(request.IdempotencyKey);
-                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month);
+                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month, request.MonthlyActivityOutputType ?? 0);
             }
         }
 
@@ -393,9 +401,9 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
         Assert.Equal("Started", result.Outcome);
-        Assert.Equal(1, result.RequestsEnqueued);
-        Assert.Single(retryPublisher.Requests);
-        Assert.Equal("nadpco-monthlybf-140407-13150", retryPublisher.Requests[0].IdempotencyKey);
+        Assert.Equal(5, result.RequestsEnqueued);
+        Assert.Equal(5, retryPublisher.Requests.Count);
+        Assert.Equal("nadpco-monthlybf-140407-13150-ot0", retryPublisher.Requests[0].IdempotencyKey);
         Assert.False(result.Progress.IsCompleted);
         Assert.Equal("CompletedWithFailures", result.Progress.Status);
 
@@ -436,7 +444,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             if (!isNoDataYet)
             {
                 var (year, month) = ParseMonthFromKey(request.IdempotencyKey);
-                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month);
+                SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month, request.MonthlyActivityOutputType ?? 0);
             }
         }
 
@@ -451,9 +459,9 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         var result = await coordinator.StartAsync(new MonthlyActivityBackfillRequest("test:admin"), CancellationToken.None);
 
         Assert.Equal("Started", result.Outcome);
-        Assert.Equal(1, result.RequestsEnqueued);
-        Assert.Single(retryPublisher.Requests);
-        Assert.Equal("nadpco-monthlybf-140502-13150", retryPublisher.Requests[0].IdempotencyKey);
+        Assert.Equal(5, result.RequestsEnqueued);
+        Assert.Equal(5, retryPublisher.Requests.Count);
+        Assert.Equal("nadpco-monthlybf-140502-13150-ot0", retryPublisher.Requests[0].IdempotencyKey);
         Assert.False(result.Progress.IsCompleted);
         Assert.Equal("CompletedWithFailures", result.Progress.Status);
     }
@@ -484,7 +492,7 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             });
 
             var (year, month) = ParseMonthFromKey(request.IdempotencyKey);
-            SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month);
+            SeedPersistedMonthlyReport(db, request.ExternalReference!, year, month, request.MonthlyActivityOutputType ?? 0);
         }
 
         var state = await db.MonthlyActivityBackfillStates.SingleAsync();
@@ -526,6 +534,26 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         Assert.All(publisher.Requests, request => Assert.Equal("13150", request.ExternalReference));
     }
 
+    [Fact]
+    public async Task Start_EnqueuesMonthlyRequestsInOutputTypeWaves()
+    {
+        await using var db = CreateDb();
+        SeedEligibleCompany(db, "13150");
+        SeedEligibleCompany(db, "13151");
+        var publisher = new RecordingPublisher(db);
+        var coordinator = NewCoordinator(db, publisher);
+
+        await coordinator.StartAsync(
+            new MonthlyActivityBackfillRequest("test:admin", new ShamsiMonth(1405, 5)),
+            CancellationToken.None);
+
+        var requests = publisher.Requests;
+        Assert.Equal(10, requests.Count);
+        Assert.Equal([0, 0, 1, 1, 2, 2, 3, 3, 4, 4], requests.Select(r => r.MonthlyActivityOutputType));
+        Assert.Equal(["13150", "13151", "13150", "13151", "13150", "13151", "13150", "13151", "13150", "13151"],
+            requests.Select(r => r.ExternalReference));
+    }
+
     private static MonthlyActivityBackfillCoordinator NewCoordinator(
         FinancialIngestionDbContext db,
         RecordingPublisher publisher,
@@ -552,7 +580,8 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
         FinancialIngestionDbContext db,
         string externalCompanyId,
         int jalaliYear,
-        int jalaliMonth)
+        int jalaliMonth,
+        int outputType = 0)
     {
         var calendar = new PersianCalendar();
         var periodStart = DateOnly.FromDateTime(calendar.ToDateTime(jalaliYear, jalaliMonth, 1, 0, 0, 0, 0));
@@ -563,10 +592,10 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
             Id = Guid.NewGuid(),
             ProviderName = ProviderSources.NoavaranCurrentApiName,
             ExternalCompanyId = externalCompanyId,
-            ExternalReportId = $"ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-0",
+            ExternalReportId = $"ProductSales:{externalCompanyId}:{jalaliYear}-{jalaliMonth:D2}:output-{outputType}",
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
-            OutputType = 0,
+            OutputType = outputType,
             ReportType = "ProductSales",
             SourcePayloadChecksum = Guid.NewGuid().ToString("N"),
             LastSynchronizedAt = Now

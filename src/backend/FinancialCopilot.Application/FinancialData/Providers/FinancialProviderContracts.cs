@@ -69,12 +69,12 @@ public interface IMonthlyProductionSalesProvider
 }
 
 /// <summary>
-/// Fetches exactly one NADPCO ProductSales output for an explicit company-month. This targeted
-/// operator path intentionally excludes the other output types and ServiceSales.
+/// Fetches NADPCO ProductSales outputs for an explicit company-month. The targeted operator path
+/// deliberately excludes ServiceSales and persists product output types independently.
 /// </summary>
 public interface INadpcoMonthlyProductSalesDirectProvider
 {
-    Task<ProviderRawPayload> FetchProductSalesOutputTypeZeroAsync(
+    Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
         string externalCompanyId,
         int shamsiYear,
         int shamsiMonth,

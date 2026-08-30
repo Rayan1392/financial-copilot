@@ -18,6 +18,9 @@ public interface INoavaranCurrentApiBoundaryOverride
     /// <summary>Override Jalali to-date for monthly-activity requests (spec 057); null = configured value.</summary>
     string? MonthlyActivityToDate { get; }
 
+    /// <summary>Override ProductSales output type for a monthly-activity request; null = all types.</summary>
+    int? MonthlyActivityOutputType { get; }
+
     void Set(int? fromShamsiYear);
 
     /// <summary>
@@ -25,6 +28,8 @@ public interface INoavaranCurrentApiBoundaryOverride
     /// month for backfill/steady-state runs). The client still clamps to the permitted 1404 floor.
     /// </summary>
     void SetMonthlyActivityWindow(string? fromDate, string? toDate);
+
+    void SetMonthlyActivityOutputType(int? outputType);
 }
 
 public sealed class NoavaranCurrentApiBoundaryOverride : INoavaranCurrentApiBoundaryOverride
@@ -35,11 +40,23 @@ public sealed class NoavaranCurrentApiBoundaryOverride : INoavaranCurrentApiBoun
 
     public string? MonthlyActivityToDate { get; private set; }
 
+    public int? MonthlyActivityOutputType { get; private set; }
+
     public void Set(int? fromShamsiYear) => FromShamsiYear = fromShamsiYear;
 
     public void SetMonthlyActivityWindow(string? fromDate, string? toDate)
     {
         MonthlyActivityFromDate = fromDate;
         MonthlyActivityToDate = toDate;
+    }
+
+    public void SetMonthlyActivityOutputType(int? outputType)
+    {
+        if (outputType is < 0 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(nameof(outputType), "Monthly activity output type must be between 0 and 4.");
+        }
+
+        MonthlyActivityOutputType = outputType;
     }
 }

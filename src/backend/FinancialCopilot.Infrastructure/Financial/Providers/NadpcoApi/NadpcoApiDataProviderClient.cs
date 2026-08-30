@@ -107,10 +107,60 @@ public sealed class NadpcoApiDataProviderClient(
             ToDate: null,
             OutputType: null);
 
+        return await FetchProductSalesAllOutputTypesAsync(
+            companyId,
+            fromToken,
+            toToken,
+            body,
+            includeServiceSales: boundaryOverride?.MonthlyActivityOutputType is null,
+            cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+        string externalCompanyId,
+        int shamsiYear,
+        int shamsiMonth,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        if (shamsiYear < MonthlyActivityMinimumShamsiYear || shamsiMonth is < 1 or > 12)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(shamsiYear),
+                $"NADPCO monthly activity supports Shamsi year {MonthlyActivityMinimumShamsiYear} onward and months 1-12.");
+        }
+
+        var monthToken = string.Create(CultureInfo.InvariantCulture, $"{shamsiYear:D4}{shamsiMonth:D2}");
+        var body = new NadpcoApiMonthlyActivityRequest(
+            new[] { ParseCompanyId(companyId) },
+            FromDate: null,
+            ToDate: null,
+            OutputType: null);
+
+        return await FetchProductSalesAllOutputTypesAsync(
+            companyId,
+            monthToken,
+            monthToken,
+            body,
+            includeServiceSales: false,
+            cancellationToken);
+    }
+
+    private async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+        string companyId,
+        string? fromToken,
+        string? toToken,
+        NadpcoApiMonthlyActivityRequest body,
+        bool includeServiceSales,
+        CancellationToken cancellationToken)
+    {
         // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
         // block the others. Null means the fetch failed; the normalizer skips null slots.
         var productSalesByType = new string?[5];
-        for (var outputTypeId = 0; outputTypeId <= 4; outputTypeId++)
+        var outputTypes = boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
+            ? [selectedOutputType]
+            : Enumerable.Range(0, 5);
+        foreach (var outputTypeId in outputTypes)
         {
             try
             {
@@ -134,23 +184,25 @@ public sealed class NadpcoApiDataProviderClient(
         // ServiceSales failures are isolated so they cannot poison the product-sales data of the
         // same company-month. Degrade to an empty service-sales payload with a visible warning;
         // service rows resume once the month is re-requested.
-        string serviceSales;
-        try
+        var serviceSales = "[]";
+        if (includeServiceSales)
         {
-            serviceSales = await PostJsonForPayloadAsync(
-                BuildMonthlyActivityEndpoint(
-                    "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
-                body,
-                cancellationToken);
-        }
-        catch (FinancialProviderException exception)
-        {
-            logger.LogWarning(
-                "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
-                "persisting product sales only for this request.",
-                companyId,
-                exception.Code);
-            serviceSales = "[]";
+            try
+            {
+                serviceSales = await PostJsonForPayloadAsync(
+                    BuildMonthlyActivityEndpoint(
+                        "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
+                    body,
+                    cancellationToken);
+            }
+            catch (FinancialProviderException exception)
+            {
+                logger.LogWarning(
+                    "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
+                    "persisting product sales only for this request.",
+                    companyId,
+                    exception.Code);
+            }
         }
 
         var envelope = new NadpcoMonthlyActivityEnvelope(
@@ -167,50 +219,6 @@ public sealed class NadpcoApiDataProviderClient(
             "api/v*/MonthlyActivity/*Sales",
             companyId,
             json,
-            cancellationToken);
-    }
-
-    public async Task<ProviderRawPayload> FetchProductSalesOutputTypeZeroAsync(
-        string externalCompanyId,
-        int shamsiYear,
-        int shamsiMonth,
-        CancellationToken cancellationToken)
-    {
-        var companyId = RequireReference(externalCompanyId);
-        if (shamsiYear < MonthlyActivityMinimumShamsiYear || shamsiMonth is < 1 or > 12)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(shamsiYear),
-                $"NADPCO monthly activity supports Shamsi year {MonthlyActivityMinimumShamsiYear} onward and months 1-12.");
-        }
-
-        var monthToken = string.Create(CultureInfo.InvariantCulture, $"{shamsiYear:D4}{shamsiMonth:D2}");
-        var body = new NadpcoApiMonthlyActivityRequest(
-            new[] { ParseCompanyId(companyId) },
-            FromDate: null,
-            ToDate: null,
-            OutputType: null);
-        var productSales = await PostJsonForPayloadAsync(
-            BuildMonthlyActivityEndpoint(
-                "api/v2/MonthlyActivity/ProductSales",
-                monthToken,
-                monthToken,
-                outputType: 0),
-            body,
-            cancellationToken);
-        var envelope = new NadpcoMonthlyActivityEnvelope(
-            productSales,
-            ProductSalesType1: null,
-            ProductSalesType2: null,
-            ProductSalesType3: null,
-            ProductSalesType4: null,
-            ServiceSales: "[]");
-
-        return await StorePayloadAsync(
-            ProviderDataset.MonthlyProductionSales,
-            "api/v2/MonthlyActivity/ProductSales?outputTypeId=0",
-            companyId,
-            JsonSerializer.Serialize(envelope, JsonOptions),
             cancellationToken);
     }
 

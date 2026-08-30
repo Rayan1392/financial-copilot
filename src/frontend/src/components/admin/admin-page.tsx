@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { Activity, ArrowRight, Database, RefreshCw, Search, Shield } from "lucide-react";
+import { RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,8 +64,8 @@ export function AdminPage({ user }: { user: AuthUser }) {
 
   return (
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-surface/80 px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+      <header className="border-b border-border bg-surface/80 px-3 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-emerald-soft p-2 text-emerald">
               <Shield className="size-5" />
@@ -76,43 +75,9 @@ export function AdminPage({ user }: { user: AuthUser }) {
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {hasPermission(user, adminPermissions.dataSyncManage) && (
-              <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/admin/data/">
-                    <Database className="size-4 mr-1.5" /> Data Console
-                  </Link>
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/admin/data/monitor">
-                    <Activity className="size-4 mr-1.5" /> پایش زنده
-                  </Link>
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/admin/data-management/fund-reports">
-                    <Database className="size-4 mr-1.5" /> آپلود پرتفوی صندوق
-                  </Link>
-                </Button>
-              </>
-            )}
-            {(hasPermission(user, adminPermissions.noavaranMonthlyBackfillExecute) ||
-              hasPermission(user, adminPermissions.dataSyncManage)) && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/admin/getCompanyId">
-                  <Search className="size-4 mr-1.5" /> دریافت تولید و فروش ماهانه
-                </Link>
-              </Button>
-            )}
-            <Button asChild variant="outline">
-              <Link to="/chat">
-                <ArrowRight /> بازگشت به گفتگو
-              </Link>
-            </Button>
-          </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl p-6">
+      <main className="mx-auto w-full max-w-7xl min-w-0 p-3 sm:p-6">
         <Tabs value={tab} onValueChange={(value) => setTab(value as AdminTab)}>
           <TabsList className="mb-4 h-auto flex-wrap justify-start">
             {tabs.map(([value, label]) => (
@@ -144,7 +109,7 @@ export function AdminPage({ user }: { user: AuthUser }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-4">
+    <section className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface p-4">
       <h2 className="mb-4 font-semibold">{title}</h2>
       {children}
     </section>

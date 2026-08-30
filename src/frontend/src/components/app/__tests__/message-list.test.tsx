@@ -36,6 +36,7 @@ describe("MessageList", () => {
     expect(content).not.toBeNull();
     expect(content?.className).toContain("text-right");
     expect(container.querySelector("[dir='rtl'] .text-right")).not.toBeNull();
+    expect(screen.getByText("AI").parentElement?.getAttribute("dir")).toBe("rtl");
   });
 
   it("renders persisted suggested actions and submits the visible message once", () => {

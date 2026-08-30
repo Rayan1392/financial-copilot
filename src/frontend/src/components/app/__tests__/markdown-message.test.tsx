@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { MarkdownMessage } from "../markdown-message";
 
 describe("MarkdownMessage", () => {
@@ -117,7 +117,7 @@ describe("MarkdownMessage", () => {
     }
   });
 
-  it("widens the monthly sales quality ranking table and keeps it RTL-friendly", () => {
+  it("renders the monthly sales quality ranking responsively with expandable details", async () => {
     const rankingTableMarkdown = [
       "براساس آخرین گزارش های تولید و فروش موجود، رتبه بندی زیر فقط کیفیت داده را نشان می دهد.",
       "",
@@ -140,10 +140,13 @@ describe("MarkdownMessage", () => {
 
     expect(outerWrapper?.className).toContain("max-w-none");
     expect(tableWrapper?.getAttribute("dir")).toBe("rtl");
-    expect(table?.className).toContain("monthly-sales-quality-ranking-table");
-    expect(table?.querySelectorAll("colgroup col")).toHaveLength(8);
-    expect(reasonHeader).not.toBeNull();
-    expect(reasonCell).not.toBeNull();
+    expect(table?.className).toContain("table-fixed");
+    expect(table?.querySelectorAll("colgroup col")).toHaveLength(6);
+    expect(container.querySelectorAll('button[aria-expanded="false"]')).toHaveLength(2);
+    expect(reasonHeader).toBeFalsy();
+    expect(reasonCell).toBeFalsy();
+    fireEvent.click(container.querySelector('button[aria-expanded="false"]') as HTMLButtonElement);
+    await waitFor(() => expect(container.textContent).toContain("فروش بالاتر از میانگین ۱۲ ماهه"));
   });
 
   it("XSS: strips javascript: links from anchor hrefs", () => {

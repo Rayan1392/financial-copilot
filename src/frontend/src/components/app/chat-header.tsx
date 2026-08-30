@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { FileSearch, Settings } from "lucide-react";
+import { Bell, Eye, FileSearch, Home, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
   adminPermissions,
@@ -42,12 +42,36 @@ export function ChatHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <Link
+          to="/chat"
+          className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+          aria-label="صفحه اصلی"
+          title="صفحه اصلی"
+        >
+          <Home className="size-4" />
+        </Link>
+        <Link
+          to="/followed-symbols"
+          className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+          aria-label="دیده‌بان"
+          title="دیده‌بان"
+        >
+          <Eye className="size-4" />
+        </Link>
+        <Link
+          to="/disclosures"
+          className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+          aria-label="اطلاعیه‌ها"
+          title="اطلاعیه‌ها"
+        >
+          <Bell className="size-4" />
+        </Link>
         {showMonthlyBackfill && (
           <Link
-            to="/admin/getCompanyId"
+            to="/getCompanyId"
             className="rounded-lg p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
-            aria-label="Monthly production and sales"
-            title="Monthly production and sales"
+            aria-label="دریافت تولید و فروش"
+            title="دریافت تولید و فروش"
           >
             <FileSearch className="size-4" />
           </Link>

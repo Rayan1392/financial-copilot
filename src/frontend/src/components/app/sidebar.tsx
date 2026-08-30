@@ -4,14 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, LogOut, Settings, Send } from "lucide-react";
 import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
-import { getUsage, getWatchlist } from "@/lib/market-view.functions";
+import { getUsage } from "@/lib/market-view.functions";
 import {
   getStoredAuthenticatedUser,
   logout,
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
-import { formatPercent, toPersianDigits } from "@/lib/format/persian";
+import { toPersianDigits } from "@/lib/format/persian";
 
 export function ConversationSidebar() {
   const navigate = useNavigate();
@@ -20,7 +20,6 @@ export function ConversationSidebar() {
   const activeId = (params as { threadId?: string }).threadId;
   const fetchThreads = useServerFn(listThreads);
   const fetchUsage = useServerFn(getUsage);
-  const fetchWatchlist = useServerFn(getWatchlist);
   const create = useServerFn(createThread);
   const del = useServerFn(deleteThread);
   const qOpts = { retry: false, throwOnError: false, refetchOnWindowFocus: false } as const;
@@ -36,15 +35,6 @@ export function ConversationSidebar() {
   } = useQuery({
     queryKey: ["usage"],
     queryFn: () => fetchUsage(),
-    ...qOpts,
-  });
-  const {
-    data: watchlist,
-    isLoading: watchlistLoading,
-    isError: watchlistError,
-  } = useQuery({
-    queryKey: ["watchlist"],
-    queryFn: () => fetchWatchlist(),
     ...qOpts,
   });
   const newChat = useMutation({
@@ -102,18 +92,6 @@ export function ConversationSidebar() {
           <span>گفتگوی جدید</span>
           <Plus className="size-4" />
         </button>
-        <Link
-          to="/followed-symbols"
-          className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
-        >
-        دیده‌بان
-        </Link>
-        <Link
-          to="/disclosures"
-          className="mb-6 rounded-lg border border-hairline bg-background/50 px-3 py-2 text-sm text-muted-foreground transition hover:border-emerald/30 hover:text-foreground"
-        >
-          اطلاعیه‌ها
-        </Link>
         <div className="flex min-h-0 flex-1 flex-col">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-3">
             گفتگوهای اخیر
@@ -151,36 +129,6 @@ export function ConversationSidebar() {
               </div>
             ))}
           </nav>
-        </div>
-        <div className="space-y-3 pt-6">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2">
-            دیده‌بان من
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {watchlistLoading && (
-              <p className="col-span-2 text-xs text-muted-foreground">در حال بارگذاری...</p>
-            )}
-            {watchlistError && <p className="col-span-2 text-xs text-rose">داده در دسترس نیست.</p>}
-            {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
-              <p className="col-span-2 text-xs text-muted-foreground">دیده‌بان خالی است.</p>
-            )}
-            {watchlist?.symbols.slice(0, 4).map((quote) => (
-              <div
-                key={quote.symbol}
-                className="p-2 rounded border border-hairline bg-background/50"
-              >
-                <div className="text-[10px] text-muted-foreground">
-                  {quote.symbol}
-                  {quote.isStale ? " *" : ""}
-                </div>
-                <div
-                  className={`text-xs ${quote.changePercent == null ? "text-muted-foreground" : quote.changePercent >= 0 ? "text-emerald" : "text-rose"}`}
-                >
-                  {quote.changePercent == null ? "-" : formatPercent(quote.changePercent)}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <div className="mt-auto shrink-0 border-t border-hairline p-5 space-y-4">

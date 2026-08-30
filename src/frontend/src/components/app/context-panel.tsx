@@ -26,9 +26,9 @@ export function ContextPanel() {
   });
 
   return (
-    <aside className="w-80 flex-shrink-0 border-r border-hairline bg-surface/50 flex-col hidden lg:flex">
-      <div className="p-6 space-y-8 overflow-y-auto scrollbar-thin">
-        <section>
+    <aside className="hidden h-screen w-80 flex-shrink-0 flex-col border-r border-hairline bg-surface/50 lg:flex">
+      <div className="flex h-full min-h-0 flex-col space-y-8 overflow-hidden p-6">
+        <section className="shrink-0">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
             وضعیت کلی بازار
           </h3>
@@ -62,7 +62,7 @@ export function ContextPanel() {
             </p>
           )}
         </section>
-        <section>
+        <section className="flex min-h-0 flex-1 flex-col">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
             دیده‌بان
           </h3>
@@ -75,7 +75,7 @@ export function ContextPanel() {
           {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
             <p className="text-xs text-muted-foreground">دیده‌بان خالی است.</p>
           )}
-          <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
+          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
             {watchlist?.symbols.map((quote) => (
               <div
                 key={quote.symbol}
@@ -106,10 +106,6 @@ export function ContextPanel() {
           {watchlist?.symbols.some((quote) => quote.isStale) && (
             <p className="text-[10px] text-gold mt-2">* داده قدیمی</p>
           )}
-        </section>
-        <section className="text-xs text-muted-foreground space-y-2">
-          <p>ورود پول حقیقی: در دسترس نیست</p>
-          <p>صنایع فعال: در دسترس نیست</p>
         </section>
       </div>
     </aside>

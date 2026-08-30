@@ -116,7 +116,7 @@ function AssistantBlock({
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
 
   return (
-    <div className="flex gap-4" dir="ltr">
+    <div className="flex gap-4" dir={isRtlMessage ? "rtl" : "ltr"}>
       <div className="size-7 rounded-lg bg-emerald-soft ring-1 ring-emerald/30 flex-shrink-0 flex items-center justify-center text-[10px] text-emerald font-mono">
         AI
       </div>

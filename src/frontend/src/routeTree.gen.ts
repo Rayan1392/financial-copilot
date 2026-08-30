@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompanyId'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
+import { Route as AppGetCompanyIdRouteImport } from './routes/_app.getCompanyId'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
@@ -55,6 +56,11 @@ const AdminGetCompanyIdRoute = AdminGetCompanyIdRouteImport.update({
 const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
   id: '/telegram-link',
   path: '/telegram-link',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGetCompanyIdRoute = AppGetCompanyIdRouteImport.update({
+  id: '/getCompanyId',
+  path: '/getCompanyId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFollowedSymbolsRoute = AppFollowedSymbolsRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/getCompanyId': typeof AppGetCompanyIdRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/getCompanyId': typeof AppGetCompanyIdRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
+  '/_app/getCompanyId': typeof AppGetCompanyIdRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/admin_/getCompanyId': typeof AdminGetCompanyIdRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
+    | '/getCompanyId'
     | '/telegram-link'
     | '/admin/getCompanyId'
     | '/c/$threadId'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
+    | '/getCompanyId'
     | '/telegram-link'
     | '/admin/getCompanyId'
     | '/c/$threadId'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/disclosures'
     | '/_app/followed-symbols'
+    | '/_app/getCompanyId'
     | '/_app/telegram-link'
     | '/admin_/getCompanyId'
     | '/_app/c/$threadId'
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/telegram-link'
       fullPath: '/telegram-link'
       preLoaderRoute: typeof AppTelegramLinkRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/getCompanyId': {
+      id: '/_app/getCompanyId'
+      path: '/getCompanyId'
+      fullPath: '/getCompanyId'
+      preLoaderRoute: typeof AppGetCompanyIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/followed-symbols': {
@@ -390,6 +409,7 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppDisclosuresRoute: typeof AppDisclosuresRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
+  AppGetCompanyIdRoute: typeof AppGetCompanyIdRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
@@ -398,6 +418,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppDisclosuresRoute: AppDisclosuresRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
+  AppGetCompanyIdRoute: AppGetCompanyIdRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }

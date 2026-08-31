@@ -34,6 +34,7 @@ export interface AssistantChatBlock {
   table?: ScannerTable;
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   citations: Array<{
@@ -121,6 +122,23 @@ export interface MonthlyActivityTrendResult {
   missingDataPoints: MonthlyActivityTrendMissingDataPoint[];
   sourceProviderName: string;
   calculatedAtUtc: string;
+}
+
+export interface MonthlyProductComparisonResult {
+  state: string;
+  companyText: string;
+  currentPeriod?: string;
+  comparisonPeriod?: string;
+  currentTotalSales?: number;
+  comparisonTotalSales?: number;
+  salesChange?: number;
+  salesChangePercent?: number;
+  primaryDriver?: string;
+  products: Array<{ title: string; unit?: string; lifecycle: string; currentSales?: number; comparisonSales?: number; salesChange?: number; contributionPercent?: number; quantityEffect?: number; priceEffect?: number; residual?: number; driver: string; warnings: string[] }>;
+  warnings: string[];
+  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  blockingReason?: string;
+  clarificationMessage?: string;
 }
 
 export interface MonthlyActivityTrendChartPoint {
@@ -245,6 +263,7 @@ interface AssistantContentResponse {
   scannerTable?: ScannerTable;
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
+  monthlyProductComparisonResult?: MonthlyProductComparisonResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   confidenceScore?: { score: number };
@@ -421,6 +440,7 @@ function mapAssistantBlock(
     table,
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
+    monthlyProductComparisonResult: content?.monthlyProductComparisonResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
     citations: explanation?.dataCitations ?? [],

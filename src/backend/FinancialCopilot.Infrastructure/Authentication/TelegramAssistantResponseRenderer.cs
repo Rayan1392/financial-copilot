@@ -32,6 +32,11 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
         }
 
+        if (response.MonthlyProductComparisonResult is not null)
+        {
+            return RenderMonthlyProductComparison(response.MonthlyProductComparisonResult);
+        }
+
         if (response.ScannerTable?.SalesGrowthMetadata is not null)
         {
             return RenderSalesGrowthScanner(response, response.ScannerTable);
@@ -73,6 +78,22 @@ public sealed class TelegramAssistantResponseRenderer(
         }
 
         return Split(EscapeMarkdownV2(text));
+    }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyProductComparison(MonthlyProductComparisonResponse result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"مقایسه فروش محصولات: {result.CompanyText}");
+        sb.AppendLine($"دوره جاری: {result.CurrentPeriod?.ToString() ?? "—"} | دوره مقایسه: {result.ComparisonPeriod?.ToString() ?? "—"}");
+        if (!string.IsNullOrWhiteSpace(result.ClarificationMessage)) sb.AppendLine(result.ClarificationMessage);
+        if (result.Totals is not null)
+        {
+            sb.AppendLine($"فروش جاری: {result.Totals.Current:N2} | مقایسه: {result.Totals.Comparison:N2}");
+            sb.AppendLine($"تغییر: {result.Totals.Change:N2} | درصد: {(result.Totals.ChangePercent.HasValue ? result.Totals.ChangePercent.Value.ToString("N2") + "٪" : "—")}");
+        }
+        if (result.Warnings.Count > 0) sb.AppendLine($"هشدار: {string.Join("، ", result.Warnings)}");
+        if (result.Evidence.Count > 0) sb.AppendLine("منبع: نوآوران امین");
+        return Split(EscapeMarkdownV2(sb.ToString().Trim()));
     }
 
     private IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyTrend(

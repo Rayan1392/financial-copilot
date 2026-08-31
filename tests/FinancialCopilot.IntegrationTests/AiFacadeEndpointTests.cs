@@ -54,6 +54,67 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
     }
 
     [Fact]
+    public async Task AiQuery_ProductComparison_ReturnsTypedResultAndPersistsIt()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            db.Database.EnsureCreated();
+            var companyId = "feature129-api-company";
+            db.Companies.Add(new NormalizedCompanyRow
+            {
+                Id = Guid.NewGuid(), ProviderName = "Feature129Test", ExternalCompanyId = companyId,
+                Name = "شغدیر", CompanySymbol = "شغدیر", LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            AddProductReport(db, companyId, "2024-04-20", "2024-05-20", 100m);
+            AddProductReport(db, companyId, "2024-03-20", "2024-04-19", 120m);
+            db.SaveChanges();
+        }
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "فروش محصولات شغدیر در جاری 1403/02 و قبلی 1403/01 را مقایسه کن"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"{response.StatusCode}: {body}");
+        using var document = JsonDocument.Parse(body);
+        Assert.True(document.RootElement.TryGetProperty("monthlyProductComparisonResult", out var result) && result.ValueKind != JsonValueKind.Null,
+            $"Feature 129 payload missing. Response: {body}");
+        Assert.Equal("Partial", result.GetProperty("state").GetString());
+        Assert.Equal(100m, result.GetProperty("currentTotalSales").GetDecimal());
+        Assert.Equal(120m, result.GetProperty("comparisonTotalSales").GetDecimal());
+        Assert.Equal(-20m, result.GetProperty("salesChange").GetDecimal());
+        Assert.True(result.GetProperty("salesChangePercent").ValueKind == JsonValueKind.Number);
+        Assert.NotEmpty(result.GetProperty("evidence").EnumerateArray());
+
+        using var history = await client.GetAsync($"/api/ai/v1/conversations/{document.RootElement.GetProperty("conversationId").GetGuid()}/messages");
+        using var historyDocument = await ReadJsonAsync(history);
+        var historyMessages = historyDocument.RootElement.GetProperty("messages");
+        var replayed = historyMessages[historyMessages.GetArrayLength() - 1]
+            .GetProperty("assistantContent").GetProperty("monthlyProductComparisonResult");
+        Assert.Equal(-20m, replayed.GetProperty("salesChange").GetDecimal());
+        Assert.Equal(result.GetProperty("evidence").GetArrayLength(), replayed.GetProperty("evidence").GetArrayLength());
+    }
+
+    private static void AddProductReport(FinancialIngestionDbContext db, string companyId, string start, string end, decimal amount)
+    {
+        var reportId = Guid.NewGuid();
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId, ProviderName = "Feature129Test", ExternalCompanyId = companyId,
+            ExternalReportId = $"feature129-api-{reportId:N}", ReportType = "ProductSales", OutputType = 0,
+            PeriodStart = DateOnly.Parse(start), PeriodEnd = DateOnly.Parse(end),
+            SourcePayloadChecksum = reportId.ToString("N"), LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(), MonthlyReportId = reportId, ProductCode = "A", Title = "Alpha", Unit = "ton", SalesAmount = amount
+        });
+    }
+
+    [Fact]
     public async Task AiQuery_WithMissingMessage_ReturnsBadRequest()
     {
         using var client = _factory.CreateClient();

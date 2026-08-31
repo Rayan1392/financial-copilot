@@ -42,7 +42,8 @@ internal sealed class MessagePersistenceFunction(
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
         DisclosureListingResult? disclosureListingResult = null,
-        PsVisualizationResult? psVisualizationResult = null)
+        PsVisualizationResult? psVisualizationResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -51,7 +52,7 @@ internal sealed class MessagePersistenceFunction(
                 intent, scannerPlan, scannerTable, symbolLookupTable,
                 explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
                 comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
-                monthlySalesQualityRankingResult);
+                monthlySalesQualityRankingResult, monthlyProductComparisonResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
         var suggestions = guidanceService.Suggest(new CapabilityGuidanceRequest(
@@ -94,13 +95,18 @@ internal sealed class MessagePersistenceFunction(
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
                     DisclosureListingResult: disclosureListingResult,
                     PsVisualizationResult: psVisualizationResult,
+                    MonthlyProductComparisonResult: monthlyProductComparisonResult,
                     Outcome: outcome,
                     OutcomeReasonCode: outcomeReasonCode,
                     ReplyLanguage: replyLanguage,
                     LanguageGuardApplied: languageGuardApplied,
                     SuggestedActions: suggestions,
-                    SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
+                    SemanticCapabilityCode: intent == DetectedIntent.MonthlyProductComparison
+                        ? "monthly_product_comparison"
+                        : request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
+                    SemanticRegistryVersion: intent == DetectedIntent.MonthlyProductComparison
+                        ? 1
+                        : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
             createConversation,
             cancellationToken);
         return persisted with { SuggestedActions = suggestions };
@@ -129,7 +135,8 @@ internal sealed class MessagePersistenceFunction(
         FinancialStatementTableResult? financialStatementTableResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
-        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null)
+        MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -139,6 +146,9 @@ internal sealed class MessagePersistenceFunction(
 
         if (monthlySalesQualityRankingResult is not null)
             return BuildMonthlySalesQualityRankingContent(monthlySalesQualityRankingResult);
+
+        if (monthlyProductComparisonResult is not null)
+            return BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
 
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
@@ -171,6 +181,17 @@ internal sealed class MessagePersistenceFunction(
                 : "تحلیل جامعی برای معیارهای درخواستی یافت نشد.";
 
         return textAnswer ?? "I can help you screen stocks. Please describe your criteria.";
+    }
+
+    private static string BuildMonthlyProductComparisonContent(MonthlyProductComparisonResponse result)
+    {
+        if (result.BlockingReason is not null)
+            return result.ClarificationMessage ?? "Monthly product comparison is unavailable.";
+
+        var totals = result.Totals;
+        var lines = new List<string> { $"Monthly product comparison for {result.CompanyText} ({result.CurrentPeriod} vs {result.ComparisonPeriod})" };
+        lines.Add($"Sales: {totals?.Current.ToString("0.##") ?? "n/a"} vs {totals?.Comparison.ToString("0.##") ?? "n/a"} ({totals?.ChangePercent?.ToString("0.##") ?? "n/a"}%)");
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)

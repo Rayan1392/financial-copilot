@@ -109,7 +109,9 @@ function AssistantBlock({
 }) {
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
   const message =
-    tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
+    block.monthlyProductComparisonResult
+      ? ""
+      : tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
       ? ""
       : replaceProviderDisplayNames(block.message);
   const isRtlMessage =
@@ -156,6 +158,10 @@ function AssistantBlock({
             data={block.monthlyActivityTrendResult}
             psVisualization={block.psVisualizationResult}
           />
+        )}
+
+        {block.monthlyProductComparisonResult && (
+          <MonthlyProductComparisonCard data={block.monthlyProductComparisonResult} sourceText={block.message} />
         )}
 
         {block.psVisualizationResult && !block.monthlyActivityTrendResult && (
@@ -239,6 +245,68 @@ function AssistantBlock({
       </div>
     </div>
   );
+}
+
+function MonthlyProductComparisonCard({ data, sourceText }: { data: NonNullable<AssistantChatBlock["monthlyProductComparisonResult"]>; sourceText?: string }) {
+  const format = (value?: number) => value == null ? "—" : new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(value);
+  const currentPeriod = resolveJalaliPeriod(data.currentPeriod, sourceText, "جاری");
+  const comparisonPeriod = resolveJalaliPeriod(data.comparisonPeriod, sourceText, "مقایسه");
+  const currentSalesLabel = `فروش ${formatJalaliPeriod(currentPeriod) ?? "دوره جاری"}`;
+  const comparisonSalesLabel = `فروش ${formatJalaliPeriod(comparisonPeriod) ?? "دوره مقایسه"}`;
+  const visibleWarnings = data.warnings.filter((warning) => warning !== "PartialDecomposition");
+  const visibleProducts = data.products
+    .filter((item) => !(item.currentSales === 0 && item.comparisonSales === 0))
+    .slice(0, 20);
+  return <section dir="rtl" className="space-y-3 rounded-xl border border-hairline p-3" aria-label="مقایسه فروش محصولات">
+    <div className="text-sm font-medium">مقایسه فروش محصولات {data.companyText}</div>
+    {data.clarificationMessage && <p role="status" className="text-amber-500">{data.clarificationMessage}</p>}
+    {data.currentTotalSales != null && <div className="grid grid-cols-2 gap-2 text-xs"><span>{currentSalesLabel}: {format(data.currentTotalSales)}</span><span>{comparisonSalesLabel}: {format(data.comparisonTotalSales)}</span><span>تغییر فروش: {format(data.salesChange)}</span><span>درصد تغییر: {format(data.salesChangePercent)}٪</span></div>}
+    {visibleProducts.length > 0 && <>
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-xs text-right">
+          <thead><tr className="border-b border-hairline"><th className="p-2">محصول</th><th className="p-2">{currentSalesLabel}</th><th className="p-2">{comparisonSalesLabel}</th><th className="p-2">تغییر</th></tr></thead>
+          <tbody>{visibleProducts.map((item, index) => <tr key={`${item.title}:${index}`} className="border-b border-hairline/60"><td className="p-2">{item.title} {item.unit ? `(${item.unit})` : ""}</td><td className="p-2">{format(item.currentSales)}</td><td className="p-2">{format(item.comparisonSales)}</td><td className="p-2">{format(item.salesChange)}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="md:hidden space-y-2">
+        {visibleProducts.map((item, index) => <article key={`${item.title}:mobile:${index}`} className="rounded-lg border border-hairline/70 p-2.5 text-xs">
+          <div className="mb-2 font-medium">{item.title} {item.unit ? `(${item.unit})` : ""}</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-md bg-muted/30 p-2"><div className="text-[10px] text-muted-foreground">{currentSalesLabel}</div><div className="mt-1 font-medium">{format(item.currentSales)}</div></div>
+            <div className="rounded-md bg-muted/30 p-2"><div className="text-[10px] text-muted-foreground">{comparisonSalesLabel}</div><div className="mt-1 font-medium">{format(item.comparisonSales)}</div></div>
+          </div>
+          <div className="mt-2 flex items-center justify-between rounded-md bg-emerald-soft/50 px-2 py-1.5"><span>تغییر فروش</span><span className="font-medium">{format(item.salesChange)}</span></div>
+          {(item.quantityEffect != null || item.priceEffect != null) && <details className="mt-2"><summary className="cursor-pointer text-[11px] text-muted-foreground">جزئیات اثرگذاری</summary><div className="mt-2 grid grid-cols-2 gap-2 text-[11px]"><span>اثر مقدار: {format(item.quantityEffect)}</span><span>اثر نرخ: {format(item.priceEffect)}</span></div></details>}
+        </article>)}
+      </div>
+    </>}
+    {visibleWarnings.length > 0 && <div className="text-xs text-amber-500" role="status">{visibleWarnings.join(" · ")}</div>}
+    {data.evidence.length > 0 && <div className="text-[11px] text-muted-foreground">منبع: نوآوران امین</div>}
+  </section>;
+}
+
+function formatJalaliPeriod(period?: string) {
+  const match = period?.match(/^(\d{4})[/-](\d{1,2})/);
+  if (!match) return undefined;
+  const year = toPersianDigits(match[1]);
+  const month = Number(match[2]);
+  const monthName = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"][month - 1];
+  return monthName ? `${monthName} ${year}` : undefined;
+}
+
+function resolveJalaliPeriod(period: string | undefined, sourceText: string | undefined, qualifier: "جاری" | "مقایسه") {
+  if (formatJalaliPeriod(period)) return period;
+  const normalized = sourceText?.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+  const numericPeriod = normalized?.match(new RegExp(`دوره ${qualifier}:\\s*(\\d{4}[/-]\\d{1,2})`))?.[1];
+  if (numericPeriod) return numericPeriod;
+
+  const monthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+  const monthPattern = monthNames.join("|");
+  const monthPeriod = sourceText?.match(new RegExp(`دوره ${qualifier}:\\s*(${monthPattern})\\s*([۰-۹0-9]{4})`));
+  if (!monthPeriod) return undefined;
+  const month = monthNames.indexOf(monthPeriod[1]) + 1;
+  const year = monthPeriod[2].replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+  return `${year}/${month}`;
 }
 
 function getMonthlySalesMetadataLabel(block: AssistantChatBlock) {

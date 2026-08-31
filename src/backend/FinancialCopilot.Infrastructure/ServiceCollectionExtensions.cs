@@ -1233,6 +1233,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotCalculator, CompanyMonthlyActivityTrendSnapshotCalculator>();
         services.AddScoped<ICompanyMonthlyActivityTrendSnapshotBackfillService, CompanyMonthlyActivityTrendSnapshotBackfillService>();
         services.AddScoped<IMonthlyActivityTrendQueryUseCase, MonthlyActivityTrendQueryUseCase>();
+        services.AddScoped<IMonthlyProductComparisonReadRepository, EfCoreMonthlyProductComparisonRepository>();
+        services.AddScoped<IMonthlyProductComparisonUseCase, MonthlyProductComparisonUseCase>();
         // Spec 112 — provider-neutral feed over persisted monthly reports and financial statements.
         services.AddScoped<ICompanyDisclosureFeedRepository, CompanyDisclosureFeedRepository>();
         services.AddScoped<IDisclosureListingUseCase, DisclosureListingUseCase>();

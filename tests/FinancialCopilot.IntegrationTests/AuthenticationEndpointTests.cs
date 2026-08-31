@@ -203,11 +203,14 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
                 ["Authentication:JwtBearer:Audience"] = Audience,
                 ["Authentication:JwtBearer:SigningKey"] = SigningKey,
                 ["Authentication:JwtBearer:RequireHttpsMetadata"] = "false",
-                ["Authentication:ApiKeys:Clients:0:ClientId"] = ClientId.ToString(),
-                ["Authentication:ApiKeys:Clients:0:TenantId"] = TenantId.ToString(),
-                ["Authentication:ApiKeys:Clients:0:Name"] = "Integration Client",
-                ["Authentication:ApiKeys:Clients:0:KeySha256"] = keyHash,
-                ["Authentication:ApiKeys:Clients:0:IsActive"] = "true",
+                // Keep the production-configured client intact and append a test-only,
+                // unrestricted client. Overwriting index 0 leaves its production path
+                // prefixes bound and causes valid test requests to authenticate then fail.
+                ["Authentication:ApiKeys:Clients:1:ClientId"] = ClientId.ToString(),
+                ["Authentication:ApiKeys:Clients:1:TenantId"] = TenantId.ToString(),
+                ["Authentication:ApiKeys:Clients:1:Name"] = "Integration Client",
+                ["Authentication:ApiKeys:Clients:1:KeySha256"] = keyHash,
+                ["Authentication:ApiKeys:Clients:1:IsActive"] = "true",
                 ["Database:ApplyMigrationsOnStartup"] = "false"
             });
         });

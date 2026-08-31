@@ -765,6 +765,27 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         Assert.DoesNotContain("Found metric data for 0 symbol(s)", textAnswer);
     }
 
+    [Fact]
+    public async Task V2AiQuery_ProductComparisonTakesPrecedenceOverMisclassifiedRevenueMixFrame()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فروش محصولات کچاد بین 1403/03 و 1403/02 را مقایسه کن" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductComparison", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_product_comparison", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.True(root.GetProperty("monthlyProductComparisonResult").ValueKind != JsonValueKind.Null);
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.DoesNotContain("ترکیب درآمد محصولات", root.GetProperty("textAnswer").GetString());
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);

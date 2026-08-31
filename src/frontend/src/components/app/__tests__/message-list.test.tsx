@@ -14,6 +14,65 @@ function renderMessageList(ui: ReactElement) {
 }
 
 describe("MessageList", () => {
+  it("renders the typed Feature 129 payload without recalculating or zeroing nulls", () => {
+    const comparison = {
+      state: "Partial",
+      companyText: "شغدیر",
+      currentPeriod: "1403/02",
+      comparisonPeriod: "1403/01",
+      currentTotalSales: 100,
+      comparisonTotalSales: 120,
+      salesChange: -20,
+      salesChangePercent: undefined,
+      products: Array.from({ length: 21 }, (_, index) => ({
+        title: index === 0 ? "محصول منفی" : `محصول ${index}`,
+        unit: "تن",
+        lifecycle: index === 1 ? "New" : index === 2 ? "Discontinued" : "Continuing",
+        currentSales: index === 0 ? -20 : 1,
+        comparisonSales: 1,
+        salesChange: index === 0 ? -20 : 0,
+        driver: "Mixed",
+        warnings: [],
+      })).concat([{ title: "zero-sales-product", unit: "ton", lifecycle: "Continuing", currentSales: 0, comparisonSales: 0, salesChange: 0, driver: "Unclassified", warnings: [] }]),
+      warnings: ["UnitChanged"],
+      evidence: [{ reportId: "r1", rowId: "l1", providerName: "test", externalReportId: "e1", period: "1403/02" }],
+    } satisfies NonNullable<AssistantChatBlock["monthlyProductComparisonResult"]>;
+
+    const block: AssistantChatBlock = {
+      message: "typed comparison",
+      intent: "MonthlyProductComparison",
+      replyLanguage: "fa",
+      creditsUsed: 0,
+      suggestedQuestions: [],
+      suggestedActions: [],
+      filters: [],
+      citations: [],
+      monthlyProductComparisonResult: comparison,
+    };
+
+    const { container } = renderMessageList(<MessageList
+      messages={[{ id: "comparison", role: "assistant", content: block, created_at: "2026-08-31T00:00:00Z" }]}
+      loading={false}
+      streaming={false}
+      onSuggested={vi.fn()}
+    />);
+
+    expect(container.querySelector("[dir='rtl']")).not.toBeNull();
+    expect(container).toHaveTextContent("شغدیر");
+    expect(container).toHaveTextContent("−۲۰");
+    expect(container).toHaveTextContent("—٪");
+    expect(container).toHaveTextContent("UnitChanged");
+    expect(container).toHaveTextContent("منبع: نوآوران امین");
+    expect(container).not.toHaveTextContent("test");
+    expect(container).not.toHaveTextContent("typed comparison");
+    expect(container).not.toHaveTextContent("چرخه");
+    expect(container).not.toHaveTextContent("محرک");
+    expect(container).not.toHaveTextContent("zero-sales-product");
+    expect(screen.getByRole("columnheader", { name: "فروش اردیبهشت ۱۴۰۳" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "فروش فروردین ۱۴۰۳" })).toBeInTheDocument();
+    expect(container).not.toHaveTextContent("محصول 20");
+  });
+
   it("uses reply language to right-align a Persian assistant answer that starts in English", () => {
     const assistantBlock: AssistantChatBlock = {
       message: "Found metric data for 0 symbol(s). 1 unresolved.\n\nتحلیل بنیادی فولاژ",

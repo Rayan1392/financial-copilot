@@ -60,7 +60,8 @@ public sealed record AssistantMessagePayload(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

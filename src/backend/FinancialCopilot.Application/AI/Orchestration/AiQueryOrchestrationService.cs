@@ -35,6 +35,7 @@ public sealed class AiQueryOrchestrationService(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IExplainInsightUseCase explainInsightUseCase,
@@ -99,6 +100,7 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementTableResult? financialStatementTableResult = null;
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         DisclosureListingResult? disclosureListingResult = null;
         PsVisualizationResult? psVisualizationResult = null;
@@ -131,6 +133,16 @@ public sealed class AiQueryOrchestrationService(
                     cancellationToken);
                 clarificationRequired = false;
                 clarificationMessage = null;
+            }
+            else if (MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message))
+            {
+                var comparisonQuery = MonthlyProductComparisonIntentRules.BuildQuery(request.Message);
+                monthlyProductComparisonResult = await monthlyProductComparisonUseCase.ExecuteAsync(comparisonQuery, cancellationToken);
+                clarificationRequired = monthlyProductComparisonResult.BlockingReason is not null;
+                clarificationMessage = monthlyProductComparisonResult.ClarificationMessage;
+                completionStatus = clarificationRequired ? "ClarificationRequired" : monthlyProductComparisonResult.State.ToString();
+                textAnswer = BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
+                detectedIntent = DetectedIntent.MonthlyProductComparison;
             }
             else if (request.SemanticFrame is { } semanticFrame)
             {
@@ -182,6 +194,7 @@ public sealed class AiQueryOrchestrationService(
                     case FinancialStatementTableResult table: financialStatementTableResult = table; break;
                     case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                     case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
+                    case MonthlyProductComparisonResponse comparison: monthlyProductComparisonResult = comparison; break;
                     case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
                     case DisclosureListingResult disclosures: disclosureListingResult = disclosures; break;
                     case PsVisualizationResult gauge: psVisualizationResult = gauge; break;
@@ -209,7 +222,17 @@ public sealed class AiQueryOrchestrationService(
                     shadowFrame.CapabilityCode,
                     request.CorrelationId);
 
-            if (intentResult.Intent == DetectedIntent.Scanner)
+            if (MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message))
+            {
+                var comparisonQuery = MonthlyProductComparisonIntentRules.BuildQuery(request.Message);
+                monthlyProductComparisonResult = await monthlyProductComparisonUseCase.ExecuteAsync(comparisonQuery, cancellationToken);
+                clarificationRequired = monthlyProductComparisonResult.BlockingReason is not null;
+                clarificationMessage = monthlyProductComparisonResult.ClarificationMessage;
+                completionStatus = clarificationRequired ? "ClarificationRequired" : monthlyProductComparisonResult.State.ToString();
+                textAnswer = BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
+                detectedIntent = DetectedIntent.MonthlyProductComparison;
+            }
+            else if (intentResult.Intent == DetectedIntent.Scanner)
             {
                 var cacheScope = new ScannerCacheScope(
                     request.TenantId,
@@ -453,7 +476,8 @@ public sealed class AiQueryOrchestrationService(
                     textAnswer = "اطلاعات صورت مالی برای نماد یا شرکت درخواستی با فیلترهای اعمال شده در پایگاه داده یافت نشد.";
                 }
             }
-            else if (intentResult.Intent == DetectedIntent.ProductRevenueMix)
+            else if (!MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+                     && intentResult.Intent == DetectedIntent.ProductRevenueMix)
             {
                 // Extract company symbol from query using a simple heuristic:
                 // take the last Persian word or any 2-5-char uppercase token as the symbol.
@@ -496,7 +520,8 @@ public sealed class AiQueryOrchestrationService(
                     }
                 }
             }
-            else if (intentResult.Intent == DetectedIntent.MonthlyActivityTrend)
+            else if (!MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+                     && intentResult.Intent == DetectedIntent.MonthlyActivityTrend)
             {
                 var symbol = MonthlyActivityTrendIntentRules.ExtractCompanySymbol(request.Message);
                 if (symbol is null)
@@ -651,7 +676,8 @@ public sealed class AiQueryOrchestrationService(
             explainableAnswer, textAnswer, clarificationRequired, clarificationMessage,
             consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
             monthlyActivityTrendResult,
-            financialStatementTableResult);
+            financialStatementTableResult,
+            monthlyProductComparisonResult);
 
         var hasStructuredResult =
             scannerTable is not null ||
@@ -661,6 +687,7 @@ public sealed class AiQueryOrchestrationService(
             financialStatementTableResult is not null ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
+            monthlyProductComparisonResult is not null ||
             monthlySalesQualityRankingResult is not null ||
             disclosureListingResult is not null ||
             psVisualizationResult is not null ||
@@ -674,6 +701,7 @@ public sealed class AiQueryOrchestrationService(
             financialStatementTableResult is not null ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
+            monthlyProductComparisonResult?.Products.Count > 0 ||
             disclosureListingResult?.Items.Count > 0 ||
             detectedIntent == DetectedIntent.PersonalizedInsightExplanation;
 
@@ -731,6 +759,7 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.FinancialStatementTableLookup
             or DetectedIntent.ProductRevenueMix
             or DetectedIntent.MonthlyActivityTrend
+            or DetectedIntent.MonthlyProductComparison
             or DetectedIntent.DisclosureListing
             or DetectedIntent.PersonalizedInsightExplanation
             ? assistantContent
@@ -778,6 +807,7 @@ public sealed class AiQueryOrchestrationService(
                     productRevenueMixResult,
                     monthlyActivityTrendResult,
                     MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
+                    MonthlyProductComparisonResult: monthlyProductComparisonResult,
                     DisclosureListingResult: disclosureListingResult,
                     PsVisualizationResult: psVisualizationResult,
                     Outcome: outcome.Outcome,
@@ -814,6 +844,7 @@ public sealed class AiQueryOrchestrationService(
             ProductRevenueMixResult: productRevenueMixResult,
             MonthlyActivityTrendResult: monthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: monthlySalesQualityRankingResult,
+            MonthlyProductComparisonResult: monthlyProductComparisonResult,
             DisclosureListingResult: disclosureListingResult,
             PsVisualizationResult: psVisualizationResult,
             Outcome: outcome.Outcome,
@@ -831,6 +862,7 @@ public sealed class AiQueryOrchestrationService(
         "symbol_metric_lookup" => DetectedIntent.SymbolLookup,
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
+        "monthly_product_comparison" => DetectedIntent.MonthlyProductComparison,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
@@ -1006,13 +1038,17 @@ public sealed class AiQueryOrchestrationService(
         FinancialStatementAnalysisResponse? financialStatementAnalysisResult = null,
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
-        FinancialStatementTableResult? financialStatementTableResult = null)
+        FinancialStatementTableResult? financialStatementTableResult = null,
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
 
         if (monthlyActivityTrendResult is not null)
             return BuildMonthlyActivityTrendContent(monthlyActivityTrendResult);
+
+        if (monthlyProductComparisonResult is not null)
+            return BuildMonthlyProductComparisonContent(monthlyProductComparisonResult);
 
         if (financialStatementAnalysisResult?.RenderedAnswer is { Length: > 0 } rendered)
             return rendered;
@@ -1094,6 +1130,26 @@ public sealed class AiQueryOrchestrationService(
 
     // Persisted product sales are in million rials; display them as tomans.
     private static decimal ToToman(decimal millionRial) => millionRial * 100_000m;
+
+    private static string BuildMonthlyProductComparisonContent(MonthlyProductComparisonResponse result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"### مقایسه فروش محصولات - {result.CompanyText}");
+        sb.AppendLine($"دوره جاری: {FormatJalaliPeriod(result.CurrentPeriod)} | دوره مقایسه: {FormatJalaliPeriod(result.ComparisonPeriod)}");
+        if (result.Totals is not null)
+            sb.AppendLine($"فروش جاری: {FormatAmount(result.Totals.Current)} | فروش مقایسه: {FormatAmount(result.Totals.Comparison)} | تغییر: {FormatAmount(result.Totals.Change)} | درصد: {FormatAmount(result.Totals.ChangePercent)}٪");
+        var warnings = result.Warnings.Where(warning => warning != MonthlyProductComparisonWarning.PartialDecomposition).ToArray();
+        if (warnings.Length > 0) sb.AppendLine($"هشدار: {string.Join("، ", warnings)}");
+        return sb.ToString().TrimEnd();
+    }
+
+    private static string FormatJalaliPeriod(JalaliPeriod? period) => period is not { } value
+        ? "—"
+        : $"{new[] { "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند" }[value.Month - 1]} {ToPersianDigits(value.Year.ToString())}";
+
+    private static string FormatAmount(decimal? value) => value is null ? "—" : ToPersianDigits(value.Value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture));
+
+    private static string ToPersianDigits(string value) => string.Concat(value.Select(character => character is >= '0' and <= '9' ? "۰۱۲۳۴۵۶۷۸۹"[character - '0'] : character));
 
     private static string BuildMonthlyActivityTrendContent(MonthlyActivityTrendResponse result)
     {

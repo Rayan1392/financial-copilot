@@ -55,7 +55,41 @@ public sealed record AiQueryHttpResponse(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null);
+
+public sealed record MonthlyProductComparisonHttpResponse(
+    string State,
+    string CompanyText,
+    string? ExternalCompanyId,
+    string? CurrentPeriod,
+    string? ComparisonPeriod,
+    decimal? CurrentTotalSales,
+    decimal? ComparisonTotalSales,
+    decimal? SalesChange,
+    decimal? SalesChangePercent,
+    string? PrimaryDriver,
+    IReadOnlyList<MonthlyProductComparisonHttpItem> Products,
+    IReadOnlyCollection<string> Warnings,
+    IReadOnlyCollection<MonthlyProductComparisonHttpEvidence> Evidence,
+    string? BlockingReason = null,
+    string? ClarificationMessage = null);
+
+public sealed record MonthlyProductComparisonHttpItem(
+    string Title,
+    string? Unit,
+    string Lifecycle,
+    decimal? CurrentSales,
+    decimal? ComparisonSales,
+    decimal? SalesChange,
+    decimal? ContributionPercent,
+    decimal? QuantityEffect,
+    decimal? PriceEffect,
+    decimal? Residual,
+    string Driver,
+    IReadOnlyCollection<string> Warnings);
+
+public sealed record MonthlyProductComparisonHttpEvidence(Guid ReportId, Guid RowId, string ProviderName, string ExternalReportId, string Period);
 
 public sealed record SuggestedActionHttpResponse(
     string Id,
@@ -263,7 +297,8 @@ public sealed record AssistantMessageContentResponse(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

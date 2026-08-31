@@ -1,6 +1,8 @@
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
+using FinancialCopilot.Billing.Usage;
 using System.Diagnostics.Metrics;
 
 namespace FinancialCopilot.Infrastructure.Billing;
@@ -54,7 +56,7 @@ public sealed class AiFacadeBillingHook(
         FinancialCopilot.Billing.Usage.UsageReservation reservation;
         try
         {
-            reservation = await reservationService.ReserveAsync(
+            reservation = await ReserveWithFreshWalletRetryAsync(
                 account,
                 wallet,
                 request.OperationCode,
@@ -90,6 +92,31 @@ public sealed class AiFacadeBillingHook(
             request.OperationCode,
             allowance.RemainingCredits > 0 ? "TelegramDailyFreeAllowance" : null,
             string.IsNullOrWhiteSpace(allowance.AllowanceDateKey) ? null : allowance.AllowanceDateKey);
+    }
+
+    private async Task<FinancialCopilot.Billing.Usage.UsageReservation> ReserveWithFreshWalletRetryAsync(
+        CustomerAccount account,
+        WalletSnapshot wallet,
+        string operationCode,
+        decimal maximumCredits,
+        string reservationKey,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await reservationService.ReserveAsync(
+                account, wallet, operationCode, maximumCredits, reservationKey, cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+            when (string.Equals(exception.Message, "Reservation request used a stale wallet snapshot.", StringComparison.Ordinal))
+        {
+            // Another request may have advanced the wallet after the initial snapshot.
+            // The reservation service retains the fencing check; refresh and retry once
+            // so normal concurrent requests do not surface an internal billing race.
+            var refreshedWallet = await wallets.GetSnapshotAsync(account.Id, cancellationToken);
+            return await reservationService.ReserveAsync(
+                account, refreshedWallet, operationCode, maximumCredits, reservationKey, cancellationToken);
+        }
     }
 
     public async Task<UsageAccountingResult?> FinalizeAsync(

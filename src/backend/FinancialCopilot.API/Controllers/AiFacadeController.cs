@@ -251,7 +251,8 @@ public sealed class AiFacadeController(
              result.LanguageGuardApplied,
              MapSuggestedActions(result.SuggestedActions),
              result.SemanticCapabilityCode,
-             result.SemanticRegistryVersion);
+             result.SemanticRegistryVersion,
+             MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -495,7 +496,26 @@ public sealed class AiFacadeController(
                 payload.LanguageGuardApplied,
                 MapSuggestedActions(payload.SuggestedActions),
                 payload.SemanticCapabilityCode,
-                payload.SemanticRegistryVersion);
+                payload.SemanticRegistryVersion,
+                MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult));
+
+    private static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
+    {
+        if (result is null) return null;
+        return new(
+            result.State.ToString(), result.CompanyText, result.ExternalCompanyId,
+            result.CurrentPeriod?.ToString(), result.ComparisonPeriod?.ToString(),
+            result.Totals?.Current, result.Totals?.Comparison, result.Totals?.Change, result.Totals?.ChangePercent,
+            result.PrimaryDriver?.ToString(),
+            result.Products.Take(20).Select(item => new MonthlyProductComparisonHttpItem(
+                item.DisplayTitle, item.RawUnit, item.Lifecycle.ToString(), item.Current?.SalesAmount,
+                item.Comparison?.SalesAmount, item.SalesChange, item.ContributionPercent,
+                item.QuantityEffect, item.PriceEffect, item.Residual, item.Driver.ToString(),
+                item.Warnings.Select(w => w.ToString()).ToArray())).ToArray(),
+            result.Warnings.Select(w => w.ToString()).ToArray(),
+            result.Evidence.Select(e => new MonthlyProductComparisonHttpEvidence(e.ReportId, e.RowId, e.ProviderName, e.ExternalReportId, e.Period.ToString())).ToArray(),
+            result.BlockingReason?.ToString(), result.ClarificationMessage);
+    }
 
     private static IReadOnlyCollection<SuggestedActionHttpResponse>? MapSuggestedActions(
         IReadOnlyCollection<SuggestedAction>? actions) =>

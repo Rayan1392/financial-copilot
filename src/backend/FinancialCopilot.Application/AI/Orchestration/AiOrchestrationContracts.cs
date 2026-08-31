@@ -14,6 +14,7 @@ public enum DetectedIntent
     FinancialStatementTableLookup,
     ProductRevenueMix,
     MonthlyActivityTrend,
+    MonthlyProductComparison,
     DisclosureListing,
     MonthlySalesQualityRanking,
     PsGaugeVisualization,
@@ -98,7 +99,8 @@ public sealed record AiQueryResponse(
     bool LanguageGuardApplied = false,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
-    int? SemanticRegistryVersion = null);
+    int? SemanticRegistryVersion = null,
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

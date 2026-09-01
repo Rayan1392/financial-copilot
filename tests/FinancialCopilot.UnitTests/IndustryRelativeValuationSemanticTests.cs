@@ -24,11 +24,25 @@ public sealed class IndustryRelativeValuationSemanticTests
     {
         var model = Model("symbol_vs_industry_relative_valuation", language);
         var text = IndustryRelativeValuationPresentation.Explain(model, language);
+        if (language == "fa") Assert.Contains("AAA", text);
 
-        Assert.Contains(language == "fa" ? "1 از 3" : "1/3", text);
-        Assert.Contains("42.5", text);
-        Assert.Contains("67.5", text);
-        Assert.Contains(language == "fa" ? "پرت" : "outlier", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(language == "fa" ? "AAA" : "1/3", text);
+        if (language == "fa")
+        {
+            Assert.Contains("AAA", text);
+            Assert.Contains("میانگین صنعت", text);
+            Assert.Contains("P/E", text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("P/S", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Green", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Red", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Published", text, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.Contains("42.5", text);
+            Assert.Contains("67.5", text);
+            Assert.Contains("outlier", text, StringComparison.OrdinalIgnoreCase);
+        }
         Assert.DoesNotContain("buy", text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("sell", text, StringComparison.OrdinalIgnoreCase);
     }

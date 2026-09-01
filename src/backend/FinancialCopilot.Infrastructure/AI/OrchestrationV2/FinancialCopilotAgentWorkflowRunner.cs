@@ -105,6 +105,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                 SemanticComprehensiveAnalysisPayload combined when combined.Lookup.Rows.Count > 0 =>
                     $"{SymbolLookupToolResult.Success(combined.Lookup).AgentSummary}\n\n{ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary}",
                 SemanticComprehensiveAnalysisPayload combined => ComprehensiveAnalysisToolResult.Success(combined.Analysis).AgentSummary,
+                IndustryRelativeValuationPayload relative => relative.PresentationText,
                 _ => null
             };
             state.ScannerResult = scannerPayload is null ? null : ScannerToolResult.Success(scannerPayload.Plan, scannerPayload.Table, scannerPayload.Table.ExecutionFacts.FromCache);
@@ -476,6 +477,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
 

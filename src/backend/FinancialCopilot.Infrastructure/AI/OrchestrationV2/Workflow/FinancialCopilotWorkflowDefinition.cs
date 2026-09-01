@@ -292,6 +292,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 MonthlySalesQualityRankingResponse ranking => BuildMonthlySalesQualityRankingContent(ranking),
                 DisclosureListingResult disclosures => BuildDisclosureListingContent(disclosures),
                 PsVisualizationResult gauge => BuildPsGaugeContent(gauge.CompanySymbol, gauge),
+                IndustryRelativeValuationPayload relative => relative.PresentationText,
                 string explanation => explanation,
                 _ => AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
                     clarification ? DialogueOutcome.ClarificationNeeded : semantic.Execution.Status == CapabilityExecutionStatus.NoData ? DialogueOutcome.NoData : DialogueOutcome.Unsupported,
@@ -1169,6 +1170,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
+            "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
 

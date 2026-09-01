@@ -18,6 +18,110 @@ function isFinancialStatementMarkdown(content: string): boolean {
   return FINANCIAL_STATEMENT_MARKERS.some((marker) => content.includes(marker));
 }
 
+const INVESTMENT_DISCLAIMER = "این اطلاعات توصیه به سرمایه گذاری نیست";
+
+const INDUSTRY_RELATIVE_VALUATION_HEADER =
+  "| نماد | P/E | P/S | قیمت به تعادلی |";
+
+interface IndustryRelativeValuationTable {
+  before: string;
+  after: string;
+  groupTitle?: string;
+  rows: Array<{ company: string; metrics: string[]; benchmark: boolean }>;
+}
+
+function isIndustryRelativeValuationMarkdown(content: string): boolean {
+  return content.includes(INDUSTRY_RELATIVE_VALUATION_HEADER);
+}
+
+function parseIndustryRelativeValuationTable(content: string): IndustryRelativeValuationTable | null {
+  const lines = content.split("\n");
+  const headerIndex = lines.findIndex((line) => line.trim() === INDUSTRY_RELATIVE_VALUATION_HEADER);
+  if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
+
+  const rows: IndustryRelativeValuationTable["rows"] = [];
+  let endIndex = headerIndex + 2;
+  while (endIndex < lines.length && lines[endIndex].trim().startsWith("|")) {
+    const cells = splitMarkdownTableRow(lines[endIndex]);
+    if (cells.length >= 4 && !cells[0].replace(/[:-]/g, "").trim()) continue;
+    if (cells.length >= 4)
+      rows.push({ company: cells[0], metrics: cells.slice(1, 4), benchmark: cells[0].includes("میانگین صنعت") });
+    endIndex++;
+  }
+
+  return {
+    before: lines.slice(0, headerIndex).join("\n").trim(),
+    after: lines.slice(endIndex).join("\n").trim(),
+    groupTitle: lines
+      .slice(0, headerIndex)
+      .join(" ")
+      .match(/\*\*گروه صنعتی:\*\*\s*(.*?)(?=\s+\*\*وضعیت داده:\*\*|\s*$)/)?.[1]?.trim(),
+    rows,
+  };
+}
+
+function IndustryRelativeValuationTable({ rows, groupTitle }: { rows: IndustryRelativeValuationTable["rows"]; groupTitle?: string }) {
+  const benchmark = rows.find((row) => row.benchmark)?.metrics ?? [];
+  const members = rows.filter((row) => !row.benchmark);
+  const status = (value: string, index: number) => {
+    const numericValue = parsePersianPercent(value);
+    const numericBenchmark = parsePersianPercent(benchmark[index] ?? "");
+    if (numericValue == null || numericBenchmark == null) return "neutral";
+    return numericValue <= numericBenchmark ? "green" : "red";
+  };
+
+  return (
+    <div className="my-2 overflow-x-auto rounded-lg ring-1 ring-hairline" dir="rtl">
+      <table className="w-full min-w-[460px] table-fixed border-collapse text-sm">
+        {groupTitle && <caption className="border-b border-hairline bg-slate-100 px-3 py-2 text-right text-sm font-semibold text-slate-700">{groupTitle}</caption>}
+        <colgroup>
+          <col className="w-[42%]" />
+          <col className="w-[19%]" />
+          <col className="w-[19%]" />
+          <col className="w-[20%]" />
+        </colgroup>
+        <thead className="bg-white/5">
+          <tr>
+            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">نماد</th>
+            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/E</th>
+            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">P/S</th>
+            <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">قیمت به تعادلی</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.map((row, index) => (
+            <tr key={`${row.company}:${index}`} className="border-b border-hairline text-slate-800">
+              <td className="bg-surface px-3 py-2 align-top font-medium">{row.company}</td>
+              {row.metrics.map((value, metricIndex) => (
+                <td key={`${row.company}:${metricIndex}`} className={`px-3 py-2 align-top tabular-nums ${status(value, metricIndex) === "green" ? "bg-emerald-100" : status(value, metricIndex) === "red" ? "bg-rose-100" : "bg-surface"}`}>
+                  {value}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {rows.filter((row) => row.benchmark).map((row) => (
+            <tr key={row.company} className="border-t-2 border-slate-300 bg-slate-100 font-semibold text-slate-800">
+              <td className="px-3 py-2">{row.company}</td>
+              {row.metrics.map((value, index) => <td key={index} className="px-3 py-2 tabular-nums">{value}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function parsePersianPercent(value: string): number | null {
+  const normalized = value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٫٬]/g, ".")
+    .replace(/٪/g, "")
+    .replace(/,/g, "")
+    .trim();
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function formatFinancialStatementMarkdown(content: string): string {
   return content
     .split("\n")
@@ -241,7 +345,15 @@ function createMarkdownComponents(isMonthlySalesQualityRankingTable: boolean, is
     `${isMonthlySalesQualityRankingTable ? "monthly-sales-quality-ranking-table w-max min-w-full" : "w-full"} table-auto text-sm border-collapse ${rankingTableLayoutClass}`.trim();
 
   return {
-    p: ({ children }) => <p className="leading-relaxed text-pretty [unicode-bidi:plaintext]">{children}</p>,
+    p: ({ children }) => {
+      const text = Array.isArray(children) ? children.join("") : String(children ?? "");
+      const isDisclaimer = text.trim() === INVESTMENT_DISCLAIMER;
+      return (
+        <p className={isDisclaimer ? "text-xs text-muted-foreground leading-relaxed" : "leading-relaxed text-pretty [unicode-bidi:plaintext]"}>
+          {children}
+        </p>
+      );
+    },
     strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
     pre: ({ children }) => (
@@ -324,6 +436,8 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
     ? parseMonthlySalesQualityTable(content)
     : null;
   const isFinancialStatement = isFinancialStatementMarkdown(content);
+  const isIndustryRelativeValuation = isIndustryRelativeValuationMarkdown(content);
+  const industryTable = isIndustryRelativeValuation ? parseIndustryRelativeValuationTable(content) : null;
   const isRtl = direction === "rtl" || (direction === "auto" && isFinancialStatement);
   const renderedContent = isFinancialStatement
     ? formatFinancialStatementMarkdown(content)
@@ -334,7 +448,17 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
       className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
       dir={isRtl ? "rtl" : direction}
     >
-      {rankingTable ? (
+      {industryTable ? (
+        <>
+          {industryTable.before && (
+            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>
+              {industryTable.before}
+            </Markdown>
+          )}
+          <IndustryRelativeValuationTable rows={industryTable.rows} groupTitle={industryTable.groupTitle} />
+          {industryTable.after && <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />}
+        </>
+      ) : rankingTable ? (
         <>
           {rankingTable.before && (
             <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>

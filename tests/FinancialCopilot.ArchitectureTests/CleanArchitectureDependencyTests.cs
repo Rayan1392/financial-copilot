@@ -264,6 +264,29 @@ public sealed class CleanArchitectureDependencyTests
     }
 
     [Fact]
+    public void Feature125SemanticPayload_IsHandledByBothV2ExecutionPaths()
+    {
+        var root = FindSolutionRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "Workflow", "FinancialCopilotWorkflowDefinition.cs"));
+        var fallback = File.ReadAllText(Path.Combine(root, "FinancialCopilot.Infrastructure", "AI", "OrchestrationV2", "FinancialCopilotAgentWorkflowRunner.cs"));
+        var capabilityCodes = new[]
+        {
+            "symbol_vs_industry_relative_valuation",
+            "industry_relative_valuation_ranking",
+            "industry_relative_valuation_summary",
+            "symbol_pair_within_industry"
+        };
+
+        Assert.Contains("IndustryRelativeValuationPayload relative => relative.PresentationText", workflow, StringComparison.Ordinal);
+        Assert.Contains("IndustryRelativeValuationPayload relative => relative.PresentationText", fallback, StringComparison.Ordinal);
+        foreach (var capabilityCode in capabilityCodes)
+        {
+            Assert.Contains($"\"{capabilityCode}\"", workflow, StringComparison.Ordinal);
+            Assert.Contains($"\"{capabilityCode}\"", fallback, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void SemanticFeatureDocumentation_TracksVerifiedImplementationState()
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(FindSolutionRoot(), "..", ".."));

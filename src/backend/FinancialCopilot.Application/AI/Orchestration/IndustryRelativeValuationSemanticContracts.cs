@@ -1,9 +1,12 @@
+using System.Globalization;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 public sealed class IndustryRelativeValuationReadOptions
 {
     public const string SectionName = "IndustryRelativeValuation";
-    public int DefaultResultLimit { get; init; } = 3;
+    public int DefaultResultLimit { get; init; } = 10;
     public int MaximumResultLimit { get; init; } = 100;
 
     public void Validate()
@@ -156,17 +159,68 @@ public static class IndustryRelativeValuationPresentation
         };
         var lines = new List<string>
         {
-            $"{title}: {model.GroupTitle}",
-            $"\u0627\u0633\u0646\u067e\u0634\u0627\u062a \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647: {model.PublicationStatus} | \u062a\u0627\u0631\u06cc\u062e \u0645\u062d\u0627\u0633\u0628\u0647: {model.CalculationDate:yyyy-MM-dd} | \u0645\u062d\u0627\u0633\u0628\u0647: {model.CalculatedAtUtc:O} | \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647: {model.PublishedAtUtc:O}",
-            $"\u062a\u0639\u062f\u0627\u062f \u0627\u0639\u0636\u0627: {model.TotalMembers} | \u0627\u0639\u0636\u0627\u06cc \u0631\u062a\u0628\u0647\u200c\u067e\u0630\u06cc\u0631: {model.TotalRankedMembers} | \u0648\u0636\u0639\u06cc\u062a \u0628\u0627\u0631\u06cc\u0631/\u0622\u0645\u0627\u062f\u06af\u06cc: {model.BarrierStatus}/{model.ReadinessStatus}"
+            $"### {title}",
+            $"**\u06af\u0631\u0648\u0647 \u0635\u0646\u0639\u062a\u06cc:** {model.GroupTitle}",
+            $"**\u0627\u0646\u062f\u0627\u0632\u0647 \u06af\u0631\u0648\u0647:** {FormatPersianInteger(model.TotalMembers)} \u0646\u0645\u0627\u062f",
+            string.Empty
         };
+        lines.Add("| \u0646\u0645\u0627\u062f | P/E | P/S | \u0642\u06cc\u0645\u062a \u0628\u0647 \u062a\u0639\u0627\u062f\u0644\u06cc |");
+        lines.Add("|---|---:|---:|---:|");
         foreach (var member in model.Members)
-            lines.Add($"{member.Symbol}: \u0631\u062a\u0628\u0647 {member.Rank?.ToString() ?? "\u0628\u062f\u0648\u0646 \u0631\u062a\u0628\u0647"} \u0627\u0632 {model.TotalMembers} | P/E {MetricPersian(member.PE)} | P/S {MetricPersian(member.PS)} | \u062a\u0639\u0627\u062f\u0644 {MetricPersian(member.Equilibrium)}");
+            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} | {FormatPercent(member.PS.Percent)} | {FormatPercent(member.Equilibrium.Percent)} |");
+        var peBenchmark = FormatPercent(Benchmark(model, "PE"));
+        var psBenchmark = FormatPercent(Benchmark(model, "PS"));
+        var equilibriumBenchmark = FormatPercent(Benchmark(model, "Equilibrium"));
+        lines.Add($"| \u0645\u06cc\u0627\u0646\u06af\u06cc\u0646 \u0635\u0646\u0639\u062a | {peBenchmark} | {psBenchmark} | {equilibriumBenchmark} |");
         if (!string.IsNullOrWhiteSpace(model.InsufficientBenchmarkReason))
-            lines.Add($"\u0628\u0646\u0686\u0645\u0627\u0631\u06a9 \u0642\u0627\u0628\u0644 \u0627\u0633\u062a\u0641\u0627\u062f\u0647 \u0646\u06cc\u0633\u062a: {model.InsufficientBenchmarkReason}");
-        lines.Add("\u0627\u06cc\u0646 \u067e\u0627\u0633\u062e \u0627\u0637\u0644\u0627\u0639\u0627\u062a\u06cc \u0648 \u0645\u0628\u062a\u0646\u06cc \u0628\u0631 \u0627\u0633\u0646\u067e\u0634\u0627\u062a \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647 \u0627\u0633\u062a \u0648 \u062a\u0648\u0635\u06cc\u0647 \u0633\u0631\u0645\u0627\u06cc\u0647\u200c\u06af\u0630\u0627\u0631\u06cc \u0646\u06cc\u0633\u062a.");
+            lines.Add("**\u062a\u0648\u062c\u0647:** \u0628\u0631\u0627\u06cc \u0628\u062e\u0634\u06cc \u0627\u0632 \u062f\u0627\u062f\u0647\u200c\u0647\u0627 \u0645\u0639\u06cc\u0627\u0631 \u0642\u0627\u0628\u0644 \u0627\u062a\u06a9\u0627 \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u0646\u06cc\u0633\u062a\u061b \u0628\u0646\u0627\u0628\u0631\u0627\u06cc\u0646 \u0622\u0646 \u0628\u062e\u0634 \u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a.");
+        lines.Add("\u0627\u06cc\u0646 \u0627\u0637\u0644\u0627\u0639\u0627\u062a \u062a\u0648\u0635\u06cc\u0647 \u0628\u0647 \u0633\u0631\u0645\u0627\u06cc\u0647 \u06af\u0630\u0627\u0631\u06cc \u0646\u06cc\u0633\u062a");
         return string.Join(Environment.NewLine, lines);
     }
+
+    private static decimal? Benchmark(IndustryRelativeValuationReadModel model, string metricKind) =>
+        model.Benchmarks.FirstOrDefault(metric => metric.MetricKind.Equals(metricKind, StringComparison.OrdinalIgnoreCase))?.Percent;
+
+    private static string ClassificationPersian(RelativeValuationMetricReadModel metric)
+    {
+        if (metric.Percent is null || metric.BenchmarkValue is null)
+            return "\u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a";
+        if (metric.IsOutlier)
+            return "\u062f\u0627\u062f\u0647 \u067e\u0631\u062a\u061b \u062f\u0631 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647 \u0644\u062d\u0627\u0638 \u0646\u0634\u062f\u0647";
+        return metric.Classification switch
+        {
+            "Green" => "\u0645\u0637\u0644\u0648\u0628\u200c\u062a\u0631 \u0627\u0632 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647",
+            "Red" => "\u0628\u0627\u0644\u0627\u062a\u0631 \u0627\u0632 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647",
+            _ => "\u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a"
+        };
+    }
+
+    private static string FormatPercent(decimal? value) =>
+        value is null ? "\u2014" : $"{FormatPersianNumber(value.Value)}\u066a";
+
+    private static string FormatPersianNumber(decimal value) =>
+        ToPersianDigits(value.ToString("0.##", CultureInfo.InvariantCulture)).Replace('.', '\u066b');
+
+    private static string FormatPersianInteger(int value) =>
+        ToPersianDigits(value.ToString(CultureInfo.InvariantCulture));
+
+    private static string FormatRank(int? rank, int total) =>
+        rank is null ? "\u0628\u062f\u0648\u0646 \u0631\u062a\u0628\u0647" : $"{FormatPersianInteger(rank.Value)} \u0627\u0632 {FormatPersianInteger(total)}";
+
+    private static string FormatJalaliDate(DateTimeOffset value) =>
+        ToPersianDigits(ShamsiMonthCalculator.FormatJalaliDate(value));
+
+    private static string PublicationStatusPersian(string status) => status switch
+    {
+        "Published" => "\u0645\u062d\u0627\u0633\u0628\u0647 \u0645\u0646\u062a\u0634\u0631\u0634\u062f\u0647 \u0648 \u0642\u0627\u0628\u0644 \u0627\u0633\u062a\u0641\u0627\u062f\u0647",
+        "Inconclusive" => "\u0645\u062d\u0627\u0633\u0628\u0647 \u0642\u0637\u0639\u06cc \u0646\u0634\u062f\u0647",
+        _ => "\u0648\u0636\u0639\u06cc\u062a \u062f\u0627\u062f\u0647 \u0646\u0627\u0645\u0634\u062e\u0635"
+    };
+
+    private static string ToPersianDigits(string value) =>
+        string.Concat(value.Select(character => character is >= '0' and <= '9'
+            ? "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9"[character - '0']
+            : character));
 
     private static string MetricEnglish(RelativeValuationMetricReadModel metric)
     {

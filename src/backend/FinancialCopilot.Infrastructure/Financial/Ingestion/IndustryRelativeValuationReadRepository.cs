@@ -33,13 +33,19 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
         var companies = await db.Companies.AsNoTracking().Where(x => members.Select(m => m.CompanyId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, cancellationToken);
         var metrics = await db.IndustryRelativeValuationMetrics.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
         var totalRanked = members.Count(x => x.GlobalRank.HasValue);
-        var selected = request.CompanyIds.Count == 0 ? members : members.Where(x => request.CompanyIds.Contains(x.CompanyId)).ToArray();
-        if (request.CompanyIds.Count > 0 && selected.Length != request.CompanyIds.Distinct().Count())
+        var selected = members;
+        if (request.CompanyIds.Count > 0 && !request.CompanyIds.All(companyId => members.Any(member => member.CompanyId == companyId)))
         {
             logger?.LogWarning("Feature 125 read rejected members not present in selected snapshot for group {GroupId}.", groupId);
             return null;
         }
-        var ordered = selected.OrderBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).Take(request.Limit).ToArray();
+        var ranked = selected.OrderBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).ToArray();
+        var ordered = ranked.Take(request.Limit).ToList();
+        if (request.CompanyIds.Count > 0)
+        {
+            var topIds = ordered.Select(row => row.CompanyId).ToHashSet();
+            ordered.AddRange(ranked.Where(row => request.CompanyIds.Contains(row.CompanyId) && !topIds.Contains(row.CompanyId)));
+        }
         var totalMembers = members.Length;
         var resultMembers = ordered.Select(row => new RelativeValuationMemberReadModel(
             row.CompanyId,

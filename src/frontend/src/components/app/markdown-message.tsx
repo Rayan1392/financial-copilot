@@ -26,7 +26,6 @@ const INDUSTRY_RELATIVE_VALUATION_HEADER =
 interface IndustryRelativeValuationTable {
   before: string;
   after: string;
-  groupTitle?: string;
   rows: Array<{ company: string; metrics: string[]; benchmark: boolean }>;
 }
 
@@ -52,15 +51,11 @@ function parseIndustryRelativeValuationTable(content: string): IndustryRelativeV
   return {
     before: lines.slice(0, headerIndex).join("\n").trim(),
     after: lines.slice(endIndex).join("\n").trim(),
-    groupTitle: lines
-      .slice(0, headerIndex)
-      .join(" ")
-      .match(/\*\*گروه صنعتی:\*\*\s*(.*?)(?=\s+\*\*وضعیت داده:\*\*|\s*$)/)?.[1]?.trim(),
     rows,
   };
 }
 
-function IndustryRelativeValuationTable({ rows, groupTitle }: { rows: IndustryRelativeValuationTable["rows"]; groupTitle?: string }) {
+function IndustryRelativeValuationTable({ rows }: { rows: IndustryRelativeValuationTable["rows"] }) {
   const benchmark = rows.find((row) => row.benchmark)?.metrics ?? [];
   const members = rows.filter((row) => !row.benchmark);
   const status = (value: string, index: number) => {
@@ -73,7 +68,6 @@ function IndustryRelativeValuationTable({ rows, groupTitle }: { rows: IndustryRe
   return (
     <div className="my-2 overflow-x-auto rounded-lg ring-1 ring-hairline" dir="rtl">
       <table className="w-full min-w-[460px] table-fixed border-collapse text-sm">
-        {groupTitle && <caption className="border-b border-hairline bg-slate-100 px-3 py-2 text-right text-sm font-semibold text-slate-700">{groupTitle}</caption>}
         <colgroup>
           <col className="w-[42%]" />
           <col className="w-[19%]" />
@@ -455,7 +449,7 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
               {industryTable.before}
             </Markdown>
           )}
-          <IndustryRelativeValuationTable rows={industryTable.rows} groupTitle={industryTable.groupTitle} />
+          <IndustryRelativeValuationTable rows={industryTable.rows} />
           {industryTable.after && <MarkdownMessage content={industryTable.after} direction={isRtl ? "rtl" : "ltr"} />}
         </>
       ) : rankingTable ? (

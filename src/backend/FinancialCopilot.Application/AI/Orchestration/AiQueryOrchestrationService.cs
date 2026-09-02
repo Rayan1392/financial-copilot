@@ -1198,36 +1198,6 @@ public sealed class AiQueryOrchestrationService(
                 sb.AppendLine($"- {insight.TextFa}");
         }
 
-        // Chart table
-        if (result.ChartPoints.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("**داده نمودار ماهانه:**");
-            sb.AppendLine();
-
-            // Determine column headers from first point that has year values
-            var firstPoint = result.ChartPoints.First(p => p.PreviousFiscalYear.HasValue || p.CurrentFiscalYear.HasValue);
-            var prevYearLabel = firstPoint.PreviousFiscalYear.HasValue ? $"فروش {firstPoint.PreviousFiscalYear}" : "فروش سال قبل";
-            var currYearLabel = firstPoint.CurrentFiscalYear.HasValue ? $"فروش {firstPoint.CurrentFiscalYear}" : "فروش سال جاری";
-
-            sb.AppendLine($"| ماه | {prevYearLabel} | {currYearLabel} | میانگین ۱۲ ماهه |");
-            sb.AppendLine("|-----|------------:|-------------:|----------------:|");
-
-            foreach (var pt in result.ChartPoints)
-            {
-                var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
-                    ? pt.PreviousFiscalYearSalesAmount.Value.ToString("N0")
-                    : "—";
-                var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
-                    ? pt.CurrentFiscalYearSalesAmount.Value.ToString("N0")
-                    : "—";
-                var avgVal = pt.Average12MonthSalesAmount.HasValue
-                    ? pt.Average12MonthSalesAmount.Value.ToString("N0")
-                    : "—";
-                sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
-            }
-        }
-
         // Missing data note
         if (result.MissingDataPoints.Count > 0)
         {

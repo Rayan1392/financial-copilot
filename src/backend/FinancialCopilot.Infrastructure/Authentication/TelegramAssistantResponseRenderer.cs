@@ -15,6 +15,7 @@ public sealed class TelegramAssistantResponseRenderer(
 {
     private const int TelegramMessageLimit = 3900;
     private const int TelegramPhotoCaptionLimit = 1024;
+    private const int MonthlyProductComparisonRowLimit = 20;
 
     public string Version => "telegram-render-v3";
 
@@ -91,10 +92,30 @@ public sealed class TelegramAssistantResponseRenderer(
             sb.AppendLine($"فروش جاری: {result.Totals.Current:N2} | مقایسه: {result.Totals.Comparison:N2}");
             sb.AppendLine($"تغییر: {result.Totals.Change:N2} | درصد: {(result.Totals.ChangePercent.HasValue ? result.Totals.ChangePercent.Value.ToString("N2") + "٪" : "—")}");
         }
+        if (result.Products.Count > 0)
+        {
+            sb.AppendLine("محصولات:");
+            foreach (var product in result.Products.Take(MonthlyProductComparisonRowLimit))
+            {
+                sb.AppendLine(
+                    $"- {product.DisplayTitle} | جاری: {FormatProductComparisonDecimal(product.Current?.SalesAmount)} | " +
+                    $"مقایسه: {FormatProductComparisonDecimal(product.Comparison?.SalesAmount)} | " +
+                    $"تغییر: {FormatProductComparisonDecimal(product.SalesChange)} | واحد: {product.RawUnit ?? product.Current?.Unit ?? product.Comparison?.Unit ?? "—"}");
+
+                if (product.Warnings.Count > 0)
+                    sb.AppendLine($"  هشدار محصول: {string.Join("، ", product.Warnings)}");
+
+                if (product.ProductionSalesDifference.HasValue)
+                    sb.AppendLine($"  اختلاف استنباطی تولید و فروش: {FormatProductComparisonDecimal(product.ProductionSalesDifference)}");
+            }
+        }
         if (result.Warnings.Count > 0) sb.AppendLine($"هشدار: {string.Join("، ", result.Warnings)}");
         if (result.Evidence.Count > 0) sb.AppendLine("منبع: نوآوران امین");
         return Split(EscapeMarkdownV2(sb.ToString().Trim()));
     }
+
+    private static string FormatProductComparisonDecimal(decimal? value) =>
+        value.HasValue ? value.Value.ToString("N2", CultureInfo.InvariantCulture) : "—";
 
     private IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyTrend(
         AiQueryResponse response,

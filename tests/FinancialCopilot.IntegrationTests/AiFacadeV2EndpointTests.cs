@@ -845,6 +845,8 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.Contains("روند فروش ماهانه", textAnswer);
         Assert.Contains("منبع: نوآوران امین", textAnswer);
         Assert.Contains("محاسبه: 1405/04/03", textAnswer);
+        Assert.DoesNotContain("داده نمودار ماهانه", textAnswer);
+        Assert.DoesNotContain("| ماه |", textAnswer);
         Assert.DoesNotContain("NoavaranCurrentApi", textAnswer);
         Assert.DoesNotContain("محاسبه: 2026/07/07", textAnswer);
         Assert.DoesNotContain("آخرین قیمت", textAnswer);

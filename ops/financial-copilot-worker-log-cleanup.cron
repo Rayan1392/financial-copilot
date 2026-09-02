@@ -1,0 +1,2 @@
+# Truncate the Financial Copilot worker's active Docker JSON log daily at 03:17 UTC.
+17 3 * * * root /usr/local/sbin/financial-copilot-worker-log-cleanup >/dev/null 2>&1

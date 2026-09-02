@@ -72,12 +72,36 @@ public sealed class TelegramApiClient(IHttpClientFactory factory, IOptions<Teleg
 
     private async Task<TelegramGatewayOperationResult> SendOperationAsync<TResult>(string method, HttpContent content, Func<TResult?, string?> id, CancellationToken cancellationToken)
     {
-        using var client = CreateClient();
-        using var response = await client.PostAsync(method, content, cancellationToken);
-        var envelope = await response.Content.ReadFromJsonAsync<TelegramEnvelope<TResult>>(cancellationToken: cancellationToken);
-        if (response.IsSuccessStatusCode && envelope?.Ok == true)
-            return new(true, envelope.Result is null ? null : id(envelope.Result));
-        return new(false, ErrorCode: response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? "RateLimited" : "TelegramError", RedactedError: "Telegram operation failed.");
+        try
+        {
+            using var client = CreateClient();
+            using var response = await client.PostAsync(method, content, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new(false, ErrorCode: "RateLimited", RedactedError: "Telegram operation was rate limited.", RetryAfter: response.Headers.RetryAfter?.Delta);
+            if (response.StatusCode is System.Net.HttpStatusCode.RequestTimeout or System.Net.HttpStatusCode.GatewayTimeout)
+                return new(false, ErrorCode: "Timeout", RedactedError: "Telegram operation timed out.");
+            if ((int)response.StatusCode >= 500)
+                return new(false, ErrorCode: "GatewayUnavailable", RedactedError: "Telegram operation is temporarily unavailable.");
+            if (!response.IsSuccessStatusCode)
+                return new(false, ErrorCode: "TelegramError", RedactedError: "Telegram permanently rejected the operation.");
+
+            var envelope = await response.Content.ReadFromJsonAsync<TelegramEnvelope<TResult>>(cancellationToken: cancellationToken);
+            return envelope?.Ok == true
+                ? new(true, envelope.Result is null ? null : id(envelope.Result))
+                : new(false, ErrorCode: "TelegramError", RedactedError: "Telegram permanently rejected the operation.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new(false, ErrorCode: "Timeout", RedactedError: "Telegram operation timed out.");
+        }
+        catch (HttpRequestException)
+        {
+            return new(false, ErrorCode: "GatewayUnavailable", RedactedError: "Telegram operation is temporarily unavailable.");
+        }
+        catch (JsonException)
+        {
+            return new(false, ErrorCode: "GatewayUnavailable", RedactedError: "Telegram returned an unreadable response.");
+        }
     }
 
     private HttpClient CreateClient(int? timeoutSeconds = null)

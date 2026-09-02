@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient();
 builder.Services.AddRateLimiter(options =>
 {
@@ -21,25 +20,16 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddOptions<TelegramGatewaySettings>()
     .BindConfiguration(TelegramGatewaySettings.SectionName)
-    .Validate(settings =>
-        !settings.Enabled ||
-        !string.IsNullOrWhiteSpace(settings.BotToken) &&
-        Uri.TryCreate(settings.PrimaryApiBaseUrl, UriKind.Absolute, out var api) &&
-        api.Scheme == Uri.UriSchemeHttps &&
-        !string.IsNullOrWhiteSpace(settings.PrimaryApiKey) &&
-        !string.IsNullOrWhiteSpace(settings.ServiceId) &&
-        !string.IsNullOrWhiteSpace(settings.ServiceSecret) &&
-        settings.MaximumClockSkewSeconds is > 0 and <= 600 &&
-        settings.RateLimitPermitLimit > 0 &&
-        settings.RateLimitWindowSeconds is > 0 and <= 3600 &&
-        settings.RateLimitQueueLimit >= 0,
-        "Telegram Gateway requires a bot token, HTTPS primary API URL, API key, service identity, and service secret when enabled.")
+    .Validate(settings => settings.IsValidForStartup(),
+        "Enabled polling requires a bot token, HTTPS primary API URL, API key, valid polling/timeouts, and absolute durable state paths. Inbound service identity and secret must be configured together.")
     .ValidateOnStart();
 builder.Services.AddSingleton<GatewayRequestAuthenticator>();
 builder.Services.AddSingleton<GatewayReplayNonceStore>();
 builder.Services.AddSingleton<GatewayIdempotencyStore>();
 builder.Services.AddSingleton<TelegramApiClient>();
 builder.Services.AddSingleton<PrimaryApiClient>();
+builder.Services.AddHealthChecks()
+    .AddCheck<PrimaryApiClient>("primary-api-authentication");
 builder.Services.AddHostedService<TelegramGatewayPollingWorker>();
 
 var app = builder.Build();
@@ -56,5 +46,8 @@ app.Use(async (context, next) =>
 });
 app.UseRateLimiter();
 app.MapHealthChecks("/health");
-app.MapControllers().RequireRateLimiting("telegram-gateway");
+if (gatewaySettings.HasInboundApiCredentials)
+{
+    app.MapControllers().RequireRateLimiting("telegram-gateway");
+}
 app.Run();

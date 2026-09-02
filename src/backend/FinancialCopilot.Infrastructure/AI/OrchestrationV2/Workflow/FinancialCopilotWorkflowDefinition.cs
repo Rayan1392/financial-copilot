@@ -1066,34 +1066,6 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 sb.AppendLine($"- {insight.TextFa}");
         }
 
-        if (result.ChartPoints.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("**داده نمودار ماهانه:**");
-            sb.AppendLine();
-
-            var firstPoint = result.ChartPoints.First(p => p.PreviousFiscalYear.HasValue || p.CurrentFiscalYear.HasValue);
-            var prevYearLabel = firstPoint.PreviousFiscalYear.HasValue ? $"فروش {firstPoint.PreviousFiscalYear}" : "فروش سال قبل";
-            var currYearLabel = firstPoint.CurrentFiscalYear.HasValue ? $"فروش {firstPoint.CurrentFiscalYear}" : "فروش سال جاری";
-
-            sb.AppendLine($"| ماه | {prevYearLabel} | {currYearLabel} | میانگین ۱۲ ماهه |");
-            sb.AppendLine("|-----|------------:|-------------:|----------------:|");
-
-            foreach (var pt in result.ChartPoints)
-            {
-                var prevVal = pt.PreviousFiscalYearSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.PreviousFiscalYearSalesAmount.Value)
-                    : "—";
-                var currVal = pt.IsCurrentYearReported && pt.CurrentFiscalYearSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.CurrentFiscalYearSalesAmount.Value)
-                    : "—";
-                var avgVal = pt.Average12MonthSalesAmount.HasValue
-                    ? FormatTrendAmount(pt.Average12MonthSalesAmount.Value)
-                    : "—";
-                sb.AppendLine($"| {pt.FiscalMonthNameFa} | {prevVal} | {currVal} | {avgVal} |");
-            }
-        }
-
         if (result.MissingDataPoints.Count > 0)
         {
             sb.AppendLine();

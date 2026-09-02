@@ -21,4 +21,32 @@ public sealed class TelegramGatewaySettings
     public bool DeleteWebhookOnStart { get; set; } = true;
     public string OffsetFilePath { get; set; } = "telegram-gateway-offset.txt";
     public string IdempotencyFilePath { get; set; } = "telegram-gateway-idempotency.json";
+
+    public bool HasInboundApiCredentials =>
+        !string.IsNullOrWhiteSpace(ServiceId) &&
+        !string.IsNullOrWhiteSpace(ServiceSecret);
+
+    public bool IsValidForStartup()
+    {
+        var pollingIsValid = !Enabled ||
+            !string.IsNullOrWhiteSpace(BotToken) &&
+            Uri.TryCreate(PrimaryApiBaseUrl, UriKind.Absolute, out var api) &&
+            api.Scheme == Uri.UriSchemeHttps &&
+            !string.IsNullOrWhiteSpace(PrimaryApiKey) &&
+            PollIntervalSeconds is >= 0 and <= 30 &&
+            LongPollTimeoutSeconds is > 0 and <= 50 &&
+            RequestTimeoutSeconds is >= 5 and <= 120 &&
+            Limit is > 0 and <= 100 &&
+            Path.IsPathFullyQualified(OffsetFilePath) &&
+            Path.IsPathFullyQualified(IdempotencyFilePath);
+        var inboundCredentialsArePaired =
+            string.IsNullOrWhiteSpace(ServiceId) == string.IsNullOrWhiteSpace(ServiceSecret);
+
+        return pollingIsValid &&
+            inboundCredentialsArePaired &&
+            MaximumClockSkewSeconds is > 0 and <= 600 &&
+            RateLimitPermitLimit > 0 &&
+            RateLimitWindowSeconds is > 0 and <= 3600 &&
+            RateLimitQueueLimit >= 0;
+    }
 }

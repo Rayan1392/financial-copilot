@@ -7,4 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FinancialCopilot.Application\FinancialCopilot.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FinancialCopilot.UnitTests" />
+  </ItemGroup>
 </Project>

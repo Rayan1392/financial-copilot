@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Application\FinancialCopilot.Application.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Billing\FinancialCopilot.Billing.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\backend\FinancialCopilot.TelegramGateway\FinancialCopilot.TelegramGateway.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Worker\FinancialCopilot.Worker.csproj" />
   </ItemGroup>
 

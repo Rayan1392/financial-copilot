@@ -15,7 +15,12 @@ public sealed class TelegramGatewayPollingWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!settings.Enabled) { logger.LogInformation("Telegram Gateway polling is disabled."); return; }
+        if (!settings.Enabled)
+        {
+            logger.LogInformation("Telegram Gateway polling is disabled.");
+            return;
+        }
+
         offset = await LoadOffsetAsync(stoppingToken);
         if (settings.DeleteWebhookOnStart) await telegram.DeleteWebhookAsync(stoppingToken);
         logger.LogInformation("Telegram Gateway polling started with persisted offset {Offset}.", offset);
@@ -24,64 +29,315 @@ public sealed class TelegramGatewayPollingWorker(
             try
             {
                 var updates = await telegram.GetUpdatesAsync(offset, stoppingToken);
-                foreach (var update in updates.OrderBy(item => item.UpdateId))
+                var completed = await ProcessUpdatesAsync(updates, stoppingToken);
+                if (!completed)
                 {
-                    await HandleAsync(update, stoppingToken);
-                    offset = Math.Max(offset, update.UpdateId + 1);
-                    await SaveOffsetAsync(offset, stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
                 }
-                if (updates.Count == 0) await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(settings.PollIntervalSeconds, 0, 30)), stoppingToken);
+                else if (updates.Count == 0)
+                {
+                    await Task.Delay(
+                        TimeSpan.FromSeconds(Math.Clamp(settings.PollIntervalSeconds, 0, 30)),
+                        stoppingToken);
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
             catch (Exception exception)
             {
-                logger.LogWarning("Telegram Gateway polling cycle failed ({ExceptionType}); retrying with the persisted offset.", exception.GetType().Name);
+                logger.LogWarning(
+                    "Telegram Gateway polling cycle failed ({ExceptionType}); retrying with the persisted offset.",
+                    exception.GetType().Name);
                 await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
         }
     }
 
-    private async Task HandleAsync(TelegramGatewayUpdate update, CancellationToken cancellationToken)
+    internal async Task<bool> ProcessUpdatesAsync(
+        IReadOnlyList<TelegramGatewayUpdate> updates,
+        CancellationToken cancellationToken)
+    {
+        foreach (var update in updates.OrderBy(item => item.UpdateId))
+        {
+            if (await ProcessUpdateAsync(update, cancellationToken) == UpdateCompletion.Retry)
+            {
+                return false;
+            }
+
+            offset = Math.Max(offset, update.UpdateId + 1);
+            await SaveOffsetAsync(offset, cancellationToken);
+        }
+
+        return true;
+    }
+
+    internal async Task<UpdateCompletion> ProcessUpdateAsync(
+        TelegramGatewayUpdate update,
+        CancellationToken cancellationToken)
     {
         if (update.Message is { From: { } from, Chat: { } chat } message)
         {
-            if (string.IsNullOrWhiteSpace(message.Text)) return;
+            if (string.IsNullOrWhiteSpace(message.Text))
+            {
+                LogUnsupported(update.UpdateId, "message text is missing");
+                return UpdateCompletion.Complete;
+            }
+
             if (message.Text.StartsWith("/start link_", StringComparison.Ordinal))
             {
-                var success = await primaryApi.ConfirmLinkAsync(new TelegramLinkConfirmRequest(message.Text["/start ".Length..], from.Id, chat.Id, from.Username, update.UpdateId), cancellationToken);
-                await telegram.SendMessageAsync(chat.Id, success ? "حساب تلگرام شما با موفقیت متصل شد." : "اتصال حساب تلگرام ناموفق بود.", null, null, cancellationToken);
-                return;
+                var success = await primaryApi.ConfirmLinkAsync(
+                    new TelegramLinkConfirmRequest(
+                        message.Text["/start ".Length..],
+                        from.Id,
+                        chat.Id,
+                        from.Username,
+                        update.UpdateId),
+                    cancellationToken);
+                await telegram.SendMessageAsync(
+                    chat.Id,
+                    success
+                        ? "حساب تلگرام شما با موفقیت متصل شد."
+                        : "اتصال حساب تلگرام ناموفق بود.",
+                    null,
+                    null,
+                    cancellationToken);
+                return UpdateCompletion.Complete;
             }
+
             await telegram.SendChatActionAsync(chat.Id, "typing", cancellationToken);
-            var result = await primaryApi.HandleUpdateAsync(new TelegramAssistantUpdateRequest(update.UpdateId, TelegramAssistantUpdateKind.Message, from.Id, chat.Id, message.MessageThreadId, message.MessageId, null, null, message.Text.Trim(), from.LanguageCode ?? "fa-IR", DateTimeOffset.FromUnixTimeSeconds(message.Date), $"telegram:{update.UpdateId}"), cancellationToken);
-            await SendMessagesAsync(chat.Id, update.UpdateId, result?.Messages, cancellationToken);
-            return;
+            TelegramAssistantResult? result;
+            try
+            {
+                result = await primaryApi.HandleUpdateAsync(
+                    new TelegramAssistantUpdateRequest(
+                        update.UpdateId,
+                        TelegramAssistantUpdateKind.Message,
+                        from.Id,
+                        chat.Id,
+                        message.MessageThreadId,
+                        message.MessageId,
+                        null,
+                        null,
+                        message.Text.Trim(),
+                        from.LanguageCode ?? "fa-IR",
+                        DateTimeOffset.FromUnixTimeSeconds(message.Date),
+                        $"telegram:{update.UpdateId}"),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogPrimaryTransient(update.UpdateId, "Timeout");
+                return UpdateCompletion.Retry;
+            }
+            catch (HttpRequestException exception) when (IsAuthenticationFailure(exception.StatusCode))
+            {
+                LogPrimaryAuthenticationFailure(update.UpdateId, exception.StatusCode!.Value, callback: false);
+                await SendAuthenticationFailureAsync(chat.Id, update.UpdateId, cancellationToken);
+                return UpdateCompletion.Complete;
+            }
+            catch (HttpRequestException exception) when (IsTransientPrimaryFailure(exception.StatusCode))
+            {
+                LogPrimaryTransient(update.UpdateId, exception.StatusCode?.ToString() ?? "NetworkError");
+                return UpdateCompletion.Retry;
+            }
+            catch (HttpRequestException exception)
+            {
+                logger.LogError(
+                    "Primary API permanently rejected Telegram update {TelegramUpdateId} with status {StatusCode}.",
+                    update.UpdateId,
+                    exception.StatusCode is null ? "Unknown" : ((int)exception.StatusCode.Value).ToString());
+                await SendAuthenticationFailureAsync(chat.Id, update.UpdateId, cancellationToken);
+                return UpdateCompletion.Complete;
+            }
+
+            if (result is null)
+            {
+                LogPrimaryTransient(update.UpdateId, "EmptyResponse");
+                return UpdateCompletion.Retry;
+            }
+
+            return await SendMessagesAsync(chat.Id, update.UpdateId, result.Messages, cancellationToken);
         }
 
-        if (update.CallbackQuery is { } callback && callback.From is { } callbackFrom && callback.Message?.Chat is { } callbackChat)
+        if (update.CallbackQuery is { } callback &&
+            callback.From is { } callbackFrom &&
+            callback.Message?.Chat is { } callbackChat)
         {
             await telegram.SendChatActionAsync(callbackChat.Id, "typing", cancellationToken);
-            var result = await primaryApi.HandleUpdateAsync(new TelegramAssistantUpdateRequest(update.UpdateId, TelegramAssistantUpdateKind.CallbackQuery, callbackFrom.Id, callbackChat.Id, callback.Message!.MessageThreadId, callback.Message.MessageId, callback.Id, callback.Data, null, callbackFrom.LanguageCode ?? "fa-IR", DateTimeOffset.UtcNow, $"telegram:{update.UpdateId}"), cancellationToken);
+            TelegramAssistantResult? result;
+            try
+            {
+                result = await primaryApi.HandleUpdateAsync(
+                    new TelegramAssistantUpdateRequest(
+                        update.UpdateId,
+                        TelegramAssistantUpdateKind.CallbackQuery,
+                        callbackFrom.Id,
+                        callbackChat.Id,
+                        callback.Message!.MessageThreadId,
+                        callback.Message.MessageId,
+                        callback.Id,
+                        callback.Data,
+                        null,
+                        callbackFrom.LanguageCode ?? "fa-IR",
+                        DateTimeOffset.UtcNow,
+                        $"telegram:{update.UpdateId}"),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogPrimaryTransient(update.UpdateId, "Timeout");
+                return UpdateCompletion.Retry;
+            }
+            catch (HttpRequestException exception) when (IsAuthenticationFailure(exception.StatusCode))
+            {
+                LogPrimaryAuthenticationFailure(update.UpdateId, exception.StatusCode!.Value, callback: true);
+                await SendAuthenticationFailureAsync(callbackChat.Id, update.UpdateId, cancellationToken);
+                return UpdateCompletion.Complete;
+            }
+            catch (HttpRequestException exception) when (IsTransientPrimaryFailure(exception.StatusCode))
+            {
+                LogPrimaryTransient(update.UpdateId, exception.StatusCode?.ToString() ?? "NetworkError");
+                return UpdateCompletion.Retry;
+            }
+
             await telegram.AnswerCallbackQueryAsync(callback.Id, cancellationToken);
-            await SendMessagesAsync(callbackChat.Id, update.UpdateId, result?.Messages, cancellationToken);
+            return result is null
+                ? UpdateCompletion.Retry
+                : await SendMessagesAsync(callbackChat.Id, update.UpdateId, result.Messages, cancellationToken);
         }
+
+        LogUnsupported(update.UpdateId, "unsupported or incomplete update shape");
+        return UpdateCompletion.Complete;
     }
 
-    private async Task SendMessagesAsync(long chatId, long updateId, IReadOnlyList<TelegramAssistantRenderedMessage>? messages, CancellationToken cancellationToken)
+    internal async Task<UpdateCompletion> SendMessagesAsync(
+        long chatId,
+        long updateId,
+        IReadOnlyList<TelegramAssistantRenderedMessage>? messages,
+        CancellationToken cancellationToken)
     {
         foreach (var message in (messages ?? []).OrderBy(item => item.PartNumber))
         {
             var key = $"update:{updateId}:part:{message.PartNumber}";
             if (idempotency.TryGet(key, out _)) continue;
-            TelegramGatewayOperationResult result;
-            if (message.Media is not null)
-                result = await telegram.SendPhotoAsync(chatId, message.Text, message.ParseMode, message.Actions, message.Media, cancellationToken);
-            else
-                result = await telegram.SendMessageAsync(chatId, message.Text, message.ParseMode, message.Actions, cancellationToken);
-            if (result.Succeeded || result.ErrorCode is not ("RateLimited" or "Timeout" or "GatewayUnavailable"))
-                await idempotency.SetAsync(key, result, cancellationToken);
+
+            var result = message.Media is not null
+                ? await telegram.SendPhotoAsync(
+                    chatId,
+                    message.Text,
+                    message.ParseMode,
+                    message.Actions,
+                    message.Media,
+                    cancellationToken)
+                : await telegram.SendMessageAsync(
+                    chatId,
+                    message.Text,
+                    message.ParseMode,
+                    message.Actions,
+                    cancellationToken);
+
+            if (result.Succeeded)
+            {
+                try
+                {
+                    await idempotency.SetAsync(key, result, cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    logger.LogWarning(
+                        "Telegram response part persistence failed for update {TelegramUpdateId}, part {PartNumber} ({ExceptionType}).",
+                        updateId,
+                        message.PartNumber,
+                        exception.GetType().Name);
+                    return UpdateCompletion.Retry;
+                }
+
+                continue;
+            }
+
+            if (IsTransientTelegramFailure(result.ErrorCode))
+            {
+                logger.LogWarning(
+                    "Telegram response delivery is transiently incomplete for update {TelegramUpdateId}, part {PartNumber}, code {ErrorCode}.",
+                    updateId,
+                    message.PartNumber,
+                    result.ErrorCode);
+                return UpdateCompletion.Retry;
+            }
+
+            logger.LogWarning(
+                "Telegram permanently rejected response delivery for update {TelegramUpdateId}, chat {TelegramChatId}, part {PartNumber}, code {ErrorCode}.",
+                updateId,
+                chatId,
+                message.PartNumber,
+                result.ErrorCode ?? "TelegramError");
+            return UpdateCompletion.Complete;
+        }
+
+        return UpdateCompletion.Complete;
+    }
+
+    private async Task SendAuthenticationFailureAsync(
+        long chatId,
+        long updateId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await telegram.SendMessageAsync(
+                chatId,
+                "در حال حاضر سرویس موقتاً در دسترس نیست. لطفاً بعداً دوباره تلاش کنید.",
+                null,
+                null,
+                cancellationToken);
+            if (!result.Succeeded)
+            {
+                logger.LogWarning(
+                    "Telegram authentication-failure notice was not delivered for update {TelegramUpdateId}, chat {TelegramChatId}, code {ErrorCode}.",
+                    updateId,
+                    chatId,
+                    result.ErrorCode ?? "TelegramError");
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                "Telegram authentication-failure notice failed for update {TelegramUpdateId}, chat {TelegramChatId} ({ExceptionType}).",
+                updateId,
+                chatId,
+                exception.GetType().Name);
         }
     }
+
+    private static bool IsAuthenticationFailure(System.Net.HttpStatusCode? statusCode) =>
+        statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden;
+
+    private static bool IsTransientPrimaryFailure(System.Net.HttpStatusCode? statusCode) =>
+        statusCode is null or System.Net.HttpStatusCode.TooManyRequests || (int)statusCode.Value >= 500;
+
+    private static bool IsTransientTelegramFailure(string? errorCode) =>
+        errorCode is "RateLimited" or "Timeout" or "GatewayUnavailable";
+
+    private void LogUnsupported(long updateId, string reason) =>
+        logger.LogWarning("Telegram update {TelegramUpdateId} was skipped: {Reason}.", updateId, reason);
+
+    private void LogPrimaryTransient(long updateId, string failure) =>
+        logger.LogWarning(
+            "Primary API handling is transiently incomplete for Telegram update {TelegramUpdateId}: {Failure}.",
+            updateId,
+            failure);
+
+    private void LogPrimaryAuthenticationFailure(
+        long updateId,
+        System.Net.HttpStatusCode statusCode,
+        bool callback) =>
+        logger.LogError(
+            "Primary API rejected Telegram {UpdateKind} {TelegramUpdateId} with service authentication status {StatusCode}.",
+            callback ? "callback update" : "update",
+            updateId,
+            (int)statusCode);
 
     private async Task<long> LoadOffsetAsync(CancellationToken cancellationToken)
     {
@@ -96,4 +352,10 @@ public sealed class TelegramGatewayPollingWorker(
         if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(settings.OffsetFilePath, value.ToString(), cancellationToken);
     }
+}
+
+internal enum UpdateCompletion
+{
+    Complete,
+    Retry
 }

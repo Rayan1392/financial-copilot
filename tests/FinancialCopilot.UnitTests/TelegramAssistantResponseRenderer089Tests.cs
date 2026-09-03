@@ -110,6 +110,10 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.Contains("اندازه گروه", message.Text);
         Assert.Contains("📌 کگهر", message.Text);
         Assert.Contains("📌 فملی", message.Text);
+        Assert.Contains("📌 میانگین صنعت", message.Text);
+        Assert.Contains("نسبت قیمت به سود: ۷۹٫۳٪", message.Text);
+        Assert.Contains("نسبت قیمت به فروش: ۶۰٫۳۲٪", message.Text);
+        Assert.Contains("نسبت قیمت به تعادلی: ۴۶٫۲۹٪", message.Text);
         Assert.Contains("نسبت قیمت به سود", message.Text);
         Assert.Contains("نسبت قیمت به فروش", message.Text);
         Assert.Contains("نسبت قیمت به تعادلی", message.Text);

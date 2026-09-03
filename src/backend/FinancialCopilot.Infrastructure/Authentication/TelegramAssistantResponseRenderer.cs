@@ -147,12 +147,13 @@ public sealed class TelegramAssistantResponseRenderer(
             {
                 var benchmark = cells.Skip(1).ToArray();
                 var cards = rows.Select(row => FormatIndustryCard(row.Symbol, row.Values, headers, benchmark));
+                var averageCard = FormatIndustryAverageCard(cells[0], benchmark, headers);
                 var prefix = lines.Take(tableStart)
                     .Where(line => !line.StartsWith("###", StringComparison.Ordinal))
                     .Select(line => line
                         .Replace("**", string.Empty, StringComparison.Ordinal)
                         .Replace("گروه صنعتی:", "گروه:", StringComparison.Ordinal));
-                formatted = string.Join(Environment.NewLine, prefix.Append(string.Empty).Concat(cards));
+                formatted = string.Join(Environment.NewLine, prefix.Append(string.Empty).Concat(cards).Append(averageCard));
                 return true;
             }
 
@@ -171,6 +172,17 @@ public sealed class TelegramAssistantResponseRenderer(
             var comparison = CompareIndustryValues(value, benchmark.ElementAtOrDefault(index));
             builder.AppendLine();
             builder.Append($"{TelegramIndustryMetricLabel(headers[index + 1])}: {value} {comparison}");
+        }
+        return builder.ToString();
+    }
+
+    private static string FormatIndustryAverageCard(string symbol, string[] values, IReadOnlyList<string> headers)
+    {
+        var builder = new StringBuilder($"📌 {symbol}");
+        for (var index = 0; index < values.Length && index + 1 < headers.Count; index++)
+        {
+            builder.AppendLine();
+            builder.Append($"{TelegramIndustryMetricLabel(headers[index + 1])}: {values[index]}");
         }
         return builder.ToString();
     }

@@ -146,6 +146,30 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
     }
 
     [Fact]
+    public async Task Reader_AppendsRequestedCompany_WhenItFallsOutsideTopN()
+    {
+        await using var db = CreateDb();
+        var (_, companies) = await SeedCatalogAsync(db, 3);
+        foreach (var companyId in companies)
+            AddCompleteSnapshotSet(db, companyId, 50m + Array.IndexOf(companies, companyId));
+        await db.SaveChangesAsync();
+
+        var reader = new CyclicalWavesMetricSnapshotReader(db);
+        var input = Assert.Single(await new IndustryRelativeValuationCalculationInputBuilder(db, reader)
+            .BuildAsync(ProviderSources.NoavaranCurrentApiName, Now, TimeSpan.FromHours(26), CancellationToken.None));
+        var write = await new IndustryRelativeValuationCalculationSnapshotWriter(db)
+            .WriteAsync(DateOnly.FromDateTime(Now.UtcDateTime), input, Now, CancellationToken.None);
+        Assert.Equal("Published", write.Status);
+
+        var result = await new IndustryRelativeValuationReadRepository(db).ReadAsync(
+            new(input.GroupId, [companies[2]], "symbol_vs_industry_relative_valuation", Limit: 2));
+
+        Assert.NotNull(result);
+        Assert.Equal(3, result.Members.Count);
+        Assert.Equal(companies[2], result.Members[^1].CompanyId);
+    }
+
+    [Fact]
     public async Task InputBuilder_UsesPersistedPsSnapshotInsteadOfVisualizationTable()
     {
         await using var db = CreateDb();

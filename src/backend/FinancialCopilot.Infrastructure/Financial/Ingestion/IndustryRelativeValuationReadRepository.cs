@@ -47,7 +47,16 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
             logger?.LogWarning("Feature 125 read rejected members not present in selected snapshot for group {GroupId}.", groupId);
             return null;
         }
-        var ordered = selected.OrderBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).Take(request.Limit).ToArray();
+        var ranked = selected.OrderBy(x => x.GlobalRank ?? int.MaxValue).ThenBy(x => x.CompanyId).ToArray();
+        var topN = ranked.Take(request.Limit).ToArray();
+        var requestedOutsideTopN = request.CapabilityCode is not "symbol_pair_within_industry"
+            ? selected.Where(member => request.CompanyIds.Contains(member.CompanyId) &&
+                                       !topN.Any(top => top.CompanyId == member.CompanyId))
+                .OrderBy(x => x.GlobalRank ?? int.MaxValue)
+                .ThenBy(x => x.CompanyId)
+                .ToArray()
+            : [];
+        var ordered = topN.Concat(requestedOutsideTopN).ToArray();
         var totalMembers = members.Length;
         var resultMembers = ordered.Select(row => new RelativeValuationMemberReadModel(
             row.CompanyId,

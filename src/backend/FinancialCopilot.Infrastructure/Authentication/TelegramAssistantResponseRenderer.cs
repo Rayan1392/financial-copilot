@@ -53,7 +53,9 @@ public sealed class TelegramAssistantResponseRenderer(
         }
         else if (!isSingleSymbolLookup && !string.IsNullOrWhiteSpace(response.TextAnswer))
         {
-            builder.AppendLine(response.TextAnswer);
+            builder.AppendLine(TryFormatIndustryComparison(response.TextAnswer, out var comparison)
+                ? comparison
+                : response.TextAnswer);
         }
 
         if (isSingleSymbolLookup)
@@ -116,6 +118,85 @@ public sealed class TelegramAssistantResponseRenderer(
 
     private static string FormatProductComparisonDecimal(decimal? value) =>
         value.HasValue ? value.Value.ToString("N2", CultureInfo.InvariantCulture) : "—";
+
+    private static bool TryFormatIndustryComparison(string text, out string formatted)
+    {
+        formatted = string.Empty;
+        if (!text.Contains("مقایسه نماد با صنعت", StringComparison.Ordinal) || !text.Contains('|'))
+            return false;
+
+        var lines = text.Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToList();
+        var tableStart = lines.FindIndex(line => line.StartsWith('|'));
+        if (tableStart < 0 || tableStart + 2 >= lines.Count)
+            return false;
+
+        var headers = SplitTableLine(lines[tableStart]);
+        if (headers.Length < 2 || !headers[0].Equals("نماد", StringComparison.Ordinal))
+            return false;
+
+        var rows = new List<(string Symbol, string[] Values)>();
+        for (var index = tableStart + 2; index < lines.Count; index++)
+        {
+            var cells = SplitTableLine(lines[index]);
+            if (cells.Length != headers.Length)
+                continue;
+            if (cells[0].Equals("میانگین صنعت", StringComparison.Ordinal))
+            {
+                var benchmark = cells.Skip(1).ToArray();
+                var cards = rows.Select(row => FormatIndustryCard(row.Symbol, row.Values, headers, benchmark));
+                var prefix = lines.Take(tableStart)
+                    .Where(line => !line.StartsWith("###", StringComparison.Ordinal))
+                    .Select(line => line.Replace("**", string.Empty, StringComparison.Ordinal));
+                formatted = string.Join(Environment.NewLine, prefix.Append(string.Empty).Concat(cards));
+                return true;
+            }
+
+            rows.Add((cells[0], cells.Skip(1).ToArray()));
+        }
+
+        return false;
+    }
+
+    private static string FormatIndustryCard(string symbol, string[] values, IReadOnlyList<string> headers, string[] benchmark)
+    {
+        var builder = new StringBuilder($"📌 {symbol}");
+        for (var index = 0; index < values.Length && index + 1 < headers.Count; index++)
+        {
+            var value = values[index];
+            var comparison = CompareIndustryValues(value, benchmark.ElementAtOrDefault(index));
+            builder.AppendLine();
+            builder.Append($"{headers[index + 1]}: {value} {comparison}");
+        }
+        return builder.ToString();
+    }
+
+    private static string CompareIndustryValues(string value, string? benchmark)
+    {
+        if (!TryParsePersianPercent(value, out var current) || !TryParsePersianPercent(benchmark, out var industry))
+            return "⚪ قابل مقایسه نیست";
+        if (current == industry)
+            return "⚪ برابر با میانگین صنعت";
+        return current < industry
+            ? $"🟢 کمتر از میانگین صنعت ({benchmark})"
+            : $"🔴 بیشتر از میانگین صنعت ({benchmark})";
+    }
+
+    private static bool TryParsePersianPercent(string? value, out decimal result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Trim().TrimEnd('٪', '%')
+            .Replace('۰', '0').Replace('۱', '1').Replace('۲', '2').Replace('۳', '3').Replace('۴', '4')
+            .Replace('۵', '5').Replace('۶', '6').Replace('۷', '7').Replace('۸', '8').Replace('۹', '9')
+            .Replace('٫', '.').Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+    }
+
+    private static string[] SplitTableLine(string line) =>
+        line.Trim().Trim('|').Split('|', StringSplitOptions.None).Select(cell => cell.Trim()).ToArray();
 
     private IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyTrend(
         AiQueryResponse response,

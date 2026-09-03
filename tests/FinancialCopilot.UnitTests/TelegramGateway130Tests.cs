@@ -291,6 +291,48 @@ public sealed class TelegramGateway130Tests
     }
 
     [Fact]
+    public async Task TelegramApiClient_omits_null_optional_send_message_fields()
+    {
+        string? body = null;
+        var client = new TelegramApiClient(
+            new NamedHttpClientFactory(async (_, request) =>
+            {
+                body = await request.Content!.ReadAsStringAsync();
+                return TelegramSuccess();
+            }),
+            Options.Create(Settings()));
+
+        var result = await client.SendMessageAsync(1, "text", null, null, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        using var json = System.Text.Json.JsonDocument.Parse(body!);
+        Assert.False(json.RootElement.TryGetProperty("parse_mode", out _));
+        Assert.False(json.RootElement.TryGetProperty("reply_markup", out _));
+    }
+
+    [Fact]
+    public async Task TelegramApiClient_plain_text_fallback_omits_optional_fields()
+    {
+        var bodies = new List<string>();
+        var client = new TelegramApiClient(
+            new NamedHttpClientFactory(async (_, request) =>
+            {
+                bodies.Add(await request.Content!.ReadAsStringAsync());
+                return bodies.Count == 1
+                    ? JsonResponse(HttpStatusCode.BadRequest, new { ok = false })
+                    : TelegramSuccess();
+            }),
+            Options.Create(Settings()));
+
+        var result = await client.SendMessageAsync(1, "text", "MarkdownV2", null, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        using var fallback = System.Text.Json.JsonDocument.Parse(bodies[1]);
+        Assert.False(fallback.RootElement.TryGetProperty("parse_mode", out _));
+        Assert.False(fallback.RootElement.TryGetProperty("reply_markup", out _));
+    }
+
+    [Fact]
     public async Task GatewayIdempotencyStore_persists_only_confirmed_sends()
     {
         var settings = Settings();

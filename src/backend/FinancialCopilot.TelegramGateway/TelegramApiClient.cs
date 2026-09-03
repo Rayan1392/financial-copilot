@@ -25,8 +25,21 @@ public sealed class TelegramApiClient(IHttpClientFactory factory, IOptions<Teleg
         await client.PostAsJsonAsync("deleteWebhook", new { drop_pending_updates = false }, cancellationToken);
     }
 
-    public Task<TelegramGatewayOperationResult> SendMessageAsync(long chatId, string text, string? parseMode, IReadOnlyList<TelegramAssistantAction>? actions, CancellationToken cancellationToken) =>
-        PostOperationAsync<TelegramMessageResult>("sendMessage", new { chat_id = chatId, text, parse_mode = parseMode, reply_markup = Markup(actions), disable_web_page_preview = true }, result => result?.MessageId?.ToString(CultureInfo.InvariantCulture), cancellationToken);
+    public async Task<TelegramGatewayOperationResult> SendMessageAsync(long chatId, string text, string? parseMode, IReadOnlyList<TelegramAssistantAction>? actions, CancellationToken cancellationToken)
+    {
+        var payload = SendMessagePayload(chatId, text, parseMode, actions);
+        var result = await PostOperationAsync<TelegramMessageResult>("sendMessage", payload, value => value?.MessageId?.ToString(CultureInfo.InvariantCulture), cancellationToken);
+
+        // Telegram may reject otherwise valid MarkdownV2 when model-produced content contains
+        // an entity edge case. Retry once as plain text so a valid assistant response is not lost.
+        if (!result.Succeeded && result.ErrorCode == "TelegramError" && !string.IsNullOrWhiteSpace(parseMode))
+        {
+            var plainPayload = SendMessagePayload(chatId, text, null, actions);
+            result = await PostOperationAsync<TelegramMessageResult>("sendMessage", plainPayload, value => value?.MessageId?.ToString(CultureInfo.InvariantCulture), cancellationToken);
+        }
+
+        return result;
+    }
 
     public async Task<TelegramGatewayOperationResult> SendPhotoAsync(long chatId, string caption, string? parseMode, IReadOnlyList<TelegramAssistantAction>? actions, TelegramAssistantMediaAttachment media, CancellationToken cancellationToken)
     {
@@ -115,6 +128,20 @@ public sealed class TelegramApiClient(IHttpClientFactory factory, IOptions<Teleg
     private static object? Markup(IReadOnlyList<TelegramAssistantAction>? actions) => actions is { Count: > 0 }
         ? new { inline_keyboard = actions.Select(action => new[] { new { text = action.Text, callback_data = action.CallbackData } }).ToArray() }
         : null;
+
+    private static Dictionary<string, object> SendMessagePayload(long chatId, string text, string? parseMode, IReadOnlyList<TelegramAssistantAction>? actions)
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["chat_id"] = chatId,
+            ["text"] = text,
+            ["disable_web_page_preview"] = true
+        };
+
+        if (!string.IsNullOrWhiteSpace(parseMode)) payload["parse_mode"] = parseMode;
+        if (Markup(actions) is { } markup) payload["reply_markup"] = markup;
+        return payload;
+    }
 
     private sealed record TelegramEnvelope<T>([property: JsonPropertyName("ok")] bool Ok, [property: JsonPropertyName("result")] T? Result);
     private sealed record TelegramMessageResult([property: JsonPropertyName("message_id")] long? MessageId);

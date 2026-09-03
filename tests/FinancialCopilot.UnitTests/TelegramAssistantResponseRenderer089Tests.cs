@@ -93,6 +93,27 @@ public sealed class TelegramAssistantResponseRenderer089Tests
     }
 
     [Fact]
+    public void Industry_comparison_is_rendered_as_readable_cards_with_non_color_statuses()
+    {
+        var response = new AiQueryResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.ComprehensiveAnalysis,
+            null, null, null, null, null,
+            "### مقایسه نماد با صنعت\n**گروه صنعتی:** استخراج سنگ معدن\n**اندازه گروه:** ۸ نماد\n\n| نماد | P/E | P/S | قیمت به تعادلی |\n|---|---:|---:|---:|\n| کگهر | ۶۶٫۹۴٪ | ۲۹٫۳۷٪ | ۴۳٫۲۹٪ |\n| میانگین صنعت | ۷۹٫۳٪ | ۶۰٫۳۲٪ | ۴۶٫۲۹٪ |",
+            false, null, null);
+
+        var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
+
+        Assert.DoesNotContain("###", message.Text);
+        Assert.DoesNotContain("|", message.Text);
+        Assert.Contains("گروه صنعتی", message.Text);
+        Assert.Contains("اندازه گروه", message.Text);
+        Assert.Contains("📌 کگهر", message.Text);
+        Assert.Contains("🟢", message.Text);
+        Assert.Contains("کمتر از میانگین صنعت", message.Text);
+        Assert.Contains("۷۹٫۳٪", message.Text);
+    }
+
+    [Fact]
     public void Single_symbol_average_12_month_sales_uses_localized_telegram_label()
     {
         var response = CreateAverage12MonthSalesResponse();

@@ -268,11 +268,23 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
 
     private static SKTypeface LoadTypeface(string resourceName)
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Embedded font resource '{resourceName}' was not found.");
-        using var data = SKData.Create(stream);
-        return SKTypeface.FromData(data)
-            ?? throw new InvalidOperationException($"Embedded font resource '{resourceName}' could not be loaded.");
+        try
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+            if (stream is not null)
+            {
+                using var data = SKData.Create(stream);
+                var embedded = SKTypeface.FromData(data);
+                if (embedded is not null) return embedded;
+            }
+        }
+        catch (Exception)
+        {
+            // A system fallback below keeps chart delivery working when a container
+            // was built without the optional embedded font resource.
+        }
+
+        return SKTypeface.FromFamilyName("sans-serif") ?? SKTypeface.Default;
     }
 
     private static decimal FindMaximum(IEnumerable<MonthlyActivityTrendChartPoint> points) =>

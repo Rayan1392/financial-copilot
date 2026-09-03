@@ -33,10 +33,16 @@ public sealed class IndustryRelativeValuationReadRepository(FinancialIngestionDb
         var companies = await db.Companies.AsNoTracking().Where(x => members.Select(m => m.CompanyId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, cancellationToken);
         var metrics = await db.IndustryRelativeValuationMetrics.AsNoTracking().Where(x => x.CalculationId == calculation.Id).ToArrayAsync(cancellationToken);
         var totalRanked = members.Count(x => x.GlobalRank.HasValue);
-        var selected = request.CompanyIds.Count == 0
+        // CompanyIds identify the symbol used to resolve the industry for the
+        // symbol-vs-industry flow; they are not a row filter. That comparison
+        // must return the ranked Top-N members of the whole group. Only the
+        // explicit pair capability is scoped to the requested symbols.
+        var selected = request.CompanyIds.Count == 0 ||
+                       request.CapabilityCode is not "symbol_pair_within_industry"
             ? members
             : members.Where(member => request.CompanyIds.Contains(member.CompanyId)).ToArray();
-        if (request.CompanyIds.Count > 0 && selected.Length != request.CompanyIds.Distinct().Count())
+        if (request.CapabilityCode is "symbol_pair_within_industry" &&
+            request.CompanyIds.Count > 0 && selected.Length != request.CompanyIds.Distinct().Count())
         {
             logger?.LogWarning("Feature 125 read rejected members not present in selected snapshot for group {GroupId}.", groupId);
             return null;

@@ -98,19 +98,26 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var response = new AiQueryResponse(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DetectedIntent.ComprehensiveAnalysis,
             null, null, null, null, null,
-            "### مقایسه نماد با صنعت\n**گروه صنعتی:** استخراج سنگ معدن\n**اندازه گروه:** ۸ نماد\n\n| نماد | P/E | P/S | قیمت به تعادلی |\n|---|---:|---:|---:|\n| کگهر | ۶۶٫۹۴٪ | ۲۹٫۳۷٪ | ۴۳٫۲۹٪ |\n| میانگین صنعت | ۷۹٫۳٪ | ۶۰٫۳۲٪ | ۴۶٫۲۹٪ |",
+            "### مقایسه نماد با صنعت\n**گروه صنعتی:** استخراج سنگ معدن\n**اندازه گروه:** ۸ نماد\n\n| نماد | P/E | P/S | قیمت به تعادلی |\n|---|---:|---:|---:|\n| کگهر | ۶۶٫۹۴٪ | ۲۹٫۳۷٪ | ۴۳٫۲۹٪ |\n| فملی | ۷۰٪ | ۶۵٪ | ۴۸٪ |\n| میانگین صنعت | ۷۹٫۳٪ | ۶۰٫۳۲٪ | ۴۶٫۲۹٪ |",
             false, null, null);
 
         var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
 
         Assert.DoesNotContain("###", message.Text);
         Assert.DoesNotContain("|", message.Text);
-        Assert.Contains("گروه صنعتی", message.Text);
+        Assert.Contains("گروه:", message.Text);
+        Assert.DoesNotContain("گروه صنعتی:", message.Text);
         Assert.Contains("اندازه گروه", message.Text);
         Assert.Contains("📌 کگهر", message.Text);
+        Assert.Contains("📌 فملی", message.Text);
+        Assert.Contains("نسبت قیمت به سود", message.Text);
+        Assert.Contains("نسبت قیمت به فروش", message.Text);
+        Assert.Contains("نسبت قیمت به تعادلی", message.Text);
         Assert.Contains("🟢", message.Text);
-        Assert.Contains("کمتر از میانگین صنعت", message.Text);
-        Assert.Contains("۷۹٫۳٪", message.Text);
+        Assert.DoesNotContain("کمتر از میانگین صنعت", message.Text);
+        Assert.DoesNotContain("بیشتر از میانگین صنعت", message.Text);
+        Assert.DoesNotContain("P/E", message.Text);
+        Assert.DoesNotContain("P/S", message.Text);
     }
 
     [Fact]

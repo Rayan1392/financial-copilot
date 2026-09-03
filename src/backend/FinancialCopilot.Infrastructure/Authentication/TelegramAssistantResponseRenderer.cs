@@ -149,7 +149,9 @@ public sealed class TelegramAssistantResponseRenderer(
                 var cards = rows.Select(row => FormatIndustryCard(row.Symbol, row.Values, headers, benchmark));
                 var prefix = lines.Take(tableStart)
                     .Where(line => !line.StartsWith("###", StringComparison.Ordinal))
-                    .Select(line => line.Replace("**", string.Empty, StringComparison.Ordinal));
+                    .Select(line => line
+                        .Replace("**", string.Empty, StringComparison.Ordinal)
+                        .Replace("گروه صنعتی:", "گروه:", StringComparison.Ordinal));
                 formatted = string.Join(Environment.NewLine, prefix.Append(string.Empty).Concat(cards));
                 return true;
             }
@@ -168,7 +170,7 @@ public sealed class TelegramAssistantResponseRenderer(
             var value = values[index];
             var comparison = CompareIndustryValues(value, benchmark.ElementAtOrDefault(index));
             builder.AppendLine();
-            builder.Append($"{headers[index + 1]}: {value} {comparison}");
+            builder.Append($"{TelegramIndustryMetricLabel(headers[index + 1])}: {value} {comparison}");
         }
         return builder.ToString();
     }
@@ -179,10 +181,16 @@ public sealed class TelegramAssistantResponseRenderer(
             return "⚪ قابل مقایسه نیست";
         if (current == industry)
             return "⚪ برابر با میانگین صنعت";
-        return current < industry
-            ? $"🟢 کمتر از میانگین صنعت ({benchmark})"
-            : $"🔴 بیشتر از میانگین صنعت ({benchmark})";
+        return current < industry ? "🟢" : "🔴";
     }
+
+    private static string TelegramIndustryMetricLabel(string header) => header switch
+    {
+        "P/E" => "نسبت قیمت به سود",
+        "P/S" => "نسبت قیمت به فروش",
+        "قیمت به تعادلی" => "نسبت قیمت به تعادلی",
+        _ => header
+    };
 
     private static bool TryParsePersianPercent(string? value, out decimal result)
     {

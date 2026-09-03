@@ -135,7 +135,9 @@ public sealed class IndustryRelativeValuationSnapshotConsumptionTests
         Assert.NotNull(read);
         Assert.Equal(calculation.GroupId, read.GroupId);
         Assert.Equal("Test Group", read.GroupTitle);
-        Assert.Equal(companies[0], Assert.Single(read.Members).CompanyId);
+        Assert.Equal(2, read.Members.Count);
+        Assert.Contains(read.Members, member => member.CompanyId == companies[0]);
+        Assert.Contains(read.Members, member => member.CompanyId == companies[1]);
         Assert.Empty(await db.IndustryRelativeValuationSourceFacts.ToArrayAsync());
         Assert.Equal(
             [typeof(FinancialIngestionDbContext)],

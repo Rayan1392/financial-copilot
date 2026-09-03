@@ -44,8 +44,19 @@ public sealed class TelegramGatewayController(
         try
         {
             var result = await action();
-            if (result.Succeeded || result.ErrorCode is not ("RateLimited" or "Timeout" or "GatewayUnavailable"))
-                await idempotency.SetAsync(key, result, cancellationToken);
+            if (result.Succeeded)
+            {
+                try
+                {
+                    await idempotency.SetAsync(key, result, cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // The Telegram operation already succeeded. Returning a
+                    // transient failure here makes the polling worker resend it.
+                    idempotency.Remember(key, result);
+                }
+            }
             return result;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return new(false, ErrorCode: "Timeout", RedactedError: "Telegram Gateway timed out."); }

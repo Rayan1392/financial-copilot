@@ -22,6 +22,17 @@ public sealed class GatewayIdempotencyStore(IOptions<TelegramGatewaySettings> op
         return false;
     }
 
+    // Telegram may have accepted a request even when the durable write fails.
+    // Remember that confirmed send for this process so the polling loop cannot
+    // immediately send the same message again.
+    public void Remember(string key, TelegramGatewayOperationResult result)
+    {
+        if (result.Succeeded)
+        {
+            entries[key] = result;
+        }
+    }
+
     public async Task SetAsync(string key, TelegramGatewayOperationResult result, CancellationToken cancellationToken)
     {
         if (!result.Succeeded)

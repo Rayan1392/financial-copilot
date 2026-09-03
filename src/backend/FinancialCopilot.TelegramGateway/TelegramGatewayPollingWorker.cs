@@ -251,7 +251,9 @@ public sealed class TelegramGatewayPollingWorker(
                         updateId,
                         message.PartNumber,
                         exception.GetType().Name);
-                    return UpdateCompletion.Retry;
+                    // Telegram already confirmed the send. Retrying here causes
+                    // duplicate messages when the state file is temporarily unavailable.
+                    idempotency.Remember(key, result);
                 }
 
                 continue;

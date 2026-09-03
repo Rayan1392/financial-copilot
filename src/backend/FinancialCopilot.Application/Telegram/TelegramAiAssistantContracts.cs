@@ -97,4 +97,9 @@ public interface ITelegramDisclosurePaginationStateStore
 public interface ITelegramMonthlyTrendChartRenderer
 {
     TelegramAssistantMediaAttachment Render(MonthlyActivityTrendResponse trend);
+
+    // Kept on the existing renderer boundary so Telegram image delivery remains
+    // an infrastructure concern and the web/API response contracts are unchanged.
+    TelegramAssistantMediaAttachment Render(ProductRevenueMixResponse result) =>
+        throw new NotSupportedException("Product revenue mix image rendering is not supported.");
 }

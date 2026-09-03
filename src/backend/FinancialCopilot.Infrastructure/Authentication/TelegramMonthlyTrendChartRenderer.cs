@@ -12,6 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
     internal const string ChartRenderVersion = "monthly-trend-chart-v4";
+    internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1280;
     internal const int Height = 720;
     private const int MaximumPhotoBytes = 5 * 1024 * 1024;
@@ -60,6 +61,97 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
             Convert.ToBase64String(bytes),
             hash,
             ChartRenderVersion);
+    }
+
+    public TelegramAssistantMediaAttachment Render(ProductRevenueMixResponse result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (result.Products.Count == 0)
+            throw new InvalidOperationException("Product revenue mix rows are required for Telegram image rendering.");
+
+        using var regularTypeface = LoadTypeface(RegularFontResource);
+        using var boldTypeface = LoadTypeface(BoldFontResource);
+        var height = 220 + Math.Min(result.Products.Count, 20) * 68;
+        using var surface = SKSurface.Create(new SKImageInfo(Width, height, SKColorType.Rgba8888, SKAlphaType.Premul))
+            ?? throw new InvalidOperationException("Unable to allocate the Telegram product mix image surface.");
+
+        DrawProductRevenueMix(surface.Canvas, result, regularTypeface, boldTypeface, height);
+
+        using var image = surface.Snapshot();
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 92)
+            ?? throw new InvalidOperationException("Unable to encode the Telegram product mix image as PNG.");
+        var bytes = encoded.ToArray();
+        if (bytes.Length == 0 || bytes.Length > MaximumPhotoBytes)
+            throw new InvalidOperationException($"Telegram product mix PNG size {bytes.Length} is outside the allowed range.");
+
+        return new TelegramAssistantMediaAttachment(
+            "photo", "image/png", $"product-revenue-mix-{SanitizeFileName(result.CompanySymbol)}.png",
+            Convert.ToBase64String(bytes), Convert.ToHexStringLower(SHA256.HashData(bytes)), ProductRevenueMixRenderVersion);
+    }
+
+    private static void DrawProductRevenueMix(
+        SKCanvas canvas,
+        ProductRevenueMixResponse result,
+        SKTypeface regularTypeface,
+        SKTypeface boldTypeface,
+        int height)
+    {
+        canvas.Clear(Background);
+        using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+        using var stroke = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, Color = Border, StrokeWidth = 2 };
+        using var text = new SKPaint { IsAntialias = true, Color = Foreground };
+        using var regular18 = new SKFont(regularTypeface, 18);
+        using var regular22 = new SKFont(regularTypeface, 22);
+        using var bold28 = new SKFont(boldTypeface, 28);
+        using var bold20 = new SKFont(boldTypeface, 20);
+        using var regularShaper = new SKShaper(regularTypeface);
+        using var boldShaper = new SKShaper(boldTypeface);
+
+        fill.Color = Surface;
+        canvas.DrawRoundRect(new SKRect(24, 20, Width - 24, height - 20), 26, 26, fill);
+        canvas.DrawRoundRect(new SKRect(24, 20, Width - 24, height - 20), 26, 26, stroke);
+
+        var company = string.IsNullOrWhiteSpace(result.CompanyName)
+            ? result.CompanySymbol
+            : $"{result.CompanyName} ({result.CompanySymbol})";
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold28, text,
+            $"ترکیب درآمد محصولات — {company}", Width - 58, 64);
+        text.Color = Muted;
+        DrawRtlTextWithNumbers(canvas, regularShaper, regular22, text,
+            $"دوره: {ToPersianDigits($"{result.ReportYear}/{result.ReportMonth:00}")}", Width - 58, 100);
+
+        var headerY = 142;
+        fill.Color = SKColor.Parse("#182229");
+        canvas.DrawRect(48, headerY - 31, Width - 48, headerY + 18, fill);
+        text.Color = Foreground;
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, "غالب", 1160, headerY);
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, "سهم (٪)", 930, headerY);
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, "فروش (تومان)", 700, headerY);
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, "محصول", 390, headerY);
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, "ردیف", 100, headerY);
+
+        var rowY = 190;
+        foreach (var product in result.Products.Take(20))
+        {
+            if (product.Rank % 2 == 0)
+            {
+                fill.Color = SKColor.Parse("#111A20");
+                canvas.DrawRect(48, rowY - 29, Width - 48, rowY + 27, fill);
+            }
+
+            text.Color = product.IsDominantProduct ? CurrentYear : Foreground;
+            DrawRtlTextWithNumbers(canvas, regularShaper, regular18, text,
+                product.IsDominantProduct ? "✓" : "", 1160, rowY);
+            text.Color = Foreground;
+            DrawRtlTextWithNumbers(canvas, regularShaper, regular18, text,
+                $"{ToPersianDigits(product.RevenueSharePercentage.ToString("0.0", CultureInfo.InvariantCulture))}٪", 930, rowY);
+            DrawRtlTextWithNumbers(canvas, regularShaper, regular18, text,
+                ToPersianDigits((product.SalesAmount * 100_000m).ToString("N0", CultureInfo.InvariantCulture)), 700, rowY);
+            DrawRtlTextWithNumbers(canvas, regularShaper, regular18, text, product.ProductName, 390, rowY);
+            DrawRtlTextWithNumbers(canvas, regularShaper, regular18, text,
+                ToPersianDigits(product.Rank.ToString(CultureInfo.InvariantCulture)), 100, rowY);
+            rowY += 68;
+        }
     }
 
     private static void Draw(

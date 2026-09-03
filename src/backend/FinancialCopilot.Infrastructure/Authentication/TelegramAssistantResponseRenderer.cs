@@ -33,6 +33,11 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
         }
 
+        if (response.ProductRevenueMixResult is not null)
+        {
+            return RenderProductRevenueMix(response, response.ProductRevenueMixResult);
+        }
+
         if (response.MonthlyProductComparisonResult is not null)
         {
             return RenderMonthlyProductComparison(response.MonthlyProductComparisonResult);
@@ -114,6 +119,62 @@ public sealed class TelegramAssistantResponseRenderer(
         if (result.Warnings.Count > 0) sb.AppendLine($"هشدار: {string.Join("، ", result.Warnings)}");
         if (result.Evidence.Count > 0) sb.AppendLine("منبع: نوآوران امین");
         return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+    }
+
+    private IReadOnlyList<TelegramAssistantRenderedMessage> RenderProductRevenueMix(
+        AiQueryResponse response,
+        ProductRevenueMixResponse result)
+    {
+        var company = string.IsNullOrWhiteSpace(result.CompanyName)
+            ? result.CompanySymbol
+            : $"{result.CompanyName} ({result.CompanySymbol})";
+        var captionBuilder = new StringBuilder()
+            .AppendLine($"ترکیب درآمد محصولات — {company}")
+            .AppendLine($"دوره: {ToPersianDigits($"{result.ReportYear}/{result.ReportMonth:00}")}");
+        AppendUsage(captionBuilder, response);
+
+        TelegramAssistantMediaAttachment? media = null;
+        try
+        {
+            media = monthlyTrendChartRenderer.Render(result);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Telegram product revenue mix image rendering failed for symbol {Symbol}; returning the table text fallback.",
+                result.CompanySymbol);
+        }
+
+        if (media is null)
+        {
+            var fallback = BuildProductRevenueMixFallback(response, result);
+            return Split(EscapeMarkdownV2(fallback));
+        }
+
+        var caption = EscapeMarkdownV2(captionBuilder.ToString().Trim());
+        return [new TelegramAssistantRenderedMessage(1, 1, caption, Media: media)];
+    }
+
+    private static string BuildProductRevenueMixFallback(
+        AiQueryResponse response,
+        ProductRevenueMixResponse result)
+    {
+        var sb = new StringBuilder();
+        var company = string.IsNullOrWhiteSpace(result.CompanyName)
+            ? result.CompanySymbol
+            : $"{result.CompanyName} ({result.CompanySymbol})";
+        sb.AppendLine($"ترکیب درآمد محصولات — {company}");
+        sb.AppendLine($"دوره: {ToPersianDigits($"{result.ReportYear}/{result.ReportMonth:00}")}");
+        sb.AppendLine();
+        sb.AppendLine("| ردیف | محصول | فروش (تومان) | سهم (٪) | غالب |");
+        sb.AppendLine("|------|-------|--------------:|--------:|------|");
+        foreach (var product in result.Products.Take(MonthlyProductComparisonRowLimit))
+        {
+            sb.AppendLine($"| {product.Rank} | {product.ProductName} | {(product.SalesAmount * 100_000m):N0} | {product.RevenueSharePercentage:F1}٪ | {(product.IsDominantProduct ? "✓" : string.Empty)} |");
+        }
+        AppendUsage(sb, response);
+        return sb.ToString().Trim();
     }
 
     private static string FormatProductComparisonDecimal(decimal? value) =>

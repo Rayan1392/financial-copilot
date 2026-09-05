@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Scanner;
@@ -227,6 +228,25 @@ public sealed class FinancialStatementAnalysisCapabilityExecutor(IFinancialState
             IncludeSourceDetails: true);
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         return result is null ? NoData(frame) : Success(frame, result);
+    }
+}
+
+public sealed class FinancialStatementValueSearchCapabilityExecutor(
+    IFinancialStatementValueSearchService searchService,
+    IFinancialStatementValueSearchProvider provider) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "financial_statement_value_search";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
+    {
+        var raw = frame.Value(QuerySlotType.NumericClues);
+        if (string.IsNullOrWhiteSpace(raw)) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+        var parsed = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                ? new FinancialStatementValueClue(number) : null).ToArray();
+        if (parsed.Any(clue => clue is null) || parsed.Length is 0 or > 20) return Missing(frame, "invalid_numeric_clues");
+        var result = await searchService.SearchAsync(new FinancialStatementValueSearchRequest(provider.ProviderName, FinancialStatementType.IncomeStatement, parsed!), cancellationToken);
+        return result.Outcome == FinancialStatementValueSearchOutcome.NoMatch ? NoData(frame, result) : Success(frame, result);
     }
 }
 

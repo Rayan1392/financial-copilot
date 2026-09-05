@@ -1,11 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Globalization;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.AI.Evaluation;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
@@ -104,6 +106,7 @@ public sealed class AiQueryOrchestrationService(
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         DisclosureListingResult? disclosureListingResult = null;
         PsVisualizationResult? psVisualizationResult = null;
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
         ExplainableAnswer? explainableAnswer = null;
         ConfidenceScoreResult? confidenceScore = null;
         string? textAnswer = null;
@@ -192,6 +195,7 @@ public sealed class AiQueryOrchestrationService(
                         break;
                     case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
                     case FinancialStatementTableResult table: financialStatementTableResult = table; break;
+                    case FinancialStatementValueSearchResult valueSearch: financialStatementValueSearchResult = valueSearch; break;
                     case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                     case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
                     case MonthlyProductComparisonResponse comparison: monthlyProductComparisonResult = comparison; break;
@@ -677,7 +681,8 @@ public sealed class AiQueryOrchestrationService(
             consistencyContext, comprehensiveAnalysisResult, financialStatementAnalysisResult, productRevenueMixResult,
             monthlyActivityTrendResult,
             financialStatementTableResult,
-            monthlyProductComparisonResult);
+            monthlyProductComparisonResult,
+            financialStatementValueSearchResult);
 
         var hasStructuredResult =
             scannerTable is not null ||
@@ -685,6 +690,7 @@ public sealed class AiQueryOrchestrationService(
             comprehensiveAnalysisResult is not null ||
             financialStatementAnalysisResult is not null ||
             financialStatementTableResult is not null ||
+            financialStatementValueSearchResult is not null ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
             monthlyProductComparisonResult is not null ||
@@ -699,6 +705,7 @@ public sealed class AiQueryOrchestrationService(
             comprehensiveAnalysisResult?.HasResults == true ||
             financialStatementAnalysisResult is not null ||
             financialStatementTableResult is not null ||
+            financialStatementValueSearchResult?.Matches.Count > 0 ||
             productRevenueMixResult is not null ||
             monthlyActivityTrendResult is not null ||
             monthlyProductComparisonResult?.Products.Count > 0 ||
@@ -762,6 +769,7 @@ public sealed class AiQueryOrchestrationService(
             or DetectedIntent.MonthlyProductComparison
             or DetectedIntent.DisclosureListing
             or DetectedIntent.PersonalizedInsightExplanation
+            or DetectedIntent.FinancialStatementValueSearch
             ? assistantContent
             : textAnswer;
         if (outcome.Outcome != DialogueOutcome.Answered && outcome.Outcome != DialogueOutcome.PartialAnswer)
@@ -816,7 +824,8 @@ public sealed class AiQueryOrchestrationService(
                     LanguageGuardApplied: outcome.LanguageGuardApplied,
                     SuggestedActions: suggestedActions,
                     SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion)),
+                    SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
+                    FinancialStatementValueSearchResult: financialStatementValueSearchResult)),
             createConversation,
             cancellationToken);
 
@@ -853,7 +862,8 @@ public sealed class AiQueryOrchestrationService(
             LanguageGuardApplied: outcome.LanguageGuardApplied,
             SuggestedActions: suggestedActions,
             SemanticCapabilityCode: request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode,
-            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion);
+            SemanticRegistryVersion: request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion,
+            FinancialStatementValueSearchResult: financialStatementValueSearchResult);
     }
 
     private static DetectedIntent SemanticIntent(string capabilityCode) => capabilityCode switch
@@ -870,6 +880,7 @@ public sealed class AiQueryOrchestrationService(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "financial_statement_value_search" => DetectedIntent.FinancialStatementValueSearch,
         "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown
     };
@@ -1039,7 +1050,8 @@ public sealed class AiQueryOrchestrationService(
         ProductRevenueMixResponse? productRevenueMixResult = null,
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null,
         FinancialStatementTableResult? financialStatementTableResult = null,
-        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null)
     {
         if (clarificationRequired && clarificationMessage is not null)
             return clarificationMessage;
@@ -1055,6 +1067,12 @@ public sealed class AiQueryOrchestrationService(
 
         if (financialStatementTableResult?.RenderedAnswer is { Length: > 0 } renderedTable)
             return renderedTable;
+
+        if (financialStatementValueSearchResult is not null)
+            return financialStatementValueSearchResult.Outcome == FinancialStatementValueSearchOutcome.NoMatch
+                ? "No matching latest income statement was found."
+                : string.Join("\n", financialStatementValueSearchResult.Matches.Select(match =>
+                    $"{match.Symbol ?? "Unresolved"}: {string.Join(", ", match.Items.Select(item => item.Value.ToString(CultureInfo.InvariantCulture)))}"));
 
         if (productRevenueMixResult is not null)
             return BuildProductRevenueMixContent(productRevenueMixResult);

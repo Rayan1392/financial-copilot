@@ -249,6 +249,7 @@ public static class SemanticRouteMapping
         DetectedIntent.MonthlySalesQualityRanking => "monthly_sales_quality_ranking",
         DetectedIntent.PsGaugeVisualization => "ps_gauge_visualization",
         DetectedIntent.PersonalizedInsightExplanation => "personalized_insight_explanation",
+        DetectedIntent.FinancialStatementValueSearch => "financial_statement_value_search",
         DetectedIntent.Clarification => "clarification",
         _ => "unknown"
     };

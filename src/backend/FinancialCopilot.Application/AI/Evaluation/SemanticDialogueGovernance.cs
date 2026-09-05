@@ -382,6 +382,7 @@ public sealed class SemanticOfflineRegressionRunner(
                     QuerySlotType.Period => interpretation.Period?.Value,
                     QuerySlotType.ComparisonBaseline => interpretation.Comparison?.Value,
                     QuerySlotType.Presentation => interpretation.Presentation?.Kind.ToString(),
+                    QuerySlotType.NumericClues when QueryNormalization.TryParseFinancialStatementClues(interpretation.OriginalText, out var clues, out _) => string.Join(',', clues.Select(clue => clue.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
                     _ => null
                 };
                 source = type switch
@@ -566,6 +567,8 @@ public static class SemanticEvaluationDatasetCatalog
         Case("lookup-fa", "P/E فولاد چقدر است؟", "fa", "symbol_metric_lookup", ["symbol_metric_lookup"], ["comprehensive_analysis"]),
         Case("analysis-fa", "فولاد را بررسی کن", "fa", "comprehensive_analysis", ["comprehensive_analysis"], ["symbol_metric_lookup"]),
         Case("scanner-en", "stocks with P/E below 5", "en", "stock_screening", ["stock_screening"], ["symbol_metric_lookup"]),
+        Case("value-search-en", "Which company has revenue 3300508?", "en", "financial_statement_value_search", ["financial_statement_value_search"], ["symbol_metric_lookup"],
+            new Dictionary<QuerySlotType, string> { [QuerySlotType.NumericClues] = "3300508" }),
         Case("product-fa", "ترکیب فروش محصولات فولاد", "fa", "product_revenue_mix", ["product_revenue_mix"], ["symbol_metric_lookup"]),
         Case("statement-table-fa", "جدول صورت سود و زیان فولاد", "fa", "financial_statement_table", ["financial_statement_table"], ["financial_statement_period_analysis"]),
         Case("statement-analysis-fa", "صورت مالی فولاد را تحلیل کن", "fa", "financial_statement_period_analysis", ["financial_statement_period_analysis"], ["comprehensive_analysis"]),

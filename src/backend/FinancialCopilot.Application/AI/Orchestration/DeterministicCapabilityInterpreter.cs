@@ -20,7 +20,7 @@ public sealed class DeterministicCapabilityInterpreter(
     private static readonly string[] StatementAnalysisWords = ["financial statement analysis", "analyze financial statement", "تحلیل صورت مالی", "تحلیل ترازنامه", "تحلیل سود و زیان"];
     private static readonly string[] DisclosureWords = ["disclosure", "اطلاعیه", "کدال"];
     private static readonly string[] RankingWords = ["ranking", "rank", "رتبه", "رتبه‌بندی", "کیفیت فروش"];
-    private static readonly string[] MetricWords = ["p/e", "p/s", "eps", "roe", "roa", "فروش", "درآمد", "سود", "قیمت", "نسبت"];
+    private static readonly string[] MetricWords = ["p/e", "p/s", "eps", "roe", "roa", "revenue", "profit", "gross profit", "net profit", "income", "فروش", "درآمد", "سود", "قیمت", "نسبت"];
     private static readonly string[] RelativeWords = ["relative valuation", "industry relative", "ارزش گذاری نسبی", "ارزش‌گذاری نسبی", "با صنعت", "در صنعت", "داخل صنعت"];
     private static readonly string[] IndustryWords = ["industry", "group", "صنعت", "گروه"];
     private static readonly HashSet<string> NonEntityWords = new(StringComparer.OrdinalIgnoreCase)
@@ -69,6 +69,13 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
         var entities = ExtractEntities(original, normalized);
+        if (QueryNormalization.TryParseFinancialStatementClues(original, out _, out _) &&
+            ContainsAny(normalized, MetricWords) &&
+            !ContainsAny(normalized, ["below", "above", "under", "over", "زیر", "بالای", "کمتر از", "بیشتر از", "growth"]))
+        {
+            scores["financial_statement_value_search"] = Math.Max(scores.GetValueOrDefault("financial_statement_value_search"), 0.94m);
+            evidence.Add(new InterpretationEvidence("financial_statement_value_search", "exact-value-identification", QueryValueProvenance.UserExplicit));
+        }
 
         if (ContainsAny(normalized, RelativeWords) ||
             ContainsAny(normalized, IndustryWords) && ContainsAny(normalized, ["compare", "rank", "ranking", "analysis", "analyze", "review", "تحلیل", "بررسی", "مقایسه", "رتبه"]))

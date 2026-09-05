@@ -10,7 +10,7 @@ public sealed class ConversationalCapabilityRegistryTests
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
 
-        Assert.Equal(15, registry.GetAll().Count);
+        Assert.Equal(16, registry.GetAll().Count);
         Assert.DoesNotContain(registry.GetAll(), definition => definition.Code is "unknown" or "clarification");
         Assert.All(registry.GetAll(), definition =>
         {

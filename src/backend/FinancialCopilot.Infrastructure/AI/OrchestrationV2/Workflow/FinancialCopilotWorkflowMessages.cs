@@ -1,6 +1,7 @@
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
@@ -59,7 +60,8 @@ internal sealed record AgentExecutedMessage(
     DialogueOutcome? SemanticOutcome = null,
     string? SemanticOutcomeReasonCode = null,
     string? SemanticReplyLanguage = null,
-    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -94,7 +96,8 @@ internal sealed record ResultsComputedMessage(
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
-    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -126,4 +129,5 @@ internal sealed record PersistenceCompletedMessage(
     DisclosureListingResult? DisclosureListingResult = null,
     PsVisualizationResult? PsVisualizationResult = null,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
-    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);

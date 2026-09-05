@@ -18,6 +18,7 @@ using FinancialCopilot.Application.FinancialData.ProfessionalScanners;
 using FinancialCopilot.Application.FinancialData.MarketViews;
 using FinancialCopilot.Application.FinancialData.MarketReports;
 using FinancialCopilot.Application.FinancialData.Metrics;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
@@ -231,6 +232,8 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
         services.AddHostedService<FundPortfolioImportProcessingWorker>();
         services.AddDbContext<FinancialIngestionDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddScoped<IFinancialStatementValueSearchService, FinancialStatementValueSearchService>();
+        services.AddSingleton<IFinancialStatementValueSearchProvider, ConfiguredFinancialStatementValueSearchProvider>();
         services.AddDbContext<ConversationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddDbContext<MemoryDbContext>(options => options.UseNpgsql(connectionString));
 
@@ -696,6 +699,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementTableCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementAnalysisCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementValueSearchCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, DisclosureListingCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlySalesQualityCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, PsGaugeCapabilityExecutor>();

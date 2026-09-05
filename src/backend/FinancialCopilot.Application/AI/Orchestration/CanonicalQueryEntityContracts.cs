@@ -90,7 +90,10 @@ public enum QuerySlotType
     IndustryGroup,
     Presentation,
     ResultLimit,
-    Sort
+    Sort,
+    NumericClues,
+    SourceTitle,
+    GovernedAlias
 }
 
 public static class QuerySlotSchema
@@ -120,7 +123,10 @@ public static class QuerySlotSchema
             ["industryGroup"] = QuerySlotType.IndustryGroup,
             ["presentation"] = QuerySlotType.Presentation,
             ["limit"] = QuerySlotType.ResultLimit,
-            ["sort"] = QuerySlotType.Sort
+            ["sort"] = QuerySlotType.Sort,
+            ["numericClues"] = QuerySlotType.NumericClues,
+            ["sourceTitle"] = QuerySlotType.SourceTitle,
+            ["governedAlias"] = QuerySlotType.GovernedAlias
         };
 
     private static readonly IReadOnlyDictionary<QuerySlotType, string> NamesByType =

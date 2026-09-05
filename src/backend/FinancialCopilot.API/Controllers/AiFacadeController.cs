@@ -252,7 +252,8 @@ public sealed class AiFacadeController(
              MapSuggestedActions(result.SuggestedActions),
              result.SemanticCapabilityCode,
              result.SemanticRegistryVersion,
-             MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult));
+             MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult),
+             FinancialStatementValueSearchResult: result.FinancialStatementValueSearchResult);
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -497,7 +498,8 @@ public sealed class AiFacadeController(
                 MapSuggestedActions(payload.SuggestedActions),
                 payload.SemanticCapabilityCode,
                 payload.SemanticRegistryVersion,
-                MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult));
+                MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult),
+                FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult);
 
     private static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
     {

@@ -2,6 +2,7 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
@@ -19,6 +20,7 @@ public enum DetectedIntent
     MonthlySalesQualityRanking,
     PsGaugeVisualization,
     PersonalizedInsightExplanation,
+    FinancialStatementValueSearch,
     Clarification,
     Unknown
 }
@@ -100,7 +102,8 @@ public sealed record AiQueryResponse(
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
-    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 public sealed record UsageAccountingResult(
     string OperationCode,

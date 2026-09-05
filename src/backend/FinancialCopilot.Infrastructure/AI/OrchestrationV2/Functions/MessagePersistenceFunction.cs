@@ -2,6 +2,7 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
@@ -43,7 +44,8 @@ internal sealed class MessagePersistenceFunction(
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null,
         DisclosureListingResult? disclosureListingResult = null,
         PsVisualizationResult? psVisualizationResult = null,
-        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null)
+        MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -96,6 +98,7 @@ internal sealed class MessagePersistenceFunction(
                     DisclosureListingResult: disclosureListingResult,
                     PsVisualizationResult: psVisualizationResult,
                     MonthlyProductComparisonResult: monthlyProductComparisonResult,
+                    FinancialStatementValueSearchResult: financialStatementValueSearchResult,
                     Outcome: outcome,
                     OutcomeReasonCode: outcomeReasonCode,
                     ReplyLanguage: replyLanguage,

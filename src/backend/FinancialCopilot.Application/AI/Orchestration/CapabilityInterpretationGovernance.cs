@@ -39,6 +39,7 @@ public static class CapabilityRoutingPrecedence
                            text.Contains("بالای", StringComparison.Ordinal);
         var hasEntity = interpretation.EntityMentions.Count > 0;
         var hasMetric = interpretation.Metrics.Count > 0;
+        var hasExactValueSearch = candidates.Any(candidate => candidate.CapabilityCode == "financial_statement_value_search");
         var hasTrend = text.Contains("trend", StringComparison.OrdinalIgnoreCase) ||
                        text.Contains("chart", StringComparison.OrdinalIgnoreCase) ||
                        text.Contains("روند", StringComparison.Ordinal) ||
@@ -75,6 +76,7 @@ public static class CapabilityRoutingPrecedence
             : hasRanking ? "monthly_sales_quality_ranking"
             : hasTrend && hasMetric && hasEntity ? "monthly_activity_trend"
             : hasAnalysis && hasEntity && !IsExplicitPointMetric(text) ? "comprehensive_analysis"
+            : hasExactValueSearch ? "financial_statement_value_search"
             : hasMetric && hasEntity ? "symbol_metric_lookup"
             : null;
 

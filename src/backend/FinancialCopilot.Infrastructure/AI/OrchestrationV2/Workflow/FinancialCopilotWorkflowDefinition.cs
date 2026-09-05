@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Globalization;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.Evaluation;
@@ -9,6 +10,7 @@ using FinancialCopilot.Application.FinancialData.Insights;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
@@ -233,6 +235,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         PsVisualizationResult? semanticPsVisualizationResult = null;
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
 
         var isMonthlyProductComparison = MonthlyProductComparisonIntentRules
             .LooksLikeMonthlyProductComparisonQuery(request.Message);
@@ -264,6 +267,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     break;
                 case FinancialStatementAnalysisResponse analysis: financialStatementAnalysisResult = analysis; break;
                 case FinancialStatementTableResult table: financialStatementTableResult = table; break;
+                case FinancialStatementValueSearchResult valueSearch: financialStatementValueSearchResult = valueSearch; break;
                 case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                 case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
                 case MonthlyProductComparisonResponse comparison: monthlyProductComparisonResult = comparison; break;
@@ -286,6 +290,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     : $"{lookupResult.AgentSummary}\n\n{comprehensiveAnalysisResult!.AgentSummary}",
                 FinancialStatementAnalysisResponse analysis => analysis.RenderedAnswer,
                 FinancialStatementTableResult table => table.RenderedAnswer,
+                FinancialStatementValueSearchResult valueSearch => valueSearch.Outcome == FinancialStatementValueSearchOutcome.NoMatch
+                    ? "No matching latest income statement was found."
+                    : string.Join("\n", valueSearch.Matches.Select(match => $"{match.Symbol ?? "Unresolved"}: {string.Join(", ", match.Items.Select(item => item.Value.ToString(CultureInfo.InvariantCulture)))}")),
                 ProductRevenueMixResponse product => BuildProductRevenueMixContent(product),
                 MonthlyActivityTrendResponse trend => BuildMonthlyActivityTrendContent(trend),
                 MonthlyProductComparisonResponse comparison => BuildMonthlyProductComparisonContent(comparison),
@@ -317,7 +324,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticOutcome: SemanticDialogueOutcome(semantic.Execution.Status),
                 SemanticOutcomeReasonCode: semantic.Execution.ReasonCode,
                 SemanticReplyLanguage: semanticFrame.Interpretation.ReplyLanguage,
-                MonthlyProductComparisonResult: monthlyProductComparisonResult);
+                MonthlyProductComparisonResult: monthlyProductComparisonResult,
+                FinancialStatementValueSearchResult: financialStatementValueSearchResult);
         }
 
         var modelClient = ResolveModelClient(request);
@@ -846,6 +854,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             LanguageGuardApplied: outcome.LanguageGuardApplied,
             DisclosureListingResult: msg.DisclosureListingResult,
             PsVisualizationResult: msg.PsVisualizationResult,
+            FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult);
     }
 
@@ -870,10 +879,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -903,6 +912,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             monthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
             monthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
+            financialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult);
 
@@ -921,6 +931,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              DisclosureListingResult: msg.DisclosureListingResult,
              PsVisualizationResult: msg.PsVisualizationResult,
              MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
+             FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
              SuggestedActions: persistedExchange.SuggestedActions);
     }
 
@@ -965,7 +976,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             LanguageGuardApplied: msg.LanguageGuardApplied,
             SuggestedActions: msg.SuggestedActions,
             SemanticCapabilityCode: EffectiveSemanticCapabilityCode(msg.Request),
-            SemanticRegistryVersion: EffectiveSemanticRegistryVersion(msg.Request));
+            SemanticRegistryVersion: EffectiveSemanticRegistryVersion(msg.Request),
+            FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult);
     }
 
     private static string? EffectiveSemanticCapabilityCode(AiQueryRequest request) =>
@@ -1142,6 +1154,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "monthly_sales_quality_ranking" => DetectedIntent.MonthlySalesQualityRanking,
         "ps_gauge_visualization" => DetectedIntent.PsGaugeVisualization,
         "personalized_insight_explanation" => DetectedIntent.PersonalizedInsightExplanation,
+        "financial_statement_value_search" => DetectedIntent.FinancialStatementValueSearch,
         "symbol_vs_industry_relative_valuation" or "industry_relative_valuation_ranking" or
             "industry_relative_valuation_summary" or "symbol_pair_within_industry" => DetectedIntent.ComprehensiveAnalysis,
         _ => DetectedIntent.Unknown

@@ -1,5 +1,6 @@
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.API.Contracts;
 
@@ -56,7 +57,8 @@ public sealed record AiQueryHttpResponse(
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
-    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 public sealed record MonthlyProductComparisonHttpResponse(
     string State,
@@ -298,7 +300,8 @@ public sealed record AssistantMessageContentResponse(
     IReadOnlyCollection<SuggestedActionHttpResponse>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
-    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

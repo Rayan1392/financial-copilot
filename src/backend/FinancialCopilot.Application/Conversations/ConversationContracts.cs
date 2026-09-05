@@ -2,6 +2,7 @@ using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Memory;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Application.FinancialData;
 
 namespace FinancialCopilot.Application.Conversations;
 
@@ -61,7 +62,8 @@ public sealed record AssistantMessagePayload(
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
-    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null);
+    MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
 
 public sealed record ConversationExchange(
     Guid ConversationId,

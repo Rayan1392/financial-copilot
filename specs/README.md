@@ -8,6 +8,11 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 ---
 
+## Financial Statement Value Search
+
+- `131-financial-statement-value-search` — internal Application service for exact values in the latest persisted financial statement.
+- `132-ai-financial-statement-value-search` — expose Feature 131 through the existing AI query facade for natural-language exact-value identification questions.
+
 ## Phase 1 Scanner MVP Specs
 
 1. `001-project-foundation`

@@ -20,6 +20,11 @@ services:
       TelegramGateway__RateLimitPermitLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_PERMITS:-120}
       TelegramGateway__RateLimitWindowSeconds: ${TELEGRAM_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:-60}
       TelegramGateway__RateLimitQueueLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_QUEUE:-0}
+      TelegramGateway__PollIntervalSeconds: ${TELEGRAM_GATEWAY_POLL_INTERVAL_SECONDS:-1}
+      TelegramGateway__LongPollTimeoutSeconds: ${TELEGRAM_GATEWAY_LONG_POLL_TIMEOUT_SECONDS:-25}
+      TelegramGateway__RequestTimeoutSeconds: ${TELEGRAM_GATEWAY_REQUEST_TIMEOUT_SECONDS:-40}
+      TelegramGateway__Limit: ${TELEGRAM_GATEWAY_POLLING_LIMIT:-50}
+      TelegramGateway__DeleteWebhookOnStart: ${TELEGRAM_GATEWAY_DELETE_WEBHOOK_ON_START:-true}
       TelegramGateway__OffsetFilePath: /var/lib/telegram-gateway/offset.txt
       TelegramGateway__IdempotencyFilePath: /var/lib/telegram-gateway/idempotency.json
     volumes:

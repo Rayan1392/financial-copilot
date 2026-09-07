@@ -63,10 +63,9 @@ Every preference change and manual retry is audited with actor, tenant, correlat
 
 ## Configuration and rollout
 
-The dispatcher is deliberately disabled in source-controlled defaults. Apply both migrations, provide the bot token through secrets/environment, and then enable it:
+The dispatcher is deliberately disabled in source-controlled defaults. Apply both migrations, configure the dedicated Telegram Gateway deployment with its bot token, and then enable the dispatcher:
 
 ```powershell
-$env:Telegram__Notifications__BotToken = "<secret>"
 $env:Notifications__Dispatcher__Enabled = "true"
 ```
 

@@ -29,6 +29,7 @@ public sealed class TelegramGatewayPollingWorker(
             try
             {
                 var updates = await telegram.GetUpdatesAsync(offset, stoppingToken);
+                
                 var completed = await ProcessUpdatesAsync(updates, stoppingToken);
                 if (!completed)
                 {
@@ -77,6 +78,69 @@ public sealed class TelegramGatewayPollingWorker(
         TelegramGatewayUpdate update,
         CancellationToken cancellationToken)
     {
+        if (update.EditedChannelPost is not null)
+        {
+            LogUnsupported(update.UpdateId, "edited channel posts are ignored");
+            return UpdateCompletion.Complete;
+        }
+
+        if (update.ChannelPost is { Chat: { } channel } channelPost)
+        {
+            if (!string.Equals(channel.Type, "channel", StringComparison.OrdinalIgnoreCase) ||
+                channel.Id == 0 || channelPost.MessageId <= 0)
+            {
+                LogUnsupported(update.UpdateId, "invalid channel post identity");
+                return UpdateCompletion.Complete;
+            }
+
+            var source = string.IsNullOrWhiteSpace(channelPost.Text) ? channelPost.Caption : channelPost.Text;
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                LogUnsupported(update.UpdateId, "channel post text and caption are missing");
+                return UpdateCompletion.Complete;
+            }
+
+            TelegramAssistantResult? result;
+            try
+            {
+                result = await primaryApi.HandleUpdateAsync(
+                    new TelegramAssistantUpdateRequest(
+                        update.UpdateId,
+                        TelegramAssistantUpdateKind.ChannelPost,
+                        0,
+                        channel.Id,
+                        channelPost.MessageThreadId,
+                        channelPost.MessageId,
+                        null,
+                        null,
+                        source.Trim(),
+                        "fa-IR",
+                        DateTimeOffset.FromUnixTimeSeconds(channelPost.Date),
+                        $"telegram:channel:{channel.Id}:{channelPost.MessageId}",
+                        channel.Type),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogPrimaryTransient(update.UpdateId, "Timeout");
+                return UpdateCompletion.Retry;
+            }
+            catch (HttpRequestException exception) when (IsTransientPrimaryFailure(exception.StatusCode))
+            {
+                LogPrimaryTransient(update.UpdateId, exception.StatusCode?.ToString() ?? "NetworkError");
+                return UpdateCompletion.Retry;
+            }
+            catch (HttpRequestException exception)
+            {
+                logger.LogError("Primary API rejected channel post {TelegramUpdateId} with status {StatusCode}.", update.UpdateId, exception.StatusCode);
+                return UpdateCompletion.Complete;
+            }
+
+            return result is null
+                ? UpdateCompletion.Retry
+                : await SendMessagesAsync(channel.Id, update.UpdateId, result.Messages, cancellationToken);
+        }
+
         if (update.Message is { From: { } from, Chat: { } chat } message)
         {
             if (string.IsNullOrWhiteSpace(message.Text))

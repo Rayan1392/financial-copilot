@@ -31,7 +31,9 @@ public sealed class TelegramGatewaySettings
         var pollingIsValid = !Enabled ||
             !string.IsNullOrWhiteSpace(BotToken) &&
             Uri.TryCreate(PrimaryApiBaseUrl, UriKind.Absolute, out var api) &&
-            api.Scheme == Uri.UriSchemeHttps &&
+            (api.Scheme == Uri.UriSchemeHttps ||
+             (!RequireHttps && api.Scheme == Uri.UriSchemeHttp &&
+              string.Equals(api.Host, "localhost", StringComparison.OrdinalIgnoreCase))) &&
             !string.IsNullOrWhiteSpace(PrimaryApiKey) &&
             PollIntervalSeconds is >= 0 and <= 30 &&
             LongPollTimeoutSeconds is > 0 and <= 50 &&

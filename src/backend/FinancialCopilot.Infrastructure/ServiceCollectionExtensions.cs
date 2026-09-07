@@ -299,6 +299,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITelegramAssistantResponseRenderer, TelegramAssistantResponseRenderer>();
         services.AddSingleton<ITelegramDisclosurePaginationStateStore, TelegramDisclosurePaginationStateStore>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
+        services.AddOptions<TelegramChannelMonthlyReportOptions>()
+            .BindConfiguration(TelegramChannelMonthlyReportOptions.SectionName)
+            .Validate(options => options.MaximumTextLength is > 0 and <= 4096 && options.ProcessingTimeoutSeconds is > 0 and <= 120 &&
+                (string.IsNullOrWhiteSpace(options.AuthorizedApiClientId) || Guid.TryParse(options.AuthorizedApiClientId, out _)) &&
+                (string.IsNullOrWhiteSpace(options.AuthorizedTenantId) || Guid.TryParse(options.AuthorizedTenantId, out _)) &&
+                options.AllowedChannelIds.All(id => long.TryParse(id, out var channelId) && channelId != 0),
+                "Channel monthly report limits must be bounded.")
+            .ValidateOnStart();
+        services.AddSingleton<ITelegramMonthlyReportRecognizer, TelegramMonthlyReportRecognizer>();
+        services.AddScoped<ITelegramChannelMonthlyReportHandler, TelegramChannelMonthlyReportHandler>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
 

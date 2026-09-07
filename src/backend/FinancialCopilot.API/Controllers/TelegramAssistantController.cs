@@ -11,13 +11,23 @@ namespace FinancialCopilot.API.Controllers;
 [Authorize(Policy = AuthorizationPolicies.ApiClientOnly)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class TelegramAssistantController(
-    ITelegramAiAssistantAdapter assistantAdapter) : ControllerBase
+    ITelegramAiAssistantAdapter assistantAdapter,
+    ITelegramChannelMonthlyReportHandler channelHandler,
+    FinancialCopilot.Application.Authentication.ICurrentActorContext actorContext) : ControllerBase
 {
     [HttpPost("updates")]
     public async Task<ActionResult<TelegramAssistantResult>> HandleUpdate(
         TelegramAssistantUpdateRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.Kind == TelegramAssistantUpdateKind.ChannelPost &&
+            (request.TelegramUserId != 0 || !string.Equals(request.ChatType, "channel", StringComparison.OrdinalIgnoreCase)))
+        {
+            return BadRequest(new TelegramAssistantResult(
+                TelegramAssistantResultStatus.ValidationError, null, null, null, [],
+                request.CorrelationId ?? HttpContext.TraceIdentifier));
+        }
+
         var update = new TelegramAssistantUpdate(
             request.TelegramUpdateId,
             request.Kind,
@@ -32,9 +42,12 @@ public sealed class TelegramAssistantController(
             request.ReceivedAtUtc ?? DateTimeOffset.UtcNow,
             string.IsNullOrWhiteSpace(request.CorrelationId)
                 ? HttpContext.TraceIdentifier
-                : request.CorrelationId.Trim());
+                : request.CorrelationId.Trim(),
+            request.ChatType);
 
-        var result = await assistantAdapter.HandleAsync(update, cancellationToken);
+        var result = request.Kind == TelegramAssistantUpdateKind.ChannelPost
+            ? await channelHandler.HandleAsync(update, actorContext.Actor, cancellationToken)
+            : await assistantAdapter.HandleAsync(update, cancellationToken);
         return result.Status == TelegramAssistantResultStatus.ValidationError
             ? BadRequest(result)
             : Ok(result);
@@ -53,4 +66,5 @@ public sealed record TelegramAssistantUpdateRequest(
     string? Text = null,
     string? Locale = null,
     DateTimeOffset? ReceivedAtUtc = null,
-    string? CorrelationId = null);
+    string? CorrelationId = null,
+    string? ChatType = null);

@@ -6,7 +6,8 @@ namespace FinancialCopilot.Application.Telegram;
 public enum TelegramAssistantUpdateKind
 {
     Message,
-    CallbackQuery
+    CallbackQuery,
+    ChannelPost
 }
 
 public enum TelegramAssistantResultStatus
@@ -31,7 +32,18 @@ public sealed record TelegramAssistantUpdate(
     string? Text,
     string Locale,
     DateTimeOffset ReceivedAtUtc,
-    string CorrelationId);
+    string CorrelationId,
+    string? ChatType = null);
+
+public sealed record TelegramMonthlyReportRecognition(
+    string Symbol,
+    int ShamsiYear,
+    int ShamsiMonth);
+
+public interface ITelegramMonthlyReportRecognizer
+{
+    TelegramMonthlyReportRecognition? Recognize(string? text);
+}
 
 public sealed record TelegramAssistantRenderedMessage(
     int PartNumber,
@@ -102,4 +114,12 @@ public interface ITelegramMonthlyTrendChartRenderer
     // an infrastructure concern and the web/API response contracts are unchanged.
     TelegramAssistantMediaAttachment Render(ProductRevenueMixResponse result) =>
         throw new NotSupportedException("Product revenue mix image rendering is not supported.");
+}
+
+public interface ITelegramChannelMonthlyReportHandler
+{
+    Task<TelegramAssistantResult> HandleAsync(
+        TelegramAssistantUpdate update,
+        FinancialCopilot.Application.Authentication.CurrentActor actor,
+        CancellationToken cancellationToken);
 }

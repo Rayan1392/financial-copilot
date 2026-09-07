@@ -1,6 +1,5 @@
 using FinancialCopilot.Application.Notifications;
 using FinancialCopilot.Application.Telegram;
-using Microsoft.Extensions.Options;
 
 namespace FinancialCopilot.Infrastructure.Notifications;
 

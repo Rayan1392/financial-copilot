@@ -13,16 +13,24 @@ public sealed class PrimaryApiClient(IHttpClientFactory factory, IOptions<Telegr
 
     public async Task<TelegramAssistantResult?> HandleUpdateAsync(TelegramAssistantUpdateRequest request, CancellationToken cancellationToken)
     {
-        using var client = CreateClient("TelegramGateway.PrimaryApi");
-        using var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/telegram/assistant/updates")
+        try
         {
-            Content = JsonContent.Create(request)
-        };
-        message.Headers.TryAddWithoutValidation("X-Correlation-Id", request.CorrelationId);
-        using var response = await client.SendAsync(message, cancellationToken);
-        ObserveAuthentication(response.StatusCode);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<TelegramAssistantResult>(cancellationToken: cancellationToken);
+            using var client = CreateClient("TelegramGateway.PrimaryApi");
+            using var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/telegram/assistant/updates")
+            {
+                Content = JsonContent.Create(request)
+            };
+            message.Headers.TryAddWithoutValidation("X-Correlation-Id", request.CorrelationId);
+            using var response = await client.SendAsync(message, cancellationToken);
+            ObserveAuthentication(response.StatusCode);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<TelegramAssistantResult>(cancellationToken: cancellationToken);
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message, ex);
+            throw;
+        }
     }
 
     public async Task<bool> ConfirmLinkAsync(TelegramLinkConfirmRequest request, CancellationToken cancellationToken)
@@ -75,7 +83,8 @@ public sealed record TelegramAssistantUpdateRequest(
     string? Text,
     string Locale,
     DateTimeOffset ReceivedAtUtc,
-    string CorrelationId);
+    string CorrelationId,
+    string? ChatType = null);
 
 public sealed record TelegramLinkConfirmRequest(
     string StartParameter,

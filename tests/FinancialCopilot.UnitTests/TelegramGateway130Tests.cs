@@ -105,6 +105,35 @@ public sealed class TelegramGateway130Tests
     }
 
     [Fact]
+    public async Task Original_channel_post_without_from_uses_caption_and_preserves_signed_chat_identity()
+    {
+        TelegramAssistantUpdateRequest? observed = null;
+        var fixture = Fixture(async (name, request) =>
+        {
+            if (name == "TelegramGateway.PrimaryApi")
+            {
+                observed = await request.Content!.ReadFromJsonAsync<TelegramAssistantUpdateRequest>();
+                return JsonResponse(HttpStatusCode.OK, AssistantResult(messages: []));
+            }
+            return TelegramSuccess();
+        });
+
+        var post = new TelegramGatewayUpdate(
+            1320,
+            ChannelPost: new TelegramGatewayMessage(
+                77, null, null, new TelegramGatewayChat(-100123, "channel"), 1_700_000_000, null,
+                "#فعالیت_ماهانه #دسینا #مرداد_۱۴۰۵"));
+
+        Assert.True(await fixture.Worker.ProcessUpdatesAsync([post], CancellationToken.None));
+        Assert.Equal(TelegramAssistantUpdateKind.ChannelPost, observed!.Kind);
+        Assert.Equal(0, observed.TelegramUserId);
+        Assert.Equal(-100123, observed.TelegramChatId);
+        Assert.Equal(77, observed.TelegramMessageId);
+        Assert.Equal("#فعالیت_ماهانه #دسینا #مرداد_۱۴۰۵", observed.Text);
+        Assert.Equal("channel", observed.ChatType);
+    }
+
+    [Fact]
     public async Task Malformed_update_is_terminal_and_advances_offset()
     {
         var fixture = Fixture((_, _) => throw new InvalidOperationException("No HTTP call expected."));

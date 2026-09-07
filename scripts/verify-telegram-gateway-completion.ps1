@@ -41,13 +41,13 @@ foreach ($settingsPath in @(
     (Join-Path $RepositoryRoot "src/backend/FinancialCopilot.API/appsettings.json"),
     (Join-Path $RepositoryRoot "src/backend/FinancialCopilot.Worker/appsettings.json")
 )) {
-    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    $telegram = $settings.Telegram
-    $tokenValues = @(
-        $telegram.Notifications.BotToken,
-        $telegram.DevPolling.BotToken
-    ) | Where-Object { $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_) }
+    $settings = Get-Content $settingsPath -Raw
+    $tokenValues = [regex]::Matches($settings, '"BotToken"\s*:\s*"([^"]+)"') |
+        ForEach-Object { $_.Groups[1].Value } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     Assert-Gate ($tokenValues.Count -eq 0) "No Telegram Bot Token is stored in $([IO.Path]::GetFileName($settingsPath))."
+    Assert-Gate ($settings -notmatch '"DevPolling"\s*:') "Legacy Telegram DevPolling configuration is absent from $([IO.Path]::GetFileName($settingsPath))."
+    Assert-Gate ($settings -notmatch '"Notifications"\s*:\s*\{\s*\}') "Legacy direct Telegram notification configuration is absent from $([IO.Path]::GetFileName($settingsPath))."
 }
 
 $composeText = Get-Content $gatewayCompose -Raw

@@ -15,7 +15,7 @@ public sealed class TelegramApiClient(IHttpClientFactory factory, IOptions<Teleg
     {
         using var client = CreateClient(settings.LongPollTimeoutSeconds + 10);
         var response = await client.GetFromJsonAsync<TelegramEnvelope<IReadOnlyList<TelegramGatewayUpdate>>>(
-            $"getUpdates?timeout={settings.LongPollTimeoutSeconds}&limit={Math.Clamp(settings.Limit, 1, 100)}&offset={offset}", cancellationToken);
+            $"getUpdates?timeout={settings.LongPollTimeoutSeconds}&limit={Math.Clamp(settings.Limit, 1, 100)}&offset={offset}&allowed_updates=%5B%22message%22,%22callback_query%22,%22channel_post%22%5D", cancellationToken);
         return response?.Ok == true ? response.Result ?? [] : [];
     }
 
@@ -151,7 +151,9 @@ public sealed class TelegramApiClient(IHttpClientFactory factory, IOptions<Teleg
 public sealed record TelegramGatewayUpdate(
     [property: JsonPropertyName("update_id")] long UpdateId,
     [property: JsonPropertyName("message")] TelegramGatewayMessage? Message = null,
-    [property: JsonPropertyName("callback_query")] TelegramGatewayCallbackQuery? CallbackQuery = null);
+    [property: JsonPropertyName("callback_query")] TelegramGatewayCallbackQuery? CallbackQuery = null,
+    [property: JsonPropertyName("channel_post")] TelegramGatewayMessage? ChannelPost = null,
+    [property: JsonPropertyName("edited_channel_post")] TelegramGatewayMessage? EditedChannelPost = null);
 
 public sealed record TelegramGatewayMessage(
     [property: JsonPropertyName("message_id")] long MessageId,
@@ -159,7 +161,8 @@ public sealed record TelegramGatewayMessage(
     [property: JsonPropertyName("from")] TelegramGatewayUser? From,
     [property: JsonPropertyName("chat")] TelegramGatewayChat? Chat,
     [property: JsonPropertyName("date")] long Date,
-    [property: JsonPropertyName("text")] string? Text);
+    [property: JsonPropertyName("text")] string? Text,
+    [property: JsonPropertyName("caption")] string? Caption = null);
 
 public sealed record TelegramGatewayUser(
     [property: JsonPropertyName("id")] long Id,

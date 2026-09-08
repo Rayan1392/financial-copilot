@@ -132,26 +132,38 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
     private static void DrawIndustryComparison(SKCanvas canvas, string group, string size, string[] headers,
         string[][] rows, SKTypeface regularTypeface, SKTypeface boldTypeface, int height)
     {
-        canvas.Clear(Background);
+        var background = SKColor.Parse("#F7F8FA");
+        var surface = SKColor.Parse("#FFFFFF");
+        var header = SKColor.Parse("#EEF1F5");
+        var border = SKColor.Parse("#D6DCE5");
+        var foreground = SKColor.Parse("#26364A");
+        var muted = SKColor.Parse("#5E6877");
+        var positiveCell = SKColor.Parse("#CFF7E7");
+        var negativeCell = SKColor.Parse("#FFE0E4");
+        var averageRow = SKColor.Parse("#E8EEF7");
+
+        canvas.Clear(background);
         using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
-        using var text = new SKPaint { IsAntialias = true, Color = Foreground };
+        using var stroke = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, Color = border, StrokeWidth = 1 };
+        using var text = new SKPaint { IsAntialias = true, Color = foreground };
         using var regularShaper = new SKShaper(regularTypeface);
         using var boldShaper = new SKShaper(boldTypeface);
         using var regular20 = new SKFont(regularTypeface, 20);
         using var bold24 = new SKFont(boldTypeface, 24);
         using var bold20 = new SKFont(boldTypeface, 20);
 
-        fill.Color = Surface;
+        fill.Color = surface;
         canvas.DrawRoundRect(new SKRect(24, 20, Width - 24, height - 20), 26, 26, fill);
+        canvas.DrawRoundRect(new SKRect(24, 20, Width - 24, height - 20), 26, 26, stroke);
         DrawRtlTextWithNumbers(canvas, boldShaper, bold24, text, "مقایسه نماد با صنعت", Width - 58, 62);
         text.Color = Muted;
         DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, $"گروه: {group}", Width - 58, 98);
         DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, $"اندازه گروه: {size}", Width - 58, 130);
 
         var headerY = 182;
-        fill.Color = SKColor.Parse("#182229");
+        fill.Color = header;
         canvas.DrawRect(48, headerY - 30, Width - 48, headerY + 18, fill);
-        text.Color = Foreground;
+        text.Color = foreground;
         var x = new[] { 1160f, 850f, 600f, 300f };
         for (var index = 0; index < headers.Length; index++)
             DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, headers[index], x[index], headerY);
@@ -163,16 +175,49 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
                 fill.Color = SKColor.Parse("#20352E");
             else
                 fill.Color = rowY / 58 % 2 == 0 ? SKColor.Parse("#111A20") : Surface;
+            var isAverage = ReferenceEquals(row, rows[^1]);
+            fill.Color = isAverage
+                ? averageRow
+                : rowY / 58 % 2 == 0 ? SKColor.Parse("#F8FAFC") : surface;
             canvas.DrawRect(48, rowY - 29, Width - 48, rowY + 25, fill);
-            text.Color = Foreground;
+            text.Color = foreground;
             for (var index = 0; index < row.Length; index++)
+            {
+                if (!isAverage && index > 0 &&
+                    CompareIndustryValues(row[index], rows[^1].ElementAtOrDefault(index)) != 0)
+                {
+                    fill.Color = CompareIndustryValues(row[index], rows[^1].ElementAtOrDefault(index)) < 0
+                        ? positiveCell
+                        : negativeCell;
+                    canvas.DrawRect(x[index] - 122, rowY - 29, x[index] + 122, rowY + 25, fill);
+                }
                 DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, row[index], x[index], rowY);
+            }
             rowY += 58;
         }
     }
 
+    private static int CompareIndustryValues(string value, string? benchmark)
+    {
+        if (!TryParsePercent(value, out var current) || !TryParsePercent(benchmark, out var average))
+            return 0;
+        return current.CompareTo(average);
+    }
+
+    private static bool TryParsePercent(string? value, out decimal result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Trim().Trim('*').TrimEnd('٪', '%')
+            .Replace('۰', '0').Replace('۱', '1').Replace('۲', '2').Replace('۳', '3').Replace('۴', '4')
+            .Replace('۵', '5').Replace('۶', '6').Replace('۷', '7').Replace('۸', '8').Replace('۹', '9')
+            .Replace('٫', '.').Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+    }
+
     private static string[] SplitTableLine(string line) =>
-        line.Trim().Trim('|').Split('|', StringSplitOptions.None).Select(cell => cell.Trim()).ToArray();
+        line.Trim().Trim('|').Split('|', StringSplitOptions.None)
+            .Select(cell => cell.Trim().Replace("**", string.Empty, StringComparison.Ordinal)).ToArray();
 
     private static void DrawProductRevenueMix(
         SKCanvas canvas,

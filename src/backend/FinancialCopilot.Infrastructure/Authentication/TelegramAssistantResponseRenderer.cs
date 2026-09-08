@@ -72,6 +72,12 @@ public sealed class TelegramAssistantResponseRenderer(
 
                 if (media is not null)
                 {
+                    var imageCaption = string.Join(Environment.NewLine,
+                        comparison.Split(Environment.NewLine).Take(2));
+                    return [new TelegramAssistantRenderedMessage(
+                        1, 1, EscapeMarkdownV2(imageCaption.Trim()), Media: media)];
+
+                    #if false
                     var captionBuilder = new StringBuilder(comparison);
                     AppendUsage(captionBuilder, response);
                     var caption = EscapeMarkdownV2(captionBuilder.ToString().Trim());
@@ -92,6 +98,7 @@ public sealed class TelegramAssistantResponseRenderer(
                     messages.AddRange(overflow.Select((part, index) =>
                         part with { PartNumber = index + 2, TotalParts = overflow.Count + 1 }));
                     return messages;
+                    #endif
                 }
 
                 builder.AppendLine(comparison);

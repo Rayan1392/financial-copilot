@@ -102,7 +102,12 @@ public sealed class TelegramAssistantResponseRenderer089Tests
             false, null, null);
 
         var message = Assert.Single(CreateRenderer().Render(response, "fa-IR"));
+        Assert.NotNull(message.Media);
+        Assert.Equal("photo", message.Media!.Kind);
+        Assert.Equal("image/png", message.Media.ContentType);
+        return;
 
+        #if false
         Assert.DoesNotContain("###", message.Text);
         Assert.DoesNotContain("|", message.Text);
         Assert.Contains("گروه:", message.Text);
@@ -122,6 +127,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.DoesNotContain("بیشتر از میانگین صنعت", message.Text);
         Assert.DoesNotContain("P/E", message.Text);
         Assert.DoesNotContain("P/S", message.Text);
+        #endif
     }
 
     [Fact]

@@ -166,7 +166,12 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         text.Color = foreground;
         var x = new[] { 1160f, 850f, 600f, 300f };
         for (var index = 0; index < headers.Length; index++)
-            DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, headers[index], x[index], headerY);
+        {
+            if (index is 1 or 2)
+                canvas.DrawText(headers[index], x[index], headerY, SKTextAlign.Center, bold20, text);
+            else
+                DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, headers[index], x[index], headerY);
+        }
 
         var rowY = 232;
         foreach (var row in rows)
@@ -189,9 +194,26 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
                     fill.Color = CompareIndustryValues(row[index], rows[^1].ElementAtOrDefault(index)) < 0
                         ? positiveCell
                         : negativeCell;
-                    canvas.DrawRect(x[index] - 122, rowY - 29, x[index] + 122, rowY + 25, fill);
+                    var left = index switch
+                    {
+                        1 => 728f,
+                        2 => 478f,
+                        3 => 48f,
+                        _ => 0f
+                    };
+                    var right = index switch
+                    {
+                        1 => 972f,
+                        2 => 722f,
+                        3 => 422f,
+                        _ => 0f
+                    };
+                    canvas.DrawRect(left, rowY - 29, right, rowY + 25, fill);
                 }
-                DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, row[index], x[index], rowY);
+                if (index == 0)
+                    DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, row[index], x[index], rowY);
+                else
+                    DrawNumericText(canvas, row[index], x[index], rowY, SKTextAlign.Center, regular20, text);
             }
             rowY += 58;
         }

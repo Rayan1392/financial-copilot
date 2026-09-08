@@ -58,9 +58,48 @@ public sealed class TelegramAssistantResponseRenderer(
         }
         else if (!isSingleSymbolLookup && !string.IsNullOrWhiteSpace(response.TextAnswer))
         {
-            builder.AppendLine(TryFormatIndustryComparison(response.TextAnswer, out var comparison)
-                ? comparison
-                : response.TextAnswer);
+            if (TryFormatIndustryComparison(response.TextAnswer, out var comparison))
+            {
+                TelegramAssistantMediaAttachment? media = null;
+                try
+                {
+                    media = monthlyTrendChartRenderer.RenderIndustryComparison(response.TextAnswer);
+                }
+                catch (Exception exception)
+                {
+                    logger.LogWarning(exception, "Telegram industry comparison image rendering failed; returning the text fallback.");
+                }
+
+                if (media is not null)
+                {
+                    var captionBuilder = new StringBuilder(comparison);
+                    AppendUsage(captionBuilder, response);
+                    var caption = EscapeMarkdownV2(captionBuilder.ToString().Trim());
+                    if (caption.Length <= TelegramPhotoCaptionLimit)
+                        return [new TelegramAssistantRenderedMessage(1, 1, caption, Media: media)];
+
+                    var conciseCaption = new StringBuilder(comparison.Split(Environment.NewLine)[0]);
+                    var groupSize = comparison.Split(Environment.NewLine)
+                        .FirstOrDefault(line => line.StartsWith("اندازه گروه:", StringComparison.Ordinal));
+                    if (!string.IsNullOrWhiteSpace(groupSize))
+                        conciseCaption.AppendLine().Append(groupSize);
+                    AppendUsage(conciseCaption, response);
+                    var overflow = Split(EscapeMarkdownV2(comparison));
+                    var messages = new List<TelegramAssistantRenderedMessage>
+                    {
+                        new(1, overflow.Count + 1, EscapeMarkdownV2(conciseCaption.ToString().Trim()), Media: media)
+                    };
+                    messages.AddRange(overflow.Select((part, index) =>
+                        part with { PartNumber = index + 2, TotalParts = overflow.Count + 1 }));
+                    return messages;
+                }
+
+                builder.AppendLine(comparison);
+            }
+            else
+            {
+                builder.AppendLine(response.TextAnswer);
+            }
         }
 
         if (isSingleSymbolLookup)

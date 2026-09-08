@@ -110,6 +110,9 @@ public interface ITelegramMonthlyTrendChartRenderer
 {
     TelegramAssistantMediaAttachment Render(MonthlyActivityTrendResponse trend);
 
+    TelegramAssistantMediaAttachment RenderIndustryComparison(string markdown) =>
+        throw new NotSupportedException("Industry comparison image rendering is not supported.");
+
     // Kept on the existing renderer boundary so Telegram image delivery remains
     // an infrastructure concern and the web/API response contracts are unchanged.
     TelegramAssistantMediaAttachment Render(ProductRevenueMixResponse result) =>

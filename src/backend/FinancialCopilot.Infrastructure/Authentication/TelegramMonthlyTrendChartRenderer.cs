@@ -89,6 +89,91 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
             Convert.ToBase64String(bytes), Convert.ToHexStringLower(SHA256.HashData(bytes)), ProductRevenueMixRenderVersion);
     }
 
+    public TelegramAssistantMediaAttachment RenderIndustryComparison(string markdown)
+    {
+        var lines = markdown.Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToArray();
+        var tableStart = Array.FindIndex(lines, line => line.StartsWith('|'));
+        if (tableStart < 0 || tableStart + 2 >= lines.Length)
+            throw new InvalidOperationException("Industry comparison table is missing.");
+
+        var headers = SplitTableLine(lines[tableStart]);
+        var rows = lines.Skip(tableStart + 2).Select(SplitTableLine)
+            .Where(cells => cells.Length == headers.Length)
+            .ToArray();
+        if (headers.Length != 4 || rows.Length == 0)
+            throw new InvalidOperationException("Industry comparison table shape is invalid.");
+
+        var group = lines.FirstOrDefault(line => line.StartsWith("**گروه صنعتی:**", StringComparison.Ordinal))
+            ?.Replace("**گروه صنعتی:**", "", StringComparison.Ordinal).Trim() ?? "مقایسه نماد با صنعت";
+        var size = lines.FirstOrDefault(line => line.StartsWith("**اندازه گروه:**", StringComparison.Ordinal))
+            ?.Replace("**اندازه گروه:**", "", StringComparison.Ordinal).Trim() ?? "—";
+
+        using var regularTypeface = LoadTypeface(RegularFontResource);
+        using var boldTypeface = LoadTypeface(BoldFontResource);
+        var height = 250 + rows.Length * 58;
+        using var surface = SKSurface.Create(new SKImageInfo(Width, height, SKColorType.Rgba8888, SKAlphaType.Premul))
+            ?? throw new InvalidOperationException("Unable to allocate the industry comparison image surface.");
+        DrawIndustryComparison(surface.Canvas, group, size, headers, rows, regularTypeface, boldTypeface, height);
+        using var image = surface.Snapshot();
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 94)
+            ?? throw new InvalidOperationException("Unable to encode the industry comparison image as PNG.");
+        var bytes = encoded.ToArray();
+        if (bytes.Length == 0 || bytes.Length > MaximumPhotoBytes)
+            throw new InvalidOperationException($"Telegram industry comparison PNG size {bytes.Length} is outside the allowed range.");
+
+        return new TelegramAssistantMediaAttachment(
+            "photo", "image/png", "industry-comparison.png", Convert.ToBase64String(bytes),
+            Convert.ToHexStringLower(SHA256.HashData(bytes)), "industry-comparison-table-v1");
+    }
+
+    private static void DrawIndustryComparison(SKCanvas canvas, string group, string size, string[] headers,
+        string[][] rows, SKTypeface regularTypeface, SKTypeface boldTypeface, int height)
+    {
+        canvas.Clear(Background);
+        using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+        using var text = new SKPaint { IsAntialias = true, Color = Foreground };
+        using var regularShaper = new SKShaper(regularTypeface);
+        using var boldShaper = new SKShaper(boldTypeface);
+        using var regular20 = new SKFont(regularTypeface, 20);
+        using var bold24 = new SKFont(boldTypeface, 24);
+        using var bold20 = new SKFont(boldTypeface, 20);
+
+        fill.Color = Surface;
+        canvas.DrawRoundRect(new SKRect(24, 20, Width - 24, height - 20), 26, 26, fill);
+        DrawRtlTextWithNumbers(canvas, boldShaper, bold24, text, "مقایسه نماد با صنعت", Width - 58, 62);
+        text.Color = Muted;
+        DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, $"گروه: {group}", Width - 58, 98);
+        DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, $"اندازه گروه: {size}", Width - 58, 130);
+
+        var headerY = 182;
+        fill.Color = SKColor.Parse("#182229");
+        canvas.DrawRect(48, headerY - 30, Width - 48, headerY + 18, fill);
+        text.Color = Foreground;
+        var x = new[] { 1160f, 850f, 600f, 300f };
+        for (var index = 0; index < headers.Length; index++)
+            DrawRtlTextWithNumbers(canvas, boldShaper, bold20, text, headers[index], x[index], headerY);
+
+        var rowY = 232;
+        foreach (var row in rows)
+        {
+            if (row[0].Equals("میانگین صنعت", StringComparison.Ordinal))
+                fill.Color = SKColor.Parse("#20352E");
+            else
+                fill.Color = rowY / 58 % 2 == 0 ? SKColor.Parse("#111A20") : Surface;
+            canvas.DrawRect(48, rowY - 29, Width - 48, rowY + 25, fill);
+            text.Color = Foreground;
+            for (var index = 0; index < row.Length; index++)
+                DrawRtlTextWithNumbers(canvas, regularShaper, regular20, text, row[index], x[index], rowY);
+            rowY += 58;
+        }
+    }
+
+    private static string[] SplitTableLine(string line) =>
+        line.Trim().Trim('|').Split('|', StringSplitOptions.None).Select(cell => cell.Trim()).ToArray();
+
     private static void DrawProductRevenueMix(
         SKCanvas canvas,
         ProductRevenueMixResponse result,

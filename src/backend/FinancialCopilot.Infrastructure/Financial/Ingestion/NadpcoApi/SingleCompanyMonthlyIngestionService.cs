@@ -37,14 +37,53 @@ public sealed class SingleCompanyMonthlyIngestionService(
             ProviderName: providerOptions.Value.ProviderName,
             Mode: SourceMode.CurrentIncremental,
             SourceDateRangeStartJalali: month.FirstDayJalali,
-            SourceDateRangeEndJalali: ShamsiMonthCalculator.LastDayJalali(month));
+            SourceDateRangeEndJalali: ShamsiMonthCalculator.LastDayJalali(month),
+            MonthlyActivityOutputType: 0);
         var payload = await directProvider.FetchProductSalesAllOutputTypesAsync(
             companyId,
             request.ShamsiYear,
             request.ShamsiMonth,
-            cancellationToken);
+            cancellationToken,
+            monthlyActivityOutputType: 0);
 
-        return await syncProcessor.ProcessPayloadAsync(syncRequest, payload, cancellationToken);
+        var result = await syncProcessor.ProcessPayloadAsync(syncRequest, payload, cancellationToken);
+
+        if (result.Run.Status == DataSyncRunStatus.Completed && result.Run.ErrorCount == 0)
+        {
+            await EnqueueRemainingOutputTypesAsync(request, month, cancellationToken);
+        }
+
+        return result;
+    }
+
+    private async Task EnqueueRemainingOutputTypesAsync(
+        SingleCompanyMonthlyDirectIngestionRequest request,
+        ShamsiMonth month,
+        CancellationToken cancellationToken)
+    {
+        var providerName = providerOptions.Value.ProviderName;
+        var externalCompanyId = request.ExternalCompanyId.ToString(CultureInfo.InvariantCulture);
+        var fromDate = month.FirstDayJalali;
+        var toDate = ShamsiMonthCalculator.LastDayJalali(month);
+
+        foreach (var outputType in Enumerable.Range(1, 4))
+        {
+            await publisher.PublishAsync(
+                new DataSyncRequest(
+                    Guid.NewGuid(),
+                    ProviderDataset.MonthlyProductionSales,
+                    externalCompanyId,
+                    timeProvider.GetUtcNow(),
+                    IdempotencyKey: string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{KeyPrefix}-async-{month.Year:D4}{month.Month:D2}-{request.ExternalCompanyId}-ot{outputType}-{Guid.NewGuid():N}"),
+                    ProviderName: providerName,
+                    Mode: SourceMode.CurrentIncremental,
+                    SourceDateRangeStartJalali: fromDate,
+                    SourceDateRangeEndJalali: toDate,
+                    MonthlyActivityOutputType: outputType),
+                cancellationToken);
+        }
     }
 
     public async Task<SingleCompanyMonthlyIngestionResult> EnqueueAsync(

@@ -29,6 +29,14 @@ public sealed class TelegramMonthlyReportRecognizer133Tests
     }
 
     [Fact]
+    public void Corrected_channel_caption_extracts_kaveh_and_ignores_fiscal_year_end()
+    {
+        var result = recognizer.Recognize("#\n#کاوه\n\nگزارش #فعالیت_ماهانه (#فروردین_۱۴۰۵)  دوره ۱ ماهه منتهی به  ۱۴۰۵/۰1/۳۱(اصلاحیه)\nسال مالی منتهی به: ۱۴۰۵/۱۲/۲۹");
+
+        Assert.Equal(new TelegramMonthlyReportRecognition("کاوه", 1405, 1), result);
+    }
+
+    [Fact]
     public void Fiscal_year_end_does_not_supply_a_month()
     {
         Assert.Null(recognizer.Recognize("#فعالیت_ماهانه #فملی سال مالی منتهی به 1405/12/29"));

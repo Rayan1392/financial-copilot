@@ -78,7 +78,8 @@ public interface INadpcoMonthlyProductSalesDirectProvider
         string externalCompanyId,
         int shamsiYear,
         int shamsiMonth,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        int? monthlyActivityOutputType = null);
 }
 
 public interface IFinancialRatioProvider

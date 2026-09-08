@@ -11,12 +11,13 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-08-24T10:00:00Z");
 
     [Fact]
-    public async Task ExecuteDirect_FetchesAndProcessesInlineWithoutRabbitMqPublisher()
+    public async Task ExecuteDirect_FetchesOutputTypeZeroInlineAndQueuesRemainingTypes()
     {
         var directProvider = new RecordingDirectProvider();
         var processor = new RecordingProcessor();
+        var publisher = new RecordingPublisher();
         var service = new SingleCompanyMonthlyIngestionService(
-            new RejectingPublisher(),
+            publisher,
             directProvider,
             processor,
             Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }),
@@ -27,24 +28,33 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
             CancellationToken.None);
 
         Assert.Equal(("19", 1405, 5), directProvider.Invocation);
+        Assert.Equal(0, directProvider.OutputType);
         Assert.NotNull(processor.Request);
         Assert.Equal("19", processor.Request.ExternalReference);
+        Assert.Equal(0, processor.Request.MonthlyActivityOutputType);
         Assert.Equal("1405/05/01", processor.Request.SourceDateRangeStartJalali);
         Assert.Equal("1405/05/31", processor.Request.SourceDateRangeEndJalali);
         Assert.StartsWith("nadpco-single-monthly-direct-140505-19-", processor.Request.IdempotencyKey);
         Assert.Same(directProvider.Payload, processor.Payload);
         Assert.Equal(DataSyncRunStatus.Completed, result.Run.Status);
+        Assert.Equal(new[] { 1, 2, 3, 4 }, publisher.Requests.Select(x => x.MonthlyActivityOutputType!.Value).ToArray());
     }
 
-    private sealed class RejectingPublisher : IDataSyncRequestPublisher
+    private sealed class RecordingPublisher : IDataSyncRequestPublisher
     {
-        public Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken) =>
-            throw new Xunit.Sdk.XunitException("The direct endpoint must not publish to RabbitMQ.");
+        public List<DataSyncRequest> Requests { get; } = [];
+
+        public Task PublishAsync(DataSyncRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingDirectProvider : INadpcoMonthlyProductSalesDirectProvider
     {
         public (string CompanyId, int Year, int Month)? Invocation { get; private set; }
+        public int? OutputType { get; private set; }
 
         public ProviderRawPayload Payload { get; } = new(
             Guid.NewGuid(),
@@ -60,9 +70,11 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
             string externalCompanyId,
             int shamsiYear,
             int shamsiMonth,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            int? monthlyActivityOutputType = null)
         {
             Invocation = (externalCompanyId, shamsiYear, shamsiMonth);
+            OutputType = monthlyActivityOutputType;
             return Task.FromResult(Payload);
         }
     }

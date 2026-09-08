@@ -113,14 +113,16 @@ public sealed class NadpcoApiDataProviderClient(
             toToken,
             body,
             includeServiceSales: boundaryOverride?.MonthlyActivityOutputType is null,
-            cancellationToken);
+            monthlyActivityOutputType: null,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
         string externalCompanyId,
         int shamsiYear,
         int shamsiMonth,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? monthlyActivityOutputType = null)
     {
         var companyId = RequireReference(externalCompanyId);
         if (shamsiYear < MonthlyActivityMinimumShamsiYear || shamsiMonth is < 1 or > 12)
@@ -143,7 +145,8 @@ public sealed class NadpcoApiDataProviderClient(
             monthToken,
             body,
             includeServiceSales: false,
-            cancellationToken);
+            monthlyActivityOutputType: monthlyActivityOutputType,
+            cancellationToken: cancellationToken);
     }
 
     private async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
@@ -152,13 +155,16 @@ public sealed class NadpcoApiDataProviderClient(
         string? toToken,
         NadpcoApiMonthlyActivityRequest body,
         bool includeServiceSales,
+        int? monthlyActivityOutputType,
         CancellationToken cancellationToken)
     {
         // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
         // block the others. Null means the fetch failed; the normalizer skips null slots.
         var productSalesByType = new string?[5];
-        var outputTypes = boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
-            ? [selectedOutputType]
+        var outputTypes = monthlyActivityOutputType is { } requestedOutputType
+            ? [requestedOutputType]
+            : boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
+                ? [selectedOutputType]
             : Enumerable.Range(0, 5);
         foreach (var outputTypeId in outputTypes)
         {

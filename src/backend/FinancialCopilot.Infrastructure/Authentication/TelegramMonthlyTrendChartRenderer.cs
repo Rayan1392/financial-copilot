@@ -280,7 +280,7 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
 
         var company = string.IsNullOrWhiteSpace(result.CompanyName)
             ? result.CompanySymbol
-            : $"{result.CompanyName} ({result.CompanySymbol})";
+            : $"{result.CompanyName} \u2066({result.CompanySymbol})\u2069";
         DrawRtlTextWithNumbers(canvas, boldShaper, bold28, text,
             $"ترکیب درآمد محصولات — {company}", Width - 58, 64);
         text.Color = Muted;
@@ -342,7 +342,7 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
 
         var company = string.IsNullOrWhiteSpace(trend.CompanyName)
             ? trend.CompanySymbol
-            : $"{trend.CompanyName} ({trend.CompanySymbol})";
+            : $"{trend.CompanyName} \u2066({trend.CompanySymbol})\u2069";
         text.Color = TrendForeground;
         DrawRtlTextWithNumbers(canvas, boldShaper, bold34, text,
             $"روند فروش ماهانه — {company}", Width - Padding, 84);
@@ -479,7 +479,7 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         {
             var percentage = ToPersianDigits(
                 ((currentTotal.Value / previousTotal.Value) * 100m).ToString("0.00", CultureInfo.InvariantCulture));
-            currentLabel += $" ({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})";
+            currentLabel += $" \u2066({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})\u2069";
         }
 
         var average = points.FirstOrDefault(point => point.Average12MonthSalesAmount is not null)
@@ -820,27 +820,11 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         float right,
         float baseline)
     {
-        var cursor = right;
-        foreach (var run in SplitDirectionalRuns(value))
-        {
-            float width;
-            if (run.IsNumeric)
-            {
-                width = font.MeasureText(run.Text, paint);
-                DrawNumericText(canvas, run.Text, cursor, baseline, SKTextAlign.Right, font, paint);
-            }
-            else
-            {
-                var rtlText = $"\u202B{run.Text}\u202C";
-                width = shaper.Shape(rtlText, font).Width;
-                canvas.DrawShapedText(shaper, rtlText, cursor, baseline,
-                    SKTextAlign.Right, font, paint);
-            }
-
-            cursor -= width;
-        }
-
-        return right - cursor;
+        var rtlText = $"\u202B{value}\u202C";
+        var width = shaper.Shape(rtlText, font).Width;
+        canvas.DrawShapedText(shaper, rtlText, right, baseline,
+            SKTextAlign.Right, font, paint);
+        return width;
     }
 
     private static void DrawNumericText(

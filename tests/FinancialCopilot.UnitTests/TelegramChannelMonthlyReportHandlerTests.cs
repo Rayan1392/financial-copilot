@@ -138,17 +138,17 @@ public sealed class TelegramChannelMonthlyReportHandlerTests
     }
 
     [Fact]
-    public async Task Response_for_a_different_period_is_not_rendered()
+    public async Task Response_for_latest_available_period_is_rendered()
     {
         using var fixture = new Fixture();
         fixture.HasFreshSnapshot = true;
         fixture.ResponseMonth = 6;
         var result = await fixture.HandleAsync();
 
-        Assert.Empty(result.Messages);
-        Assert.Equal("Feature133:Failed", fixture.Claim.Status);
-        Assert.Contains(fixture.Logs, x => x.Contains("PeriodMismatch"));
-        Assert.Equal(0, fixture.RenderCalls);
+        Assert.Equal("rendered trend", Assert.Single(result.Messages).Text);
+        Assert.Equal("Feature133:Ready", fixture.Claim.Status);
+        Assert.DoesNotContain(fixture.Logs, x => x.Contains("PeriodMismatch"));
+        Assert.Equal(1, fixture.RenderCalls);
     }
 
     private sealed class Fixture : IDisposable

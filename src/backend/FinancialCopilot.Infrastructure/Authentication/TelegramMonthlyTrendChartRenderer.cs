@@ -820,11 +820,27 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         float right,
         float baseline)
     {
-        var rtlText = $"\u202B{value}\u202C";
-        var width = shaper.Shape(rtlText, font).Width;
-        canvas.DrawShapedText(shaper, rtlText, right, baseline,
-            SKTextAlign.Right, font, paint);
-        return width;
+        var cursor = right;
+        foreach (var run in SplitDirectionalRuns(value))
+        {
+            float width;
+            if (run.IsNumeric)
+            {
+                width = font.MeasureText(run.Text, paint);
+                DrawNumericText(canvas, run.Text, cursor, baseline, SKTextAlign.Right, font, paint);
+            }
+            else
+            {
+                var rtlText = $"\u202B{run.Text}\u202C";
+                width = shaper.Shape(rtlText, font).Width;
+                canvas.DrawShapedText(shaper, rtlText, cursor, baseline,
+                    SKTextAlign.Right, font, paint);
+            }
+
+            cursor -= width;
+        }
+
+        return right - cursor;
     }
 
     private static void DrawNumericText(

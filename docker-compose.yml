@@ -459,6 +459,11 @@ services:
     image: ${WORKER_IMAGE:-financial-copilot-worker}:${IMAGE_TAG:-latest}
     pull_policy: never
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     env_file:
       - .env
     environment:

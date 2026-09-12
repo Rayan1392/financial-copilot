@@ -227,9 +227,12 @@ public sealed class TelegramChannelMonthlyReportHandler(
             $"روند تولید و فروش {symbol}", actor.TenantId, actor.ActorId,
             update.CorrelationId, conversationId, UserId: null, ApiClientId: actor.ApiClientId,
             ExternalUserId: $"telegram-channel:{update.TelegramChatId}", ActorType: actor.ActorType,
-            AuthenticationMode: actor.AuthenticationMode), cancellationToken);
+            AuthenticationMode: actor.AuthenticationMode,
+            Context: new AiQueryContext(
+                MonthlyActivityTrendReportYear: recognition.ShamsiYear,
+                MonthlyActivityTrendReportMonth: recognition.ShamsiMonth)), cancellationToken);
 
-        if (!MatchesRequestedCompany(response, company.Company, recognition))
+        if (!MatchesRequestedReport(response, company.Company, recognition))
             return await FailAsync(claim, update, CompletionReason.PeriodMismatch, cancellationToken);
 
         var result = new TelegramAssistantResult(
@@ -238,12 +241,13 @@ public sealed class TelegramChannelMonthlyReportHandler(
         return await CompleteAsync(claim, result, ProcessingStage.Ready, CompletionReason.PublishedReady, cancellationToken);
     }
 
-    private static bool MatchesRequestedCompany(
+    private static bool MatchesRequestedReport(
         AiQueryResponse response, ResolvedCompany company, TelegramMonthlyReportRecognition recognition)
     {
         var trend = response.MonthlyActivityTrendResult;
         return !response.ClarificationRequired && trend is not null &&
-            string.Equals(trend.CompanySymbol, company.TseSymbol ?? recognition.Symbol, StringComparison.OrdinalIgnoreCase);
+            string.Equals(trend.CompanySymbol, company.TseSymbol ?? recognition.Symbol, StringComparison.OrdinalIgnoreCase) &&
+            trend.LatestReportYear == recognition.ShamsiYear && trend.LatestReportMonth == recognition.ShamsiMonth;
     }
 
     private Task<TelegramAssistantResult> FailAsync(

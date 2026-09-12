@@ -249,9 +249,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage,
                     msg.Now, request.ScannerPage, request.ScannerPageSize,
                     request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
-                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
-                    request.Context?.MonthlyActivityTrendReportYear,
-                    request.Context?.MonthlyActivityTrendReportMonth),
+                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId),
                 request,
                 ct);
             switch (semantic.Execution.Payload)

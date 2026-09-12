@@ -128,6 +128,8 @@ public sealed class MonthlyActivityTrendCapabilityExecutor(
         var result = await useCase.ExecuteAsync(new MonthlyActivityTrendQuery(
             frame.Interpretation.OriginalText,
             symbol,
+            context.MonthlyActivityTrendReportYear,
+            context.MonthlyActivityTrendReportMonth,
             IncludeChartPayload: !string.Equals(presentation, nameof(PresentationKind.Summary), StringComparison.OrdinalIgnoreCase)), cancellationToken);
         return result is null
             ? NoData(frame)

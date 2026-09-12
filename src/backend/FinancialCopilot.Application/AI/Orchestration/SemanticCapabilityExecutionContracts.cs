@@ -27,7 +27,9 @@ public sealed record QueryExecutionContext(
     ActorType ActorType = ActorType.User,
     AuthenticationMode AuthenticationMode = AuthenticationMode.WebAppUser,
     Guid? UserId = null,
-    Guid? ApiClientId = null);
+    Guid? ApiClientId = null,
+    int? MonthlyActivityTrendReportYear = null,
+    int? MonthlyActivityTrendReportMonth = null);
 
 public sealed record CapabilityExecutionResult(
     string CapabilityCode,

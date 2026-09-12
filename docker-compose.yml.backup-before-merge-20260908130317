@@ -94,11 +94,8 @@ services:
       AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
       ABRAVRAN_API_KEY: ${ABRAVRAN_API_KEY:-}
       Telegram__Membership__RequiredChannelId: ${TELEGRAM_REQUIRED_CHANNEL_ID:-}
-      ChannelMonthlyReports__AutoBackfillEnabled: "true"
-      ChannelMonthlyReports__AutoPublishTrendEnabled: "true"
-      # The Telegram Bot API token belongs only to the dedicated gateway service below.
-      # Override the shared .env value for API/Worker so it is not exposed to either process.
-      TELEGRAM_BOT_TOKEN: ""
+      Telegram__Membership__BotTokenEnvironmentVariable: ${TELEGRAM_BOT_TOKEN_ENVIRONMENT_VARIABLE:-TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       NadpcoApi__UserName: ${NADPCO_API_USER_NAME:?NADPCO_API_USER_NAME is required}
       NadpcoApi__Password: ${NADPCO_API_PASSWORD:?NADPCO_API_PASSWORD is required}
       NadpcoScheduledSync__Enabled: ${NADPCO_SCHEDULED_SYNC_ENABLED:-false}
@@ -175,6 +172,9 @@ services:
       NoavaranCurrentApi__RetryCount: ${NOAVARAN_API_RETRY_COUNT:-2}
       NoavaranArchiveSql__ConnectionString: ${NOAVARAN_ARCHIVE_SQL_CONNECTION_STRING:-}
       StockMarketDb__ConnectionString: ${STOCK_MARKET_DB_CONNECTION_STRING:-}
+      Telegram__DevPolling__BackendApiKey: ${TELEGRAM_DEV_POLLING_BACKEND_API_KEY:-}
+      Telegram__DevPolling__BotToken: ${TELEGRAM_DEV_POLLING_BOT_TOKEN:-}
+      Telegram__Notifications__BotToken: ${TELEGRAM_NOTIFICATIONS_BOT_TOKEN:-}
       AiModelProviders__Providers__0__Adapter: "${AiModelProviders__Providers__0__Adapter:-OpenAI}"
       AiModelProviders__Providers__0__Capabilities: "${AiModelProviders__Providers__0__Capabilities:-ChatCompletion,StructuredOutput,ToolCalling,Streaming,UsageReporting}"
       AiModelProviders__Providers__0__CredentialSecretReference: "${AiModelProviders__Providers__0__CredentialSecretReference:-}"
@@ -420,6 +420,12 @@ services:
       Telegram__AccountLinking__BotUsername: "${Telegram__AccountLinking__BotUsername:-financialcopilot_bot}"
       Telegram__AccountLinking__TokenLifetimeMinutes: "${Telegram__AccountLinking__TokenLifetimeMinutes:-10}"
       Telegram__AccountLinking__WebConfirmationBaseUrl: "${Telegram__AccountLinking__WebConfirmationBaseUrl:-http://127.0.0.1:5173//telegram/link/confirm}"
+      Telegram__DevPolling__BackendBaseUrl: "${Telegram__DevPolling__BackendBaseUrl:-http://localhost:5074}"
+      Telegram__DevPolling__DeleteWebhookOnStart: "${Telegram__DevPolling__DeleteWebhookOnStart:-False}"
+      Telegram__DevPolling__Enabled: "${Telegram__DevPolling__Enabled:-False}"
+      Telegram__DevPolling__Limit: "${Telegram__DevPolling__Limit:-10}"
+      Telegram__DevPolling__PollIntervalSeconds: "${Telegram__DevPolling__PollIntervalSeconds:-2}"
+      Telegram__DevPolling__RequestTimeoutSeconds: "${Telegram__DevPolling__RequestTimeoutSeconds:-30}"
       Telegram__Membership__DailyFreeCredits: "${Telegram__Membership__DailyFreeCredits:-5}"
       Telegram__Membership__PolicyVersion: "${Telegram__Membership__PolicyVersion:-telegram-free-daily-v1}"
       Telegram__Membership__ProviderFailureCacheMinutes: "${Telegram__Membership__ProviderFailureCacheMinutes:-5}"
@@ -432,6 +438,8 @@ services:
       Telegram__Membership__Revalidation__MaxConcurrency: "${Telegram__Membership__Revalidation__MaxConcurrency:-4}"
       Telegram__Membership__Revalidation__RetryCount: "${Telegram__Membership__Revalidation__RetryCount:-3}"
       Telegram__Membership__VerificationCacheMinutes: "${Telegram__Membership__VerificationCacheMinutes:-60}"
+      Telegram__Notifications__BaseUrl: "${Telegram__Notifications__BaseUrl:-https://api.telegram.org}"
+      Telegram__Notifications__RequestTimeoutSeconds: "${Telegram__Notifications__RequestTimeoutSeconds:-30}"
       TrendSnapshotBackfill__ForceRebuild: "${TrendSnapshotBackfill__ForceRebuild:-False}"
       TrendSnapshotBackfill__FromMonth: "${TrendSnapshotBackfill__FromMonth:-1}"
       TrendSnapshotBackfill__FromYear: "${TrendSnapshotBackfill__FromYear:-1404}"
@@ -488,45 +496,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
-  telegram-gateway:
-    image: ${TELEGRAM_GATEWAY_IMAGE:-financial-copilot-telegram-gateway}:${IMAGE_TAG:-latest}
-    pull_policy: never
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      TelegramGateway__Enabled: ${TELEGRAM_GATEWAY_ENABLED:-false}
-      TelegramGateway__BotToken: ${TELEGRAM_BOT_TOKEN:-}
-      TelegramGateway__PrimaryApiBaseUrl: ${TELEGRAM_PRIMARY_API_BASE_URL:-}
-      TelegramGateway__PrimaryApiKey: ${TELEGRAM_PRIMARY_API_KEY:-}
-      TelegramGateway__ServiceId: ${TELEGRAM_GATEWAY_SERVICE_ID:-}
-      TelegramGateway__ServiceSecret: ${TELEGRAM_GATEWAY_SERVICE_SECRET:-}
-      TelegramGateway__RequireHttps: ${TELEGRAM_GATEWAY_REQUIRE_HTTPS:-true}
-      TelegramGateway__MaximumClockSkewSeconds: ${TELEGRAM_GATEWAY_MAX_CLOCK_SKEW_SECONDS:-120}
-      TelegramGateway__RateLimitPermitLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_PERMITS:-120}
-      TelegramGateway__RateLimitWindowSeconds: ${TELEGRAM_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:-60}
-      TelegramGateway__RateLimitQueueLimit: ${TELEGRAM_GATEWAY_RATE_LIMIT_QUEUE:-0}
-      TelegramGateway__PollIntervalSeconds: ${TELEGRAM_GATEWAY_POLL_INTERVAL_SECONDS:-1}
-      TelegramGateway__LongPollTimeoutSeconds: ${TELEGRAM_GATEWAY_LONG_POLL_TIMEOUT_SECONDS:-25}
-      TelegramGateway__RequestTimeoutSeconds: ${TELEGRAM_GATEWAY_REQUEST_TIMEOUT_SECONDS:-40}
-      TelegramGateway__Limit: ${TELEGRAM_GATEWAY_POLLING_LIMIT:-50}
-      TelegramGateway__DeleteWebhookOnStart: ${TELEGRAM_GATEWAY_DELETE_WEBHOOK_ON_START:-true}
-      TelegramGateway__OffsetFilePath: /var/lib/telegram-gateway/offset.txt
-      TelegramGateway__IdempotencyFilePath: /var/lib/telegram-gateway/idempotency.json
-    volumes:
-      - type: bind
-        source: ${TELEGRAM_GATEWAY_STATE_HOST_PATH:-/opt/financial-copilot/telegram-gateway}
-        target: /var/lib/telegram-gateway
-    ports:
-      - "127.0.0.1:${TELEGRAM_GATEWAY_PORT:-5088}:8080"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
 
   frontend:
     image: ${FRONTEND_IMAGE:-financial-copilot-frontend}:${IMAGE_TAG:-latest}

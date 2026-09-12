@@ -90,7 +90,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                     request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage, now,
                     request.ScannerPage, request.ScannerPageSize,
                     request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
-                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId),
+                    request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
+                    request.Context?.MonthlyActivityTrendReportYear,
+                    request.Context?.MonthlyActivityTrendReportMonth),
                 request,
                 cancellationToken);
             var scannerPayload = semantic.Execution.Payload as SemanticScannerPayload;

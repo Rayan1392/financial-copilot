@@ -164,9 +164,7 @@ public sealed class AiQueryOrchestrationService(
                         request.ActorType,
                         request.AuthenticationMode,
                         request.UserId,
-                        request.ApiClientId,
-                        request.Context?.MonthlyActivityTrendReportYear,
-                        request.Context?.MonthlyActivityTrendReportMonth),
+                        request.ApiClientId),
                     request,
                     cancellationToken);
                 usage = semantic.Usage;

@@ -546,9 +546,7 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         MonthlyActivityTrendResponse trend,
         MonthlyActivityTrendInsight insight)
     {
-        // Convert digits in prose without converting the sentence-ending full stop
-        // into the Arabic decimal separator used by numeric labels.
-        var text = ToPersianDigitsOnly(insight.TextFa);
+        var text = ToPersianDigits(insight.TextFa);
         var match = Regex.Match(text, @"[+-]?\s*[0-9۰-۹٠-٩]+(?:[.,٫][0-9۰-۹٠-٩]+)?\s*[%٪]");
         var percentage = insight.Kind switch
         {
@@ -831,9 +829,8 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
             }
             else
             {
-                var rtlText = $"\u202B{run.Text}\u202C";
-                width = shaper.Shape(rtlText, font).Width;
-                canvas.DrawShapedText(shaper, rtlText, cursor, baseline,
+                width = shaper.Shape(run.Text, font).Width;
+                canvas.DrawShapedText(shaper, run.Text, cursor, baseline,
                     SKTextAlign.Right, font, paint);
             }
 
@@ -865,9 +862,7 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         var numeric = IsNumericTextCharacter(value[0]);
         for (var index = 1; index < value.Length; index++)
         {
-            // A prose full stop is not part of a numeric run. Numeric labels use
-            // the Arabic decimal separator after ToPersianDigits has formatted them.
-            var nextNumeric = IsNumericTextCharacter(value[index]) && value[index] != '.';
+            var nextNumeric = IsNumericTextCharacter(value[index]);
             if (nextNumeric == numeric)
             {
                 continue;
@@ -894,11 +889,6 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
             .Replace('.', '٫')
             .Replace('0', '۰').Replace('1', '۱').Replace('2', '۲').Replace('3', '۳').Replace('4', '۴')
             .Replace('5', '۵').Replace('6', '۶').Replace('7', '۷').Replace('8', '۸').Replace('9', '۹');
-
-    private static string ToPersianDigitsOnly(string value) =>
-        string.Concat(value.Select(character => character is >= '0' and <= '9'
-            ? (char)('\u06F0' + character - '0')
-            : character));
 
     private static string SanitizeFileName(string value)
     {

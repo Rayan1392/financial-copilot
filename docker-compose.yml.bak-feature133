@@ -94,8 +94,6 @@ services:
       AiModelProviders__Providers__1__Enabled: ${ABRAVRAN_ENABLED:-false}
       ABRAVRAN_API_KEY: ${ABRAVRAN_API_KEY:-}
       Telegram__Membership__RequiredChannelId: ${TELEGRAM_REQUIRED_CHANNEL_ID:-}
-      ChannelMonthlyReports__AutoBackfillEnabled: "true"
-      ChannelMonthlyReports__AutoPublishTrendEnabled: "true"
       # The Telegram Bot API token belongs only to the dedicated gateway service below.
       # Override the shared .env value for API/Worker so it is not exposed to either process.
       TELEGRAM_BOT_TOKEN: ""

@@ -248,7 +248,13 @@ function drawAverageLine(context: CanvasRenderingContext2D, points: MonthlyTrend
 function drawRtlText(context: CanvasRenderingContext2D, value: string, x: number, y: number) {
   context.save();
   context.direction = "rtl";
-  context.fillText(`\u202B${value}\u202C`, x, y);
+  // Keep every numeric run in an LTR isolate. Without this, the surrounding
+  // RTL embedding can display a year such as ۱۴۰۵ as ۵۰۴۱ in the exported PNG.
+  const isolatedValue = value.replace(
+    /[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?/gu,
+    (numericRun) => `\u2066${numericRun}\u2069`,
+  );
+  context.fillText(`\u202B${isolatedValue}\u202C`, x, y);
   context.restore();
 }
 

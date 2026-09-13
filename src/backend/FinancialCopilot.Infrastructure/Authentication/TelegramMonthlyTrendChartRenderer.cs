@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v5";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v6";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -479,7 +479,11 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         {
             var percentage = ToPersianDigits(
                 ((currentTotal.Value / previousTotal.Value) * 100m).ToString("0.00", CultureInfo.InvariantCulture));
-            currentLabel += $" \u2066({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})\u2069";
+            // DrawRtlTextWithNumbers already lays out numeric runs independently.
+            // Do not add an isolate around this whole parenthesized expression:
+            // the renderer splits the expression into multiple shaping calls,
+            // which would leave the isolate pair unbalanced and reverse digits.
+            currentLabel += $" ({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})";
         }
 
         var average = points.FirstOrDefault(point => point.Average12MonthSalesAmount is not null)

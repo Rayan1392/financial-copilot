@@ -174,7 +174,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v6", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v7", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);
@@ -188,22 +188,24 @@ public sealed class TelegramAssistantResponseRenderer089Tests
     }
 
     [Theory]
-    [InlineData("آخرین گزارش: ۱۴۰۵/۰۳ | واحد: میلیارد تومان", "۱۴۰۵/۰۳")]
-    [InlineData("سال قبل ۱۴۰۴", "۱۴۰۴")]
-    [InlineData("سال جاری ۱۴۰۵", "۱۴۰۵")]
-    [InlineData("میانگین ۱۲ ماهه", "۱۲")]
-    [InlineData("فروش ماهانه نسبت به ماه مشابه سال قبل +۲۰۵٫۷٪ رشد داشته است.", "+۲۰۵٫۷٪")]
-    public void Monthly_chart_directional_layout_preserves_numeric_sequence_order(
+    [InlineData("گزارش سال ۱۴۰۵: مبلغ ۱۶٬۸۹۶ (۳۵٫۰۲٪ از ۱۴۰۴)", "۱۴۰۵", "۵۰۴۱", "۱۴۰۴", "۴۰۴۱")]
+    [InlineData("رشد ماهانه +۵۱٫۱٪ نسبت به سال قبل ۱۴۰۴", "+۵۱٫۱", "۱٫۱۵+", "۱۴۰۴", "۴۰۴۱")]
+    [InlineData("میانگین ۱۲ ماهه: ۴۸٬۲۴۲", "۴۸٬۲۴۲", "۲۴۲٬۸۴۴", "۱۲", "۲۱")]
+    public void Monthly_chart_directional_text_isolates_numeric_runs_without_reordering_digits(
         string value,
-        string expectedNumericRun)
+        string expectedCurrentOrAmount,
+        string forbiddenCurrentOrAmount,
+        string expectedComparison,
+        string forbiddenComparison)
     {
-        var numericRuns = TelegramMonthlyTrendChartRenderer.SplitDirectionalRuns(value)
-            .Where(run => run.IsNumeric)
-            .Select(run => run.Text)
-            .ToArray();
+        var prepared = TelegramMonthlyTrendChartRenderer.PrepareRtlText(value);
 
-        Assert.Contains(expectedNumericRun, numericRuns);
-        Assert.DoesNotContain(new string(expectedNumericRun.Reverse().ToArray()), numericRuns);
+        Assert.Contains($"\u202A{expectedCurrentOrAmount}\u202C", prepared);
+        Assert.Contains($"\u202A{expectedComparison}\u202C", prepared);
+        Assert.DoesNotContain(forbiddenCurrentOrAmount, prepared);
+        Assert.DoesNotContain(forbiddenComparison, prepared);
+        Assert.Contains("\u202B", prepared);
+        Assert.Contains("\u202C", prepared);
     }
 
     [Theory]

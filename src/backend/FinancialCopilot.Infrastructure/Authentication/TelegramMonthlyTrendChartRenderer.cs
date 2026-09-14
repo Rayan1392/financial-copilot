@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v6";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v7";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -479,10 +479,9 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         {
             var percentage = ToPersianDigits(
                 ((currentTotal.Value / previousTotal.Value) * 100m).ToString("0.00", CultureInfo.InvariantCulture));
-            // DrawRtlTextWithNumbers already lays out numeric runs independently.
-            // Do not add an isolate around this whole parenthesized expression:
-            // the renderer splits the expression into multiple shaping calls,
-            // which would leave the isolate pair unbalanced and reverse digits.
+            // Keep this as one logical RTL string. DrawRtlTextWithNumbers applies
+            // numeric isolation while allowing Skia/HarfBuzz to resolve the
+            // surrounding parentheses, spaces, and punctuation together.
             currentLabel += $" ({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})";
         }
 
@@ -824,27 +823,15 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         float right,
         float baseline)
     {
-        var cursor = right;
-        foreach (var run in SplitDirectionalRuns(value))
-        {
-            float width;
-            if (run.IsNumeric)
-            {
-                width = font.MeasureText(run.Text, paint);
-                DrawNumericText(canvas, run.Text, cursor, baseline, SKTextAlign.Right, font, paint);
-            }
-            else
-            {
-                var rtlText = $"\u202B{run.Text}\u202C";
-                width = shaper.Shape(rtlText, font).Width;
-                canvas.DrawShapedText(shaper, rtlText, cursor, baseline,
-                    SKTextAlign.Right, font, paint);
-            }
-
-            cursor -= width;
-        }
-
-        return right - cursor;
+        // Match the canonical web export: one RTL embedding for the complete
+        // string, with each numeric run in an explicit LTR embedding. This preserves the
+        // logical order of digits while letting the Unicode BiDi algorithm place
+        // neutral characters according to their surrounding text.
+        var rtlText = PrepareRtlText(value);
+        var width = shaper.Shape(rtlText, font).Width;
+        canvas.DrawShapedText(shaper, rtlText, right, baseline,
+            SKTextAlign.Right, font, paint);
+        return width;
     }
 
     private static void DrawNumericText(
@@ -857,40 +844,20 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         SKPaint paint) =>
         canvas.DrawText(value, x, baseline, align, font, paint);
 
-    internal static IReadOnlyList<DirectionalTextRun> SplitDirectionalRuns(string value)
+    internal static string PrepareRtlText(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return [];
+            return value;
         }
 
-        var runs = new List<DirectionalTextRun>();
-        var start = 0;
-        var numeric = IsNumericTextCharacter(value[0]);
-        for (var index = 1; index < value.Length; index++)
-        {
-            // A prose full stop is not part of a numeric run. Numeric labels use
-            // the Arabic decimal separator after ToPersianDigits has formatted them.
-            var nextNumeric = IsNumericTextCharacter(value[index]) && value[index] != '.';
-            if (nextNumeric == numeric)
-            {
-                continue;
-            }
-
-            runs.Add(new DirectionalTextRun(value[start..index], numeric));
-            start = index;
-            numeric = nextNumeric;
-        }
-
-        runs.Add(new DirectionalTextRun(value[start..], numeric));
-        return runs;
+        var isolatedValue = Regex.Replace(
+            value,
+            @"[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?",
+            match => $"\u202A{match.Value}\u202C",
+            RegexOptions.CultureInvariant);
+        return $"\u202B{isolatedValue}\u202C";
     }
-
-    private static bool IsNumericTextCharacter(char character) =>
-        char.IsDigit(character) ||
-        character is '.' or ',' or '/' or '%' or '٪' or '٫' or '٬' or '+' or '-' or '−' or 'K' or 'k';
-
-    internal readonly record struct DirectionalTextRun(string Text, bool IsNumeric);
 
     private static string ToPersianDigits(string value) =>
         value

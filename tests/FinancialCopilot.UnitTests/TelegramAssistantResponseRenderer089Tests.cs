@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
@@ -174,7 +175,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v7", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v8", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);
@@ -188,25 +189,48 @@ public sealed class TelegramAssistantResponseRenderer089Tests
     }
 
     [Theory]
-    [InlineData("گزارش سال ۱۴۰۵: مبلغ ۱۶٬۸۹۶ (۳۵٫۰۲٪ از ۱۴۰۴)", "۱۴۰۵", "۵۰۴۱", "۱۴۰۴", "۴۰۴۱")]
-    [InlineData("رشد ماهانه +۵۱٫۱٪ نسبت به سال قبل ۱۴۰۴", "+۵۱٫۱", "۱٫۱۵+", "۱۴۰۴", "۴۰۴۱")]
-    [InlineData("میانگین ۱۲ ماهه: ۴۸٬۲۴۲", "۴۸٬۲۴۲", "۲۴۲٬۸۴۴", "۱۲", "۲۱")]
-    public void Monthly_chart_directional_text_isolates_numeric_runs_without_reordering_digits(
+    [InlineData("۱۴۰۵", "۱۴۰۵", "۵۰۴۱")]
+    [InlineData("۱۴۰۴", "۱۴۰۴", "۴۰۴۱")]
+    [InlineData("۴۸,۲۴۲", "۴۸,۲۴۲", "۲۴۲,۸۴")]
+    public void Monthly_chart_numeric_input_remains_in_logical_order(
         string value,
-        string expectedCurrentOrAmount,
-        string forbiddenCurrentOrAmount,
-        string expectedComparison,
-        string forbiddenComparison)
+        string expected,
+        string forbidden)
     {
-        var prepared = TelegramMonthlyTrendChartRenderer.PrepareRtlText(value);
+        var numericRunsBefore = ExtractNumericRuns(value);
+        var logicalRendererInput = value;
+        var numericRunsAfter = ExtractNumericRuns(logicalRendererInput);
 
-        Assert.Contains($"\u202A{expectedCurrentOrAmount}\u202C", prepared);
-        Assert.Contains($"\u202A{expectedComparison}\u202C", prepared);
-        Assert.DoesNotContain(forbiddenCurrentOrAmount, prepared);
-        Assert.DoesNotContain(forbiddenComparison, prepared);
-        Assert.Contains("\u202B", prepared);
-        Assert.Contains("\u202C", prepared);
+        Assert.Equal(numericRunsBefore, numericRunsAfter);
+        Assert.Contains(expected, logicalRendererInput);
+        Assert.DoesNotContain(forbidden, logicalRendererInput);
     }
+
+    [Fact]
+    public void Monthly_chart_mixed_rtl_legend_keeps_all_numeric_runs_logically_unchanged()
+    {
+        const string legend = "۱۴۰۵: ۴۸,۲۴۲ (از ۱۴۰۴: ۳۵.۰۲٪، ۱۶,۸۹۴)";
+        var resolvedRuns = TelegramMonthlyTrendChartRenderer.ResolveVisualRuns(legend);
+        var numericRunsAfterBidi = resolvedRuns
+            .SelectMany(run => ExtractNumericRuns(run.LogicalText))
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        var numericRunsBeforeBidi = ExtractNumericRuns(legend)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(numericRunsBeforeBidi, numericRunsAfterBidi);
+        Assert.Equal(["۱۴۰۵", "۴۸,۲۴۲", "۱۴۰۴", "۳۵.۰۲", "۱۶,۸۹۴"], ExtractNumericRuns(legend));
+        Assert.DoesNotContain("۵۰۴۱", legend);
+        Assert.DoesNotContain("۴۰۴۱", legend);
+        Assert.DoesNotContain("۲۴۲,۸۴", legend);
+        Assert.DoesNotContain("۲۰.۵۳", legend);
+    }
+
+    private static string[] ExtractNumericRuns(string value) =>
+        Regex.Matches(value, @"[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?")
+            .Select(match => match.Value.Trim())
+            .ToArray();
 
     [Theory]
     [InlineData("241.566", "۲۴۲")]

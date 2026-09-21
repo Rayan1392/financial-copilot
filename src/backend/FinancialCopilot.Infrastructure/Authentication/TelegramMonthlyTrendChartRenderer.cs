@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v10";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v11";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -816,18 +816,19 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
 
     private static float DrawRtlTextWithNumbers(
         SKCanvas canvas,
-        SKShaper _,
+        SKShaper shaper,
         SKFont font,
         SKPaint paint,
         string value,
         float right,
         float baseline)
     {
-        // Use the raw logical string. The browser export uses Canvas 2D's native
-        // RTL text layout; the server-side equivalent is SKCanvas.DrawText.
-        // Do not inject directional controls, split runs, or reconstruct visual order.
-        var width = font.MeasureText(value, paint);
-        canvas.DrawText(value, right, baseline, SKTextAlign.Right, font, paint);
+        // Shape the complete logical string with HarfBuzz so Persian glyphs join
+        // correctly. Do not inject directional controls, split runs, or reconstruct
+        // visual order; the legend and all other labels use the same raw string.
+        var width = shaper.Shape(value, font).Width;
+        canvas.DrawShapedText(shaper, value, right, baseline,
+            SKTextAlign.Right, font, paint);
         return width;
     }
 

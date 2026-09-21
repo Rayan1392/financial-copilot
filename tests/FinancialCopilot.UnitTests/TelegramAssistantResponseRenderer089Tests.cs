@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
@@ -175,7 +174,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v9", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v10", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);
@@ -187,56 +186,6 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.Equal(media.ContentBase64, second.Media?.ContentBase64);
         Assert.Equal(media.Sha256, second.Media?.Sha256);
     }
-
-    [Theory]
-    [InlineData("۱۴۰۵", "۵۰۴۱")]
-    [InlineData("۱۴۰۴", "۴۰۴۱")]
-    [InlineData("۷۳۴.۵۶", "۶۵.۴۳۷")]
-    [InlineData("۸۲۲", "۲۲۸")]
-    public void Monthly_chart_numeric_runs_are_embedded_without_reordering_digits(
-        string value,
-        string forbidden)
-    {
-        var prepared = TelegramMonthlyTrendChartRenderer.PrepareRtlText(value);
-
-        Assert.Equal([value], ExtractNumericRuns(prepared));
-        Assert.DoesNotContain(forbidden, prepared);
-        Assert.Contains("\u202B", prepared);
-        Assert.Contains("\u202A" + value + "\u202C", prepared);
-    }
-
-    [Fact]
-    public void Monthly_chart_palindromic_numeric_run_is_preserved()
-    {
-        var prepared = TelegramMonthlyTrendChartRenderer.PrepareRtlText("۲۰۲");
-
-        Assert.Equal(["۲۰۲"], ExtractNumericRuns(prepared));
-        Assert.Contains("\u202A۲۰۲\u202C", prepared);
-    }
-
-    [Fact]
-    public void Monthly_chart_mixed_rtl_legend_keeps_all_numeric_runs_logically_unchanged()
-    {
-        const string legend = "۱۴۰۵: ۴۸٬۲۴۲ (از ۱۴۰۴: ۳۵٫۰۲٪، ۱۶٬۸۹۴)";
-        var prepared = TelegramMonthlyTrendChartRenderer.PrepareRtlText(legend);
-
-        Assert.Equal(
-            ["۱۴۰۵", "۴۸٬۲۴۲", "۱۴۰۴", "۳۵٫۰۲", "۱۶٬۸۹۴"],
-            ExtractNumericRuns(prepared));
-        Assert.DoesNotContain("۵۰۴۱", prepared);
-        Assert.DoesNotContain("۴۰۴۱", prepared);
-        Assert.DoesNotContain("۲۴۲٬۸۴", prepared);
-        Assert.DoesNotContain("۲۰٫۵۳", prepared);
-        Assert.Equal(5, prepared.Count(character => character == '\u202A'));
-        Assert.Equal(5, prepared.Count(character => character == '\u202C') - 1);
-        Assert.StartsWith("\u202B", prepared);
-        Assert.EndsWith("\u202C", prepared);
-    }
-
-    private static string[] ExtractNumericRuns(string value) =>
-        Regex.Matches(value, @"[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?")
-            .Select(match => match.Value.Trim())
-            .ToArray();
 
     [Theory]
     [InlineData("241.566", "۲۴۲")]

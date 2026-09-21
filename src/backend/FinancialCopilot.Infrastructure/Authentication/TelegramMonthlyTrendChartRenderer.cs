@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v9";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v10";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -479,9 +479,9 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         {
             var percentage = ToPersianDigits(
                 ((currentTotal.Value / previousTotal.Value) * 100m).ToString("0.00", CultureInfo.InvariantCulture));
-            // Keep this as one logical RTL string. DrawRtlTextWithNumbers applies
-            // numeric isolation while allowing Skia/HarfBuzz to resolve the
-            // surrounding parentheses, spaces, and punctuation together.
+            // Keep this as one logical RTL string. The raw native text path below
+            // receives the complete value so punctuation and numeric runs are
+            // laid out together without application-side BiDi manipulation.
             currentLabel += $" ({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})";
         }
 
@@ -816,37 +816,19 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
 
     private static float DrawRtlTextWithNumbers(
         SKCanvas canvas,
-        SKShaper shaper,
+        SKShaper _,
         SKFont font,
         SKPaint paint,
         string value,
         float right,
         float baseline)
     {
-        // Keep the complete paragraph in logical order. Unicode directional
-        // embeddings give the Unicode BiDi algorithm an RTL base direction and
-        // isolate every numeric run as LTR before Skia/HarfBuzz shapes it.
-        // No visual-order or character reversal is performed here.
-        var prepared = PrepareRtlText(value);
-        var width = shaper.Shape(prepared, font).Width;
-        canvas.DrawShapedText(shaper, prepared, right, baseline,
-            SKTextAlign.Right, font, paint);
+        // Use the raw logical string. The browser export uses Canvas 2D's native
+        // RTL text layout; the server-side equivalent is SKCanvas.DrawText.
+        // Do not inject directional controls, split runs, or reconstruct visual order.
+        var width = font.MeasureText(value, paint);
+        canvas.DrawText(value, right, baseline, SKTextAlign.Right, font, paint);
         return width;
-    }
-
-    internal static string PrepareRtlText(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return value;
-        }
-
-        var isolatedValue = Regex.Replace(
-            value,
-            @"[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?",
-            match => $"\u202A{match.Value}\u202C",
-            RegexOptions.CultureInvariant);
-        return $"\u202B{isolatedValue}\u202C";
     }
 
     private static void DrawNumericText(

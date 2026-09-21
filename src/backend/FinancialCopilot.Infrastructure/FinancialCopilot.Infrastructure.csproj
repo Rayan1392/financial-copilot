@@ -30,8 +30,6 @@
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.4" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
-    <PackageReference Include="FriBidiSharp" Version="0.2.0" />
-    <PackageReference Include="FriBidiNative" Version="1.0.10" />
   </ItemGroup>
 
   <PropertyGroup>

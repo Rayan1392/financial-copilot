@@ -1,12 +1,10 @@
 using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Telegram;
-using FriBidiSharp;
 using SkiaSharp;
 using SkiaSharp.HarfBuzz;
 
@@ -14,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v8";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v9";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -825,86 +823,31 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         float right,
         float baseline)
     {
-        if (string.IsNullOrEmpty(value))
-        {
-            return 0;
-        }
-
-        // SkiaSharp.HarfBuzz shapes a single directional run, but does not run
-        // the Unicode Bidirectional Algorithm over a mixed paragraph. FriBidi
-        // supplies the resolved visual run order and embedding levels; each run
-        // is still passed to HarfBuzz in logical order.
-        var visualRuns = ResolveVisualRuns(value);
-        var cursor = right;
-        for (var index = visualRuns.Count - 1; index >= 0; index--)
-        {
-            var run = visualRuns[index];
-            var runText = run.IsRightToLeft ? $"\u200F{run.LogicalText}" : run.LogicalText;
-            var width = shaper.Shape(runText, font).Width;
-            canvas.DrawShapedText(shaper, runText, cursor, baseline,
-                SKTextAlign.Right, font, paint);
-            cursor -= width;
-        }
-
-        return right - cursor;
+        // Keep the complete paragraph in logical order. Unicode directional
+        // embeddings give the Unicode BiDi algorithm an RTL base direction and
+        // isolate every numeric run as LTR before Skia/HarfBuzz shapes it.
+        // No visual-order or character reversal is performed here.
+        var prepared = PrepareRtlText(value);
+        var width = shaper.Shape(prepared, font).Width;
+        canvas.DrawShapedText(shaper, prepared, right, baseline,
+            SKTextAlign.Right, font, paint);
+        return width;
     }
 
-    internal static IReadOnlyList<VisualTextRun> ResolveVisualRuns(string value)
+    internal static string PrepareRtlText(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return [];
+            return value;
         }
 
-        var codePoints = value.EnumerateRunes().Select(rune => (uint)rune.Value).ToArray();
-        var utf16Starts = new int[codePoints.Length];
-        var utf16Index = 0;
-        foreach (var (rune, index) in value.EnumerateRunes().Select((rune, index) => (rune, index)))
-        {
-            utf16Starts[index] = utf16Index;
-            utf16Index += rune.Utf16SequenceLength;
-        }
-
-        var bidiTypes = new uint[codePoints.Length];
-        FriBidiSharpMain.GetBidiTypes(codePoints, codePoints.Length, bidiTypes);
-
-        var baseDirection = new[] { FriBidiSharpMain.GetParDirection(bidiTypes, codePoints.Length) };
-        var visualCodePoints = new uint[codePoints.Length];
-        var logicalToVisual = new int[codePoints.Length];
-        var visualToLogical = new int[codePoints.Length];
-        var embeddingLevels = new sbyte[codePoints.Length];
-        FriBidiSharpMain.Log2vis(codePoints, codePoints.Length, baseDirection, visualCodePoints,
-            logicalToVisual, visualToLogical, embeddingLevels);
-
-        var runs = new List<VisualTextRun>();
-        var visualStart = 0;
-        while (visualStart < visualToLogical.Length)
-        {
-            var logicalStart = visualToLogical[visualStart];
-            var level = embeddingLevels[logicalStart];
-            var visualEnd = visualStart + 1;
-            while (visualEnd < visualToLogical.Length &&
-                   embeddingLevels[visualToLogical[visualEnd]] == level)
-            {
-                visualEnd++;
-            }
-
-            var logicalEnd = visualToLogical[visualEnd - 1];
-            var firstLogicalIndex = Math.Min(logicalStart, logicalEnd);
-            var lastLogicalIndex = Math.Max(logicalStart, logicalEnd);
-            var start = utf16Starts[firstLogicalIndex];
-            var end = lastLogicalIndex + 1 < utf16Starts.Length
-                ? utf16Starts[lastLogicalIndex + 1]
-                : value.Length;
-
-            runs.Add(new VisualTextRun(value[start..end], (level & 1) != 0));
-            visualStart = visualEnd;
-        }
-
-        return runs;
+        var isolatedValue = Regex.Replace(
+            value,
+            @"[+\-]?\s*[0-9۰-۹٠-٩]+(?:[.,٬٫][0-9۰-۹٠-٩]+)?",
+            match => $"\u202A{match.Value}\u202C",
+            RegexOptions.CultureInvariant);
+        return $"\u202B{isolatedValue}\u202C";
     }
-
-    internal readonly record struct VisualTextRun(string LogicalText, bool IsRightToLeft);
 
     private static void DrawNumericText(
         SKCanvas canvas,

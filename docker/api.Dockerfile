@@ -19,10 +19,8 @@ RUN rm -f /app/publish/appsettings.json /app/publish/appsettings.Development.jso
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache krb5-libs fribidi
+RUN apk add --no-cache krb5-libs
 COPY --from=build /app/publish ./
-RUN rm -f /app/runtimes/linux-x64/native/fribidi.so \
-    && ln -sf /usr/lib/libfribidi.so.0 /usr/lib/libfribidi.so
 COPY docker/appsettings.Production.json ./appsettings.Production.json
 USER app
 EXPOSE 8080

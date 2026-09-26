@@ -27,24 +27,41 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         var (industryId, industryTitle, categoryId, categoryTitle) =
             await ResolveCompanyTaxonomyAsync(externalCompanyId, ct);
 
-        // Load OutputType=0 (single-month) ProductSales reports for this company/month.
-        var reports = await dbContext.MonthlyReports
+        // Load both persisted monthly sources. ProductSales type 0 wins when it has usable rows;
+        // ServiceSales is only the monthly source when ProductSales type 0 has no rows.
+        var candidateReports = await dbContext.MonthlyReports
             .Where(r => r.ProviderName == ProviderName
                      && r.ExternalCompanyId == externalCompanyId
-                     && r.ReportType == "ProductSales"
-                     && r.OutputType == 0
+                     && ((r.ReportType == "ProductSales" && (r.OutputType == 0 || r.OutputType == null)) ||
+                         (r.ReportType == "ServiceSales" && r.OutputType == null))
                      && r.PeriodStart == periodStart)
             .ToListAsync(ct);
 
-        if (reports.Count == 0) return;
+        if (candidateReports.Count == 0) return;
+
+        var candidateReportIds = candidateReports.Select(r => r.Id).ToHashSet();
+        var candidateLineItems = await dbContext.MonthlyReportLineItems
+            .Where(li => candidateReportIds.Contains(li.MonthlyReportId))
+            .ToListAsync(ct);
+
+        var productReports = candidateReports
+            .Where(r => r.ReportType == "ProductSales" && (r.OutputType == 0 || r.OutputType == null))
+            .ToArray();
+        var hasUsableProductSales = productReports.Any(report =>
+            candidateLineItems.Any(item => item.MonthlyReportId == report.Id));
+        var useProductSales = hasUsableProductSales;
+        var reports = useProductSales
+            ? productReports
+            : candidateReports.Where(r => r.ReportType == "ServiceSales" && r.OutputType == null).ToArray();
+
+        if (reports.Length == 0) return;
 
         var reportIds = reports.Select(r => r.Id).ToHashSet();
         var sourceReportId = reports[0].ExternalReportId;
 
-        // Load line items for current month (all output types).
-        var currentLineItems = await dbContext.MonthlyReportLineItems
+        var currentLineItems = candidateLineItems
             .Where(li => reportIds.Contains(li.MonthlyReportId))
-            .ToListAsync(ct);
+            .ToList();
 
         if (currentLineItems.Count == 0) return;
 
@@ -66,7 +83,7 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
         decimal? monthlySalesQuantity = null;
         decimal? monthlyAverageSalesRate = null;
 
-        if (!hasMixedUnits)
+        if (useProductSales && !hasMixedUnits)
         {
             var prodItems = currentLineItems.Where(li => li.ProductionQuantity.HasValue).ToList();
             if (prodItems.Count > 0)
@@ -221,7 +238,7 @@ internal sealed class CompanyMonthlyActivityTrendSnapshotCalculator(
             SalesAmountYoYGrowthPercent: yoyGrowth,
             ProductionQuantityYoYGrowthPercent: prodYoYGrowth,
             SalesQuantityYoYGrowthPercent: qtyYoYGrowth,
-            CurrentMonthOutputType: 0,
+            CurrentMonthOutputType: useProductSales ? 0 : null,
             YtdOutputType: ytdOutputType,
             YtdPreviousMonthOutputType: ytdPreviousMonthOutputType,
             SourceProviderName: ProviderName,

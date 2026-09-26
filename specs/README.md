@@ -123,6 +123,7 @@ Noavaran monthly activity is raw product/service line-item data. Monetary monthl
 10. `057-nadpco-monthly-activity-freshness-and-sales-lookup` — two-phase monthly-activity acquisition: Phase A DataAdmin-only reverse backfill walking Shamsi months newest-first with durable per-month progress and a completion marker; Phase B steady-state scheduled refresh of the previous Shamsi month only after the marker exists; governed `MONTHLY_SALES`, `MONTHLY_SALES_QUANTITY`, `MONTHLY_PRODUCTION_QUANTITY`, `MONTHLY_SALES_RATE` metrics with Persian aliases so AI answers monthly sales questions from normalized data. Monthly production/sales lookup responses intentionally omit `LATEST_PRICE` and `DAILY_CHANGE_PCT`.
 11. `059-monthly-activity-output-type-segmentation` — fetch all 5 `outputTypeId` variants (0–4) per company-month from `ProductSales`; persist each as a separate `MonthlyReports` row with `OutputType` column; `MonthlyActivityOutputTypeResolver` routes AI queries to single-month or YTD rows, and grouped monthly production/sales views suppress market quote context.
 12. `082-noavaran-financial-statement-full-item-and-variant-persistence` — expand current-API financial-statement ingestion so statement requests may use `items: []`, all returned vendor items are persisted, and same-period standalone (`IsComposing = false`) and consolidated (`IsComposing = true`) variants remain separately retrievable instead of being collapsed before persistence.
+13. `134-noavaran-service-sales-fallback` — for each eligible company-month, use ProductSales first and call ServiceSales only after a successful empty/no-usable-data response; persist service line items idempotently and refresh the existing monthly trend snapshot/chart. This is a per-period endpoint fallback, not permanent company classification.
 
 ---
 
@@ -197,6 +198,7 @@ These specs add a separate bounded context for CyclicalWaves تحلیل جامع
 - `035` exposes controlled admin APIs over `031` Identity and `013` Billing boundaries. It does not duplicate entitlement logic, mutate wallet projections directly, or authorize by hardcoded role or plan names.
 - `037` consumes `035` through the existing `031` frontend auth bridge. Frontend permission checks control navigation and actions for usability only; backend policies remain authoritative.
 - `038`–`044`, `050`, `053`, `057`, `059` add `NoavaranCurrentApi` as the recurring financial-data source. Remote payload DTOs remain Infrastructure concerns; normalized PostgreSQL rows, governed metric semantics, deterministic recalculation, and scanner reads remain provider-neutral. All per-company current-API requests target only `NoavaranEligibleCompanies` (`PrecedencyRight = 0`, بورس/فرابورس/پایه); the company-catalog sync stays unscoped.
+- `134` extends the existing Noavaran monthly-activity path: `NoavaranEligibleCompanies` remains the bounded scope, ProductSales-first/ServiceSales-on-successful-empty is evaluated per company-month, and service-sales chart data must flow through the existing normalized persistence and trend snapshot pipeline. Do not add permanent company-type inference or query-time provider calls.
 - `044` schedules automatic NADPCO incremental synchronization only by invoking the bounded orchestration from `043`; it must not introduce a second ingestion, normalization, recalculation, or scanner-cache invalidation path.
 - `045` adds a `SymbolLookup` intent branch to the existing AI facade; it must not add a new public endpoint, duplicate billing accounting logic, or introduce a separate conversation persistence path. The scanner screener path (`007`/`008`) remains unaffected.
 - `046` adds aliases only; it must never create metric definitions, formulas, calculators, SQL, or billing behavior from user prompts or LLM output.
@@ -403,7 +405,9 @@ public `POST /api/ai/v1/query` facade.
   without making feedback part of the critical answer path.
 - The LLM may propose a schema-constrained interpretation but cannot create executable metrics,
   formulas, SQL, entities, routes, or capabilities.
-- V1 rollback and native MAF V2 must share capability, slot, entity, outcome, and Billing semantics.
+- V1 is frozen for new work: see [`specs/POLICY-V1-FREEZE.md`](./POLICY-V1-FREEZE.md). New capability,
+  slot, entity, outcome, and Billing semantics ship on native MAF V2 only; the V1↔V2 config toggle is
+  kept only for emergency rollback of already-migrated features, not as an ongoing parity contract.
 - Web and Telegram may render differently but must preserve the same semantic outcome and actions.
 - No spec in this pack introduces a public parser/tool endpoint or synchronous external provider
   call from the AI response path.

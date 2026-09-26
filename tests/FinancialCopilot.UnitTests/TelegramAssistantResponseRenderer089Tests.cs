@@ -174,7 +174,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v11", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v12-browser-text", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);

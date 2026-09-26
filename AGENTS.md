@@ -31,6 +31,9 @@ User message
 
 **Active mode:** `MicrosoftAgentFrameworkV2` (set in `appsettings.Development.json`)
 
+**V1 is frozen for new work.** No new feature, capability, metric, intent, or route may be added to
+the V1 path. See [`specs/POLICY-V1-FREEZE.md`](specs/POLICY-V1-FREEZE.md) before touching any V1 code.
+
 In V2, the agent LLM reads the system prompt, decides which tools to call (and in what combination), calls them, then synthesizes a final answer. The system prompt is the primary lever for improving response quality.
 
 ---

@@ -204,6 +204,9 @@ public sealed class NadpcoApiProductSalesRecord
     [JsonPropertyName("publishDate")]
     public string? PublishDate { get; init; }
 
+    [JsonPropertyName("publishDateTime")]
+    public string? PublishDateTime { get; init; }
+
     [JsonPropertyName("jalaliPublishDate")]
     public string? JalaliPublishDate { get; init; }
 
@@ -386,6 +389,9 @@ public sealed class NadpcoApiServiceSalesRecord
     [JsonPropertyName("publishDate")]
     public string? PublishDate { get; init; }
 
+    [JsonPropertyName("publishDateTime")]
+    public string? PublishDateTime { get; init; }
+
     [JsonPropertyName("jalaliPublishDate")]
     public string? JalaliPublishDate { get; init; }
 
@@ -429,6 +435,12 @@ public sealed class NadpcoApiServiceSalesRecord
     [JsonPropertyName("revenueDuringThePeriod")]
     public decimal? RevenueDuringThePeriod { get; init; }
 
+    [JsonPropertyName("revenueFromTheBeginning")]
+    public decimal? RevenueFromBeginning { get; init; }
+
+    [JsonPropertyName("revenueEndOfLastPeriod")]
+    public decimal? RevenueEndOfLastPeriod { get; init; }
+
     /// <summary>Live v3 field name for the company TSE ticker.</summary>
     [JsonPropertyName("companyTSESymbol")]
     public string? CompanyTSESymbol { get; init; }
@@ -457,8 +469,7 @@ public sealed class NadpcoApiServiceSalesRecord
     public decimal? GetSalesRate() => SalesRate ?? ServiceSaleRate ?? TryGetDecimal("rate") ?? TryGetDecimal("saleRate");
 
     public decimal? GetSalesValue() =>
-        SalesValue ?? ServiceSaleValue ?? RevenueDuringThePeriod ??
-        TryGetDecimal("value") ?? TryGetDecimal("saleValue") ?? TryGetDecimal("amount");
+        RevenueDuringThePeriod ?? TryGetDecimal("revenueDuringThePeriod");
 
     public string? GetServiceCode() => FirstNonEmpty(ServiceCode, GetServiceId()?.ToString());
 

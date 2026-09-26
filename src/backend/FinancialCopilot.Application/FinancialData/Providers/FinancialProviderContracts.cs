@@ -69,8 +69,8 @@ public interface IMonthlyProductionSalesProvider
 }
 
 /// <summary>
-/// Fetches NADPCO ProductSales outputs for an explicit company-month. The targeted operator path
-/// deliberately excludes ServiceSales and persists product output types independently.
+/// Fetches NADPCO ProductSales outputs for an explicit company-month. OutputType 0 owns the shared
+/// ProductSales-versus-ServiceSales source decision; explicit output types 1-4 remain ProductSales-only.
 /// </summary>
 public interface INadpcoMonthlyProductSalesDirectProvider
 {

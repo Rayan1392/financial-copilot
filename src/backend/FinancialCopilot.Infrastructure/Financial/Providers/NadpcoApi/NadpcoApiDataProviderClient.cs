@@ -112,7 +112,9 @@ public sealed class NadpcoApiDataProviderClient(
             fromToken,
             toToken,
             body,
-            includeServiceSales: boundaryOverride?.MonthlyActivityOutputType is null,
+            // The type-0 request owns the monthly source decision. Output types 1-4 remain
+            // independent ProductSales requests and must never issue the ServiceSales fallback.
+            includeServiceSales: boundaryOverride?.MonthlyActivityOutputType is null or 0,
             monthlyActivityOutputType: null,
             cancellationToken: cancellationToken);
     }
@@ -144,7 +146,9 @@ public sealed class NadpcoApiDataProviderClient(
             monthToken,
             monthToken,
             body,
-            includeServiceSales: false,
+            // The direct path owns the same type-0 source decision as the scheduled path. A
+            // caller that explicitly targets output types 1-4 remains ProductSales-only.
+            includeServiceSales: monthlyActivityOutputType is null or 0,
             monthlyActivityOutputType: monthlyActivityOutputType,
             cancellationToken: cancellationToken);
     }
@@ -161,6 +165,7 @@ public sealed class NadpcoApiDataProviderClient(
         // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
         // block the others. Null means the fetch failed; the normalizer skips null slots.
         var productSalesByType = new string?[5];
+        var serviceSales = "[]";
         var outputTypes = monthlyActivityOutputType is { } requestedOutputType
             ? [requestedOutputType]
             : boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
@@ -178,6 +183,14 @@ public sealed class NadpcoApiDataProviderClient(
             }
             catch (FinancialProviderException exception)
             {
+                if (outputTypeId == 0 && includeServiceSales)
+                {
+                    // A type-0 provider failure is not evidence that the company is a service
+                    // company. Preserve the failed run and retry it; never classify it through
+                    // ServiceSales.
+                    throw;
+                }
+
                 logger.LogWarning(
                     "NADPCO ProductSales outputTypeId={OutputTypeId} fetch failed for company {CompanyId} " +
                     "({ProviderErrorCode}); skipping this output type.",
@@ -185,29 +198,17 @@ public sealed class NadpcoApiDataProviderClient(
                     companyId,
                     exception.Code);
             }
-        }
 
-        // ServiceSales failures are isolated so they cannot poison the product-sales data of the
-        // same company-month. Degrade to an empty service-sales payload with a visible warning;
-        // service rows resume once the month is re-requested.
-        var serviceSales = "[]";
-        if (includeServiceSales)
-        {
-            try
+            if (outputTypeId == 0 && includeServiceSales &&
+                !HasUsableProductSalesRows(productSalesByType[0]))
             {
+                // A non-empty ProductSales response is usable even when its activity values are
+                // zero. Only a successful empty response permits the ServiceSales fallback.
                 serviceSales = await PostJsonForPayloadAsync(
                     BuildMonthlyActivityEndpoint(
                         "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
                     body,
                     cancellationToken);
-            }
-            catch (FinancialProviderException exception)
-            {
-                logger.LogWarning(
-                    "NADPCO ServiceSales fetch failed for company {CompanyId} ({ProviderErrorCode}); " +
-                    "persisting product sales only for this request.",
-                    companyId,
-                    exception.Code);
             }
         }
 
@@ -226,6 +227,33 @@ public sealed class NadpcoApiDataProviderClient(
             companyId,
             json,
             cancellationToken);
+    }
+
+    private static bool HasUsableProductSalesRows(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                throw new JsonException("ProductSales payload root is not an array.");
+            }
+
+            // A non-empty record is usable even when all activity values are zero.
+            return document.RootElement.GetArrayLength() > 0;
+        }
+        catch (JsonException exception)
+        {
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                "NADPCO product-sales monthly-activity payload is invalid.",
+                exception);
+        }
     }
 
     public async Task<ProviderRawPayload> FetchFinancialRatiosAsync(

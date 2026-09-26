@@ -174,6 +174,12 @@ public abstract class MonthlyReportAggregateInputSource(
                 .ToListAsync(cancellationToken))
             .ToLookup(item => item.MonthlyReportId);
 
+        if (outputTypeFilter == (int)MonthlyActivityQueryIntent.SingleMonth &&
+            reports.Any(report => IsNoavaranCurrentApi(report.ProviderName)))
+        {
+            reports = SelectAuthoritativeNoavaranMonthlyReports(reports, lineItemsByReport).ToList();
+        }
+
         return reports
             .Select(report =>
             {
@@ -206,6 +212,37 @@ public abstract class MonthlyReportAggregateInputSource(
         string.Equals(providerName, ProviderSources.NoavaranArchiveSqlName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(providerName, "NadpcoApi", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(providerName, "CodalDb", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsNoavaranCurrentApi(string providerName) =>
+        string.Equals(providerName, ProviderSources.NoavaranCurrentApiName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerName, "NadpcoApi", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<NormalizedMonthlyReportRow> SelectAuthoritativeNoavaranMonthlyReports(
+        IReadOnlyCollection<NormalizedMonthlyReportRow> reports,
+        ILookup<Guid, NormalizedMonthlyReportLineItemRow> lineItemsByReport)
+    {
+        return reports
+            .GroupBy(report => new
+            {
+                report.ProviderName,
+                report.ExternalCompanyId,
+                report.PeriodStart,
+                report.PeriodEnd
+            })
+            .SelectMany(group =>
+            {
+                var productReports = group
+                    .Where(report => report.ReportType == "ProductSales" &&
+                        (report.OutputType == 0 || report.OutputType == null))
+                    .Where(report => lineItemsByReport[report.Id].Any())
+                    .ToArray();
+
+                return productReports.Length > 0
+                    ? productReports
+                    : group.Where(report => report.ReportType == "ServiceSales" && report.OutputType == null);
+            })
+            .ToArray();
+    }
 
     protected static bool IsCyclicalWaves(string providerName) =>
         string.Equals(providerName, ProviderSources.CyclicalWavesName, StringComparison.OrdinalIgnoreCase);
@@ -280,6 +317,11 @@ public sealed class MonthlySalesQuantityMetricInputSource(
         NormalizedMonthlyReportRow report,
         IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
+        if (report.ReportType == "ServiceSales")
+        {
+            return null;
+        }
+
         var values = lineItems.Where(item => item.SalesQuantity is not null).ToArray();
         return values.Length > 0 ? values.Sum(item => item.SalesQuantity!.Value) : null;
     }
@@ -295,6 +337,11 @@ public sealed class MonthlyProductionQuantityMetricInputSource(
         NormalizedMonthlyReportRow report,
         IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
+        if (report.ReportType == "ServiceSales")
+        {
+            return null;
+        }
+
         var values = lineItems.Where(item => item.ProductionQuantity is not null).ToArray();
         return values.Length > 0 ? values.Sum(item => item.ProductionQuantity!.Value) : null;
     }
@@ -313,6 +360,11 @@ public sealed class MonthlySalesRateMetricInputSource(
         NormalizedMonthlyReportRow report,
         IReadOnlyList<NormalizedMonthlyReportLineItemRow> lineItems)
     {
+        if (report.ReportType == "ServiceSales")
+        {
+            return null;
+        }
+
         var eligible = lineItems
             .Where(item => item.SalesAmount is not null && item.SalesQuantity is > 0)
             .ToArray();

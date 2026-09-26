@@ -69,7 +69,7 @@ public sealed class NoavaranCurrentApiBoundaryTests
     }
 
     [Fact]
-    public async Task MonthlyActivity_ServiceSalesFailure_IsIsolatedAndKeepsProductSales()
+    public async Task MonthlyActivity_ServiceSalesFailure_RemainsRetryable()
     {
         var requests = new List<(string Uri, string Body)>();
         using var httpClient = new HttpClient(new StubHandler(async request =>
@@ -92,11 +92,12 @@ public sealed class NoavaranCurrentApiBoundaryTests
         };
 
         var client = CreateClient(httpClient, new NoavaranCurrentApiBoundaryOverride());
-        var payload = await client.FetchMonthlyReportsAsync("3", CancellationToken.None);
+        await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchMonthlyReportsAsync("3", CancellationToken.None));
 
-        // The envelope is stored with the new 6-field shape; service-sales degrades to "[]".
-        Assert.Contains("\"productSalesType0\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("\"serviceSales\":\"[]\"", payload.Payload, StringComparison.OrdinalIgnoreCase);
+        // Type 0 is empty, so ServiceSales is attempted exactly once and its provider failure is
+        // preserved for the existing retry path.
+        Assert.Single(requests, request => request.Uri.Contains("ServiceSales", StringComparison.Ordinal));
     }
 
     [Fact]

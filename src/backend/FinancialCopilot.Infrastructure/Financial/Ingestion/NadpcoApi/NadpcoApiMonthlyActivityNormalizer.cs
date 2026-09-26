@@ -116,7 +116,23 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             .Where(g => g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0)
             .ToArray();
 
-        foreach (var group in singleMonthGroups)
+        // ServiceSales is a monthly source equivalent for trend purposes. Group by company/month
+        // so a historical payload containing both sources recalculates once; the calculator applies
+        // ProductSales-over-ServiceSales precedence from persisted rows.
+        var monthlyTrendGroups = groupedReports
+            .Where(g =>
+                (g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0) ||
+                g.Key.SourceKind == "ServiceSales")
+            .GroupBy(g => new
+            {
+                g.Key.ExternalCompanyId,
+                g.Key.JalaliYear,
+                g.Key.JalaliMonth
+            })
+            .Select(g => g.First())
+            .ToArray();
+
+        foreach (var group in monthlyTrendGroups)
         {
             var first = group.First();
             await revenueMixCalculator.RecalculateAsync(
@@ -143,7 +159,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 cancellationToken);
         }
 
-        var affectedPeriods = singleMonthGroups
+        var affectedPeriods = monthlyTrendGroups
             .Select(group => new { group.Key.JalaliYear, group.Key.JalaliMonth })
             .Distinct()
             .ToArray();
@@ -314,6 +330,16 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 exception);
         }
 
+        var titleSensitiveCodes = records
+            .Where(record => !string.IsNullOrWhiteSpace(record.GetServiceCode()))
+            .GroupBy(record => record.GetServiceCode()!.Trim(), StringComparer.Ordinal)
+            .Where(group => group
+                .Select(record => NormalizeIdentityText(record.GetServiceTitle()))
+                .Distinct(StringComparer.Ordinal)
+                .Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
         return records.Select((record, index) =>
         {
             var companyId = RequireCompanyId(record.GetCompanyId(), "service-sales");
@@ -323,10 +349,20 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
             var unit = record.GetServiceUnit();
             var category = record.CategoryTitle;
             var vendorCode = record.GetServiceCode();
-            var lineItemCode = BuildLineItemCode("SERVICE", vendorCode, title, category, unit, index);
+            var lineItemCode = BuildLineItemCode(
+                "SERVICE",
+                vendorCode,
+                title,
+                category,
+                unit,
+                index,
+                includeTitleForVendorCode: vendorCode is not null && titleSensitiveCodes.Contains(vendorCode.Trim()),
+                instrumentCode: record.GetTseCode());
             var externalReportId = BuildExternalReportId(
                 "ServiceSales",
-                record.GetActivityId(),
+                // ServiceSales uses one canonical company-month report identity; provider activity
+                // IDs are line/evidence data and must not split the logical monthly report.
+                activityId: null,
                 companyId,
                 year,
                 month,
@@ -342,7 +378,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 title,
                 unit,
                 ProductionQuantity: null,
-                record.GetSalesQuantity(),
+                // The ServiceSales endpoint does not expose a normalized service quantity in its
+                // live contract. Keep it null rather than treating a monetary amount as quantity.
+                SalesQuantity: null,
                 record.GetSalesRate(),
                 record.GetSalesValue(),
                 OutputType: null,
@@ -356,10 +394,13 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 record.GetTseCode(),
                 record.FiscalYearEnd,
                 record.JalaliFiscalYearEnd,
-                record.PublishDate,
+                record.PublishDate ?? record.PublishDateTime,
                 record.JalaliPublishDate,
                 VendorLineItemId: vendorCode,
-                MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode));
+                MissingVendorLineItemId: string.IsNullOrWhiteSpace(vendorCode),
+                PublishDateTime: record.PublishDateTime,
+                RevenueFromBeginning: record.RevenueFromBeginning,
+                RevenueEndOfLastPeriod: record.RevenueEndOfLastPeriod);
         }).ToArray();
     }
 
@@ -391,16 +432,27 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         string? title,
         string? category,
         string? unit,
-        int index)
+        int index,
+        bool includeTitleForVendorCode = false,
+        string? instrumentCode = null)
     {
         if (!string.IsNullOrWhiteSpace(vendorCode))
         {
-            return $"{prefix}:{vendorCode.Trim()}";
+            var normalizedCode = vendorCode.Trim();
+            return includeTitleForVendorCode
+                ? $"{prefix}:{normalizedCode}:TITLE:{NormalizeIdentityText(title)}"
+                : $"{prefix}:{normalizedCode}";
         }
 
-        var naturalKey = string.Join("|", [title, category, unit, index.ToString(CultureInfo.InvariantCulture)]);
+        var naturalKey = string.Join(
+            "|",
+            [instrumentCode, NormalizeIdentityText(title), NormalizeIdentityText(unit),
+                NormalizeIdentityText(category), index.ToString(CultureInfo.InvariantCulture)]);
         return $"{prefix}:NATURAL:{HashShort(naturalKey)}";
     }
+
+    private static string NormalizeIdentityText(string? value) =>
+        string.Join(' ', (value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static int RequireCompanyId(int? value, string sourceKind) =>
         value is > 0
@@ -448,7 +500,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 first.JalaliFiscalYearEnd,
                 first.PublishDate,
                 first.JalaliPublishDate,
-                SchemaAudit = "No migration required: service sales map to SalesQuantity/SalesAmount; product or service title, unit, rate, output type, category, and publication fields are preserved as evidence.",
+                SchemaAudit = "No migration required: ServiceSales revenueDuringThePeriod maps to SalesAmount; service quantities remain null when the endpoint does not provide them, and cumulative revenue stays evidence-only.",
                 LineItems = items.Select(item => new
                 {
                     item.LineItemCode,
@@ -463,7 +515,10 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                     item.CategoryTitle,
                     NaturalKeyNote = item.MissingVendorLineItemId
                         ? "Line item code is a deterministic natural key, not a fabricated vendor product/service id."
-                        : null
+                        : null,
+                    item.PublishDateTime,
+                    item.RevenueFromBeginning,
+                    item.RevenueEndOfLastPeriod
                 }).ToArray()
             }
         }, JsonOptions);
@@ -499,7 +554,10 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
         string? PublishDate,
         string? JalaliPublishDate,
         string? VendorLineItemId,
-        bool MissingVendorLineItemId);
+        bool MissingVendorLineItemId,
+        string? PublishDateTime = null,
+        decimal? RevenueFromBeginning = null,
+        decimal? RevenueEndOfLastPeriod = null);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

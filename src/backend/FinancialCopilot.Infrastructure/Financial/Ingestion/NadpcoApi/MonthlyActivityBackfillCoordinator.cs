@@ -414,7 +414,7 @@ public sealed class MonthlyActivityBackfillCoordinator(
     {
         var reports = await dbContext.MonthlyReports.AsNoTracking()
             .Where(row => row.ProviderName == providerName)
-            .Select(row => new { row.ExternalCompanyId, row.PeriodStart, row.OutputType })
+            .Select(row => new { row.ExternalCompanyId, row.PeriodStart, row.ReportType, row.OutputType })
             .ToListAsync(cancellationToken);
 
         return reports
@@ -422,6 +422,14 @@ public sealed class MonthlyActivityBackfillCoordinator(
             .SelectMany(row =>
             {
                 var companyMonth = CompanyMonthToken(row.ExternalCompanyId!, JalaliMonthToken(row.PeriodStart));
+                // ServiceSales and legacy ProductSales-null rows are the persisted equivalent of
+                // the type-0 monthly decision and must satisfy the type-0 backfill key.
+                if (row.ReportType == "ServiceSales" ||
+                    (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType is null)))
+                {
+                    return new[] { companyMonth, $"{companyMonth}:ot0" };
+                }
+
                 return row.OutputType is { } outputType
                     ? new[] { companyMonth, $"{companyMonth}:ot{outputType}" }
                     : new[] { companyMonth };

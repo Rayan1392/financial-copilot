@@ -36,7 +36,8 @@ public sealed class CompanyMonthlyActivityTrendSnapshotBackfillService(
         var startedAt = timeProvider.GetUtcNow();
         var opts = backfillOptions.Value;
 
-        // Discover all OutputType=0 ProductSales reports within the configured date range.
+        // Discover all monthly-source candidates within the configured date range. The calculator
+        // applies ProductSales-over-ServiceSales precedence for each company-month.
         var (fromDate, _) = JalaliDateResolver.ResolveMonth(opts.FromYear, (byte)opts.FromMonth);
         var (_, toDate) = JalaliDateResolver.ResolveMonth(opts.ToYear, (byte)opts.ToMonth);
 
@@ -50,8 +51,8 @@ public sealed class CompanyMonthlyActivityTrendSnapshotBackfillService(
         var reportsQuery = dbContext.MonthlyReports
             .AsNoTracking()
             .Where(r => r.ProviderName == ProviderName
-                     && r.ReportType == "ProductSales"
-                     && (r.OutputType == null || r.OutputType == 0)
+                     && ((r.ReportType == "ProductSales" && (r.OutputType == null || r.OutputType == 0)) ||
+                         (r.ReportType == "ServiceSales" && r.OutputType == null))
                      && r.PeriodStart >= fromDate
                      && r.PeriodStart <= toDate
                      && eligibleCompanyIds.Contains(r.ExternalCompanyId));

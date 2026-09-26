@@ -19,7 +19,7 @@ RUN rm -f /app/publish/appsettings.json /app/publish/appsettings.Development.jso
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache krb5-libs
+RUN apk add --no-cache krb5-libs chromium-headless-shell
 COPY --from=build /app/publish ./
 COPY docker/appsettings.Production.json ./appsettings.Production.json
 USER app

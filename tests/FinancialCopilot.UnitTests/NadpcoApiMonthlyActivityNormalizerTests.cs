@@ -86,7 +86,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             "serviceUnit": "contract",
             "salesQuantity": 3,
             "salesRate": 1000000,
-            "salesValue": 3000000
+            "revenueDuringThePeriod": 3000000
           }
         ]
         """;
@@ -103,7 +103,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
             "serviceUnit": "contract",
             "salesQuantity": 0,
             "salesRate": 0,
-            "salesValue": 0
+            "revenueDuringThePeriod": 0
           }
         ]
         """;
@@ -237,11 +237,11 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         Assert.Equal(1, outcome.ProcessedRecords);
         var report = await db.MonthlyReports.SingleAsync();
-        Assert.Equal("ServiceSales:2001:output-none", report.ExternalReportId);
+        Assert.Equal("ServiceSales:3:1402-01:output-none", report.ExternalReportId);
         var item = await db.MonthlyReportLineItems.SingleAsync();
         Assert.Equal("SERVICE:501", item.ProductCode);
         Assert.Null(item.ProductionQuantity);
-        Assert.Equal(3m, item.SalesQuantity);
+        Assert.Null(item.SalesQuantity);
         Assert.Equal(3000000m, item.SalesAmount);
     }
 
@@ -254,7 +254,7 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
 
         Assert.Equal(1, await db.MonthlyReports.CountAsync());
         var item = await db.MonthlyReportLineItems.SingleAsync();
-        Assert.Equal(0m, item.SalesQuantity);
+        Assert.Null(item.SalesQuantity);
         Assert.Equal(0m, item.SalesAmount);
     }
 
@@ -865,8 +865,34 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.Equal("13201", report.ExternalCompanyId);
         var item = await db.MonthlyReportLineItems.SingleAsync();
         Assert.Equal(227511.00m, item.SalesAmount);
+        var evidence = Assert.Single(await db.MonthlyReports.Select(report => report.WarningsJson).ToListAsync());
+        Assert.Contains("revenueFromBeginning", evidence, StringComparison.Ordinal);
+        Assert.Contains("revenueEndOfLastPeriod", evidence, StringComparison.Ordinal);
         Assert.Null(item.ProductionQuantity);
         Assert.Equal("پروژه‌های مسکن و ساختمان", item.Title);
+    }
+
+    [Fact]
+    public async Task Normalize_ServiceLinesWithRepeatedOrMissingCodesRemainDistinct()
+    {
+        await using var db = CreateDb();
+        const string json = """
+            [
+              {"companyId":3,"year":1405,"month":2,"instCode":"I-1","serviceCode":"S-1","serviceTitle":"Service A","revenueDuringThePeriod":10},
+              {"companyId":3,"year":1405,"month":2,"instCode":"I-1","serviceCode":"S-1","serviceTitle":"Service B","revenueDuringThePeriod":20},
+              {"companyId":3,"year":1405,"month":2,"serviceTitle":"Service C","revenueDuringThePeriod":30},
+              {"companyId":3,"year":1405,"month":2,"serviceTitle":"Service D","revenueDuringThePeriod":40}
+            ]
+            """;
+
+        await CreateNormalizer(db).NormalizeAsync(MakePayload("[]", json), CancellationToken.None);
+
+        var lines = await db.MonthlyReportLineItems.OrderBy(item => item.Title).ToListAsync();
+        Assert.Equal(4, lines.Count);
+        Assert.Equal(4, lines.Select(item => item.ProductCode).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(100m, lines.Sum(item => item.SalesAmount));
+        Assert.Contains(lines, item => item.ProductCode.Contains(":TITLE:", StringComparison.Ordinal));
+        Assert.Equal(2, lines.Count(item => item.ProductCode.StartsWith("SERVICE:NATURAL:", StringComparison.Ordinal)));
     }
 
     [Fact]

@@ -447,6 +447,7 @@ Delivery order is `117` -> `118` -> `119` -> `120` -> (`121` and staged `122`) -
 | [x] | 121 | [121](./121-capability-guidance-and-suggested-actions/user-story.md) / [tasks](./121-capability-guidance-and-suggested-actions/tasks.md) | Capability Guidance and Suggested Actions | All Tasks 1–9 verified. Versioned actions are registry/availability filtered, persisted with assistant messages, mapped through the API, rendered as accessible one-shot Web controls and Telegram numbered fallbacks, and covered by lifecycle telemetry/tests. |
 | [~] | 122 | [122](./122-semantic-route-migration-and-legacy-retirement/user-story.md) / [tasks](./122-semantic-route-migration-and-legacy-retirement/tasks.md) | Semantic Route Migration and Legacy Retirement | Tasks 1–9 verified. Active V1, native V2, and V2 fallback paths execute validated semantic frames for monthly trend, direct/multi metric lookup, deterministic adapters, scanner, and Comprehensive Analysis through one execution/Billing boundary. Task 10 remains gated only on the required real production canary window and subsequent physical removal of rollback-only legacy rules. |
 | [~] | 123 | [123](./123-semantic-dialogue-evaluation-and-learning-governance/user-story.md) / [tasks](./123-semantic-dialogue-evaluation-and-learning-governance/tasks.md) | Semantic Dialogue Evaluation and Learning Governance | Tasks 1–9 implemented and CI-reproducible: bounded event taxonomy, complete outcome feedback, versioned datasets/offline runner, dashboards/alerts, reviewed phrase promotion, collision/approval gates, canary/rollback, and enforced completion-evidence policy. The feature remains in progress until its required 24-hour production evidence is attached. |
+| [ ] | 124 | [134](./134-noavaran-service-sales-fallback/user-story.md) / [tasks](./134-noavaran-service-sales-fallback/tasks.md) | Noavaran Service Sales Fallback and Monthly Trend | Depends on `042`, `043`, `057`, `059`, and `076`–`078`. Per company-month, call ProductSales first and fall back to ServiceSales only after successful empty/no-usable-data responses; reuse normalized monthly storage and recalculate the existing chart snapshot. Do not infer a permanent company type or silently treat provider failures as service-company detection. |
 
 ## Completion Gate
 
@@ -619,7 +620,10 @@ Add one row only after verification. Do not mark an item complete solely because
 At the start of an implementation turn, the agent must:
 
 1. Read this checklist, `specs/README.md`, and the selected story/tasks.
-2. Review current code and existing uncommitted changes before implementation.
-3. Update only the selected item to `[~]` while it is actively being worked on.
-4. Implement and verify the story.
-5. Change `[~]` to `[x]` and add completion evidence only after meeting the completion gate.
+2. Read `specs/POLICY-V1-FREEZE.md`. If the story could touch V1 for a reason other than
+   security, Billing/accounting correctness, or shared-code compatibility, stop and target V2
+   instead.
+3. Review current code and existing uncommitted changes before implementation.
+4. Update only the selected item to `[~]` while it is actively being worked on.
+5. Implement and verify the story.
+6. Change `[~]` to `[x]` and add completion evidence only after meeting the completion gate.

@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v11";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v12-browser-text";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;
@@ -62,7 +62,20 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         using var image = surface.Snapshot();
         using var encoded = image.Encode(SKEncodedImageFormat.Png, 92)
             ?? throw new InvalidOperationException("Unable to encode the Telegram monthly trend image as PNG.");
-        var bytes = encoded.ToArray();
+        var points = trend.ChartPoints.OrderBy(point => point.FiscalMonthIndex).Take(12).ToArray();
+        var company = string.IsNullOrWhiteSpace(trend.CompanyName)
+            ? trend.CompanySymbol : $"{trend.CompanyName} ({trend.CompanySymbol})";
+        var lines = BuildExportExplanationLines(trend);
+        if (lines.Count == 0)
+            lines = [new ExportExplanationLine("دادهٔ گم‌شده‌ای گزارش نشده است.", null, "", ExportExplanationTone.Neutral)];
+        var content = new MonthlyTrendBrowserText.Content(
+            $"روند فروش ماهانه — {company}", $"واحد: {trend.UnitLabelFa}",
+            BuildExportLegend(points),
+            lines.Select(line => new MonthlyTrendBrowserText.Explanation(
+                line.BeforeValue, line.ValueLabel, line.AfterValue,
+                line.Tone == ExportExplanationTone.Positive ? "#047857" :
+                line.Tone == ExportExplanationTone.Negative ? "#BE123C" : "#3F3F46")).ToArray());
+        var bytes = MonthlyTrendBrowserText.Render(encoded.ToArray(), Width, height, content);
         if (bytes.Length == 0 || bytes.Length > MaximumPhotoBytes)
         {
             throw new InvalidOperationException($"Telegram monthly trend PNG size {bytes.Length} is outside the allowed range.");
@@ -340,16 +353,6 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         using var regularShaper = new SKShaper(regularTypeface);
         using var boldShaper = new SKShaper(boldTypeface);
 
-        var company = string.IsNullOrWhiteSpace(trend.CompanyName)
-            ? trend.CompanySymbol
-            : $"{trend.CompanyName} \u2066({trend.CompanySymbol})\u2069";
-        text.Color = TrendForeground;
-        DrawRtlTextWithNumbers(canvas, boldShaper, bold34, text,
-            $"روند فروش ماهانه — {company}", Width - Padding, 84);
-        text.Color = TrendMuted;
-        DrawRtlTextWithNumbers(canvas, regularShaper, regular24, text,
-            $"واحد: {trend.UnitLabelFa}", Width - Padding, 126);
-
         var points = trend.ChartPoints.OrderBy(point => point.FiscalMonthIndex).Take(12).ToArray();
         var values = points.SelectMany(point => new[]
             {
@@ -434,21 +437,6 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         stroke.PathEffect = null;
         canvas.DrawPath(averagePath, stroke);
 
-        DrawExportLegend(canvas, trend, points, regular20, regularShaper, text, fill);
-
-        var explanationLines = BuildExportExplanationLines(trend);
-        text.Color = TrendForeground;
-        DrawRtlTextWithNumbers(canvas, boldShaper, bold24, text,
-            "توضیحات", Width - Padding, plotBottom + 105);
-        var linesToDraw = explanationLines.Count > 0
-            ? explanationLines
-            : [new ExportExplanationLine("دادهٔ گم‌شده‌ای گزارش نشده است.", null, "", ExportExplanationTone.Neutral)];
-        for (var index = 0; index < linesToDraw.Count; index++)
-        {
-            DrawExportExplanationLine(canvas, linesToDraw[index], Width - Padding,
-                plotBottom + 105 + 42 * (index + 1), regular22, regularShaper, text);
-        }
-
         text.Color = TrendWatermark;
         DrawLeftAlignedRtlText(canvas, regularShaper, regular22, text,
             "ساپیو - دستیار هوشمند بازار", Padding, plotBottom + 148);
@@ -461,14 +449,8 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         return PlotTop + PlotHeight + explanationHeight + Padding;
     }
 
-    private static void DrawExportLegend(
-        SKCanvas canvas,
-        MonthlyActivityTrendResponse trend,
-        IReadOnlyList<MonthlyActivityTrendChartPoint> points,
-        SKFont font,
-        SKShaper shaper,
-        SKPaint text,
-        SKPaint fill)
+    internal static MonthlyTrendBrowserText.Label[] BuildExportLegend(
+        IReadOnlyList<MonthlyActivityTrendChartPoint> points)
     {
         var previousYear = points.FirstOrDefault(point => point.PreviousFiscalYear is not null)?.PreviousFiscalYear;
         var currentYear = points.FirstOrDefault(point => point.CurrentFiscalYear is not null)?.CurrentFiscalYear;
@@ -479,30 +461,17 @@ public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendCha
         {
             var percentage = ToPersianDigits(
                 ((currentTotal.Value / previousTotal.Value) * 100m).ToString("0.00", CultureInfo.InvariantCulture));
-            // Keep this as one logical RTL string. The raw native text path below
-            // receives the complete value so punctuation and numeric runs are
-            // laid out together without application-side BiDi manipulation.
+            // Formatting only: the browser receives this logical string unchanged.
             currentLabel += $" ({percentage}٪ از {ToPersianDigits((previousYear ?? 0).ToString(CultureInfo.InvariantCulture))})";
         }
 
         var average = points.FirstOrDefault(point => point.Average12MonthSalesAmount is not null)
             ?.Average12MonthSalesAmount;
-        var entries = new[]
-        {
-            (currentLabel, TrendCurrentYear),
-            (FormatExportYearLegend(previousYear, previousTotal, "سال قبل"), TrendPreviousYear),
-            ($"میانگین ۱۲ ماهه{FormatExportAmountSuffix(average)}", TrendAverage)
-        };
-
-        var cursor = (float)(Width - Padding);
-        foreach (var entry in entries)
-        {
-            fill.Color = entry.Item2;
-            canvas.DrawRect(cursor - 18, 155, 18, 18, fill);
-            text.Color = TrendForeground;
-            DrawRtlTextWithNumbers(canvas, shaper, font, text, entry.Item1, cursor - 28, 170);
-            cursor -= font.MeasureText(entry.Item1, text) + 95;
-        }
+        return [
+            new(currentLabel, "#047857"),
+            new(FormatExportYearLegend(previousYear, previousTotal, "سال قبل"), "#4338CA"),
+            new($"میانگین ۱۲ ماهه{FormatExportAmountSuffix(average)}", "#B45309")
+        ];
     }
 
     private static string FormatExportYearLegend(int? year, decimal? total, string fallback)

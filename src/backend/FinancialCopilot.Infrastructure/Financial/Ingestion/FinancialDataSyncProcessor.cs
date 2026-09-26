@@ -325,7 +325,19 @@ public sealed class FinancialDataSyncProcessor(
 
         if (TryGetMonthlyActivityOutputType(run.IdempotencyKey) is { } outputType)
         {
-            query = query.Where(row => row.OutputType == outputType);
+            query = outputType == 0
+                ? query.Where(row =>
+                    (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType == null)) ||
+                    (row.ReportType == "ServiceSales" && row.OutputType == null))
+                : query.Where(row => row.ReportType == "ProductSales" && row.OutputType == outputType);
+        }
+        else
+        {
+            // A combined/full monthly request is complete only after the authoritative monthly
+            // source has produced rows. Output types 1-4 alone must not create false completion.
+            query = query.Where(row =>
+                (row.ReportType == "ProductSales" && (row.OutputType == 0 || row.OutputType == null)) ||
+                (row.ReportType == "ServiceSales" && row.OutputType == null));
         }
 
         return await query.AnyAsync(cancellationToken);

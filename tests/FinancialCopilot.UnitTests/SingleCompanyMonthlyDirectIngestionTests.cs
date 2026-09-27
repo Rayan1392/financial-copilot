@@ -40,6 +40,40 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
         Assert.Equal(new[] { 1, 2, 3, 4 }, publisher.Requests.Select(x => x.MonthlyActivityOutputType!.Value).ToArray());
     }
 
+    [Fact]
+    public async Task ExecuteDirect_ProviderFailure_PersistsFailedRunBeforeRethrowing()
+    {
+        var directProvider = new ThrowingDirectProvider();
+        var processor = new RecordingProcessor();
+        var publisher = new RecordingPublisher();
+        var service = new SingleCompanyMonthlyIngestionService(
+            publisher,
+            directProvider,
+            processor,
+            Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }),
+            new FixedTimeProvider(Now));
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            service.ExecuteDirectAsync(
+                new SingleCompanyMonthlyDirectIngestionRequest(4, 1405, 6),
+                CancellationToken.None));
+
+        Assert.Equal(FinancialProviderErrorCode.Timeout, exception.Code);
+        Assert.Equal("provider timeout", exception.Message);
+        Assert.Equal(1, directProvider.Calls);
+        Assert.Empty(publisher.Requests);
+        Assert.NotNull(processor.ProviderRequest);
+        Assert.Equal("4", processor.ProviderRequest!.ExternalReference);
+        Assert.Equal(1405, processor.ProviderRequest.SourceDateRangeStartJalali is not null
+            ? int.Parse(processor.ProviderRequest.SourceDateRangeStartJalali[..4])
+            : 0);
+        Assert.Equal(DataSyncRunStatus.Failed, processor.FailedRun?.Status);
+        Assert.Equal("4", processor.FailedRun?.ExternalReference);
+        Assert.Equal(1, processor.FailedRun?.ErrorCount);
+        Assert.Equal("provider timeout", processor.FailedRun?.ErrorMessage);
+        Assert.NotEqual(DataSyncRunStatus.Completed, processor.FailedRun?.Status);
+    }
+
     private sealed class RecordingPublisher : IDataSyncRequestPublisher
     {
         public List<DataSyncRequest> Requests { get; } = [];
@@ -79,10 +113,28 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
         }
     }
 
+    private sealed class ThrowingDirectProvider : INadpcoMonthlyProductSalesDirectProvider
+    {
+        public int Calls { get; private set; }
+
+        public Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
+            string externalCompanyId,
+            int shamsiYear,
+            int shamsiMonth,
+            CancellationToken cancellationToken,
+            int? monthlyActivityOutputType = null)
+        {
+            Calls++;
+            throw new FinancialProviderException(FinancialProviderErrorCode.Timeout, "provider timeout");
+        }
+    }
+
     private sealed class RecordingProcessor : IFinancialDataSyncProcessor
     {
         public DataSyncRequest? Request { get; private set; }
         public ProviderRawPayload? Payload { get; private set; }
+        public DataSyncRequest? ProviderRequest { get; private set; }
+        public DataSyncRun? FailedRun { get; private set; }
 
         public Task<DataSyncProcessingResult> ProcessAsync(
             DataSyncRequest request,
@@ -115,6 +167,46 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
                     SourceDateRangeStartJalali: request.SourceDateRangeStartJalali,
                     SourceDateRangeEndJalali: request.SourceDateRangeEndJalali),
                 AlreadyProcessed: false));
+        }
+
+        public async Task<DataSyncProcessingResult> ProcessProviderAsync(
+            DataSyncRequest request,
+            Func<Task<ProviderRawPayload>> payloadFactory,
+            CancellationToken cancellationToken,
+            bool rethrowProviderExceptions = false)
+        {
+            ProviderRequest = request;
+            try
+            {
+                return await ProcessPayloadAsync(request, await payloadFactory(), cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                FailedRun = new DataSyncRun(
+                    request.RequestId,
+                    request.IdempotencyKey,
+                    request.Dataset,
+                    request.ExternalReference,
+                    DataSyncRunStatus.Failed,
+                    request.RequestedAt,
+                    request.RequestedAt,
+                    request.RequestedAt.AddSeconds(1),
+                    ProcessedRecords: 0,
+                    ErrorCount: 1,
+                    ErrorMessage: exception.Message,
+                    SourcePayloadChecksum: null,
+                    ProviderName: request.ProviderName,
+                    Mode: request.Mode,
+                    SourceDateRangeStartJalali: request.SourceDateRangeStartJalali,
+                    SourceDateRangeEndJalali: request.SourceDateRangeEndJalali);
+
+                if (rethrowProviderExceptions)
+                {
+                    throw;
+                }
+
+                return new DataSyncProcessingResult(FailedRun, AlreadyProcessed: false);
+            }
         }
     }
 

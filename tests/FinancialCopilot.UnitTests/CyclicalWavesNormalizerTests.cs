@@ -318,6 +318,13 @@ public sealed class CyclicalWavesNormalizerTests
                     request.ProviderName),
                 AlreadyProcessed: false));
         }
+
+        public Task<DataSyncProcessingResult> ProcessProviderAsync(
+            DataSyncRequest request,
+            Func<Task<ProviderRawPayload>> payloadFactory,
+            CancellationToken cancellationToken,
+            bool rethrowProviderExceptions = false) =>
+            throw new InvalidOperationException("Shared payload tests must not acquire provider data.");
     }
 
     private static NormalizedCompanyRow SeedNadpcoCompany(

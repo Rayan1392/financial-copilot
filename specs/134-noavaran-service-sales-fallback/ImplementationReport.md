@@ -9,6 +9,160 @@ chart contract, schema table, or permanent Production/Service classification was
 The implementation preserves the existing ProductSales output-type waves. Only the ProductSales
 OutputType 0 request can make the ServiceSales fallback decision.
 
+## Pre-Redeployment Verification After Production Docker Rollback
+
+Date: 2026-09-27
+
+### Git and deployment state
+
+```text
+Current branch: develop
+Current Git commit: ffa6ba8bfda52e24787b36df7321d879882b709d
+Working tree before this report update: clean
+Git rollback: NO
+Old production image/source baseline: fca4836f89f484c93395632bcb0f813054980dc4
+Rolled-back runtime: Docker images tagged rollback-20260926-112832
+```
+
+The source checkout remained on `develop` at the Feature 134 commit. Only the running Docker
+deployment was rolled back. The Feature 134 API image was created after the known service failure;
+the failure run was requested at `2026-09-26 11:50:10 UTC`, while the new API/worker containers
+started approximately at `12:25 UTC`. The current VPS runtime is again using the rollback image.
+
+### Production evidence and interpretation
+
+The earlier service-company observation is confirmed as an old-image event. Its durable run was
+for `حسیر` / `ریل سیر کوثر` / ExternalCompanyId `13176`, with ProductSales type 0 equal to `[]` and
+ServiceSales absent from the stored envelope. The old direct provider path used
+`includeServiceSales: false`, so this is `DEPLOYMENT_VERSION_MISMATCH`, not evidence against the
+current fallback implementation.
+
+The manufacturing control `کگل` resolves to `معدنی و صنعتی گل گهر`, ExternalCompanyId `4`. Durable
+production data contains successful ProductSales type-0 runs for this company, including a direct
+run with `ProcessedRecords=5` and no ServiceSales rows. No durable run or retained log was found
+that proves a `1405/06` manufacturing failure executed on the Feature 134 image. The reported
+manufacturing failure therefore remains unproven; the available evidence does not show a
+ProductSales-usable-row regression.
+
+The service validation symbol `قاسم` resolves to `قاسم ایران`, ExternalCompanyId `12622`. A
+`1405/06` direct run on the rolled-back/old runtime persisted ProductSales type 0 as empty and
+ServiceSales as empty, then ended `NoDataYet`. This proves both sources were empty for that run,
+not that the current source failed to call ServiceSales. No isolated current-source real-provider
+run was performed.
+
+### Current source audit
+
+The current direct call chain is:
+
+```text
+NoavaranMonthlyBackfillController
+  -> SingleCompanyMonthlyIngestionService.ExecuteDirectAsync
+  -> processor creates SyncRun, then direct provider, explicit ProductSales output type 0
+  -> ProductSales type-0 decision / optional ServiceSales fallback
+  -> FinancialDataSyncProcessor.ProcessProviderAsync
+  -> normalization, persistence, recalculation, snapshot
+  -> queue ProductSales output types 1-4 after type-0 completion
+```
+
+Scheduled ingestion requests ProductSales output types 0-4 in one envelope and makes the same
+type-0 source decision. Direct ingestion requests type 0 inline and queues types 1-4 separately;
+types 1-4 remain ProductSales-only. The envelope preserves source identity in separate
+`ProductSalesType0..4` and `ServiceSales` fields, and the normalizer consumes those fields
+separately. No heterogeneous ProductSales collection is passed to a ProductSales-only downstream
+contract.
+
+The three-state provider decision is present and covered by tests:
+
+```text
+usable ProductSales type 0 -> zero ServiceSales calls
+successful empty ProductSales type 0 -> one ServiceSales call
+type-0 provider/response failure -> no ServiceSales call; exception rethrown
+```
+
+The last state exposed a direct-trigger defect: `ExecuteDirectAsync` fetched the provider payload
+before `ProcessPayloadAsync` created the run record. That defect is fixed by entering
+`ProcessProviderAsync` before acquisition; a type-0 or ServiceSales provider exception now
+persists failed run-state before the existing direct error contract is preserved.
+Scheduled ingestion catches the exception inside `ProcessCoreAsync` and records a failed run. This
+direct/scheduled failure-state difference is a genuine source defect, although the retained
+production evidence does not prove that it caused the reported `کگل` observation.
+
+## Direct Provider Failure Lifecycle Fix
+
+Date: 2026-09-27
+
+The remaining pre-deployment lifecycle blocker is fixed in the shared ingestion lifecycle. The
+direct path now calls `IFinancialDataSyncProcessor.ProcessProviderAsync` with the existing provider
+factory instead of acquiring the provider payload before entering the processor. The processor
+therefore creates and persists the `SyncRuns` row as `Running` before either ProductSales type 0
+or its ServiceSales fallback can fail.
+
+Provider acquisition failures are handled separately from successful-empty payloads:
+
+```text
+provider failure -> SyncRun Failed, ErrorCount=1, provider error retained, exception rethrown for direct API
+successful empty payload -> existing NoDataYet / retryable result
+```
+
+The direct API and Telegram call contracts remain unchanged: direct provider failures are still
+non-success exceptions after the failed run is persisted. Scheduled `ProcessAsync` behavior still
+returns the existing failed processing result rather than rethrowing. The direct service retains
+one run key and the existing output-type wave; types 1-4 are queued only after type 0 succeeds,
+so no duplicate run was introduced.
+
+Regression coverage now includes the direct boundary, a concrete in-memory processor lifecycle
+test, and ServiceSales fallback HTTP failure. The direct boundary regression was run red before
+the lifecycle change and green after it. No production deployment, Docker image push, VPS
+mutation, or commit was performed. Real-provider smoke validation remains unavailable in this
+workspace and must be performed separately before redeployment.
+
+### Verification matrix
+
+```text
+کگل invariant (generic current-source fixtures): ProductSales type 0 usable; ServiceSales 0; downstream precedence PASS
+قاسم invariant (generic current-source fixtures): ProductSales empty; ServiceSales exactly once; downstream ServiceSales path PASS
+Both sources empty: NoDataYet / retryable PASS
+Types 1-4: ProductSales-only and do not alter the type-0 fallback decision PASS
+Scheduled provider behavior: source-selection tests PASS; real 1405/06 provider smoke BLOCKED
+Telegram inheritance: shared direct service and handler tests PASS; real provider smoke BLOCKED
+Admin direct route: 5/5 integration tests PASS; real provider smoke BLOCKED
+```
+
+Real-provider validation is `BLOCKED — ISOLATED PROVIDER ACCESS`: no isolated current-source
+runtime was available for a legitimate provider smoke test, and production remains on the
+rollback image. No production smoke request was issued during this audit.
+
+### Validation executed
+
+```text
+Provider Feature 134 tests: 28 passed, 0 failed, 0 skipped
+Direct ingestion tests: 2 passed, 0 failed, 0 skipped
+Admin direct endpoint tests: 5 passed, 0 failed, 0 skipped
+Telegram handler tests: 10 passed, 0 failed, 0 skipped
+Downstream normalizer/metric/snapshot tests: 51 passed, 0 failed, 0 skipped
+Full unit suite: 1701 passed, 0 failed, 0 skipped
+Architecture suite: 12 passed, 0 failed, 0 skipped
+Release solution build: succeeded, 0 warnings, 0 errors
+Previously recorded full integration suite: 394 passed, 45 unrelated failures, 40 environment skips
+```
+
+The earlier read-only audit made no production or test changes. The lifecycle fix and regression
+tests are now local uncommitted changes; no production deployment or commit was performed.
+
+### Redeployment decision
+
+```text
+Safe to build a new production Docker image: YES
+Safe to redeploy Feature 134 now: NO
+Reason: direct provider-failure lifecycle is fixed, but real-provider validation for both
+control symbols is blocked.
+```
+
+The remaining operational follow-up is to rerun real-provider validation in an isolated environment
+before redeployment. The lifecycle blocker itself is no longer present. The direct-path failure
+coverage and rerun the real-provider `کگل`/`قاسم` tests in an isolated environment. Do not add
+symbol-specific classification.
+
 ## Current trigger-audit status
 
 The original scope covered the scheduled `FetchMonthlyReportsAsync` path. The trigger-inheritance
@@ -59,8 +213,10 @@ types 1–4 remain ProductSales-only. No second pipeline was added.
 | No-data/retry semantics | Covered | Shared processor; verified by existing lifecycle regressions | Shared processor; verified by existing lifecycle regressions |
 | 1404+ boundary and monetary semantics | Covered | Direct boundary/provider and normalizer regressions pass | Shared direct provider and normalizer regressions pass |
 
-The production correction is in `NadpcoApiDataProviderClient`; direct-provider regressions are in
-`NadpcoApiProviderTests`. Existing exact-route Admin and Telegram handler tests also pass.
+The provider correction is in `NadpcoApiDataProviderClient`; the lifecycle correction is in
+`FinancialDataSyncProcessor` and `SingleCompanyMonthlyIngestionService`. Direct-provider
+regressions are in `NadpcoApiProviderTests` and the direct-ingestion tests. Existing exact-route
+Admin and Telegram handler tests also pass.
 
 ## Production changes
 
@@ -123,7 +279,7 @@ optional ServiceSales calls, and pre-1404 direct requests fail before any networ
 | Admin H — monetary semantics | VERIFIED: existing ServiceSales normalizer uses `revenueDuringThePeriod` and the existing unit contract. |
 
 The exact route and validation/delegation assertions passed in
-`AdminDataOperationsEndpointTests.NoavaranCurrent_SingleCompanyMonthDirect_*` (4/4).
+`AdminDataOperationsEndpointTests.NoavaranCurrent_SingleCompanyMonthDirect_*` (5/5).
 
 ### Telegram verification
 
@@ -243,20 +399,20 @@ dotnet build src/backend/FinancialCopilot.sln --configuration Release --no-resto
   Build succeeded; 0 warnings; 0 errors.
 
 dotnet test tests/FinancialCopilot.UnitTests/FinancialCopilot.UnitTests.csproj --configuration Release --no-restore
-  Passed: 1697, Failed: 0, Skipped: 0, Total: 1697.
+  Passed: 1701, Failed: 0, Skipped: 0, Total: 1701.
 
 Feature 134 / trigger focused filter
   Passed: 93, Failed: 0, Skipped: 0, Total: 93.
 
 Admin direct endpoint focused filter
-  Passed: 4, Failed: 0, Skipped: 0, Total: 4.
+  Passed: 5, Failed: 0, Skipped: 0, Total: 5.
 
 Telegram Feature 133/134 focused filter
   Passed: 10, Failed: 0, Skipped: 0, Total: 10.
 ```
 
 The full solution validation was also run. Architecture tests passed (12/12), and unit tests
-passed (1697/1697). Integration tests reported 394 passed, 45 failed, and 40 skipped. The failures
+passed (1701/1701). Integration tests reported 394 passed, 45 failed, and 40 skipped. The failures
 are outside the Feature 134 change set (existing unrelated endpoint/data-fixture failures); the
 skipped PostgreSQL cases reported Docker/Testcontainers unavailable. They are recorded here rather
 than hidden. No Feature 134-focused test failed.
@@ -268,14 +424,15 @@ than hidden. No Feature 134-focused test failed.
 | Feature 042/053/057/059/076–078 focused regressions | Included in the 93-test focused filter; all passed | Feature 134 / related regression: PASS |
 | Feature 130/133 Telegram handler regressions | 10 passed | Related cross-feature regression: PASS |
 | Architecture tests | 12 passed, 0 failed, 0 skipped | PASS |
-| Full unit suite | 1697 passed, 0 failed, 0 skipped | PASS |
+| Full unit suite | 1701 passed, 0 failed, 0 skipped | PASS |
 | Full integration suite | 394 passed, 45 failed, 40 skipped | 45 unrelated/pre-existing fixture/routing failures; 40 environment skips because Docker/Testcontainers was unavailable |
 
 ## Remaining blockers
 
-None for Feature 134 trigger inheritance. The full integration run still contains 45 unrelated
-pre-existing endpoint/data-fixture failures and 40 PostgreSQL/Testcontainers environment skips;
-these do not include a Feature 134-focused failure.
+The direct provider-failure lifecycle blocker is fixed. Real-provider smoke validation remains
+blocked by the lack of an isolated current-source runtime. The full integration run still contains
+45 unrelated pre-existing endpoint/data-fixture failures and 40 PostgreSQL/Testcontainers
+environment skips; these do not include a Feature 134-focused failure.
 
 ## Files changed for Feature 134
 
@@ -283,6 +440,8 @@ these do not include a Feature 134-focused failure.
 - `src/backend/FinancialCopilot.Application/FinancialData/Providers/FinancialProviderContracts.cs`
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Providers/NadpcoApi/NadpcoApiPayloadModels.cs`
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/FinancialDataSyncProcessor.cs`
+- `src/backend/FinancialCopilot.Application/FinancialData/Ingestion/FinancialIngestionContracts.cs`
+- `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/SingleCompanyMonthlyIngestionService.cs`
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/NadpcoApiMonthlyActivityNormalizer.cs`
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/CompanyMonthlyActivityTrendSnapshotCalculator.cs`
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/CompanyMonthlyActivityTrendSnapshotBackfillService.cs`
@@ -290,7 +449,9 @@ these do not include a Feature 134-focused failure.
 - `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NormalizedMetricInputSources.cs`
 - Existing Feature 134 unit tests in the provider, normalizer, metric-input, boundary, snapshot,
   direct-ingestion, and Telegram handler test files were rerun. The trigger implementation added
-  direct-provider cases only to `tests/FinancialCopilot.UnitTests/NadpcoApiProviderTests.cs`;
-  existing Admin endpoint and Telegram handler coverage was preserved and rerun.
+  direct-provider cases to `tests/FinancialCopilot.UnitTests/NadpcoApiProviderTests.cs`, and the
+  lifecycle regressions to `SingleCompanyMonthlyDirectIngestionTests` and
+  `NadpcoApiMonthlyActivityNormalizerTests`; existing Admin endpoint and Telegram handler coverage
+  was preserved and rerun.
 
 Pre-existing unrelated worktree changes were preserved.

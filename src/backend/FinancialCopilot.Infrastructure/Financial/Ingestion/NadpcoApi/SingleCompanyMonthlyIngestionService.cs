@@ -39,14 +39,16 @@ public sealed class SingleCompanyMonthlyIngestionService(
             SourceDateRangeStartJalali: month.FirstDayJalali,
             SourceDateRangeEndJalali: ShamsiMonthCalculator.LastDayJalali(month),
             MonthlyActivityOutputType: 0);
-        var payload = await directProvider.FetchProductSalesAllOutputTypesAsync(
-            companyId,
-            request.ShamsiYear,
-            request.ShamsiMonth,
+        var result = await syncProcessor.ProcessProviderAsync(
+            syncRequest,
+            () => directProvider.FetchProductSalesAllOutputTypesAsync(
+                companyId,
+                request.ShamsiYear,
+                request.ShamsiMonth,
+                cancellationToken,
+                monthlyActivityOutputType: 0),
             cancellationToken,
-            monthlyActivityOutputType: 0);
-
-        var result = await syncProcessor.ProcessPayloadAsync(syncRequest, payload, cancellationToken);
+            rethrowProviderExceptions: true);
 
         if (result.Run.Status == DataSyncRunStatus.Completed && result.Run.ErrorCount == 0)
         {

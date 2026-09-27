@@ -42,7 +42,14 @@ public sealed class NoavaranCurrentApiBoundaryTests
         {
             Assert.Contains("fromDate=140401", r.Uri);
             Assert.DoesNotContain("fromDate", r.Body);
-            Assert.Contains("\"companyIds\":[3]", r.Body);
+            if (r.Uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                Assert.Contains("\"companyIds\":3", r.Body);
+            }
+            else
+            {
+                Assert.Contains("\"companyIds\":[3]", r.Body);
+            }
         });
     }
 
@@ -64,7 +71,14 @@ public sealed class NoavaranCurrentApiBoundaryTests
             Assert.Contains("fromDate=140502", r.Uri);
             Assert.Contains("toDate=140502", r.Uri);
             Assert.DoesNotContain("fromDate", r.Body);
-            Assert.Contains("\"companyIds\":[13150]", r.Body);
+            if (r.Uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                Assert.Contains("\"companyIds\":13150", r.Body);
+            }
+            else
+            {
+                Assert.Contains("\"companyIds\":[13150]", r.Body);
+            }
         });
     }
 

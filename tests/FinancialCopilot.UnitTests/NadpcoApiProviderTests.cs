@@ -479,7 +479,14 @@ public sealed class NadpcoApiProviderTests
         Assert.Equal(6, requests.Count);
         Assert.Equal(5, requests.Count(r => r.Uri.Contains("ProductSales")));
         Assert.Equal(1, requests.Count(r => r.Uri.Contains("ServiceSales")));
-        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        Assert.All(
+            requests.Where(r => r.Uri.Contains("ProductSales")),
+            r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        var serviceRequest = Assert.Single(requests, r => r.Uri.Contains("ServiceSales"));
+        Assert.Contains("\"companyIds\":3", serviceRequest.Body);
+        Assert.DoesNotContain("\"fromDate\"", serviceRequest.Body);
+        Assert.DoesNotContain("\"toDate\"", serviceRequest.Body);
+        Assert.DoesNotContain("\"outputType\"", serviceRequest.Body);
         // Live-verified contract (spec 057): Shamsi bounds are year+month query-string tokens;
         // the JSON body must not carry dates (v3 ServiceSales returns HTTP 500 otherwise).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));
@@ -596,6 +603,37 @@ public sealed class NadpcoApiProviderTests
         Assert.Equal(2, requests.Count);
         Assert.Single(requests, uri => uri.EndsWith("outputTypeId=0", StringComparison.Ordinal));
         Assert.Single(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DataProvider_DirectProductSales_ServiceSalesFailureRemainsProviderFailure()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.OriginalString;
+            requests.Add(uri);
+            if (uri.Contains("ServiceSales", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+
+            return JsonResponse(Array.Empty<object>());
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = CreateDataProvider(httpClient, new ProviderRawPayloadStore(dbContext));
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            client.FetchProductSalesAllOutputTypesAsync("19", 1405, 5, CancellationToken.None, 0));
+
+        Assert.Equal(FinancialProviderErrorCode.RemoteUnavailable, exception.Code);
+        Assert.Equal(2, requests.Count);
+        Assert.Single(requests, uri => uri.EndsWith("outputTypeId=0", StringComparison.Ordinal));
+        Assert.Single(requests, uri => uri.Contains("ServiceSales", StringComparison.Ordinal));
+        Assert.DoesNotContain(requests, uri => uri.EndsWith("outputTypeId=1", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -763,7 +801,11 @@ public sealed class NadpcoApiProviderTests
 
         // 5 ProductSales requests (outputTypeId 0–4) + 1 ServiceSales request.
         Assert.Equal(6, requests.Count);
-        Assert.All(requests, r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        Assert.All(
+            requests.Where(r => r.Uri.Contains("ProductSales")),
+            r => Assert.Contains("\"companyIds\":[3]", r.Body));
+        var serviceRequest = Assert.Single(requests, r => r.Uri.Contains("ServiceSales"));
+        Assert.Contains("\"companyIds\":3", serviceRequest.Body);
         // 1403-and-earlier is not permitted; the from-date is clamped to the 1404 access boundary
         // and travels as a year+month query token (live-verified contract, spec 057).
         Assert.All(requests, r => Assert.Contains("fromDate=140401", r.Uri));

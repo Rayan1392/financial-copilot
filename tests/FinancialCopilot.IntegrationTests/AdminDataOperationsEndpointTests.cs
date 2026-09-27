@@ -525,6 +525,21 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
         Assert.Empty(_factory.PublishedRequests);
     }
 
+    [Fact]
+    public async Task NoavaranCurrent_SingleCompanyMonthDirect_ProviderFailure_PreservesNonSuccessContract()
+    {
+        _factory.SingleCompanyMonthly.ThrowProviderFailure = true;
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-company-month",
+            new { companyId = 19, shamsiYear = 1405, shamsiMonth = 5 },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Single(_factory.SingleCompanyMonthly.DirectRequests);
+    }
+
     [Theory]
     [InlineData(0, 1405, 5)]
     [InlineData(19, 1403, 5)]
@@ -1362,6 +1377,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     public sealed class StubSingleCompanyMonthlyIngestion : ISingleCompanyMonthlyIngestionService
     {
         public List<SingleCompanyMonthlyDirectIngestionRequest> DirectRequests { get; } = [];
+        public bool ThrowProviderFailure { get; set; }
 
         public Task<SingleCompanyMonthlyIngestionResult> EnqueueAsync(
             SingleCompanyMonthlyIngestionRequest request,
@@ -1380,6 +1396,13 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             CancellationToken cancellationToken)
         {
             DirectRequests.Add(request);
+            if (ThrowProviderFailure)
+            {
+                throw new FinancialProviderException(
+                    FinancialProviderErrorCode.Timeout,
+                    "provider timeout");
+            }
+
             var requestedAt = DateTimeOffset.Parse("2026-08-24T10:00:00Z");
             return Task.FromResult(new DataSyncProcessingResult(
                 new DataSyncRun(
@@ -1398,7 +1421,11 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 AlreadyProcessed: false));
         }
 
-        public void Reset() => DirectRequests.Clear();
+        public void Reset()
+        {
+            DirectRequests.Clear();
+            ThrowProviderFailure = false;
+        }
     }
 
     public sealed class StubProductRevenueMixBackfill : IProductRevenueMixBackfillService

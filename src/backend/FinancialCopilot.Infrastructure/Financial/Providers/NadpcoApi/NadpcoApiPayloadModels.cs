@@ -76,6 +76,11 @@ public sealed record NadpcoApiMonthlyActivityRequest(
     [property: JsonPropertyName("toDate")] string? ToDate,
     [property: JsonPropertyName("outputType")] int? OutputType);
 
+// ServiceSales has a separate vendor contract from ProductSales: its plural-named
+// companyIds field is a scalar company id, not the ProductSales array shape.
+public sealed record NadpcoApiServiceSalesRequest(
+    [property: JsonPropertyName("companyIds")] int CompanyIds);
+
 public sealed record NadpcoApiStatementRequest(
     [property: JsonPropertyName("companyIds")] IReadOnlyCollection<int> CompanyIds,
     [property: JsonPropertyName("items")] IReadOnlyCollection<int> Items);

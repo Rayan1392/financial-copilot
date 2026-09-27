@@ -99,6 +99,12 @@ public interface IFinancialDataSyncProcessor
         DataSyncRequest request,
         ProviderRawPayload payload,
         CancellationToken cancellationToken);
+
+    Task<DataSyncProcessingResult> ProcessProviderAsync(
+        DataSyncRequest request,
+        Func<Task<ProviderRawPayload>> payloadFactory,
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions = false);
 }
 
 public interface IDataSyncRunReader

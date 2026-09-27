@@ -31,7 +31,7 @@ public sealed class FinancialDataSyncProcessor(
     public async Task<DataSyncProcessingResult> ProcessAsync(
         DataSyncRequest request,
         CancellationToken cancellationToken) =>
-        await ProcessCoreAsync(
+        await ProcessProviderAsync(
             request,
             () => FetchPayloadAsync(request, cancellationToken),
             cancellationToken);
@@ -40,15 +40,27 @@ public sealed class FinancialDataSyncProcessor(
         DataSyncRequest request,
         ProviderRawPayload payload,
         CancellationToken cancellationToken) =>
-        await ProcessCoreAsync(
+        await ProcessProviderAsync(
             request,
             () => Task.FromResult(payload),
             cancellationToken);
 
+    public async Task<DataSyncProcessingResult> ProcessProviderAsync(
+        DataSyncRequest request,
+        Func<Task<ProviderRawPayload>> payloadFactory,
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions = false) =>
+        await ProcessCoreAsync(
+            request,
+            payloadFactory,
+            cancellationToken,
+            rethrowProviderExceptions);
+
     private async Task<DataSyncProcessingResult> ProcessCoreAsync(
         DataSyncRequest request,
         Func<Task<ProviderRawPayload>> payloadFactory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool rethrowProviderExceptions)
     {
         var existing = await dbContext.SyncRuns.SingleOrDefaultAsync(
             row => row.IdempotencyKey == request.IdempotencyKey,
@@ -84,6 +96,7 @@ public sealed class FinancialDataSyncProcessor(
         run.StartedAt ??= timeProvider.GetUtcNow();
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var acquiringProviderPayload = false;
         try
         {
             if (ShouldSkipCyclicalWavesSymbolSync(request))
@@ -115,7 +128,9 @@ public sealed class FinancialDataSyncProcessor(
                 boundaryOverride?.SetMonthlyActivityOutputType(request.MonthlyActivityOutputType);
             }
 
+            acquiringProviderPayload = true;
             var payload = await payloadFactory();
+            acquiringProviderPayload = false;
             await rawPayloads.StoreAsync(payload, cancellationToken);
             var normalizationPayload = payload with { Dataset = request.Dataset };
             var outcome = await _normalizers[(normalizationPayload.ProviderName, normalizationPayload.Dataset)]
@@ -191,6 +206,17 @@ public sealed class FinancialDataSyncProcessor(
                 postgresException.Message);
 
             // A normal return deliberately ACKs this permanent failure at the RabbitMQ boundary.
+            return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException && acquiringProviderPayload)
+        {
+            logger.LogError(exception, "Financial data provider acquisition failed for {Dataset}.", request.Dataset);
+            await MarkRunFailedAsync(run, exception.Message, cancellationToken);
+            if (rethrowProviderExceptions)
+            {
+                throw;
+            }
+
             return new DataSyncProcessingResult(Map(run), AlreadyProcessed: false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

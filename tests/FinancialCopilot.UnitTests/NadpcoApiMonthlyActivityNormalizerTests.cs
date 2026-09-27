@@ -585,6 +585,55 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
         Assert.Empty(await ingestionDb.MetricRecalculationRequests.ToListAsync());
     }
 
+    [Theory]
+    [InlineData("ProductSales provider failure")]
+    [InlineData("ServiceSales provider failure")]
+    public async Task Processor_ProviderFailure_PersistsFailedRunBeforeRethrowing(string failureMessage)
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateDb();
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            new ThrowingProvider(),
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            NullLogger<FinancialDataSyncProcessor>.Instance);
+        var request = new DataSyncRequest(
+            Guid.NewGuid(),
+            ProviderDataset.MonthlyProductionSales,
+            CompanyId,
+            Now,
+            $"nadpco-direct-provider-failure-{failureMessage.Replace(" ", "-", StringComparison.Ordinal)}",
+            ProviderName,
+            SourceDateRangeStartJalali: "1405/06/01",
+            SourceDateRangeEndJalali: "1405/06/31",
+            MonthlyActivityOutputType: 0);
+
+        var exception = await Assert.ThrowsAsync<FinancialProviderException>(() =>
+            processor.ProcessProviderAsync(
+                request,
+                () => Task.FromException<ProviderRawPayload>(
+                    new FinancialProviderException(
+                        FinancialProviderErrorCode.Timeout,
+                        failureMessage)),
+                CancellationToken.None,
+                rethrowProviderExceptions: true));
+
+        Assert.Equal(FinancialProviderErrorCode.Timeout, exception.Code);
+        var run = await ingestionDb.SyncRuns.SingleAsync();
+        Assert.Equal(DataSyncRunStatus.Failed.ToString(), run.Status);
+        Assert.Equal(CompanyId, run.ExternalReference);
+        Assert.Equal(1, run.ErrorCount);
+        Assert.Equal(failureMessage, run.ErrorMessage);
+        Assert.NotNull(run.CompletedAt);
+        Assert.Empty(await providerDb.ProviderRawPayloads.ToListAsync());
+        Assert.Empty(await ingestionDb.MetricRecalculationRequests.ToListAsync());
+    }
+
     [Fact]
     public async Task Processor_CompletedMonthlyRunWithoutPersistedRows_DoesNotShortCircuitAlreadyProcessed()
     {

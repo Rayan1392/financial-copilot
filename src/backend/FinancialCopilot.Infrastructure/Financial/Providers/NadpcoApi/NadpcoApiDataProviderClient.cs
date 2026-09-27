@@ -207,7 +207,7 @@ public sealed class NadpcoApiDataProviderClient(
                 serviceSales = await PostJsonForPayloadAsync(
                     BuildMonthlyActivityEndpoint(
                         "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
-                    body,
+                    new NadpcoApiServiceSalesRequest(ParseCompanyId(companyId)),
                     cancellationToken);
             }
         }

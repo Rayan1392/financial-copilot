@@ -411,6 +411,30 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task NoavaranCurrent_SingleMonthReportingTypeBackfill_AsDataAdmin_QueuesRequestedScope()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/noavaran-current/monthly-backfill/single-month/reporting-type",
+            new { shamsiYear = 1405, shamsiMonth = 5, reportingType = 1_000_005 },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Equal("Started", document.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(1405, document.RootElement.GetProperty("shamsiYear").GetInt32());
+        Assert.Equal(5, document.RootElement.GetProperty("shamsiMonth").GetInt32());
+        Assert.Equal(1_000_005, document.RootElement.GetProperty("reportingType").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("companiesPlanned").GetInt32());
+
+        var request = Assert.Single(_factory.MonthlyActivityBackfill.ReportingTypeRequests);
+        Assert.Equal(new ShamsiMonth(1405, 5), request.TargetMonth);
+        Assert.Equal(1_000_005, request.ReportingType);
+        Assert.StartsWith("User:", request.RequestedBy);
+    }
+
+    [Fact]
     public async Task NoavaranCurrent_SingleMonthBackfill_WhenAlreadyQueued_ReturnsAlreadyInProgress()
     {
         using var client = CreateDataAdminClient();
@@ -1293,6 +1317,7 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
     {
         private static readonly Guid BatchId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
         public List<MonthlyActivityBackfillRequest> Requests { get; } = [];
+        public List<MonthlyActivityReportingTypeBackfillRequest> ReportingTypeRequests { get; } = [];
 
         public Task<MonthlyActivityBackfillStartResult> StartAsync(
             MonthlyActivityBackfillRequest request,
@@ -1321,6 +1346,21 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
                 BatchId));
         }
 
+        public Task<MonthlyActivityReportingTypeBackfillStartResult> StartForReportingTypeAsync(
+            MonthlyActivityReportingTypeBackfillRequest request,
+            CancellationToken cancellationToken)
+        {
+            ReportingTypeRequests.Add(request);
+            return Task.FromResult(new MonthlyActivityReportingTypeBackfillStartResult(
+                "Started",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 2,
+                RequestsEnqueued: 2,
+                BatchId));
+        }
+
         public Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken cancellationToken) =>
             Task.FromResult(CreateProgress("User:test", new ShamsiMonth(1405, 2)));
 
@@ -1333,7 +1373,11 @@ public sealed class AdminDataOperationsApiFactory : AuthenticationApiFactory
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<MonthlyActivityBackfillBatch>>([CreateBatch()]);
 
-        public void Reset() => Requests.Clear();
+        public void Reset()
+        {
+            Requests.Clear();
+            ReportingTypeRequests.Clear();
+        }
 
         private static MonthlyActivityBackfillBatch CreateBatch() =>
             new(

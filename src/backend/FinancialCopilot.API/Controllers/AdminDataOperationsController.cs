@@ -526,6 +526,53 @@ public sealed class AdminDataOperationsController(
         return result.Outcome == "Started" ? Accepted(response) : Ok(response);
     }
 
+    [HttpPost("noavaran-current/monthly-backfill/single-month/reporting-type")]
+    public async Task<ActionResult<AdminMonthlyActivityReportingTypeBackfillResponse>>
+        StartSingleMonthActivityBackfillForReportingType(
+            [FromBody] AdminMonthlyActivityReportingTypeBackfillRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (request.ShamsiYear is < 1404 or > 1500)
+        {
+            ModelState.AddModelError(
+                nameof(request.ShamsiYear),
+                "ShamsiYear must be between 1404 and 1500 for NADPCO monthly activity.");
+        }
+
+        if (request.ShamsiMonth is < 1 or > 12)
+        {
+            ModelState.AddModelError(nameof(request.ShamsiMonth), "ShamsiMonth must be between 1 and 12.");
+        }
+
+        if (request.ReportingType <= 0)
+        {
+            ModelState.AddModelError(nameof(request.ReportingType), "ReportingType must be greater than zero.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var actor = currentActor.Actor;
+        var result = await monthlyActivityBackfillCoordinator.StartForReportingTypeAsync(
+            new MonthlyActivityReportingTypeBackfillRequest(
+                $"{actor.ActorType}:{actor.ActorId}",
+                new ShamsiMonth(request.ShamsiYear, request.ShamsiMonth),
+                request.ReportingType),
+            cancellationToken);
+
+        var response = new AdminMonthlyActivityReportingTypeBackfillResponse(
+            result.BatchId,
+            result.Outcome,
+            result.ShamsiYear,
+            result.ShamsiMonth,
+            result.ReportingType,
+            result.CompaniesPlanned,
+            result.RequestsEnqueued);
+        return result.Outcome == "Started" ? Accepted(response) : Ok(response);
+    }
+
     [HttpGet("noavaran-current/monthly-backfill")]
     public async Task<ActionResult<AdminMonthlyActivityBackfillProgressResponse>> GetMonthlyActivityBackfillProgress(
         CancellationToken cancellationToken)

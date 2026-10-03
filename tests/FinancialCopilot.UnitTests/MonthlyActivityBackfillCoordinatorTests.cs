@@ -75,6 +75,48 @@ public sealed class MonthlyActivityBackfillCoordinatorTests
     }
 
     [Fact]
+    public async Task StartForReportingType_EnqueuesOnlyMatchingEligibleCompanies()
+    {
+        await using var db = CreateDb();
+        var serviceCompany = EligibleCompany("13150");
+        serviceCompany.ReportingType = 1_000_005;
+        db.Companies.Add(serviceCompany);
+
+        var productCompany = EligibleCompany("13151");
+        productCompany.ReportingType = 1_000_000;
+        db.Companies.Add(productCompany);
+
+        var offMarketServiceCompany = EligibleCompany("13152");
+        offMarketServiceCompany.ReportingType = 1_000_005;
+        offMarketServiceCompany.MarketId = Guid.NewGuid();
+        db.Companies.Add(offMarketServiceCompany);
+        await db.SaveChangesAsync();
+
+        var publisher = new RecordingPublisher(db);
+        var coordinator = NewCoordinator(db, publisher);
+
+        var result = await coordinator.StartForReportingTypeAsync(
+            new MonthlyActivityReportingTypeBackfillRequest(
+                "test:admin",
+                new ShamsiMonth(1405, 5),
+                1_000_005),
+            CancellationToken.None);
+
+        Assert.Equal("Started", result.Outcome);
+        Assert.Equal(1, result.CompaniesPlanned);
+        Assert.Equal(1, result.RequestsEnqueued);
+        var request = Assert.Single(publisher.Requests);
+        Assert.Equal("13150", request.ExternalReference);
+        Assert.Equal("1405/05/01", request.SourceDateRangeStartJalali);
+        Assert.Equal("1405/05/31", request.SourceDateRangeEndJalali);
+        Assert.Null(request.MonthlyActivityOutputType);
+        Assert.Equal(
+            "nadpco-monthlyrt-140505-rt1000005-13150",
+            request.IdempotencyKey);
+        Assert.Equal(1, publisher.DurableBatchCount);
+    }
+
+    [Fact]
     public async Task Start_WhenDurableBatchIsActive_ReturnsSameBatchWithoutDuplicateOutboxRows()
     {
         await using var db = CreateDb();

@@ -294,6 +294,16 @@ public sealed class DataSyncActivityReaderTests
             Task.FromResult(new MonthlyActivityBackfillStartResult("NoOp", 0, 0, 0,
                 new MonthlyActivityBackfillProgress(false, false, "Pending", null, null, null, [])));
 
+        public Task<MonthlyActivityReportingTypeBackfillStartResult> StartForReportingTypeAsync(
+            MonthlyActivityReportingTypeBackfillRequest request, CancellationToken ct) =>
+            Task.FromResult(new MonthlyActivityReportingTypeBackfillStartResult(
+                "NoOp",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                0,
+                0));
+
         public Task<MonthlyActivityBackfillProgress> GetProgressAsync(CancellationToken ct) =>
             Task.FromResult(new MonthlyActivityBackfillProgress(false, false, "Pending", null, null, null, []));
 

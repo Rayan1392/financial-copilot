@@ -27,6 +27,7 @@ public sealed class MonthlyActivityBackfillCoordinator(
     IMonthlyActivityBackfillStateReader
 {
     private const string KeyPrefix = "nadpco-monthlybf";
+    private const string ReportingTypeKeyPrefix = "nadpco-monthlyrt";
 
     public async Task<MonthlyActivityBackfillStartResult> StartAsync(
         MonthlyActivityBackfillRequest request,
@@ -206,6 +207,129 @@ public sealed class MonthlyActivityBackfillCoordinator(
             batch.Id);
     }
 
+    public async Task<MonthlyActivityReportingTypeBackfillStartResult> StartForReportingTypeAsync(
+        MonthlyActivityReportingTypeBackfillRequest request,
+        CancellationToken cancellationToken)
+    {
+        var providerName = providerOptions.Value.ProviderName;
+        await outboxRelay.ReconcileActiveBatchesAsync(cancellationToken);
+
+        var activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+        if (activeBatch is not null)
+        {
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "AlreadyInProgress",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                activeBatch.Id);
+        }
+
+        var companyIds = await QueryKnownCompanyIdsAsync(
+            providerName,
+            request.ReportingType,
+            cancellationToken);
+        if (companyIds.Count == 0)
+        {
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "NoCompanies",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: 0);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var fromDate = request.TargetMonth.FirstDayJalali;
+        var toDate = ShamsiMonthCalculator.LastDayJalali(request.TargetMonth);
+        var requestsToEnqueue = companyIds
+            .Select(companyId => new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.MonthlyProductionSales,
+                companyId.ToString(CultureInfo.InvariantCulture),
+                now,
+                IdempotencyKey: BuildReportingTypeKey(
+                    request.TargetMonth,
+                    request.ReportingType,
+                    companyId),
+                ProviderName: providerName,
+                Mode: SourceMode.CurrentIncremental,
+                SourceDateRangeStartJalali: fromDate,
+                SourceDateRangeEndJalali: toDate,
+                MonthlyActivityOutputType: null))
+            .ToArray();
+
+        var batch = new MonthlyActivityBackfillBatchRow
+        {
+            Id = Guid.NewGuid(),
+            SourceName = providerName,
+            RequestedBy = Limit(request.RequestedBy, 256),
+            Status = "Queued",
+            ActiveSlot = 1,
+            TargetShamsiYear = request.TargetMonth.Year,
+            TargetShamsiMonth = request.TargetMonth.Month,
+            CreatedAt = now,
+            PlannedCount = requestsToEnqueue.Length
+        };
+        dbContext.MonthlyActivityBackfillBatches.Add(batch);
+        dbContext.MonthlyActivityBackfillOutbox.AddRange(requestsToEnqueue.Select((syncRequest, sequence) =>
+            new MonthlyActivityBackfillOutboxRow
+            {
+                Id = syncRequest.RequestId,
+                BatchId = batch.Id,
+                Sequence = sequence,
+                IdempotencyKey = syncRequest.IdempotencyKey,
+                PayloadJson = JsonSerializer.Serialize(syncRequest, JsonOptions),
+                Status = "Pending",
+                CreatedAt = now
+            }));
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            dbContext.ChangeTracker.Clear();
+            activeBatch = await dbContext.MonthlyActivityBackfillBatches.AsNoTracking()
+                .SingleOrDefaultAsync(row => row.ActiveSlot != null, cancellationToken);
+            if (activeBatch is null)
+            {
+                throw;
+            }
+
+            return new MonthlyActivityReportingTypeBackfillStartResult(
+                "AlreadyInProgress",
+                request.TargetMonth.Year,
+                request.TargetMonth.Month,
+                request.ReportingType,
+                CompaniesPlanned: 0,
+                RequestsEnqueued: activeBatch.PlannedCount,
+                activeBatch.Id);
+        }
+
+        logger.LogInformation(
+            "Monthly-activity reporting-type backfill batch {BatchId} queued {Enqueued} company-month requests for ReportingType {ReportingType}, month {Month}, requested by {RequestedBy}.",
+            batch.Id,
+            requestsToEnqueue.Length,
+            request.ReportingType,
+            request.TargetMonth,
+            request.RequestedBy);
+
+        return new MonthlyActivityReportingTypeBackfillStartResult(
+            "Started",
+            request.TargetMonth.Year,
+            request.TargetMonth.Month,
+            request.ReportingType,
+            companyIds.Count,
+            requestsToEnqueue.Length,
+            batch.Id);
+    }
+
     public async Task<MonthlyActivityBackfillBatch?> GetBatchAsync(
         Guid batchId,
         CancellationToken cancellationToken)
@@ -377,12 +501,27 @@ public sealed class MonthlyActivityBackfillCoordinator(
         CancellationToken cancellationToken) =>
         NoavaranCompanyScope.EligibleCompanyIdsAsync(dbContext, providerName, cancellationToken);
 
+    private Task<IReadOnlyList<int>> QueryKnownCompanyIdsAsync(
+        string providerName,
+        int reportingType,
+        CancellationToken cancellationToken) =>
+        NoavaranCompanyScope.EligibleCompanyIdsAsync(
+            dbContext,
+            providerName,
+            reportingType,
+            cancellationToken);
+
     private static string MonthToken(int year, int month) =>
         string.Create(CultureInfo.InvariantCulture, $"{year:D4}{month:D2}");
 
     internal static string BuildKey(ShamsiMonth month, int companyId, int? outputType = null) =>
         $"{KeyPrefix}-{month.Year:D4}{month.Month:D2}-{companyId}" +
-        (outputType is { } type ? $"-ot{type}" : string.Empty);
+            (outputType is { } type ? $"-ot{type}" : string.Empty);
+
+    internal static string BuildReportingTypeKey(ShamsiMonth month, int reportingType, int companyId) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{ReportingTypeKeyPrefix}-{month.Year:D4}{month.Month:D2}-rt{reportingType}-{companyId}");
 
     // Key shape: nadpco-monthlybf-{yyyyMM}-{companyId}.
     private static string MonthTokenOf(string idempotencyKey)

@@ -161,6 +161,20 @@ public sealed record AdminMonthlyActivitySingleMonthBackfillRequest(
     int ShamsiYear,
     int ShamsiMonth);
 
+public sealed record AdminMonthlyActivityReportingTypeBackfillRequest(
+    int ShamsiYear,
+    int ShamsiMonth,
+    int ReportingType);
+
+public sealed record AdminMonthlyActivityReportingTypeBackfillResponse(
+    Guid? BatchId,
+    string Outcome,
+    int ShamsiYear,
+    int ShamsiMonth,
+    int ReportingType,
+    int CompaniesPlanned,
+    int RequestsEnqueued);
+
 public sealed record AdminMonthlyActivitySingleCompanyMonthDirectRequest(
     int CompanyId,
     int ShamsiYear,

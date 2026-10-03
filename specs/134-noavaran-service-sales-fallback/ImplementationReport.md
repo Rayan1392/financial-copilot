@@ -455,3 +455,223 @@ environment skips; these do not include a Feature 134-focused failure.
   was preserved and rerun.
 
 Pre-existing unrelated worktree changes were preserved.
+
+## Production Snapshot Regression Investigation
+
+Date: 2026-10-03
+
+Production was not redeployed or modified during this investigation. The VPS remained on the
+rollback images and the persisted Qasem evidence was queried read-only.
+
+### Confirmed production evidence
+
+The failed deployment's Qasem direct run is:
+
+```text
+run ID: b4d6161f-580f-40e0-a6d3-b0f80560a123
+company: قاسم ایران
+internal company ID: 93eab307-6eed-4603-aa42-71b33972247e
+external company ID: 12622
+symbol: قاسم
+year/month: 1405/06
+status: Completed
+ProcessedRecords: 1
+ErrorCount: 0
+started: 2026-09-27 21:51:55.774629 UTC
+completed: 2026-09-27 21:52:06.818653 UTC
+```
+
+The persisted report was:
+
+```text
+report ID: e8983d93-4acf-40a9-9dab-55e16432d7d9
+report key: ServiceSales:12622:1405-06:output-none
+report type: ServiceSales
+line count: 4
+persisted monetary total: 54,742,204
+```
+
+The four persisted line-item IDs were `48135bd8-7b38-4017-99c5-5ee83d37f1a2`,
+`3f7f0f83-82e2-4a8b-a3fd-ca66db371c67`, `c89fdea6-0b6b-487f-9178-d44ca3e912d7`, and
+`666cdfac-1c35-4462-87a9-c8c80c4ee32a`. They were not modified.
+
+### Production execution reconstruction
+
+| Stage | Result | Evidence |
+|---|---|---|
+| ServiceSales provider response | COMPLETED | Admin run completed with `ProcessedRecords=1`, `ErrorCount=0`; no provider error was recorded. |
+| ServiceSales normalization | COMPLETED | Four normalized line items were persisted under the canonical ServiceSales report key. |
+| Report and line-item persistence | COMPLETED | Report ID and four line-item IDs above; total reconciles to 54,742,204. |
+| Monthly/revenue recalculation | PARTIAL | The API log shows monthly sales-quality ranking for 1405/06 completed at 21:52:06, but no trend snapshot-calculator invocation. |
+| Snapshot candidate dispatch | SKIPPED | The normalizer's snapshot loop was restricted to ProductSales single-month groups. |
+| Snapshot calculator | NOT ENTERED | No `CompanyMonthlyActivityTrendSnapshotCalculator.RecalculateAsync` call was made for the ServiceSales-only group. |
+| Snapshot repository upsert | NOT ENTERED | No snapshot row existed for external company 12622 / 1405/06. |
+
+The preserved failure log contains the ranking messages at 21:52:03–21:52:06 and no Qasem
+trend-calculator or snapshot-upsert message. The source path is decisive: `NormalizeAsync` builds
+`monthlyTrendGroups` including ServiceSales, but the subsequent snapshot loop iterates a separate
+`singleMonthGroups` collection filtered to ProductSales output type 0 only.
+
+### Catalog comparison
+
+Qasem's production catalog is complete for this path:
+
+```text
+Companies: internal ID 93eab307-6eed-4603-aa42-71b33972247e
+NoavaranEligibleCompanies: present, SourceMode=CurrentIncremental
+InstrumentCode: 34540569618314880
+TradingInstrument: present and linked to the same internal company
+Market: present, external ID 2, فرابورس
+```
+
+KGL also has an eligible company, linked internal company, instrument, and market. Its
+ProductSales type-0 report generated the expected snapshot. The relevant difference is not
+catalog completeness: KGL entered the ProductSales-only snapshot group, while Qasem entered the
+ServiceSales-only group.
+
+### Root cause classification
+
+Primary category: **D — Direct ingestion does not trigger snapshot generation.**
+
+This is a code/lifecycle defect, not a catalog defect and not a transaction-timing defect.
+Normalization commits the ServiceSales report and line items before downstream recalculation. The
+existing snapshot calculator already supports ServiceSales fallback and ProductSales precedence;
+the direct normalizer simply never called it for a ServiceSales-only group. The isolated evidence
+had exercised the calculator directly after seeding complete catalog data, which did not prove
+that the direct ingestion normalizer dispatched the calculator automatically.
+
+### Regression and correction
+
+Regression test:
+
+```text
+NadpcoApiMonthlyActivityNormalizerTests.Normalize_ServiceRows_CreatesTrendSnapshotThroughSharedLifecycle
+```
+
+Before the correction, the test reproduced production behavior: ServiceSales persistence passed,
+but the snapshot query found no row. The minimal correction removes the ProductSales-only snapshot
+group and iterates the existing `monthlyTrendGroups` collection. This preserves ProductSales
+authority because the calculator itself applies ProductSales-over-ServiceSales precedence.
+
+After the correction, the regression passes and verifies a ServiceSales snapshot with
+`MonthlySalesAmount = 3,000,000` through the shared normalizer → calculator → repository path.
+
+### Validation after the correction
+
+```text
+Focused Feature 134-related unit filter: 167 passed, 0 failed
+Telegram-related focused filter: 18 passed, 0 failed
+Admin direct endpoint filter: 5 passed, 0 failed
+Full unit suite: 1702 passed, 0 failed, 0 skipped
+Architecture suite: 12 passed, 0 failed, 0 skipped
+Release solution build: succeeded, 0 warnings, 0 errors
+```
+
+The full AdminDataOperations class run still has unrelated environment/rate-limit failures; the
+exact direct-company route filter passed 5/5. No production smoke, Docker operation, image build,
+push, deployment, or commit was performed.
+
+### Remaining deployment status
+
+The local correction is validated and the rollback production state remains untouched. A new
+isolated real-provider smoke run is still required before any redeployment. Required checks are
+Qasem automatic ServiceSales snapshot creation and the KGL ProductSales-authority control.
+
+## Final isolated real-provider validation (2026-10-03)
+
+Production was not contacted, redeployed, or changed. The candidate is the dirty working tree at
+`57bbed521327566f8d3a28bfd7e325a5cfd7259e`; no commit was created. The exact source correction is
+in `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/NadpcoApiMonthlyActivityNormalizer.cs`:
+snapshot dispatch now iterates `monthlyTrendGroups`, including ServiceSales-only months, instead of
+the ProductSales-only `singleMonthGroups`. The regression test uses the real normalizer, real trend
+snapshot calculator, real EF repository, and `NormalizeAsync`; it does not invoke the calculator or
+insert a snapshot manually.
+
+The Worker Release build succeeded with 0 warnings and 0 errors. Test-only API and Worker Docker
+builds were attempted, but Docker Desktop's Linux engine was unavailable because the
+`dockerDesktopLinuxEngine` pipe was missing. Therefore no isolated container image was produced.
+A local API process was used only as a bounded provider/persistence probe against the local
+PostgreSQL database, with RabbitMQ, Redis, scheduled sync, and feature messaging disabled.
+
+The catalog resolved Qasem (`قاسم`, company `قاسم ایران`, Noavaran external ID `12622`) and KGL
+(`کگل`, external ID `4`). The real Admin route was invoked for Qasem 1405/06 and KGL 1405/05.
+Both provider runs completed with `ProcessedRecords=1` and `ErrorCount=0` and persisted data before
+the route returned HTTP 500 while attempting the remaining asynchronous output-type publishes;
+the exact failure was `RabbitMQ data synchronization transport is disabled by configuration`.
+
+Qasem evidence: ProductSales type 0 was a successful empty result, the provider envelope contained
+non-empty ServiceSales data (4 rows), and the ServiceSales revenue total was `54,742,204`. One
+ServiceSales report with four lines and the same total was persisted. The automatic trend snapshot
+was created for 1405/06 with amount `54,742,204`, sourced from
+`ServiceSales:12622:1405-06:output-none`. The ServiceSales group entered `monthlyTrendGroups`,
+automatic recalculation occurred, and no manual recalculation was used. A deterministic database
+read returned the snapshot with the correct amount; it did not require query-time Noavaran access.
+
+KGL evidence: ProductSales type 0 was usable with 11 rows; the latest provider envelope had empty
+ServiceSales data, so no ServiceSales fallback request was needed. One ProductSales type-0 report
+and one automatic snapshot were present for 1405/05, both totaling `150,281,420`. Duplicate
+recalculation dispatches, duplicate snapshots, duplicate report contributions, and double counting
+were not observed. Existing automated coverage also confirms ProductSales precedence when both
+sources exist and preserves both provider-failure lifecycle cases.
+
+Automated validation remains green: focused Feature 134/provider/direct-ingestion/snapshot/trend
+filters `167 passed, 0 failed`; Telegram-focused tests `18 passed, 0 failed`; exact Admin direct
+route tests `5 passed, 0 failed`; full unit suite `1702 passed, 0 failed, 0 skipped`; architecture
+suite `12 passed, 0 failed, 0 skipped`; Release solution build succeeded with 0 warnings and 0
+errors. The full AdminDataOperations class has unrelated environment/rate-limit failures; its
+exact Feature 134 direct-route filter passed.
+
+The remaining blocker is completion of the real isolated containerized HTTP-200 route and worker
+continuation with Docker/RabbitMQ enabled. No production deployment, rollback modification, image
+push, or commit was performed during this validation.
+
+## Infrastructure-dependent validation gate (2026-10-03)
+
+Docker Desktop's Linux engine was restored successfully. The existing Compose infrastructure
+provided healthy PostgreSQL, Redis, and RabbitMQ services. Dirty test-only images were built from
+the current working tree:
+
+```text
+API:    feature134-final-isolated-api:test
+        sha256:20543ad0a01acffd7ecd8ffc681ac1397ef355848cdc7b4ad34d5fcb9a456ec8
+Worker: feature134-final-isolated-worker:test
+        sha256:da0e937faee269e1c4d37f241cdf82094cae63cd60980838c6ea55afb5f79f28
+```
+
+The API health endpoint returned HTTP 200 (`Healthy`), the Worker remained running without a
+restart, and the Worker connected to RabbitMQ with one active consumer. The legitimate company
+catalog refresh completed through the Admin API and the Worker consumed the catalog message,
+persisting 4,809 companies. The isolated database required the existing stable market references
+used by the `NoavaranEligibleCompanies` view; those references were prepared only in the isolated
+test database.
+
+The real Qasem Admin request completed successfully:
+
+```text
+endpoint: POST /api/v1/admin/noavaran-current/monthly-backfill/single-company-month
+symbol/company: قاسم / قاسم ایران
+external company ID: 12622
+year/month: 1405/06
+HTTP status: 200
+correlation ID: 9732c7bc-c661-4316-b91b-bfc6a67acee
+run ID: f9241509-37f6-4213-84ab-df614358ef8d
+ProductSales: successful empty, 0 rows
+ServiceSales: one fallback request, HTTP 200, 4 rows
+persisted ServiceSales total: 54,742,204
+automatic snapshot: present, 54,742,204
+```
+
+The route published the remaining asynchronous output-type messages successfully. RabbitMQ
+consumed all four messages, leaving zero ready and zero unacknowledged messages; no dead-letter
+message or RabbitMQ transport error occurred. The remaining ProductSales output-type runs ended
+with the provider's expected `NoDataYet` result and did not affect the successful ServiceSales
+report or snapshot. Exactly one canonical ServiceSales report, one four-line contribution, and one
+Qasem 1405/06 snapshot were present; no duplicate processing or double counting was observed.
+
+The relevant container-dependent Admin integration filter passed 5/5. The broader Noavaran/monthly
+activity integration filter passed 38/41; its three failures were unrelated pre-existing V2 intent
+routing and isolated test-fixture market-FK issues. No Feature 134 code defect was discovered.
+
+The isolated stack and its test volumes were removed after validation. No production deployment,
+rollback modification, image push, or commit was performed. The infrastructure gate is complete;
+the candidate is safe to commit and separately review for redeployment.

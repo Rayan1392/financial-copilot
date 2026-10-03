@@ -246,6 +246,31 @@ public sealed class NadpcoApiMonthlyActivityNormalizerTests
     }
 
     [Fact]
+    public async Task Normalize_ServiceRows_CreatesTrendSnapshotThroughSharedLifecycle()
+    {
+        await using var db = CreateDb();
+        var trendSnapshotCalculator = new CompanyMonthlyActivityTrendSnapshotCalculator(
+            db,
+            new EfCoreCompanyMonthlyActivityTrendSnapshotRepository(db));
+        var normalizer = new NadpcoApiMonthlyActivityNormalizer(
+            db,
+            new NoOpRevenueMixCalculator(),
+            trendSnapshotCalculator,
+            new NoOpMonthlySalesQualityRankingUseCase(),
+            NullLogger<NadpcoApiMonthlyActivityNormalizer>.Instance);
+
+        await normalizer.NormalizeAsync(
+            MakePayload("[]", ServiceSalesJson),
+            CancellationToken.None);
+
+        var snapshot = await db.CompanyMonthlyActivityTrendSnapshots.SingleAsync();
+        Assert.Equal(CompanyId, snapshot.ExternalCompanyId);
+        Assert.Equal(1402, snapshot.ReportYear);
+        Assert.Equal((byte)1, snapshot.ReportMonth);
+        Assert.Equal(3_000_000m, snapshot.MonthlySalesAmount);
+    }
+
+    [Fact]
     public async Task Normalize_ZeroActivityPeriod_IsRetained()
     {
         await using var db = CreateDb();

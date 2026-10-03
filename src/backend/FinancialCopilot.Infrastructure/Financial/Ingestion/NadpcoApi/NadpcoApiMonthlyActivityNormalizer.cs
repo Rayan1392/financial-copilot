@@ -111,11 +111,6 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Recalculate product revenue mix for each single-month (OutputType=0) ProductSales group.
-        var singleMonthGroups = groupedReports
-            .Where(g => g.Key.SourceKind == "ProductSales" && g.First().OutputType is null or 0)
-            .ToArray();
-
         // ServiceSales is a monthly source equivalent for trend purposes. Group by company/month
         // so a historical payload containing both sources recalculates once; the calculator applies
         // ProductSales-over-ServiceSales precedence from persisted rows.
@@ -145,8 +140,9 @@ public sealed class NadpcoApiMonthlyActivityNormalizer(
                 cancellationToken);
         }
 
-        // Recalculate trend snapshot for each single-month ProductSales group (spec 076).
-        foreach (var group in singleMonthGroups)
+        // Recalculate the trend snapshot for every monthly trend source, including ServiceSales-only
+        // periods (spec 076). The calculator applies ProductSales-over-ServiceSales precedence.
+        foreach (var group in monthlyTrendGroups)
         {
             var first = group.First();
             await trendSnapshotCalculator.RecalculateAsync(

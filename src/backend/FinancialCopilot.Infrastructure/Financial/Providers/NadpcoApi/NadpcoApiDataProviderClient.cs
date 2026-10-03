@@ -19,7 +19,8 @@ public sealed class NadpcoApiDataProviderClient(
     IOptions<NadpcoApiProviderOptions> options,
     TimeProvider timeProvider,
     ILogger<NadpcoApiDataProviderClient> logger,
-    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null) :
+    INoavaranCurrentApiBoundaryOverride? boundaryOverride = null,
+    INoavaranMonthlyReportTypeResolver? reportTypeResolver = null) :
     ISymbolDataProvider,
     IFinancialStatementProvider,
     IMonthlyProductionSalesProvider,
@@ -30,6 +31,8 @@ public sealed class NadpcoApiDataProviderClient(
 {
     private readonly NadpcoApiProviderOptions _settings = options.Value;
     private readonly SemaphoreSlim _throttle = new(Math.Max(1, options.Value.MaxReadParallelism));
+    private readonly INoavaranMonthlyReportTypeResolver _reportTypeResolver =
+        reportTypeResolver ?? new NoavaranMonthlyReportTypeResolver();
 
     // Access to the current-API monthly-activity endpoints is granted only from Shamsi 1404 onward;
     // requesting 1403 or earlier returns HTTP 500. Enforced in code so a misconfigured earlier
@@ -101,6 +104,35 @@ public sealed class NadpcoApiDataProviderClient(
         // JSON body makes v3 ServiceSales return HTTP 500. The body carries only companyIds.
         var fromToken = ToShamsiYearMonthToken(ClampMonthlyActivityFromDate(requestedFromDate));
         var toToken = ToShamsiYearMonthToken(requestedToDate);
+        var route = _reportTypeResolver.Resolve(boundaryOverride?.ReportingType);
+        if (route.ProviderType is null)
+        {
+            logger.LogWarning(
+                "NADPCO monthly activity route unavailable for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, Diagnostic={Diagnostic}",
+                companyId,
+                route.ReportingType,
+                route.Outcome,
+                route.Diagnostic);
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO monthly activity has no route for company {companyId}: {route.Diagnostic}");
+        }
+
+        logger.LogInformation(
+            "NADPCO monthly activity route selected for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, ProviderType={ProviderType}, Endpoint={Endpoint}",
+            companyId,
+            route.ReportingType,
+            route.Outcome,
+            route.ProviderType,
+            route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales
+                ? "api/v3/MonthlyActivity/ServiceSales"
+                : "api/v2/MonthlyActivity/ProductSales");
+
+        if (route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales)
+        {
+            return await FetchServiceSalesAsync(companyId, fromToken, toToken, cancellationToken);
+        }
+
         var body = new NadpcoApiMonthlyActivityRequest(
             new[] { ParseCompanyId(companyId) },
             FromDate: null,
@@ -113,10 +145,33 @@ public sealed class NadpcoApiDataProviderClient(
             toToken,
             body,
             // The type-0 request owns the monthly source decision. Output types 1-4 remain
-            // independent ProductSales requests and must never issue the ServiceSales fallback.
-            includeServiceSales: boundaryOverride?.MonthlyActivityOutputType is null or 0,
+            // independent ProductSales requests and must never probe ServiceSales.
+            type0FailureIsFatal: boundaryOverride?.MonthlyActivityOutputType is null or 0,
             monthlyActivityOutputType: null,
             cancellationToken: cancellationToken);
+    }
+
+    private async Task<ProviderRawPayload> FetchServiceSalesAsync(
+        string companyId,
+        string? fromToken,
+        string? toToken,
+        CancellationToken cancellationToken)
+    {
+        var json = await PostJsonForPayloadAsync(
+            BuildMonthlyActivityEndpoint(
+                "api/v3/MonthlyActivity/ServiceSales",
+                fromToken,
+                toToken,
+                outputType: null),
+            new NadpcoApiServiceSalesRequest(ParseCompanyId(companyId)),
+            cancellationToken);
+        var envelope = new NadpcoMonthlyActivityEnvelope(null, null, null, null, null, json);
+        return await StorePayloadAsync(
+            ProviderDataset.MonthlyProductionSales,
+            "api/v3/MonthlyActivity/ServiceSales",
+            companyId,
+            JsonSerializer.Serialize(envelope, JsonOptions),
+            cancellationToken);
     }
 
     public async Task<ProviderRawPayload> FetchProductSalesAllOutputTypesAsync(
@@ -148,7 +203,7 @@ public sealed class NadpcoApiDataProviderClient(
             body,
             // The direct path owns the same type-0 source decision as the scheduled path. A
             // caller that explicitly targets output types 1-4 remains ProductSales-only.
-            includeServiceSales: monthlyActivityOutputType is null or 0,
+            type0FailureIsFatal: monthlyActivityOutputType is null or 0,
             monthlyActivityOutputType: monthlyActivityOutputType,
             cancellationToken: cancellationToken);
     }
@@ -158,14 +213,43 @@ public sealed class NadpcoApiDataProviderClient(
         string? fromToken,
         string? toToken,
         NadpcoApiMonthlyActivityRequest body,
-        bool includeServiceSales,
+        bool type0FailureIsFatal,
         int? monthlyActivityOutputType,
         CancellationToken cancellationToken)
     {
+        var route = _reportTypeResolver.Resolve(boundaryOverride?.ReportingType);
+        if (route.ProviderType is null)
+        {
+            logger.LogWarning(
+                "NADPCO monthly activity route unavailable for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, Diagnostic={Diagnostic}",
+                companyId,
+                route.ReportingType,
+                route.Outcome,
+                route.Diagnostic);
+            throw new FinancialProviderException(
+                FinancialProviderErrorCode.InvalidResponse,
+                $"NADPCO monthly activity has no route for company {companyId}: {route.Diagnostic}");
+        }
+
+        logger.LogInformation(
+            "NADPCO monthly activity route selected for company {CompanyId}; ReportingType={ReportingType}, Outcome={Outcome}, ProviderType={ProviderType}, Endpoint={Endpoint}",
+            companyId,
+            route.ReportingType,
+            route.Outcome,
+            route.ProviderType,
+            route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales
+                ? "api/v3/MonthlyActivity/ServiceSales"
+                : "api/v2/MonthlyActivity/ProductSales");
+
+        if (route.ProviderType == NoavaranMonthlyReportProviderType.ServiceSales)
+        {
+            return await FetchServiceSalesAsync(companyId, fromToken, toToken, cancellationToken);
+        }
+
         // Fetch all 5 outputTypeId values (0–4) independently so a failure for one type does not
         // block the others. Null means the fetch failed; the normalizer skips null slots.
         var productSalesByType = new string?[5];
-        var serviceSales = "[]";
+        const string serviceSales = "[]";
         var outputTypes = monthlyActivityOutputType is { } requestedOutputType
             ? [requestedOutputType]
             : boundaryOverride?.MonthlyActivityOutputType is { } selectedOutputType
@@ -183,7 +267,7 @@ public sealed class NadpcoApiDataProviderClient(
             }
             catch (FinancialProviderException exception)
             {
-                if (outputTypeId == 0 && includeServiceSales)
+                if (outputTypeId == 0 && type0FailureIsFatal)
                 {
                     // A type-0 provider failure is not evidence that the company is a service
                     // company. Preserve the failed run and retry it; never classify it through
@@ -199,17 +283,6 @@ public sealed class NadpcoApiDataProviderClient(
                     exception.Code);
             }
 
-            if (outputTypeId == 0 && includeServiceSales &&
-                !HasUsableProductSalesRows(productSalesByType[0]))
-            {
-                // A non-empty ProductSales response is usable even when its activity values are
-                // zero. Only a successful empty response permits the ServiceSales fallback.
-                serviceSales = await PostJsonForPayloadAsync(
-                    BuildMonthlyActivityEndpoint(
-                        "api/v3/MonthlyActivity/ServiceSales", fromToken, toToken, outputType: null),
-                    new NadpcoApiServiceSalesRequest(ParseCompanyId(companyId)),
-                    cancellationToken);
-            }
         }
 
         var envelope = new NadpcoMonthlyActivityEnvelope(
@@ -227,33 +300,6 @@ public sealed class NadpcoApiDataProviderClient(
             companyId,
             json,
             cancellationToken);
-    }
-
-    private static bool HasUsableProductSalesRows(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Array)
-            {
-                throw new JsonException("ProductSales payload root is not an array.");
-            }
-
-            // A non-empty record is usable even when all activity values are zero.
-            return document.RootElement.GetArrayLength() > 0;
-        }
-        catch (JsonException exception)
-        {
-            throw new FinancialProviderException(
-                FinancialProviderErrorCode.InvalidResponse,
-                "NADPCO product-sales monthly-activity payload is invalid.",
-                exception);
-        }
     }
 
     public async Task<ProviderRawPayload> FetchFinancialRatiosAsync(

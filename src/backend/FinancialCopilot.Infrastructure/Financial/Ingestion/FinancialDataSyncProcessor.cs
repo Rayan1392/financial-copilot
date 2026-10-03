@@ -126,6 +126,23 @@ public sealed class FinancialDataSyncProcessor(
             if (request.Dataset == ProviderDataset.MonthlyProductionSales)
             {
                 boundaryOverride?.SetMonthlyActivityOutputType(request.MonthlyActivityOutputType);
+                if (boundaryOverride is not null &&
+                    string.Equals(
+                        ProviderSources.NormalizeName(request.ProviderName),
+                        ProviderSources.NoavaranCurrentApiName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    var reportingType = request.ExternalReference is null
+                        ? null
+                        : await dbContext.Companies
+                            .AsNoTracking()
+                            .Where(company =>
+                                company.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                                company.ExternalCompanyId == request.ExternalReference)
+                            .Select(company => company.ReportingType)
+                            .SingleOrDefaultAsync(cancellationToken);
+                    boundaryOverride.SetReportingType(reportingType);
+                }
             }
 
             acquiringProviderPayload = true;

@@ -35,6 +35,8 @@ public sealed class NormalizedCompanyRowConfiguration : IEntityTypeConfiguration
         builder.HasIndex(row => row.GroupId);
         builder.HasIndex(row => row.MarketId);
 
+        builder.Property(row => row.ReportingType).HasColumnType("integer");
+
         // Spec 067: Persian/English ticker lookup. Partial indexes exclude the common null case
         // (only NADPCO-linked rows ever carry a Ticker/EnTicker value).
         builder.Property(row => row.Ticker).HasMaxLength(64);

@@ -65,7 +65,7 @@ public sealed class NoavaranCurrentApiBoundaryTests
         await client.FetchMonthlyReportsAsync("13150", CancellationToken.None);
 
         var monthly = requests.Where(r => r.Uri.Contains("MonthlyActivity")).ToArray();
-        Assert.Equal(6, monthly.Length); // 5 ProductSales (outputTypeId 0–4) + 1 ServiceSales
+        Assert.Equal(5, monthly.Length); // ProductSales output types 0–4 only
         Assert.All(monthly, r =>
         {
             Assert.Contains("fromDate=140502", r.Uri);
@@ -105,12 +105,13 @@ public sealed class NoavaranCurrentApiBoundaryTests
             BaseAddress = new Uri("https://data3.nadpco.com/")
         };
 
-        var client = CreateClient(httpClient, new NoavaranCurrentApiBoundaryOverride());
+        var serviceBoundary = new NoavaranCurrentApiBoundaryOverride();
+        serviceBoundary.SetReportingType(1_000_005);
+        var client = CreateClient(httpClient, serviceBoundary);
         await Assert.ThrowsAsync<FinancialProviderException>(() =>
             client.FetchMonthlyReportsAsync("3", CancellationToken.None));
 
-        // Type 0 is empty, so ServiceSales is attempted exactly once and its provider failure is
-        // preserved for the existing retry path.
+        // The selected ServiceSales endpoint failure is preserved for the existing retry path.
         Assert.Single(requests, request => request.Uri.Contains("ServiceSales", StringComparison.Ordinal));
     }
 
@@ -143,8 +144,14 @@ public sealed class NoavaranCurrentApiBoundaryTests
 
     private static NadpcoApiDataProviderClient CreateClient(
         HttpClient httpClient,
-        INoavaranCurrentApiBoundaryOverride boundary) =>
-        new(
+        INoavaranCurrentApiBoundaryOverride boundary)
+    {
+        if (boundary.ReportingType is null)
+        {
+            boundary.SetReportingType(1_000_000);
+        }
+
+        return new(
             httpClient,
             new ProviderRawPayloadStore(CreateProviderDbContext()),
             new NadpcoApiTokenCache(
@@ -158,6 +165,7 @@ public sealed class NoavaranCurrentApiBoundaryTests
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance,
             boundary);
+    }
 
     private static FinancialProviderDbContext CreateProviderDbContext() =>
         new(new DbContextOptionsBuilder<FinancialProviderDbContext>()

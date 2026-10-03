@@ -21,6 +21,9 @@ public interface INoavaranCurrentApiBoundaryOverride
     /// <summary>Override ProductSales output type for a monthly-activity request; null = all types.</summary>
     int? MonthlyActivityOutputType { get; }
 
+    /// <summary>Persisted company ReportingType read at monthly-acquisition execution time.</summary>
+    int? ReportingType { get; }
+
     void Set(int? fromShamsiYear);
 
     /// <summary>
@@ -30,6 +33,8 @@ public interface INoavaranCurrentApiBoundaryOverride
     void SetMonthlyActivityWindow(string? fromDate, string? toDate);
 
     void SetMonthlyActivityOutputType(int? outputType);
+
+    void SetReportingType(int? reportingType);
 }
 
 public sealed class NoavaranCurrentApiBoundaryOverride : INoavaranCurrentApiBoundaryOverride
@@ -41,6 +46,8 @@ public sealed class NoavaranCurrentApiBoundaryOverride : INoavaranCurrentApiBoun
     public string? MonthlyActivityToDate { get; private set; }
 
     public int? MonthlyActivityOutputType { get; private set; }
+
+    public int? ReportingType { get; private set; }
 
     public void Set(int? fromShamsiYear) => FromShamsiYear = fromShamsiYear;
 
@@ -59,4 +66,6 @@ public sealed class NoavaranCurrentApiBoundaryOverride : INoavaranCurrentApiBoun
 
         MonthlyActivityOutputType = outputType;
     }
+
+    public void SetReportingType(int? reportingType) => ReportingType = reportingType;
 }

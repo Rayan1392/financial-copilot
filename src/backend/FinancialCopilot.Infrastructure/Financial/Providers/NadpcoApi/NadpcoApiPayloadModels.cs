@@ -542,4 +542,9 @@ public sealed record NadpcoApiCompanyRecord(
     [property: JsonPropertyName("registrationNumber")] string? RegistrationNumber,
     [property: JsonPropertyName("registrationProvince")] string? RegistrationProvince,
     [property: JsonPropertyName("registrationCity")] string? RegistrationCity,
-    [property: JsonPropertyName("marketBoard")] string? MarketBoard);
+    [property: JsonPropertyName("marketBoard")] string? MarketBoard,
+    [property: JsonPropertyName("reportingType")] int? ReportingType,
+    [property: JsonPropertyName("marketBoardID")] int? MarketBoardID,
+    [property: JsonPropertyName("marketBoardTitle")] string? MarketBoardTitle,
+    [property: JsonPropertyName("activityTypeID")] int? ActivityTypeID,
+    [property: JsonPropertyName("activityTypeTitle")] string? ActivityTypeTitle);

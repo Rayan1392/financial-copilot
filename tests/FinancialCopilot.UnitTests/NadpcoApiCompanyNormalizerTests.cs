@@ -55,7 +55,10 @@ public sealed class NadpcoApiCompanyNormalizerTests
             "registrationNumber": "1831",
             "registrationProvince": "تهران",
             "registrationCity": "تهران",
-            "marketBoard": "بازار پایه زرد"
+            "marketBoard": "بازار پایه زرد",
+            "reportingType": 1000008,
+            "activityTypeID": 1,
+            "activityTypeTitle": "تولیدی"
           }
         ]
         """;
@@ -111,10 +114,45 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Equal("تهران", company.RegistrationProvince);
         Assert.Equal("تهران", company.RegistrationCity);
         Assert.Equal("بازار پایه زرد", company.MarketBoard);
+        Assert.Equal(1_000_008, company.ReportingType);
         Assert.NotNull(company.IndustryId);
         Assert.NotNull(company.GroupId);
         Assert.NotNull(company.MarketId);
         Assert.Null(company.SourceModifiedAt);
+    }
+
+    [Fact]
+    public async Task Normalize_ExplicitNullReportingTypeClearsPreviouslyPersistedValue()
+    {
+        await using var db = CreateIngestionDbContext();
+        var normalizer = CreateNormalizer(db);
+
+        await normalizer.NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
+        await normalizer.NormalizeAsync(
+            MakePayload(CompaniesJson.Replace("\"reportingType\": 1000008", "\"reportingType\": null", StringComparison.Ordinal)),
+            CancellationToken.None);
+
+        var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "13226");
+        Assert.Null(company.ReportingType);
+    }
+
+    [Fact]
+    public async Task Normalize_PrefersMarketBoardTitleAndRetainsLegacyMarketBoardFallback()
+    {
+        const string json = """
+            [{
+              "coID": 13227,
+              "coTitle": "Company",
+              "marketBoard": "Legacy board",
+              "marketBoardTitle": "Preferred board"
+            }]
+            """;
+
+        await using var db = CreateIngestionDbContext();
+        await CreateNormalizer(db).NormalizeAsync(MakePayload(json), CancellationToken.None);
+
+        var company = await db.Companies.SingleAsync(c => c.ExternalCompanyId == "13227");
+        Assert.Equal("Preferred board", company.MarketBoard);
     }
 
     [Fact]
@@ -267,6 +305,50 @@ public sealed class NadpcoApiCompanyNormalizerTests
         Assert.Equal(ProviderName, result.Run.ProviderName);
         Assert.Single(await providerDb.ProviderRawPayloads.ToListAsync());
         Assert.Equal(1, await ingestionDb.Companies.CountAsync(c => c.ProviderName == ProviderName));
+    }
+
+    [Fact]
+    public async Task Processor_FailedCompanyCatalogAcquisitionPreservesLastKnownReportingType()
+    {
+        await using var providerDb = CreateProviderDbContext();
+        await using var ingestionDb = CreateIngestionDbContext();
+        await CreateNormalizer(ingestionDb).NormalizeAsync(MakePayload(CompaniesJson), CancellationToken.None);
+        var company = await ingestionDb.Companies.SingleAsync(c => c.ExternalCompanyId == "13226");
+        company.ReportingType = 1_000_000;
+        await ingestionDb.SaveChangesAsync();
+
+        var throwingProvider = new ThrowingSymbolProvider();
+        var router = new FinancialDataProviderRouter(
+            new Dictionary<string, ISymbolDataProvider> { [ProviderName] = throwingProvider },
+            new Dictionary<string, IFinancialStatementProvider>(),
+            new Dictionary<string, IMonthlyProductionSalesProvider>());
+        var processor = new FinancialDataSyncProcessor(
+            ingestionDb,
+            new ProviderRawPayloadStore(providerDb),
+            throwingProvider,
+            throwingProvider,
+            throwingProvider,
+            [CreateNormalizer(ingestionDb)],
+            new StoredDerivedMetricRecalculationPublisher(ingestionDb),
+            new FixedTimeProvider(Now),
+            NullLogger<FinancialDataSyncProcessor>.Instance,
+            providerRouter: router);
+
+        var result = await processor.ProcessAsync(
+            new DataSyncRequest(
+                Guid.NewGuid(),
+                ProviderDataset.Symbols,
+                ExternalReference: null,
+                Now,
+                "nadpco-symbols-failed-v1",
+                ProviderName: ProviderName),
+            CancellationToken.None);
+
+        Assert.Equal(DataSyncRunStatus.Failed, result.Run.Status);
+        Assert.Equal(1_000_000, await ingestionDb.Companies
+            .Where(c => c.ExternalCompanyId == "13226")
+            .Select(c => c.ReportingType)
+            .SingleAsync());
     }
 
     [Fact]

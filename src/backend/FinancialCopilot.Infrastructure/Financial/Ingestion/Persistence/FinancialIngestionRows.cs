@@ -60,6 +60,9 @@ public sealed class NormalizedCompanyRow
 
     public int? PrecedencyRight { get; set; }
 
+    /// <summary>Authoritative Noavaran monthly-report classification code.</summary>
+    public int? ReportingType { get; set; }
+
     public string? AcceptionDateJalali { get; set; }
 
     public string? AcceptionDateGregorian { get; set; }

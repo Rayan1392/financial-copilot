@@ -1341,6 +1341,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INormalizedMetricInputSource, MonthlyProductionQuantityMetricInputSource>();
         services.AddScoped<INormalizedMetricInputSource, MonthlySalesRateMetricInputSource>();
         services.AddSingleton<IMonthlyActivityOutputTypeResolver, DefaultMonthlyActivityOutputTypeResolver>();
+        services.AddSingleton<INoavaranMonthlyReportTypeResolver, NoavaranMonthlyReportTypeResolver>();
         services.AddScoped<INormalizedMetricInputReader, NormalizedMetricInputReader>();
         services.AddScoped<IDerivedMetricResultStore, PersistedDerivedMetricResultStore>();
         services.AddScoped<IDerivedMetricCalculationService, DerivedMetricCalculationService>();

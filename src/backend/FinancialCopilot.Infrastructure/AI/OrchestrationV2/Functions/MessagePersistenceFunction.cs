@@ -45,7 +45,8 @@ internal sealed class MessagePersistenceFunction(
         DisclosureListingResult? disclosureListingResult = null,
         PsVisualizationResult? psVisualizationResult = null,
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
-        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null)
+        FinancialStatementValueSearchResult? financialStatementValueSearchResult = null,
+        MonthlyProductTrendResult? monthlyProductTrendResult = null)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -99,6 +100,7 @@ internal sealed class MessagePersistenceFunction(
                     PsVisualizationResult: psVisualizationResult,
                     MonthlyProductComparisonResult: monthlyProductComparisonResult,
                     FinancialStatementValueSearchResult: financialStatementValueSearchResult,
+                    MonthlyProductTrendResult: monthlyProductTrendResult,
                     Outcome: outcome,
                     OutcomeReasonCode: outcomeReasonCode,
                     ReplyLanguage: replyLanguage,

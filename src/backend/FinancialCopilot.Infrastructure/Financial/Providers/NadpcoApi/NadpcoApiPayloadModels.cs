@@ -317,6 +317,19 @@ public sealed class NadpcoApiProductSalesRecord
 
     public string? GetProductCode() => FirstNonEmpty(ProductCode, GetProductId()?.ToString());
 
+    /// <summary>Provider row identity, when the live contract exposes one.</summary>
+    public string? GetSourceRowId() => FirstNonEmpty(
+        TryGetString("providerRowId"),
+        TryGetString("sourceRowId"),
+        TryGetString("lineItemId"),
+        TryGetString("productSalesId"),
+        TryGetString("detailId")) ??
+        TryGetInt64("providerRowId")?.ToString() ??
+        TryGetInt64("sourceRowId")?.ToString() ??
+        TryGetInt64("lineItemId")?.ToString() ??
+        TryGetInt64("productSalesId")?.ToString() ??
+        TryGetInt64("detailId")?.ToString();
+
     private string? TryGetString(string propertyName) =>
         ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
@@ -477,6 +490,13 @@ public sealed class NadpcoApiServiceSalesRecord
         RevenueDuringThePeriod ?? TryGetDecimal("revenueDuringThePeriod");
 
     public string? GetServiceCode() => FirstNonEmpty(ServiceCode, GetServiceId()?.ToString());
+
+    public string? GetSourceRowId() => FirstNonEmpty(
+        TryGetString("providerRowId"), TryGetString("sourceRowId"), TryGetString("lineItemId"),
+        TryGetString("serviceSalesId"), TryGetString("detailId")) ??
+        TryGetInt64("providerRowId")?.ToString() ?? TryGetInt64("sourceRowId")?.ToString() ??
+        TryGetInt64("lineItemId")?.ToString() ?? TryGetInt64("serviceSalesId")?.ToString() ??
+        TryGetInt64("detailId")?.ToString();
 
     private string? TryGetString(string propertyName) =>
         ExtensionData.TryGetValue(propertyName, out var value) && value.ValueKind == JsonValueKind.String

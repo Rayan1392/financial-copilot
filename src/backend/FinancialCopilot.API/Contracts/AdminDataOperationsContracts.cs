@@ -389,7 +389,8 @@ public sealed record AdminSingleCompanyMonthlyIngestionRequest(
     int FromShamsiYear,
     int FromShamsiMonth,
     int ToShamsiYear,
-    int ToShamsiMonth);
+    int ToShamsiMonth,
+    int? OutputType = null);
 
 public sealed record AdminSingleCompanyMonthlyIngestionResponse(
     string Outcome,

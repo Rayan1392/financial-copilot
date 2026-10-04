@@ -61,7 +61,8 @@ internal sealed record AgentExecutedMessage(
     string? SemanticOutcomeReasonCode = null,
     string? SemanticReplyLanguage = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
-    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,
@@ -97,7 +98,8 @@ internal sealed record ResultsComputedMessage(
     PsVisualizationResult? PsVisualizationResult = null,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
-    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -130,4 +132,5 @@ internal sealed record PersistenceCompletedMessage(
     PsVisualizationResult? PsVisualizationResult = null,
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
-    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null);

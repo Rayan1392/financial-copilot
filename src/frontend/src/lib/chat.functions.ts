@@ -35,6 +35,7 @@ export interface AssistantChatBlock {
   tableMetadataLabel?: string;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
+  monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   citations: Array<{
@@ -139,6 +140,39 @@ export interface MonthlyProductComparisonResult {
   evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
   blockingReason?: string;
   clarificationMessage?: string;
+}
+
+export interface MonthlyProductTrendResult {
+  resultDiscriminator: "monthly_product_trend" | string;
+  resultVersion: number;
+  resolutionState: "Resolved" | "NotFound" | "Ambiguous" | string;
+  companyText: string;
+  externalCompanyId?: string;
+  companyName?: string;
+  companySymbol?: string;
+  productKey?: string;
+  providerProductCode?: string;
+  providerProductId?: number;
+  productTitle?: string;
+  productUnit?: string;
+  points: Array<{
+    period: string;
+    fiscalLabel: string;
+    productKey: string;
+    productTitle: string;
+    productUnit?: string;
+    productionQuantity?: number;
+    saleQuantity?: number;
+    salesValueMillionRial?: number;
+    salesValueBillionToman?: number;
+    calculatedSaleRateToman?: number;
+    rateStatus: string;
+    isGap: boolean;
+  }>;
+  candidates: Array<{ displayTitle: string; unit?: string; productKey: string; providerProductCode?: string; providerProductId?: number }>;
+  evidence: Array<{ reportId: string; rowId: string; providerName: string; externalReportId: string; period: string }>;
+  blockingReason?: string;
+  message?: string;
 }
 
 export interface MonthlyActivityTrendChartPoint {
@@ -264,6 +298,7 @@ interface AssistantContentResponse {
   symbolLookupTable?: ScannerTable;
   monthlyActivityTrendResult?: MonthlyActivityTrendResult;
   monthlyProductComparisonResult?: MonthlyProductComparisonResult;
+  monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
   confidenceScore?: { score: number };
@@ -441,6 +476,7 @@ function mapAssistantBlock(
     tableMetadataLabel,
     monthlyActivityTrendResult: content?.monthlyActivityTrendResult,
     monthlyProductComparisonResult: content?.monthlyProductComparisonResult,
+    monthlyProductTrendResult: content?.monthlyProductTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
     citations: explanation?.dataCitations ?? [],

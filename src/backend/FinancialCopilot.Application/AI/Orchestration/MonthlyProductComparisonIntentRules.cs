@@ -24,6 +24,11 @@ public static class MonthlyProductComparisonIntentRules
         if (text.Contains("\u0631\u0648\u0646\u062f \u062a\u0648\u0644\u06cc\u062f \u0648 \u0641\u0631\u0648\u0634", StringComparison.Ordinal) &&
             !text.Contains("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal) &&
             !text.Contains("\u0645\u0642\u0627\u06cc\u0633\u0647", StringComparison.Ordinal)) return false;
+        if ((text.Contains("\u0646\u0645\u0648\u062f\u0627\u0631", StringComparison.Ordinal) ||
+             text.Contains("\u0686\u0627\u0631\u062a", StringComparison.Ordinal)) &&
+            !text.Contains("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal) &&
+            !text.Contains("\u0645\u0642\u0627\u06cc\u0633\u0647", StringComparison.Ordinal) &&
+            !text.Contains("\u062a\u063a\u06cc\u06cc\u0631", StringComparison.Ordinal)) return false;
         var asksForRevenueMix = text.Contains("revenue mix", StringComparison.Ordinal) ||
             (text.Contains("\u0641\u0631\u0648\u0634 \u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal) &&
              (text.Contains("\u062a\u0631\u06a9\u06cc\u0628", StringComparison.Ordinal) || text.Contains("\u0631\u06a9\u06cc\u0628", StringComparison.Ordinal)) &&

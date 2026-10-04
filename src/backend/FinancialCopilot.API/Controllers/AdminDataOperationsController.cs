@@ -668,6 +668,11 @@ public sealed class AdminDataOperationsController(
             ModelState.AddModelError("ShamsiMonth", "Shamsi month must be between 1 and 12.");
             return ValidationProblem(ModelState);
         }
+        if (request.OutputType is < 0 or > 4)
+        {
+            ModelState.AddModelError(nameof(request.OutputType), "OutputType must be between 0 and 4.");
+            return ValidationProblem(ModelState);
+        }
         var from = new ShamsiMonth(request.FromShamsiYear, (byte)request.FromShamsiMonth);
         var to = new ShamsiMonth(request.ToShamsiYear, (byte)request.ToShamsiMonth);
         if (from > to)
@@ -684,7 +689,8 @@ public sealed class AdminDataOperationsController(
                 request.FromShamsiMonth,
                 request.ToShamsiYear,
                 request.ToShamsiMonth,
-                $"{actor.ActorType}:{actor.ActorId}"),
+                $"{actor.ActorType}:{actor.ActorId}",
+                request.OutputType),
             cancellationToken);
 
         return Ok(new AdminSingleCompanyMonthlyIngestionResponse(

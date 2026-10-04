@@ -209,15 +209,23 @@ public sealed class NormalizedMonthlyReportRowConfiguration :
     {
         builder.ToTable("MonthlyReports");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId }).IsUnique();
+        // A provider may reuse an activity/report id for a correction.  Revision candidates are
+        // immutable, so uniqueness is report-id + payload revision, not report-id alone.
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalReportId, row.RevisionFingerprint })
+            .IsUnique();
         // Feature 112 disclosure-feed provider/receipt ordering and company filtering.
         builder.HasIndex(row => new { row.ProviderName, row.LastSynchronizedAt });
         builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.LastSynchronizedAt });
         // Prevent duplicate report rows for the same logical period when activityId is absent.
-        builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.OutputType, row.ReportType })
+        builder.HasIndex(row => new { row.ProviderName, row.ExternalCompanyId, row.PeriodStart, row.PeriodEnd, row.OutputType, row.ReportType, row.IsAccepted })
             .IsUnique()
             .HasDatabaseName("IX_MonthlyReports_LogicalPeriod")
-            .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL");
+            .HasFilter("\"ExternalCompanyId\" IS NOT NULL AND \"ReportType\" IS NOT NULL AND \"IsAccepted\" = TRUE");
+        builder.Property(row => row.LogicalReportKey).HasMaxLength(512).IsRequired();
+        builder.Property(row => row.RevisionFingerprint).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.RevisionStatus).HasMaxLength(32).IsRequired().HasDefaultValue("Accepted");
+        builder.Property(row => row.IsAccepted).HasDefaultValue(true);
+        builder.Property(row => row.ProviderPublishedAtUtc);
         builder.Property(row => row.LogicalVendor).HasMaxLength(64);
         builder.Property(row => row.SourceMode).HasMaxLength(32);
         builder.Property(row => row.OutputType);
@@ -239,7 +247,17 @@ public sealed class NormalizedMonthlyReportLineItemRowConfiguration :
     {
         builder.ToTable("MonthlyReportLineItems");
         builder.HasKey(row => row.Id);
-        builder.HasIndex(row => new { row.MonthlyReportId, row.ProductCode }).IsUnique();
+        // ProductCode is a product identity candidate, not a source-row identity.  Same-code
+        // economic rows must remain distinct until the product read path safely aggregates them.
+        builder.HasIndex(row => new { row.MonthlyReportId, row.SourceRowKey })
+            .IsUnique()
+            .HasFilter("\"SourceRowKey\" IS NOT NULL");
+        builder.HasIndex(row => new { row.MonthlyReportId, row.SourceRowFingerprint, row.SourceMultiplicity }).IsUnique();
+        builder.Property(row => row.SourceRowKey).HasMaxLength(256);
+        builder.Property(row => row.SourceRowFingerprint).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.SourceMultiplicity).HasDefaultValue(1);
+        builder.Property(row => row.SourcePayloadChecksum).HasMaxLength(128).IsRequired();
+        builder.Property(row => row.ProviderProductCode).HasMaxLength(256);
         builder.Property(row => row.Title).HasMaxLength(512);
         builder.Property(row => row.Unit).HasMaxLength(128);
     }

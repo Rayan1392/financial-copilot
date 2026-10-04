@@ -10,6 +10,7 @@ import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
+import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
 import { PsGauge } from "@/components/app/ps-gauge";
 import { FollowSymbolButton } from "@/components/app/follow-symbol-button";
 import {
@@ -107,13 +108,14 @@ function AssistantBlock({
   showDiagnostics?: boolean;
   followedSymbols?: ReadonlySet<string>;
 }) {
+  const isSuccessfulProductTrend = block.monthlyProductTrendResult?.resolutionState === "Resolved";
   const tableMetadataLabel = block.tableMetadataLabel ?? getMonthlySalesMetadataLabel(block);
   const message =
-    block.monthlyProductComparisonResult
+    isSuccessfulProductTrend || block.monthlyProductComparisonResult
       ? ""
       : tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
-      ? ""
-      : replaceProviderDisplayNames(block.message);
+        ? ""
+        : replaceProviderDisplayNames(block.message);
   const isRtlMessage =
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
 
@@ -143,7 +145,9 @@ function AssistantBlock({
           </div>
         )}
 
-        {block.table && (block.table.rows.length > 0 || isRenderableEmptyTable(block.table)) && (
+        {!isSuccessfulProductTrend &&
+          block.table &&
+          (block.table.rows.length > 0 || isRenderableEmptyTable(block.table)) && (
           <ScannerResultTable
             table={block.table}
             metadataLabel={tableMetadataLabel}
@@ -164,6 +168,10 @@ function AssistantBlock({
           <MonthlyProductComparisonCard data={block.monthlyProductComparisonResult} sourceText={block.message} />
         )}
 
+        {block.monthlyProductTrendResult && (
+          <MonthlyProductTrendChart data={block.monthlyProductTrendResult} />
+        )}
+
         {block.psVisualizationResult && !block.monthlyActivityTrendResult && (
           <PsGauge data={block.psVisualizationResult} />
         )}
@@ -179,7 +187,9 @@ function AssistantBlock({
         {/* Citations are only shown for non-scanner responses (e.g. single-symbol analysis).
             When a scanner table is present the table's freshness indicators already
             show data provenance per cell — a separate citation list would duplicate every row. */}
-        {!block.table && block.citations.length > 0 && (
+        {!isSuccessfulProductTrend &&
+          !block.table &&
+          block.citations.length > 0 && (
           <div className="text-[11px] text-muted-foreground space-y-1">
             {block.citations.map((citation, index) => (
               <div key={`${citation.symbolCode}:${citation.metricCode}:${index}`}>

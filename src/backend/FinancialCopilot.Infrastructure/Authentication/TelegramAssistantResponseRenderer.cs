@@ -28,6 +28,11 @@ public sealed class TelegramAssistantResponseRenderer(
             return RenderDisclosureListing(response, response.DisclosureListingResult);
         }
 
+        if (response.MonthlyProductTrendResult is not null)
+        {
+            return RenderMonthlyProductTrend(response.MonthlyProductTrendResult);
+        }
+
         if (response.MonthlyActivityTrendResult is not null)
         {
             return RenderMonthlyTrend(response, response.MonthlyActivityTrendResult);
@@ -164,6 +169,24 @@ public sealed class TelegramAssistantResponseRenderer(
         }
         if (result.Warnings.Count > 0) sb.AppendLine($"هشدار: {string.Join("، ", result.Warnings)}");
         if (result.Evidence.Count > 0) sb.AppendLine("منبع: نوآوران امین");
+        return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+    }
+
+    private static IReadOnlyList<TelegramAssistantRenderedMessage> RenderMonthlyProductTrend(MonthlyProductTrendResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"روند فروش {result.ProductTitle ?? "محصول"} {result.CompanySymbol ?? result.CompanyText}");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+        {
+            sb.AppendLine(result.Message ?? "محصول مبهم است.");
+            foreach (var candidate in result.Candidates.Take(8))
+                sb.AppendLine($"- {candidate.DisplayTitle} | واحد: {candidate.Unit ?? "—"} | کلید: {candidate.ProductKey}");
+            return Split(EscapeMarkdownV2(sb.ToString().Trim()));
+        }
+        if (result.ResolutionState != MonthlyProductTrendResolutionState.Resolved)
+            sb.AppendLine(result.Message ?? "داده‌ای برای محصول یافت نشد.");
+        else
+            sb.AppendLine($"واحد محصول: {result.ProductUnit ?? "—"} | نرخ فروش: تومان/{result.ProductUnit ?? "واحد محصول"} | مبلغ فروش: میلیارد تومان");
         return Split(EscapeMarkdownV2(sb.ToString().Trim()));
     }
 

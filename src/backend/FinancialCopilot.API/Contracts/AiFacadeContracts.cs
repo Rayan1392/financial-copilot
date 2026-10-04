@@ -58,7 +58,48 @@ public sealed record AiQueryHttpResponse(
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
-    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
+
+public sealed record MonthlyProductTrendHttpResponse(
+    string ResultDiscriminator,
+    int ResultVersion,
+    string ResolutionState,
+    string CompanyText,
+    string? ExternalCompanyId,
+    string? CompanyName,
+    string? CompanySymbol,
+    string? ProductKey,
+    string? ProviderProductCode,
+    long? ProviderProductId,
+    string? ProductTitle,
+    string? ProductUnit,
+    IReadOnlyList<MonthlyProductTrendHttpPoint> Points,
+    IReadOnlyList<MonthlyProductTrendHttpCandidate> Candidates,
+    IReadOnlyCollection<MonthlyProductComparisonHttpEvidence> Evidence,
+    string? BlockingReason = null,
+    string? Message = null);
+
+public sealed record MonthlyProductTrendHttpPoint(
+    string Period,
+    string FiscalLabel,
+    string ProductKey,
+    string ProductTitle,
+    string? ProductUnit,
+    decimal? ProductionQuantity,
+    decimal? SaleQuantity,
+    decimal? SalesValueMillionRial,
+    decimal? SalesValueBillionToman,
+    decimal? CalculatedSaleRateToman,
+    string RateStatus,
+    bool IsGap);
+
+public sealed record MonthlyProductTrendHttpCandidate(
+    string DisplayTitle,
+    string? Unit,
+    string ProductKey,
+    string? ProviderProductCode,
+    long? ProviderProductId);
 
 public sealed record MonthlyProductComparisonHttpResponse(
     string State,
@@ -301,7 +342,8 @@ public sealed record AssistantMessageContentResponse(
     string? SemanticCapabilityCode = null,
     int? SemanticRegistryVersion = null,
     MonthlyProductComparisonHttpResponse? MonthlyProductComparisonResult = null,
-    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null);
+    FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
+    MonthlyProductTrendHttpResponse? MonthlyProductTrendResult = null);
 
 public sealed record ComprehensiveAnalysisResultResponse(
     IReadOnlyCollection<ComprehensiveAnalysisItemResponse> Items,

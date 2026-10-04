@@ -27,7 +27,8 @@ public sealed record SingleCompanyMonthlyIngestionRequest(
     int FromShamsiMonth,
     int ToShamsiYear,
     int ToShamsiMonth,
-    string RequestedBy);
+    string RequestedBy,
+    int? OutputType = null);
 
 public sealed record SingleCompanyMonthlyIngestionResult(
     string Outcome,

@@ -253,7 +253,8 @@ public sealed class AiFacadeController(
              result.SemanticCapabilityCode,
              result.SemanticRegistryVersion,
              MapMonthlyProductComparisonResult(result.MonthlyProductComparisonResult),
-             FinancialStatementValueSearchResult: result.FinancialStatementValueSearchResult);
+             FinancialStatementValueSearchResult: result.FinancialStatementValueSearchResult,
+             MonthlyProductTrendResult: MapMonthlyProductTrendResult(result.MonthlyProductTrendResult));
 
     private static ScannerTableResponse? MapSymbolLookupTable(SymbolLookupTableResult? table)
     {
@@ -499,7 +500,8 @@ public sealed class AiFacadeController(
                 payload.SemanticCapabilityCode,
                 payload.SemanticRegistryVersion,
                 MapMonthlyProductComparisonResult(payload.MonthlyProductComparisonResult),
-                FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult);
+                FinancialStatementValueSearchResult: payload.FinancialStatementValueSearchResult,
+                MonthlyProductTrendResult: MapMonthlyProductTrendResult(payload.MonthlyProductTrendResult));
 
     private static MonthlyProductComparisonHttpResponse? MapMonthlyProductComparisonResult(MonthlyProductComparisonResponse? result)
     {
@@ -517,6 +519,36 @@ public sealed class AiFacadeController(
             result.Warnings.Select(w => w.ToString()).ToArray(),
             result.Evidence.Select(e => new MonthlyProductComparisonHttpEvidence(e.ReportId, e.RowId, e.ProviderName, e.ExternalReportId, e.Period.ToString())).ToArray(),
             result.BlockingReason?.ToString(), result.ClarificationMessage);
+    }
+
+    private static MonthlyProductTrendHttpResponse? MapMonthlyProductTrendResult(MonthlyProductTrendResult? result)
+    {
+        if (result is null) return null;
+        return new(
+            result.ResultDiscriminator,
+            result.ResultVersion,
+            result.ResolutionState.ToString(),
+            result.CompanyText,
+            result.ExternalCompanyId,
+            result.CompanyName,
+            result.CompanySymbol,
+            result.ProductKey,
+            result.ProviderProductCode,
+            result.ProviderProductId,
+            result.ProductTitle,
+            result.ProductUnit,
+            result.Points.Select(point => new MonthlyProductTrendHttpPoint(
+                point.Period.ToString(), point.FiscalLabel, point.ProductKey, point.ProductTitle,
+                point.ProductUnit, point.ProductionQuantity, point.SaleQuantity,
+                point.SalesValueMillionRial, point.SalesValueBillionToman,
+                point.CalculatedSaleRateToman, point.RateStatus.ToString(), point.IsGap)).ToArray(),
+            result.Candidates.Select(candidate => new MonthlyProductTrendHttpCandidate(
+                candidate.DisplayTitle, candidate.Unit, candidate.ProductKey,
+                candidate.ProviderProductCode, candidate.ProviderProductId)).ToArray(),
+            result.Evidence.Select(e => new MonthlyProductComparisonHttpEvidence(
+                e.ReportId, e.RowId, e.ProviderName, e.ExternalReportId, e.Period.ToString())).ToArray(),
+            result.BlockingReason,
+            result.Message);
     }
 
     private static IReadOnlyCollection<SuggestedActionHttpResponse>? MapSuggestedActions(

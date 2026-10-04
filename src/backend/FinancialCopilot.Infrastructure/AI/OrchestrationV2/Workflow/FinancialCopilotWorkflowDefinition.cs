@@ -55,6 +55,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
+    IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
     IMonthlySalesQualityRankingQueryUseCase monthlySalesQualityRankingUseCase,
     IPsVisualizationExperienceUseCase psVisualizationExperienceUseCase,
@@ -210,7 +211,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         // reserve and execute the comparison through the typed use case instead.
         var isMonthlyProductComparison = MonthlyProductComparisonIntentRules
             .LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
-        var reservation = msg.Request.SemanticFrame is null || isMonthlyProductComparison
+        var isMonthlyProductTrend = MonthlyProductTrendIntentRules
+            .LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
+        var reservation = msg.Request.SemanticFrame is null || isMonthlyProductComparison || isMonthlyProductTrend
             ? await billingFunctions.TryReserveAsync(msg.Request, ct)
             : null;
 
@@ -233,14 +236,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         ProductRevenueMixResponse? productRevenueMixResult = null;
         MonthlyActivityTrendResponse? monthlyActivityTrendResult = null;
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null;
+        MonthlyProductTrendResult? monthlyProductTrendResult = null;
         MonthlySalesQualityRankingResponse? monthlySalesQualityRankingResult = null;
         PsVisualizationResult? semanticPsVisualizationResult = null;
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
 
         var isMonthlyProductComparison = MonthlyProductComparisonIntentRules
             .LooksLikeMonthlyProductComparisonQuery(request.Message);
+        var isMonthlyProductTrend = MonthlyProductTrendIntentRules
+            .LooksLikeMonthlyProductTrendQuery(request.Message);
 
-        if (request.SemanticFrame is { } semanticFrame && !isMonthlyProductComparison)
+        if (request.SemanticFrame is { } semanticFrame &&
+            !isMonthlyProductComparison &&
+            !isMonthlyProductTrend)
         {
             var semantic = await semanticExecutionCoordinator.ExecuteAsync(
                 semanticFrame,
@@ -327,6 +335,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticOutcomeReasonCode: semantic.Execution.ReasonCode,
                 SemanticReplyLanguage: semanticFrame.Interpretation.ReplyLanguage,
                 MonthlyProductComparisonResult: monthlyProductComparisonResult,
+                MonthlyProductTrendResult: monthlyProductTrendResult,
                 FinancialStatementValueSearchResult: financialStatementValueSearchResult);
         }
 
@@ -476,6 +485,24 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 productRevenueMixResult, monthlyActivityTrendResult, monthlySalesQualityRankingResult,
                 "Completed", false, modelClient, comparisonUsage,
                 MonthlyProductComparisonResult: comparison);
+        }
+
+        if (isMonthlyProductTrend)
+        {
+            monthlyProductTrendResult = await monthlyProductTrendUseCase.ExecuteAsync(
+                MonthlyProductTrendIntentRules.BuildQuery(request.Message), ct);
+            UsageAccountingResult? productTrendUsage = null;
+            if (msg.Reservation is not null)
+                productTrendUsage = await billingFunctions.FinalizeAsync(msg.Reservation, "Completed", false, CancellationToken.None);
+            stepActivity?.SetTag("workflow.intent", "MonthlyProductTrend");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                BuildMonthlyProductTrendContent(monthlyProductTrendResult),
+                scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult,
+                financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult, "Completed", false, modelClient, productTrendUsage,
+                MonthlyProductTrendResult: monthlyProductTrendResult);
         }
 
         if (isMonthlyActivityTrend)
@@ -754,8 +781,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
         var isMonthlyProductComparison = MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
+        var isMonthlyProductTrend = MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
         var detectedIntent = isMonthlyProductComparison
             ? DetectedIntent.MonthlyProductComparison
+            : isMonthlyProductTrend
+            ? DetectedIntent.MonthlyProductTrend
             : msg.Request.SemanticFrame is { } semanticFrame
             ? SemanticIntent(semanticFrame.CapabilityCode)
             : msg.Request.Context?.InsightEventId is not null
@@ -861,7 +891,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             DisclosureListingResult: msg.DisclosureListingResult,
             PsVisualizationResult: msg.PsVisualizationResult,
             FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
-            MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult);
+            MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
+            MonthlyProductTrendResult: msg.MonthlyProductTrendResult);
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteSideEffectsStepAsync(
@@ -885,10 +916,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step6.Persistence");
 
-        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
+        var textAnswer = msg.DetectedIntent is DetectedIntent.Unknown or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
             ? msg.AgentResponseText
             : null;
-        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
+        var responseTextAnswer = msg.DetectedIntent is DetectedIntent.SymbolLookup or DetectedIntent.ComprehensiveAnalysis or DetectedIntent.ProductRevenueMix or DetectedIntent.MonthlyActivityTrend or DetectedIntent.MonthlyProductComparison or DetectedIntent.MonthlyProductTrend or DetectedIntent.MonthlySalesQualityRanking or DetectedIntent.DisclosureListing or DetectedIntent.FinancialStatementPeriodAnalysis or DetectedIntent.FinancialStatementTableLookup or DetectedIntent.PersonalizedInsightExplanation or DetectedIntent.PsGaugeVisualization or DetectedIntent.FinancialStatementValueSearch
             ? msg.GroundedAnswer
             : textAnswer;
 
@@ -919,6 +950,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             monthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
             monthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             financialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
+            monthlyProductTrendResult: msg.MonthlyProductTrendResult,
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult);
 
@@ -938,6 +970,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              PsVisualizationResult: msg.PsVisualizationResult,
              MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
              FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
+             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
              SuggestedActions: persistedExchange.SuggestedActions);
     }
 
@@ -974,6 +1007,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             MonthlyActivityTrendResult: msg.MonthlyActivityTrendResult,
             MonthlySalesQualityRankingResult: msg.MonthlySalesQualityRankingResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
+            MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
             DisclosureListingResult: msg.DisclosureListingResult,
             PsVisualizationResult: msg.PsVisualizationResult,
             Outcome: msg.Outcome,
@@ -987,12 +1021,16 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     }
 
     private static string? EffectiveSemanticCapabilityCode(AiQueryRequest request) =>
-        MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+        MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message)
+            ? "monthly_product_trend"
+            : MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
             ? "monthly_product_comparison"
             : request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode;
 
     private static int? EffectiveSemanticRegistryVersion(AiQueryRequest request) =>
-        MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
+        MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message)
+            ? 1
+            : MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
             ? 1
             : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion;
 
@@ -1111,6 +1149,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return sb.ToString().TrimEnd();
     }
 
+    private static string BuildMonthlyProductTrendContent(MonthlyProductTrendResult result)
+    {
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+            return result.Message ?? "محصول درخواستی مبهم است.";
+        if (!result.IsResolved)
+            return result.Message ?? "داده واجد شرایطی برای محصول یافت نشد.";
+
+        var company = result.CompanyName is null ? result.CompanySymbol : $"{result.CompanyName} ({result.CompanySymbol})";
+        return $"روند فروش {result.ProductTitle ?? "محصول"} {company}";
+    }
+
     private static string FormatJalaliPeriod(JalaliPeriod? period) => period is not { } value
         ? "—"
         : $"{new[] { "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند" }[value.Month - 1]} {ToPersianDigits(value.Year.ToString())}";
@@ -1153,6 +1202,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
         "monthly_product_comparison" => DetectedIntent.MonthlyProductComparison,
+        "monthly_product_trend" => DetectedIntent.MonthlyProductTrend,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,

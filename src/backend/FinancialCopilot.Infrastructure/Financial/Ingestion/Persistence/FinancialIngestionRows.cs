@@ -330,6 +330,25 @@ public sealed class NormalizedMonthlyReportRow
 
     public DateTimeOffset LastSynchronizedAt { get; set; }
 
+    /// <summary>
+    /// Stable logical identity for all provider candidates for one company/month/report/output
+    /// period.  It is deliberately independent from the provider activity/report id so a
+    /// correction can be retained as an immutable candidate.
+    /// </summary>
+    public string LogicalReportKey { get; set; } = string.Empty;
+
+    /// <summary>Checksum/fingerprint of this immutable candidate revision.</summary>
+    public string RevisionFingerprint { get; set; } = string.Empty;
+
+    /// <summary>Provider publication timestamp normalized to UTC when available.</summary>
+    public DateTimeOffset? ProviderPublishedAtUtc { get; set; }
+
+    /// <summary>Whether this candidate is the authoritative revision for its logical key.</summary>
+    public bool IsAccepted { get; set; } = true;
+
+    /// <summary>Accepted, Pending, or RejectedOlder. Kept as data for audit/replay diagnostics.</summary>
+    public string RevisionStatus { get; set; } = "Accepted";
+
     public string WarningsJson { get; set; } = "[]";
 
     /// <summary>Logical vendor name (<c>LogicalVendor</c>) that owns this monthly report (spec 051).</summary>
@@ -369,6 +388,24 @@ public sealed class NormalizedMonthlyReportLineItemRow
     public Guid Id { get; set; }
 
     public Guid MonthlyReportId { get; set; }
+
+    /// <summary>Provider row identity, when the provider supplies one.</summary>
+    public string? SourceRowKey { get; set; }
+
+    /// <summary>Canonical economic-row fingerprint; never used as a ProductKey.</summary>
+    public string SourceRowFingerprint { get; set; } = string.Empty;
+
+    /// <summary>Report-local occurrence for identical rows without a provider row id.</summary>
+    public int SourceMultiplicity { get; set; } = 1;
+
+    /// <summary>Provider product id retained separately from the display ProductCode.</summary>
+    public long? ProviderProductId { get; set; }
+
+    /// <summary>Provider/product-code provenance used by company-scoped resolution.</summary>
+    public string? ProviderProductCode { get; set; }
+
+    /// <summary>Checksum of the accepted report revision that produced this row.</summary>
+    public string SourcePayloadChecksum { get; set; } = string.Empty;
 
     public string ProductCode { get; set; } = string.Empty;
 

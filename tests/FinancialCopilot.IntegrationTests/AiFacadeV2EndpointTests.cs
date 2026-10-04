@@ -516,6 +516,80 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.DoesNotContain("Clarification needed", textAnswer);
     }
 
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644", "\u06a9\u06af\u0644", "\u06af\u0646\u062f\u0644\u0647")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc \u06a9\u0686\u0627\u062f", "\u06a9\u0686\u0627\u062f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc")]
+    public async Task V2AiQuery_ExactProductTrendQueries_SelectTypedProductUseCase(
+        string message, string expectedCompany, string expectedProduct)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_product_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var result = root.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("monthly_product_trend", result.GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("Resolved", result.GetProperty("resolutionState").GetString());
+        Assert.Equal(expectedCompany, result.GetProperty("companySymbol").GetString());
+        Assert.Equal(expectedProduct, result.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(result.GetProperty("points").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06a9\u06af\u0644", "\u06a9\u06af\u0644")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u0686\u0627\u062f", "\u06a9\u0686\u0627\u062f")]
+    public async Task V2AiQuery_ExactCompanyTrendQueries_DoNotEnterProductUseCase(
+        string message, string expectedCompany)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyActivityTrend", root.GetProperty("intent").GetString());
+        Assert.Equal("monthly_activity_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("monthlyProductTrendResult").ValueKind);
+        Assert.Equal(expectedCompany, root.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductTrend_PersistsTypedResultForConversationReplay()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var conversationId = document.RootElement.GetProperty("conversationId").GetGuid();
+        using var history = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var historyDocument = await ReadJsonAsync(history);
+        var messages = historyDocument.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+        var replayed = messages[^1].GetProperty("assistantContent").GetProperty("monthlyProductTrendResult");
+
+        Assert.Equal("monthly_product_trend", replayed.GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("Resolved", replayed.GetProperty("resolutionState").GetString());
+        Assert.Equal("\u06af\u0646\u062f\u0644\u0647", replayed.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(replayed.GetProperty("points").EnumerateArray());
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -664,6 +738,76 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
             MonthlyMetric("AVG_12M_MONTHLY_SALES", "avg-12m-monthly-sales-source-v1", 48_765_432_000_000m, now, externalCompanyId: "5"),
             MonthlyMetric("MONTHLY_SALES_YTD", "monthly-sales-ytd-source-v1", 512_345_678_000_000m, now, externalCompanyId: "5"),
             MonthlyMetric("MONTHLY_SALES_YTD_PREVIOUS_MONTH", "monthly-sales-ytd-previous-month-source-v1", 430_123_456_000_000m, now, externalCompanyId: "5"));
+
+        SeedProductTrendData(db, "3", "\u06a9\u0686\u0627\u062f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc", now);
+        SeedProductTrendData(db, "5", "\u06a9\u06af\u0644", "\u06af\u0646\u062f\u0644\u0647", now);
+    }
+
+    private static void SeedProductTrendData(
+        FinancialIngestionDbContext db,
+        string externalCompanyId,
+        string symbol,
+        string productTitle,
+        DateTimeOffset now)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        var start = DateOnly.FromDateTime(calendar.ToDateTime(1405, 3, 1, 0, 0, 0, 0));
+        var end = DateOnly.FromDateTime(calendar.ToDateTime(1405, 3, 31, 0, 0, 0, 0));
+        var reportId = Guid.NewGuid();
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = externalCompanyId,
+            ExternalReportId = $"feature136-{externalCompanyId}",
+            ReportType = "ProductSales",
+            OutputType = 0,
+            PeriodStart = start,
+            PeriodEnd = end,
+            LogicalReportKey = $"feature136-{externalCompanyId}-1405-03",
+            RevisionFingerprint = $"feature136-{externalCompanyId}-revision-1",
+            SourcePayloadChecksum = $"feature136-{externalCompanyId}-checksum",
+            LastSynchronizedAt = now,
+            IsAccepted = true,
+            RevisionStatus = "Accepted"
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            MonthlyReportId = reportId,
+            ProductCode = $"PRODUCT:NATURAL:period-{externalCompanyId}",
+            ProviderProductCode = null,
+            ProviderProductId = null,
+            Title = productTitle,
+            Unit = "ton",
+            SalesQuantity = 100m,
+            SalesAmount = 250m,
+            SourceRowKey = $"feature136-row-{externalCompanyId}",
+            SourceRowFingerprint = $"feature136-fingerprint-{externalCompanyId}",
+            SourcePayloadChecksum = $"feature136-{externalCompanyId}-checksum"
+        });
+
+        db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+        {
+            Id = Guid.NewGuid(),
+            ExternalCompanyId = externalCompanyId,
+            CompanySymbol = symbol,
+            CompanyName = symbol,
+            ReportYear = 1405,
+            ReportMonth = 3,
+            FiscalYear = 1405,
+            FiscalMonthIndex = 3,
+            FiscalMonthNameFa = "\u062e\u0631\u062f\u0627\u062f",
+            MonthlySalesAmount = 250m,
+            Average12MonthSalesAmount = 250m,
+            Average12MonthPeriodCount = 1,
+            YtdSalesAmount = 250m,
+            SourceProviderName = "NoavaranCurrentApi",
+            IsComparablePreviousYearAvailable = false,
+            IsAverage12MonthComplete = false,
+            DataCompletenessScore = 1m,
+            CalculatedAtUtc = now
+        });
     }
 
     private static DerivedMetricRow MonthlyMetric(

@@ -36,7 +36,8 @@ public sealed record ProductSalesObservation(
     Guid RowId, Guid ReportId, string ExternalCompanyId, JalaliPeriod Period,
     string ProviderName, string ExternalReportId, DateOnly PeriodStart, DateOnly PeriodEnd,
     string? ProductCode, string? Title, string? Unit, decimal? ProductionQuantity,
-    decimal? SalesQuantity, decimal? SalesRate, decimal? SalesAmount, int SourceRank = 0);
+    decimal? SalesQuantity, decimal? SalesRate, decimal? SalesAmount, int SourceRank = 0,
+    string? ProviderProductCode = null, long? ProviderProductId = null, string? ProductKey = null);
 
 public sealed record MonthlyProductComparisonEvidence(Guid ReportId, Guid RowId, string ProviderName, string ExternalReportId, JalaliPeriod Period);
 public sealed record MonthlyProductComparisonPeriod(JalaliPeriod Period, IReadOnlyList<ProductSalesObservation> Observations, IReadOnlyList<MonthlyProductComparisonEvidence> Evidence);

@@ -41,6 +41,26 @@ public sealed class SingleCompanyMonthlyDirectIngestionTests
     }
 
     [Fact]
+    public async Task Enqueue_TargetedOutputTypeZeroDoesNotTouchOtherReportOutputs()
+    {
+        var publisher = new RecordingPublisher();
+        var service = new SingleCompanyMonthlyIngestionService(
+            publisher,
+            new RecordingDirectProvider(),
+            new RecordingProcessor(),
+            Options.Create(new NadpcoApiProviderOptions { ProviderName = "NoavaranCurrentApi" }),
+            new FixedTimeProvider(Now));
+
+        var result = await service.EnqueueAsync(
+            new SingleCompanyMonthlyIngestionRequest(5, 1405, 1, 1405, 2, "test", OutputType: 0),
+            CancellationToken.None);
+
+        Assert.Equal("Enqueued", result.Outcome);
+        Assert.Equal(2, result.RequestsEnqueued);
+        Assert.All(publisher.Requests, request => Assert.Equal(0, request.MonthlyActivityOutputType));
+    }
+
+    [Fact]
     public async Task ExecuteDirect_ProviderFailure_PersistsFailedRunBeforeRethrowing()
     {
         var directProvider = new ThrowingDirectProvider();

@@ -12,7 +12,7 @@ internal sealed class EfCoreMonthlyProductComparisonRepository(FinancialIngestio
     public async Task<IReadOnlyList<JalaliPeriod>> GetAvailablePeriodsAsync(string externalCompanyId, CancellationToken ct = default)
     {
         var dates = await db.MonthlyReports.AsNoTracking()
-            .Where(r => r.ExternalCompanyId == externalCompanyId && r.ReportType == "ProductSales" && r.OutputType == 0)
+            .Where(r => r.ExternalCompanyId == externalCompanyId && r.ReportType == "ProductSales" && r.OutputType == 0 && r.IsAccepted)
             .Select(r => r.PeriodStart).Distinct().ToListAsync(ct);
         return dates.Select(ToPeriod).Distinct().OrderByDescending(x => x.Year).ThenByDescending(x => x.Month).ToArray();
     }
@@ -23,13 +23,14 @@ internal sealed class EfCoreMonthlyProductComparisonRepository(FinancialIngestio
         var rows = await (from report in db.MonthlyReports.AsNoTracking()
                           join item in db.MonthlyReportLineItems.AsNoTracking() on report.Id equals item.MonthlyReportId
                           where report.ExternalCompanyId == externalCompanyId
-                                && report.ReportType == "ProductSales" && report.OutputType == 0
+                                && report.ReportType == "ProductSales" && report.OutputType == 0 && report.IsAccepted
                                 && report.PeriodStart == start && report.PeriodEnd == end
                           select new ProductSalesObservation(
                               item.Id, report.Id, report.ExternalCompanyId, period,
                               report.ProviderName, report.ExternalReportId, report.PeriodStart, report.PeriodEnd,
                               item.ProductCode, item.Title, item.Unit, item.ProductionQuantity,
-                              item.SalesQuantity, item.SalesRate, item.SalesAmount, 0)).ToListAsync(ct);
+                              item.SalesQuantity, item.SalesRate, item.SalesAmount, 0,
+                              item.ProviderProductCode, item.ProviderProductId, null)).ToListAsync(ct);
         if (rows.Count == 0) return null;
         return new MonthlyProductComparisonPeriod(period, rows, rows.Select(x => new MonthlyProductComparisonEvidence(x.ReportId, x.RowId, x.ProviderName, x.ExternalReportId, period)).ToArray());
     }

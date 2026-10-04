@@ -118,7 +118,10 @@ public sealed class SingleCompanyMonthlyIngestionService(
         }
 
         var enqueued = 0;
-        for (var outputType = 0; outputType <= 4; outputType++)
+        IEnumerable<int> outputTypes = request.OutputType is { } selectedOutputType
+            ? new[] { selectedOutputType }
+            : Enumerable.Range(0, 5);
+        foreach (var outputType in outputTypes)
         {
             foreach (var month in months)
             {

@@ -146,6 +146,12 @@ describe("downloadMonthlyProductTrendChartImage", () => {
     const axisTitle = fillTextCalls.find((call) => call.text === "مبلغ فروش (میلیارد تومان)");
     expect(axisTitle).toMatchObject({ x: 1710, textAlign: "right", direction: "rtl" });
     expect(axisTitle?.x).toBeLessThanOrEqual(1800);
+    expect(axisTitle?.y).toBe(222);
+    const mainPanelTitle = fillTextCalls.find(
+      (call) => call.text === PRODUCT_TREND_PANEL_LABELS.main,
+    );
+    expect(mainPanelTitle?.y).toBe(174);
+    expect((axisTitle?.y ?? 0) - (mainPanelTitle?.y ?? 0)).toBeGreaterThanOrEqual(40);
     expect(fillTextCalls.some((call) => call.y >= 700 && call.y <= 1200)).toBe(true);
   });
 });

@@ -16,7 +16,7 @@ import {
 const WIDTH = 1800;
 const HEIGHT = 1440;
 const PADDING = 90;
-const PLOT_TOP = 220;
+const PLOT_TOP = 250;
 const PLOT_HEIGHT = 390;
 const QUANTITY_PLOT_TOP = 790;
 const QUANTITY_PLOT_HEIGHT = 330;
@@ -217,7 +217,7 @@ export async function downloadMonthlyProductTrendChartImage(data: MonthlyProduct
     context,
     { sales: series.sales, rate: series.rate },
     WIDTH - PADDING,
-    plotBottom + 50,
+    plotBottom + 20,
   );
   drawQuantityLegend(context, quantitySeries, WIDTH - PADDING, 1200);
   context.textAlign = "left";

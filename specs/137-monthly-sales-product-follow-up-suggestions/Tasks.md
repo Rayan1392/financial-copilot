@@ -1,186 +1,140 @@
 # Feature 137 — Implementation Tasks
 
-The tasks below are intentionally limited to deterministic follow-up enrichment after the existing company monthly sales trend. They do not authorize changes to unrelated capabilities or to the frozen V1 path.
+These tasks are limited to deterministic follow-up enrichment after a usable
+V2 company-level monthly sales trend result. They do not add a recommendation
+engine, change Feature 136 behavior, or modify the frozen V1 capability set.
 
-## Slice 1 — Domain/data discovery and reusable query
+## Task 1 — Define the bounded candidate contract
 
-### 1.1 Confirm the company-trend integration seam
+- **Goal:** Define the application contract consumed by the Feature 137 selector.
+- **Implementation scope:** Extend the existing monthly product comparison read boundary with a company-scoped suggestion-candidate read operation; do not create a second product data model.
+- **Dependencies:** `MonthlyReports`, `MonthlyReportLineItems`, `IMonthlyProductComparisonReadRepository`, Feature 136 contracts.
+- **Exact behavior:** Return one common anchor period and a bounded candidate universe containing `ProductKey`, Feature-136-compatible canonical `DisplayTitle`, unit/provider identity, company scope, anchor `SalesAmount`, and whether any valid non-null `SalesAmount` observation exists.
+- **Acceptance criteria:** The contract is company-scoped and exposes enough data for identity, title, parser safety, queryability, and history eligibility without invoking Feature 136 per candidate.
+- **Tests:** Contract tests assert the candidate fields and empty-result behavior.
 
-- Goal: Identify the exact V2 point after a successful `MonthlyActivityTrend` result and before final persistence.
-- Files/areas likely affected: `FinancialCopilotWorkflowDefinition`, workflow messages, `MessagePersistenceFunction`.
-- Dependencies: Existing company trend result and V2 active-mode configuration.
-- Implementation notes: Preserve the existing company text, chart payload, intent, billing, and outcome. The enrichment must be non-critical.
-- Acceptance criteria: The selector is invoked only for a usable company-level monthly trend result and never for a product trend, comparison, revenue mix, or generic answer.
-- Tests: V2 workflow unit/integration test proving the seam and non-company branches.
+## Task 2 — Extract the shared Feature 136 identity/title helper
 
-### 1.2 Define the reusable candidate read contract
+- **Goal:** Prevent Feature 137 from duplicating product identity or title rules.
+- **Implementation scope:** Extract the current Feature 136 `ProductKey`, candidate construction, grouping, canonical display-title selection, and matching semantics into a shared internal helper; update Feature 136 to call it without changing behavior.
+- **Dependencies:** `MonthlyProductTrendQueryUseCase`, `MonthlyProductTrendCalculator`, `MonthlyProductComparisonNormalizer`.
+- **Exact behavior:** Preserve provider-code, positive-provider-ID, and normalized-title-plus-unit key precedence. For each key, select the same deterministic display title/unit currently selected by Feature 136, not the latest-period title. Preserve `Resolved`, `NotFound`, and `Ambiguous` semantics.
+- **Acceptance criteria:** Existing Feature 136 tests remain green and Feature 137 consumes the same helper rather than a second identity implementation.
+- **Tests:** Stable-key, provider identity, title/unit fallback, duplicate-key, and renamed-product tests compare Feature 136 and Feature 137 candidate output.
 
-- Goal: Read current company-scoped product candidates from the same accepted product-sales read model used by Feature 136.
-- Files/areas likely affected: `MonthlyProductComparisonContracts`, `EfCoreMonthlyProductComparisonRepository`, related DI registration.
-- Dependencies: `MonthlyReports`, `MonthlyReportLineItems`, `IMonthlyProductComparisonReadRepository`.
-- Implementation notes: Reuse `ReportType = ProductSales`, `OutputType = 0`, `IsAccepted`, company, period, provider identity, title, unit, and sales-value semantics. Prefer a bounded anchor-period query over per-product calls.
-- Acceptance criteria: No service rows, null/other output types, unaccepted revisions, or cross-company rows enter candidate selection.
-- Tests: Repository tests for source predicates, anchor period selection, and accepted revision behavior.
+## Task 3 — Implement the bounded accepted-data query and common anchor
 
-### 1.3 Share product identity and eligibility semantics
+- **Goal:** Read eligible product data without N+1 queries or repeated period scans.
+- **Implementation scope:** Implement the repository operation over `MonthlyReports` joined to `MonthlyReportLineItems`.
+- **Dependencies:** Task 1; accepted-report schema and indexes.
+- **Exact behavior:** Filter `ExternalCompanyId`, `ReportType == "ProductSales"`, `OutputType == 0`, and `IsAccepted`. Restrict periods to those not later than the company trend `LatestReportYear/LatestReportMonth`. Select the newest period with usable line items and at least one non-null `SalesAmount`; exclude a header-only report. Return anchor rows plus the selected columns for the same accepted company-scoped candidate universe used by Feature 136's default resolver, in one set-based read.
+- **Acceptance criteria:** Service rows, null/other output types, unaccepted revisions, other companies, later periods, and header-only periods never enter selection.
+- **Tests:** Repository tests cover accepted predicates, common anchor selection, later-period exclusion, header-without-line-items, and no-anchor behavior.
 
-- Goal: Ensure suggestions and direct product trend queries use the same canonical product key, normalizer, ambiguity behavior, and minimum-history rule.
-- Files/areas likely affected: `MonthlyProductTrendContracts`, `MonthlyProductTrendQueryUseCase`, shared application helper if required.
-- Dependencies: Feature 136 identity and typed resolution rules.
-- Implementation notes: Do not duplicate title normalization or invent a separate product resolver. One valid sales-value observation remains the minimum; the anchor period supplies recency.
-- Acceptance criteria: Every generated action would resolve to the existing product trend capability or is excluded before being returned.
-- Tests: Shared identity tests for provider code, provider ID, title-plus-unit fallback, renamed products, and ambiguous matches.
+## Task 4 — Implement parser-safe/query-safe eligibility
 
-## Slice 2 — Suggested prompt generation
+- **Goal:** Prove each returned action can round-trip through the existing product-trend parser and shared resolver.
+- **Implementation scope:** Add deterministic in-memory validation to the selector; do not call `MonthlyProductTrendQueryUseCase` per candidate.
+- **Dependencies:** Tasks 2–3; `MonthlyProductTrendIntentRules`.
+- **Exact behavior:** Build `روند فروش {DisplayTitle} {CanonicalCompanySymbol}`. Require `LooksLikeMonthlyProductTrendQuery` to pass, require `BuildQuery` to produce the exact normalized company and product slots, and require the shared Feature-136-compatible matcher to resolve the product to exactly one `ProductKey` in the bounded universe. Reject stop-word-stripped, empty, changed, ambiguous, or otherwise non-round-trippable titles.
+- **Acceptance criteria:** No action is created for a parser-unsafe title, duplicate normalized title, missing title, ambiguous identity, or candidate without a valid non-null `SalesAmount` observation.
+- **Tests:** Persian/Arabic normalization, multi-token titles, stop-word titles, one-character/empty parsed slots, duplicate titles, ambiguous matches, and generated-query round trips.
 
-### 2.1 Implement the deterministic follow-up selector
+## Task 5 — Aggregate and rank anchor-period candidates
 
-- Goal: Build a focused application service that returns up to three `SuggestedAction` values from structured product data.
-- Files/areas likely affected: New application contract/service under AI orchestration or financial-data ingestion; infrastructure implementation; DI registration.
-- Dependencies: Tasks 1.2 and 1.3, `ResolvedCompany`, `MonthlyActivityTrendResponse`.
-- Implementation notes: Resolve/use the canonical company symbol and external ID. Read the anchor period, group by `ProductKey`, require a non-null sales amount, and return zero on no data.
-- Acceptance criteria: The selector never calls an LLM and never creates a product name from user prose.
-- Tests: Unit tests for zero, one, three, and more-than-three candidates.
+- **Goal:** Produce the deterministic top-three candidate set.
+- **Implementation scope:** Implement the selector over the Task 3 anchor rows and Task 2 canonical candidates.
+- **Dependencies:** Tasks 2–4.
+- **Exact behavior:** Group anchor observations by `ProductKey`; checked-sum non-null `SalesAmount`; keep zero as valid; exclude null aggregate values. Sort by `SalesAmount DESC`, canonical normalized `DisplayTitle ASC` using ordinal comparison, then `ProductKey ASC` using ordinal comparison; take three.
+- **Acceptance criteria:** Ranking uses one common company anchor period and never uses independently latest periods per product.
+- **Tests:** Zero, one, three, more-than-three, null amount, zero amount, positive-vs-zero, sales ties, title ties, final-key ties, and repeated-run order equality.
 
-### 2.2 Implement ranking and tie handling
+## Task 6 — Build bounded canonical `SuggestedAction` values
 
-- Goal: Rank eligible products by recent aggregated `SalesAmount` and make every tie deterministic.
-- Files/areas likely affected: Follow-up selector and candidate model.
-- Dependencies: Task 2.1.
-- Implementation notes: Sort descending by checked aggregate sales value, then ordinal normalized title, then ordinal `ProductKey`; take three. Keep zero sales as a valid low-ranked value.
-- Acceptance criteria: Repeated runs over the same accepted source revision return byte-equivalent action order and no duplicates.
-- Tests: Tie, positive-versus-zero, duplicate-title, and stable-order tests.
+- **Goal:** Construct executable structured actions from selected candidates.
+- **Implementation scope:** Implement the action builder using the existing `SuggestedAction` contract.
+- **Dependencies:** Task 5; `CapabilityGuidanceContracts`; `IConversationalCapabilityRegistry`.
+- **Exact behavior:** Use `RunRelatedCapability`, capability `monthly_product_trend`, canonical `DisplayTitle`, and company symbol `TseSymbol ?? Ticker ?? CompanySymbol`. Use the same query for `LocalizedLabel` and `Message`; set company/product preset slots and reason `monthly_sales_product_follow_up`. If the canonical symbol is absent, return zero actions.
+- **Acceptance criteria:** At most three actions are returned; titles and symbols are source-backed; no company display-name fallback or LLM-generated text is used.
+- **Tests:** Label/message equality, preset slots, long-title bounds, Unicode titles, missing symbol, and maximum-count tests.
 
-### 2.3 Build bounded canonical actions
+## Task 7 — Version and identify actions using the existing registry
 
-- Goal: Turn selected candidates into executable existing actions.
-- Files/areas likely affected: Follow-up action builder; `CapabilityGuidanceContracts` only if a small shared factory is needed.
-- Dependencies: Task 2.2 and `SuggestedAction` bounds.
-- Implementation notes: Use `RunRelatedCapability`, capability `monthly_product_trend`, canonical title/symbol in both label and message, preset company/product slots, a bounded relevance reason, and stable versioned IDs.
-- Acceptance criteria: Each action is a complete normal-language product trend query and is safe for the existing web click handler.
-- Tests: Persian Unicode title, long title, ID stability, message/label, and preset-slot tests.
+- **Goal:** Make action identity stable without adding a versioning subsystem.
+- **Implementation scope:** Use `IConversationalCapabilityRegistry.Version` as `SuggestedAction.RegistryVersion` and the Feature 137 action version.
+- **Dependencies:** Task 6; existing capability registry behavior.
+- **Exact behavior:** Derive a bounded SHA-256-based ID from `feature137`, `monthly_product_trend`, registry version, canonical external company ID, and `ProductKey`. Do not use raw Persian text. A registry/policy change that changes action semantics must increment the existing registry version and intentionally changes IDs.
+- **Acceptance criteria:** Identical canonical inputs produce identical IDs; changed company/product/version inputs produce different IDs; all IDs satisfy existing length bounds.
+- **Tests:** Stable-ID, changed-version, changed-company, changed-product, collision-format, and bound tests.
 
-### 2.4 Add selector observability without changing the answer
+## Task 8 — Attach the selector to the V2 company-trend seam
 
-- Goal: Make zero-action reasons and selection quality measurable.
-- Files/areas likely affected: Existing telemetry/activity infrastructure and selector.
-- Dependencies: Task 2.1.
-- Implementation notes: Record bounded candidate/eligible/returned counts, anchor period, exclusion reasons, duration, and action attribution. Do not log raw sensitive payloads.
-- Acceptance criteria: Selector failures are observable and do not fail the parent company trend response.
-- Tests: Telemetry assertions for no data, ambiguity, provider/read failure, and successful selection.
+- **Goal:** Activate Feature 137 only after a successful usable company trend result.
+- **Implementation scope:** Update `FinancialCopilotWorkflowDefinition` result computation and workflow messages.
+- **Dependencies:** Tasks 1–7; `MonthlyActivityTrendResponse`.
+- **Exact behavior:** When detected intent is `MonthlyActivityTrend`, the typed result is usable, and the dialogue outcome is successful, invoke the selector. Put the resulting collection on `ResultsComputedMessage` and set `Feature137SuggestionsApplied = true`. Use an explicit empty collection when no candidates exist. Do not invoke for product trend, product comparison, revenue mix, failed, clarification, no-data, or unrelated results.
+- **Acceptance criteria:** Activation depends on the resolved typed capability/result, not exact Persian wording; company text, chart, billing, outcome, and calculations remain unchanged.
+- **Tests:** V2 routing matrix covering equivalent company-trend phrasings, product trend, comparison, revenue mix, semantic routing, failure, clarification, and no-data paths.
 
-## Slice 3 — Response contract integration
+## Task 9 — Make `MessagePersistenceFunction` accept authoritative actions
 
-### 3.1 Attach actions to the V2 result path
+- **Goal:** Prevent generic guidance from dropping or overwriting Feature 137 actions.
+- **Implementation scope:** Add the deterministic action collection and `Feature137SuggestionsApplied` marker to the persistence input path.
+- **Dependencies:** Task 8; `MessagePersistenceFunction`; `CapabilityGuidanceService`.
+- **Exact behavior:** For `Feature137SuggestionsApplied = true`, persist the supplied one-to-three actions or explicit empty collection and skip `CapabilityGuidanceService.Suggest`. For false, retain the existing generic guidance behavior unchanged.
+- **Acceptance criteria:** A successful company trend cannot have Feature 137 actions replaced by generic guidance; zero eligible products persists zero Feature 137 actions and remains successful.
+- **Tests:** Persistence-function tests for one-to-three actions, empty applied set, failed/clarification responses, and unrelated capabilities.
 
-- Goal: Carry deterministic actions from the selector through V2 workflow result computation and persistence.
-- Files/areas likely affected: `FinancialCopilotWorkflowDefinition`, `FinancialCopilotWorkflowMessages`, `MessagePersistenceFunction`, `ConversationContracts`.
-- Dependencies: Slice 2.
-- Implementation notes: Reuse `SuggestedActions`; do not add `suggestedPrompts` or serialize actions into answer prose. Keep actions optional and empty when there are no eligible products.
-- Acceptance criteria: A successful company trend response contains the existing typed chart and the structured action collection.
-- Tests: Workflow message and persistence round-trip tests.
+## Task 10 — Propagate actions through persistence and API results
 
-### 3.2 Preserve API compatibility
+- **Goal:** Preserve the authoritative action collection end to end.
+- **Implementation scope:** Carry the marker and collection through `PersistenceCompletedMessage`, `AssistantMessagePayload`, `AiQueryResponse`, and existing `AiFacadeController` mapping.
+- **Dependencies:** Tasks 8–9; existing conversation and API contracts.
+- **Exact behavior:** Persist the existing structured `SuggestedActions` field; return it through the existing API response; preserve backward decoding of old payloads and nullable generic-guidance behavior outside Feature 137.
+- **Acceptance criteria:** The API returns the same action IDs/messages as the selector, and an explicit empty Feature 137 set is not converted to generic fallback actions.
+- **Tests:** Workflow-message, conversation serialization/reload, API JSON, old-payload decode, and action-ID correlation tests.
 
-- Goal: Expose actions through the existing API mapping without changing existing fields or meanings.
-- Files/areas likely affected: `AiFacadeContracts`, `AiFacadeController`, serialization tests.
-- Dependencies: Task 3.1.
-- Implementation notes: Reuse `SuggestedActionHttpResponse`; preserve `SuggestedActionId` request handling and existing nullable behavior.
-- Acceptance criteria: Existing consumers can ignore actions, and no company trend field changes type or value.
-- Tests: API JSON contract tests with actions, no actions, and old persisted payloads.
+## Task 11 — Preserve V1 and existing generic guidance behavior
 
-### 3.3 Verify frontend/Telegram consumption
+- **Goal:** Enforce the V2-only boundary without changing V1 guidance.
+- **Implementation scope:** Add V2-only wiring and regression coverage; do not add a V1 selector, parser, route, DTO, or response branch.
+- **Dependencies:** Tasks 8–10; `specs/POLICY-V1-FREEZE.md`.
+- **Exact behavior:** V1 receives no Feature 137 product follow-up actions. Existing V1 generic `CapabilityGuidanceService` behavior remains unchanged.
+- **Acceptance criteria:** Switching to V1 leaves existing company trend output and generic guidance behavior unchanged while omitting only Feature 137 product actions.
+- **Tests:** V1 regression and V1/V2 capability-difference tests.
 
-- Goal: Render the existing structured actions at the end of the company trend response.
-- Files/areas likely affected: `chat.functions.ts`, `message-list.tsx`, Telegram renderer only where needed for existing action fallback.
-- Dependencies: Task 3.2.
-- Implementation notes: Display label, submit message plus action ID, and leave the company chart unchanged. Do not parse assistant text.
-- Acceptance criteria: Web actions are clickable and submit the exact generated product query; Telegram uses the same metadata and bounded label.
-- Tests: Frontend click test, persisted-message mapping test, and Telegram rendering regression.
+## Task 12 — Verify existing web click and Telegram rendering
 
-## Slice 4 — V1 / MAF V2 integration
+- **Goal:** Reuse existing structured action consumers.
+- **Implementation scope:** Verify `chat.functions.ts`, `message-list.tsx`, `SuggestedActionId` request handling, and `TelegramAssistantResponseRenderer`.
+- **Dependencies:** Tasks 6 and 10.
+- **Exact behavior:** Web displays `LocalizedLabel`, submits exact `Message` plus `Id`, and does not parse prose. Telegram renders the same bounded structured action metadata and does not recalculate candidates.
+- **Acceptance criteria:** Existing company chart and answer rendering remain unchanged; clicked actions enter normal V2 product routing.
+- **Tests:** Frontend click/mapping test, API click-correlation test, and Telegram renderer regression.
 
-### 4.1 Enforce capability-scoped activation
+## Task 13 — Add observability and non-critical fallback behavior
 
-- Goal: Apply suggestions to company-level monthly sales trend semantics rather than one exact phrase.
-- Files/areas likely affected: V2 result computation and semantic capability integration.
-- Dependencies: Tasks 1.1 and 3.1.
-- Implementation notes: The selector is triggered by the resolved `MonthlyActivityTrend` result and must be skipped when a validated product slot selects `MonthlyProductTrend`.
-- Acceptance criteria: Equivalent company trend phrasings receive equivalent action behavior; no phrase-only activation is introduced.
-- Tests: Routing matrix for trend, monthly sales, chart, status, revenue, product trend, comparison, and revenue-mix queries.
+- **Goal:** Measure selection quality without changing the company answer.
+- **Implementation scope:** Add bounded metrics/traces around the selector and V2 seam.
+- **Dependencies:** Tasks 3–8; existing activity/telemetry infrastructure.
+- **Exact behavior:** Record invocation, duration, anchor period, candidate/eligible/returned counts, exclusion reason counts, zero-action reason, and action attribution. Hash or redact product keys/external IDs in ordinary logs. Read failure, timeout, cancellation after the company result, or malformed candidate returns zero actions and preserves the company response.
+- **Acceptance criteria:** Selector failure is observable and non-critical; no raw user prompt, provider call, or sensitive identifier is required in ordinary logs.
+- **Tests:** Telemetry assertions for no anchor, ambiguity, parser rejection, read failure, success, and zero-action fallback.
 
-### 4.2 Verify the frozen V1 boundary
+## Task 14 — Complete focused identity, ranking, anchor, and performance tests
 
-- Goal: Prove V1 remains unchanged while V2 gains the additive enrichment.
-- Files/areas likely affected: V1 orchestration tests and feature policy documentation.
-- Dependencies: Repository V1 freeze policy.
-- Implementation notes: Do not add a V1 selector, parser, route, intent, DTO, migration, or branch. Document the intentional absence under V1 rollback.
-- Acceptance criteria: V1 company trend values/chart remain unchanged and V1 returns no fabricated or LLM-generated suggestions.
-- Tests: V1 regression test plus V2 parity/difference assertion.
+- **Goal:** Prove deterministic behavior and bounded execution.
+- **Implementation scope:** Add unit/repository/integration coverage for the selector and read contract.
+- **Dependencies:** Tasks 1–7 and 13.
+- **Exact behavior:** Cover stable identity, renamed title, duplicate display titles, parser-unsafe titles, common anchor, later-period exclusion, header-only period, no anchor, all ranking tie-breaks, null/zero sales, and unsupported/service-only companies.
+- **Acceptance criteria:** Tests prove no N+1, no per-candidate Feature 136 execution, no provider calls, no independently latest product periods, and repeated-run deterministic output.
+- **Tests:** Mock repository call-count assertions, query-shape tests, selector matrix, and relational repository tests.
 
-### 4.3 Validate the follow-up query through the normal path
+## Task 15 — Run end-to-end regression and rollout verification
 
-- Goal: Confirm a returned action is executable by the existing product trend capability.
-- Files/areas likely affected: V2 API integration tests and seeded product-sales data.
-- Dependencies: Feature 136 product trend support and Tasks 2.3/3.2.
-- Implementation notes: Use a real manufacturing/mining symbol from fixtures or development data, preferably `کچاد` when available; never hard-code it in production code.
-- Acceptance criteria: A generated message such as `روند فروش گندله کچاد` resolves to `MonthlyProductTrend` and returns typed product data or its legitimate typed no-data outcome.
-- Tests: End-to-end API request/response test with action click metadata.
-
-## Slice 5 — Tests and regression
-
-### 5.1 Complete selector unit matrix
-
-- Goal: Cover all deterministic selection and data-quality rules.
-- Files/areas likely affected: New follow-up selector test file.
-- Dependencies: Slice 2.
-- Implementation notes: Include 0/1/3/>3, ordering, ties, duplicates, sparse data, zero sales, missing recent month, Unicode variants, renamed products, historical-only products, and unsupported service companies.
-- Acceptance criteria: The unit suite proves no fabricated product and no non-deterministic ordering.
-- Tests: All cases listed in the implementation notes, including repeated-run equality.
-
-### 5.2 Complete V2 integration and transport tests
-
-- Goal: Verify company trend enrichment, persistence, API mapping, frontend mapping, and product follow-up execution.
-- Files/areas likely affected: V2 endpoint tests, conversation serialization tests, frontend tests.
-- Dependencies: Slices 3 and 4.
-- Implementation notes: Assert existing company chart fields are unchanged and actions are structured rather than embedded-only prose.
-- Acceptance criteria: Actions survive persistence/reload and remain clickable with their IDs.
-- Tests: Company trend success, no eligible products, invalid company, old payload decode, V2 action click, product trend route.
-
-### 5.3 Run regression suite
-
-- Goal: Protect existing financial and rendering behavior.
-- Files/areas likely affected: Existing company trend, product trend, semantic routing, API serialization, and chart tests.
-- Dependencies: Tasks 5.1 and 5.2.
-- Implementation notes: Do not weaken existing Feature 076/077/078/129/136 assertions to make the new feature pass.
-- Acceptance criteria: Existing company sales calculations, product calculations, charts, routing precedence, and V1 behavior remain green.
-- Tests: Targeted tests followed by the repository’s normal .NET/frontend validation commands.
-
-## Slice 6 — Frontend contract documentation and rollout
-
-### 6.1 Document the client contract
-
-- Goal: Give frontend and channel clients a stable explanation of action semantics.
-- Files/areas likely affected: Feature 137 docs and existing API contract documentation if maintained separately.
-- Dependencies: Task 3.2.
-- Implementation notes: Document label versus message, action ID, `monthly_product_trend` capability, empty behavior, and no-prose-parsing rule.
-- Acceptance criteria: A client can render and submit actions without knowing database fields or parsing Persian answer text.
-- Tests: Documentation review against serialized API examples.
-
-### 6.2 Development-data validation and observability review
-
-- Goal: Validate the feature with a real represented manufacturing/mining company and inspect data-quality diagnostics.
-- Files/areas likely affected: Development/fixture validation scripts or test setup; no production hard-code.
-- Dependencies: Task 4.3 and current accepted product-sales data.
-- Implementation notes: Prefer `کچاد` when present. Record anchor period, selected titles, action count, and the returned product result; redact raw identifiers in ordinary logs.
-- Acceptance criteria: Company chart remains correct, up to three real products appear, and at least one generated query reaches the product trend route.
-- Tests: Repeat with no product breakdown and an invalid symbol.
-
-### 6.3 Rollout and rollback checklist
-
-- Goal: Enable the V2 enrichment safely and make rollback non-destructive.
-- Files/areas likely affected: Existing V2 capability/feature configuration and operational runbook.
-- Dependencies: All prior slices and review of Feature 136 data readiness.
-- Implementation notes: If an existing capability flag is available, start disabled in development, then enable for a controlled V2 cohort. Disabling the enrichment must leave company trend answers operational.
-- Acceptance criteria: Rollout, monitoring, and rollback require no database migration and no V1 change.
-- Tests: Flag-off/flag-on integration tests and rollback smoke test.
+- **Goal:** Confirm compatibility and safe rollout.
+- **Implementation scope:** Run focused .NET/frontend tests, existing Feature 076/077/078/129/136 regressions, and the API validation sequence.
+- **Dependencies:** Tasks 8–14.
+- **Exact behavior:** With V2 active, submit a company trend query, verify unchanged chart/text plus zero-to-three actions, click one action, and verify typed product trend routing. Repeat with no product data, ambiguous titles, parser-unsafe titles, service-only, and unresolved companies. If a supported V2 rollout flag exists, verify flag-off leaves company trend operational.
+- **Acceptance criteria:** All 22 ACs pass; no production migration or V1 change is required; Feature 136 production behavior is unchanged.
+- **Tests:** Full targeted suite followed by the repository’s normal .NET and frontend validation commands.

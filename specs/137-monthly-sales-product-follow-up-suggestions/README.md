@@ -4,11 +4,11 @@
 
 Company-level monthly sales trend responses already provide deterministic analysis and a chart, but they stop at the company total. Users must manually know a product name and formulate a second query before they can inspect product-level monthly sales.
 
-This feature adds a small, deterministic set of follow-up actions after a successful company-level monthly sales trend response. The actions point to real products from the resolved company’s accepted monthly product-sales data and invoke the existing `monthly_product_trend` capability.
+This feature adds a small, deterministic set of follow-up actions after a successful company-level monthly sales trend response. The actions point to real products from the resolved company’s accepted monthly product-sales data, use the Feature-136-compatible canonical product title, and invoke the existing `monthly_product_trend` capability.
 
 ## User value
 
-The user can move from a company total to the company’s most relevant real products with one click. Product names, ordering, eligibility, and query text are produced by backend data and canonical resolvers rather than by the LLM.
+The user can move from a company total to the company’s most relevant real products with one click. Product names, ordering, eligibility, and query text are produced by a bounded backend selector and shared canonical resolvers rather than by the LLM.
 
 ## Example interaction
 
@@ -31,6 +31,8 @@ The exact products and order are determined from the current accepted data. The 
 
 - Detecting the existing company-level `MonthlyActivityTrend` result, independent of one exact Persian phrase.
 - Resolving eligible products from accepted, company-scoped monthly `ProductSales` observations.
+- Using a bounded shared identity/queryability check with parser-safe round-trip validation; no per-product Feature 136 execution.
+- Using `TseSymbol ?? Ticker ?? CompanySymbol` as the canonical company symbol.
 - Reusing the existing `MonthlyProductTrend` capability and its product identity/resolution rules.
 - Ranking candidates deterministically by recent product sales value.
 - Returning at most three structured `SuggestedAction` items.
@@ -54,13 +56,14 @@ The exact products and order are determined from the current accepted data. The 
 - Existing response action contract: `SuggestedAction`, `SuggestedActionHttpResponse`, conversation payload persistence, API mapping, frontend `suggestedActions`, and the web click handler.
 - Existing company resolver: `ICompanyResolverService` and `ResolvedCompany`.
 - Active orchestration mode: Microsoft Agent Framework V2. V1 remains frozen for new work under `specs/POLICY-V1-FREEZE.md`.
+- Existing `SuggestedAction` is reused; successful V2 company-trend actions take precedence over generic guidance, while existing V1 generic guidance remains unchanged.
 
 ## High-level behavior
 
 1. The normal semantic route selects and executes the existing company monthly sales trend capability.
 2. Only after a usable company trend result is produced, a deterministic follow-up selector resolves the canonical company identity.
-3. The selector reads the latest accepted company-scoped `ProductSales` period available for the trend response, using the existing product read repository and source predicates.
-4. It keeps products with a valid sales-value observation in that anchor period, an unambiguous canonical identity, and a queryable product-level trend path.
+3. The selector reads one common anchor: the newest accepted `ProductSales`/`OutputType = 0` period with usable line items not later than the company trend period.
+4. It keeps products with a valid sales-value observation, the shared Feature-136-compatible canonical title, an unambiguous identity, and a parser-safe product-trend query.
 5. It ranks candidates by aggregated product sales value for the anchor period, breaks ties by normalized title and stable product key, and takes three.
 6. It creates `SuggestedAction` values whose label and message use the canonical product title and resolved company symbol. Each action targets `monthly_product_trend` with `RunRelatedCapability`.
 7. The actions are carried in the existing structured response metadata. The company answer and chart remain unchanged.
@@ -71,6 +74,7 @@ The exact products and order are determined from the current accepted data. The 
 - At most three real, eligible, deterministically ordered product actions are returned.
 - Product names and queries come from structured backend data, never LLM invention.
 - The generated query reaches the existing product-level monthly trend capability.
+- Successful V2 company-trend responses persist one to three deterministic actions or an explicit empty action set; generic guidance does not overwrite them.
 - Missing, stale, ambiguous, unsupported, or unresolved product data produces no fabricated action.
 - Existing company trend output, chart, calculations, API consumers, and V1 behavior remain compatible.
 

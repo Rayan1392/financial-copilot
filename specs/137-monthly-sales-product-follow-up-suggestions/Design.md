@@ -37,7 +37,7 @@ Feature 136 already provides the required product-level capability:
 2. V2 gives precedence to `ProductRevenueMix` and `MonthlyProductComparison`, then `MonthlyProductTrend`, then exact company-only `MonthlyActivityTrend`.
 3. `MonthlyProductTrendQueryUseCase` uses `ICompanyResolverService` and `IMonthlyProductComparisonReadRepository`.
 4. `EfCoreMonthlyProductComparisonRepository` reads `MonthlyReports` joined to `MonthlyReportLineItems` and applies all of these predicates: matching external company, `ReportType == ProductSales`, `OutputType == 0`, and `IsAccepted`.
-5. Product identity is company-scoped. The existing key prefers provider product code, then positive provider product ID, then normalized title plus normalized unit. The trend use case preserves `Resolved`, `NotFound`, and `Ambiguous` outcomes rather than selecting an ambiguous product.
+5. Product identity is company-scoped. The existing key prefers provider product code, then positive provider product ID, then normalized title plus normalized unit. The trend use case preserves `Resolved`, `NotFound`, and `Ambiguous` outcomes rather than selecting an ambiguous product. Feature 137 uses the exact same Feature-136-compatible candidate grouping and title selection; it does not introduce a renamed-product title policy.
 6. With no explicit period, the product query selects the latest period in which the selected product has a non-null sales amount and returns that position plus the prior eleven fiscal-month positions. Missing positions are explicit gaps. One valid period is sufficient for the existing product trend query; there is no undocumented twelve-observation minimum.
 7. Sales rate is calculated deterministically from sales value and sale quantity with checked decimal arithmetic. The provider rate is not used as the product trend calculation source.
 8. `MonthlyProductTrendResult` is already carried through V2 workflow messages, conversation persistence, API mapping, frontend mapping, and Telegram rendering.
@@ -52,11 +52,17 @@ Proposed application boundary:
 
 ```text
 IMonthlySalesProductFollowUpSuggestionService
-    BuildAsync(ResolvedCompany company, MonthlyActivityTrendResponse trend, CancellationToken)
+    BuildAsync(MonthlyActivityTrendResponse trend, CancellationToken)
         -> IReadOnlyList<SuggestedAction>
 ```
 
-The implementation may extend `IMonthlyProductComparisonReadRepository` with a company-scoped candidate read method, or add a small repository method beside the existing period methods. It must reuse the same `MonthlyReports`/`MonthlyReportLineItems` read model, accepted-report predicates, product key builder, and normalizer already used by `MonthlyProductTrendQueryUseCase`. It must not issue one independent raw SQL query per product and must not call an LLM.
+The selector resolves the company once through `ICompanyResolverService`. It uses the exact canonical symbol chain `TseSymbol ?? Ticker ?? CompanySymbol`. If no canonical symbol is available, it returns zero Feature 137 actions.
+
+The minimum-change implementation is a bounded extension beside `IMonthlyProductComparisonReadRepository`: one company-scoped set-based read returns the common anchor period, anchor observations, and the selected columns for the same accepted product-sales candidate universe that Feature 136's default resolver considers. “Bounded” means one external-company scope and one projection/read, not one query per product; the anchor itself is bounded by the company trend period. The repository query uses the existing accepted `MonthlyReports`/`MonthlyReportLineItems` read model and predicates. It does not run one query per product, call `MonthlyProductTrendQueryUseCase`, call a provider, or call an LLM.
+
+The candidate projection is passed through one shared identity helper extracted from Feature 136's existing `ProductKey`, `ToCandidate`, grouping, and matching semantics. The extraction is behavior-preserving; Feature 136's production behavior is not changed. The helper exposes `ProductKey`, canonical `DisplayTitle`, company scope, provider identity, parser-safe product text, and whether the candidate has at least one non-null `SalesAmount` observation.
+
+For each bounded candidate, parser safety is checked in memory by constructing `روند فروش {DisplayTitle} {CanonicalCompanySymbol}` and applying `MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery` and `BuildQuery`. The parsed product and company slots must normalize exactly to the candidate title and canonical symbol, and the shared Feature-136-compatible matcher must resolve the parsed product to exactly one `ProductKey`. Titles that are stripped as stop words, produce an empty/changed product slot, fail the product-trend gate, or resolve to zero/multiple keys are excluded. This is pure deterministic validation over the bounded candidate set, not a per-product Feature 136 execution.
 
 The service is invoked only when:
 
@@ -81,10 +87,11 @@ Deterministic company snapshot query + existing chart result
 Resolve canonical company identity
         |
         v
-Read latest eligible company-scoped ProductSales period
+Read one bounded company-scoped ProductSales candidate set and common anchor period
         |
         v
-Normalize/group product identities and validate product-trend eligibility
+Normalize/group with the shared Feature-136-compatible identity/title helper;
+reject parser-unsafe or non-round-trippable titles
         |
         v
 Rank by anchor-period sales value, tie-break deterministically, take 3
@@ -115,7 +122,13 @@ The source of truth for candidate products is the normalized monthly product-sal
 
 Only accepted reports satisfying `ReportType = ProductSales`, `OutputType = 0`, and `IsAccepted = true` participate. Service-sales rows, YTD/adjustment output types, null output types, unaccepted revisions, and report-title inference are excluded exactly as in Feature 136.
 
-The anchor period is the newest accepted qualifying product-sales period not later than the company trend’s latest report period. If the product read model has no qualifying period at or before that company period, no actions are returned. This bounds suggestions to data relevant to the response instead of using stale historical products.
+The anchor period is the newest accepted `ProductSales` period with
+`OutputType == 0`, usable product line items, and at least one non-null
+`SalesAmount`, not later than the company trend's
+`LatestReportYear/LatestReportMonth`. A report header without qualifying line
+items is not an anchor. If no such period exists, no actions are returned.
+All products are ranked inside this one common period; each product must not
+use its own independently latest period.
 
 ## 7. Product eligibility rules
 
@@ -125,9 +138,17 @@ A product is eligible only when all rules pass:
 2. The product occurs in the anchor accepted `ProductSales`/`OutputType = 0` period for that company.
 3. Its canonical `ProductKey` can be built with the existing Feature 136 rules.
 4. After grouping all same-key observations for the period, `SalesAmount` is non-null. A zero amount is a valid observed value and is not silently converted to missing.
-5. The existing `MonthlyProductTrendQueryUseCase` would be able to resolve the generated product title to exactly one product identity. Products whose title maps to multiple keys are excluded from suggestions rather than generating an action that immediately returns `Ambiguous`.
-6. The canonical display title is non-empty. Missing titles are not replaced with a fabricated label such as “other product”.
-7. The normalized title is unique among the eligible action candidates. Distinct identities with the same display title are excluded together because a title-only query cannot safely distinguish them.
+5. The shared Feature-136-compatible resolver supplies the canonical
+   `DisplayTitle`; Feature 137 never selects a latest-period title on its own.
+6. The canonical display title is non-empty and is not the Feature 136
+   missing-title fallback. Missing titles are excluded, not replaced with a
+   fabricated label such as “other product”.
+7. The generated full query passes the deterministic
+   `MonthlyProductTrendIntentRules` round-trip check and resolves to exactly one
+   `ProductKey` in the bounded shared candidate universe. No per-product
+   `MonthlyProductTrendQueryUseCase` execution is allowed.
+8. The normalized canonical title is unique among eligible action candidates.
+   Distinct identities with the same display title are excluded together.
 
 The existing product trend rule is the minimum-history rule: one valid sales-value observation is enough for a product trend result; older or missing months become typed gaps. Feature 137 does not invent a stricter observation count. The anchor-period requirement adds recency for follow-up relevance, not a new historical threshold.
 
@@ -144,8 +165,12 @@ Algorithm:
 
 1. Read the anchor period’s accepted product observations.
 2. Build the existing product key for every observation.
-3. Group observations by `ProductKey` and checked-sum non-null sales values. Keep the canonical latest-period title/unit and provider identity fields.
-4. Remove candidates with no sales value, ambiguous title resolution, duplicate normalized display title, or missing canonical title.
+3. Group observations by `ProductKey` and checked-sum non-null sales values.
+   Use the exact Feature-136-compatible canonical `DisplayTitle`/unit selected
+   by the shared resolver, not the latest-period title.
+4. Remove candidates with no sales value, ambiguous title resolution,
+   duplicate normalized display title, missing canonical title, or a failed
+   parser round-trip.
 5. Sort by descending aggregated sales value.
 6. Break ties by normalized canonical title using ordinal comparison, then by `ProductKey` using ordinal comparison.
 7. Take the first three.
@@ -165,9 +190,24 @@ PresetSlots:     company={ResolvedCompanySymbol}, product={CanonicalProductTitle
 RelevanceReason: monthly_sales_product_follow_up
 ```
 
-The canonical title is preserved for display and query construction. Normalization is used only for identity comparison. Persian/Arabic Unicode variants are handled by the existing normalizer; the feature must not maintain a second transliteration or variant table.
+The product title is the canonical `DisplayTitle` selected by the shared
+Feature-136-compatible resolver, including for renamed products. Normalization
+is used for identity comparison and parser round-trip validation only. Persian/
+Arabic Unicode variants are handled by the existing normalizer; the feature
+must not maintain a second transliteration or variant table. The company symbol
+is exactly `TseSymbol ?? Ticker ?? CompanySymbol`; company display name is never
+used as a fallback.
 
-Action IDs must be stable for the same company identity, product identity, capability, and action version. They should be generated from bounded canonical components (for example a versioned hash of `monthly_product_trend`, external company ID, and `ProductKey`) rather than raw unbounded Persian text. The existing action length bounds remain authoritative.
+`RegistryVersion` is the existing capability/action registry version exposed by
+`IConversationalCapabilityRegistry.Version`; it is the Feature 137 action
+version and is copied into `SuggestedAction.RegistryVersion`. Action IDs are a
+bounded SHA-256-derived value from `feature137`, `monthly_product_trend`, the
+registry version, canonical `ExternalCompanyId`, and `ProductKey`; raw Persian
+text and display names are not used. IDs remain stable while those canonical
+inputs and the registry version remain stable. A registry/policy change that
+requires new action semantics must increment the existing registry version and
+therefore intentionally changes the IDs. The existing action length bounds
+remain authoritative.
 
 The backend may optionally render a deterministic heading such as `پیشنهاد برای بررسی بیشتر` from the returned action list. The heading and labels are presentation only; the structured `SuggestedActions` array is the source of truth.
 
@@ -181,16 +221,37 @@ No new top-level `suggestedPrompts` field is required. The existing contract alr
 - conversation payload: `AssistantMessagePayload.SuggestedActions`;
 - frontend: `AssistantChatBlock.suggestedActions` and `SuggestedAction`.
 
-Feature 137 populates `SuggestedActions` for a successful company monthly trend response. Existing clients that ignore this optional field continue to work. When there are no eligible products, the field is null or an empty collection according to the established serializer behavior; it must never contain placeholder actions.
+Feature 137 populates `SuggestedActions` for a successful company monthly trend
+response. Existing clients that ignore this optional field continue to work.
+For a successful `MonthlyActivityTrend` response, the V2 workflow persists a
+non-null Feature 137 action set: one to three actions when eligible candidates
+exist, or an empty collection when none exist. It must never contain placeholder
+actions. Responses where Feature 137 does not apply retain the established
+nullable generic-guidance behavior.
 
 The action message is a complete normal-language product trend query, so the frontend does not parse answer text or assemble a query from hidden fields.
 
-## 11. V1 / MAF V2 behavior
+## 11. V2 action ownership and V1 behavior
 
 Feature 137 is intentionally V2-only.
 
-- MAF V2: after `MonthlyActivityTrend` result computation and before final persistence, invoke the deterministic selector and carry its actions through `ResultsComputedMessage`, `PersistenceCompletedMessage`, `MessagePersistenceFunction`, `AssistantMessagePayload`, `AiQueryResponse`, and `AiFacadeController` mapping.
-- V1: do not add a new selector call, intent, parser, route, DTO, or response branch. Existing V1 company trend behavior remains unchanged and returns no Feature 137 product actions.
+- MAF V2 ownership is: successful `MonthlyActivityTrend` computation -> deterministic Feature 137 selector -> `SuggestedActions` on `ResultsComputedMessage` -> `MessagePersistenceFunction` input -> `AssistantMessagePayload` and persisted conversation -> `PersistenceCompletedMessage` -> `AiQueryResponse` and `AiFacadeController` mapping -> existing frontend/Telegram rendering.
+- `ResultsComputedMessage` and `PersistenceCompletedMessage` use a
+  `Feature137SuggestionsApplied` marker so a non-null empty collection means
+  “Feature 137 applied and no eligible products,” while null means the feature
+  does not apply. `MessagePersistenceFunction` accepts the deterministic action
+  collection and persists it unchanged.
+- For a successful `MonthlyActivityTrend` result, Feature 137 actions are
+  authoritative. `CapabilityGuidanceService.Suggest` is skipped for that
+  result and cannot overwrite one to three actions or the explicit empty set.
+- If the company trend fails, is a clarification/no-data response, or the
+  result is not usable, the selector is not invoked and existing generic
+  guidance behavior remains unchanged. Unrelated capabilities also retain
+  existing generic guidance behavior.
+- V1: do not add a new selector call, intent, parser, route, DTO, or response
+  branch. Existing V1 company trend behavior remains unchanged and V1 returns
+  no Feature 137 product follow-up actions. Existing V1 generic guidance
+  behavior remains unchanged.
 - If the emergency configuration switches from V2 to V1, absence of the new actions is an intentional documented capability difference, not a fallback that invents suggestions.
 - Product trend clicks always return to the active normal routing path and, when V2 is active, resolve through `monthly_product_trend`.
 
@@ -214,7 +275,7 @@ Telegram may render the same actions as bounded text because its interaction sur
 | Fewer than three eligible products | Return exactly the available eligible count. |
 | More than three eligible products | Return the top three by documented ranking. |
 | Duplicate product titles | Exclude ambiguous duplicate-title identities; never return duplicate action text. |
-| Renamed product | Use the latest canonical title for a stable provider identity; without provider evidence, title-plus-unit identity does not assert continuity. |
+| Renamed product | `ProductKey` determines identity; use the canonical `DisplayTitle` selected by the shared Feature-136-compatible resolver, not the latest-period title. Without provider evidence, title-plus-unit identity does not assert continuity. |
 | Zero sales product | Keep a valid zero `SalesAmount` candidate, rank it after positive values, and include it only if it falls within the top three. |
 | Missing recent month | Use the latest qualifying product period not later than the company trend period; a product absent from the anchor period is not suggested. |
 | Sparse historical data | One valid anchor observation is sufficient under Feature 136; other months remain product-trend gaps. |
@@ -230,20 +291,31 @@ Suggestion generation is non-critical enrichment. A failure, timeout, cancellati
 
 No fallback may use assistant prose, raw LLM output, company average sales rate, market knowledge, a generic product name, or a product from another company. A product-level click that later returns `NotFound` or `Ambiguous` remains a normal typed product-trend outcome and is not retried with a fabricated title.
 
-## 15. Performance considerations
+## 15. Performance and bounded query shape
 
-The selector should use one bounded company/period read after the company trend query, preferably a repository method that aggregates or returns only the latest accepted product-sales period. It must not issue an unbounded product-by-product trend query just to rank candidates.
+The selector uses one bounded company-scoped repository read (or one bounded
+repository query plus one in-memory shared resolver pass) after the company
+trend query. The required shape is:
 
-Recommended bounds:
+1. Resolve the company once and derive the canonical symbol.
+2. Find the newest accepted `ProductSales`, `OutputType == 0` period not later
+   than the company trend period where qualifying line items with at least one
+   non-null `SalesAmount` exist.
+3. Load that anchor's product rows plus the selected columns for the same
+   accepted company-scoped candidate universe used by Feature 136's default
+   resolver, in one set-based read.
+4. Aggregate anchor `SalesAmount` by `ProductKey` with checked decimal sums.
+5. Apply the shared canonical title/matcher and pure parser round-trip checks in
+   memory; do not execute `MonthlyProductTrendQueryUseCase` per candidate.
+6. Exclude null-value, ambiguous, duplicate-title, missing-title, and
+   parser-unsafe candidates.
+7. Sort deterministically and take three.
 
-- one anchor period;
-- one company scope;
-- bounded candidate title/key fields;
-- checked decimal aggregation;
-- three returned actions;
-- no synchronous external provider call.
-
-If repository composition over `GetAvailablePeriodsAsync` and `GetPeriodAsync` is retained initially, it must still avoid reading periods older than necessary and should be replaced by a single optimized read method if profiling shows material cost.
+`GetAvailablePeriodsAsync` followed by one `GetPeriodAsync` is not sufficient
+to prove the cross-period Feature-136-compatible identity universe, and a loop
+over products is forbidden. No provider/API call, LLM validation, or repeated
+period scan per candidate is allowed. A report header without qualifying line
+items cannot become the anchor.
 
 ## 16. Caching considerations
 
@@ -279,7 +351,16 @@ The only intentional behavioral difference is that V2 company trend responses ma
 
 ## 20. Testing strategy
 
-Unit tests must cover the selector and action builder independently from the LLM and API. Required cases include zero/one/exactly-three/more-than-three eligible products, deterministic tie ordering, duplicate titles, ambiguous identities, sparse data, zero sales, missing anchor month, Unicode normalization, renamed products, historical-only products, invalid companies, and provider failure fallback.
+Unit tests must cover the selector and action builder independently from the LLM
+and API. Required identity/title cases include stable `ProductKey`, renamed
+products using the shared Feature-136-compatible canonical title, duplicate
+display titles, parser-unsafe title rejection, and canonical title round-trip.
+Ranking cases include zero/one/exactly-three/more-than-three products, null and
+zero sales, ties by sales/title/`ProductKey`, and repeated-run equality.
+Anchor cases include the common latest accepted ProductSales period, exclusion
+of periods later than the company trend, a header with no qualifying line
+items, and no anchor period. Provider failure, invalid companies, sparse data,
+historical-only products, and Unicode normalization must remain non-critical.
 
 Integration tests must prove:
 
@@ -288,8 +369,15 @@ Integration tests must prove:
 - each returned action message resolves through the normal `MonthlyProductTrend` capability;
 - no eligible-product path succeeds without actions;
 - invalid company behavior remains unchanged;
+- successful company-trend actions are not overwritten by `CapabilityGuidanceService`;
+- a successful company trend with no eligible products persists an empty
+  Feature 137 action set and remains successful;
 - V2 persistence/API reload preserves actions;
-- V1 remains unchanged;
+- generated action messages round-trip through normal V2 routing to Feature 136
+  without per-candidate Feature 136 execution;
+- V1 has no Feature 137 product actions while existing generic guidance remains
+  unchanged;
+- bounded repository-call/query-shape tests prove no N+1 behavior;
 - company and product chart regressions remain green;
 - the `SuggestedActionId` click path remains wired.
 
@@ -297,13 +385,13 @@ Integration tests must prove:
 
 - **AC-1:** A company-level monthly sales trend response can return structured product follow-up suggestions.
 - **AC-2:** At most three product suggestions are returned.
-- **AC-3:** Each suggestion uses a real canonical product belonging to the resolved company.
+- **AC-3:** Each suggestion uses a real company-owned product and the canonical `DisplayTitle` selected by Feature-136-compatible resolution, including for renamed products.
 - **AC-4:** The LLM does not invent or select product names.
-- **AC-5:** Each suggested product is eligible for the existing product-level monthly sales trend flow.
+- **AC-5:** Each suggested product is eligible for the existing product-level monthly sales trend flow through one bounded shared identity/queryability resolution; the implementation never invokes `MonthlyProductTrendQueryUseCase` once per candidate.
 - **AC-6:** Products without sufficient usable history are excluded.
 - **AC-7:** Suggestion ordering is deterministic.
 - **AC-8:** Ranking is based on the documented business metric: anchor-period aggregated product `SalesAmount`.
-- **AC-9:** The resulting query format uses the canonical product title and resolved company symbol.
+- **AC-9:** The resulting query uses the Feature-136-compatible canonical `DisplayTitle` and the canonical company symbol `TseSymbol ?? Ticker ?? CompanySymbol`, subject to existing normalization; display name is not a fallback.
 - **AC-10:** If there are no eligible products, the response succeeds normally with zero suggestions.
 - **AC-11:** Existing company monthly sales analysis and chart output remain unchanged.
 - **AC-12:** Existing company sales calculations remain unchanged.
@@ -312,11 +400,11 @@ Integration tests must prove:
 - **AC-15:** Different natural-language phrasings routed to the same monthly-sales capability receive equivalent suggestion behavior.
 - **AC-16:** No exact-phrase grammar is introduced for activating this feature.
 - **AC-17:** The feature does not introduce direct LLM-to-database access.
-- **AC-18:** V1 and MAF V2 behavior is explicitly verified.
+- **AC-18:** V1 and MAF V2 behavior is explicitly verified; V1 receives no Feature 137 product follow-up actions, while existing V1 generic guidance remains unchanged.
 - **AC-19:** A company with fewer than three eligible products returns only the available eligible products.
 - **AC-20:** Duplicate product suggestions are not returned.
 - **AC-21:** Unsupported company types, including companies without meaningful product-level monthly sales data, return no fabricated suggestions.
-- **AC-22:** Existing clients that ignore suggested prompts continue to work.
+- **AC-22:** Existing clients that ignore structured suggested actions continue to work, and generic `CapabilityGuidanceService` behavior remains unchanged outside successful Feature 137 company-trend responses.
 
 ## 21. Rollout considerations
 
@@ -335,18 +423,27 @@ Roll back by disabling the V2 enrichment flag. The company trend path remains us
 
 ## 22. Explicit design decisions
 
-1. Feature number and folder: `137-monthly-sales-product-follow-up-suggestions`.
-2. Existing product trend support is a dependency, not a new implementation in this feature.
-3. Existing `SuggestedAction` is reused; no parallel `SuggestedPrompt` contract is created.
-4. Maximum returned actions: three.
-5. Ranking metric: aggregated product `SalesAmount` in the latest accepted qualifying anchor period, because it measures recent revenue contribution and avoids incompatible product units.
-6. Minimum usable history: one valid sales-value observation, reused from Feature 136; the anchor-period rule supplies recency.
-7. Ambiguous or duplicate title identities are excluded rather than made clickable.
-8. Historical-only products are excluded from current follow-ups.
-9. Zero sales is a valid observed value and is ranked below positive values, not rewritten as missing.
-10. Suggestions are generated only after a successful company trend result and do not alter the company answer/chart.
-11. V2 receives the feature; V1 remains frozen and intentionally has no new behavior.
-12. Any optional textual heading is derived from structured actions; the actions remain the source of truth.
+D-1. Feature 137 is V2-only; V1 receives no Feature 137 product follow-up actions.
+D-2. Existing `SuggestedAction` is reused; no parallel `SuggestedPrompt` contract is created.
+D-3. Maximum returned product actions: three.
+D-4. Ranking uses one common accepted company ProductSales anchor period.
+D-5. Ranking metric is checked aggregate `SalesAmount`.
+D-6. Product identity uses Feature-136-compatible `ProductKey` semantics.
+D-7. Product title uses the Feature-136-compatible canonical `DisplayTitle`, not the latest-period title.
+D-8. Company symbol precedence is `TseSymbol ?? Ticker ?? CompanySymbol`; no display-name fallback is allowed.
+D-9. The selector is bounded and must not execute `MonthlyProductTrendQueryUseCase` per candidate.
+D-10. Parser-unsafe or non-round-trippable titles are excluded.
+D-11. Successful V2 company-trend Feature 137 actions are authoritative over generic guidance; zero eligible products persists an empty Feature 137 action set.
+D-12. Zero eligible products produces a successful company response with zero Feature 137 actions.
+D-13. Existing V1 generic guidance behavior remains unchanged.
+D-14. Feature 136 production behavior and calculations are not changed by this feature.
+
+The minimum usable history is one valid non-null sales-value observation;
+sparse older periods remain gaps. Ambiguous, duplicate-title, and historical-
+only products are excluded. `SuggestedAction.RegistryVersion` uses the
+existing capability/action registry version, and IDs are bounded hashes of
+versioned canonical identity inputs. Any optional textual heading is derived
+from structured actions only.
 
 ## 23. Explicit non-goals
 
@@ -360,3 +457,14 @@ Roll back by disabling the V2 enrichment flag. The company trend path remains us
 - No change to product trend calculations, accepted revision rules, identity rules, chart formulas, or company chart output.
 - No frontend redesign or requirement to parse Persian answer text.
 - No new V1 intent, route, parser, capability, or API branch.
+
+## 24. Finding-resolution matrix
+
+| Finding | Status | Spec section changed | Resolution |
+|---|---|---|---|
+| M-01 | RESOLVED | §§4, 5, 7, 15, 20; Tasks 1–4, 14 | One bounded candidate read plus shared Feature-136-compatible identity/matcher; parser round-trip is pure in-memory validation; no per-candidate Feature 136 execution. |
+| M-02 | RESOLVED | §§3, 7–9, 13, 20, 22; Tasks 2, 5, 6, 14 | `ProductKey` determines identity and the shared Feature 136 canonical `DisplayTitle` is used, including renames; latest-period title is not used. |
+| M-03 | RESOLVED | §§10–11, 19–20; Tasks 8–10 | `ResultsComputedMessage` -> `MessagePersistenceFunction` -> payload -> `PersistenceCompletedMessage`/API is explicit; deterministic actions take precedence over generic guidance. |
+| M-04 | RESOLVED | §§4, 9, 22; Tasks 2, 6 | Symbol is exactly `TseSymbol ?? Ticker ?? CompanySymbol`; missing symbol yields zero actions. |
+| M-05 | RESOLVED | §11, AC-18/22; Tasks 11 | Only Feature 137 product actions are absent in V1; existing generic V1 guidance remains unchanged. |
+| N-01 | RESOLVED | §9, §22 versioning paragraph; Task 7 | Existing capability/action registry version is the action version and `SuggestedAction.RegistryVersion`; IDs are bounded hashes of canonical versioned inputs. |

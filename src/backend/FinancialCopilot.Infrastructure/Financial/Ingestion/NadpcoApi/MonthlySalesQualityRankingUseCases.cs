@@ -41,8 +41,7 @@ internal sealed class RecalculateMonthlySalesQualityRankingUseCase(
         var started = timeProvider.GetUtcNow();
         var period = request.ReportYear.HasValue && request.ReportMonth.HasValue
             ? (request.ReportYear.Value, request.ReportMonth.Value)
-            : await ResolveLatestTrendPeriodAsync(ct)
-                ?? throw new InvalidOperationException("No monthly activity trend snapshots are available for ranking recalculation.");
+            : await ResolveLatestRankablePeriodAsync(ct);
 
         logger.LogInformation(
             "Recalculating monthly sales quality ranking for {ReportYear}/{ReportMonth:00}.",
@@ -160,16 +159,11 @@ internal sealed class RecalculateMonthlySalesQualityRankingUseCase(
             calculatedAt);
     }
 
-    private async Task<(int, byte)?> ResolveLatestTrendPeriodAsync(CancellationToken ct)
+    private Task<(int, byte)> ResolveLatestRankablePeriodAsync(CancellationToken ct)
     {
-        var period = await dbContext.CompanyMonthlyActivityTrendSnapshots
-            .AsNoTracking()
-            .OrderByDescending(r => r.ReportYear)
-            .ThenByDescending(r => r.ReportMonth)
-            .Select(r => new { r.ReportYear, r.ReportMonth })
-            .FirstOrDefaultAsync(ct);
-
-        return period is null ? null : (period.ReportYear, period.ReportMonth);
+        var period = ShamsiMonthCalculator.LatestCompletedCalendarMonth(timeProvider.GetUtcNow());
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult((period.Year, (byte)period.Month));
     }
 
     private async Task<List<RankingSourceRow>> LoadCurrentRowsAsync(int reportYear, byte reportMonth, CancellationToken ct)

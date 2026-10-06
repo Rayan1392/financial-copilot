@@ -36,6 +36,7 @@ public static class ShamsiMonthCalculator
     public static readonly ShamsiMonth MonthlyActivityFloor = new(1404, 1);
 
     private static readonly PersianCalendar Calendar = new();
+    private static readonly TimeZoneInfo TehranTimeZone = ResolveTehranTimeZone();
 
     /// <summary>
     /// The latest fully published Shamsi month: the month before the one containing
@@ -47,6 +48,28 @@ public static class ShamsiMonthCalculator
         var current = new ShamsiMonth(Calendar.GetYear(now), Calendar.GetMonth(now));
         var previous = current.Previous();
         return previous < MonthlyActivityFloor ? MonthlyActivityFloor : previous;
+    }
+
+    /// <summary>
+    /// The latest fully completed Shamsi calendar month in the Tehran market timezone,
+    /// independent of stored report coverage and without applying the Noavaran activity floor.
+    /// </summary>
+    public static ShamsiMonth LatestCompletedCalendarMonth(DateTimeOffset utcNow)
+    {
+        var now = TimeZoneInfo.ConvertTime(utcNow, TehranTimeZone).DateTime;
+        return new ShamsiMonth(Calendar.GetYear(now), Calendar.GetMonth(now)).Previous();
+    }
+
+    private static TimeZoneInfo ResolveTehranTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Iran Standard Time");
+        }
     }
 
     /// <summary>

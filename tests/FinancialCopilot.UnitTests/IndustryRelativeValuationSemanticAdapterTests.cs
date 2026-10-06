@@ -55,6 +55,97 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     }
 
     [Fact]
+    public async Task Adapter_DoesNotResolveIndustryReferenceAsACompanyWhenExactTickerIsPresent()
+    {
+        await using var db = CreateDb();
+        var industry = Guid.NewGuid();
+        var group = Guid.NewGuid();
+        var company = Guid.NewGuid();
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = group, ProviderName = "NoavaranCurrentApi", ExternalId = "70", Name = "Iron Ore Producers"
+        });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+        {
+            Id = company, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1",
+            IndustryId = industry, GroupId = group, Name = "Gohar"
+        });
+        await db.SaveChangesAsync();
+
+        var exactTicker = new EntityResolutionResult.Resolved(
+            new(company, "کگهر", "Gohar", "Company", "exact_ticker"),
+            new("exact_ticker", 1m));
+        var noiseAmbiguity = new EntityResolutionResult.Ambiguous([
+            new(new(Guid.NewGuid(), "AAA", "Industry Services", "Company", "fuzzy_candidate"), 0.62m, "fuzzy_candidate"),
+            new(new(Guid.NewGuid(), "AAB", "Industrial Group", "Company", "fuzzy_candidate"), 0.60m, "fuzzy_candidate")]);
+        var companyResolver = new FakeCompanyResolver(exactTicker, noiseAmbiguity);
+        var adapter = new IndustryRelativeValuationSemanticAdapter(
+            companyResolver,
+            new FakeIndustryResolver(new IndustryResolutionResult.Missing("Industry")),
+            db);
+        var interpretation = new QueryInterpretation(
+            "کگهر را با صنعت خودش مقایسه کن",
+            "کگهر را با صنعت خودش مقایسه کن",
+            "fa",
+            [],
+            [
+                new EntityMention("کگهر", 0, 4, QueryValueProvenance.UserExplicit, "company"),
+                new EntityMention("صنعت خودش", 13, 9, QueryValueProvenance.ModelProposed, "industry", "industry")
+            ],
+            [], null, null, null, [], [], 1m, [], 1);
+
+        var result = await adapter.ResolveAsync("symbol_vs_industry_relative_valuation", interpretation);
+
+        Assert.Equal(IndustryRelativeValuationResolutionStatus.Resolved, result.Status);
+        Assert.Equal([company], result.CompanyIds);
+        Assert.Equal(["کگهر"], companyResolver.Mentions);
+    }
+
+    [Fact]
+    public async Task Adapter_StillClarifiesAnExplicitlyTypedAmbiguousCompanyBesideAnExactTicker()
+    {
+        await using var db = CreateDb();
+        var industry = Guid.NewGuid();
+        var group = Guid.NewGuid();
+        var company = Guid.NewGuid();
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = group, ProviderName = "NoavaranCurrentApi", ExternalId = "70", Name = "Iron Ore Producers"
+        });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+        {
+            Id = company, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1",
+            IndustryId = industry, GroupId = group, Name = "Gohar"
+        });
+        await db.SaveChangesAsync();
+
+        var ambiguous = new EntityResolutionResult.Ambiguous([
+            new(new(Guid.NewGuid(), "AB1", "Ambiguous Company A", "Company", "exact_company_name"), 1m, "exact_company_name"),
+            new(new(Guid.NewGuid(), "AB2", "Ambiguous Company B", "Company", "exact_company_name"), 1m, "exact_company_name")]);
+        var adapter = new IndustryRelativeValuationSemanticAdapter(
+            new FakeCompanyResolver(
+                new EntityResolutionResult.Resolved(new(company, "کگهر", "Gohar", "Company", "exact_ticker"), new("exact_ticker", 1m)),
+                ambiguous),
+            new FakeIndustryResolver(new IndustryResolutionResult.Missing("Industry")),
+            db);
+        var interpretation = new QueryInterpretation(
+            "کگهر compare Alpha",
+            "کگهر compare Alpha",
+            "fa",
+            [],
+            [
+                new EntityMention("کگهر", 0, 4, QueryValueProvenance.UserExplicit, "company"),
+                new EntityMention("Alpha", 14, 5, QueryValueProvenance.ModelProposed, "company")
+            ],
+            [], null, null, null, [], [], 1m, [], 1);
+
+        var result = await adapter.ResolveAsync("symbol_vs_industry_relative_valuation", interpretation);
+
+        Assert.Equal(IndustryRelativeValuationResolutionStatus.Ambiguous, result.Status);
+        Assert.Equal(2, result.CandidateIds!.Count);
+    }
+
+    [Fact]
     public async Task Adapter_ResolvesIndustryOnlyThroughCanonicalIndustryAuthority()
     {
         await using var db = CreateDb();
@@ -148,8 +239,12 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     private sealed class FakeCompanyResolver(params EntityResolutionResult[] results) : ICanonicalQueryEntityResolver
     {
         private int index;
-        public Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default) =>
-            Task.FromResult(results[Math.Min(index++, results.Length - 1)]);
+        public List<string?> Mentions { get; } = [];
+        public Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default)
+        {
+            Mentions.Add(mention);
+            return Task.FromResult(results[Math.Min(index++, results.Length - 1)]);
+        }
         public Task<EntityResolutionResult> ResolveFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) => Task.FromResult(results[0]);
         public Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EntityResolutionResult.Resolved>>([]);
     }

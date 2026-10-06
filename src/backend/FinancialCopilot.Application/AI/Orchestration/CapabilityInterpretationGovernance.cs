@@ -572,12 +572,22 @@ public static class SemanticArbitrator
         var deterministicCodes = deterministic.CapabilityCandidates
             .Select(candidate => candidate.CapabilityCode)
             .ToHashSet(StringComparer.Ordinal);
+        var deterministicTop = deterministic.CapabilityCandidates.FirstOrDefault();
+        var semanticIndustryComparison = semanticCandidates.FirstOrDefault(candidate =>
+            candidate.CapabilityCode is "symbol_vs_industry_relative_valuation" or
+                "industry_relative_valuation_ranking" or
+                "industry_relative_valuation_summary" or
+                "symbol_pair_within_industry");
+        var semanticComparisonWins = semanticIndustryComparison is not null &&
+            (deterministicTop is null || semanticIndustryComparison.Confidence > deterministicTop.Confidence);
         var candidates = semanticCandidates
             .Concat(deterministic.CapabilityCandidates.Where(candidate =>
                 !semanticCandidates.Any(other => other.CapabilityCode == candidate.CapabilityCode) &&
                 !(deterministicProductScope && candidate.CapabilityCode == "product_revenue_mix" &&
                   deterministic.EntityMentions.Any(entity => string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase)))))
-            .OrderByDescending(candidate => deterministicCodes.Contains(candidate.CapabilityCode))
+            .OrderByDescending(candidate => semanticComparisonWins
+                ? candidate.CapabilityCode == semanticIndustryComparison!.CapabilityCode
+                : deterministicCodes.Contains(candidate.CapabilityCode))
             .ThenByDescending(candidate => candidate.Confidence)
             .ThenBy(candidate => candidate.CapabilityCode, StringComparer.Ordinal)
             .ToArray();

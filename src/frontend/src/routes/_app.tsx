@@ -18,7 +18,7 @@ function AppLayout() {
       <ConversationSidebar />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader />
-        <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
           <Outlet />
         </div>
       </main>

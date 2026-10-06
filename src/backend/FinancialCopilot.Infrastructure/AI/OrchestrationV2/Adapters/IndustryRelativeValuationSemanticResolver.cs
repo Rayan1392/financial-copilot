@@ -26,12 +26,26 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
         // overlapping operations on that context, so resolve mentions sequentially.
         var companyResults = await ResolveCompaniesAsync(mentions, cancellationToken);
         var resolvedCompanies = companyResults
+            .Select(item => item.Result)
             .OfType<EntityResolutionResult.Resolved>()
             .GroupBy(result => result.Entity.CanonicalId)
             .Select(group => group.First())
             .ToArray();
-        var ambiguousCompanies = companyResults.OfType<EntityResolutionResult.Ambiguous>().FirstOrDefault();
-        var companyNotFound = companyResults.OfType<EntityResolutionResult.NotFound>().FirstOrDefault();
+        var exactTickerResolved = companyResults.Any(item =>
+            item.Result is EntityResolutionResult.Resolved resolved &&
+            string.Equals(resolved.Evidence.MatchKind, "exact_ticker", StringComparison.Ordinal));
+        // Feature 128 can add untyped fallback spans for Persian connective/inflected words.
+        // An exact ticker is authoritative for the one-company/own-industry capability, but
+        // typed company ambiguity and canonical exact-name ambiguity remain blocking.
+        var ambiguousCompanies = companyResults
+            .Where(item => !(capabilityCode == "symbol_vs_industry_relative_valuation" && exactTickerResolved &&
+                string.IsNullOrWhiteSpace(item.Mention.EntityType) && IsFuzzyAmbiguity(item.Result)))
+            .Select(item => item.Result)
+            .OfType<EntityResolutionResult.Ambiguous>()
+            .FirstOrDefault();
+        var companyNotFound = companyResults.Select(item => item.Result)
+            .OfType<EntityResolutionResult.NotFound>()
+            .FirstOrDefault();
 
         var industryResults = await ResolveIndustriesAsync(mentions, cancellationToken);
         var explicitIndustry = industryResults.OfType<IndustryResolutionResult.Resolved>().FirstOrDefault();
@@ -159,13 +173,14 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
     private static bool IsIndustryRequired(string capabilityCode) =>
         capabilityCode is "industry_relative_valuation_ranking" or "industry_relative_valuation_summary";
 
-    private async Task<EntityResolutionResult[]> ResolveCompaniesAsync(
+    private async Task<(EntityMention Mention, EntityResolutionResult Result)[]> ResolveCompaniesAsync(
         IReadOnlyList<EntityMention> mentions,
         CancellationToken cancellationToken)
     {
-        var results = new List<EntityResolutionResult>(mentions.Count);
-        foreach (var mention in mentions)
-            results.Add(await companyResolver.ResolveMentionAsync(mention.Text, cancellationToken));
+        var results = new List<(EntityMention Mention, EntityResolutionResult Result)>(mentions.Count);
+        foreach (var mention in mentions.Where(IsCompanyMention)
+                     .Where(mention => !CoveredByTypedNonCompanyMention(mention, mentions)))
+            results.Add((mention, await companyResolver.ResolveMentionAsync(mention.Text, cancellationToken)));
         return results.ToArray();
     }
 
@@ -174,10 +189,38 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
         CancellationToken cancellationToken)
     {
         var results = new List<IndustryResolutionResult>(mentions.Count);
-        foreach (var mention in mentions)
+        foreach (var mention in mentions.Where(IsIndustryMention))
             results.Add(await industryResolver.ResolveIndustryMentionAsync(mention.Text, cancellationToken));
         return results.ToArray();
     }
+
+    private static bool IsCompanyMention(EntityMention mention) =>
+        string.IsNullOrWhiteSpace(mention.EntityType) ||
+        mention.EntityType.Equals("company", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("symbol", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("ticker", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("stock", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("issuer", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsIndustryMention(EntityMention mention) =>
+        string.IsNullOrWhiteSpace(mention.EntityType) ||
+        mention.EntityType.Equals("industry", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("industry_group", StringComparison.OrdinalIgnoreCase) ||
+        mention.EntityType.Equals("sector", StringComparison.OrdinalIgnoreCase);
+
+    private static bool CoveredByTypedNonCompanyMention(
+        EntityMention mention,
+        IReadOnlyList<EntityMention> allMentions) =>
+        string.IsNullOrWhiteSpace(mention.EntityType) && allMentions.Any(candidate =>
+            !string.IsNullOrWhiteSpace(candidate.EntityType) &&
+            !IsCompanyMention(candidate) &&
+            candidate.Start <= mention.Start &&
+            candidate.Start + candidate.Length >= mention.Start + mention.Length);
+
+    private static bool IsFuzzyAmbiguity(EntityResolutionResult result) =>
+        result is EntityResolutionResult.Ambiguous ambiguous && ambiguous.Candidates.Count > 0 &&
+        ambiguous.Candidates.All(candidate => string.Equals(
+            candidate.MatchKind, "fuzzy_candidate", StringComparison.Ordinal));
 
     private static bool IsCompanyRequired(string capabilityCode) =>
         capabilityCode is "symbol_vs_industry_relative_valuation" or "symbol_pair_within_industry";

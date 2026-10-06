@@ -24,6 +24,56 @@ public sealed class CanonicalQueryEntityResolverTests
     }
 
     [Fact]
+    public async Task ExactKegahrTicker_ResolvesDeterministically()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+
+        var result = await CreateResolver(db).ResolveMentionAsync("\u06a9\u06af\u0647\u0631");
+
+        var resolved = Assert.IsType<EntityResolutionResult.Resolved>(result);
+        Assert.Equal(company.Id, resolved.Entity.CanonicalId);
+        Assert.Equal("\u06a9\u06af\u0647\u0631", resolved.Entity.DisplaySymbol);
+        Assert.Equal("exact_ticker", resolved.Evidence.MatchKind);
+        Assert.Equal(1m, resolved.Evidence.Confidence);
+    }
+
+    [Theory]
+    [InlineData("\u06a9\u06af\u0647\u0631")]
+    [InlineData("\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u06a9\u06af\u0647\u0631")]
+    [InlineData("P/E \u06a9\u06af\u0647\u0631")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0647\u0631")]
+    public async Task IsolatedAndExistingIntentQueries_StillResolveKegahr(string query)
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query);
+
+        var result = await CreateResolver(db).ResolveFromInterpretationAsync(interpretation);
+
+        Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(result).Entity.CanonicalId);
+    }
+
+    [Theory]
+    [InlineData("P/E \u06a9\u06af\u0647\u0631", "symbol_metric_lookup")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0647\u0631", "monthly_activity_trend")]
+    public async Task MetricAndTrendIntents_KeepTheirRoutesAndResolveTheTicker(string query, string expectedCapability)
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query);
+
+        Assert.Equal(expectedCapability, interpretation.CapabilityCandidates.First().CapabilityCode);
+        var resolution = await CreateResolver(db).ResolveFromInterpretationAsync(interpretation);
+        Assert.Equal(company.Id, Assert.IsType<EntityResolutionResult.Resolved>(resolution).Entity.CanonicalId);
+    }
+
+    [Fact]
     public async Task PresentationTerms_AreMissingAndNeverEntities()
     {
         await using var db = CreateDb();

@@ -3232,6 +3232,7 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
 
         var json = request.StructuredOutput?.SchemaName switch
         {
+            "QueryInterpretationProposal_v2" when IsIndustryComparison(request) => BuildIndustryComparisonProposal(request),
             "SymbolLookupParseOutput" => BuildSymbolLookupParseJson(request),
             _ => "{}"
         };
@@ -3262,6 +3263,45 @@ public sealed class V2MonthlySalesRoutingFakeAiModelClient : IAiModelClient
         new(request.CorrelationId, Descriptor.ProviderKey, Descriptor.ModelKey,
             AiExecutionStatus.Completed, TimeSpan.Zero, AttemptNumber: 0,
             InputTokens: 10, OutputTokens: 4, UsedTools: false);
+
+    private static string? UserMessage(AiModelRequest request) =>
+        request.Messages.LastOrDefault(message => message.Role == AiMessageRole.User)?.Content;
+
+    private static bool IsIndustryComparison(AiModelRequest request) =>
+        UserMessage(request)?.Contains("\u06a9\u06af\u0647\u0631", StringComparison.Ordinal) == true;
+
+    private static string BuildIndustryComparisonProposal(AiModelRequest request)
+    {
+        var message = UserMessage(request) ?? string.Empty;
+        var industryMention = message.Contains("\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc", StringComparison.Ordinal)
+            ? message.Contains("\u0647\u0645\u200c\u06af\u0631\u0648\u0647", StringComparison.Ordinal)
+                ? "\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc \u0647\u0645\u200c\u06af\u0631\u0648\u0647"
+                : "\u0634\u0631\u06a9\u062a\u200c\u0647\u0627\u06cc \u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634"
+            : message.Contains("\u0647\u0645\u200c\u0635\u0646\u0639\u062a", StringComparison.Ordinal)
+                ? "\u0647\u0645\u200c\u0635\u0646\u0639\u062a\u06cc\u200c\u0647\u0627"
+                : message.Contains("\u0635\u0646\u0639\u062a\u0634", StringComparison.Ordinal)
+                    ? "\u0635\u0646\u0639\u062a\u0634"
+                    : message.Contains("\u0647\u0645\u200c\u06af\u0631\u0648\u0647", StringComparison.Ordinal)
+                        ? "\u0647\u0645\u200c\u06af\u0631\u0648\u0647"
+                        : message.Contains("\u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634", StringComparison.Ordinal)
+                            ? "\u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634"
+                            : "\u0635\u0646\u0639\u062a";
+        return JsonSerializer.Serialize(new
+        {
+            capabilityCodes = new[] { "symbol_vs_industry_relative_valuation" },
+            missingSlots = Array.Empty<string>(),
+            presentation = "Table",
+            confidence = 0.99m,
+            evidence = new[] { "same-industry comparison intent" },
+            intent = "industry_comparison",
+            entities = new object[]
+            {
+                new { text = "\u06a9\u06af\u0647\u0631", entityType = "company", scope = (string?)null, confidence = 1m },
+                new { text = industryMention, entityType = "industry", scope = "same_industry", confidence = 0.99m }
+            },
+            metricHints = Array.Empty<string>()
+        });
+    }
 
     private static string BuildSymbolLookupParseJson(AiModelRequest request)
     {

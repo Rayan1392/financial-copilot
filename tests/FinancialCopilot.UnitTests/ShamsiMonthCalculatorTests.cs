@@ -22,6 +22,28 @@ public sealed class ShamsiMonthCalculatorTests
         Assert.Equal(new ShamsiMonth(1404, 12), month);
     }
 
+    [Theory]
+    [InlineData("2026-10-06T08:00:00Z", 1405, 6)] // 14 Mehr 1405; Mehr is still incomplete.
+    [InlineData("2026-03-30T08:00:00Z", 1404, 12)] // 10 Farvardin 1405.
+    [InlineData("2026-09-23T08:00:00Z", 1405, 6)] // First day of Mehr 1405.
+    public void LatestCompletedCalendarMonth_UsesPreviousPersianCalendarMonth(
+        string utcNow, int expectedYear, int expectedMonth)
+    {
+        var month = ShamsiMonthCalculator.LatestCompletedCalendarMonth(DateTimeOffset.Parse(utcNow));
+
+        Assert.Equal(new ShamsiMonth(expectedYear, expectedMonth), month);
+    }
+
+    [Fact]
+    public void LatestCompletedCalendarMonth_UsesTehranDateAtUtcMonthBoundary()
+    {
+        // 2026-09-22 21:00 UTC is already 2026-09-23 00:30 in Tehran, Mehr 1, 1405.
+        var month = ShamsiMonthCalculator.LatestCompletedCalendarMonth(
+            DateTimeOffset.Parse("2026-09-22T21:00:00Z"));
+
+        Assert.Equal(new ShamsiMonth(1405, 6), month);
+    }
+
     [Fact]
     public void LatestPublishedMonth_NeverEarlierThanPermittedFloor()
     {

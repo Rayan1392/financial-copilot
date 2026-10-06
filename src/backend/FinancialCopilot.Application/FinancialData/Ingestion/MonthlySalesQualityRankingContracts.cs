@@ -156,7 +156,7 @@ public sealed record MonthlySalesQualityRankingSnapshotUpsertRow(
 
 public interface IMonthlySalesQualityRankingRepository
 {
-    Task<(int ReportYear, byte ReportMonth)?> GetLatestAvailablePeriodAsync(CancellationToken ct = default);
+    Task<(int ReportYear, byte ReportMonth)> GetLatestRankablePeriodAsync(CancellationToken ct = default);
 
     Task<MonthlySalesQualityRankingResponse> GetRankingAsync(
         MonthlySalesQualityRankingQuery query,

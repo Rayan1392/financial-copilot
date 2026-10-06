@@ -167,7 +167,7 @@ public static class IndustryRelativeValuationPresentation
         lines.Add("| \u0646\u0645\u0627\u062f | P/E | P/S | \u0642\u06cc\u0645\u062a \u0628\u0647 \u062a\u0639\u0627\u062f\u0644\u06cc |");
         lines.Add("|---|---:|---:|---:|");
         foreach (var member in model.Members)
-            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} | {FormatPercent(member.PS.Percent)} | {FormatPercent(member.Equilibrium.Percent)} |");
+            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} — {ClassificationPersian(member.PE)} | {FormatPercent(member.PS.Percent)} — {ClassificationPersian(member.PS)} | {FormatPercent(member.Equilibrium.Percent)} — {ClassificationPersian(member.Equilibrium)} |");
         var peBenchmark = FormatPercent(Benchmark(model, "PE"));
         var psBenchmark = FormatPercent(Benchmark(model, "PS"));
         var equilibriumBenchmark = FormatPercent(Benchmark(model, "Equilibrium"));

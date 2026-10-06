@@ -255,6 +255,30 @@ public sealed class Feature128SemanticRoutingTests
     }
 
     [Fact]
+    public void ConfidentIndustryComparisonIntentOverridesWeakerGenericSymbolLookupCandidate()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var generic = new QueryInterpretation(
+            "peer status",
+            "peer status",
+            "fa",
+            [new CapabilityCandidate("symbol_metric_lookup", registry.Version, 0.72m, [])],
+            [new EntityMention("کگهر", 0, 4)],
+            [], null, null, null, [], [], 0.72m, [], registry.Version);
+        var semantic = generic with
+        {
+            CapabilityCandidates =
+            [new CapabilityCandidate("symbol_vs_industry_relative_valuation", registry.Version, 0.99m, [])],
+            Confidence = 0.99m
+        };
+
+        var result = SemanticArbitrator.Arbitrate(generic, semantic, registry);
+
+        Assert.Equal("symbol_vs_industry_relative_valuation", result.Candidates.First().CapabilityCode);
+        Assert.True(result.ModelConfidenceUsed);
+    }
+
+    [Fact]
     public void SemanticMetricHintsDoNotBecomeCanonicalMetricSlots()
     {
         var proposal = new QueryInterpretationProposal(

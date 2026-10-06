@@ -46,7 +46,9 @@ internal sealed class MessagePersistenceFunction(
         PsVisualizationResult? psVisualizationResult = null,
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null,
-        MonthlyProductTrendResult? monthlyProductTrendResult = null)
+        MonthlyProductTrendResult? monthlyProductTrendResult = null,
+        IReadOnlyCollection<SuggestedAction>? feature137SuggestedActions = null,
+        bool feature137SuggestionsApplied = false)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -58,14 +60,16 @@ internal sealed class MessagePersistenceFunction(
                 monthlySalesQualityRankingResult, monthlyProductComparisonResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
-        var suggestions = guidanceService.Suggest(new CapabilityGuidanceRequest(
-            request.OriginalUserMessage ?? request.Message,
-            replyLanguage,
-            outcome,
-            outcomeReasonCode,
-            request.SemanticFrame?.Interpretation,
-            CorrelationId: request.CorrelationId,
-            Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
+        IReadOnlyCollection<SuggestedAction> suggestions = feature137SuggestionsApplied
+            ? feature137SuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
+            : guidanceService.Suggest(new CapabilityGuidanceRequest(
+                request.OriginalUserMessage ?? request.Message,
+                replyLanguage,
+                outcome,
+                outcomeReasonCode,
+                request.SemanticFrame?.Interpretation,
+                CorrelationId: request.CorrelationId,
+                Channel: request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai"));
 
         var persisted = await repository.PersistExchangeAsync(
             new ConversationExchange(

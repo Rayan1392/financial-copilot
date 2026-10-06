@@ -116,8 +116,34 @@ function AssistantBlock({
       : tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
         ? ""
         : replaceProviderDisplayNames(block.message);
+  const dailyTradesSource = "منبع: آمار معاملات روزانه";
+  const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
+  const hasDailyTradesSource = sourceMatch !== null;
+  const renderedMessage = hasDailyTradesSource
+    ? message.slice(0, sourceMatch.index).trimEnd()
+    : message;
   const isRtlMessage =
     block.replyLanguage === "fa" || (!block.replyLanguage && containsPersianText(message));
+  const localizedMessage = isRtlMessage
+    ? toPersianDigits(
+        renderedMessage.replace(
+          /(قیمت(?:\s+نماد\s+\S+)?\s+برابر است با\s*)([\d,]+(?:\.\d+)?)(?:\s*ریال)?/u,
+          (_match, label: string, rawPrice: string) => {
+            const fractionDigits = rawPrice.split(".")[1]?.length ?? 0;
+            const price = Number(rawPrice.replace(/,/g, ""));
+            return `${label}${formatNumber(price, { maximumFractionDigits: fractionDigits })} ریال`;
+          },
+        ),
+      )
+    : renderedMessage;
+  const tradingDateMatch = localizedMessage.match(
+    /\s*(تاریخ معامله:\s*[\d۰-۹]{4}[/-][\d۰-۹]{1,2}[/-][\d۰-۹]{1,2}\.?)\s*$/u,
+  );
+  const tradingDate = tradingDateMatch?.[1].replace(/[.。]$/u, "");
+  const mainMessage = tradingDateMatch
+    ? localizedMessage.slice(0, tradingDateMatch.index).trimEnd()
+    : localizedMessage;
+  const displayMessage = mainMessage.replace(/[.。]\s*$/u, "").trimEnd();
 
   return (
     <div className="flex gap-4" dir={isRtlMessage ? "rtl" : "ltr"}>
@@ -128,8 +154,18 @@ function AssistantBlock({
         className={`flex-1 space-y-5 min-w-0 ${isRtlMessage ? "text-right" : "text-left"}`}
         dir={isRtlMessage ? "rtl" : "ltr"}
       >
-        {message.trim().length > 0 && (
-          <MarkdownMessage content={message} direction={isRtlMessage ? "rtl" : "ltr"} />
+        {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource) && (
+          <div className="space-y-1">
+            {displayMessage.length > 0 && (
+              <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
+            )}
+            {tradingDate && (
+              <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>
+            )}
+            {hasDailyTradesSource && (
+              <p className="text-xs leading-relaxed text-muted-foreground">{dailyTradesSource}</p>
+            )}
+          </div>
         )}
 
         {block.filters.length > 0 && (

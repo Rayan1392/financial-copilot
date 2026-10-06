@@ -534,7 +534,7 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var root = document.RootElement;
         Assert.Equal("MonthlyProductTrend", root.GetProperty("intent").GetString());
-        Assert.Equal("monthly_product_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal("product_sales_trend", root.GetProperty("semanticCapabilityCode").GetString());
         Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
 
         var result = root.GetProperty("monthlyProductTrendResult");
@@ -543,6 +543,64 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.Equal(expectedCompany, result.GetProperty("companySymbol").GetString());
         Assert.Equal(expectedProduct, result.GetProperty("productTitle").GetString());
         Assert.NotEmpty(result.GetProperty("points").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 12 \u0645\u0627\u0647\u0647 \u0627\u062e\u06cc\u0631 \u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647\u061f")]
+    [InlineData("\u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631 \u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644")]
+    public async Task V2AiQuery_ExplicitDefaultProductTrendWindowMatchesImplicitDefault(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        async Task<JsonDocument> Query(string query)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/ai/v1/query", new { message = query }, CancellationToken.None);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return await ReadJsonAsync(response);
+        }
+
+        using var baseline = await Query("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644");
+        using var explicitWindow = await Query(message);
+
+        var expectedRoot = baseline.RootElement;
+        var actualRoot = explicitWindow.RootElement;
+        Assert.Equal("MonthlyProductTrend", actualRoot.GetProperty("intent").GetString());
+        Assert.Equal("product_sales_trend", actualRoot.GetProperty("semanticCapabilityCode").GetString());
+        Assert.Equal(expectedRoot.GetProperty("intent").GetString(), actualRoot.GetProperty("intent").GetString());
+        Assert.Equal(expectedRoot.GetProperty("semanticCapabilityCode").GetString(), actualRoot.GetProperty("semanticCapabilityCode").GetString());
+
+        var expected = expectedRoot.GetProperty("monthlyProductTrendResult");
+        var actual = actualRoot.GetProperty("monthlyProductTrendResult");
+        Assert.Equal(expected.GetProperty("resolutionState").GetString(), actual.GetProperty("resolutionState").GetString());
+        Assert.Equal(expected.GetProperty("externalCompanyId").GetString(), actual.GetProperty("externalCompanyId").GetString());
+        Assert.Equal(expected.GetProperty("companySymbol").GetString(), actual.GetProperty("companySymbol").GetString());
+        Assert.Equal(expected.GetProperty("productKey").GetString(), actual.GetProperty("productKey").GetString());
+        Assert.Equal(expected.GetProperty("productTitle").GetString(), actual.GetProperty("productTitle").GetString());
+        Assert.Equal(expected.GetProperty("points").GetRawText(), actual.GetProperty("points").GetRawText());
+        Assert.Equal(12, actual.GetProperty("points").GetArrayLength());
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 6 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 \u06f3 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    public async Task V2AiQuery_DifferentProductTrendWindowsReturnTypedClarification(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal("unsupported_time_window", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.Equal("monthly_product_trend", root.GetProperty("monthlyProductTrendResult").GetProperty("resultDiscriminator").GetString());
+        Assert.Equal("NotFound", root.GetProperty("monthlyProductTrendResult").GetProperty("resolutionState").GetString());
+        Assert.Equal("unsupported_time_window", root.GetProperty("monthlyProductTrendResult").GetProperty("blockingReason").GetString());
     }
 
     [Theory]
@@ -1475,6 +1533,23 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
         Assert.DoesNotContain("محاسبه: 2026/07/07", textAnswer);
         Assert.DoesNotContain("آخرین قیمت", textAnswer);
         Assert.DoesNotContain("DAILY_CHANGE_PCT", textAnswer);
+
+        var action = Assert.Single(root.GetProperty("suggestedActions").EnumerateArray());
+        Assert.Equal("RunRelatedCapability", action.GetProperty("kind").GetString());
+        Assert.Equal("monthly_product_trend", action.GetProperty("capabilityCode").GetString());
+        Assert.Equal("روند فروش آهن اسفنجی کهمدا", action.GetProperty("message").GetString());
+        Assert.Equal(action.GetProperty("message").GetString(), action.GetProperty("label").GetString());
+        Assert.Equal("کهمدا", action.GetProperty("presetSlots").GetProperty("company").GetString());
+        Assert.Equal("آهن اسفنجی", action.GetProperty("presetSlots").GetProperty("product").GetString());
+
+        using var followUp = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = action.GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var followUpDocument = await ReadJsonAsync(followUp);
+        Assert.Equal(HttpStatusCode.OK, followUp.StatusCode);
+        Assert.Equal("MonthlyProductTrend", followUpDocument.RootElement.GetProperty("intent").GetString());
+        Assert.Equal("آهن اسفنجی", followUpDocument.RootElement.GetProperty("monthlyProductTrendResult").GetProperty("productTitle").GetString());
     }
 
     [Theory]
@@ -1578,6 +1653,40 @@ public sealed class V2MonthlyActivityTrendApiFactory : AiFacadeApiFactory
             CompanySymbol = "کهمدا",
             TseSymbol = "کهمدا",
             LastSynchronizedAt = now
+        });
+
+        var productReportId = Guid.NewGuid();
+        var productStart = DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1404, 3, 1, 0, 0, 0, 0));
+        var productEnd = DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1404, 3, 31, 0, 0, 0, 0));
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = productReportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "EXT-001",
+            ExternalReportId = "feature137-khemda-1404-03",
+            ReportType = "ProductSales",
+            OutputType = 0,
+            PeriodStart = productStart,
+            PeriodEnd = productEnd,
+            SourcePayloadChecksum = "feature137-seed",
+            LastSynchronizedAt = now,
+            LogicalReportKey = "feature137-khemda-1404-03",
+            RevisionFingerprint = "feature137-khemda-1404-03-r1",
+            IsAccepted = true,
+            RevisionStatus = "Accepted"
+        });
+        db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            MonthlyReportId = productReportId,
+            ProductCode = "FEATURE137:SPONGE-IRON",
+            Title = "آهن اسفنجی",
+            Unit = "ton",
+            SalesQuantity = 100m,
+            SalesAmount = 250m,
+            SourceRowKey = "feature137-khemda-row",
+            SourceRowFingerprint = "feature137-khemda-row-fingerprint",
+            SourcePayloadChecksum = "feature137-seed"
         });
 
         for (byte month = 1; month <= 12; month++)

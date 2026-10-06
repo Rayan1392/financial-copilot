@@ -100,7 +100,8 @@ internal sealed record ResultsComputedMessage(
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    bool Feature137SuggestionsApplied = false);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -134,4 +135,5 @@ internal sealed record PersistenceCompletedMessage(
     IReadOnlyCollection<SuggestedAction>? SuggestedActions = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
+    MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+    bool Feature137SuggestionsApplied = false);

@@ -90,9 +90,13 @@ public sealed class DeterministicCapabilityInterpreter(
             normalized.Contains("\u062a\u0631\u06a9\u06cc\u0628", StringComparison.Ordinal) &&
             normalized.Contains("\u0641\u0631\u0648\u0634", StringComparison.Ordinal) &&
             normalized.Contains("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal);
+        var monthlyProductTrendQuery = !isProductRevenueComposition &&
+            MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(original)
+                ? MonthlyProductTrendIntentRules.BuildQuery(original)
+                : null;
         var productMention = isProductRevenueComposition
             ? null
-            : ProductSemanticIntentRules.ExtractProductMention(original);
+            : ProductSemanticIntentRules.ExtractProductMention(original) ?? monthlyProductTrendQuery?.ProductText;
         if (productMention is not null)
         {
             var productParts = productMention
@@ -118,6 +122,11 @@ public sealed class DeterministicCapabilityInterpreter(
             {
                 scores["product_sales_trend"] = Math.Max(scores.GetValueOrDefault("product_sales_trend"), 0.99m);
                 evidence.Add(new InterpretationEvidence("product_sales_trend", "product-sales-trend", QueryValueProvenance.UserExplicit));
+            }
+            else if (monthlyProductTrendQuery is not null)
+            {
+                scores["product_sales_trend"] = Math.Max(scores.GetValueOrDefault("product_sales_trend"), 0.99m);
+                evidence.Add(new InterpretationEvidence("product_sales_trend", "monthly-product-trend-query", QueryValueProvenance.UserExplicit));
             }
             else if (ProductSemanticIntentRules.LooksLikeProductSalesValue(original))
             {

@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getCapabilityStarterPrompts, sendChatMessage } from "@/lib/chat.functions";
+import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { useState } from "react";
+import { Activity, ArrowLeft, BarChart3, FileText, Package, PieChart, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/_app/chat")({
   component: NewChatPage,
@@ -19,15 +20,17 @@ function chatErrorMessage(error: Error): string {
 function NewChatPage() {
   const navigate = useNavigate();
   const send = useServerFn(sendChatMessage);
-  const fetchStarterPrompts = useServerFn(getCapabilityStarterPrompts);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
-  const { data: starterPrompts = [] } = useQuery({
-    queryKey: ["capability-starter-prompts", "fa"],
-    queryFn: () => fetchStarterPrompts(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const starterPrompts = [
+    { text: "ترکیب فروش محصولات کگهر را بررسی کن", icon: PieChart },
+    { text: "روند فروش ماهانه کگهر را نشان بده", icon: TrendingUp },
+    { text: "روند فروش گندله کگهر در ۱۲ ماهه اخیر چطور بوده؟", icon: BarChart3 },
+    { text: "آخرین فروش فخاس چقدر بوده است؟", icon: Package },
+    { text: "رتبه بندی گزارش ماهانه؟", icon: FileText },
+    { text: "آخرین قیمت اخابر چقدر بوده؟", icon: Activity },
+  ];
 
   const startChat = useMutation({
     mutationFn: async ({ message, suggestedActionId }: { message: string; suggestedActionId?: string }) => {
@@ -66,26 +69,35 @@ function NewChatPage() {
             onSuggested={submit}
           />
         ) : (
-        <div className="max-w-2xl w-full text-center animate-fade-up">
-          <div className="size-14 mx-auto rounded-2xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center mb-6">
-            <div className="size-5 rounded-full bg-emerald" />
+        <div dir="rtl" className="max-w-3xl w-full py-6 md:py-10 text-center animate-fade-up">
+          <div className="size-14 mx-auto rounded-2xl bg-emerald-soft ring-1 ring-emerald/30 flex items-center justify-center mb-5 text-emerald">
+            <TrendingUp className="size-6" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">
-            ساپیو - دستیار هوشمند بازار
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3 text-balance">
+            دستیار هوشمند بازار سرمایه
           </h1>
-          <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto text-pretty">
-            یک سوال درباره نمادها، شاخص، یا فیلتر بازار بپرسید. تحلیل بنیادی، مقایسه، اسکرینر و
-            خلاصه بازار را در یک گفتگو دریافت کنید.
+          <div className="inline-flex items-center rounded-full border border-emerald/20 bg-emerald-soft/60 px-3 py-1 text-xs font-medium text-emerald mb-5">
+            فاز ۱ · تحلیل تولید و فروش
+          </div>
+          <p className="text-base md:text-lg font-medium text-foreground mb-2 max-w-2xl mx-auto text-pretty">
+            گزارش‌های تولید و فروش شرکت‌ها را با زبان طبیعی تحلیل کنید.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-right">
+          <p className="text-sm leading-7 text-muted-foreground mb-7 max-w-2xl mx-auto text-pretty">
+            روند فروش ماهانه، ترکیب فروش محصولات و عملکرد یک محصول مشخص را بررسی کنید یا سؤال خود را درباره گزارش‌های تولید و فروش بپرسید.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-right">
             {starterPrompts.map((prompt) => (
               <button
-                key={`${prompt.registryVersion}:${prompt.capabilityCode}`}
-                onClick={() => submit(prompt.example)}
+                key={prompt.text}
+                onClick={() => submit(prompt.text)}
                 disabled={startChat.isPending}
-                className="text-sm px-4 py-3 rounded-xl border border-border bg-surface hover:bg-surface-2 hover:border-emerald/30 transition disabled:opacity-50"
+                className="group flex min-h-16 items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm leading-6 text-foreground transition hover:border-emerald/30 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald/40 disabled:opacity-50"
               >
-                {prompt.example}
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-soft/60 text-emerald">
+                  <prompt.icon className="size-4" aria-hidden="true" />
+                </span>
+                <span className="flex-1">{prompt.text}</span>
+                <ArrowLeft className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:text-emerald" aria-hidden="true" />
               </button>
             ))}
           </div>
@@ -100,6 +112,7 @@ function NewChatPage() {
       <PromptInput
         onSubmit={submit}
         loading={startChat.isPending}
+        showAssistedQuery
       />
     </>
   );

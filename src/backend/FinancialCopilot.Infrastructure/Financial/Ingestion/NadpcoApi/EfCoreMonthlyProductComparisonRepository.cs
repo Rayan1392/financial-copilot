@@ -100,6 +100,26 @@ internal sealed class EfCoreMonthlyProductComparisonRepository(FinancialIngestio
         return observations;
     }
 
+    public async Task<MonthlyProductFollowUpReadResult> GetProductFollowUpReadAsync(
+        string externalCompanyId,
+        JalaliPeriod notAfter,
+        CancellationToken ct = default)
+    {
+        // One existing set-based company catalog read supplies both the shared
+        // Feature 136 identity universe and the common Feature 137 anchor.
+        var candidates = await GetAllProductSalesAsync(externalCompanyId, ct);
+        var anchorPeriod = candidates
+            .Where(row => (row.Period < notAfter || row.Period == notAfter) && row.SalesAmount.HasValue)
+            .Select(row => (JalaliPeriod?)row.Period)
+            .OrderByDescending(period => period!.Value.Year)
+            .ThenByDescending(period => period!.Value.Month)
+            .FirstOrDefault();
+        var anchorRows = anchorPeriod is { } anchor
+            ? candidates.Where(row => row.Period == anchor).ToArray()
+            : Array.Empty<ProductSalesObservation>();
+        return new MonthlyProductFollowUpReadResult(candidates, anchorPeriod, anchorRows);
+    }
+
     public async Task<IReadOnlyList<JalaliPeriod>> GetAvailablePeriodsAsync(string externalCompanyId, CancellationToken ct = default)
     {
         var dates = await db.MonthlyReports.AsNoTracking()

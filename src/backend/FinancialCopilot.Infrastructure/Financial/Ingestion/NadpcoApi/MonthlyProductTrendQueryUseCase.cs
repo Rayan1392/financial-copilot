@@ -10,6 +10,9 @@ internal sealed class MonthlyProductTrendQueryUseCase(
         MonthlyProductTrendQuery query,
         CancellationToken ct = default)
     {
+        if (query.UnsupportedTimeWindow)
+            return NotFound(query, "unsupported_time_window");
+
         if (string.IsNullOrWhiteSpace(query.CompanyText) || string.IsNullOrWhiteSpace(query.ProductText))
             return NotFound(query, "company_or_product_missing");
 
@@ -67,23 +70,14 @@ internal sealed class MonthlyProductTrendQueryUseCase(
         }
         if (allRows.Count == 0) return NotFound(query, "no_qualifying_product_sales");
 
-        var candidates = allRows
-            .Select(row => ToCandidate(company.ExternalCompanyId, row))
-            .GroupBy(candidate => candidate.ProductKey, StringComparer.Ordinal)
-            .Select(group => group
-                .OrderBy(candidate => candidate.DisplayTitle, StringComparer.Ordinal)
-                .ThenBy(candidate => candidate.Unit, StringComparer.Ordinal)
-                .First())
-            .OrderBy(candidate => candidate.DisplayTitle, StringComparer.Ordinal)
-            .ThenBy(candidate => candidate.ProductKey, StringComparer.Ordinal)
-            .ToArray();
+        var candidates = MonthlyProductTrendProductIdentity.BuildCandidates(company.ExternalCompanyId, allRows);
 
         var requested = MonthlyProductTrendCalculator.NormalizeProductText(query.ProductText);
         var matches = query.CanonicalProduct is { } resolvedProduct
             ? candidates
                 .Where(candidate => string.Equals(candidate.ProductKey, resolvedProduct.ProductKey, StringComparison.Ordinal))
                 .ToArray()
-            : ResolveMatches(candidates, requested);
+            : MonthlyProductTrendProductIdentity.ResolveMatches(candidates, requested);
         if (matches.Length == 0)
             return NotFound(query, "product_not_found", company, candidates);
         if (matches.Length > 1)
@@ -102,7 +96,7 @@ internal sealed class MonthlyProductTrendQueryUseCase(
 
         var selected = matches[0];
         var selectedRows = allRows
-            .Where(row => string.Equals(ProductKey(company.ExternalCompanyId, row), selected.ProductKey, StringComparison.Ordinal))
+            .Where(row => string.Equals(MonthlyProductTrendProductIdentity.ProductKey(company.ExternalCompanyId, row), selected.ProductKey, StringComparison.Ordinal))
             .GroupBy(row => row.Period)
             .ToDictionary(group => group.Key, group => (IReadOnlyCollection<ProductSalesObservation>)group.ToArray());
 

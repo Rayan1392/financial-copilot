@@ -58,7 +58,17 @@ public interface IMonthlyProductCatalogReadRepository
     Task<IReadOnlyList<ProductSalesObservation>> GetAllProductSalesAsync(
         string externalCompanyId,
         CancellationToken ct = default);
+
+    Task<MonthlyProductFollowUpReadResult> GetProductFollowUpReadAsync(
+        string externalCompanyId,
+        JalaliPeriod notAfter,
+        CancellationToken ct = default);
 }
+
+public sealed record MonthlyProductFollowUpReadResult(
+    IReadOnlyList<ProductSalesObservation> CandidateUniverse,
+    JalaliPeriod? AnchorPeriod,
+    IReadOnlyList<ProductSalesObservation> AnchorObservations);
 public interface IMonthlyProductComparisonUseCase
 {
     Task<MonthlyProductComparisonResponse> ExecuteAsync(MonthlyProductComparisonQuery query, CancellationToken ct = default);

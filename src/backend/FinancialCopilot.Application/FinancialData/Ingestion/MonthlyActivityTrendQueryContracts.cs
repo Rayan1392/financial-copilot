@@ -1,3 +1,5 @@
+using FinancialCopilot.Application.AI.Orchestration;
+
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 // ---------------------------------------------------------------------------
@@ -91,5 +93,12 @@ public interface IMonthlyActivityTrendQueryUseCase
 {
     Task<MonthlyActivityTrendResponse?> ExecuteAsync(
         MonthlyActivityTrendQuery query,
+        CancellationToken ct = default);
+}
+
+public interface IMonthlySalesProductFollowUpSuggestionService
+{
+    Task<IReadOnlyCollection<SuggestedAction>> BuildAsync(
+        MonthlyActivityTrendResponse trend,
         CancellationToken ct = default);
 }

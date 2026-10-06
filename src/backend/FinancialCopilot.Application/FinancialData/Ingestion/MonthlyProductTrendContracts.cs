@@ -30,7 +30,8 @@ public sealed record MonthlyProductTrendQuery(
     JalaliPeriod? ToPeriod = null,
     MonthlyProductComparisonFocus Focus = MonthlyProductComparisonFocus.Sales,
     CanonicalQueryEntity? CanonicalCompany = null,
-    CanonicalQueryProduct? CanonicalProduct = null);
+    CanonicalQueryProduct? CanonicalProduct = null,
+    bool UnsupportedTimeWindow = false);
 
 public sealed record MonthlyProductTrendPoint(
     JalaliPeriod Period,

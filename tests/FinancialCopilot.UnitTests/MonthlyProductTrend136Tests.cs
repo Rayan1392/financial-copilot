@@ -65,8 +65,116 @@ public sealed class MonthlyProductTrend136Tests
     }
 
     [Theory]
+    [InlineData("\u062f\u0631 12 \u0645\u0627\u0647\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u062f\u0631 12 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u0637\u06cc 12 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("12 \u0645\u0627\u0647 \u06af\u0630\u0634\u062a\u0647")]
+    [InlineData("\u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u0637\u06cc \u06f1\u06f2 \u0645\u0627\u0647 \u06af\u0630\u0634\u062a\u0647")]
+    [InlineData("\u062f\u0648\u0627\u0632\u062f\u0647 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u06cc\u06a9 \u0633\u0627\u0644 \u0627\u062e\u06cc\u0631")]
+    public void Routing_NormalizesExplicitDefaultRecentWindow(string window)
+    {
+        var baseline = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644";
+        var withWindow = $"{baseline} {window}";
+
+        Assert.Equal(baseline, MonthlyProductTrendIntentRules.NormalizeQuery(withWindow));
+        Assert.True(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(withWindow));
+        Assert.Equal(MonthlyProductTrendIntentRules.BuildQuery(baseline), MonthlyProductTrendIntentRules.BuildQuery(withWindow));
+    }
+
+    [Theory]
+    [InlineData("\u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647\u061f")]
+    [InlineData("\u0686\u06af\u0648\u0646\u0647 \u0628\u0648\u062f\u0647\u061f")]
+    [InlineData("\u0686\u0647 \u0631\u0648\u0646\u062f\u06cc \u062f\u0627\u0634\u062a\u0647\u061f")]
+    [InlineData("\u0686\u0647 \u0648\u0636\u0639\u06cc\u062a\u06cc \u062f\u0627\u0634\u062a\u0647\u061f")]
+    public void Routing_RemovesConversationalSuffixWithoutChangingSlots(string suffix)
+    {
+        var baseline = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc \u06a9\u0686\u0627\u062f";
+        var withSuffix = $"{baseline} {suffix}";
+
+        Assert.Equal(baseline, MonthlyProductTrendIntentRules.NormalizeQuery(withSuffix));
+        Assert.Equal(MonthlyProductTrendIntentRules.BuildQuery(baseline), MonthlyProductTrendIntentRules.BuildQuery(withSuffix));
+    }
+
+    [Theory]
+    [InlineData("\u062f\u0631 6 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u062f\u0631 \u06f3 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u062f\u0631 18 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
+    [InlineData("\u0633\u0627\u0644 1404")]
+    [InlineData("\u0627\u0632 \u0641\u0631\u0648\u0631\u062f\u06cc\u0646 \u062a\u0627 \u0634\u0647\u0631\u06cc\u0648\u0631")]
+    public async Task Routing_DifferentWindowsRemainTypedUnsupported(string window)
+    {
+        var baseline = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644";
+        var query = MonthlyProductTrendIntentRules.BuildQuery($"{baseline} {window}");
+        var result = await ResolveParsedAsync(
+            query, "\u06a9\u06af\u0644", "4",
+            Observation("\u06af\u0646\u062f\u0644\u0647", "4", productKey: "4-product"));
+
+        Assert.NotEqual(baseline, MonthlyProductTrendIntentRules.NormalizeQuery($"{baseline} {window}"));
+        Assert.Contains(window, MonthlyProductTrendIntentRules.NormalizeQuery($"{baseline} {window}"));
+        Assert.Equal("\u06af\u0646\u062f\u0644\u0647", query.ProductText);
+        Assert.Equal("\u06a9\u06af\u0644", query.CompanyText);
+        Assert.True(query.UnsupportedTimeWindow);
+        Assert.Equal(MonthlyProductTrendResolutionState.NotFound, result.ResolutionState);
+        Assert.Equal("unsupported_time_window", result.BlockingReason);
+    }
+
+    [Theory]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644", "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631", "\u06af\u0646\u062f\u0644\u0647", "\u06a9\u06af\u0644", "4")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc \u06a9\u0686\u0627\u062f", "\u0637\u06cc 12 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631 \u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc \u06a9\u0686\u0627\u062f \u0686\u0637\u0648\u0631 \u0628\u0648\u062f\u0647\u061f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc", "\u06a9\u0686\u0627\u062f", "3")]
+    public async Task Routing_DefaultWindowQueriesReturnIdenticalFeature136Result(
+        string baselineText, string explicitWindowText, string productTitle, string companyText, string companyId)
+    {
+        var baselineQuery = MonthlyProductTrendIntentRules.BuildQuery(baselineText);
+        var explicitQuery = MonthlyProductTrendIntentRules.BuildQuery(explicitWindowText);
+        var observation = Observation(productTitle, companyId, productKey: $"{companyId}-product");
+        var baseline = await ResolveParsedAsync(baselineQuery, companyText, companyId, observation);
+        var explicitWindow = await ResolveParsedAsync(explicitQuery, companyText, companyId, observation);
+
+        Assert.True(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(baselineText));
+        Assert.True(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(explicitWindowText));
+        Assert.Equal(baselineQuery, explicitQuery);
+        Assert.Equal(baseline.ResolutionState, explicitWindow.ResolutionState);
+        Assert.Equal(baseline.ExternalCompanyId, explicitWindow.ExternalCompanyId);
+        Assert.Equal(baseline.CompanyName, explicitWindow.CompanyName);
+        Assert.Equal(baseline.CompanySymbol, explicitWindow.CompanySymbol);
+        Assert.Equal(baseline.ProductKey, explicitWindow.ProductKey);
+        Assert.Equal(baseline.ProviderProductCode, explicitWindow.ProviderProductCode);
+        Assert.Equal(baseline.ProviderProductId, explicitWindow.ProviderProductId);
+        Assert.Equal(baseline.ProductTitle, explicitWindow.ProductTitle);
+        Assert.Equal(baseline.Message, explicitWindow.Message);
+        Assert.Equal(baseline.Candidates.Count, explicitWindow.Candidates.Count);
+        Assert.Equal(baseline.Candidates.Select(candidate =>
+                (candidate.ProductKey, candidate.DisplayTitle, candidate.Unit, candidate.ProviderProductCode, candidate.ProviderProductId)),
+            explicitWindow.Candidates.Select(candidate =>
+                (candidate.ProductKey, candidate.DisplayTitle, candidate.Unit, candidate.ProviderProductCode, candidate.ProviderProductId)));
+        Assert.Equal(12, explicitWindow.Points.Count);
+        for (var index = 0; index < baseline.Points.Count; index++)
+        {
+            var expected = baseline.Points[index];
+            var actual = explicitWindow.Points[index];
+            Assert.Equal(expected.Period, actual.Period);
+            Assert.Equal(expected.FiscalLabel, actual.FiscalLabel);
+            Assert.Equal(expected.ProductKey, actual.ProductKey);
+            Assert.Equal(expected.ProductTitle, actual.ProductTitle);
+            Assert.Equal(expected.ProductUnit, actual.ProductUnit);
+            Assert.Equal(expected.ProductionQuantity, actual.ProductionQuantity);
+            Assert.Equal(expected.SaleQuantity, actual.SaleQuantity);
+            Assert.Equal(expected.SalesValueMillionRial, actual.SalesValueMillionRial);
+            Assert.Equal(expected.SalesValueBillionToman, actual.SalesValueBillionToman);
+            Assert.Equal(expected.CalculatedSaleRateToman, actual.CalculatedSaleRateToman);
+            Assert.Equal(expected.RateStatus, actual.RateStatus);
+            Assert.Equal(expected.IsGap, actual.IsGap);
+            Assert.Equal(expected.Evidence, actual.Evidence);
+        }
+    }
+
+    [Theory]
     [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06a9\u06af\u0644")]
     [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u0686\u0627\u062f")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06a9\u06af\u0644 \u062f\u0631 6 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
     public void Routing_CompanyOnlyQueriesStayOutOfProductUseCase(string query)
     {
         Assert.False(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(query));
@@ -172,6 +280,33 @@ public sealed class MonthlyProductTrend136Tests
         var periods = await repository.GetAvailablePeriodsAsync("3");
         Assert.Single(periods);
         Assert.NotNull(await repository.GetPeriodAsync("3", periods[0]));
+    }
+
+    [Fact]
+    public async Task ProductFollowUpRead_UsesNewestNonNullAcceptedLineItemPeriodAtOrBeforeCompanyPeriod()
+    {
+        var db = CreateDb();
+        var calendar = new PersianCalendar();
+        DateOnly Start(int month) => DateOnly.FromDateTime(calendar.ToDateTime(1405, month, 1, 0, 0, 0, 0));
+        DateOnly End(int month) => DateOnly.FromDateTime(calendar.ToDateTime(1405, month, calendar.GetDaysInMonth(1405, month), 0, 0, 0, 0));
+        var usable = Report("usable", "ProductSales", 0, true, Start(1), End(1));
+        var nullOnly = Report("null-only", "ProductSales", 0, true, Start(2), End(2));
+        var headerOnly = Report("header-only", "ProductSales", 0, true, Start(3), End(3));
+        var future = Report("future", "ProductSales", 0, true, Start(4), End(4));
+        db.MonthlyReports.AddRange(usable, nullOnly, headerOnly, future);
+        db.MonthlyReportLineItems.AddRange(
+            Line(usable.Id, "usable", 0m),
+            Line(nullOnly.Id, "null-only", null),
+            Line(future.Id, "future", 100m));
+        await db.SaveChangesAsync();
+
+        var read = await new EfCoreMonthlyProductComparisonRepository(db)
+            .GetProductFollowUpReadAsync("3", new JalaliPeriod(1405, 3));
+
+        Assert.Equal(new JalaliPeriod(1405, 1), read.AnchorPeriod);
+        Assert.Equal("usable", Assert.Single(read.AnchorObservations).ProductCode);
+        Assert.DoesNotContain(read.AnchorObservations, row => row.ProductCode == "future");
+        Assert.DoesNotContain(read.AnchorObservations, row => row.ProductCode == "header-only");
     }
 
     [Fact]
@@ -320,6 +455,25 @@ public sealed class MonthlyProductTrend136Tests
         return await useCase.ExecuteAsync(new MonthlyProductTrendQuery(companyText, productText));
     }
 
+    private static async Task<MonthlyProductTrendResult> ResolveParsedAsync(
+        MonthlyProductTrendQuery query,
+        string companyText,
+        string companyId,
+        params ProductSalesObservation[] observations)
+    {
+        var useCase = new MonthlyProductTrendQueryUseCase(
+            new StubCompanyResolver(new Dictionary<string, ResolvedCompany>(StringComparer.Ordinal)
+            {
+                [companyText] = Company(companyId)
+            }),
+            new StubProductComparisonRepository(new Dictionary<string, ProductSalesObservation[]>
+            {
+                [companyId] = observations
+            }));
+
+        return await useCase.ExecuteAsync(query);
+    }
+
     private static ResolvedCompany Company(string externalCompanyId) => new(
         Guid.NewGuid(), externalCompanyId, null, null, null, null, null,
         externalCompanyId == "3" ? "کچاد" : "کگل", null);
@@ -394,6 +548,12 @@ public sealed class MonthlyProductTrend136Tests
         PeriodStart = start, PeriodEnd = end, ReportType = type, OutputType = output, IsAccepted = accepted,
         LogicalReportKey = $"{id}", RevisionFingerprint = id, RevisionStatus = accepted ? "Accepted" : "RejectedOlder", SourcePayloadChecksum = id,
         LastSynchronizedAt = DateTimeOffset.UtcNow
+    };
+
+    private static NormalizedMonthlyReportLineItemRow Line(Guid reportId, string key, decimal? amount) => new()
+    {
+        Id = Guid.NewGuid(), MonthlyReportId = reportId, ProductCode = key, Title = key, Unit = "ton",
+        SalesAmount = amount, SourceRowFingerprint = key, SourcePayloadChecksum = key
     };
 
     private sealed class NoOpRevenueMix : ICompanyProductRevenueMixCalculator

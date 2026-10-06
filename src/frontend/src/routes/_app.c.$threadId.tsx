@@ -109,6 +109,7 @@ function ChatThreadPage() {
       <PromptInput
         onSubmit={submit}
         loading={sendMutation.isPending}
+        showAssistedQuery
       />
     </>
   );

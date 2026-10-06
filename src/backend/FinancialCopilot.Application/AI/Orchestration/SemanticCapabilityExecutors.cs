@@ -266,6 +266,8 @@ public sealed class ProductSalesTrendCapabilityExecutor(
 
         var companySlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
         var productSlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.Product);
+        var unsupportedTimeWindow = MonthlyProductTrendIntentRules
+            .BuildQuery(frame.Interpretation.OriginalText).UnsupportedTimeWindow;
 
         var result = await useCase.ExecuteAsync(
             new MonthlyProductTrendQuery(
@@ -273,10 +275,13 @@ public sealed class ProductSalesTrendCapabilityExecutor(
                 product,
                 Focus: MonthlyProductComparisonFocus.Sales,
                 CanonicalCompany: companySlot?.CanonicalEntity,
-                CanonicalProduct: productSlot?.CanonicalProduct),
+                CanonicalProduct: productSlot?.CanonicalProduct,
+                UnsupportedTimeWindow: unsupportedTimeWindow),
             cancellationToken);
         if (result.ResolutionState == MonthlyProductTrendResolutionState.NotFound)
-            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
+            return result.BlockingReason == "unsupported_time_window"
+                ? new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, result.BlockingReason, result)
+                : new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
         if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, "product_ambiguous", result);
         if (result.Points.All(point => point.IsGap || !point.SalesValueMillionRial.HasValue))

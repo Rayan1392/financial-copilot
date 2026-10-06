@@ -55,6 +55,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
+    IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -915,6 +916,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var confidenceScore = CalculateConfidenceScore(
             msg.Request.CorrelationId, groundedAnswer, msg.LookupResult?.Table, explainableAnswer);
 
+        var feature137Applied = detectedIntent == DetectedIntent.MonthlyActivityTrend &&
+            msg.MonthlyActivityTrendResult is not null &&
+            msg.MonthlyActivityTrendResult.ChartPoints.Any(point => point.CurrentFiscalYearSalesAmount.HasValue) &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        IReadOnlyCollection<SuggestedAction>? feature137Actions = null;
+        if (feature137Applied)
+            feature137Actions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
+                msg.MonthlyActivityTrendResult!, ct);
+
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);
         stepActivity?.SetTag("workflow.outcome", outcome.Outcome.ToString());
@@ -938,7 +948,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             PsVisualizationResult: msg.PsVisualizationResult,
             FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
-            MonthlyProductTrendResult: msg.MonthlyProductTrendResult);
+            MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
+            SuggestedActions: feature137Actions,
+            Feature137SuggestionsApplied: feature137Applied);
     }
 
     private void RecordRoutingDiagnostic(
@@ -1205,7 +1217,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             financialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             monthlyProductTrendResult: msg.MonthlyProductTrendResult,
              disclosureListingResult: msg.DisclosureListingResult,
-             psVisualizationResult: msg.PsVisualizationResult);
+             psVisualizationResult: msg.PsVisualizationResult,
+             feature137SuggestedActions: msg.SuggestedActions,
+             feature137SuggestionsApplied: msg.Feature137SuggestionsApplied);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -1224,7 +1238,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
              FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
              MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
-             SuggestedActions: persistedExchange.SuggestedActions);
+             SuggestedActions: persistedExchange.SuggestedActions,
+             Feature137SuggestionsApplied: msg.Feature137SuggestionsApplied);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)

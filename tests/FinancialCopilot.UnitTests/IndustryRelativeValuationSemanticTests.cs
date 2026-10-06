@@ -33,6 +33,8 @@ public sealed class IndustryRelativeValuationSemanticTests
             Assert.Contains("میانگین صنعت", text);
             Assert.Contains("P/E", text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("P/S", text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("| AAA | ۴۲٫۵٪ | ۸۰٪ | ۹۰٪ |", text);
+            Assert.DoesNotContain("مطلوب‌تر از معیار گروه", text);
             Assert.DoesNotContain("Green", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Red", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Published", text, StringComparison.OrdinalIgnoreCase);

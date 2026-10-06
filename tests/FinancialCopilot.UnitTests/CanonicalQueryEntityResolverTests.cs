@@ -39,6 +39,26 @@ public sealed class CanonicalQueryEntityResolverTests
         Assert.Equal(1m, resolved.Evidence.Confidence);
     }
 
+    [Fact]
+    public async Task ExactTickerTextResolution_ExtractsSymbolWhenModelSpanIsBroad()
+    {
+        await using var db = CreateDb();
+        var company = AddCompany(db, "\u06a9\u06af\u0647\u0631", "\u0645\u0639\u062f\u0646\u06cc \u0648 \u0635\u0646\u0639\u062a\u06cc \u06af\u0647\u0648\u0647\u0631", "kegahr");
+        await db.SaveChangesAsync();
+        const string query = "\u06a9\u06af\u0647\u0631 \u0631\u0627 \u0628\u0627 \u0635\u0646\u0639\u062a \u062e\u0648\u062f\u0634 \u0645\u0642\u0627\u06cc\u0633\u0647 \u06a9\u0646";
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var interpretation = new DeterministicCapabilityInterpreter(registry).Interpret(query) with
+        {
+            EntityMentions = [new EntityMention(query, 0, query.Length, QueryValueProvenance.ModelProposed, "company")]
+        };
+
+        var result = await CreateResolver(db).ResolveExactTickerFromTextAsync(interpretation.OriginalText);
+
+        var resolved = Assert.IsType<EntityResolutionResult.Resolved>(result);
+        Assert.Equal(company.Id, resolved.Entity.CanonicalId);
+        Assert.Equal("exact_ticker", resolved.Evidence.MatchKind);
+    }
+
     [Theory]
     [InlineData("\u06a9\u06af\u0647\u0631")]
     [InlineData("\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u06a9\u06af\u0647\u0631")]

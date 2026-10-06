@@ -51,6 +51,10 @@ public interface ICanonicalQueryEntityResolver
 {
     Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default);
 
+    Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(
+        string? text,
+        CancellationToken cancellationToken = default);
+
     Task<EntityResolutionResult> ResolveFromInterpretationAsync(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default);

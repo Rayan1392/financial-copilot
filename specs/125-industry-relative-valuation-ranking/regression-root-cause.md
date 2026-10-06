@@ -8,6 +8,18 @@ Commit `bba705a7` changed both API semantic-routing defaults from `SemanticPrima
 
 This explains the observed user-facing regression and Redis log. The earlier adapter/arbitration defects describe additional failures when the semantic comparison route is enabled (as in the endpoint tests), but they were not sufficient to restore production behavior while rollout configuration kept that route in Shadow mode.
 
+## Follow-up runtime report: remaining company-resolution gap
+
+After enabling the semantic route, the reported response changed to the system's `DisambiguationNeeded` message. That wording is produced by `AiDialogueOutcomePolicy` when a capability execution reports an ambiguous company resolution. The endpoint regression fixture had supplied an exact `کگهر` entity span directly, so it did not cover a semantic proposal that omitted the ticker or returned a broad span for it. The adapter only resolved the proposed entity spans, leaving the canonical resolver no deterministic fallback to the exact ticker token already present in `OriginalText`.
+
+The follow-up correction therefore asks the existing canonical resolver to check normalized tokens from the original user text against canonical ticker values and promotes only exact ticker matches. Fuzzy results for unrelated entity spans and exact-name ambiguities remain subject to the existing ambiguity mechanism.
+
+## Table presentation regression confirmed from the screenshots
+
+Commit `5bbf472` appended Persian classification phrases to each metric cell. The existing frontend already recognizes the exact metric-only Markdown header and builds the compact, color-classified industry table itself using the member percentages and industry benchmark row. Adding prose to the cells changed the established presentation and caused status text to be shown inside every cell. This was an unnecessary change to the renderer input and is being reverted.
+
+The screenshots also show different data scopes: the first names a 31-member chemical group and contains no `کگهر` row; the second names a six-member iron-ore group and includes `کگهر`. That discrepancy is separate from the cell-formatting regression. The second group is the one resolved from the current canonical company membership path; reproducing the first screenshot's rows for `کگهر` would require a separate explanation of why that historical response used a different group.
+
 Feature 128 added model-proposed, typed entity spans to the deterministic interpretation. The Feature 125 `IndustryRelativeValuationSemanticAdapter` still treated every span as a possible company name and submitted it to both the company and industry resolvers. For an own-industry comparison, a span such as `صنعت خودش` can therefore be evaluated as a company mention. If the canonical resolver returns an ambiguity for that generic phrase, the adapter immediately returns `Ambiguous` even when another span is the exact known ticker `کگهر`.
 
 The same new semantic route also exposed a second routing gap for the supplied paraphrases: `SemanticArbitrator` unconditionally put every deterministic candidate ahead of the model proposal. Generic symbol lookup candidates for phrasings such as “کگهر نسبت به شرکت‌های هم‌گروه چطوره؟” therefore displaced the more confident semantic industry-comparison capability. This was verified through the API test harness before the arbitration correction.

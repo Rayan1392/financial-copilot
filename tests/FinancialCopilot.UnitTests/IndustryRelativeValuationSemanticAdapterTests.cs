@@ -102,6 +102,51 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     }
 
     [Fact]
+    public async Task Adapter_UsesExactTickerFromOriginalQueryWhenSemanticCompanySpanIsBroad()
+    {
+        await using var db = CreateDb();
+        var industry = Guid.NewGuid();
+        var group = Guid.NewGuid();
+        var company = Guid.NewGuid();
+        db.IndustryGroups.Add(new NormalizedIndustryGroupRow
+        {
+            Id = group, ProviderName = "NoavaranCurrentApi", ExternalId = "70", Name = "Iron Ore Producers"
+        });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+        {
+            Id = company, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "1",
+            IndustryId = industry, GroupId = group, Name = "Gohar"
+        });
+        await db.SaveChangesAsync();
+
+        const string query = "کگهر را با صنعت خودش مقایسه کن";
+        var exactTicker = new EntityResolutionResult.Resolved(
+            new(company, "کگهر", "Gohar", "Company", "exact_ticker"),
+            new("exact_ticker", 1m));
+        var fuzzyPhrase = new EntityResolutionResult.Ambiguous([
+            new(new(Guid.NewGuid(), "AAA", "Candidate A", "Company", "fuzzy_candidate"), 0.62m, "fuzzy_candidate"),
+            new(new(Guid.NewGuid(), "AAB", "Candidate B", "Company", "fuzzy_candidate"), 0.60m, "fuzzy_candidate")]);
+        var companyResolver = new FakeCompanyResolver(fuzzyPhrase) { InterpretationResult = exactTicker };
+        var adapter = new IndustryRelativeValuationSemanticAdapter(
+            companyResolver,
+            new FakeIndustryResolver(new IndustryResolutionResult.Missing("Industry")),
+            db);
+        var interpretation = new QueryInterpretation(
+            query,
+            QueryNormalization.Normalize(query),
+            "fa",
+            [],
+            [new EntityMention(query, 0, query.Length, QueryValueProvenance.ModelProposed, "company")],
+            [], null, null, null, [], [], 1m, [], 1);
+
+        var result = await adapter.ResolveAsync("symbol_vs_industry_relative_valuation", interpretation);
+
+        Assert.Equal(IndustryRelativeValuationResolutionStatus.Resolved, result.Status);
+        Assert.Equal([company], result.CompanyIds);
+        Assert.Equal([query], companyResolver.Mentions);
+    }
+
+    [Fact]
     public async Task Adapter_StillClarifiesAnExplicitlyTypedAmbiguousCompanyBesideAnExactTicker()
     {
         await using var db = CreateDb();
@@ -239,13 +284,15 @@ public sealed class IndustryRelativeValuationSemanticAdapterTests
     private sealed class FakeCompanyResolver(params EntityResolutionResult[] results) : ICanonicalQueryEntityResolver
     {
         private int index;
+        public EntityResolutionResult? InterpretationResult { get; init; }
         public List<string?> Mentions { get; } = [];
         public Task<EntityResolutionResult> ResolveMentionAsync(string? mention, CancellationToken cancellationToken = default)
         {
             Mentions.Add(mention);
             return Task.FromResult(results[Math.Min(index++, results.Length - 1)]);
         }
-        public Task<EntityResolutionResult> ResolveFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) => Task.FromResult(results[0]);
+        public Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(string? text, CancellationToken cancellationToken = default) => Task.FromResult(InterpretationResult ?? results[0]);
+        public Task<EntityResolutionResult> ResolveFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) => Task.FromResult(InterpretationResult ?? results[0]);
         public Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EntityResolutionResult.Resolved>>([]);
     }
 

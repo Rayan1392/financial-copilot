@@ -152,6 +152,28 @@ public sealed class CanonicalQueryEntityResolver(
             : new EntityResolutionResult.NotFound(NormalizeIdentity(interpretation.EntityMentions[0].Text));
     }
 
+    public async Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(
+        string? text,
+        CancellationToken cancellationToken = default)
+    {
+        var tokens = QueryNormalization.Normalize(text)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0)
+            return new EntityResolutionResult.Missing("CompanyOrSymbol");
+
+        var companies = await dbContext.Companies.AsNoTracking().ToArrayAsync(cancellationToken);
+        foreach (var token in tokens)
+        {
+            var exact = PreferCanonical(Match(companies, token, row => row.Ticker, "exact_ticker"));
+            if (exact.Length == 1)
+                return ToResolved(exact[0]);
+            if (exact.Length > 1)
+                return ToAmbiguous(exact, options.Value.MaxCandidates);
+        }
+
+        return new EntityResolutionResult.Missing("CompanyOrSymbol");
+    }
+
     public async Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(
         QueryInterpretation interpretation,
         CancellationToken cancellationToken = default)

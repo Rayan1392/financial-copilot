@@ -25,6 +25,30 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
         // same FinancialIngestionDbContext instance. EF Core does not permit
         // overlapping operations on that context, so resolve mentions sequentially.
         var companyResults = await ResolveCompaniesAsync(mentions, cancellationToken);
+        const string ownIndustryCapability = "symbol_vs_industry_relative_valuation";
+        if (capabilityCode == ownIndustryCapability && !companyResults.Any(item =>
+                item.Result is EntityResolutionResult.Resolved resolved &&
+                string.Equals(resolved.Evidence.MatchKind, "exact_ticker", StringComparison.Ordinal)))
+        {
+            var exactTicker = await companyResolver.ResolveExactTickerFromTextAsync(
+                interpretation.OriginalText,
+                cancellationToken);
+            if (exactTicker is EntityResolutionResult.Resolved resolved &&
+                string.Equals(resolved.Evidence.MatchKind, "exact_ticker", StringComparison.Ordinal))
+            {
+                var position = interpretation.OriginalText.IndexOf(
+                    resolved.Entity.DisplaySymbol,
+                    StringComparison.OrdinalIgnoreCase);
+                var tickerMention = new EntityMention(
+                    resolved.Entity.DisplaySymbol,
+                    Math.Max(0, position),
+                    resolved.Entity.DisplaySymbol.Length,
+                    QueryValueProvenance.UserExplicit,
+                    "ticker");
+                companyResults = companyResults.Append((tickerMention, exactTicker)).ToArray();
+            }
+        }
+
         var resolvedCompanies = companyResults
             .Select(item => item.Result)
             .OfType<EntityResolutionResult.Resolved>()
@@ -36,10 +60,19 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
             string.Equals(resolved.Evidence.MatchKind, "exact_ticker", StringComparison.Ordinal));
         // Feature 128 can add untyped fallback spans for Persian connective/inflected words.
         // An exact ticker is authoritative for the one-company/own-industry capability, but
-        // typed company ambiguity and canonical exact-name ambiguity remain blocking.
+        // unrelated typed company ambiguity and canonical exact-name ambiguity remain blocking.
+        var exactTickerSymbols = companyResults
+            .Where(item => item.Result is EntityResolutionResult.Resolved resolved &&
+                           string.Equals(resolved.Evidence.MatchKind, "exact_ticker", StringComparison.Ordinal))
+            .Select(item => item.Result is EntityResolutionResult.Resolved resolved ? resolved.Entity.DisplaySymbol : string.Empty)
+            .Where(symbol => !string.IsNullOrWhiteSpace(symbol))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         var ambiguousCompanies = companyResults
-            .Where(item => !(capabilityCode == "symbol_vs_industry_relative_valuation" && exactTickerResolved &&
-                string.IsNullOrWhiteSpace(item.Mention.EntityType) && IsFuzzyAmbiguity(item.Result)))
+            .Where(item => !(capabilityCode == ownIndustryCapability && exactTickerResolved &&
+                IsFuzzyAmbiguity(item.Result) &&
+                (string.IsNullOrWhiteSpace(item.Mention.EntityType) ||
+                 exactTickerSymbols.Any(symbol => ContainsExactToken(item.Mention.Text, symbol)))))
             .Select(item => item.Result)
             .OfType<EntityResolutionResult.Ambiguous>()
             .FirstOrDefault();
@@ -221,6 +254,11 @@ public sealed class IndustryRelativeValuationSemanticAdapter(
         result is EntityResolutionResult.Ambiguous ambiguous && ambiguous.Candidates.Count > 0 &&
         ambiguous.Candidates.All(candidate => string.Equals(
             candidate.MatchKind, "fuzzy_candidate", StringComparison.Ordinal));
+
+    private static bool ContainsExactToken(string text, string token) =>
+        QueryNormalization.Normalize(text)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(QueryNormalization.Normalize(token), StringComparer.OrdinalIgnoreCase);
 
     private static bool IsCompanyRequired(string capabilityCode) =>
         capabilityCode is "symbol_vs_industry_relative_valuation" or "symbol_pair_within_industry";

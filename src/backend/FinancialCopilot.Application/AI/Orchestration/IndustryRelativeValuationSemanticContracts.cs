@@ -167,7 +167,7 @@ public static class IndustryRelativeValuationPresentation
         lines.Add("| \u0646\u0645\u0627\u062f | P/E | P/S | \u0642\u06cc\u0645\u062a \u0628\u0647 \u062a\u0639\u0627\u062f\u0644\u06cc |");
         lines.Add("|---|---:|---:|---:|");
         foreach (var member in model.Members)
-            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} — {ClassificationPersian(member.PE)} | {FormatPercent(member.PS.Percent)} — {ClassificationPersian(member.PS)} | {FormatPercent(member.Equilibrium.Percent)} — {ClassificationPersian(member.Equilibrium)} |");
+            lines.Add($"| {member.Symbol} | {FormatPercent(member.PE.Percent)} | {FormatPercent(member.PS.Percent)} | {FormatPercent(member.Equilibrium.Percent)} |");
         var peBenchmark = FormatPercent(Benchmark(model, "PE"));
         var psBenchmark = FormatPercent(Benchmark(model, "PS"));
         var equilibriumBenchmark = FormatPercent(Benchmark(model, "Equilibrium"));
@@ -180,20 +180,6 @@ public static class IndustryRelativeValuationPresentation
 
     private static decimal? Benchmark(IndustryRelativeValuationReadModel model, string metricKind) =>
         model.Benchmarks.FirstOrDefault(metric => metric.MetricKind.Equals(metricKind, StringComparison.OrdinalIgnoreCase))?.Percent;
-
-    private static string ClassificationPersian(RelativeValuationMetricReadModel metric)
-    {
-        if (metric.Percent is null || metric.BenchmarkValue is null)
-            return "\u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a";
-        if (metric.IsOutlier)
-            return "\u062f\u0627\u062f\u0647 \u067e\u0631\u062a\u061b \u062f\u0631 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647 \u0644\u062d\u0627\u0638 \u0646\u0634\u062f\u0647";
-        return metric.Classification switch
-        {
-            "Green" => "\u0645\u0637\u0644\u0648\u0628\u200c\u062a\u0631 \u0627\u0632 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647",
-            "Red" => "\u0628\u0627\u0644\u0627\u062a\u0631 \u0627\u0632 \u0645\u0639\u06cc\u0627\u0631 \u06af\u0631\u0648\u0647",
-            _ => "\u0642\u0627\u0628\u0644 \u0645\u0642\u0627\u06cc\u0633\u0647 \u0646\u06cc\u0633\u062a"
-        };
-    }
 
     private static string FormatPercent(decimal? value) =>
         value is null ? "\u2014" : $"{FormatPersianNumber(value.Value)}\u066a";

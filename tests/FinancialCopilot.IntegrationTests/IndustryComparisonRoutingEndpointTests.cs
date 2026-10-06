@@ -50,7 +50,8 @@ public sealed class IndustryComparisonRoutingEndpointTests : IClassFixture<Indus
         Assert.Contains("P/E", answer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("P/S", answer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("قیمت به تعادلی", answer);
-        Assert.Contains("مطلوب‌تر از معیار گروه", answer);
+        Assert.Contains("میانگین صنعت", answer);
+        Assert.DoesNotContain("مطلوب‌تر از معیار گروه", answer);
         Assert.Contains("AAA", answer);
     }
 }
@@ -152,6 +153,9 @@ public sealed class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
         public Task<EntityResolutionResult> ResolveFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) =>
             ResolveMentionAsync("کگهر", cancellationToken);
 
+        public Task<EntityResolutionResult> ResolveExactTickerFromTextAsync(string? text, CancellationToken cancellationToken = default) =>
+            ResolveMentionAsync("کگهر", cancellationToken);
+
         public Task<IReadOnlyList<EntityResolutionResult.Resolved>> ResolveAllFromInterpretationAsync(QueryInterpretation interpretation, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<EntityResolutionResult.Resolved>>([
                 new(new CanonicalQueryEntity(CompanyId, "کگهر", "Gohar Mining", "Company", "exact_ticker"), new("exact_ticker", 1m))]);
@@ -185,7 +189,7 @@ public sealed class IndustryComparisonApiFactory : V2Feature128CanaryApiFactory
                     new(CompanyId, "کگهر", "Gohar Mining", 1, 2, pe, ps, equilibrium),
                     new(PeerId, "AAA", "Peer Mining", 2, 2, pe, ps, equilibrium)
                 ],
-                [],
+                [Metric("PE", 50m, "Green"), Metric("PS", 70m, "Green"), Metric("Equilibrium", 20m, "Green")],
                 "Published");
             return Task.FromResult<IndustryRelativeValuationReadModel?>(model);
         }

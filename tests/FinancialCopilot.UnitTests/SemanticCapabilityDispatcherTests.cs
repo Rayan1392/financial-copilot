@@ -91,6 +91,27 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
+    public void CanaryNonCohort_RemainsShadowObservableAndDoesNotExecuteSemanticRoute()
+    {
+        var telemetry = new RecordingTelemetry();
+        var canary = new SemanticRoutingRolloutCoordinator(
+            new(new Dictionary<string, SemanticRoutingMode> { ["symbol_metric_lookup"] = SemanticRoutingMode.Canary }, CanaryPercentage: 10),
+            telemetry);
+        var actor = Enumerable.Range(0, 1000)
+            .Select(index => $"canary-test-actor-{index}")
+            .First(key => !canary.Decide("symbol_metric_lookup", key).ExecuteSemanticRoute);
+
+        var decision = canary.Decide("symbol_metric_lookup", actor);
+        canary.RecordShadowComparison("symbol_metric_lookup", "legacy_metric", "symbol_metric_lookup", "canary-shadow", cohortKey: actor);
+
+        Assert.False(decision.ExecuteSemanticRoute);
+        Assert.True(decision.RunShadowComparison);
+        var comparison = Assert.Single(telemetry.Items);
+        Assert.Equal(SemanticRoutingMode.Canary, comparison.Mode);
+        Assert.Equal("canary-shadow", comparison.CorrelationId);
+    }
+
+    [Fact]
     public async Task SemanticCoordinator_ReservesAndFinalizesExactlyOnce()
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
@@ -161,7 +182,11 @@ public sealed class SemanticCapabilityDispatcherTests
 
         var result = dispatcher.Validate(frame);
 
-        Assert.Equal(CapabilityExecutionStatus.DisambiguationRequired, result?.Status);
+        Assert.Equal(
+            state == QuerySlotValidationState.Ambiguous
+                ? CapabilityExecutionStatus.DisambiguationRequired
+                : CapabilityExecutionStatus.ClarificationRequired,
+            result?.Status);
         Assert.Equal(reason, result?.ReasonCode);
     }
 

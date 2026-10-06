@@ -62,7 +62,8 @@ internal sealed record AgentExecutedMessage(
     string? SemanticReplyLanguage = null,
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
-    MonthlyProductTrendResult? MonthlyProductTrendResult = null);
+     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
+     ValidatedQueryFrame? ExecutedFrame = null);
 
 internal sealed record ResultsComputedMessage(
     AiQueryRequest Request,

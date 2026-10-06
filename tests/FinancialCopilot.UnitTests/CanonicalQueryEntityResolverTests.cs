@@ -240,7 +240,7 @@ public sealed class CanonicalQueryEntityResolverTests
 
     [Theory]
     [InlineData(typeof(EntityResolutionResult.Missing), DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.RequiredInputMissing)]
-    [InlineData(typeof(EntityResolutionResult.NotFound), DialogueOutcome.DisambiguationNeeded, DialogueOutcomeReasonCodes.EntityNotFound)]
+    [InlineData(typeof(EntityResolutionResult.NotFound), DialogueOutcome.ClarificationNeeded, DialogueOutcomeReasonCodes.EntityNotFound)]
     public void OutcomeMapper_DistinguishesMissingAndNotFound(Type resolutionType, DialogueOutcome expected, string reason)
     {
         EntityResolutionResult resolution = resolutionType == typeof(EntityResolutionResult.Missing)

@@ -332,11 +332,22 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         // Step 6: Determine intent and derive structured results
         var detectedIntent = DetermineIntent(state);
         if (request.SemanticShadowFrame is { } shadowFrame)
+        {
+            var legacyRoute = SemanticRouteMapping.FromIntent(detectedIntent);
+            var rollout = semanticRolloutCoordinator.Decide(shadowFrame.CapabilityCode, request.ActorId.ToString("N"));
             semanticRolloutCoordinator.RecordShadowComparison(
                 shadowFrame.CapabilityCode,
-                SemanticRouteMapping.FromIntent(detectedIntent),
+                legacyRoute,
                 shadowFrame.CapabilityCode,
-                request.CorrelationId);
+                request.CorrelationId,
+                SemanticRoutingTelemetryFactory.FromFrame(
+                    request,
+                    shadowFrame,
+                    legacyRoute,
+                    legacyRoute,
+                    rollout.Mode),
+                cohortKey: request.ActorId.ToString("N"));
+        }
         var clarificationRequired =
             state.ScannerResult?.ClarificationRequired ?? state.LookupResult?.ClarificationRequired ?? false;
         var clarificationMessage =
@@ -473,6 +484,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         "comprehensive_analysis" => DetectedIntent.ComprehensiveAnalysis,
         "monthly_activity_trend" => DetectedIntent.MonthlyActivityTrend,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "product_sales_value" => DetectedIntent.MonthlyProductTrend,
+        "product_sales_trend" => DetectedIntent.MonthlyProductTrend,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
         "disclosure_listing" => DetectedIntent.DisclosureListing,

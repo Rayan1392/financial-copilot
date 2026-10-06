@@ -549,6 +549,13 @@ public class AiFacadeApiFactory : AuthenticationApiFactory
         return db.UsageLedgerEntries.AsNoTracking().ToList();
     }
 
+    public IReadOnlyCollection<UsageReservationRow> ReadBillingReservations()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        return db.UsageReservations.AsNoTracking().ToList();
+    }
+
     public HttpClient CreateUnknownTermClient()
     {
         var client = WithWebHostBuilder(builder =>

@@ -693,11 +693,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICapabilityInterpreter, DeterministicCapabilityInterpreter>();
         services.AddSingleton<ICapabilityGuidanceService, CapabilityGuidanceService>();
         services.Configure<SemanticRoutingOptions>(configuration.GetSection(SemanticRoutingOptions.SectionName));
-        services.AddScoped<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
-        services.AddSingleton<ISemanticRoutingTelemetrySink, SemanticRoutingEventTelemetrySink>();
+        services.AddSingleton<SemanticRoutingOptions>(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SemanticRoutingOptions>>().Value);
+        services.AddSingleton<SemanticRoutingEventTelemetrySink>();
+        services.AddSingleton<ISemanticRoutingTelemetrySink>(provider =>
+            provider.GetRequiredService<SemanticRoutingEventTelemetrySink>());
+        services.AddSingleton<ISemanticRoutingComparisonQuery>(provider =>
+            provider.GetRequiredService<SemanticRoutingEventTelemetrySink>());
+        services.AddSingleton<ISemanticRoutingCanaryTelemetrySink, BoundedSemanticRoutingCanaryTelemetrySink>();
+        services.AddSingleton<ISemanticRoutingLatencySink, BoundedSemanticRoutingLatencySink>();
+        services.AddSingleton<ISemanticRoutingDiagnosticSink, LoggingSemanticRoutingDiagnosticSink>();
+        services.AddSingleton<ISemanticRoutingOperationalTelemetryQuery, SemanticRoutingOperationalTelemetryQuery>();
         services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
         services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
         services.AddScoped<ISemanticExecutionCoordinator, SemanticExecutionCoordinator>();
+        services.AddSingleton<ISemanticCapabilityExecutionObserver, NullSemanticCapabilityExecutionObserver>();
         services.AddScoped<ISemanticOutcomeFeedbackCollector, SemanticOutcomeFeedbackCollector>();
         services.AddSingleton<ISemanticDialogueEventSink, BoundedSemanticDialogueEventSink>();
         services.AddSingleton<ISemanticDialogueMetricsQuery, SemanticDialogueMetricsQuery>();
@@ -707,6 +716,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductSalesValueCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, ProductSalesTrendCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementTableCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementAnalysisCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, FinancialStatementValueSearchCapabilityExecutor>();
@@ -736,7 +747,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_ranking"));
         services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "industry_relative_valuation_summary"));
         services.AddScoped<IConversationalCapabilityExecutor>(provider => new IndustryRelativeValuationCapabilityExecutor(provider.GetRequiredService<IIndustryRelativeValuationReadRepository>(), "symbol_pair_within_industry"));
-        services.AddSingleton<IQueryInterpretationProposalProvider, NoOpQueryInterpretationProposalProvider>();
+        services.AddSingleton<IQueryInterpretationProposalProvider, LlmQueryInterpretationProposalProvider>();
         services.AddSingleton<HybridCapabilityInterpreter>();
         services.AddSingleton<CapabilityRegistryProjection>();
         services.AddOptions<CanonicalEntityResolutionOptions>();
@@ -745,6 +756,7 @@ public static class ServiceCollectionExtensions
         services.Configure<ConversationTaskStateOptions>(configuration.GetSection(ConversationTaskStateOptions.SectionName));
         services.AddSingleton<IConversationTaskStateTelemetrySink, LoggingConversationTaskStateTelemetrySink>();
         services.AddScoped<ICanonicalQueryEntityResolver, CanonicalQueryEntityResolver>();
+        services.AddScoped<ICanonicalQueryProductResolver, CompanyScopedProductResolver>();
         services.AddScoped<ICanonicalQueryIndustryResolver>(provider =>
             (ICanonicalQueryIndustryResolver)provider.GetRequiredService<ICanonicalQueryEntityResolver>());
         services.AddScoped<ICapabilitySlotValidator, CapabilitySlotValidator>();

@@ -12,7 +12,12 @@ public sealed record ValidatedQueryFrame(
     string CapabilityCode,
     int RegistryVersion,
     IReadOnlyCollection<ResolvedQuerySlot> Slots,
-    QueryInterpretation Interpretation);
+    QueryInterpretation Interpretation,
+    string? LegacyCapability = null,
+    decimal? LegacyConfidence = null,
+    string SemanticStatus = "Completed",
+    string? SemanticProvider = null,
+    string? SemanticModel = null);
 
 public sealed record QueryExecutionContext(
     Guid TenantId,
@@ -38,6 +43,20 @@ public sealed record CapabilityExecutionResult(
     string ReasonCode,
     object? Payload = null,
     IReadOnlyCollection<string>? Warnings = null);
+
+/// <summary>
+/// Observes the exact governed frame immediately before a capability executor is invoked.
+/// This is diagnostic-only and never participates in routing or execution decisions.
+/// </summary>
+public interface ISemanticCapabilityExecutionObserver
+{
+    void BeforeExecute(string capabilityCode, ValidatedQueryFrame frame, QueryExecutionContext context);
+}
+
+public sealed class NullSemanticCapabilityExecutionObserver : ISemanticCapabilityExecutionObserver
+{
+    public void BeforeExecute(string capabilityCode, ValidatedQueryFrame frame, QueryExecutionContext context) { }
+}
 
 public interface IConversationalCapabilityExecutor
 {
@@ -83,7 +102,9 @@ public sealed class SemanticCapabilityDispatcher(
         if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "invalid_industry_membership"))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "invalid_industry_membership");
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == DialogueOutcomeReasonCodes.EntityNotFound))
-            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
+        if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "product_not_found"))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows);
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Unsupported))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "unsupported_slot");
 
@@ -175,7 +196,7 @@ public static class SemanticBillingCompletionStatus
     public static string For(CapabilityExecutionStatus status) => status switch
     {
         CapabilityExecutionStatus.Executed or CapabilityExecutionStatus.Partial or CapabilityExecutionStatus.NoData => "Completed",
-        CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired => "ClarificationRequired",
+            CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired => "ClarificationRequired",
         CapabilityExecutionStatus.Unsupported => "ValidationFailed",
         CapabilityExecutionStatus.TemporarilyUnavailable or CapabilityExecutionStatus.Failed => "ProviderFailed",
         _ => "ProviderFailed"
@@ -184,24 +205,46 @@ public static class SemanticBillingCompletionStatus
 
 public sealed record SemanticRoutingOptions(
     IReadOnlyDictionary<string, SemanticRoutingMode>? Capabilities = null,
-    SemanticRoutingMode DefaultMode = SemanticRoutingMode.SemanticPrimary,
-    int CanaryPercentage = 10)
+    SemanticRoutingMode DefaultMode = SemanticRoutingMode.Shadow,
+    int CanaryPercentage = 10,
+    int SemanticInterpretationTimeoutMilliseconds = 5000,
+    int SemanticInterpretationMaxOutputTokens = 384)
 {
-    public SemanticRoutingOptions() : this((IReadOnlyDictionary<string, SemanticRoutingMode>?)null, SemanticRoutingMode.SemanticPrimary, 10) { }
+    public SemanticRoutingOptions() : this((IReadOnlyDictionary<string, SemanticRoutingMode>?)null, SemanticRoutingMode.Shadow, 10, 5000, 384) { }
 
     public const string SectionName = "SemanticRouting";
     public SemanticRoutingMode ModeFor(string capabilityCode) => Capabilities?.TryGetValue(capabilityCode, out var mode) == true ? mode : DefaultMode;
 }
 
-public sealed record SemanticRoutingComparison(string CapabilityCode, SemanticRoutingMode Mode, string LegacyRoute, string? SemanticRoute, bool Agreement, string CorrelationId);
+public sealed record SemanticRoutingComparison(
+    string CapabilityCode,
+    SemanticRoutingMode Mode,
+    string LegacyRoute,
+    string? SemanticRoute,
+    bool Agreement,
+    string CorrelationId,
+    SemanticRoutingDisagreementCategory Category = SemanticRoutingDisagreementCategory.AMBIGUOUS,
+    SemanticRoutingTelemetryContext? Context = null);
 public interface ISemanticRoutingTelemetrySink { void Record(SemanticRoutingComparison comparison); }
 public sealed class NullSemanticRoutingTelemetrySink : ISemanticRoutingTelemetrySink { public void Record(SemanticRoutingComparison comparison) { } }
 
-public sealed record SemanticRoutingDecision(string CapabilityCode, SemanticRoutingMode Mode, bool ExecuteSemanticRoute, bool RunShadowComparison);
+public sealed record SemanticRoutingDecision(
+    string CapabilityCode,
+    SemanticRoutingMode Mode,
+    bool ExecuteSemanticRoute,
+    bool RunShadowComparison,
+    bool? InCanaryCohort = null,
+    int? CohortBucket = null);
 public interface ISemanticRoutingRolloutCoordinator
 {
     SemanticRoutingDecision Decide(string capabilityCode, string? cohortKey = null);
-    void RecordShadowComparison(string capabilityCode, string legacyRoute, string? semanticRoute, string correlationId);
+    void RecordShadowComparison(
+        string capabilityCode,
+        string legacyRoute,
+        string? semanticRoute,
+        string correlationId,
+        SemanticRoutingTelemetryContext? context = null,
+        string? cohortKey = null);
 }
 
 public sealed class SemanticRoutingRolloutCoordinator(
@@ -211,28 +254,66 @@ public sealed class SemanticRoutingRolloutCoordinator(
     public SemanticRoutingDecision Decide(string capabilityCode, string? cohortKey = null)
     {
         var mode = options.ModeFor(capabilityCode);
-        var canaryEnabled = mode == SemanticRoutingMode.Canary &&
-            (string.IsNullOrWhiteSpace(cohortKey) || InCanaryCohort(cohortKey, options.CanaryPercentage));
+        var cohortBucket = mode == SemanticRoutingMode.Canary && !string.IsNullOrWhiteSpace(cohortKey)
+            ? CohortBucket(cohortKey)
+            : (int?)null;
+        var inCanaryCohort = mode == SemanticRoutingMode.Canary &&
+            (string.IsNullOrWhiteSpace(cohortKey) || cohortBucket < Math.Clamp(options.CanaryPercentage, 0, 100));
         return new(capabilityCode, mode,
-            ExecuteSemanticRoute: mode == SemanticRoutingMode.SemanticPrimary || canaryEnabled,
-            RunShadowComparison: mode == SemanticRoutingMode.Shadow);
+            ExecuteSemanticRoute: mode == SemanticRoutingMode.SemanticPrimary || inCanaryCohort,
+            RunShadowComparison: mode == SemanticRoutingMode.Shadow ||
+                (mode == SemanticRoutingMode.Canary && !inCanaryCohort),
+            InCanaryCohort: mode == SemanticRoutingMode.Canary ? inCanaryCohort : null,
+            CohortBucket: cohortBucket);
     }
 
-    public void RecordShadowComparison(string capabilityCode, string legacyRoute, string? semanticRoute, string correlationId)
+    public void RecordShadowComparison(
+        string capabilityCode,
+        string legacyRoute,
+        string? semanticRoute,
+        string correlationId,
+        SemanticRoutingTelemetryContext? context = null,
+        string? cohortKey = null)
     {
-        var decision = Decide(capabilityCode);
+        var decision = Decide(capabilityCode, cohortKey);
         if (!decision.RunShadowComparison) return;
+        var category = context?.Category ?? Categorize(legacyRoute, semanticRoute);
+        context ??= new SemanticRoutingTelemetryContext(
+            SemanticRoutingTelemetryFactory.QueryHash(correlationId),
+            legacyRoute,
+            null,
+            semanticRoute,
+            semanticRoute,
+            null,
+            [],
+            semanticRoute,
+            null,
+            [],
+            legacyRoute,
+            decision.Mode,
+            "unknown",
+            1,
+            SemanticArbitrationPolicy.Version,
+            category);
         telemetrySink.Record(new SemanticRoutingComparison(
             capabilityCode, decision.Mode, legacyRoute, semanticRoute,
-            string.Equals(legacyRoute, semanticRoute, StringComparison.Ordinal), correlationId));
+            string.Equals(legacyRoute, semanticRoute, StringComparison.Ordinal), correlationId, category,
+            context with { RolloutMode = decision.Mode, Category = category }));
     }
 
-    private static bool InCanaryCohort(string cohortKey, int percentage)
+    private static SemanticRoutingDisagreementCategory Categorize(string legacyRoute, string? semanticRoute) =>
+        string.Equals(legacyRoute, semanticRoute, StringComparison.Ordinal)
+            ? SemanticRoutingDisagreementCategory.AGREE
+            : string.IsNullOrWhiteSpace(semanticRoute)
+                ? SemanticRoutingDisagreementCategory.SEMANTIC_UNAVAILABLE
+                : semanticRoute is "unknown" or "clarification"
+                    ? SemanticRoutingDisagreementCategory.UNSUPPORTED
+                    : SemanticRoutingDisagreementCategory.AMBIGUOUS;
+
+    private static int CohortBucket(string cohortKey)
     {
-        var boundedPercentage = Math.Clamp(percentage, 0, 100);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(cohortKey));
-        var bucket = BitConverter.ToUInt32(hash, 0) % 100;
-        return bucket < boundedPercentage;
+        return (int)(BitConverter.ToUInt32(hash, 0) % 100);
     }
 }
 

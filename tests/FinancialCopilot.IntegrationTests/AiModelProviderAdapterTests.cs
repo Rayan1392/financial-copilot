@@ -244,6 +244,39 @@ public sealed class AiModelProviderAdapterTests
     }
 
     [Fact]
+    public async Task OpenAiAdapter_UsesStrictJsonSchemaWhenContractProvidesOne()
+    {
+        string? requestBody = null;
+        using var httpClient = new HttpClient(new RouteHandler(request =>
+        {
+            requestBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return Json("""{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"{\"intent\":\"product_sales_value\"}"}]}],"usage":{"input_tokens":10,"output_tokens":8}}""");
+        }))
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+        var schema = """{"type":"object","additionalProperties":false,"required":["intent"],"properties":{"intent":{"type":"string"}}}""";
+
+        var completion = await transport.CompleteAsync(
+            "gpt-5.6-luna",
+            new AiModelRequest(
+                "openai-schema-1",
+                TenantId,
+                AiWorkloadKind.ScannerParsing,
+                [new AiConversationMessage(AiMessageRole.User, "sales")],
+                new AiStructuredOutputContract("QueryInterpretationProposal_v2", ["intent"], schema)),
+            CancellationToken.None);
+
+        Assert.Equal("{\"intent\":\"product_sales_value\"}", completion.StructuredJson);
+        Assert.Contains("\"type\":\"json_schema\"", requestBody);
+        Assert.Contains("\"name\":\"QueryInterpretationProposal_v2\"", requestBody);
+        Assert.Contains("\"strict\":true", requestBody);
+        Assert.Contains("\"additionalProperties\":false", requestBody);
+    }
+
+    [Fact]
     public async Task OpenAiAdapter_ReportsMissingCredentialExplicitly()
     {
         using var httpClient = new HttpClient(new RouteHandler(_ =>
@@ -413,6 +446,29 @@ public sealed class AiModelProviderAdapterTests
 
         Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
         Assert.Contains("You exceeded your current quota.", exception.Message);
+        Assert.Equal(1, requestCount);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_MapsCreditBalanceExhaustionToQuotaExceeded()
+    {
+        var requestCount = 0;
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
+        {
+            requestCount++;
+            return Error(
+                HttpStatusCode.TooManyRequests,
+                """{"error":{"message":"You have no credits remaining.","type":"insufficient_quota","code":"credit_balance_exhausted"}}""");
+        }));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync(
+                "gpt-5.6-luna",
+                CompletionRequest("openai-credit-balance"),
+                CancellationToken.None));
+
+        Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
         Assert.Equal(1, requestCount);
     }
 

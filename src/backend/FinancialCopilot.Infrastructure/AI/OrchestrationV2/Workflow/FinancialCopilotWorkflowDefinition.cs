@@ -35,6 +35,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IConversationRepository conversationRepository,
     IConversationDialogueGate dialogueGate,
     ISemanticExecutionCoordinator semanticExecutionCoordinator,
+     ISemanticCapabilityDispatcher semanticCapabilityDispatcher,
     ISemanticRoutingRolloutCoordinator semanticRolloutCoordinator,
     ISemanticDialogueOutcomeTelemetry outcomeTelemetry,
     IAiModelProviderResolver providerResolver,
@@ -62,50 +63,68 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IOptions<CyclicalWavesPsVisualizationOptions> psVisualizationOptions,
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ISemanticRoutingLatencySink? routingLatencySink = null,
+    ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
+    ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null)
 {
     internal static readonly ActivitySource ActivitySource =
         new("FinancialCopilot.AI.OrchestrationV2.Workflow", "2.0");
 
     internal async Task<AiQueryResponse> RunAsync(AiQueryRequest request, CancellationToken ct)
     {
-        var startMessage = await PrepareStartMessageAsync(request, ct);
-        var workflow = Build(request, ct);
-
-        using var workflowActivity = ActivitySource.StartActivity(
-            "FinancialCopilotWorkflow",
-            ActivityKind.Internal,
-            parentContext: default,
-            tags: [
-                new("workflow.correlation_id", request.CorrelationId),
-                new("workflow.version", "2"),
-                new("workflow.mode", "MicrosoftAgentFrameworkV2"),
-            ]);
-
-        var run = await InProcessExecution.Default.RunStreamingAsync(
-            workflow, startMessage, sessionId: request.CorrelationId, cancellationToken: ct);
-
-        AiQueryResponse? result = null;
-
-        await foreach (var evt in run.WatchStreamAsync(ct))
+        var requestStart = Stopwatch.GetTimestamp();
+        try
         {
-            if (evt is WorkflowOutputEvent outputEvent && outputEvent.Is<AiQueryResponse>(out var response))
-            {
-                result = response;
-            }
-            else if (evt is WorkflowErrorEvent errorEvent)
-            {
-                workflowActivity?.SetStatus(ActivityStatusCode.Error,
-                    errorEvent.Exception?.Message ?? "Workflow execution failed");
-                throw new InvalidOperationException(
-                    $"Workflow execution failed: {errorEvent.Exception?.Message}",
-                    errorEvent.Exception);
-            }
-        }
+            var startMessage = await PrepareStartMessageAsync(request, ct);
+            var workflow = Build(request, ct);
 
-        return result
-            ?? throw new InvalidOperationException(
-                "Workflow completed without producing a final AiQueryResponse.");
+            using var workflowActivity = ActivitySource.StartActivity(
+                "FinancialCopilotWorkflow",
+                ActivityKind.Internal,
+                parentContext: default,
+                tags: [
+                    new("workflow.correlation_id", request.CorrelationId),
+                    new("workflow.version", "2"),
+                    new("workflow.mode", "MicrosoftAgentFrameworkV2"),
+                ]);
+
+            var run = await InProcessExecution.Default.RunStreamingAsync(
+                workflow, startMessage, sessionId: request.CorrelationId, cancellationToken: ct);
+
+            AiQueryResponse? result = null;
+
+            await foreach (var evt in run.WatchStreamAsync(ct))
+            {
+                if (evt is WorkflowOutputEvent outputEvent && outputEvent.Is<AiQueryResponse>(out var response))
+                {
+                    result = response;
+                }
+                else if (evt is WorkflowErrorEvent errorEvent)
+                {
+                    workflowActivity?.SetStatus(ActivityStatusCode.Error,
+                        errorEvent.Exception?.Message ?? "Workflow execution failed");
+                    throw new InvalidOperationException(
+                        $"Workflow execution failed: {errorEvent.Exception?.Message}",
+                        errorEvent.Exception);
+                }
+            }
+
+            return result
+                ?? throw new InvalidOperationException(
+                    "Workflow completed without producing a final AiQueryResponse.");
+        }
+        catch
+        {
+            canaryTelemetrySink?.RecordFailure(request.CorrelationId);
+            throw;
+        }
+        finally
+        {
+            routingLatencySink?.Record(new SemanticRoutingLatencySample(
+                request.CorrelationId,
+                TotalRequestMs: Stopwatch.GetElapsedTime(requestStart).TotalMilliseconds));
+        }
     }
 
     // ── Workflow graph construction ──────────────────────────────────────────────────────
@@ -206,14 +225,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step2.BillingReservation");
 
-        // Feature 129 is deterministic at the application layer. If the LLM
-        // supplies a competing semantic frame (currently often product_revenue_mix),
-        // reserve and execute the comparison through the typed use case instead.
-        var isMonthlyProductComparison = MonthlyProductComparisonIntentRules
-            .LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
-        var isMonthlyProductTrend = MonthlyProductTrendIntentRules
-            .LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
-        var reservation = msg.Request.SemanticFrame is null || isMonthlyProductComparison || isMonthlyProductTrend
+        // A governed semantic frame is the authoritative execution contract. Raw-text
+        // intent rules are only for requests that did not produce a semantic frame.
+        var reservation = msg.Request.SemanticFrame is null
             ? await billingFunctions.TryReserveAsync(msg.Request, ct)
             : null;
 
@@ -241,14 +255,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         PsVisualizationResult? semanticPsVisualizationResult = null;
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null;
 
-        var isMonthlyProductComparison = MonthlyProductComparisonIntentRules
-            .LooksLikeMonthlyProductComparisonQuery(request.Message);
-        var isMonthlyProductTrend = MonthlyProductTrendIntentRules
-            .LooksLikeMonthlyProductTrendQuery(request.Message);
+        var isMonthlyProductComparison = request.SemanticFrame is null &&
+            MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message);
+        var isMonthlyProductTrend = request.SemanticFrame is null &&
+            MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message);
 
-        if (request.SemanticFrame is { } semanticFrame &&
-            !isMonthlyProductComparison &&
-            !isMonthlyProductTrend)
+        if (request.SemanticFrame is { } semanticFrame)
         {
             var semantic = await semanticExecutionCoordinator.ExecuteAsync(
                 semanticFrame,
@@ -281,6 +293,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 case ProductRevenueMixResponse product: productRevenueMixResult = product; break;
                 case MonthlyActivityTrendResponse trend: monthlyActivityTrendResult = trend; break;
                 case MonthlyProductComparisonResponse comparison: monthlyProductComparisonResult = comparison; break;
+                case MonthlyProductTrendResult trend: monthlyProductTrendResult = trend; break;
                 case MonthlySalesQualityRankingResponse ranking: monthlySalesQualityRankingResult = ranking; break;
             }
             if (monthlyActivityTrendResult is not null &&
@@ -304,7 +317,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     ? "No matching latest income statement was found."
                     : string.Join("\n", valueSearch.Matches.Select(match => $"{match.Symbol ?? "Unresolved"}: {string.Join(", ", match.Items.Select(item => item.Value.ToString(CultureInfo.InvariantCulture)))}")),
                 ProductRevenueMixResponse product => BuildProductRevenueMixContent(product),
+                ProductSalesValuePayload value => BuildProductSalesValueContent(value),
                 MonthlyActivityTrendResponse trend => BuildMonthlyActivityTrendContent(trend),
+                MonthlyProductTrendResult trend => BuildMonthlyProductTrendContent(trend),
                 MonthlyProductComparisonResponse comparison => BuildMonthlyProductComparisonContent(comparison),
                 MonthlySalesQualityRankingResponse ranking => BuildMonthlySalesQualityRankingContent(ranking),
                 DisclosureListingResult disclosures => BuildDisclosureListingContent(disclosures),
@@ -337,6 +352,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 MonthlyProductComparisonResult: monthlyProductComparisonResult,
                 MonthlyProductTrendResult: monthlyProductTrendResult,
                 FinancialStatementValueSearchResult: financialStatementValueSearchResult);
+        }
+
+        // Shadow and non-admitted Canary requests deliberately execute the legacy route.
+        // The validated shadow frame is nevertheless the canonical identity boundary; do
+        // not rebuild a product query from raw/display text after resolution has succeeded.
+        if (request.SemanticShadowFrame is { } legacyProductFrame &&
+            IsSemanticProductRoute(legacyProductFrame.CapabilityCode))
+        {
+            return await ExecuteLegacyProductCapabilityAsync(msg, legacyProductFrame, ct);
         }
 
         var modelClient = ResolveModelClient(request);
@@ -780,14 +804,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step4.ResultComputation");
 
-        var isMonthlyProductComparison = MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
-        var isMonthlyProductTrend = MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
-        var detectedIntent = isMonthlyProductComparison
+        var isMonthlyProductComparison = msg.Request.SemanticFrame is null &&
+            MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(msg.Request.Message);
+        var isMonthlyProductTrend = msg.Request.SemanticFrame is null &&
+            MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(msg.Request.Message);
+        var detectedIntent = msg.ExecutedFrame is { } executedFrame
+            ? SemanticIntent(executedFrame.CapabilityCode)
+            : msg.Request.SemanticFrame is { } semanticFrame
+            ? SemanticIntent(semanticFrame.CapabilityCode)
+            : isMonthlyProductComparison
             ? DetectedIntent.MonthlyProductComparison
             : isMonthlyProductTrend
             ? DetectedIntent.MonthlyProductTrend
-            : msg.Request.SemanticFrame is { } semanticFrame
-            ? SemanticIntent(semanticFrame.CapabilityCode)
             : msg.Request.Context?.InsightEventId is not null
                 ? DetectedIntent.PersonalizedInsightExplanation
                 : msg.MonthlySalesQualityRankingResult is not null ||
@@ -821,11 +849,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var clarificationMessage =
             msg.ScannerResult?.ClarificationMessage ?? msg.LookupResult?.ClarificationMessage;
         if (msg.Request.SemanticShadowFrame is { } shadowFrame)
+        {
+            var legacyRoute = SemanticRouteMapping.FromIntent(detectedIntent);
+            var rollout = semanticRolloutCoordinator.Decide(shadowFrame.CapabilityCode, msg.Request.ActorId.ToString("N"));
+            var providerModelVersion = msg.ModelClient is null
+                ? "semantic-deterministic"
+                : $"{msg.ModelClient.Descriptor.ProviderKey}/{msg.ModelClient.Descriptor.ModelKey}";
             semanticRolloutCoordinator.RecordShadowComparison(
                 shadowFrame.CapabilityCode,
-                SemanticRouteMapping.FromIntent(detectedIntent),
+                legacyRoute,
                 shadowFrame.CapabilityCode,
-                msg.Request.CorrelationId);
+                msg.Request.CorrelationId,
+                SemanticRoutingTelemetryFactory.FromFrame(
+                    msg.Request,
+                    shadowFrame,
+                    legacyRoute,
+                    legacyRoute,
+                    rollout.Mode,
+                    providerModelVersion),
+                cohortKey: msg.Request.ActorId.ToString("N"));
+        }
 
         var outcome = msg.SemanticOutcome is { } semanticOutcome
             ? new DialogueOutcomeResult(
@@ -838,6 +881,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         outcome = AiDialogueOutcomePolicy.ApplyLanguageGuard(
             outcome,
             outcome.SafeDetail ?? (detectedIntent == DetectedIntent.Unknown ? null : msg.AgentResponseText));
+
+        RecordRoutingDiagnostic(msg, detectedIntent, outcome, routingDiagnosticSink);
+        RecordCanaryEvidence(msg, detectedIntent, outcome, canaryTelemetrySink);
         outcomeTelemetry.Record(msg.Request, outcome,
             msg.Request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", msg.Now);
         if (outcome.Outcome is DialogueOutcome.ClarificationNeeded or DialogueOutcome.DisambiguationNeeded)
@@ -893,6 +939,213 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult);
+    }
+
+    private void RecordRoutingDiagnostic(
+        AgentExecutedMessage msg,
+        DetectedIntent detectedIntent,
+        DialogueOutcomeResult outcome,
+        ISemanticRoutingDiagnosticSink? diagnosticSink)
+    {
+        if (diagnosticSink is null ||
+            (msg.Request.SemanticFrame is null && msg.Request.SemanticShadowFrame is null))
+            return;
+
+        var frame = msg.Request.SemanticFrame ?? msg.Request.SemanticShadowFrame!;
+        var legacyCapability = frame.LegacyCapability ?? SemanticRouteMapping.FromIntent(detectedIntent);
+        var rollout = semanticRolloutCoordinator.Decide(
+            frame.CapabilityCode,
+            msg.Request.ActorId.ToString("N"));
+        var semanticExecution = msg.Request.SemanticFrame is not null;
+        var actualExecutedCapability = semanticExecution ? frame.CapabilityCode : legacyCapability;
+        var executionSource = semanticExecution ? "Semantic" : "Legacy";
+        var usageSummary = usageAccumulator.GetSummary(msg.Request.CorrelationId);
+        var status = frame.SemanticStatus;
+
+        if (semanticExecution && outcome.Outcome is DialogueOutcome.TemporarilyUnavailable or DialogueOutcome.Failed)
+        {
+            status = outcome.ReasonCode == DialogueOutcomeReasonCodes.ProviderOrToolTimeout
+                ? "Timeout"
+                : "ProviderError";
+        }
+
+        diagnosticSink.Record(SemanticRoutingTelemetryFactory.CreateDiagnostic(
+            msg.Request,
+            frame,
+            rollout.Mode,
+            actualExecutedCapability,
+            executionSource,
+            usageSummary?.ProviderKey,
+            usageSummary?.ModelKey,
+            status,
+            legacyCapability,
+            frame.LegacyConfidence,
+            msg.ExecutedFrame ?? (semanticExecution ? frame : null)));
+    }
+
+    private async ValueTask<AgentExecutedMessage> ExecuteLegacyProductCapabilityAsync(
+        BillingReservedMessage msg,
+        ValidatedQueryFrame frame,
+        CancellationToken ct)
+    {
+        var request = msg.Request;
+        var execution = await semanticCapabilityDispatcher.DispatchAsync(
+            frame,
+            new QueryExecutionContext(
+                request.TenantId,
+                request.ActorId,
+                msg.ConversationId,
+                request.CorrelationId,
+                frame.Interpretation.ReplyLanguage,
+                msg.Now,
+                request.ScannerPage,
+                request.ScannerPageSize,
+                request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
+                request.ActorType,
+                request.AuthenticationMode,
+                request.UserId,
+                request.ApiClientId,
+                request.Context?.MonthlyActivityTrendReportYear,
+                request.Context?.MonthlyActivityTrendReportMonth),
+            ct);
+
+        UsageAccountingResult? usage = null;
+        if (msg.Reservation is not null)
+        {
+            usage = await billingFunctions.FinalizeAsync(
+                msg.Reservation,
+                SemanticBillingCompletionStatus.For(execution.Status),
+                false,
+                CancellationToken.None);
+        }
+
+        var summary = execution.Payload switch
+        {
+            ProductSalesValuePayload value => BuildProductSalesValueContent(value),
+            MonthlyProductTrendResult trend => BuildMonthlyProductTrendContent(trend),
+            _ => AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                SemanticDialogueOutcome(execution.Status),
+                execution.ReasonCode,
+                frame.Interpretation.ReplyLanguage,
+                null,
+                false))
+        };
+
+        return new AgentExecutedMessage(
+            request,
+            msg.ConversationId,
+            msg.CreateConversation,
+            msg.Now,
+            msg.MemoryContext,
+            msg.Reservation,
+            summary,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            SemanticBillingCompletionStatus.For(execution.Status),
+            false,
+            null,
+            usage,
+            SemanticOutcome: SemanticDialogueOutcome(execution.Status),
+            SemanticOutcomeReasonCode: execution.ReasonCode,
+            SemanticReplyLanguage: frame.Interpretation.ReplyLanguage,
+            MonthlyProductTrendResult: execution.Payload as MonthlyProductTrendResult,
+            ExecutedFrame: frame);
+    }
+
+    private void RecordCanaryEvidence(
+        AgentExecutedMessage msg,
+        DetectedIntent detectedIntent,
+        DialogueOutcomeResult outcome,
+        ISemanticRoutingCanaryTelemetrySink? telemetrySink)
+    {
+        if (telemetrySink is null || msg.Request.SemanticFrame is not { } frame)
+            return;
+
+        var actorKey = msg.Request.ActorId.ToString("N");
+        var decision = semanticRolloutCoordinator.Decide(frame.CapabilityCode, actorKey);
+        if (decision.Mode != SemanticRoutingMode.Canary || decision.InCanaryCohort != true)
+            return;
+
+        var legacyRoute = SemanticRouteMapping.FromIntent(detectedIntent);
+        var providerModelVersion = msg.ModelClient is null
+            ? "semantic-deterministic"
+            : $"{msg.ModelClient.Descriptor.ProviderKey}/{msg.ModelClient.Descriptor.ModelKey}";
+        var context = SemanticRoutingTelemetryFactory.FromFrame(
+            msg.Request,
+            frame,
+            legacyRoute,
+            frame.CapabilityCode,
+            decision.Mode,
+            providerModelVersion);
+        var entitySlots = frame.Slots.Where(slot => slot.Type is
+            QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Product).ToArray();
+        var entityResolution = entitySlots.Length == 0
+            ? "NotApplicable"
+            : entitySlots.All(slot => slot.ValidationState == QuerySlotValidationState.Valid)
+                ? "Resolved"
+                : "Failed";
+        var category = outcome.Outcome switch
+        {
+            DialogueOutcome.TemporarilyUnavailable or DialogueOutcome.Failed => SemanticRoutingDisagreementCategory.SEMANTIC_UNAVAILABLE,
+            DialogueOutcome.Unsupported => SemanticRoutingDisagreementCategory.UNSUPPORTED,
+            _ when entityResolution == "Failed" => SemanticRoutingDisagreementCategory.ENTITY_RESOLUTION_DIFFERENCE,
+            _ when string.Equals(legacyRoute, frame.CapabilityCode, StringComparison.Ordinal) => SemanticRoutingDisagreementCategory.AGREE,
+            _ => SemanticRoutingDisagreementCategory.AMBIGUOUS
+        };
+        var correctness = outcome.Outcome switch
+        {
+            DialogueOutcome.Answered or DialogueOutcome.PartialAnswer => "CORRECT",
+            DialogueOutcome.NoData => "EXPECTED_NO_DATA",
+            DialogueOutcome.ClarificationNeeded or DialogueOutcome.DisambiguationNeeded => "EXPECTED_CLARIFICATION",
+            DialogueOutcome.TemporarilyUnavailable or DialogueOutcome.Failed => "PROVIDER_FAILURE",
+            DialogueOutcome.Unsupported => "LEGACY_FALLBACK",
+            _ => "INCORRECT"
+        };
+        var usage = msg.Usage;
+        var latency = routingLatencySink?.Snapshot()
+            .FirstOrDefault(sample => string.Equals(sample.CorrelationId, msg.Request.CorrelationId, StringComparison.Ordinal));
+        var semanticBillingReservationObserved = msg.Reservation is not null ||
+            msg.Request.SemanticFrame is not null && usage is not null;
+        var semanticUsageSeparable = msg.Request.SemanticFrame is not null &&
+            msg.ModelClient is null && usage is not null;
+        telemetrySink.Record(new SemanticRoutingCanarySample(
+            msg.Request.CorrelationId,
+            SemanticRoutingTelemetryFactory.ActorCohortKeyHash(actorKey),
+            "Canary",
+            decision.CohortBucket,
+            frame.CapabilityCode,
+            decision.Mode,
+            decision.ExecuteSemanticRoute,
+            context.QueryHash,
+            context.SemanticIntent,
+            context.SemanticCandidate,
+            context.LegacyCapability,
+            context.ArbitrationPreferredCandidate,
+            context.ArbitrationReason,
+            context.ResolvedEntities,
+            frame.CapabilityCode,
+            category,
+            correctness,
+            entityResolution,
+            msg.SemanticOutcome?.ToString() ?? msg.CompletionStatus,
+            semanticBillingReservationObserved,
+            usage is not null,
+            usage?.CreditsCharged,
+            usage?.ProviderName,
+            usage?.ModelName,
+            usage?.PromptTokens,
+            usage?.CompletionTokens,
+            usage?.TotalTokens,
+            usage?.EstimatedCost,
+            SemanticUsageSeparable: semanticUsageSeparable,
+            RecordedAtUtc: timeProvider.GetUtcNow(),
+            ProviderFailureCode: latency?.ProviderFailureCode));
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteSideEffectsStepAsync(
@@ -1021,18 +1274,27 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     }
 
     private static string? EffectiveSemanticCapabilityCode(AiQueryRequest request) =>
-        MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message)
+        request.SemanticFrame?.CapabilityCode ??
+        request.SemanticShadowFrame?.CapabilityCode ??
+        (ProductSemanticIntentRules.LooksLikeProductSalesTrend(request.Message)
+            ? "product_sales_trend"
+            : ProductSemanticIntentRules.LooksLikeProductSalesValue(request.Message)
+            ? "product_sales_value"
+            : MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message)
             ? "monthly_product_trend"
             : MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
             ? "monthly_product_comparison"
-            : request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode;
+            : null);
 
     private static int? EffectiveSemanticRegistryVersion(AiQueryRequest request) =>
-        MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message)
+        request.SemanticFrame?.RegistryVersion ??
+        request.SemanticShadowFrame?.RegistryVersion ??
+        (ProductSemanticIntentRules.LooksLikeProductSalesTrend(request.Message) ||
+         ProductSemanticIntentRules.LooksLikeProductSalesValue(request.Message) ||
+         MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(request.Message) ||
+         MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
             ? 1
-            : MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(request.Message)
-            ? 1
-            : request.SemanticFrame?.RegistryVersion ?? request.SemanticShadowFrame?.RegistryVersion;
+            : null);
 
     private static string BuildPsGaugeContent(string symbol, PsVisualizationResult? result)
     {
@@ -1160,6 +1422,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         return $"روند فروش {result.ProductTitle ?? "محصول"} {company}";
     }
 
+    private static string BuildProductSalesValueContent(ProductSalesValuePayload payload) =>
+        PersianFinancialResponseFormatter.ProductSalesValue(
+            payload.CompanySymbol,
+            payload.ProductTitle,
+            payload.Period.Year,
+            payload.Period.Month,
+            payload.SalesAmountMillionRial);
+
     private static string FormatJalaliPeriod(JalaliPeriod? period) => period is not { } value
         ? "—"
         : $"{new[] { "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند" }[value.Month - 1]} {ToPersianDigits(value.Year.ToString())}";
@@ -1204,6 +1474,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         "monthly_product_comparison" => DetectedIntent.MonthlyProductComparison,
         "monthly_product_trend" => DetectedIntent.MonthlyProductTrend,
         "product_revenue_mix" => DetectedIntent.ProductRevenueMix,
+        "product_sales_value" => DetectedIntent.MonthlyProductTrend,
+        "product_sales_trend" => DetectedIntent.MonthlyProductTrend,
         "financial_statement_table" => DetectedIntent.FinancialStatementTableLookup,
         "financial_statement_period_analysis" => DetectedIntent.FinancialStatementPeriodAnalysis,
         "disclosure_listing" => DetectedIntent.DisclosureListing,
@@ -1227,6 +1499,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         CapabilityExecutionStatus.Failed => DialogueOutcome.Failed,
         _ => DialogueOutcome.Unsupported
     };
+
+    private static bool IsSemanticProductRoute(string? capabilityCode) =>
+        capabilityCode is "product_sales_value" or "product_sales_trend";
 
     private static DetectedIntent DetermineIntent(
         ScannerToolResult? scannerResult,

@@ -395,7 +395,7 @@ services:
       ScannerCache__PlanTtlSeconds: "${ScannerCache__PlanTtlSeconds:-300}"
       ScannerCache__ResultTtlSeconds: "${ScannerCache__ResultTtlSeconds:-60}"
       SemanticRouting__CanaryPercentage: "${SemanticRouting__CanaryPercentage:-10}"
-      SemanticRouting__DefaultMode: "${SemanticRouting__DefaultMode:-SemanticPrimary}"
+      SemanticRouting__DefaultMode: "${SemanticRouting__DefaultMode:-Shadow}"
       Serilog__Enrich__0: "${Serilog__Enrich__0:-FromLogContext}"
       Serilog__MinimumLevel__Default: "${Serilog__MinimumLevel__Default:-Information}"
       Serilog__MinimumLevel__Override__Microsoft: "${Serilog__MinimumLevel__Override__Microsoft:-Warning}"

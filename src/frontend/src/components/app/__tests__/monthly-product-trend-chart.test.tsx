@@ -196,4 +196,34 @@ describe("MonthlyProductTrendChart", () => {
     render(<MonthlyProductTrendChart data={unresolved} />);
     expect(screen.getByText("چند محصول پیدا شد.")).toBeInTheDocument();
   });
+
+  it("renders a failed product trend message once in chat", () => {
+    const message = "بیش از یک محصول با این مشخصات یافت شد.";
+    const block: AssistantChatBlock = {
+      message,
+      intent: "MonthlyProductTrend",
+      replyLanguage: "fa",
+      creditsUsed: 1,
+      suggestedQuestions: [],
+      suggestedActions: [],
+      filters: [],
+      citations: [],
+      monthlyProductTrendResult: {
+        ...productTrend,
+        resolutionState: "Ambiguous",
+        message,
+      },
+    };
+    renderMessageList(
+      <MessageList
+        messages={[{ id: "ambiguous-trend", role: "assistant", content: block, created_at: "2026-10-04T00:00:00Z" }]}
+        loading={false}
+        streaming={false}
+        onSuggested={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText(message)).toHaveLength(1);
+    expect(screen.queryByTestId("monthly-product-trend-chart")).not.toBeInTheDocument();
+  });
 });

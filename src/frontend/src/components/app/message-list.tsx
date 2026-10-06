@@ -168,7 +168,7 @@ function AssistantBlock({
           <MonthlyProductComparisonCard data={block.monthlyProductComparisonResult} sourceText={block.message} />
         )}
 
-        {block.monthlyProductTrendResult && (
+        {isSuccessfulProductTrend && block.monthlyProductTrendResult && (
           <MonthlyProductTrendChart data={block.monthlyProductTrendResult} />
         )}
 

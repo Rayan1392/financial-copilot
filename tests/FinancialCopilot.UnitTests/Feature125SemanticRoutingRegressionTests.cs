@@ -148,7 +148,9 @@ public sealed class Feature125SemanticRoutingRegressionTests
             entityResolver,
             new CapabilitySlotValidator(registry),
             new EmptyDirectMetricRoutingRegistry(),
-            new SemanticRoutingRolloutCoordinator(new SemanticRoutingOptions(), new NullSemanticRoutingTelemetrySink()),
+            new SemanticRoutingRolloutCoordinator(
+                new SemanticRoutingOptions(DefaultMode: SemanticRoutingMode.SemanticPrimary),
+                new NullSemanticRoutingTelemetrySink()),
             new EmptyMessageRepository(),
             TimeProvider.System,
             industryRelativeValuationResolver: new IndustryRelativeValuationSemanticAdapter(entityResolver, entityResolver, db));

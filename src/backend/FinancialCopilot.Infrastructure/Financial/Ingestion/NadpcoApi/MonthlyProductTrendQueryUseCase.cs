@@ -13,21 +13,61 @@ internal sealed class MonthlyProductTrendQueryUseCase(
         if (string.IsNullOrWhiteSpace(query.CompanyText) || string.IsNullOrWhiteSpace(query.ProductText))
             return NotFound(query, "company_or_product_missing");
 
-        var company = await companyResolver.ResolveBySymbolAsync(query.CompanyText, ct);
+        ResolvedCompany? company;
+        if (query.CanonicalProduct is { } canonicalProduct)
+        {
+            company = new ResolvedCompany(
+                canonicalProduct.CompanyId,
+                canonicalProduct.ExternalCompanyId,
+                query.CanonicalCompany?.DisplaySymbol ?? query.CompanyText,
+                null,
+                null,
+                null,
+                null,
+                query.CanonicalCompany?.DisplaySymbol ?? query.CompanyText,
+                query.CanonicalCompany?.DisplaySymbol ?? query.CompanyText);
+        }
+        else if (!string.IsNullOrWhiteSpace(query.CanonicalCompany?.ExternalCompanyId))
+        {
+            var canonicalCompany = query.CanonicalCompany!;
+            company = new ResolvedCompany(
+                canonicalCompany.CanonicalId,
+                canonicalCompany.ExternalCompanyId!,
+                canonicalCompany.DisplaySymbol,
+                null,
+                null,
+                null,
+                null,
+                canonicalCompany.DisplaySymbol,
+                canonicalCompany.DisplaySymbol);
+        }
+        else
+        {
+            company = await companyResolver.ResolveBySymbolAsync(query.CompanyText, ct);
+        }
         if (company is null) return NotFound(query, "company_not_found");
 
-        var available = await repository.GetAvailablePeriodsAsync(company.ExternalCompanyId, ct);
-        if (available.Count == 0) return NotFound(query, "no_qualifying_product_sales");
-
-        var periods = new List<MonthlyProductComparisonPeriod>();
-        foreach (var period in available.OrderByDescending(x => x.Year).ThenByDescending(x => x.Month))
+        IReadOnlyList<ProductSalesObservation> allRows;
+        if (repository is IMonthlyProductCatalogReadRepository optimizedCatalog)
         {
-            var data = await repository.GetPeriodAsync(company.ExternalCompanyId, period, ct);
-            if (data is not null) periods.Add(data);
+            allRows = await optimizedCatalog.GetAllProductSalesAsync(company.ExternalCompanyId, ct);
         }
+        else
+        {
+            var available = await repository.GetAvailablePeriodsAsync(company.ExternalCompanyId, ct);
+            if (available.Count == 0) return NotFound(query, "no_qualifying_product_sales");
 
-        var candidates = periods
-            .SelectMany(period => period.Observations)
+            var periods = new List<MonthlyProductComparisonPeriod>();
+            foreach (var period in available.OrderByDescending(x => x.Year).ThenByDescending(x => x.Month))
+            {
+                var data = await repository.GetPeriodAsync(company.ExternalCompanyId, period, ct);
+                if (data is not null) periods.Add(data);
+            }
+            allRows = periods.SelectMany(period => period.Observations).ToArray();
+        }
+        if (allRows.Count == 0) return NotFound(query, "no_qualifying_product_sales");
+
+        var candidates = allRows
             .Select(row => ToCandidate(company.ExternalCompanyId, row))
             .GroupBy(candidate => candidate.ProductKey, StringComparer.Ordinal)
             .Select(group => group
@@ -39,7 +79,11 @@ internal sealed class MonthlyProductTrendQueryUseCase(
             .ToArray();
 
         var requested = MonthlyProductTrendCalculator.NormalizeProductText(query.ProductText);
-        var matches = ResolveMatches(candidates, requested);
+        var matches = query.CanonicalProduct is { } resolvedProduct
+            ? candidates
+                .Where(candidate => string.Equals(candidate.ProductKey, resolvedProduct.ProductKey, StringComparison.Ordinal))
+                .ToArray()
+            : ResolveMatches(candidates, requested);
         if (matches.Length == 0)
             return NotFound(query, "product_not_found", company, candidates);
         if (matches.Length > 1)
@@ -57,11 +101,10 @@ internal sealed class MonthlyProductTrendQueryUseCase(
                 "بیش از یک محصول با این مشخصات یافت شد.");
 
         var selected = matches[0];
-        var selectedRows = periods
-            .Select(period => (period, rows: period.Observations
-                .Where(row => string.Equals(ProductKey(company.ExternalCompanyId, row), selected.ProductKey, StringComparison.Ordinal))
-                .ToArray()))
-            .ToDictionary(item => item.period.Period, item => item.rows);
+        var selectedRows = allRows
+            .Where(row => string.Equals(ProductKey(company.ExternalCompanyId, row), selected.ProductKey, StringComparison.Ordinal))
+            .GroupBy(row => row.Period)
+            .ToDictionary(group => group.Key, group => (IReadOnlyCollection<ProductSalesObservation>)group.ToArray());
 
         var latestValid = selectedRows
             .Where(item => item.Value.Any(row => row.SalesAmount.HasValue))

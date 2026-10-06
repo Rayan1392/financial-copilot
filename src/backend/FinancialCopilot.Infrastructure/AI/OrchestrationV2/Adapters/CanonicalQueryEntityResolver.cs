@@ -121,7 +121,9 @@ public sealed class CanonicalQueryEntityResolver(
         CancellationToken cancellationToken = default)
     {
         var mentions = interpretation.EntityMentions
-            .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text))
+            .Where(mention => !QueryNormalization.IsPresentationWord(mention.Text) &&
+                !string.Equals(mention.EntityType, "product", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(mention.Scope, "product", StringComparison.OrdinalIgnoreCase))
             .OrderBy(mention => mention.Start)
             .ToArray();
         EntityResolutionResult.Ambiguous? bestAmbiguity = null;
@@ -155,7 +157,9 @@ public sealed class CanonicalQueryEntityResolver(
         CancellationToken cancellationToken = default)
     {
         var mentions = interpretation.EntityMentions
-            .Where(mention => !QueryNormalization.IsEntityDistractor(mention.Text))
+            .Where(mention => !QueryNormalization.IsEntityDistractor(mention.Text) &&
+                !string.Equals(mention.EntityType, "product", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(mention.Scope, "product", StringComparison.OrdinalIgnoreCase))
             .OrderBy(mention => mention.Start)
             .ToArray();
         var resolved = new List<(int Position, EntityResolutionResult.Resolved Result)>();
@@ -226,7 +230,7 @@ public sealed class CanonicalQueryEntityResolver(
             .ToArray());
 
     private static CanonicalQueryEntity ToEntity(NormalizedCompanyRow row, string provenance) =>
-        new(row.Id, DisplaySymbol(row), row.Name, "Company", provenance);
+        new(row.Id, DisplaySymbol(row), row.Name, "Company", provenance, row.ExternalCompanyId);
 
     private static string DisplaySymbol(NormalizedCompanyRow row) =>
         FirstNonBlank(row.Ticker, row.TseSymbol, row.CompanySymbol, row.EnTicker, row.ExternalCompanyId);

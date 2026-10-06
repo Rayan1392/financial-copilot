@@ -266,6 +266,42 @@ public sealed class MonthlyProductTrend136Tests
         Assert.Equal(2, result.Candidates.Count);
     }
 
+    [Fact]
+    public async Task Resolver_UsesCanonicalProductKeyWithoutSecondTitleResolution()
+    {
+        var companyId = Guid.NewGuid();
+        var canonicalProduct = new CanonicalQueryProduct(
+            companyId,
+            "4",
+            "kgl-pellet-a",
+            "گندله",
+            "تن",
+            "PELLET-A",
+            101,
+            "feature-128-test");
+        var useCase = new MonthlyProductTrendQueryUseCase(
+            new StubCompanyResolver(new Dictionary<string, ResolvedCompany>()),
+            new StubProductComparisonRepository(new Dictionary<string, ProductSalesObservation[]>
+            {
+                ["4"] =
+                [
+                    Observation("گندله", "4", productKey: "kgl-pellet-a", providerProductCode: "PELLET-A", providerProductId: 101),
+                    Observation("گندله", "4", productKey: "kgl-pellet-b", providerProductCode: "PELLET-B", providerProductId: 102)
+                ]
+            }));
+
+        var result = await useCase.ExecuteAsync(new MonthlyProductTrendQuery(
+            "کگل",
+            "گندله",
+            CanonicalCompany: new CanonicalQueryEntity(companyId, "کگل", "کگل", "Company", "feature-128-test", "4"),
+            CanonicalProduct: canonicalProduct));
+
+        Assert.Equal(MonthlyProductTrendResolutionState.Resolved, result.ResolutionState);
+        Assert.Equal("kgl-pellet-a", result.ProductKey);
+        Assert.Equal("PELLET-A", result.ProviderProductCode);
+        Assert.Equal(101, result.ProviderProductId);
+    }
+
     private static async Task<MonthlyProductTrendResult> ResolveAsync(
         string companyText,
         string productText,

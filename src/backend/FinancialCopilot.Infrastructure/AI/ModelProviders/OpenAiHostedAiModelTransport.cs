@@ -22,30 +22,41 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         // Responses API supports stateful continuation via previous_response_id.
         // When set, the server already has the full conversation context — only send
         // the new input items (tool outputs) and skip replaying prior history.
-        var toolsPayload = request.Tools?.Select(tool => new
+        var payload = new JsonObject
         {
-            type = "function",
-            name = tool.Name,
-            description = tool.Description,
-            parameters = JsonDocument.Parse(tool.ParametersJsonSchema).RootElement.Clone()
-        });
-
-        object payload = request.PreviousResponseId is not null
-            ? new
+            ["model"] = modelKey,
+            ["input"] = new JsonArray(request.Messages.SelectMany(MapToResponsesApiInputItems).ToArray())
+        };
+        if (request.PreviousResponseId is not null)
+            payload["previous_response_id"] = request.PreviousResponseId;
+        if (request.Tools is { Count: > 0 })
+        {
+            payload["tools"] = new JsonArray(request.Tools.Select(tool => (JsonNode)new JsonObject
             {
-                model = modelKey,
-                previous_response_id = request.PreviousResponseId,
-                input = request.Messages.SelectMany(MapToResponsesApiInputItems).ToArray(),
-                tools = toolsPayload,
-                text = request.StructuredOutput is null ? null : new { format = new { type = "json_object" } }
+                ["type"] = "function",
+                ["name"] = tool.Name,
+                ["description"] = tool.Description,
+                ["parameters"] = JsonNode.Parse(tool.ParametersJsonSchema) ?? new JsonObject()
+            }).ToArray());
+        }
+            if (request.StructuredOutput is { } structuredOutput)
+            {
+                payload["text"] = new JsonObject
+                {
+                    ["format"] = structuredOutput.JsonSchema is null
+                        ? new JsonObject { ["type"] = "json_object" }
+                        : new JsonObject
+                        {
+                            ["type"] = "json_schema",
+                            ["name"] = structuredOutput.SchemaName,
+                            ["strict"] = true,
+                            ["schema"] = JsonNode.Parse(structuredOutput.JsonSchema)
+                                ?? throw Failure($"Structured output schema '{structuredOutput.SchemaName}' is invalid.")
+                        }
+                };
             }
-            : (object)new
-            {
-                model = modelKey,
-                input = request.Messages.SelectMany(MapToResponsesApiInputItems).ToArray(),
-                tools = toolsPayload,
-                text = request.StructuredOutput is null ? null : new { format = new { type = "json_object" } }
-            };
+        if (request.MaxOutputTokens is > 0)
+            payload["max_output_tokens"] = request.MaxOutputTokens.Value;
 
         for (var attempt = 1; attempt <= MaxRateLimitAttempts; attempt++)
         {
@@ -57,10 +68,47 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                     cancellationToken: cancellationToken) ??
                     throw Failure("OpenAI response API returned an empty response.");
 
+                var outputText = GetOutputText(body.Output);
+                var toolCalls = MapToolCalls(body.Output);
+                if (request.StructuredOutput is not null)
+                {
+                    if (string.Equals(body.IncompleteDetails?.Reason, "max_output_tokens", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new AiModelProviderException(
+                            AiExecutionStatus.InvalidStructuredOutput,
+                            "structured_output_truncated",
+                            "OpenAI truncated the structured response at the output-token limit.");
+                    }
+
+                    if (HasRefusal(body.Output))
+                    {
+                        throw new AiModelProviderException(
+                            AiExecutionStatus.InvalidStructuredOutput,
+                            "structured_output_refused",
+                            "OpenAI refused to produce the requested structured response.");
+                    }
+
+                    if (toolCalls.Count > 0 && string.IsNullOrWhiteSpace(outputText))
+                    {
+                        throw new AiModelProviderException(
+                            AiExecutionStatus.InvalidStructuredOutput,
+                            "structured_output_tool_call",
+                            "OpenAI returned a tool-call item instead of the requested structured response.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(outputText))
+                    {
+                        throw new AiModelProviderException(
+                            AiExecutionStatus.InvalidStructuredOutput,
+                            "structured_output_missing",
+                            "OpenAI returned no structured response content.");
+                    }
+                }
+
                 return new HostedAiCompletionResponse(
-                    GetOutputText(body.Output),
-                    request.StructuredOutput is null ? null : GetOutputText(body.Output),
-                    MapToolCalls(body.Output),
+                    outputText,
+                    request.StructuredOutput is null ? null : outputText,
+                    toolCalls,
                     body.Usage?.InputTokens,
                     body.Usage?.OutputTokens,
                     ResponseId: body.Id);
@@ -214,6 +262,10 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
             .FirstOrDefault(item => string.Equals(item.Type, "output_text", StringComparison.Ordinal))
             ?.Text;
 
+    private static bool HasRefusal(OpenAiOutputItem[]? output) =>
+        output?.Any(item => string.Equals(item.Type, "message", StringComparison.Ordinal) &&
+            item.Content?.Any(content => string.Equals(content.Type, "refusal", StringComparison.Ordinal)) == true) == true;
+
     private static IReadOnlyCollection<AiToolCall> MapToolCalls(OpenAiOutputItem[]? output) =>
         output?
             .Where(item => string.Equals(item.Type, "function_call", StringComparison.Ordinal))
@@ -247,8 +299,14 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         var code = response.StatusCode switch
         {
             HttpStatusCode.TooManyRequests when string.Equals(
+                body?.Error?.Type,
+                "insufficient_quota",
+                StringComparison.OrdinalIgnoreCase) || string.Equals(
                 upstreamCode,
                 "insufficient_quota",
+                StringComparison.OrdinalIgnoreCase) || string.Equals(
+                upstreamCode,
+                "credit_balance_exhausted",
                 StringComparison.OrdinalIgnoreCase) => "hosted_provider_quota_exceeded",
             HttpStatusCode.TooManyRequests => "hosted_provider_rate_limited",
             HttpStatusCode.Unauthorized => "hosted_provider_authentication_failed",
@@ -283,7 +341,10 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
     private sealed record OpenAiResponse(
         string? Id,
         OpenAiOutputItem[]? Output,
-        OpenAiUsage? Usage);
+        OpenAiUsage? Usage,
+        [property: JsonPropertyName("incomplete_details")] OpenAiIncompleteDetails? IncompleteDetails);
+
+    private sealed record OpenAiIncompleteDetails(string? Reason);
 
     private sealed record OpenAiOutputItem(
         string Id,

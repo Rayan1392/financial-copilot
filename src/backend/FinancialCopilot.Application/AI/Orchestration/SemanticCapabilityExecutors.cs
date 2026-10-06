@@ -190,6 +190,102 @@ public sealed class ProductRevenueMixCapabilityExecutor(IProductRevenueMixQueryU
     }
 }
 
+public sealed record ProductSalesValuePayload(
+    string CompanySymbol,
+    string ProductTitle,
+    JalaliPeriod Period,
+    decimal SalesAmountMillionRial,
+    MonthlyProductTrendResult Source);
+
+public sealed class ProductSalesValueCapabilityExecutor(
+    IMonthlyProductTrendQueryUseCase useCase,
+    ISemanticCapabilityExecutionObserver? executionObserver = null) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "product_sales_value";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        executionObserver?.BeforeExecute(CapabilityCode, frame, context);
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        var product = frame.Value(QuerySlotType.Product);
+        if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(product))
+            return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+
+        var companySlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.Product);
+
+        var result = await useCase.ExecuteAsync(
+            new MonthlyProductTrendQuery(
+                symbol,
+                product,
+                Focus: MonthlyProductComparisonFocus.Sales,
+                CanonicalCompany: companySlot?.CanonicalEntity,
+                CanonicalProduct: productSlot?.CanonicalProduct),
+            cancellationToken);
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.NotFound)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, "product_ambiguous", result);
+
+        var latest = result.Points
+            .Where(point => !point.IsGap && point.SalesValueMillionRial.HasValue)
+            .OrderByDescending(point => point.Period.Year)
+            .ThenByDescending(point => point.Period.Month)
+            .FirstOrDefault();
+        if (latest is null || result.ProductTitle is null || result.CompanySymbol is null)
+            return NoData(frame, result);
+
+        return Success(frame, new ProductSalesValuePayload(
+            result.CompanySymbol,
+            result.ProductTitle,
+            latest.Period,
+            latest.SalesValueMillionRial!.Value,
+            result));
+    }
+}
+
+public sealed class ProductSalesTrendCapabilityExecutor(
+    IMonthlyProductTrendQueryUseCase useCase,
+    ISemanticCapabilityExecutionObserver? executionObserver = null) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "product_sales_trend";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        executionObserver?.BeforeExecute(CapabilityCode, frame, context);
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        var product = frame.Value(QuerySlotType.Product);
+        if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(product))
+            return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+
+        var companySlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = frame.Slots.FirstOrDefault(slot => slot.Type == QuerySlotType.Product);
+
+        var result = await useCase.ExecuteAsync(
+            new MonthlyProductTrendQuery(
+                symbol,
+                product,
+                Focus: MonthlyProductComparisonFocus.Sales,
+                CanonicalCompany: companySlot?.CanonicalEntity,
+                CanonicalProduct: productSlot?.CanonicalProduct),
+            cancellationToken);
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.NotFound)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "product_not_found");
+        if (result.ResolutionState == MonthlyProductTrendResolutionState.Ambiguous)
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, "product_ambiguous", result);
+        if (result.Points.All(point => point.IsGap || !point.SalesValueMillionRial.HasValue))
+            return NoData(frame, result);
+
+        return Success(frame, result);
+    }
+}
+
 public sealed class FinancialStatementTableCapabilityExecutor(IFinancialStatementTableQueryUseCase useCase) : IConversationalCapabilityExecutor
 {
     public string CapabilityCode => "financial_statement_table";

@@ -47,6 +47,18 @@ public interface IMonthlyProductComparisonReadRepository
     Task<IReadOnlyList<JalaliPeriod>> GetAvailablePeriodsAsync(string externalCompanyId, CancellationToken ct = default);
     Task<MonthlyProductComparisonPeriod?> GetPeriodAsync(string externalCompanyId, JalaliPeriod period, CancellationToken ct = default);
 }
+
+/// <summary>Optional single-read catalog for production company-scoped product resolution.</summary>
+public interface IMonthlyProductCatalogReadRepository
+{
+    Task<IReadOnlyList<ProductSalesObservation>> GetProductCatalogAsync(
+        string externalCompanyId,
+        CancellationToken ct = default);
+
+    Task<IReadOnlyList<ProductSalesObservation>> GetAllProductSalesAsync(
+        string externalCompanyId,
+        CancellationToken ct = default);
+}
 public interface IMonthlyProductComparisonUseCase
 {
     Task<MonthlyProductComparisonResponse> ExecuteAsync(MonthlyProductComparisonQuery query, CancellationToken ct = default);

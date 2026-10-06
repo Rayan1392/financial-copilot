@@ -33,6 +33,10 @@ public sealed class DeepSeekHostedAiModelTransport(
         {
             payload["response_format"] = new JsonObject { ["type"] = "json_object" };
         }
+        if (request.MaxOutputTokens is > 0)
+        {
+            payload["max_tokens"] = request.MaxOutputTokens.Value;
+        }
 
         if (request.Tools is { Count: > 0 })
         {

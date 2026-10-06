@@ -150,10 +150,11 @@ public sealed class AiModelExecutionService(
         {
             attempt++;
             var startedAt = timeProvider.GetUtcNow();
+            AiModelResult? result = null;
 
             try
             {
-                var result = await client.CompleteAsync(request, cancellationToken);
+                result = await client.CompleteAsync(request, cancellationToken);
 
                 if (request.StructuredOutput is not null)
                 {
@@ -176,6 +177,7 @@ public sealed class AiModelExecutionService(
             catch (AiModelProviderException exception)
             {
                 lastFailure = exception;
+                var failedUsage = result?.Usage;
                 await telemetrySink.RecordAttemptAsync(
                     new AiExecutionUsageFacts(
                         selection.CorrelationId,
@@ -184,8 +186,28 @@ public sealed class AiModelExecutionService(
                         exception.Status,
                         timeProvider.GetUtcNow() - startedAt,
                         attempt,
+                        failedUsage?.InputTokens,
+                        failedUsage?.OutputTokens,
+                        failedUsage?.CacheHit ?? false,
+                        failedUsage?.UsedTools ?? false,
+                        failedUsage?.EmbeddingOperation ?? false,
+                        failedUsage?.ProviderReportedCost,
+                        failedUsage?.ProviderReportedCurrency,
                         FailureCode: exception.Code),
                     cancellationToken);
+                if (failedUsage is not null)
+                {
+                    usageAccumulator?.Record(failedUsage with
+                    {
+                        CorrelationId = selection.CorrelationId,
+                        ProviderKey = client.Descriptor.ProviderKey,
+                        ModelKey = client.Descriptor.ModelKey,
+                        AttemptNumber = attempt,
+                        Duration = timeProvider.GetUtcNow() - startedAt,
+                        Status = exception.Status,
+                        FailureCode = exception.Code
+                    });
+                }
             }
         }
 

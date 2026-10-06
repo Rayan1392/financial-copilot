@@ -36,6 +36,20 @@ public sealed class DeterministicCapabilityInterpreter(
 
     static DeterministicCapabilityInterpreter()
     {
+        // Keep conversational Persian glue words out of the company/entity set.
+        // These are escaped deliberately because this source file contains legacy
+        // mojibake literals in the surrounding keyword tables.
+        NonEntityWords.UnionWith([
+            "\u0648", "\u0631\u0648", "\u06a9\u0646\u0627\u0631", "\u0647\u0645",
+            "\u0628\u0630\u0627\u0631", "\u0628\u0628\u06cc\u0646", "\u06a9\u062f\u0648\u0645", "\u0628\u0647\u062a\u0631\u0647",
+            "\u0641\u0631\u0648\u0634", "\u0641\u0631\u0648\u062e\u062a\u0647", "\u0686\u0642\u062f\u0631", "\u0686\u0642\u062f\u0631\u0647",
+            "\u062f\u0627\u0634\u062a", "\u062f\u0627\u0634\u062a\u0647", "\u0645\u0627\u0647\u0627\u0646\u0647", "\u0631\u0648\u0646\u062f",
+            "\u0645\u062d\u0635\u0648\u0644", "\u0645\u062d\u0635\u0648\u0644\u0627\u062a", "\u0634\u0631\u06a9\u062a", "\u0646\u0634\u0627\u0646",
+            "\u0628\u062f\u0647", "\u0628\u0631\u0627\u06cc", "\u0627\u0632", "\u0628\u0647", "\u0631\u0627", "\u0627\u0633\u062a",
+            "\u0628\u0648\u062f", "\u062f\u0627\u0631\u062f", "\u0686\u06cc\u0647", "\u0686\u06cc", "\u06a9\u0646", "\u06a9\u0646\u06cc\u062f",
+            "\u06a9\u062f\u0627\u0645", "\u062a\u062d\u0644\u06cc\u0644", "\u0628\u0631\u0631\u0633\u06cc", "\u062a\u0631\u06a9\u06cc\u0628", "\u0628\u06cc\u0634\u062a\u0631\u06cc\u0646"
+            , "\u062e\u0648\u062f", "\u062f\u0631", "\u0628\u0627"
+        ]);
         NonEntityWords.UnionWith(["industry", "group", "صنعت", "گروه", "با", "در", "داخل", "compare", "rank", "ranking", "pair", "دو", "نمادها", "symbol", "symbols", "its", "relative", "valuation"]);
     }
 
@@ -68,7 +82,93 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("financial_statement_period_analysis", StatementAnalysisWords, 0.98m, normalized, scores, evidence, "statement-analysis-keyword");
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
-        var entities = ExtractEntities(original, normalized);
+        var entities = ExtractEntities(original, normalized).ToList();
+        var isProductRevenueComposition =
+            ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(original) ||
+            ProductSemanticIntentRules.LooksLikeProductRevenueComposition(original) ||
+            ProductSemanticIntentRules.LooksLikeProductRevenueComposition(normalized) ||
+            normalized.Contains("\u062a\u0631\u06a9\u06cc\u0628", StringComparison.Ordinal) &&
+            normalized.Contains("\u0641\u0631\u0648\u0634", StringComparison.Ordinal) &&
+            normalized.Contains("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal);
+        var productMention = isProductRevenueComposition
+            ? null
+            : ProductSemanticIntentRules.ExtractProductMention(original);
+        if (productMention is not null)
+        {
+            var productParts = productMention
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(ProductSemanticIntentRules.NormalizeProductSurface)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            entities.RemoveAll(entity =>
+            {
+                var normalizedEntity = ProductSemanticIntentRules.NormalizeProductSurface(entity.Text);
+                return normalizedEntity.Equals(productMention, StringComparison.OrdinalIgnoreCase) ||
+                       productParts.Contains(normalizedEntity);
+            });
+            var productStart = normalized.IndexOf(productMention, StringComparison.OrdinalIgnoreCase);
+            entities.Add(new EntityMention(
+                productMention,
+                Math.Max(productStart, 0),
+                productMention.Length,
+                QueryValueProvenance.UserExplicit,
+                "product",
+                "product"));
+
+            if (ProductSemanticIntentRules.LooksLikeProductSalesTrend(original))
+            {
+                scores["product_sales_trend"] = Math.Max(scores.GetValueOrDefault("product_sales_trend"), 0.99m);
+                evidence.Add(new InterpretationEvidence("product_sales_trend", "product-sales-trend", QueryValueProvenance.UserExplicit));
+            }
+            else if (ProductSemanticIntentRules.LooksLikeProductSalesValue(original))
+            {
+                scores["product_sales_value"] = Math.Max(scores.GetValueOrDefault("product_sales_value"), 0.99m);
+                evidence.Add(new InterpretationEvidence("product_sales_value", "product-sales-value", QueryValueProvenance.UserExplicit));
+            }
+        }
+        else if (isProductRevenueComposition)
+        {
+            entities.RemoveAll(entity => ProductSemanticIntentRules.NormalizeProductSurface(entity.Text) is "محصول" or "محصولات");
+            for (var entityIndex = entities.Count - 1; entityIndex >= 0; entityIndex--)
+            {
+                var entityText = ProductSemanticIntentRules.NormalizeProductSurface(entities[entityIndex].Text);
+                var marker = entityText.StartsWith("\u0645\u062d\u0635\u0648\u0644\u0627\u062a ", StringComparison.OrdinalIgnoreCase)
+                    ? "\u0645\u062d\u0635\u0648\u0644\u0627\u062a "
+                    : entityText.StartsWith("\u0645\u062d\u0635\u0648\u0644 ", StringComparison.OrdinalIgnoreCase)
+                        ? "\u0645\u062d\u0635\u0648\u0644 "
+                        : null;
+                if (marker is null)
+                {
+                    if (entityText is "\u0645\u062d\u0635\u0648\u0644" or "\u0645\u062d\u0635\u0648\u0644\u0627\u062a")
+                        entities.RemoveAt(entityIndex);
+                    continue;
+                }
+
+                var cleaned = entityText[marker.Length..].Trim();
+                entities[entityIndex] = entities[entityIndex] with { Text = cleaned, Length = cleaned.Length };
+            }
+            scores["product_revenue_mix"] = Math.Max(scores.GetValueOrDefault("product_revenue_mix"), 0.99m);
+            evidence.Add(new InterpretationEvidence("product_revenue_mix", "product-revenue-composition", QueryValueProvenance.UserExplicit));
+        }
+        entities.RemoveAll(entity => entity.Text.Contains("\u062e\u0648\u062f", StringComparison.Ordinal) ||
+                                     entity.EntityType is not "product" &&
+                                     (entity.Text.Equals("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal) ||
+                                      entity.Text.Equals("\u0645\u062d\u0635\u0648\u0644\u0627\u062a", StringComparison.Ordinal)));
+        for (var entityIndex = entities.Count - 1; entityIndex >= 0; entityIndex--)
+        {
+            if (entities[entityIndex].EntityType is "product")
+                continue;
+            var entityText = ProductSemanticIntentRules.NormalizeProductSurface(entities[entityIndex].Text);
+            var marker = entityText.StartsWith("\u0645\u062d\u0635\u0648\u0644\u0627\u062a ", StringComparison.OrdinalIgnoreCase)
+                ? "\u0645\u062d\u0635\u0648\u0644\u0627\u062a "
+                : entityText.StartsWith("\u0645\u062d\u0635\u0648\u0644 ", StringComparison.OrdinalIgnoreCase)
+                    ? "\u0645\u062d\u0635\u0648\u0644 "
+                    : null;
+            if (marker is not null)
+            {
+                var cleaned = entityText[marker.Length..].Trim();
+                entities[entityIndex] = entities[entityIndex] with { Text = cleaned, Length = cleaned.Length };
+            }
+        }
         if (QueryNormalization.TryParseFinancialStatementClues(original, out _, out _) &&
             ContainsAny(normalized, MetricWords) &&
             !ContainsAny(normalized, ["below", "above", "under", "over", "زیر", "بالای", "کمتر از", "بیشتر از", "growth"]))
@@ -90,7 +190,9 @@ public sealed class DeterministicCapabilityInterpreter(
 
         // This only enters the Feature 125 comparison family. The dialogue gate
         // promotes it to the pair capability only after two canonical companies resolve.
-        if (ContainsAny(normalized, ["compare", "مقایسه"]) && HasPairConjunction(normalized))
+        if ((ContainsAny(normalized, ["compare", "مقایسه", "\u06a9\u0646\u0627\u0631", "\u06a9\u062f\u0648\u0645"]) ||
+             entities.Count > 1 && ContainsAny(normalized, ["\u06a9\u0646\u0627\u0631", "\u06a9\u062f\u0648\u0645", "\u0628\u0647\062a\u0631\u0647"])) &&
+            HasPairConjunction(normalized))
         {
             var hasIndustryReference = ContainsAny(normalized, IndustryWords);
             var code = entities.Count > 1 && !hasIndustryReference
@@ -224,11 +326,17 @@ public sealed class DeterministicCapabilityInterpreter(
         var tokens = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var token in tokens)
         {
-            if (token.Length < 2 || NonEntityWords.Contains(token) || QueryNormalization.IsEntityDistractor(token) || token.All(char.IsDigit))
+            if (token.Length < 2 || NonEntityWords.Contains(token) || token is "\u062e\u0648\u062f" or "\u062f\u0631" or "\u0628\u0627" || QueryNormalization.IsEntityDistractor(token) || token.All(char.IsDigit))
                 continue;
             if (!token.Any(character => char.IsLetter(character))) continue;
-            var start = normalized.IndexOf(token, StringComparison.Ordinal);
-            result.Add(new EntityMention(token, Math.Max(start, 0), token.Length));
+            var tokenForMarker = QueryNormalization.Normalize(token);
+            var mention = tokenForMarker.StartsWith("\u0645\u062d\u0635\u0648\u0644\u0627\u062a ", StringComparison.OrdinalIgnoreCase)
+                ? tokenForMarker["\u0645\u062d\u0635\u0648\u0644\u0627\u062a ".Length..].Trim()
+                : tokenForMarker.StartsWith("\u0645\u062d\u0635\u0648\u0644 ", StringComparison.OrdinalIgnoreCase)
+                    ? tokenForMarker["\u0645\u062d\u0635\u0648\u0644 ".Length..].Trim()
+                    : token;
+            var start = normalized.IndexOf(mention, StringComparison.Ordinal);
+            result.Add(new EntityMention(mention, Math.Max(start, 0), mention.Length));
         }
         return result.DistinctBy(item => item.Text, StringComparer.OrdinalIgnoreCase).Take(10).ToArray();
     }
@@ -251,5 +359,6 @@ public sealed class DeterministicCapabilityInterpreter(
 
     private static bool HasPairConjunction(string normalized) =>
         normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Any(token => token.Equals("and", StringComparison.OrdinalIgnoreCase) || token is "و" or "با");
+            .Any(token => token.Equals("and", StringComparison.OrdinalIgnoreCase) ||
+                         token is "و" or "با" or "\u0648" or "\u0628\u0627");
 }

@@ -44,7 +44,15 @@ public sealed record CapabilityDefinition(
     string OutputType,
     IReadOnlyList<string> DataRequirements,
     string PrecedenceGroup,
-    SuggestionPolicy SuggestionPolicy);
+    SuggestionPolicy SuggestionPolicy,
+    IReadOnlyCollection<string>? SupportedIntents = null,
+    IReadOnlyCollection<string>? SupportedMetricHints = null,
+    IReadOnlyCollection<string>? SupportedPeriods = null,
+    IReadOnlyCollection<string>? AllowedEntityCombinations = null,
+    string? EntityScope = null,
+    string? ExecutionTarget = null,
+    string? PolicyCode = null,
+    string? RolloutKey = null);
 
 public static class CapabilityExecutionRoutes
 {
@@ -53,6 +61,8 @@ public static class CapabilityExecutionRoutes
     public const string ComprehensiveAnalysis = "comprehensive_analysis";
     public const string MonthlyActivityTrend = "monthly_activity_trend";
     public const string ProductRevenueMix = "product_revenue_mix";
+    public const string ProductSalesValue = "product_sales_value";
+    public const string ProductSalesTrend = "product_sales_trend";
     public const string FinancialStatementTable = "financial_statement_table";
     public const string FinancialStatementPeriodAnalysis = "financial_statement_period_analysis";
     public const string DisclosureListing = "disclosure_listing";
@@ -65,6 +75,7 @@ public static class CapabilityExecutionRoutes
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         Scanner, SymbolLookup, ComprehensiveAnalysis, MonthlyActivityTrend, ProductRevenueMix,
+        ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
         MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch
     };
@@ -191,6 +202,16 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "product revenue mix"), Alias("fa", "ترکیب فروش محصولات")],
             [Example("en", "product mix for فولاد"), Example("fa", "ترکیب فروش محصولات فولاد")],
             [Slot("symbol", "symbol", true)], []),
+        Definition("product_sales_value", CapabilityExecutionRoutes.ProductSalesValue, "table", "product-specific-sales",
+            [Alias("en", "product sales value"), Alias("fa", "product sales value lookup")],
+            [Example("en", "how much did hot products sell for فولاد?"), Example("fa", "product sales value for فولاد")],
+            [Slot("symbol", "symbol", true), Slot("product", "product", true)],
+            [Slot("metric", "metric", false), Slot("period", "period", false)]),
+        Definition("product_sales_trend", CapabilityExecutionRoutes.ProductSalesTrend, "chart", "product-specific-sales",
+            [Alias("en", "product sales trend"), Alias("fa", "product sales trend chart")],
+            [Example("en", "show the sales trend for hot products at فولاد"), Example("fa", "product sales trend for فولاد")],
+            [Slot("symbol", "symbol", true), Slot("product", "product", true)],
+            [Slot("metric", "metric", false), Slot("period", "period", false), Slot("presentation", "presentation", false)]),
         Definition("financial_statement_table", CapabilityExecutionRoutes.FinancialStatementTable, "table", "statement",
             [Alias("en", "financial statement table"), Alias("fa", "جدول صورت مالی")],
             [Example("en", "show فولاد income statement"), Example("fa", "جدول صورت سود و زیان فولاد")],
@@ -209,7 +230,7 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "find company by statement value"), Alias("fa", "پیدا کردن نماد با مقدار صورت مالی")],
             [Example("en", "which company has revenue 3300508?"), Example("fa", "نمادی را پیدا کن با درآمد 3300508")],
             [Slot("numericClues", "numeric-clue-list", true)],
-            [Slot("metric", "metric", false), Slot("sourceTitle", "source-title", false), Slot("governedAlias", "governed-alias", false), Slot("statementType", "statement-type", false)]),
+            [Slot("metric", "metric", false), Slot("sourceTitle", "source-title", false), Slot("governedAlias", "governed-alias", false), Slot("statementType", "statement-type", false)], false),
         Definition("disclosure_listing", CapabilityExecutionRoutes.DisclosureListing, "list", "disclosure",
             [Alias("en", "company disclosures"), Alias("fa", "اطلاعیه‌های شرکت")],
             [Example("en", "latest disclosures for فولاد"), Example("fa", "آخرین اطلاعیه‌های فولاد")],
@@ -268,6 +289,8 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.ComprehensiveAnalysis => ["canonical_company_identity", "comprehensive_analysis_posts", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.MonthlyActivityTrend => ["canonical_company_identity", "monthly_activity_reports"],
         CapabilityExecutionRoutes.ProductRevenueMix => ["canonical_company_identity", "monthly_product_sales"],
+        CapabilityExecutionRoutes.ProductSalesValue => ["canonical_company_identity", "monthly_product_sales"],
+        CapabilityExecutionRoutes.ProductSalesTrend => ["canonical_company_identity", "monthly_product_sales"],
         CapabilityExecutionRoutes.FinancialStatementTable => ["canonical_company_identity", "financial_statements"],
         CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis => ["canonical_company_identity", "financial_statements"],
         CapabilityExecutionRoutes.FinancialStatementValueSearch => ["financial_statements"],
@@ -297,7 +320,9 @@ public sealed record EntityMention(
     string Text,
     int Start,
     int Length,
-    QueryValueProvenance Provenance = QueryValueProvenance.UserExplicit);
+    QueryValueProvenance Provenance = QueryValueProvenance.UserExplicit,
+    string? EntityType = null,
+    string? Scope = null);
 
 public sealed record MetricSelection(
     string MetricCode,

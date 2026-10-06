@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 using FinancialCopilot.Application.Scanner;
@@ -107,12 +109,19 @@ public sealed class ConversationDialogueGate(
     TimeProvider timeProvider,
     ISemanticDialogueEventSink? eventSink = null,
     ISemanticQueryFrameEnricher? frameEnricher = null,
-    IIndustryRelativeValuationSemanticResolver? industryRelativeValuationResolver = null) : IConversationDialogueGate
+    IIndustryRelativeValuationSemanticResolver? industryRelativeValuationResolver = null,
+    HybridCapabilityInterpreter? hybridInterpreter = null,
+    ICanonicalQueryProductResolver? productResolver = null,
+    ISemanticRoutingLatencySink? latencySink = null,
+    ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null) : IConversationDialogueGate
 {
     public async Task<ConversationDialogueGateResult> PrepareAsync(AiQueryRequest request, Guid conversationId, CancellationToken cancellationToken)
     {
         var scope = new ConversationTaskStateScope(conversationId, request.TenantId, request.ActorId);
-        var interpretation = interpreter.Interpret(request.Message);
+        var hybridResult = hybridInterpreter is null
+            ? null
+            : await hybridInterpreter.InterpretAsync(request.Message, request.TenantId, request.CorrelationId, cancellationToken);
+        var interpretation = hybridResult?.Interpretation ?? interpreter.Interpret(request.Message);
         var active = await stateService.GetActiveAsync(scope, cancellationToken);
         var detectedCapability = request.Context?.InsightEventId is not null
             ? "personalized_insight_explanation"
@@ -144,7 +153,11 @@ public sealed class ConversationDialogueGate(
             capability is null ? DialogueOutcomeReasonCodes.CapabilityNotRecognized : DialogueOutcomeReasonCodes.None,
             request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
             timeProvider.GetUtcNow()));
+        var entityStart = Stopwatch.GetTimestamp();
         var entity = await entityResolver.ResolveFromInterpretationAsync(interpretation, cancellationToken);
+        latencySink?.Record(new SemanticRoutingLatencySample(
+            request.CorrelationId,
+            EntityResolutionMs: Stopwatch.GetElapsedTime(entityStart).TotalMilliseconds));
         var entityEvent = entity switch
         {
             EntityResolutionResult.Resolved => SemanticEventName.EntityResolved,
@@ -156,9 +169,17 @@ public sealed class ConversationDialogueGate(
             eventSink?.Record(new SemanticDialogueEvent(eventName, request.CorrelationId, capability, interpretation.RegistryVersion,
                 entity is EntityResolutionResult.Ambiguous ? DialogueOutcomeReasonCodes.EntityAmbiguous : entity is EntityResolutionResult.NotFound ? DialogueOutcomeReasonCodes.EntityNotFound : DialogueOutcomeReasonCodes.None,
                 request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai", timeProvider.GetUtcNow()));
+        var productMention = interpretation.EntityMentions
+            .FirstOrDefault(item => string.Equals(item.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(item.Scope, "product", StringComparison.OrdinalIgnoreCase))?.Text;
+        ProductResolutionResult? productResolution = productMention is null || productResolver is null
+            ? null
+            : entity is EntityResolutionResult.Resolved resolvedCompany
+                ? await productResolver.ResolveAsync(resolvedCompany.Entity.DisplaySymbol, productMention, cancellationToken)
+                : new ProductResolutionResult.Missing("Product");
         var validatedFrameSlots = capability is null
             ? Array.Empty<ResolvedQuerySlot>()
-            : slotValidator.Validate(capability, interpretation, entity).Slots.ToArray();
+            : slotValidator.Validate(capability, interpretation, entity, productResolution).Slots.ToArray();
         if (request.Context?.InsightEventId is Guid insightEventId && capability == "personalized_insight_explanation")
             validatedFrameSlots = validatedFrameSlots
                 .Where(slot => slot.Type != QuerySlotType.Insight)
@@ -188,7 +209,7 @@ public sealed class ConversationDialogueGate(
                 capability == "symbol_vs_industry_relative_valuation")
             {
                 capability = "symbol_pair_within_industry";
-                validatedFrameSlots = slotValidator.Validate(capability, interpretation, entity).Slots.ToArray();
+                validatedFrameSlots = slotValidator.Validate(capability, interpretation, entity, productResolution).Slots.ToArray();
             }
             if (relativeResolution.Status == IndustryRelativeValuationResolutionStatus.Resolved)
             {
@@ -263,7 +284,17 @@ public sealed class ConversationDialogueGate(
         }
         var slots = validatedFrameSlots
             .Where(slot => slot.ValidationState == QuerySlotValidationState.Valid && !string.IsNullOrWhiteSpace(slot.Value))
-            .Select(slot => new ConversationTaskSlot(slot.Type, slot.Value!, entity is EntityResolutionResult.Resolved resolved && slot.Type == QuerySlotType.CompanyOrSymbol ? resolved.Entity.CanonicalId : null, slot.Provenance, slot.Confidence, null, 0)).ToArray();
+            .Select(slot => new ConversationTaskSlot(
+                slot.Type,
+                slot.Value!,
+                slot.CanonicalEntity?.CanonicalId ??
+                    (entity is EntityResolutionResult.Resolved resolved && slot.Type == QuerySlotType.CompanyOrSymbol
+                        ? resolved.Entity.CanonicalId
+                        : null),
+                slot.Provenance,
+                slot.Confidence,
+                null,
+                0)).ToArray();
         var governedMetrics = capability == "symbol_metric_lookup"
             ? directMetricRegistry.ResolveAll(
                 request.Message,
@@ -365,7 +396,7 @@ public sealed class ConversationDialogueGate(
             slots = slots.Where(slot => slot.Type is not QuerySlotType.Metric and not QuerySlotType.Metrics and not QuerySlotType.Period).ToArray();
         }
         var hasExplicitUnresolvedEntity = relativePendingAction is not null || validatedFrameSlots.Any(slot =>
-            (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Industry or QuerySlotType.IndustryGroup) &&
+            (slot.Type is QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Product or QuerySlotType.Industry or QuerySlotType.IndustryGroup) &&
             slot.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Missing);
         ConversationTaskStateTransition? transition;
         if (relativePendingAction is not null)
@@ -396,25 +427,92 @@ public sealed class ConversationDialogueGate(
             if (frameSlotsByType.TryGetValue(slot.Type, out var current) &&
                 current.ValidationState is QuerySlotValidationState.Ambiguous or QuerySlotValidationState.Invalid or QuerySlotValidationState.Unsupported)
                 continue;
-            frameSlotsByType[slot.Type] = new ResolvedQuerySlot(
-                slot.Type,
-                slot.Value,
-                slot.Provenance,
-                slot.Confidence,
-                QuerySlotValidationState.Valid,
-                effectiveCapability);
+            frameSlotsByType[slot.Type] = frameSlotsByType.TryGetValue(slot.Type, out var preserved)
+                ? preserved with
+                {
+                    Value = slot.Value,
+                    Provenance = slot.Provenance,
+                    Confidence = slot.Confidence,
+                    ValidationState = QuerySlotValidationState.Valid,
+                    CapabilityCode = effectiveCapability
+                }
+                : new ResolvedQuerySlot(
+                    slot.Type,
+                    slot.Value,
+                    slot.Provenance,
+                    slot.Confidence,
+                    QuerySlotValidationState.Valid,
+                    effectiveCapability);
         }
         var frame = effectiveCapability is null
             ? null
-            : new ValidatedQueryFrame(effectiveCapability, interpretation.RegistryVersion, frameSlotsByType.Values.ToArray(), interpretation);
+            : new ValidatedQueryFrame(
+                effectiveCapability,
+                interpretation.RegistryVersion,
+                frameSlotsByType.Values.ToArray(),
+                interpretation,
+                hybridResult?.LegacyCapability ?? interpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
+                hybridResult?.LegacyConfidence ?? interpretation.CapabilityCandidates.FirstOrDefault()?.Confidence,
+                hybridResult?.SemanticStatus ?? "Completed");
         var routing = frame is null ? null : rolloutCoordinator.Decide(frame.CapabilityCode, request.ActorId.ToString("N"));
+        // A semantic provider timeout/error is not an admitted semantic execution. Keep the
+        // deterministic, canonical frame as the observational shadow frame and let the legacy
+        // route execute it. Rollout percentages and arbitration remain unchanged.
+        var semanticProviderFailed = hybridResult?.SemanticStatus is "Timeout" or "ProviderError";
+        var routedRequest = request with
+        {
+            OriginalUserMessage = request.OriginalUserMessage ?? request.Message,
+            SemanticFrame = routing?.ExecuteSemanticRoute == true && !semanticProviderFailed ? frame : null,
+            SemanticShadowFrame = routing?.ExecuteSemanticRoute == false || semanticProviderFailed ? frame : null
+        };
+
+        if (canaryTelemetrySink is not null && frame is not null && routing is
+            { Mode: SemanticRoutingMode.Canary, ExecuteSemanticRoute: true, InCanaryCohort: true })
+        {
+            var context = SemanticRoutingTelemetryFactory.FromFrame(
+                routedRequest, frame, frame.CapabilityCode, frame.CapabilityCode, routing.Mode);
+            var entitySlots = frame.Slots.Where(slot => slot.Type is
+                QuerySlotType.CompanyOrSymbol or QuerySlotType.CompaniesOrSymbols or QuerySlotType.Product).ToArray();
+            var entityResolution = entitySlots.Length == 0
+                ? "NotApplicable"
+                : entitySlots.All(slot => slot.ValidationState == QuerySlotValidationState.Valid)
+                    ? "Resolved"
+                    : "Failed";
+            canaryTelemetrySink.Record(new SemanticRoutingCanarySample(
+                routedRequest.CorrelationId,
+                SemanticRoutingTelemetryFactory.ActorCohortKeyHash(routedRequest.ActorId.ToString("N")),
+                "Canary",
+                routing.CohortBucket,
+                frame.CapabilityCode,
+                routing.Mode,
+                true,
+                context.QueryHash,
+                context.SemanticIntent,
+                context.SemanticCandidate,
+                context.LegacyCapability,
+                context.ArbitrationPreferredCandidate,
+                context.ArbitrationReason,
+                context.ResolvedEntities,
+                frame.CapabilityCode,
+                SemanticRoutingDisagreementCategory.AGREE,
+                "PENDING",
+                entityResolution,
+                "Started",
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                timeProvider.GetUtcNow()));
+        }
+
         return new(
-            request with
-            {
-                OriginalUserMessage = request.OriginalUserMessage ?? request.Message,
-                SemanticFrame = routing?.ExecuteSemanticRoute == true ? frame : null,
-                SemanticShadowFrame = routing?.ExecuteSemanticRoute == false ? frame : null
-            },
+            routedRequest,
             transition,
             effectiveSlots);
     }
@@ -454,11 +552,16 @@ public sealed class ConversationDialogueGate(
             if (active?.PendingAction is not null &&
                 string.Equals(active.PendingAction.ReasonCode, clarificationReason, StringComparison.Ordinal))
                 return;
+            var productReason = clarificationReason is "product_not_found" or "product_ambiguous";
             var entityReason = clarificationReason is DialogueOutcomeReasonCodes.EntityAmbiguous or DialogueOutcomeReasonCodes.EntityNotFound;
-            var expected = entityReason || interpretation.MissingSlots.Contains("symbol", StringComparer.Ordinal)
+            var expected = productReason
+                ? QuerySlotType.Product
+                : entityReason || interpretation.MissingSlots.Contains("symbol", StringComparer.Ordinal)
                 ? QuerySlotType.CompanyOrSymbol
                 : QuerySlotType.Metric;
-            var kind = entityReason ? PendingDialogueActionKind.Disambiguation : PendingDialogueActionKind.Clarification;
+            var kind = clarificationReason is DialogueOutcomeReasonCodes.EntityAmbiguous or "product_ambiguous"
+                ? PendingDialogueActionKind.Disambiguation
+                : PendingDialogueActionKind.Clarification;
             await stateService.RecordPendingAsync(scope, capability ?? active?.ActiveCapability, retainedSlots, new(kind, expected, [], clarificationReason ?? "clarification_required", Guid.Empty, 0), request.CorrelationId + ":outcome", cancellationToken);
             return;
         }

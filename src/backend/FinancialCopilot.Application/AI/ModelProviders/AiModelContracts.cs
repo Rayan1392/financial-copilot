@@ -55,7 +55,8 @@ public sealed record AiToolDefinition(string Name, string Description, string Pa
 
 public sealed record AiStructuredOutputContract(
     string SchemaName,
-    IReadOnlyCollection<string> RequiredRootProperties);
+    IReadOnlyCollection<string> RequiredRootProperties,
+    string? JsonSchema = null);
 
 public sealed record AiModelRequest(
     string CorrelationId,
@@ -65,7 +66,8 @@ public sealed record AiModelRequest(
     AiStructuredOutputContract? StructuredOutput = null,
     IReadOnlyCollection<AiToolDefinition>? Tools = null,
     bool Stream = false,
-    string? PreviousResponseId = null);
+    string? PreviousResponseId = null,
+    int? MaxOutputTokens = null);
 
 public sealed record AiToolCall(string Id, string Name, string ArgumentsJson, string? ItemId = null);
 

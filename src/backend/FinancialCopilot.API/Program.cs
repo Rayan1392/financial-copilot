@@ -3,12 +3,14 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure;
-using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
+using System.Text;
+
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
 
 //var apiKey = "dev-telegram-worker-key";
 

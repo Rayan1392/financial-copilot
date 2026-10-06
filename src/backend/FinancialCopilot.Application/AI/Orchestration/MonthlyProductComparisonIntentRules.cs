@@ -19,6 +19,12 @@ public static class MonthlyProductComparisonIntentRules
     {
         if (string.IsNullOrWhiteSpace(query)) return false;
         var text = query.Trim().ToLowerInvariant();
+        // Feature 128 product-specific value/trend capabilities own queries that
+        // identify one product. Keep the existing comparison route for true
+        // company-wide product decomposition only.
+        if (ProductSemanticIntentRules.LooksLikeProductSalesValue(text) ||
+            ProductSemanticIntentRules.LooksLikeProductSalesTrend(text))
+            return false;
         // The canonical Feature 133 trend phrase belongs to the existing monthly trend
         // capability. Keep explicit product-comparison wording on this Feature 129 route.
         if (text.Contains("\u0631\u0648\u0646\u062f \u062a\u0648\u0644\u06cc\u062f \u0648 \u0641\u0631\u0648\u0634", StringComparison.Ordinal) &&

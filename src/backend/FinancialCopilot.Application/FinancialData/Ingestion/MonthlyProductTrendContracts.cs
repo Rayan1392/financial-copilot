@@ -1,3 +1,5 @@
+using FinancialCopilot.Application.AI.Orchestration;
+
 namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 public enum MonthlyProductTrendResolutionState { Resolved, NotFound, Ambiguous }
@@ -26,7 +28,9 @@ public sealed record MonthlyProductTrendQuery(
     string ProductText,
     JalaliPeriod? FromPeriod = null,
     JalaliPeriod? ToPeriod = null,
-    MonthlyProductComparisonFocus Focus = MonthlyProductComparisonFocus.Sales);
+    MonthlyProductComparisonFocus Focus = MonthlyProductComparisonFocus.Sales,
+    CanonicalQueryEntity? CanonicalCompany = null,
+    CanonicalQueryProduct? CanonicalProduct = null);
 
 public sealed record MonthlyProductTrendPoint(
     JalaliPeriod Period,

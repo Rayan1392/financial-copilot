@@ -42,6 +42,7 @@ public sealed class CapabilityGuidanceServiceTests
         var prompts = Create().StarterPrompts("fa");
 
         Assert.DoesNotContain(prompts, prompt => prompt.CapabilityCode is
+            "financial_statement_value_search" or
             "ps_gauge_visualization" or
             "personalized_insight_explanation" or
             "symbol_vs_industry_relative_valuation" or

@@ -2,6 +2,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -590,6 +592,80 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
         Assert.NotEmpty(replayed.GetProperty("points").EnumerateArray());
     }
 
+    [Fact]
+    public async Task V2AiQuery_ProductSalesValue_UsesCompanyScopedSemanticRoute()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0641\u0648\u0644\u0627\u062f \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645\u0634 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_value", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        var textAnswer = root.GetProperty("textAnswer").GetString()!;
+        Assert.Contains("فروش", textAnswer);
+        Assert.Contains("محصولات گرم", textAnswer);
+        Assert.Contains("فولاد", textAnswer);
+        Assert.Contains("۱۴۰۵/۰۳", textAnswer);
+        Assert.Contains("میلیارد تومان", textAnswer);
+        Assert.DoesNotContain("Product sales", textAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("million rial", textAnswer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("250", textAnswer, StringComparison.Ordinal);
+        Assert.DoesNotContain("product_revenue_mix", root.GetProperty("textAnswer").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductSalesTrend_UsesCompanyScopedSemanticRoute()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645 \u0641\u0648\u0644\u0627\u062f\u061f" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_trend", root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        var trend = root.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("Resolved", trend.GetProperty("resolutionState").GetString());
+        Assert.Equal("\u0641\u0648\u0644\u0627\u062f", trend.GetProperty("companySymbol").GetString());
+        Assert.Equal("\u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645", trend.GetProperty("productTitle").GetString());
+        Assert.NotEmpty(trend.GetProperty("points").EnumerateArray());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
+    [Theory]
+    [InlineData("\u0641\u0648\u0644\u0627\u062f \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u0646\u0627\u0634\u0646\u0627\u062e\u062a\u0647 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f")]
+    [InlineData("\u0634\u0631\u06a9\u062a \u0646\u0627\u0634\u0646\u0627\u062e\u062a\u0647 \u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645 \u0686\u0642\u062f\u0631 \u0641\u0631\u0648\u062e\u062a\u0647\u061f")]
+    public async Task V2AiQuery_UnknownProductOrCompany_DoesNotFallbackToCompanyWideMix(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("product_sales_value", root.GetProperty("semanticCapabilityCode").GetString());
+        var outcome = root.GetProperty("outcome").GetString();
+        Assert.Contains(outcome, new[] { "ClarificationNeeded", "DisambiguationNeeded", "NoData", "EntityNotFound" });
+        Assert.DoesNotContain("product_revenue_mix", root.GetProperty("textAnswer").GetString());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
@@ -659,7 +735,7 @@ public sealed class V2ShgolDirectPriceRegressionEndpointTests : IClassFixture<V2
     }
 }
 
-public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
+public class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-monthly-sales-routing-{Guid.NewGuid():N}";
     private bool _seeded;
@@ -727,6 +803,16 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
                 CompanySymbol = "\u06a9\u06af\u0644",
                 TseSymbol = "\u06a9\u06af\u0644",
                 LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("52000000-0000-0000-0000-000000000003"),
+                Name = "\u0641\u0648\u0644\u0627\u062f \u0645\u0628\u0627\u0631\u06a9\u0647 \u0627\u06cc\u0631\u0627\u0646",
+                ProviderName = "CyclicalWaves",
+                ExternalCompanyId = "7",
+                CompanySymbol = "\u0641\u0648\u0644\u0627\u062f",
+                TseSymbol = "\u0641\u0648\u0644\u0627\u062f",
+                LastSynchronizedAt = now
             });
 
         db.DerivedMetrics.AddRange(
@@ -741,6 +827,7 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
 
         SeedProductTrendData(db, "3", "\u06a9\u0686\u0627\u062f", "\u0622\u0647\u0646 \u0627\u0633\u0641\u0646\u062c\u06cc", now);
         SeedProductTrendData(db, "5", "\u06a9\u06af\u0644", "\u06af\u0646\u062f\u0644\u0647", now);
+        SeedProductTrendData(db, "7", "\u0641\u0648\u0644\u0627\u062f", "\u0645\u062d\u0635\u0648\u0644\u0627\u062a \u06af\u0631\u0645", now);
     }
 
     private static void SeedProductTrendData(
@@ -834,6 +921,399 @@ public sealed class V2MonthlySalesRoutingApiFactory : AiFacadeApiFactory
             SourceEvidenceJson = "[{\"source\":\"CyclicalWaves\"}]",
             DependencyEvidenceJson = "[]"
         };
+}
+
+public sealed class Feature128CanaryEndpointTests : IClassFixture<V2Feature128CanaryApiFactory>
+{
+    private readonly V2Feature128CanaryApiFactory _factory;
+
+    public Feature128CanaryEndpointTests(V2Feature128CanaryApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Theory]
+    [InlineData("فولاد محصولات گرمش چقدر فروخته؟", "product_sales_value")]
+    [InlineData("روند فروش محصولات گرم فولاد؟", "product_sales_trend")]
+    public async Task Feature128_Canary_ExecutesTheResolvedFrameWithoutLegacyReparse(
+        string message,
+        string expectedCapability)
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageEntriesBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal(expectedCapability, root.GetProperty("semanticCapabilityCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+        Assert.DoesNotContain("نام نماد یا شرکت", root.GetProperty("textAnswer").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No governed product-sales executor invocation was observed.");
+        Assert.Equal(expectedCapability, invocation.CapabilityCode);
+        var companySlot = invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var productSlot = invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product);
+        Assert.Equal(QuerySlotValidationState.Valid, companySlot.ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, productSlot.ValidationState);
+        Assert.Equal("فولاد", companySlot.Value);
+        Assert.Equal("محصولات گرم", productSlot.Value);
+        Assert.NotNull(companySlot.CanonicalEntity);
+        Assert.NotNull(productSlot.CanonicalProduct);
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No Feature 128 routing diagnostic was recorded.");
+        Assert.Equal(expectedCapability, diagnostic.FinalFrameCapability);
+        Assert.Equal("Resolved", diagnostic.FinalFrameCompanyState);
+        Assert.Equal("Resolved", diagnostic.FinalFrameProductState);
+        Assert.Equal(expectedCapability, diagnostic.ExecutorCapability);
+        Assert.Equal("فولاد", diagnostic.ExecutorCompany);
+        Assert.Equal("محصولات گرم", diagnostic.ExecutorProduct);
+        Assert.Equal(companySlot.CanonicalEntity!.CanonicalId, diagnostic.FinalFrameCompanyId);
+        Assert.Equal(productSlot.CanonicalProduct!.ProductKey, diagnostic.FinalFrameProductKey);
+        Assert.Equal(diagnostic.FinalFrameCompanyId, diagnostic.ExecutorCompanyId);
+        Assert.Equal(diagnostic.FinalFrameProductKey, diagnostic.ExecutorProductKey);
+
+        var usageEntries = _factory.ReadUsageEntries();
+        Assert.Equal(usageEntriesBefore + 1, usageEntries.Count);
+        Assert.Equal("Completed", usageEntries.OrderBy(item => item.OccurredAt).Last().CompletionStatus);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+
+        if (expectedCapability == "product_sales_value")
+        {
+            Assert.Contains("محصولات گرم", root.GetProperty("textAnswer").GetString());
+            Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        }
+        else
+        {
+            var trend = root.GetProperty("monthlyProductTrendResult");
+            Assert.Equal("Resolved", trend.GetProperty("resolutionState").GetString());
+            Assert.Equal("فولاد", trend.GetProperty("companySymbol").GetString());
+            Assert.Equal("محصولات گرم", trend.GetProperty("productTitle").GetString());
+        }
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public class V2Feature128CanaryApiFactory : V2MonthlySalesRoutingApiFactory
+{
+    public Feature128ExecutorProbe ExecutorProbe { get; } = new();
+    public Feature128DiagnosticSink DiagnosticSink { get; } = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                // Test-only override: production remains at the configured 10%.
+                ["SemanticRouting:CanaryPercentage"] = "100"
+            }));
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ISemanticCapabilityExecutionObserver>();
+            services.AddSingleton<ISemanticCapabilityExecutionObserver>(ExecutorProbe);
+            services.RemoveAll<ISemanticRoutingDiagnosticSink>();
+            services.AddSingleton<ISemanticRoutingDiagnosticSink>(DiagnosticSink);
+        });
+    }
+
+    public int ReadUsageReservationCount()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider
+            .GetRequiredService<FinancialCopilot.Infrastructure.Billing.Persistence.BillingDbContext>();
+        return db.UsageReservations.Count();
+    }
+}
+
+public sealed class Feature128ShadowLegacyEndpointTests : IClassFixture<V2Feature128ShadowApiFactory>
+{
+    private readonly V2Feature128ShadowApiFactory _factory;
+
+    public Feature128ShadowLegacyEndpointTests(V2Feature128ShadowApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task Feature128_Shadow_ExecutesLegacyProductTrendWithCanonicalIdentity()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var trendUseCase = scope.ServiceProvider.GetRequiredService<IMonthlyProductTrendQueryUseCase>();
+            var titleOnlyResult = await trendUseCase.ExecuteAsync(new MonthlyProductTrendQuery("فولاد", "محصولات گرم"));
+            Assert.Equal(MonthlyProductTrendResolutionState.Ambiguous, titleOnlyResult.ResolutionState);
+            Assert.Equal(2, titleOnlyResult.Candidates.Count);
+            Assert.Equal(2, titleOnlyResult.Candidates.Select(candidate => candidate.ProductKey).Distinct().Count());
+            Assert.Contains(titleOnlyResult.Candidates, candidate => candidate.Unit == "ton");
+            Assert.Contains(titleOnlyResult.Candidates, candidate => candidate.Unit == "هزار تن");
+        }
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "روند فروش محصولات گرم فولاد؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        Assert.Equal("Resolved", root.GetProperty("monthlyProductTrendResult").GetProperty("resolutionState").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No legacy product executor invocation was observed.");
+        Assert.Equal("product_sales_trend", invocation.CapabilityCode);
+        AssertCanonicalProductFrame(invocation.Frame);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey,
+            root.GetProperty("monthlyProductTrendResult").GetProperty("productKey").GetString());
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No legacy routing diagnostic was recorded.");
+        Assert.Equal(SemanticRoutingMode.Shadow, diagnostic.RolloutMode);
+        Assert.Equal("product_sales_trend", diagnostic.LegacyCapability);
+        Assert.Equal("product_sales_trend", diagnostic.ActualExecutedCapability);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal("product_sales_trend", diagnostic.ExecutorCapability);
+        Assert.Equal("فولاد", diagnostic.ExecutorCompany);
+        Assert.Equal("محصولات گرم", diagnostic.ExecutorProduct);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId, diagnostic.ExecutorCompanyId);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey, diagnostic.ExecutorProductKey);
+
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+    }
+
+    [Fact]
+    public async Task Feature128_Shadow_KeepsWorkingProductSalesValueCanonicalHandoff()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "فولاد محصولات گرمش چقدر فروخته؟" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("۰٫۰۲۵ میلیارد تومان", root.GetProperty("textAnswer").GetString());
+        var invocation = Assert.IsType<Feature128ExecutorInvocation>(_factory.ExecutorProbe.LastInvocation);
+        Assert.Equal("product_sales_value", invocation.CapabilityCode);
+        AssertCanonicalProductFrame(invocation.Frame);
+        var diagnostic = Assert.IsType<SemanticRoutingDiagnostic>(_factory.DiagnosticSink.LastDiagnostic);
+        Assert.Equal(SemanticRoutingMode.Shadow, diagnostic.RolloutMode);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).CanonicalEntity!.CanonicalId,
+            diagnostic.ExecutorCompanyId);
+        Assert.Equal(invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).CanonicalProduct!.ProductKey,
+            diagnostic.ExecutorProductKey);
+    }
+
+    private static void AssertCanonicalProductFrame(ValidatedQueryFrame frame)
+    {
+        var company = frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        var product = frame.Slots.Single(slot => slot.Type == QuerySlotType.Product);
+        Assert.Equal(QuerySlotValidationState.Valid, company.ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, product.ValidationState);
+        Assert.Equal("فولاد", company.Value);
+        Assert.Equal("محصولات گرم", product.Value);
+        Assert.NotNull(company.CanonicalEntity);
+        Assert.NotNull(product.CanonicalProduct);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class Feature128TimeoutFallbackEndpointTests : IClassFixture<V2Feature128TimeoutApiFactory>
+{
+    private readonly V2Feature128TimeoutApiFactory _factory;
+
+    public Feature128TimeoutFallbackEndpointTests(V2Feature128TimeoutApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureSeeded();
+    }
+
+    [Fact]
+    public async Task Feature128_CanarySemanticTimeout_FallsBackToLegacyProductValue()
+    {
+        _factory.ExecutorProbe.Reset();
+        _factory.DiagnosticSink.Reset();
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadUsageReservationCount();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization", $"Bearer {_factory.CreateWebAppToken(includeTenant: true)}");
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "فولاد محصولات گرمش چقدر فروخته؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Contains("محصولات گرم", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("بیش از یک محصول", root.GetProperty("textAnswer").GetString());
+        Assert.DoesNotContain("نام نماد یا شرکت", root.GetProperty("textAnswer").GetString());
+
+        var invocation = _factory.ExecutorProbe.LastInvocation
+            ?? throw new Xunit.Sdk.XunitException("No timeout-fallback product executor invocation was observed.");
+        Assert.Equal("product_sales_value", invocation.CapabilityCode);
+        Assert.Equal(QuerySlotValidationState.Valid, invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.CompanyOrSymbol).ValidationState);
+        Assert.Equal(QuerySlotValidationState.Valid, invocation.Frame.Slots.Single(slot => slot.Type == QuerySlotType.Product).ValidationState);
+
+        var diagnostic = _factory.DiagnosticSink.LastDiagnostic
+            ?? throw new Xunit.Sdk.XunitException("No timeout-fallback routing diagnostic was recorded.");
+        Assert.Equal("product_sales_value", diagnostic.ActualExecutedCapability);
+        Assert.Equal("Legacy", diagnostic.ExecutionSource);
+        Assert.Equal("Timeout", diagnostic.SemanticStatus);
+        Assert.Equal("product_sales_value", diagnostic.ExecutorCapability);
+        Assert.NotNull(diagnostic.ExecutorCompanyId);
+        Assert.NotNull(diagnostic.ExecutorProductKey);
+
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        var reservations = _factory.ReadBillingReservations();
+        Assert.Equal(reservationsBefore + 1, reservations.Count);
+        Assert.Equal("Committed", reservations.OrderBy(item => item.ExpiresAt).Last().Status);
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    {
+        await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
+        return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
+    }
+}
+
+public sealed class V2Feature128ShadowApiFactory : V2Feature128CanaryApiFactory
+{
+    private bool _collisionSeeded;
+    private readonly object _collisionSeedLock = new();
+
+    public new void EnsureSeeded()
+    {
+        base.EnsureSeeded();
+        lock (_collisionSeedLock)
+        {
+            if (_collisionSeeded) return;
+            using var scope = Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+            var reportId = db.MonthlyReports.Single(report => report.ExternalCompanyId == "7" && report.ReportType == "ProductSales").Id;
+            db.MonthlyReportLineItems.Add(new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.NewGuid(),
+                MonthlyReportId = reportId,
+                ProductCode = "PRODUCT:NATURAL:second-hot-products",
+                Title = "محصولات گرم",
+                Unit = "هزار تن",
+                SalesQuantity = 10m,
+                SalesAmount = 50m,
+                SourceRowKey = "feature128-shadow-collision",
+                SourceRowFingerprint = "feature128-shadow-collision",
+                SourcePayloadChecksum = "feature128-shadow-collision"
+            });
+            db.SaveChanges();
+            _collisionSeeded = true;
+        }
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SemanticRouting:Capabilities:product_sales_value"] = "Shadow",
+                ["SemanticRouting:Capabilities:product_sales_trend"] = "Shadow"
+            }));
+    }
+}
+
+public sealed class V2Feature128TimeoutApiFactory : V2Feature128CanaryApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IQueryInterpretationProposalProvider>();
+            services.AddSingleton<IQueryInterpretationProposalProvider, Feature128TimeoutProposalProvider>();
+        });
+    }
+}
+
+internal sealed class Feature128TimeoutProposalProvider : IQueryInterpretationProposalProvider
+{
+    public Task<QueryInterpretationProposal?> ProposeAsync(
+        string originalText,
+        Guid tenantId,
+        string correlationId,
+        CancellationToken cancellationToken) =>
+        Task.FromException<QueryInterpretationProposal?>(new AiModelProviderException(
+            AiExecutionStatus.TimedOut,
+            "feature128_test_timeout",
+            "Feature 128 semantic timeout test."));
+}
+
+public sealed class Feature128ExecutorProbe : ISemanticCapabilityExecutionObserver
+{
+    public Feature128ExecutorInvocation? LastInvocation { get; private set; }
+
+    public void BeforeExecute(string capabilityCode, ValidatedQueryFrame frame, QueryExecutionContext context) =>
+        LastInvocation = new Feature128ExecutorInvocation(capabilityCode, frame);
+
+    public void Reset() => LastInvocation = null;
+}
+
+public sealed record Feature128ExecutorInvocation(
+    string CapabilityCode,
+    ValidatedQueryFrame Frame);
+
+public sealed class Feature128DiagnosticSink : ISemanticRoutingDiagnosticSink
+{
+    public SemanticRoutingDiagnostic? LastDiagnostic { get; private set; }
+
+    public void Record(SemanticRoutingDiagnostic diagnostic) => LastDiagnostic = diagnostic;
+
+    public void Reset() => LastDiagnostic = null;
 }
 
 public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRevenueMixApiFactory>

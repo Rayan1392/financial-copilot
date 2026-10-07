@@ -63,14 +63,13 @@ public sealed class CanonicalQueryEntityResolver(
             ? PreferCanonical(Match(companies, normalized, row => row.Name, "exact_company_name"))
             : [];
         var approvedAlias = exactTicker.Length == 0 && exactCompanyName.Length == 0
-            ? PreferCanonical(Match(companies, normalized, row => row.TseSymbol, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
-                .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, "approved_alias"))
-                .GroupBy(item => item.Row.Id)
-                .Select(group => group.First())
-                .ToArray()
+            ? PreferCanonical(Match(companies, normalized, row => row.TseSymbol, "approved_alias")
+                    .Concat(Match(companies, normalized, row => row.CompanySymbol, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.EnTicker, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.CompanySymbolEnglish, "approved_alias"))
+                    .Concat(Match(companies, normalized, row => row.CompanySymbolPinglish, "approved_alias"))
+                    .GroupBy(item => item.Row.Id)
+                    .Select(group => group.First()))
             : [];
         var exact = exactTicker.Length > 0 ? exactTicker
             : exactCompanyName.Length > 0 ? exactCompanyName

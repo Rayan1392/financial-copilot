@@ -60,9 +60,15 @@ internal sealed class MessagePersistenceFunction(
                 monthlySalesQualityRankingResult, monthlyProductComparisonResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
+        var malformedProductComposition =
+            ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message) &&
+            !ProductRevenueMixIntentRules.LooksLikeProductRevenueMixQuery(request.Message) &&
+            outcome == DialogueOutcome.Unsupported;
         IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied
             ? deterministicSuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
-            : guidanceService.Suggest(new CapabilityGuidanceRequest(
+            : malformedProductComposition
+                ? Array.Empty<SuggestedAction>()
+                : guidanceService.Suggest(new CapabilityGuidanceRequest(
                 request.OriginalUserMessage ?? request.Message,
                 replyLanguage,
                 outcome,

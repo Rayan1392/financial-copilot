@@ -1415,8 +1415,9 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
     [InlineData("پرفروش‌ترین محصولات کچاد؟", "کچاد")]
     [InlineData("مهم‌ترین محصول کچاد چیست؟", "کچاد")]
     [InlineData("کگل بیشتر از چه محصولی درآمد دارد؟", "کگل")]
+    [InlineData("ترکیب فروش محصولات کچاد", "کچاد")]
+    [InlineData("ترکیب درآمد محصولات کچاد", "کچاد")]
     [InlineData("ترکیب فروش محصولات فملی را نشان بده", "فملی")]
-    [InlineData("رکیب فروش محصولات کچاد؟", "کچاد")]
     public async Task V2AiQuery_ProductRevenueMixQueries_ReturnProductRevenueMixAndChargeCredits(
         string message,
         string expectedSymbol)
@@ -1440,6 +1441,78 @@ public sealed class V2ProductRevenueMixEndpointTests : IClassFixture<V2ProductRe
         var textAnswer = root.GetProperty("textAnswer").GetString();
         Assert.Contains(expectedSymbol, textAnswer);
         Assert.Contains("ترکیب درآمد محصولات", textAnswer);
+    }
+
+    [Fact]
+    public async Task V2AiQuery_TypoProductRevenueMixQuery_ReturnsDeterministicUnsupportedWithoutPayload()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "رکیب فروش محصولات کچاد؟" },
+            CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("Unknown", root.GetProperty("intent").GetString());
+        Assert.Equal("Unsupported", root.GetProperty("outcome").GetString());
+        Assert.Equal("capability_not_recognized", root.GetProperty("outcomeReasonCode").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.False(root.TryGetProperty("productRevenueMixResult", out _));
+        Assert.True(!root.TryGetProperty("suggestedActions", out var actions) ||
+                    actions.ValueKind == JsonValueKind.Null ||
+                    actions.ValueKind == JsonValueKind.Array && !actions.EnumerateArray().Any(),
+            root.GetRawText());
+        Assert.DoesNotContain("کچاد", root.GetProperty("textAnswer").GetString());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ProductRevenueMixSuggestedActions_RoundTripThroughNormalApi()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var mixResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = "ترکیب فروش محصولات کچاد" },
+            CancellationToken.None);
+        using var mixDocument = await ReadJsonAsync(mixResponse);
+
+        Assert.Equal(HttpStatusCode.OK, mixResponse.StatusCode);
+        var mixRoot = mixDocument.RootElement;
+        Assert.Equal("ProductRevenueMix", mixRoot.GetProperty("intent").GetString());
+        var actions = mixRoot.GetProperty("suggestedActions").EnumerateArray().ToArray();
+        Assert.Equal(3, actions.Length);
+        Assert.Equal(
+            ["روند فروش گندله سنگ آهن کچاد", "روند فروش کنسانتره سنگ آهن کچاد", "روند فروش ماهانه کچاد"],
+            actions.Select(action => action.GetProperty("message").GetString()));
+
+        using var productResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = actions[0].GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var productDocument = await ReadJsonAsync(productResponse);
+        Assert.Equal(HttpStatusCode.OK, productResponse.StatusCode);
+        var productRoot = productDocument.RootElement;
+        Assert.Equal("MonthlyProductTrend", productRoot.GetProperty("intent").GetString());
+        var productTrend = productRoot.GetProperty("monthlyProductTrendResult");
+        Assert.Equal("Resolved", productTrend.GetProperty("resolutionState").GetString());
+        Assert.Equal("کچاد", productTrend.GetProperty("companySymbol").GetString());
+        Assert.Equal("گندله سنگ آهن", productTrend.GetProperty("productTitle").GetString());
+
+        using var companyResponse = await client.PostAsJsonAsync(
+            "/api/ai/v1/query",
+            new { message = actions[2].GetProperty("message").GetString() },
+            CancellationToken.None);
+        using var companyDocument = await ReadJsonAsync(companyResponse);
+        Assert.Equal(HttpStatusCode.OK, companyResponse.StatusCode);
+        var companyRoot = companyDocument.RootElement;
+        Assert.Equal("MonthlyActivityTrend", companyRoot.GetProperty("intent").GetString());
+        Assert.Equal("کچاد", companyRoot.GetProperty("monthlyActivityTrendResult").GetProperty("companySymbol").GetString());
     }
 
     [Fact]
@@ -2397,6 +2470,75 @@ public sealed class V2ProductRevenueMixApiFactory : AiFacadeApiFactory
                 SourceProviderName = "NoavaranCurrentApi",
                 CalculatedAtUtc = now
             });
+
+        var reportId = Guid.Parse("54000000-0000-0000-0000-000000000303");
+        db.MonthlyReports.Add(new NormalizedMonthlyReportRow
+        {
+            Id = reportId,
+            ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "3",
+            ExternalReportId = "product-revenue-mix-round-trip-1403-03",
+            PeriodStart = new DateOnly(2024, 5, 21),
+            PeriodEnd = new DateOnly(2024, 6, 20),
+            SourcePayloadChecksum = "product-revenue-mix-round-trip",
+            LastSynchronizedAt = now,
+            LogicalReportKey = "3:ProductSales:0:1403-03",
+            RevisionFingerprint = "product-revenue-mix-round-trip",
+            ProviderPublishedAtUtc = now,
+            IsAccepted = true,
+            RevisionStatus = "Accepted",
+            ReportType = "ProductSales",
+            OutputType = 0
+        });
+        db.MonthlyReportLineItems.AddRange(
+            new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000311"),
+                MonthlyReportId = reportId,
+                SourceRowKey = "kchad-pellet",
+                SourceRowFingerprint = "kchad-pellet",
+                ProviderProductCode = "PELLET",
+                ProductCode = "PELLET",
+                Title = "گندله سنگ آهن",
+                Unit = "تن",
+                SalesQuantity = 880_000m,
+                SalesAmount = 60_000_000_000_000m,
+                SourcePayloadChecksum = "product-revenue-mix-round-trip"
+            },
+            new NormalizedMonthlyReportLineItemRow
+            {
+                Id = Guid.Parse("54000000-0000-0000-0000-000000000312"),
+                MonthlyReportId = reportId,
+                SourceRowKey = "kchad-concentrate",
+                SourceRowFingerprint = "kchad-concentrate",
+                ProviderProductCode = "CONCENTRATE",
+                ProductCode = "CONCENTRATE",
+                Title = "کنسانتره سنگ آهن",
+                Unit = "تن",
+                SalesQuantity = 430_000m,
+                SalesAmount = 25_000_000_000_000m,
+                SourcePayloadChecksum = "product-revenue-mix-round-trip"
+            });
+        db.CompanyMonthlyActivityTrendSnapshots.Add(new CompanyMonthlyActivityTrendSnapshotRow
+        {
+            Id = Guid.Parse("54000000-0000-0000-0000-000000000321"),
+            ExternalCompanyId = "3",
+            CompanySymbol = "کچاد",
+            CompanyName = "معدنی و صنعتی چادرملو",
+            ReportYear = 1403,
+            ReportMonth = 3,
+            FiscalYear = 1403,
+            FiscalMonthIndex = 3,
+            FiscalMonthNameFa = "خرداد",
+            MonthlySalesAmount = 100_000_000_000_000m,
+            Average12MonthSalesAmount = 90_000_000_000_000m,
+            Average12MonthPeriodCount = 1,
+            CurrentMonthOutputType = 0,
+            SourceProviderName = "NoavaranCurrentApi",
+            SourceReportId = "product-revenue-mix-round-trip-1403-03",
+            DataCompletenessScore = 1m,
+            CalculatedAtUtc = now
+        });
     }
 
     private sealed class ThrowingSymbolMetricLookupService : ISymbolMetricLookupService

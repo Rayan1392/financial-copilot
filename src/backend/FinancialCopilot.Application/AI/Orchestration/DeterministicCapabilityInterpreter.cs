@@ -14,6 +14,8 @@ public sealed class DeterministicCapabilityInterpreter(
     private static readonly string[] ScreeningWords = ["screen", "filter", "stocks", "سهام", "فیلتر", "شرط"];
     private static readonly string[] TrendWords = ["trend", "chart", "graph", "روند", "چارت", "نمودار"];
     private static readonly string[] AnalysisWords = ["analysis", "analyze", "review", "تحلیل", "بررسی", "ارزیابی", "وضعیت"];
+    // Valuation-opinion phrasing («فولاد ارزنده است؟») is a stock-analysis request, but only when a symbol is present.
+    private static readonly string[] ValuationOpinionWords = ["undervalued", "overvalued", "ارزنده"];
     private static readonly string[] GaugeWords = ["gauge", "گیج"];
     private static readonly string[] ProductWords = ["product mix", "product revenue", "ترکیب فروش", "محصول"];
     private static readonly string[] StatementWords = ["statement", "صورت مالی", "سود و زیان", "ترازنامه"];
@@ -50,6 +52,7 @@ public sealed class DeterministicCapabilityInterpreter(
             "\u06a9\u062f\u0627\u0645", "\u062a\u062d\u0644\u06cc\u0644", "\u0628\u0631\u0631\u0633\u06cc", "\u062a\u0631\u06a9\u06cc\u0628", "\u0628\u06cc\u0634\u062a\u0631\u06cc\u0646"
             , "\u062e\u0648\u062f", "\u062f\u0631", "\u0628\u0627"
         ]);
+        NonEntityWords.UnionWith(["ارزنده", "undervalued", "overvalued"]);
         NonEntityWords.UnionWith(["industry", "group", "صنعت", "گروه", "با", "در", "داخل", "compare", "rank", "ranking", "pair", "دو", "نمادها", "symbol", "symbols", "its", "relative", "valuation"]);
     }
 
@@ -235,7 +238,7 @@ public sealed class DeterministicCapabilityInterpreter(
                 QueryValueProvenance.UserExplicit));
         }
 
-        if (entities.Count > 0 && ContainsAny(normalized, AnalysisWords))
+        if (entities.Count > 0 && (ContainsAny(normalized, AnalysisWords) || ContainsAny(normalized, ValuationOpinionWords)))
             scores["comprehensive_analysis"] = Math.Max(scores.GetValueOrDefault("comprehensive_analysis"), 0.92m);
 
         if (entities.Count > 0 && ContainsAny(normalized, TrendWords) && ContainsAny(normalized, ["sales", "فروش", "monthly", "ماهانه"]))

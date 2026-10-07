@@ -54,6 +54,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IFinancialStatementAnalysisUseCase financialStatementAnalysisUseCase,
     IFinancialStatementTableQueryUseCase financialStatementTableQueryUseCase,
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
+    IProductRevenueMixFollowUpSuggestionService productRevenueMixFollowUpSuggestionService,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
     IMonthlyProductTrendFollowUpSuggestionService monthlyProductTrendFollowUpSuggestionService,
@@ -643,6 +644,40 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 "Completed", false, modelClient, productRevenueMixUsageSuccess);
         }
 
+        // Product-scope composition wording can be detected even when it does not
+        // match a supported ProductRevenueMix phrase. Do not let that malformed
+        // request fall through to direct metric lookup just because it contains
+        // "sales"/"revenue"; that would reinterpret it as an unrelated capability.
+        if (ProductSemanticIntentRules.LooksLikeProductRevenueComposition(request.Message))
+        {
+            var unsupportedOutcome = new DialogueOutcomeResult(
+                DialogueOutcome.Unsupported,
+                DialogueOutcomeReasonCodes.CapabilityNotRecognized,
+                AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message),
+                null,
+                false);
+            UsageAccountingResult? unsupportedUsage = null;
+            if (msg.Reservation is not null)
+            {
+                unsupportedUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation, "Completed", false, CancellationToken.None);
+            }
+
+            stepActivity?.SetTag("workflow.intent", "Unknown");
+            return new AgentExecutedMessage(
+                msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
+                msg.MemoryContext, msg.Reservation,
+                AiDialogueOutcomePolicy.ComposeSystemMessage(unsupportedOutcome),
+                scannerResult, lookupResult, comprehensiveAnalysisResult,
+                financialStatementAnalysisResult, financialStatementTableResult,
+                productRevenueMixResult, monthlyActivityTrendResult,
+                monthlySalesQualityRankingResult,
+                "Unsupported", false, modelClient, unsupportedUsage,
+                SemanticOutcome: unsupportedOutcome.Outcome,
+                SemanticOutcomeReasonCode: unsupportedOutcome.ReasonCode,
+                SemanticReplyLanguage: unsupportedOutcome.ReplyLanguage);
+        }
+
         var isFinancialStatementTable = FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(request.Message);
         if (isFinancialStatementTable)
         {
@@ -917,6 +952,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var confidenceScore = CalculateConfidenceScore(
             msg.Request.CorrelationId, groundedAnswer, msg.LookupResult?.Table, explainableAnswer);
 
+        // Feature 075 extension: typed result owns the authoritative follow-ups, including empty.
+        var feature075Applied = detectedIntent == DetectedIntent.ProductRevenueMix &&
+            msg.ProductRevenueMixResult is not null &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
         var feature137Applied = detectedIntent == DetectedIntent.MonthlyActivityTrend &&
             msg.MonthlyActivityTrendResult is not null &&
             msg.MonthlyActivityTrendResult.ChartPoints.Any(point => point.CurrentFiscalYearSalesAmount.HasValue) &&
@@ -927,12 +966,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             productTrend.Points.Any(point => !point.IsGap && point.SalesValueMillionRial.HasValue) &&
             outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
         IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
-        if (feature137Applied)
+        if (feature075Applied)
+            deterministicActions = productRevenueMixFollowUpSuggestionService.Build(msg.ProductRevenueMixResult!);
+        else if (feature137Applied)
             deterministicActions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
                 msg.MonthlyActivityTrendResult!, ct);
         else if (feature138Applied)
             deterministicActions = monthlyProductTrendFollowUpSuggestionService.Build(msg.MonthlyProductTrendResult!);
-        var deterministicApplied = feature137Applied || feature138Applied;
+        var deterministicApplied = feature075Applied || feature137Applied || feature138Applied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);

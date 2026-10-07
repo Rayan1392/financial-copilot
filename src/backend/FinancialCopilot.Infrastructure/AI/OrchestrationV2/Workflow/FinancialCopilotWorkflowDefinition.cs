@@ -56,6 +56,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IProductRevenueMixQueryUseCase productRevenueMixUseCase,
     IMonthlyActivityTrendQueryUseCase monthlyActivityTrendUseCase,
     IMonthlySalesProductFollowUpSuggestionService monthlySalesProductFollowUpSuggestionService,
+    IMonthlyProductTrendFollowUpSuggestionService monthlyProductTrendFollowUpSuggestionService,
     IMonthlyProductComparisonUseCase monthlyProductComparisonUseCase,
     IMonthlyProductTrendQueryUseCase monthlyProductTrendUseCase,
     IDisclosureListingUseCase disclosureListingUseCase,
@@ -920,10 +921,18 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MonthlyActivityTrendResult is not null &&
             msg.MonthlyActivityTrendResult.ChartPoints.Any(point => point.CurrentFiscalYearSalesAmount.HasValue) &&
             outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
-        IReadOnlyCollection<SuggestedAction>? feature137Actions = null;
+        // Feature 138: applies only to a resolved, usable typed product trend (result-driven, never phrasing).
+        var feature138Applied = detectedIntent == DetectedIntent.MonthlyProductTrend &&
+            msg.MonthlyProductTrendResult is { IsResolved: true } productTrend &&
+            productTrend.Points.Any(point => !point.IsGap && point.SalesValueMillionRial.HasValue) &&
+            outcome.Outcome is DialogueOutcome.Answered or DialogueOutcome.PartialAnswer;
+        IReadOnlyCollection<SuggestedAction>? deterministicActions = null;
         if (feature137Applied)
-            feature137Actions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
+            deterministicActions = await monthlySalesProductFollowUpSuggestionService.BuildAsync(
                 msg.MonthlyActivityTrendResult!, ct);
+        else if (feature138Applied)
+            deterministicActions = monthlyProductTrendFollowUpSuggestionService.Build(msg.MonthlyProductTrendResult!);
+        var deterministicApplied = feature137Applied || feature138Applied;
 
         stepActivity?.SetTag("workflow.detected_intent", detectedIntent.ToString());
         stepActivity?.SetTag("workflow.clarification_required", clarificationRequired);
@@ -949,8 +958,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
             MonthlyProductComparisonResult: msg.MonthlyProductComparisonResult,
             MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
-            SuggestedActions: feature137Actions,
-            Feature137SuggestionsApplied: feature137Applied);
+            SuggestedActions: deterministicActions,
+            DeterministicSuggestionsApplied: deterministicApplied);
     }
 
     private void RecordRoutingDiagnostic(
@@ -1218,8 +1227,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             monthlyProductTrendResult: msg.MonthlyProductTrendResult,
              disclosureListingResult: msg.DisclosureListingResult,
              psVisualizationResult: msg.PsVisualizationResult,
-             feature137SuggestedActions: msg.SuggestedActions,
-             feature137SuggestionsApplied: msg.Feature137SuggestionsApplied);
+             deterministicSuggestedActions: msg.SuggestedActions,
+             deterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied);
 
         var disclosures = msg.MemoryContext.Disclosures.Count > 0 ? msg.MemoryContext.Disclosures : null;
 
@@ -1239,7 +1248,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
              FinancialStatementValueSearchResult: msg.FinancialStatementValueSearchResult,
              MonthlyProductTrendResult: msg.MonthlyProductTrendResult,
              SuggestedActions: persistedExchange.SuggestedActions,
-             Feature137SuggestionsApplied: msg.Feature137SuggestionsApplied);
+             DeterministicSuggestionsApplied: msg.DeterministicSuggestionsApplied);
     }
 
     private static AiQueryResponse BuildFinalResponse(PersistenceCompletedMessage msg)

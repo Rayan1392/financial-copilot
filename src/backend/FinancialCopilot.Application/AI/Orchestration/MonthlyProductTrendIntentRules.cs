@@ -169,7 +169,8 @@ public static class MonthlyProductTrendIntentRules
 
         var meaningful = Regex.Matches(candidate, @"[\u0600-\u06ffA-Za-z][\u0600-\u06ffA-Za-z0-9_\u200c-]*")
             .Select(match => match.Value)
-            .Where(token => !genericTerms.Contains(token, StringComparer.OrdinalIgnoreCase) && !UnicodeGenericTerms.Contains(token))
+            .Where(token => !genericTerms.Contains(token, StringComparer.OrdinalIgnoreCase) && !UnicodeGenericTerms.Contains(token) &&
+                            !AnalysisVocabulary.IsMetaTerm(token))
             .ToArray();
         return meaningful.Length > 0;
     }

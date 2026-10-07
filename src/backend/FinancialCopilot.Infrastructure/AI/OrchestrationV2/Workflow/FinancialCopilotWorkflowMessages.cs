@@ -101,7 +101,7 @@ internal sealed record ResultsComputedMessage(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    bool Feature137SuggestionsApplied = false);
+    bool DeterministicSuggestionsApplied = false);
 
 internal sealed record PersistenceCompletedMessage(
     AiQueryRequest Request,
@@ -136,4 +136,4 @@ internal sealed record PersistenceCompletedMessage(
     MonthlyProductComparisonResponse? MonthlyProductComparisonResult = null,
     FinancialStatementValueSearchResult? FinancialStatementValueSearchResult = null,
     MonthlyProductTrendResult? MonthlyProductTrendResult = null,
-    bool Feature137SuggestionsApplied = false);
+    bool DeterministicSuggestionsApplied = false);

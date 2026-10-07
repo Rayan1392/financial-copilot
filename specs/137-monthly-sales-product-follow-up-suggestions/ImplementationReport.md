@@ -168,3 +168,7 @@ None for Feature 137. The unrelated suite failures above remain recorded for the
 ## 16. Rollout notes
 
 Feature 137 is V2-only and returns zero actions for absent symbols, missing anchors, parser-unsafe/ambiguous/duplicate titles, or selector read failures. Existing chart, company calculations, product calculations, action API shape, generic guidance outside the applied Feature 137 response, and V1 routing remain unchanged. No migration or new client abstraction was introduced.
+
+## 17. Later change (Feature 138)
+
+`Feature137SuggestionsApplied` was renamed to the capability-agnostic `DeterministicSuggestionsApplied` with identical semantics; Feature 137 selector, actions and IDs are unchanged. Feature 138 (product trend -> company-context follow-ups) reuses the same marker. See `specs/138-monthly-product-trend-follow-up-suggestions/`.

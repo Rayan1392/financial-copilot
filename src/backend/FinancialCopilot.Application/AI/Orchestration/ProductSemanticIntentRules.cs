@@ -95,6 +95,7 @@ public static class ProductSemanticIntentRules
             if (!hasPossessiveSuffix ||
                 CandidateStopWords.Contains(token) ||
                 CandidateStopWords.Contains(normalized) ||
+                AnalysisVocabulary.IsMetaTerm(token) ||
                 ProductMarkers.Contains(normalized, StringComparer.OrdinalIgnoreCase))
                 continue;
             return normalized;

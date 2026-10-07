@@ -583,6 +583,30 @@ public sealed class V2MonthlySalesRoutingEndpointTests : IClassFixture<V2Monthly
     }
 
     [Theory]
+    [InlineData("روند فروش گندله کگل")]
+    [InlineData("روند فروش گندله کگل در ۱۲ ماهه اخیر چطور بوده؟")]
+    public async Task V2AiQuery_ProductTrend_ReturnsFeature138DeterministicCompanyContextActions(string message)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("MonthlyProductTrend", root.GetProperty("intent").GetString());
+        var actions = root.GetProperty("suggestedActions").EnumerateArray().ToArray();
+        Assert.Equal(
+            ["product_revenue_mix", "monthly_activity_trend"],
+            actions.Select(action => action.GetProperty("capabilityCode").GetString()));
+        Assert.Equal(
+            ["ترکیب فروش محصولات کگل", "روند فروش ماهانه کگل"],
+            actions.Select(action => action.GetProperty("message").GetString()));
+        Assert.All(actions, action => Assert.StartsWith("feature138:", action.GetProperty("id").GetString()));
+    }
+
+    [Theory]
     [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 6 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
     [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u06af\u0646\u062f\u0644\u0647 \u06a9\u06af\u0644 \u062f\u0631 \u06f3 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631")]
     public async Task V2AiQuery_DifferentProductTrendWindowsReturnTypedClarification(string message)

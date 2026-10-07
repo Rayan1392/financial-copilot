@@ -47,8 +47,8 @@ internal sealed class MessagePersistenceFunction(
         MonthlyProductComparisonResponse? monthlyProductComparisonResult = null,
         FinancialStatementValueSearchResult? financialStatementValueSearchResult = null,
         MonthlyProductTrendResult? monthlyProductTrendResult = null,
-        IReadOnlyCollection<SuggestedAction>? feature137SuggestedActions = null,
-        bool feature137SuggestionsApplied = false)
+        IReadOnlyCollection<SuggestedAction>? deterministicSuggestedActions = null,
+        bool deterministicSuggestionsApplied = false)
     {
         var planJson = scannerPlan is not null ? JsonSerializer.Serialize(scannerPlan) : null;
         var assistantContent = agentResponseText is { Length: > 0 }
@@ -60,8 +60,8 @@ internal sealed class MessagePersistenceFunction(
                 monthlySalesQualityRankingResult, monthlyProductComparisonResult);
 
         var disclosures = memoryContext.Disclosures.Count > 0 ? memoryContext.Disclosures : null;
-        IReadOnlyCollection<SuggestedAction> suggestions = feature137SuggestionsApplied
-            ? feature137SuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
+        IReadOnlyCollection<SuggestedAction> suggestions = deterministicSuggestionsApplied
+            ? deterministicSuggestedActions?.ToArray() ?? Array.Empty<SuggestedAction>()
             : guidanceService.Suggest(new CapabilityGuidanceRequest(
                 request.OriginalUserMessage ?? request.Message,
                 replyLanguage,

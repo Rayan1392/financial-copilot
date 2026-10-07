@@ -68,8 +68,8 @@ public sealed class MessagePersistenceFeature137Tests
             false, null, null, null, null, null, null, null, null,
             new AuthorizedMemoryContext([], [], false),
             "Company trend answer", true, CancellationToken.None,
-            feature137SuggestedActions: actions,
-            feature137SuggestionsApplied: feature137Applied);
+            deterministicSuggestedActions: actions,
+            deterministicSuggestionsApplied: feature137Applied);
 
     private sealed class Guidance : ICapabilityGuidanceService
     {

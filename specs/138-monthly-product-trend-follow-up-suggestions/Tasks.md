@@ -1,0 +1,10 @@
+# Feature 138 — Tasks (all complete; see ImplementationReport.md)
+
+1. **Generalize the marker.** Rename `Feature137SuggestionsApplied` to `DeterministicSuggestionsApplied` in `FinancialCopilotWorkflowMessages.cs`, `FinancialCopilotWorkflowDefinition.cs`, `MessagePersistenceFunction.cs`; update `MessagePersistenceFeature137Tests`. No behavior change.
+2. **Application contract.** `IMonthlyProductTrendFollowUpSuggestionService.Build(MonthlyProductTrendResult)` (pure, synchronous, no I/O; takes the typed result, never user text).
+3. **Policy.** Ordered list of candidate follow-ups (mix, company trend) with capability code, canonical message template, relevance reason `monthly_product_trend_follow_up`; skip when `registry.Find(code)` is missing or disabled.
+4. **In-memory validation.** Interpreter + intent-rule round trip; reject on capability mismatch, entity mismatch, over-length, duplicate message or duplicate capability.
+5. **Action construction.** `SuggestedActionKind.RunRelatedCapability`, `PresetSlots = {symbol: symbol}`, `RegistryVersion = registry.Version`, ID = `feature138:` + SHA-256 of (`monthly_product_trend_follow_up`, capability code, registry version, `ExternalCompanyId`, `ProductKey`); no raw text in IDs.
+6. **V2 wiring.** In `ExecuteResultComputationStepAsync`, apply only for resolved, usable `MonthlyProductTrendResult` with `Answered`/`PartialAnswer`; set the generalized marker; leave Feature 137 branch untouched.
+7. **Tests.** Unit: three fixtures (different symbols/products), only-mix, only-company-trend, none, ordering, ID stability, registry-version ID change, no `monthly_product_trend` action, symbol longer than 5 characters drops the mix. Parity: `روند فروش گندله کگهر` vs `... در ۱۲ ماهه اخیر چطور بوده؟` yield identical actions. Persistence: actions preserved and guidance not called. Negative: not-found, ambiguous, unsupported window, no-data, `product_sales_value`. Regression: Feature 137 actions unchanged, V1 unchanged, web click path, Telegram renderer.
+8. **Docs.** `ImplementationReport.md` for this feature; add a pointer from Feature 137 Design §23.

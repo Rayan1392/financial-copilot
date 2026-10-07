@@ -134,25 +134,45 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
     }
 
     [Fact]
-    public async Task PlanCapabilityAndSubscriptionManagement_PublishesAppendOnlyPolicy()
+    public async Task PlanManagement_ListsCanonicalCatalog_AndUpdatesIncludedCredits()
     {
         await _factory.ResetAsync();
-        using var client = UserClient(FinancialCopilotPermissions.AdminPlansManage, FinancialCopilotPermissions.AdminPlansRead, FinancialCopilotPermissions.AdminSubscriptionsManage);
-        using var createPlan = await client.PostAsJsonAsync("/api/v1/admin/plans", new { code = "Enterprise-v2", name = "Enterprise", includedCredits = 2000m, pricingPolicyVersion = "v2", reason = "Commercial rollout" });
-        using var capabilities = await client.PutAsJsonAsync("/api/v1/admin/plans/Enterprise-v2/capabilities", new
+        using var client = UserClient(
+            FinancialCopilotPermissions.AdminPlansManage,
+            FinancialCopilotPermissions.AdminPlansRead,
+            FinancialCopilotPermissions.AdminSubscriptionsManage,
+            FinancialCopilotPermissions.AdminBillingAuditRead);
+        using var plans = await client.GetAsync("/api/v1/admin/plans");
+        using var plansJson = await ReadJsonAsync(plans);
+        using var unsupportedPlan = await client.PostAsJsonAsync(
+            "/api/v1/admin/plans",
+            new { code = "Premium", name = "Premium", includedCredits = 1000m, pricingPolicyVersion = "v2", reason = "Unsupported catalog expansion" });
+        using var updateCredits = await client.PatchAsJsonAsync(
+            "/api/v1/admin/plans/Pro/included-credits",
+            new { includedCredits = 250m, pricingPolicyVersion = "v2", reason = "Commercial allowance update" });
+        using var updateJson = await ReadJsonAsync(updateCredits);
+        using var capabilities = await client.PutAsJsonAsync("/api/v1/admin/plans/Pro/capabilities", new
         {
             reason = "Commercial rollout",
             capabilities = new[] { new { capabilityCode = "AiQuery.Scanner", policyVersion = "v2", isEnabled = true, limit = (decimal?)null } }
         });
         using var subscription = await client.PutAsJsonAsync(
             $"/api/v1/admin/customers/{AdminManagementApiFactory.CustomerAccountId}/subscription",
-            new { planCode = "Enterprise-v2", effectiveFrom = DateTimeOffset.UtcNow, effectiveTo = (DateTimeOffset?)null, expectedRevision = 0, reason = "Customer contract activation" });
+            new { planCode = "Pro", effectiveFrom = DateTimeOffset.UtcNow, effectiveTo = (DateTimeOffset?)null, expectedRevision = 0, reason = "Customer contract activation" });
         using var json = await ReadJsonAsync(subscription);
+        using var audits = await client.GetAsync("/api/v1/admin/audits/billing");
+        using var auditsJson = await ReadJsonAsync(audits);
 
-        Assert.Equal(HttpStatusCode.OK, createPlan.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, plans.StatusCode);
+        Assert.Equal(["Free", "Plus", "Pro"], plansJson.RootElement.EnumerateArray().Select(item => item.GetProperty("code").GetString()).Order());
+        Assert.Equal(HttpStatusCode.BadRequest, unsupportedPlan.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateCredits.StatusCode);
+        Assert.Equal(250m, updateJson.RootElement.GetProperty("includedCredits").GetDecimal());
+        Assert.Equal("v2", updateJson.RootElement.GetProperty("pricingPolicyVersion").GetString());
         Assert.Equal(HttpStatusCode.NoContent, capabilities.StatusCode);
         Assert.Equal(HttpStatusCode.OK, subscription.StatusCode);
-        Assert.Equal("Enterprise-v2", json.RootElement.GetProperty("planCode").GetString());
+        Assert.Equal("Pro", json.RootElement.GetProperty("planCode").GetString());
+        Assert.Contains(auditsJson.RootElement.EnumerateArray(), item => item.GetProperty("actionCode").GetString() == "billing.plan.included-credits.updated");
     }
 
     [Fact]

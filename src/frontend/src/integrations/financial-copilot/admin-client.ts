@@ -64,9 +64,47 @@ export type AdminAudit = {
   before: string | null;
   after: string | null;
 };
-export type FundPortfolioRun = { id: string; triggerType: string; providerName: string; status: string; discoveredCount: number; importedCount: number; duplicateCount: number; partialCount: number; failedCount: number; startedAtUtc: string; completedAtUtc: string | null; correlationId: string };
-export type FundPortfolioReport = { reportId: string; fundId: string; providerName: string; originalFileName: string; parseStatus: string; sourceRevision: number; periodEndDate: string | null; importedAtUtc: string; sheetCount: number; issueCount: number; errorCount: number; hasReconciliationIssues: boolean };
-export type FundPortfolioReview = { id: string; reportId: string; mappingType: string; rawValue: string; normalizedValue: string; candidateJson: string; status: string; resolutionJson: string | null; resolvedByActorId: string | null; resolvedAtUtc: string | null; version: number };
+export type FundPortfolioRun = {
+  id: string;
+  triggerType: string;
+  providerName: string;
+  status: string;
+  discoveredCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  partialCount: number;
+  failedCount: number;
+  startedAtUtc: string;
+  completedAtUtc: string | null;
+  correlationId: string;
+};
+export type FundPortfolioReport = {
+  reportId: string;
+  fundId: string;
+  providerName: string;
+  originalFileName: string;
+  parseStatus: string;
+  sourceRevision: number;
+  periodEndDate: string | null;
+  importedAtUtc: string;
+  sheetCount: number;
+  issueCount: number;
+  errorCount: number;
+  hasReconciliationIssues: boolean;
+};
+export type FundPortfolioReview = {
+  id: string;
+  reportId: string;
+  mappingType: string;
+  rawValue: string;
+  normalizedValue: string;
+  candidateJson: string;
+  status: string;
+  resolutionJson: string | null;
+  resolvedByActorId: string | null;
+  resolvedAtUtc: string | null;
+  version: number;
+};
 
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
@@ -130,6 +168,14 @@ export const adminApi = {
     pricingPolicyVersion: string;
     reason: string;
   }) => financialCopilotApi<AdminPlan>("/api/v1/admin/plans", json("POST", body)),
+  updatePlanIncludedCredits: (
+    code: string,
+    body: { includedCredits: number; pricingPolicyVersion: string; reason: string },
+  ) =>
+    financialCopilotApi<AdminPlan>(
+      `/api/v1/admin/plans/${encodeURIComponent(code)}/included-credits`,
+      json("PATCH", body),
+    ),
   capabilities: (code: string) =>
     financialCopilotApi<AdminCapability[]>(
       `/api/v1/admin/plans/${encodeURIComponent(code)}/capabilities`,
@@ -164,12 +210,62 @@ export const adminApi = {
     ),
   securityAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/security?limit=50"),
   billingAudits: () => financialCopilotApi<AdminAudit[]>("/api/v1/admin/audits/billing?limit=50"),
-  fundPortfolioRuns: () => financialCopilotApi<{ items: FundPortfolioRun[]; totalCount: number }>("/api/v1/admin/fund-portfolio-reports/runs?page=1&pageSize=20"),
-  fundPortfolioReports: () => financialCopilotApi<{ items: FundPortfolioReport[]; totalCount: number }>("/api/v1/admin/fund-portfolio-reports?page=1&pageSize=20"),
-  fundPortfolioReviews: () => financialCopilotApi<{ items: FundPortfolioReview[]; totalCount: number }>("/api/v1/admin/fund-portfolio-mapping-reviews?page=1&pageSize=20&status=Pending"),
-  fundPortfolioSourceStatus: (provider = "ConfiguredLocalStorage") => financialCopilotApi<{ providerName: string; available: boolean; unavailableReason: string | null }>(`/api/v1/admin/fund-portfolio-reports/source-status/${encodeURIComponent(provider)}`),
-  fundPortfolioHealth: () => financialCopilotApi<{ sourceAvailable: boolean; sourceReason: string | null; totalRuns: number; queuedItems: number; retryableItems: number; pendingReviews: number; lastRunAtUtc: string | null }>("/api/v1/admin/fund-portfolio-reports/health"),
-  fundPortfolioUpload: (file: File, fundName?: string) => { const form = new FormData(); form.append("file", file); if (fundName) form.append("fundName", fundName); return financialCopilotApi<{ runId: string; itemCount: number; status: string; correlationId: string }>("/api/v1/admin/fund-portfolio-reports/uploads", { method: "POST", body: form }); },
-  fundPortfolioReprocess: (reportId: string) => financialCopilotApi<void>(`/api/v1/admin/fund-portfolio-reports/${reportId}/reprocess`, json("POST", { confirm: true })),
-  fundPortfolioResolveReview: (review: FundPortfolioReview, approve: boolean, resolutionJson: string) => financialCopilotApi<void>(`/api/v1/admin/fund-portfolio-mapping-reviews/${review.id}/resolve`, json("POST", { expectedVersion: review.version, approve, resolutionJson, resolvedByActorId: review.resolvedByActorId ?? "console" })),
+  fundPortfolioRuns: () =>
+    financialCopilotApi<{ items: FundPortfolioRun[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-reports/runs?page=1&pageSize=20",
+    ),
+  fundPortfolioReports: () =>
+    financialCopilotApi<{ items: FundPortfolioReport[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-reports?page=1&pageSize=20",
+    ),
+  fundPortfolioReviews: () =>
+    financialCopilotApi<{ items: FundPortfolioReview[]; totalCount: number }>(
+      "/api/v1/admin/fund-portfolio-mapping-reviews?page=1&pageSize=20&status=Pending",
+    ),
+  fundPortfolioSourceStatus: (provider = "ConfiguredLocalStorage") =>
+    financialCopilotApi<{
+      providerName: string;
+      available: boolean;
+      unavailableReason: string | null;
+    }>(`/api/v1/admin/fund-portfolio-reports/source-status/${encodeURIComponent(provider)}`),
+  fundPortfolioHealth: () =>
+    financialCopilotApi<{
+      sourceAvailable: boolean;
+      sourceReason: string | null;
+      totalRuns: number;
+      queuedItems: number;
+      retryableItems: number;
+      pendingReviews: number;
+      lastRunAtUtc: string | null;
+    }>("/api/v1/admin/fund-portfolio-reports/health"),
+  fundPortfolioUpload: (file: File, fundName?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    if (fundName) form.append("fundName", fundName);
+    return financialCopilotApi<{
+      runId: string;
+      itemCount: number;
+      status: string;
+      correlationId: string;
+    }>("/api/v1/admin/fund-portfolio-reports/uploads", { method: "POST", body: form });
+  },
+  fundPortfolioReprocess: (reportId: string) =>
+    financialCopilotApi<void>(
+      `/api/v1/admin/fund-portfolio-reports/${reportId}/reprocess`,
+      json("POST", { confirm: true }),
+    ),
+  fundPortfolioResolveReview: (
+    review: FundPortfolioReview,
+    approve: boolean,
+    resolutionJson: string,
+  ) =>
+    financialCopilotApi<void>(
+      `/api/v1/admin/fund-portfolio-mapping-reviews/${review.id}/resolve`,
+      json("POST", {
+        expectedVersion: review.version,
+        approve,
+        resolutionJson,
+        resolvedByActorId: review.resolvedByActorId ?? "console",
+      }),
+    ),
 };

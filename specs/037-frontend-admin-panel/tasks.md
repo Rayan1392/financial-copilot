@@ -49,51 +49,54 @@
 20. Add plan listing and plan-capability inspection.
 21. Add plan publication and append-only capability publication forms that follow backend
     immutability rules.
-22. Add customer-account lookup entry points needed to inspect subscriptions and usage ledger.
-23. Add subscription detail and update forms with effective dates and `expectedRevision`.
-24. Handle `concurrency-conflict` by refreshing the server state before a retry.
-25. Add bounded usage-ledger reads with operation, status, correlation, and date context.
-26. Add a confirmed credit-adjustment form requiring amount, reason, and idempotency key.
-27. Preserve a generated credit-adjustment idempotency key across retries. Never add direct
+22. Restrict the plan table to the canonical `Free`, `Plus`, and `Pro` catalog and add an
+    `admin.plans.manage`-gated included-credit edit action that requires a pricing-policy version
+    and audit reason, refreshes from the confirmed server response, and never edits wallets.
+23. Add customer-account lookup entry points needed to inspect subscriptions and usage ledger.
+24. Add subscription detail and update forms with effective dates and `expectedRevision`.
+25. Handle `concurrency-conflict` by refreshing the server state before a retry.
+26. Add bounded usage-ledger reads with operation, status, correlation, and date context.
+27. Add a confirmed credit-adjustment form requiring amount, reason, and idempotency key.
+28. Preserve a generated credit-adjustment idempotency key across retries. Never add direct
     wallet-balance editing.
 
 ## Audit Views
 
-28. Add bounded security-audit and Billing-audit list screens.
-29. Display timestamp, actor, permission, action, target, reason, correlation id, and redacted
+29. Add bounded security-audit and Billing-audit list screens.
+30. Display timestamp, actor, permission, action, target, reason, correlation id, and redacted
     before/after evidence.
-30. Ensure audit rendering never interpolates raw HTML and never persists audit payloads to
+31. Ensure audit rendering never interpolates raw HTML and never persists audit payloads to
     browser storage.
 
 ## Localization And UX
 
-31. Add Persian admin labels and RTL table/form layouts consistent with the existing owned-web
+32. Add Persian admin labels and RTL table/form layouts consistent with the existing owned-web
     application.
-32. Add explicit loading, empty, success, permission-denied, validation, stale-write, and
+33. Add explicit loading, empty, success, permission-denied, validation, stale-write, and
     network-error states for each module.
-33. Add accessible labels, keyboard-focus behavior, and confirmation dialogs for destructive
+34. Add accessible labels, keyboard-focus behavior, and confirmation dialogs for destructive
     or financially sensitive actions.
 
 ## Verification
 
-34. Add frontend tests for permission-aware admin navigation and route guards.
-35. Add frontend tests for user search, user detail, status update, session revocation, and
+35. Add frontend tests for permission-aware admin navigation and route guards.
+36. Add frontend tests for user search, user detail, status update, session revocation, and
     role assignment request mapping.
-36. Add frontend tests for role-permission, tenant-membership, subscription concurrency, credit
+37. Add frontend tests for role-permission, tenant-membership, subscription concurrency, credit
     idempotency, and audit rendering behavior.
-37. Verify that missing permissions hide mutation controls while direct backend calls still
+38. Verify that missing permissions hide mutation controls while direct backend calls still
     return `403`.
-38. Verify that no admin UI path exposes or persists passwords, refresh tokens, JWTs, API keys,
+39. Verify that no admin UI path exposes or persists passwords, refresh tokens, JWTs, API keys,
     credential hashes, or direct wallet mutation.
-39. Run targeted formatter and lint checks plus `npm run build`.
+40. Run targeted formatter and lint checks plus `npm run build`.
 
 ## Documentation
 
-40. Document the admin route map, permission-to-screen matrix, local administrator bootstrap
+41. Document the admin route map, permission-to-screen matrix, local administrator bootstrap
     prerequisite, and supported operational workflows.
-41. Document that backend policies remain authoritative and UI permission checks are usability
+42. Document that backend policies remain authoritative and UI permission checks are usability
     controls only.
-42. Record any verified backend contract gaps as separate follow-up tasks rather than
+43. Record any verified backend contract gaps as separate follow-up tasks rather than
     bypassing server rules in the frontend.
 
 ## Implementation Status
@@ -101,3 +104,8 @@
 Completed on 2026-06-02. The React administration panel consumes the completed backend Admin
 Management API from `035`, applies permission-aware navigation and controls, preserves backend
 policy enforcement, and documents the remaining customer-account search contract gap.
+
+Addendum 2026-10-07: the plan table lists only `Free`, `Plus`, and `Pro` and offers an
+`admin.plans.manage`-gated included-credit edit (credits, pricing-policy version, reason) backed by
+the audited `PATCH` endpoint. The free-form plan-publication button was removed. No automated
+frontend test covers this action yet (the admin UI has no existing test harness).

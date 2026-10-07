@@ -19,6 +19,7 @@ public sealed class EfCoreAdminManagementService(
     ICreditAdjustmentService adjustments,
     TimeProvider timeProvider) : IAdminManagementService
 {
+    private static readonly string[] CanonicalPlanCodes = ["Free", "Plus", "Pro"];
     private const string SuperAdminRole = "SuperAdmin";
 
     public async Task<IReadOnlyCollection<AdminUserView>> SearchUsersAsync(
@@ -253,7 +254,9 @@ public sealed class EfCoreAdminManagementService(
     }
 
     public async Task<IReadOnlyCollection<AdminPlanView>> GetPlansAsync(CancellationToken cancellationToken) =>
-        await billing.SubscriptionPlans.AsNoTracking().OrderBy(row => row.Code)
+        await billing.SubscriptionPlans.AsNoTracking()
+            .Where(row => CanonicalPlanCodes.Contains(row.Code))
+            .OrderBy(row => row.Code)
             .Select(row => new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion))
             .ToArrayAsync(cancellationToken);
 
@@ -261,7 +264,7 @@ public sealed class EfCoreAdminManagementService(
     {
         RequireReason(change.Reason);
         var code = change.Code.Trim();
-        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(change.Name) || change.IncludedCredits < 0 || string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
+        if (!CanonicalPlanCodes.Contains(code, StringComparer.Ordinal) || string.IsNullOrWhiteSpace(change.Name) || change.IncludedCredits < 0 || string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
             throw Invalid("Plan values are invalid.");
         var row = await billing.SubscriptionPlans.SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
         if (row is not null)
@@ -273,6 +276,34 @@ public sealed class EfCoreAdminManagementService(
         AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row);
         await billing.SaveChangesAsync(cancellationToken);
         await AuditAsync(context with { Reason = change.Reason }, "billing.plan.published", "SubscriptionPlan", code, null, row, cancellationToken);
+        return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion);
+    }
+
+    public async Task<AdminPlanView> UpdatePlanIncludedCreditsAsync(
+        string planCode,
+        AdminPlanIncludedCreditsChange change,
+        AdminMutationContext context,
+        CancellationToken cancellationToken)
+    {
+        RequireReason(change.Reason);
+        var code = planCode.Trim();
+        if (!CanonicalPlanCodes.Contains(code, StringComparer.Ordinal) ||
+            change.IncludedCredits < 0 ||
+            string.IsNullOrWhiteSpace(change.PricingPolicyVersion))
+        {
+            throw Invalid("Plan included-credit values are invalid.");
+        }
+
+        var row = await billing.SubscriptionPlans.SingleOrDefaultAsync(item => item.Code == code, cancellationToken)
+            ?? throw Missing("Plan");
+        var before = new { row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion };
+        row.IncludedCredits = change.IncludedCredits;
+        row.PricingPolicyVersion = change.PricingPolicyVersion.Trim();
+        var after = new { row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion };
+
+        AddBillingAudit(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after);
+        await billing.SaveChangesAsync(cancellationToken);
+        await AuditAsync(context with { Reason = change.Reason }, "billing.plan.included-credits.updated", "SubscriptionPlan", code, before, after, cancellationToken);
         return new AdminPlanView(row.Code, row.Name, row.IncludedCredits, row.PricingPolicyVersion);
     }
 

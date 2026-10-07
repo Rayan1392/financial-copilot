@@ -100,66 +100,70 @@
     interpretation rather than mutating versions referenced by prior usage records.
 32. Add audited commands to manage capability availability, quotas, watchlist limits, portfolio
     limits, AI operation limits, and other typed limits as versioned policy data.
-33. Keep `Free`, `Pro`, `Plus`, and `Premium` as configurable seed policy. Do not branch on
-    those names in controllers or entitlement handlers.
+33. Keep exactly `Free`, `Plus`, and `Pro` as the canonical configurable seed policy. Remove
+    `Premium` from the active catalog and migrate any existing `Premium` subscription assignment
+    to `Pro` before deleting the obsolete plan and its capabilities.
+34. Add an audited included-credit update command for canonical plans. Validate a non-negative
+    amount and a pricing-policy version, preserve historical usage-ledger entries, and do not
+    change existing wallet balances as a side effect.
 
 ## Customer Subscriptions
 
-34. Add tenant-scoped subscription-assignment query services for individual and organization
+35. Add tenant-scoped subscription-assignment query services for individual and organization
     `CustomerAccount` records.
-35. Add audited commands to assign, change, schedule, and end customer subscriptions with
+36. Add audited commands to assign, change, schedule, and end customer subscriptions with
     effective dates and optimistic concurrency.
-36. Validate subscription changes through Billing services and keep subscription state out of
+37. Validate subscription changes through Billing services and keep subscription state out of
     JWT claims.
 
 ## Credits, Usage Ledger, And Billing Audit
 
-37. Reuse the Billing manual-adjustment service for admin credit changes. Require tenant scope,
+38. Reuse the Billing manual-adjustment service for admin credit changes. Require tenant scope,
     customer account, amount, reason, correlation id, and idempotency key.
-38. Ensure credit adjustments append immutable financial evidence and update wallet projection
+39. Ensure credit adjustments append immutable financial evidence and update wallet projection
     through Billing persistence only. Do not expose direct wallet-balance mutation.
-39. Add tenant-scoped immutable usage-ledger query services with pagination and filters for
+40. Add tenant-scoped immutable usage-ledger query services with pagination and filters for
     customer account, operation, actor/API client, completion status, correlation id, and date
     range.
-40. Add tenant-scoped Billing-audit query services for reservations, usage finalization,
+41. Add tenant-scoped Billing-audit query services for reservations, usage finalization,
     financial adjustments, refunds, and subscription changes.
 
 ## Suggested Admin API Surface
 
-41. Add versioned admin controllers for user and session administration.
-42. Add versioned admin controllers for role, permission, and tenant-membership administration.
-43. Add versioned admin controllers for plan, capability, and subscription administration.
-44. Add versioned admin controllers for credit adjustments, usage-ledger reads, Billing audits,
+42. Add versioned admin controllers for user and session administration.
+43. Add versioned admin controllers for role, permission, and tenant-membership administration.
+44. Add versioned admin controllers for plan, capability, and subscription administration.
+45. Add versioned admin controllers for credit adjustments, usage-ledger reads, Billing audits,
     and security audits.
-45. Keep controllers thin: validate HTTP contracts, pass correlation and idempotency metadata,
+46. Keep controllers thin: validate HTTP contracts, pass correlation and idempotency metadata,
     invoke application services, and map typed results to responses or ProblemDetails.
 
 ## Verification
 
-46. Add unit tests for each permission policy, tenant-scope validator, audit-reason requirement,
+47. Add unit tests for each permission policy, tenant-scope validator, audit-reason requirement,
     secret redaction rule, plan-version publication rule, and subscription validation rule.
-47. Add unit and concurrency tests for final-`SuperAdmin` lockout protection.
-48. Add integration tests for user status changes, session revocation, role lifecycle,
+48. Add unit and concurrency tests for final-`SuperAdmin` lockout protection.
+49. Add integration tests for user status changes, session revocation, role lifecycle,
     user-role assignment, role-permission assignment, permission-catalog reads, tenant
     membership changes, and cross-tenant rejection.
-49. Add Billing integration tests for plan publication, plan-capability updates, subscription
+50. Add Billing integration tests for plan publication, plan-capability updates, subscription
     assignment, idempotent credit adjustment, immutable usage-ledger visibility, Billing audit
     visibility, and wallet projection rebuilding.
-50. Add integration tests proving every admin endpoint rejects missing authentication, missing
+51. Add integration tests proving every admin endpoint rejects missing authentication, missing
     permission, unauthorized tenant scope, and unapproved SaaS API keys with stable
     ProblemDetails and correlation ids.
-51. Add architecture tests preventing admin controllers from directly mutating Identity
+52. Add architecture tests preventing admin controllers from directly mutating Identity
     persistence, wallet projections, usage ledgers, or plan-capability rows.
 
 ## Documentation
 
-52. Document admin permission codes, baseline role-to-permission seed strategy, `SuperAdmin`
+53. Document admin permission codes, baseline role-to-permission seed strategy, `SuperAdmin`
     bootstrap and recovery procedure, and policy rollout process.
-53. Document Admin API contracts, pagination/filter conventions, ProblemDetails types,
+54. Document Admin API contracts, pagination/filter conventions, ProblemDetails types,
     correlation-id propagation, optimistic concurrency, and idempotency requirements.
-54. Document audit retention, redaction, reason requirements, and the operational process for
+55. Document audit retention, redaction, reason requirements, and the operational process for
     investigating security and Billing administration changes.
-55. Document that React Admin UI implementation remains a later feature consuming these
+56. Document that React Admin UI implementation remains a later feature consuming these
     backend contracts.
 
 ## Implementation Status
@@ -168,3 +172,8 @@ Completed on 2026-06-02. The delivered backend-only module exposes narrow permis
 Admin APIs, serializable final-`SuperAdmin` lockout protection, immutable security and Billing
 administration audit stores, append-only plan-capability publication, subscription revision
 checks, and Billing-owned idempotent credit adjustment. React Admin UI remains out of scope.
+
+Addendum 2026-10-07: the plan catalog is restricted to `Free`, `Plus`, and `Pro`
+(`RestrictCanonicalSubscriptionPlans` migration retires `Premium`, remaps its accounts to `Pro`,
+and aborts if checkout intents still reference it). `PATCH /api/v1/admin/plans/{planCode}/included-credits`
+is audited and covered by `AdminManagementEndpointTests`.

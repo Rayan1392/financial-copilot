@@ -39,6 +39,26 @@ but no web-facing watchlist or market-summary API exists.
    change percentage; when more than six symbols are present, the symbol list scrolls
    vertically instead of expanding the whole panel.
 9. Tenant isolation, quote fallback, unavailable fields, and frontend lint/build checks pass.
+10. The sidebar "اعتبار هوش مصنوعی" label has an adjacent, proportionally sized refresh icon button.
+    Activating it re-reads `GET /api/v1/usage/me` so `availableSpendingCapacity` reflects the
+    current database state. The control is read-only (never mutates balances), is disabled with a
+    visible spinning state while a refresh is in flight (preventing duplicate requests), keeps the
+    last known value visible during refresh, and has an accessible Persian label.
+11. `GET /api/v1/usage/me` also returns the account's current plan (`planCode`, `planName`) and the
+    plan's `planIncludedCredits`, read from Billing's `SubscriptionPlans` through the existing
+    `ISubscriptionPlanRepository`. These are nullable when the account has no resolvable plan. The
+    frontend never hard-codes plan allowances; the admin-managed plan catalog is the single source.
+12. The sidebar AI-credit card shows `<remaining> از <planIncludedCredits>` (Persian digits) and a
+    progress bar whose width is `availableSpendingCapacity / planIncludedCredits * 100`, clamped to
+    0-100 (e.g. 18/25 = 72%, 18/300 = 6%, 18/1000 = 1.8%). Bar colour follows the remaining
+    percentage: above 50% emerald, 20-50% amber, below 20% rose, using existing theme tokens.
+13. Edge cases never crash or show invalid progress: negative remaining shows 0%, remaining above
+    the limit shows 100%, and a missing/zero/unknown plan limit shows only the remaining value with
+    an empty neutral bar (no percentage).
+14. The wallet is a single balance (initial balance = plan included credits; purchases add to the
+    same balance). No separate "extra credit" concept exists, so none is displayed. The refresh icon
+    from criterion 10 is retained because balances change after each AI request and the query does
+    not refetch automatically; it is a read-only refresh, not a purchase/recharge action.
 
 ## Out Of Scope
 

@@ -17,6 +17,7 @@ public sealed class UsageController(
     IBillableAccountResolver accountResolver,
     IWalletService wallets,
     IApiUsageReportService usageReports,
+    ISubscriptionPlanRepository subscriptionPlans,
     TimeProvider timeProvider) : ControllerBase
 {
     [HttpGet("me")]
@@ -50,7 +51,9 @@ public sealed class UsageController(
             periodTo,
             cancellationToken);
 
-        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries));
+        var plan = await subscriptionPlans.FindForCustomerAsync(account.Id, cancellationToken);
+
+        return Ok(MapResponse(account, wallet, periodFrom, periodTo, entries, plan));
     }
 
     [HttpGet("api-client/{clientId:guid}")]
@@ -101,7 +104,8 @@ public sealed class UsageController(
         FinancialCopilot.Billing.Accounts.WalletSnapshot wallet,
         DateTimeOffset periodFrom,
         DateTimeOffset periodTo,
-        IReadOnlyCollection<FinancialCopilot.Billing.Usage.UsageLedgerEntry> entries) =>
+        IReadOnlyCollection<FinancialCopilot.Billing.Usage.UsageLedgerEntry> entries,
+        FinancialCopilot.Billing.Accounts.SubscriptionPlan? plan = null) =>
         new(
             account.AccountType.ToString(),
             account.BillingMode.ToString(),
@@ -128,5 +132,8 @@ public sealed class UsageController(
                     entry.EstimatedCost,
                     entry.AllocationSource,
                     entry.AllowanceDateKey))
-                .ToArray());
+                .ToArray(),
+            plan?.Code,
+            plan?.Name,
+            plan?.IncludedCredits);
 }

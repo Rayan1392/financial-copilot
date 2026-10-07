@@ -9,6 +9,9 @@ export interface UsageSummary {
   reservedCredits: number;
   availableSpendingCapacity: number;
   walletUpdatedAt: string;
+  planCode?: string | null;
+  planName?: string | null;
+  planIncludedCredits?: number | null;
 }
 
 export interface WatchlistQuote {

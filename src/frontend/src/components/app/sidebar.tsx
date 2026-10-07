@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, LogOut, Settings, Send } from "lucide-react";
+import { Plus, Trash2, LogOut, Settings, Send, RefreshCw } from "lucide-react";
 import { listThreads, createThread, deleteThread } from "@/lib/chat.functions";
 import { getUsage } from "@/lib/market-view.functions";
 import {
@@ -11,7 +11,14 @@ import {
   subscribeToAuthChanges,
 } from "@/integrations/financial-copilot/auth";
 import { canAccessAdmin } from "@/integrations/financial-copilot/admin-permissions";
-import { toPersianDigits } from "@/lib/format/persian";
+import { formatNumber } from "@/lib/format/persian";
+import { computeCreditProgress, type CreditTone } from "@/lib/credit-progress";
+
+const CREDIT_TONE_CLASS: Record<CreditTone, string> = {
+  healthy: "bg-emerald",
+  warning: "bg-gold",
+  danger: "bg-rose",
+};
 
 export function ConversationSidebar() {
   const navigate = useNavigate();
@@ -32,11 +39,21 @@ export function ConversationSidebar() {
     data: usage,
     isLoading: usageLoading,
     isError: usageError,
+    isFetching: usageFetching,
+    refetch: refetchUsage,
   } = useQuery({
     queryKey: ["usage"],
     queryFn: () => fetchUsage(),
     ...qOpts,
   });
+  const [usageRefreshing, setUsageRefreshing] = useState(false);
+  async function refreshUsage() {
+    if (usageRefreshing) return;
+    setUsageRefreshing(true);
+    // Keep the spin visible for a minimum time so fast responses still feel like a click.
+    await Promise.allSettled([refetchUsage(), new Promise((resolve) => setTimeout(resolve, 700))]);
+    setUsageRefreshing(false);
+  }
   const newChat = useMutation({
     mutationFn: () => create(),
     onSuccess: (thread) => {
@@ -51,13 +68,9 @@ export function ConversationSidebar() {
       if (activeId === id) navigate({ to: "/chat" });
     },
   });
-  const percentage = usage
-    ? Math.round(
-        (usage.availableSpendingCapacity /
-          Math.max(usage.availableSpendingCapacity + usage.reservedCredits, 1)) *
-          100,
-      )
-    : 0;
+  const credit = usage
+    ? computeCreditProgress(usage.availableSpendingCapacity, usage.planIncludedCredits)
+    : null;
   const [showAdmin, setShowAdmin] = useState(false);
   useEffect(() => {
     const updateAccess = () => {
@@ -136,16 +149,39 @@ export function ConversationSidebar() {
         {usageError && <p className="text-xs text-rose">اعتبار در دسترس نیست.</p>}
         {usage && (
           <div className="p-3 rounded-xl bg-background/50 ring-1 ring-hairline">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] text-muted-foreground">اعتبار هوش مصنوعی</span>
-              <span className="text-[11px] text-foreground">
-                {toPersianDigits(usage.availableSpendingCapacity)}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                اعتبار هوش مصنوعی
+                <button
+                  type="button"
+                  onClick={() => void refreshUsage()}
+                  disabled={usageRefreshing || usageFetching}
+                  className="p-0.5 text-muted-foreground hover:text-foreground transition disabled:opacity-60"
+                  aria-label="به‌روزرسانی اعتبار"
+                  title="به‌روزرسانی اعتبار"
+                >
+                  <RefreshCw
+                    className={`size-3 ${usageRefreshing || usageFetching ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-foreground">
+                {credit?.limit != null
+                  ? `${formatNumber(credit.remaining)} از ${formatNumber(credit.limit)}`
+                  : formatNumber(credit?.remaining ?? 0)}
               </span>
             </div>
-            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-1 w-full bg-muted rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="اعتبار باقی‌مانده هوش مصنوعی"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={credit?.percentage != null ? Math.round(credit.percentage) : undefined}
+            >
               <div
-                className="h-full bg-emerald transition-all"
-                style={{ width: `${percentage}%` }}
+                className={`h-full transition-all ${credit?.tone ? CREDIT_TONE_CLASS[credit.tone] : "bg-muted"}`}
+                style={{ width: `${credit?.percentage ?? 0}%` }}
               />
             </div>
           </div>

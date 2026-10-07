@@ -584,21 +584,28 @@ function BillingPanel({ user }: { user: AuthUser }) {
       setError(showError(e));
     }
   }
-  async function publishPlan() {
-    const code = window.prompt("کد طرح:")?.trim();
-    const name = code && window.prompt("نام طرح:")?.trim();
-    const credits = Number(name && window.prompt("اعتبار اولیه:"));
-    const version = name && window.prompt("نسخه سیاست قیمت‌گذاری:")?.trim();
-    const reason = version && askReason("انتشار طرح");
-    if (!code || !name || !Number.isFinite(credits) || !version || !reason) return;
+  async function editIncludedCredits(plan: AdminPlan) {
+    const value = window.prompt("اعتبار جدید طرح:", String(plan.includedCredits));
+    if (value == null) return;
+    const includedCredits = Number(value);
+    const pricingPolicyVersion = window
+      .prompt("نسخه سیاست قیمت‌گذاری:", plan.pricingPolicyVersion)
+      ?.trim();
+    const reason = pricingPolicyVersion && askReason("ویرایش اعتبار طرح");
+    if (
+      !Number.isFinite(includedCredits) ||
+      includedCredits < 0 ||
+      !pricingPolicyVersion ||
+      !reason
+    )
+      return;
     try {
-      await adminApi.publishPlan({
-        code,
-        name,
-        includedCredits: credits,
-        pricingPolicyVersion: version,
+      await adminApi.updatePlanIncludedCredits(plan.code, {
+        includedCredits,
+        pricingPolicyVersion,
         reason,
       });
+      setSuccess("اعتبار طرح به‌روزرسانی شد.");
       await loadPlans();
     } catch (e) {
       setError(showError(e));
@@ -638,11 +645,6 @@ function BillingPanel({ user }: { user: AuthUser }) {
     <div className="space-y-4">
       <Panel title="طرح‌ها">
         <Message error={error} success={success} />
-        {hasPermission(user, adminPermissions.plansManage) && (
-          <Button className="mb-3" onClick={() => void publishPlan()}>
-            انتشار طرح
-          </Button>
-        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -663,14 +665,24 @@ function BillingPanel({ user }: { user: AuthUser }) {
                     قابلیت‌ها
                   </Button>
                   {hasPermission(user, adminPermissions.plansManage) && (
-                    <Button
-                      className="mr-2"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void publishCapabilities(plan)}
-                    >
-                      انتشار قابلیت
-                    </Button>
+                    <>
+                      <Button
+                        className="mr-2"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void editIncludedCredits(plan)}
+                      >
+                        ویرایش اعتبار
+                      </Button>
+                      <Button
+                        className="mr-2"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void publishCapabilities(plan)}
+                      >
+                        انتشار قابلیت
+                      </Button>
+                    </>
                   )}
                 </TableCell>
               </TableRow>

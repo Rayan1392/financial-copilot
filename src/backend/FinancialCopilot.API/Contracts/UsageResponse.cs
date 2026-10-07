@@ -9,7 +9,10 @@ public sealed record UsageSummaryResponse(
     DateTimeOffset WalletUpdatedAt,
     DateTimeOffset PeriodFrom,
     DateTimeOffset PeriodTo,
-    IReadOnlyCollection<UsageEntryResponse> Entries);
+    IReadOnlyCollection<UsageEntryResponse> Entries,
+    string? PlanCode = null,
+    string? PlanName = null,
+    decimal? PlanIncludedCredits = null);
 
 public sealed record UsageEntryResponse(
     string OperationCode,

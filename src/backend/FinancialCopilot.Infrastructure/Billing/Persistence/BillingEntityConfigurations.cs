@@ -128,8 +128,7 @@ public sealed class SubscriptionPlanRowConfiguration : IEntityTypeConfiguration<
         builder.HasData(
             new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10000m, PricingPolicyVersion = "v1" },
             new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 100m, PricingPolicyVersion = "v1" },
-            new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 300m, PricingPolicyVersion = "v1" },
-            new SubscriptionPlanRow { Code = "Premium", Name = "Premium", IncludedCredits = 1000m, PricingPolicyVersion = "v1" });
+            new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 300m, PricingPolicyVersion = "v1" });
     }
 }
 
@@ -208,21 +207,7 @@ internal static class BaselinePlanCapabilities
         Enabled("Plus", "Radar.Symbols", 50),
         Enabled("Plus", "MarketPulse.Read"),
         Enabled("Plus", "AiQuery.PersonalDigest"),
-        Enabled("Plus", "Notifications.Telegram"),
-        Enabled("Premium", "AiQuery.Scanner"),
-        Enabled("Premium", "AiQuery.StockAnalysis"),
-        Enabled("Premium", "AiQuery.FinancialComparison"),
-        Enabled("Premium", "AiQuery.CodalAnalysis"),
-        Enabled("Premium", "AiQuery.DeepResearch"),
-        Enabled("Premium", "AiQuery.PortfolioAnalysis"),
-        Enabled("Premium", "Reports.Read"),
-        Enabled("Premium", "Watchlist.Symbols", 100),
-        Enabled("Premium", "Portfolio.Records", 100),
-        Enabled("Premium", "Tracker.Rules", 100),
-        Enabled("Premium", "Radar.Symbols", 100),
-        Enabled("Premium", "MarketPulse.Read"),
-        Enabled("Premium", "AiQuery.PersonalDigest"),
-        Enabled("Premium", "Notifications.Telegram")
+        Enabled("Plus", "Notifications.Telegram")
     ];
 
     private static PlanCapabilityRow Enabled(string planCode, string capabilityCode, decimal? limit = null) =>
@@ -289,8 +274,7 @@ public sealed class BillingPurchaseProductRowConfiguration : IEntityTypeConfigur
             Product("TG-CREDITS-50", "CreditPack", "v1", "Telegram 50 AI credits", 250000m, "IRR", 50m, null, null, 10),
             Product("TG-CREDITS-150", "CreditPack", "v1", "Telegram 150 AI credits", 690000m, "IRR", 150m, null, null, 20),
             Product("TG-PRO-30D", "Subscription", "v1", "Telegram Pro 30 days", 1200000m, "IRR", 0m, "Pro", 30, 30),
-            Product("TG-PLUS-30D", "Subscription", "v1", "Telegram Plus 30 days", 2200000m, "IRR", 0m, "Plus", 30, 40),
-            Product("TG-PREMIUM-30D", "Subscription", "v1", "Telegram Premium 30 days", 3900000m, "IRR", 0m, "Premium", 30, 50));
+            Product("TG-PLUS-30D", "Subscription", "v1", "Telegram Plus 30 days", 2200000m, "IRR", 0m, "Plus", 30, 40));
     }
 
     private static BillingPurchaseProductRow Product(

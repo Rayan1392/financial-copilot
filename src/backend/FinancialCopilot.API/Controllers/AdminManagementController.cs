@@ -105,6 +105,15 @@ public sealed class AdminManagementController(
     public Task<AdminPlanView> PublishPlan(AdminPlanPublishRequest request, CancellationToken cancellationToken) =>
         administration.UpsertPlanAsync(new AdminPlanUpsert(request.Code, request.Name, request.IncludedCredits, request.PricingPolicyVersion, request.Reason), Context(FinancialCopilotPermissions.AdminPlansManage, request.Reason), cancellationToken);
 
+    [HttpPatch("plans/{planCode}/included-credits")]
+    [Authorize(Policy = AuthorizationPolicies.AdminPlansManage)]
+    public Task<AdminPlanView> UpdatePlanIncludedCredits(string planCode, AdminPlanIncludedCreditsRequest request, CancellationToken cancellationToken) =>
+        administration.UpdatePlanIncludedCreditsAsync(
+            planCode,
+            new AdminPlanIncludedCreditsChange(request.IncludedCredits, request.PricingPolicyVersion, request.Reason),
+            Context(FinancialCopilotPermissions.AdminPlansManage, request.Reason),
+            cancellationToken);
+
     [HttpGet("plans/{planCode}/capabilities")]
     [Authorize(Policy = AuthorizationPolicies.AdminPlansRead)]
     public Task<IReadOnlyCollection<AdminPlanCapabilityView>> GetPlanCapabilities(string planCode, CancellationToken cancellationToken) =>

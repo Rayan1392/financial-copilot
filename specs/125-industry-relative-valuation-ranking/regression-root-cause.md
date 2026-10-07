@@ -8,6 +8,14 @@ Commit `bba705a7` changed both API semantic-routing defaults from `SemanticPrima
 
 This explains the observed user-facing regression and Redis log. The earlier adapter/arbitration defects describe additional failures when the semantic comparison route is enabled (as in the endpoint tests), but they were not sufficient to restore production behavior while rollout configuration kept that route in Shadow mode.
 
+## Production deployment follow-up: capability override was not loaded
+
+The production request log for `کگهر را با صنعت خودش مقایسه کن` shows that semantic interpretation selected `symbol_vs_industry_relative_valuation`, extracted `کگهر`, and resolved its company ID. The same event records `RolloutMode=Shadow`, `ExecutionSource=Legacy`, and the final dialogue state `entity_ambiguous`; thus the resolver did not lose the ticker. The semantic comparison execution path was evaluated but not used, and the legacy V2 tool path returned the ambiguity message.
+
+The repository's base `appsettings.json` scopes this capability to `SemanticPrimary`, but inspection of the running API container found only `appsettings.Production.json`, with no `SemanticRouting` section. Docker Compose injects the global `SemanticRouting__DefaultMode=Shadow`, and did not inject a capability-specific override. Production therefore used Shadow for this capability even though the checked-out source had the intended per-capability setting. Local Development loaded its development configuration and followed the semantic path, explaining the local/server difference.
+
+The deployment correction is a Compose environment override for only `SemanticRouting__Capabilities__symbol_vs_industry_relative_valuation`. This makes the existing Feature 125 handler active in production while leaving the global default and other capabilities unchanged.
+
 ## Follow-up runtime report: remaining company-resolution gap
 
 After enabling the semantic route, the reported response changed to the system's `DisambiguationNeeded` message. That wording is produced by `AiDialogueOutcomePolicy` when a capability execution reports an ambiguous company resolution. The endpoint regression fixture had supplied an exact `کگهر` entity span directly, so it did not cover a semantic proposal that omitted the ticker or returned a broad span for it. The adapter only resolved the proposed entity spans, leaving the canonical resolver no deterministic fallback to the exact ticker token already present in `OriginalText`.
@@ -18,7 +26,6 @@ The follow-up correction therefore asks the existing canonical resolver to check
 
 Commit `5bbf472` appended Persian classification phrases to each metric cell. The existing frontend already recognizes the exact metric-only Markdown header and builds the compact, color-classified industry table itself using the member percentages and industry benchmark row. Adding prose to the cells changed the established presentation and caused status text to be shown inside every cell. This was an unnecessary change to the renderer input and is being reverted.
 
-The screenshots also show different data scopes: the first names a 31-member chemical group and contains no `کگهر` row; the second names a six-member iron-ore group and includes `کگهر`. That discrepancy is separate from the cell-formatting regression. The second group is the one resolved from the current canonical company membership path; reproducing the first screenshot's rows for `کگهر` would require a separate explanation of why that historical response used a different group.
 
 Feature 128 added model-proposed, typed entity spans to the deterministic interpretation. The Feature 125 `IndustryRelativeValuationSemanticAdapter` still treated every span as a possible company name and submitted it to both the company and industry resolvers. For an own-industry comparison, a span such as `صنعت خودش` can therefore be evaluated as a company mention. If the canonical resolver returns an ambiguity for that generic phrase, the adapter immediately returns `Ambiguous` even when another span is the exact known ticker `کگهر`.
 

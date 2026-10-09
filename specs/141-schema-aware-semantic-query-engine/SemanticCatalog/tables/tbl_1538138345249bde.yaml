@@ -1,0 +1,100 @@
+{
+  "id": "tbl_1538138345249bde",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricPeriodAliases",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "AliasText",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedAliasText",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "Language",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodSelector",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "Priority",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(16)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MetricPeriodAliases_Language_Status",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricPeriodAliases_Language_Status\" ON public.\"MetricPeriodAliases\" USING btree (\"Language\", \"Status\")",
+        "Columns": [
+          "Language",
+          "Status"
+        ]
+      },
+      {
+        "Name": "IX_MetricPeriodAliases_NormalizedAliasText_Language",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MetricPeriodAliases_NormalizedAliasText_Language\" ON public.\"MetricPeriodAliases\" USING btree (\"NormalizedAliasText\", \"Language\") WHERE ((\"Status\")::text = 'Active'::text)",
+        "Columns": [
+          "NormalizedAliasText",
+          "Language"
+        ]
+      },
+      {
+        "Name": "PK_MetricPeriodAliases",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricPeriodAliases\" ON public.\"MetricPeriodAliases\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricPeriodAliases",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

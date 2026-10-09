@@ -1,0 +1,28 @@
+{
+  "id": "rel_3d031262bdba8d33",
+  "from": {
+    "schema": "public",
+    "table": "billing_checkout_intents",
+    "columns": [
+      "CustomerAccountId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "billing_customer_accounts",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"CustomerAccountId\") REFERENCES billing_customer_accounts(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

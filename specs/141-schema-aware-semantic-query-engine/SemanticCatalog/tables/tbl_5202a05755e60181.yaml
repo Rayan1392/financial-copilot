@@ -1,0 +1,169 @@
+{
+  "id": "tbl_5202a05755e60181",
+  "physical": {
+    "Schema": "public",
+    "Name": "DailyIndexSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "Value",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "High",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Low",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ChangePercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceKind",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_DailyIndexSnapshots_ProviderName_TradingInstrumentId_Tradin~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_DailyIndexSnapshots_ProviderName_TradingInstrumentId_Tradin~\" ON public.\"DailyIndexSnapshots\" USING btree (\"ProviderName\", \"TradingInstrumentId\", \"TradingDate\")",
+        "Columns": [
+          "ProviderName",
+          "TradingInstrumentId",
+          "TradingDate"
+        ]
+      },
+      {
+        "Name": "IX_DailyIndexSnapshots_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_DailyIndexSnapshots_TradingInstrumentId\" ON public.\"DailyIndexSnapshots\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "PK_DailyIndexSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_DailyIndexSnapshots\" ON public.\"DailyIndexSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_DailyIndexSnapshots_TradingInstruments_TradingInstrumentId",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_DailyIndexSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Daily index observations keyed by instrument and trading date.",
+    "descriptionFa": "مشاهدات روزانه شاخص با کلید ابزار و تاریخ معاملاتی.",
+    "purpose": "Daily historical index levels and close-derived observations.",
+    "grain": "One TradingInstrumentId + TradingDate observation per provider policy.",
+    "columns": {
+      "TradingInstrumentId": "FK to TradingInstruments.Id",
+      "TradingDate": "Trading-calendar date",
+      "Value/High/Low/ChangePercent": "Daily level/range/change fields",
+      "ProviderName/SourceKind": "Provider and derivation/source family",
+      "ObservedAt": "Observation timestamp"
+    },
+    "units": "Index levels and percent change per source adapter; not a monetary company metric.",
+    "relationships": [
+      "TradingInstrumentId -> TradingInstruments.Id (physical FK)."
+    ],
+    "metricReferences": [],
+    "providerPolicy": "ProviderName and SourceKind distinguish source history and derived rows. Direct TSETMC and StockMarketDB daily-index adapters are separate sources; retain SourceKind and source lineage, and do not merge by instrument/date alone.",
+    "periodSemantics": "One daily observation per named index and trading date; trading date coverage follows exchange calendar.",
+    "examples": [
+      "مقدار پایانی روزانه شاخص کل",
+      "Show daily index history for a trading period"
+    ],
+    "cautions": [
+      "Historical source tables can be stale; use source-specific currentness policy.",
+      "Do not treat max TradingDate as complete/current without watermark and source semantics."
+    ],
+    "sourceVerification": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

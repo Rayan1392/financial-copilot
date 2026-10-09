@@ -1,0 +1,35 @@
+{
+  "id": "metric_shares_outstanding",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "SHARES_OUTSTANDING"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Shares Outstanding",
+    "Description": "Governed semantic definition for Shares Outstanding.",
+    "Category": 5,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      7
+    ],
+    "Aliases": [],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

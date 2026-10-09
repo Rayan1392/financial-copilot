@@ -1,0 +1,117 @@
+{
+  "id": "tbl_f70345a79b3c82bf",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationBatches",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Channel",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ScheduledForUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "MaximumItems",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationBatches_Window",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationBatches_Window\" ON public.\"NotificationBatches\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Channel\", \"ScheduledForUtc\", \"Status\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Channel",
+          "ScheduledForUtc",
+          "Status"
+        ]
+      },
+      {
+        "Name": "PK_NotificationBatches",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationBatches\" ON public.\"NotificationBatches\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_NotificationBatches_ActorWindow",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_NotificationBatches_ActorWindow\" ON public.\"NotificationBatches\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Channel\", \"ScheduledForUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Channel",
+          "ScheduledForUtc"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NotificationBatches",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

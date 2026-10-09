@@ -1,0 +1,124 @@
+{
+  "id": "tbl_5ae90895bdd21bd5",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_refresh_tokens",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TokenHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "RevokedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ReplacedByTokenId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "RevocationReason",
+        "Type": "character varying(250)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_refresh_tokens_TokenHash",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_refresh_tokens_TokenHash\" ON public.auth_refresh_tokens USING btree (\"TokenHash\")",
+        "Columns": [
+          "TokenHash"
+        ]
+      },
+      {
+        "Name": "IX_auth_refresh_tokens_UserId_ExpiresAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_refresh_tokens_UserId_ExpiresAt\" ON public.auth_refresh_tokens USING btree (\"UserId\", \"ExpiresAt\")",
+        "Columns": [
+          "UserId",
+          "ExpiresAt"
+        ]
+      },
+      {
+        "Name": "PK_auth_refresh_tokens",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_refresh_tokens\" ON public.auth_refresh_tokens USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_refresh_tokens_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_refresh_tokens",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

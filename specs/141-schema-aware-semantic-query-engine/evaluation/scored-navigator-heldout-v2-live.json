@@ -1,0 +1,435 @@
+{
+  "datasetCaseCount": 3,
+  "scoredCaseCount": 3,
+  "unscoredCaseIds": [],
+  "aggregate": {
+    "nodeRecall": 0.5,
+    "metricRecall": 1.0,
+    "dimensionRecall": 1.0,
+    "relationshipRecall": null,
+    "domainAccuracy": 0.6666666666666666,
+    "statementScopeAccuracy": 1.0,
+    "financialPolicyRecall": null,
+    "contextCompletenessAccuracy": null,
+    "missingUnsupportedAccuracy": null,
+    "financialReferenceAccuracy": null,
+    "financialOperationAccuracy": null,
+    "financialReferenceTypeAccuracy": null,
+    "sourceItemReferenceAccuracy": null,
+    "governedMetricCodeAccuracy": null,
+    "providerFinancialIndicatorAccuracy": null,
+    "requirementsFinancialReferenceRecall": null,
+    "entityResolutionAccuracy": null,
+    "periodInterpretationAccuracy": null,
+    "falsePositiveAcceptanceRate": null
+  },
+  "operations": {
+    "modelCalls": 6,
+    "inputTokens": 27482,
+    "outputTokens": 2202,
+    "latencyMs": 28990,
+    "providerReportedCost": null,
+    "costCurrency": null
+  },
+  "perCase": [
+    {
+      "caseId": "holdout-v2-consolidated-eps-margin",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 0.3333333333333333,
+        "correct": 2,
+        "expected": 4,
+        "actual": 6,
+        "missing": [
+          "dimension-dim_company",
+          "domain-financial-analytics"
+        ],
+        "unsupported": [
+          "table-tbl_36036602dbf76362",
+          "table-tbl_4f2ef2d8dd59b46a",
+          "table-tbl_53d51e26e1ca6929",
+          "table-tbl_a7c77d65fb2aaea2"
+        ]
+      },
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 2,
+        "actual": 1,
+        "missing": [
+          "financial-analytics"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.05555555555555555,
+        "correct": 2,
+        "expected": 2,
+        "actual": 36,
+        "missing": [],
+        "unsupported": [
+          "assetturnover",
+          "averagecollectionperiod",
+          "capital",
+          "comprehensiveliquidityindex",
+          "currentassetstototalassets",
+          "currentdebttototalassets",
+          "currentratio",
+          "debttoequity",
+          "ebit",
+          "ebitgrowthqoq",
+          "ebitgrowthyoy",
+          "eps",
+          "epsgrowthqoq",
+          "epsgrowthyoy",
+          "financecosts",
+          "grossprofit",
+          "grossprofitgrowthqoq",
+          "grossprofitgrowthyoy",
+          "grossprofitmargin",
+          "incometax",
+          "marketcap",
+          "netprofit",
+          "netprofitgrowthqoq",
+          "netprofitgrowthrate",
+          "netprofitgrowthyoy",
+          "operatingcashflow",
+          "operatingprofit",
+          "operatingprofitgrowthqoq",
+          "operatingprofitgrowthyoy",
+          "operatingprofitmargin",
+          "pettm",
+          "psttm",
+          "ttmeps",
+          "ttmsales"
+        ]
+      },
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 3
+      },
+      "statementScopeAccuracy": 1.0,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 17
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_1cc36f72de4983fe",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "IncomeStatement",
+          "sourceItemId": 168,
+          "sourceItemCatalogId": "515f20cd-549b-4163-a821-2e52f0bead86",
+          "metricCode": "EPS_CONSOLIDATED",
+          "unitStatus": "unknown",
+          "queryable": false
+        },
+        {
+          "referenceType": "GovernedMetric",
+          "catalogId": "metric_net_profit_margin",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "NET_PROFIT_MARGIN",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 9460,
+      "outputTokens": 840,
+      "latencyMs": 11262,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "holdout-v2-monthly-rate-ytd",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 0.75,
+        "correct": 3,
+        "expected": 6,
+        "actual": 4,
+        "missing": [
+          "dimension-dim_company",
+          "dimension-dim_monthly_period",
+          "dimension-dim_product_identity"
+        ],
+        "unsupported": [
+          "table-tbl_8e759d70dada6bd8"
+        ]
+      },
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": [],
+        "accuracy": 1.0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.16666666666666666,
+        "correct": 2,
+        "expected": 2,
+        "actual": 12,
+        "missing": [],
+        "unsupported": [
+          "avg12mmonthlysales",
+          "monthlyproductiongrowthyoy",
+          "monthlyproductionquantity",
+          "monthlysales",
+          "monthlysalesgrowthmom",
+          "monthlysalesgrowthyoy",
+          "monthlysalesquantity",
+          "monthlysalesquantitygrowthyoy",
+          "monthlysalestoproductionratio",
+          "monthlysalesytdpreviousmonth"
+        ]
+      },
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 3,
+        "expected": 3,
+        "actual": 3,
+        "missing": [],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 1
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 12
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 9095,
+      "outputTokens": 701,
+      "latencyMs": 9251,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "holdout-v2-collection-debt-rank",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 0.2,
+        "correct": 1,
+        "expected": 2,
+        "actual": 5,
+        "missing": [
+          "dimension-dim_company"
+        ],
+        "unsupported": [
+          "table-tbl_36036602dbf76362",
+          "table-tbl_4f2ef2d8dd59b46a",
+          "table-tbl_53d51e26e1ca6929",
+          "table-tbl_a7c77d65fb2aaea2"
+        ]
+      },
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": [],
+        "accuracy": 1.0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.06666666666666667,
+        "correct": 2,
+        "expected": 2,
+        "actual": 30,
+        "missing": [],
+        "unsupported": [
+          "assetturnover",
+          "capital",
+          "comprehensiveliquidityindex",
+          "currentassetstototalassets",
+          "currentdebttototalassets",
+          "currentratio",
+          "ebit",
+          "ebitgrowthqoq",
+          "ebitgrowthyoy",
+          "eps",
+          "epsgrowthqoq",
+          "epsgrowthyoy",
+          "financecosts",
+          "grossprofit",
+          "grossprofitgrowthqoq",
+          "grossprofitgrowthyoy",
+          "grossprofitmargin",
+          "incometax",
+          "netprofit",
+          "netprofitgrowthqoq",
+          "netprofitgrowthrate",
+          "netprofitgrowthyoy",
+          "netprofitmargin",
+          "operatingcashflow",
+          "operatingprofit",
+          "operatingprofitgrowthqoq",
+          "operatingprofitgrowthyoy",
+          "operatingprofitmargin"
+        ]
+      },
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 3
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 15
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "GovernedMetric",
+          "catalogId": "metric_average_collection_period",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "AVERAGE_COLLECTION_PERIOD",
+          "unitStatus": null,
+          "queryable": false
+        },
+        {
+          "referenceType": "GovernedMetric",
+          "catalogId": "metric_debt_to_equity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "DEBT_TO_EQUITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 8927,
+      "outputTokens": 661,
+      "latencyMs": 8477,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    }
+  ]
+}

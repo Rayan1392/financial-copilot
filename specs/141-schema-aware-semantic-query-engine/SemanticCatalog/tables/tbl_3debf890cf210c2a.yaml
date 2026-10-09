@@ -1,0 +1,147 @@
+{
+  "id": "tbl_3debf890cf210c2a",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryWatchStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EntryStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ExitStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastEvaluatedCalculationId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "LastTransitionDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "LastTransitionReason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "AlgorithmVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryWatchStates_GroupId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchStates_GroupId\" ON public.\"IndustryWatchStates\" USING btree (\"GroupId\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchStates_IndustryId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchStates_IndustryId\" ON public.\"IndustryWatchStates\" USING btree (\"IndustryId\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId"
+        ]
+      },
+      {
+        "Name": "PK_IndustryWatchStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryWatchStates\" ON public.\"IndustryWatchStates\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryWatchStates_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryWatchStates_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryWatchStates",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

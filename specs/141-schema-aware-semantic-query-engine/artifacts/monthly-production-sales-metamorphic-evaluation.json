@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "description": "Feature 141 live metamorphic and adversarial questions; expected semantics are independent of captured predictions.",
+  "cases": [
+    { "id": "meta-amount-01", "group": "amount-paraphrase", "relation": "equivalent", "question": "مبلغ فروش کگل در شهریور ۱۴۰۵ چقدر بوده؟", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-amount-02", "group": "amount-paraphrase", "relation": "equivalent", "question": "فروش ریالی کگل را برای شهریور ۱۴۰۵ بگو.", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-amount-03", "group": "amount-paraphrase", "relation": "equivalent", "question": "کگل در شهریور ۱۴۰۵ چند میلیون ریال فروش داشته است؟", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-quantity-vs-amount-quantity", "group": "quantity-versus-amount", "relation": "contrast", "question": "مقدار فروش گندله کگهر در آخرین گزارش ماهانه چقدر است؟", "expectedMetrics": ["metric_monthly_sales_quantity"] },
+    { "id": "meta-quantity-vs-amount-amount", "group": "quantity-versus-amount", "relation": "contrast", "question": "مبلغ فروش گندله کگهر در آخرین گزارش ماهانه چقدر است؟", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-production-vs-sales-production", "group": "production-versus-sales", "relation": "contrast", "question": "مقدار تولید گندله کگهر در شهریور ۱۴۰۵ چقدر بوده؟", "expectedMetrics": ["metric_monthly_production_quantity"] },
+    { "id": "meta-production-vs-sales-sales", "group": "production-versus-sales", "relation": "contrast", "question": "مقدار فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بوده؟", "expectedMetrics": ["metric_monthly_sales_quantity"] },
+    { "id": "meta-growth-quantity", "group": "growth-unit-contrast", "relation": "contrast", "question": "رشد مقداری فروش گندله کگهر نسبت به ماه قبل چند درصد بوده؟", "expectedMetrics": ["metric_monthly_sales_quantity"] },
+    { "id": "meta-growth-amount", "group": "growth-unit-contrast", "relation": "contrast", "question": "رشد ریالی فروش گندله کگهر نسبت به ماه قبل چند درصد بوده؟", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-company-scope-one", "group": "company-scope", "relation": "contrast", "contrastField": "entity-count", "question": "فروش ماهانه کگل را در شهریور ۱۴۰۵ نشان بده.", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-company-scope-two", "group": "company-scope", "relation": "contrast", "contrastField": "entity-count", "question": "فروش ماهانه کگل و کگهر را در شهریور ۱۴۰۵ با هم مقایسه کن.", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-period-scope-latest", "group": "period-scope", "relation": "contrast", "contrastField": "presentation", "question": "فروش ریالی کگل در آخرین گزارش ماهانه چقدر بوده؟", "expectedMetrics": ["metric_monthly_sales"] },
+    { "id": "meta-period-scope-series", "group": "period-scope", "relation": "contrast", "contrastField": "presentation", "question": "فروش ریالی کگل در شش ماه گذشته چه روندی داشته؟", "expectedMetrics": ["metric_monthly_sales"] }
+  ]
+}

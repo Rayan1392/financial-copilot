@@ -1,0 +1,120 @@
+{
+  "id": "tbl_695e4cf5d4e4e3ac",
+  "physical": {
+    "Schema": "public",
+    "Name": "LatestMarketQuotes",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "LatestPrice",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "PriceChangePercentage",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceKind",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "AsOf",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false,
+        "DefaultValue": "'-infinity'::date"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_LatestMarketQuotes_ProviderName_TradingInstrumentId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_LatestMarketQuotes_ProviderName_TradingInstrumentId\" ON public.\"LatestMarketQuotes\" USING btree (\"ProviderName\", \"TradingInstrumentId\")",
+        "Columns": [
+          "ProviderName",
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "IX_LatestMarketQuotes_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_LatestMarketQuotes_TradingInstrumentId\" ON public.\"LatestMarketQuotes\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "PK_LatestMarketQuotes",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_LatestMarketQuotes\" ON public.\"LatestMarketQuotes\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_LatestMarketQuotes_TradingInstruments_TradingInstrumentId",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_LatestMarketQuotes",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

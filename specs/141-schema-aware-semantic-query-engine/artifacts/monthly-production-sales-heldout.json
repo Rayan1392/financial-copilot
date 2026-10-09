@@ -1,0 +1,33 @@
+{
+  "fixtureId": "feature-141-monthly-production-sales-heldout-v1",
+  "purpose": "Independent held-out questions authored after the 13-case development evaluation. These cases use distinct wording and analytical shapes.",
+  "evaluationMode": "live-navigator-heldout",
+  "runtimeExecutionEnabled": false,
+  "actualPostgresQueried": false,
+  "cases": [
+    {
+      "id": "heldout-01-product-sales-quantity-series",
+      "question": "مقدار فروش محصول گندله کگهر را برای دو ماه آخر منتشرشده، جداگانه همراه با واحد نشان بده.",
+      "expectedMetrics": ["metric_monthly_sales_quantity"],
+      "expectedDimensions": ["dim_company", "dim_product_identity", "dim_monthly_period"],
+      "expectedEntities": ["کگهر", "گندله"],
+      "expectedOperation": "two-period direct time series"
+    },
+    {
+      "id": "heldout-02-sales-month-over-month-change",
+      "question": "فروش ماهانه کگل در اردیبهشت ۱۴۰۵ نسبت به فروردین همان سال چند درصد تغییر کرده؟",
+      "expectedMetrics": ["metric_monthly_sales"],
+      "expectedDimensions": ["dim_company", "dim_monthly_period"],
+      "expectedEntities": ["کگل"],
+      "expectedOperation": "approved month-over-month growth percentage"
+    },
+    {
+      "id": "heldout-03-production-top-products",
+      "question": "در خرداد ۱۴۰۵، سه محصول کگل را بر اساس مقدار تولید از بیشترین به کمترین مرتب کن.",
+      "expectedMetrics": ["metric_monthly_production_quantity"],
+      "expectedDimensions": ["dim_company", "dim_product_identity", "dim_monthly_period"],
+      "expectedEntities": ["کگل"],
+      "expectedOperation": "bounded top-three product ranking by production quantity"
+    }
+  ]
+}

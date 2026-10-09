@@ -1,0 +1,79 @@
+{
+  "id": "metric_income_tax",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "INCOME_TAX"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Income Tax",
+    "Description": "Governed semantic definition for Income Tax.",
+    "Category": 5,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "income tax",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "taxes",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مالیات بر درآمد",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مالیات",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "INCOME_TAX"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "metric_net_return_on_working_capital",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "NET_RETURN_ON_WORKING_CAPITAL"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Net Return on Working Capital",
+    "Description": "Governed semantic definition for Net Return on Working Capital.",
+    "Category": 0,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "net return on working capital",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "NET_RETURN_ON_WORKING_CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "بازده خالص سرمایه در گردش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_RETURN_ON_WORKING_CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

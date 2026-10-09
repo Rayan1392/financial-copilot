@@ -1,0 +1,28 @@
+{
+  "id": "rel_1f9aee4cf408c134",
+  "from": {
+    "schema": "public",
+    "table": "MarketQuoteMismatches",
+    "columns": [
+      "TradingInstrumentId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "TradingInstruments",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

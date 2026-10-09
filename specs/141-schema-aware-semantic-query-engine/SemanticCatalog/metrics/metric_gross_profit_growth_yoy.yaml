@@ -1,0 +1,76 @@
+{
+  "id": "metric_gross_profit_growth_yoy",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "GROSS_PROFIT_GROWTH_YOY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Gross Profit Growth YoY",
+    "Description": "Governed semantic definition for Gross Profit Growth YoY.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "gross profit growth yoy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود ناخالص سالانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "GROSS_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "GROSS_PROFIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "GROSS_PROFIT"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

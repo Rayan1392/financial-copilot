@@ -1,0 +1,91 @@
+{
+  "id": "tbl_96850226eb472cf9",
+  "physical": {
+    "Schema": "public",
+    "Name": "ProviderRawPayloads",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Dataset",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Endpoint",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalReference",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "Payload",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Checksum",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ReceivedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ProviderRawPayloads_ProviderName_Checksum",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_ProviderRawPayloads_ProviderName_Checksum\" ON public.\"ProviderRawPayloads\" USING btree (\"ProviderName\", \"Checksum\")",
+        "Columns": [
+          "ProviderName",
+          "Checksum"
+        ]
+      },
+      {
+        "Name": "PK_ProviderRawPayloads",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ProviderRawPayloads\" ON public.\"ProviderRawPayloads\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ProviderRawPayloads",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

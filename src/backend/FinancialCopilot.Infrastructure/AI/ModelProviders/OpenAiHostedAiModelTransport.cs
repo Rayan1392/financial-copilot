@@ -76,8 +76,14 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                     {
                         throw new AiModelProviderException(
                             AiExecutionStatus.InvalidStructuredOutput,
-                            "structured_output_truncated",
-                            "OpenAI truncated the structured response at the output-token limit.");
+                            "ModelOutputTruncated",
+                            "OpenAI truncated the structured response at the output-token limit.",
+                            httpStatusCode: (int)response.StatusCode,
+                            requestHost: response.RequestMessage?.RequestUri?.Host ?? httpClient.BaseAddress?.Host,
+                            providerResponseId: body.Id,
+                            providerReportedInputTokens: body.Usage?.InputTokens,
+                            providerReportedOutputTokens: body.Usage?.OutputTokens,
+                            providerCompletionReason: body.IncompleteDetails?.Reason);
                     }
 
                     if (HasRefusal(body.Output))
@@ -279,7 +285,7 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
     private static AiModelProviderException Failure(string message) =>
         new(AiExecutionStatus.RuntimeUnavailable, "hosted_provider_unavailable", message);
 
-    private static async Task<AiModelProviderException> ReadFailureAsync(
+    private async Task<AiModelProviderException> ReadFailureAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -315,10 +321,39 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
         var detail = string.IsNullOrWhiteSpace(body?.Error?.Message)
             ? null
             : $" {body.Error.Message}";
+        var requestId = response.Headers.TryGetValues("x-request-id", out var requestIds)
+            ? SanitizeHeaderValue(requestIds.FirstOrDefault(), 128)
+            : null;
+        var quotaHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var headerName in new[]
+        {
+            "x-ratelimit-limit-requests", "x-ratelimit-remaining-requests", "x-ratelimit-reset-requests",
+            "x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens", "x-ratelimit-reset-tokens"
+        })
+        {
+            if (response.Headers.TryGetValues(headerName, out var values) &&
+                SanitizeHeaderValue(values.FirstOrDefault(), 64) is { Length: > 0 } value)
+                quotaHeaders[headerName] = value;
+        }
+        if (response.Headers.RetryAfter?.ToString() is { Length: > 0 } retryAfter)
+            quotaHeaders["Retry-After"] = SanitizeHeaderValue(retryAfter, 64) ?? string.Empty;
+
         return new AiModelProviderException(
             AiExecutionStatus.RuntimeUnavailable,
             code,
-            $"OpenAI response API returned HTTP {(int)response.StatusCode}.{detail}");
+            $"OpenAI response API returned HTTP {(int)response.StatusCode}.{detail}",
+            httpStatusCode: (int)response.StatusCode,
+            providerErrorCode: SanitizeHeaderValue(upstreamCode, 128),
+            providerRequestId: requestId,
+            requestHost: response.RequestMessage?.RequestUri?.Host ?? httpClient.BaseAddress?.Host,
+            providerQuotaMetadata: quotaHeaders);
+    }
+
+    private static string? SanitizeHeaderValue(string? value, int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var sanitized = new string(value.Where(character => !char.IsControl(character)).Take(maximumLength).ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? null : sanitized;
     }
 
     private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)

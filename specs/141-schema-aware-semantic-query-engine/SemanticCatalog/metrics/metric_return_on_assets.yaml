@@ -1,0 +1,69 @@
+{
+  "id": "metric_return_on_assets",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "RETURN_ON_ASSETS"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Return on Assets",
+    "Description": "Governed semantic definition for Return on Assets.",
+    "Category": 0,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "return on assets",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "RETURN_ON_ASSETS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "roa",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "RETURN_ON_ASSETS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "بازده دارایی‌ها",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "RETURN_ON_ASSETS"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

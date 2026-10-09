@@ -1,0 +1,72 @@
+{
+  "id": "tbl_c8b7c8583687341b",
+  "physical": {
+    "Schema": "public",
+    "Name": "MonthlyActivityBackfillStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "SourceName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsCompleted",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "CompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastStartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "RequestedBy",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "PlannedMonthsJson",
+        "Type": "text",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "SourceName"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_MonthlyActivityBackfillStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MonthlyActivityBackfillStates\" ON public.\"MonthlyActivityBackfillStates\" USING btree (\"SourceName\")",
+        "Columns": [
+          "SourceName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MonthlyActivityBackfillStates",
+        "Type": "p",
+        "Columns": [
+          "SourceName"
+        ],
+        "Definition": "PRIMARY KEY (\"SourceName\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

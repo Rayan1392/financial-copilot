@@ -1,0 +1,12 @@
+{
+  "id": "dim_company",
+  "physicalTableId": "tbl_8646d83cdb350f92",
+  "columns": [
+    "Id",
+    "Name",
+    "Ticker",
+    "IndustryId"
+  ],
+  "status": "unapproved",
+  "runtimeQueryable": false
+}

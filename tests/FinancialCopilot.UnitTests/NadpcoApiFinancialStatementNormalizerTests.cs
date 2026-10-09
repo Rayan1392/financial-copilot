@@ -141,6 +141,13 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         Assert.Contains(incomeItems, i => i.MetricCode == "NET_PROFIT" && i.Value == 200m);
         Assert.Contains(incomeItems, i => i.MetricCode == "REVENUE" && i.Value == 600m);
         Assert.Contains(incomeItems, i => i.MetricCode is null && i.Value == 1m);
+        Assert.All(incomeItems, item => Assert.NotNull(item.SourceItemCatalogId));
+        var incomeCatalog = await db.FinancialStatementSourceItems
+            .Where(item => item.ProviderName == ProviderName && item.StatementType == "IncomeStatement")
+            .ToDictionaryAsync(item => item.Id);
+        Assert.Contains(incomeItems, item => incomeCatalog[item.SourceItemCatalogId!.Value].SourceItemId == 143);
+        Assert.Contains(incomeItems, item => incomeCatalog[item.SourceItemCatalogId!.Value].SourceItemId == 999);
+        Assert.Equal("N/A", incomeCatalog[incomeItems.Single(item => item.Value == 1m).SourceItemCatalogId!.Value].Unit);
         Assert.Contains(await db.FinancialStatementLineItems.ToListAsync(),
             i => i.FinancialStatementId == balance.Id && i.MetricCode == "TOTAL_EQUITY" && i.Value == 8000m);
         Assert.Contains(await db.FinancialStatementLineItems.ToListAsync(),
@@ -149,6 +156,94 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
         Assert.Contains(
             await db.FinancialStatementSourceItems.ToListAsync(),
             i => i.StatementType == "IncomeStatement" && i.SourceItemId == 999 && i.TitleFa == "unmapped");
+    }
+
+    [Fact]
+    public async Task Normalize_KeepsSimilarTitlesAndSourceIdsDistinctAcrossStatementTypesAndProviders()
+    {
+        await using var db = CreateDb();
+        db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
+        {
+            Id = Guid.NewGuid(),
+            ProviderName = "AnotherProvider",
+            StatementType = "IncomeStatement",
+            SourceItemId = 777,
+            TitleFa = "دارایی جاری",
+            Unit = "Rial",
+            LastSynchronizedAt = Now
+        });
+        await db.SaveChangesAsync();
+
+        var payload = MakePayload(
+            incomeJson: """
+                [{
+                  "statementID": 800001, "com_ID": 3, "periodType": 6,
+                  "fiscalYearEnd": "2023-03-20T00:00:00", "periodEnd": "2022-09-22T00:00:00",
+                  "isAudited": false, "isRepresented": false, "isComposing": false,
+                  "items": [
+                    { "itemID": 777, "itemTitle": "دارایی جاری", "amount": 11.25, "amountUnit": "Rial" },
+                    { "itemID": 778, "itemTitle": "دارایی جاری", "amount": 12.75, "amountUnit": "Rial" }
+                  ]
+                }]
+                """,
+            balanceJson: """
+                [{
+                  "statementID": 800002, "com_ID": 3, "periodType": 6,
+                  "fiscalYearEnd": "2023-03-20T00:00:00", "periodEnd": "2022-09-22T00:00:00",
+                  "isAudited": false, "isRepresented": false, "isComposing": false,
+                  "items": [{ "itemID": 777, "itemTitle": "دارایی جاری", "amount": 22.5, "amountUnit": "Rial" }]
+                }]
+                """,
+            cashFlowJson: "[]");
+
+        await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        var currentCatalog = await db.FinancialStatementSourceItems
+            .Where(item => item.SourceItemId == 777)
+            .ToListAsync();
+        Assert.Equal(3, currentCatalog.Count);
+        Assert.Equal(3, currentCatalog.Select(item => item.Id).Distinct().Count());
+        Assert.Contains(await db.FinancialStatementSourceItems.ToListAsync(), item =>
+            item.ProviderName == ProviderName && item.StatementType == "IncomeStatement" &&
+            item.SourceItemId == 778 && item.TitleFa == "دارایی جاری");
+        Assert.Contains(currentCatalog, item => item.ProviderName == ProviderName && item.StatementType == "IncomeStatement");
+        Assert.Contains(currentCatalog, item => item.ProviderName == ProviderName && item.StatementType == "BalanceSheet");
+        Assert.Contains(currentCatalog, item => item.ProviderName == "AnotherProvider" && item.StatementType == "IncomeStatement");
+
+        var observations = await db.FinancialStatementLineItems
+            .Join(db.FinancialStatements, line => line.FinancialStatementId, statement => statement.Id,
+                (line, statement) => new { line, statement })
+            .Where(row => row.statement.ProviderName == ProviderName)
+            .ToListAsync();
+        Assert.Equal(3, observations.Count);
+        Assert.Contains(observations, row => row.statement.StatementType == "IncomeStatement" && row.line.Value == 11.25m);
+        Assert.Contains(observations, row => row.statement.StatementType == "IncomeStatement" && row.line.Value == 12.75m);
+        Assert.Contains(observations, row => row.statement.StatementType == "BalanceSheet" && row.line.Value == 22.5m);
+        Assert.All(observations, row => Assert.NotNull(row.line.SourceItemCatalogId));
+    }
+
+    [Fact]
+    public async Task Normalize_RetainsNullAmountAsExplicitInvalidObservationDiagnostic()
+    {
+        await using var db = CreateDb();
+        var payload = MakePayload(incomeJson: """
+            [{
+              "statementID": 810001, "com_ID": 3, "periodType": 6,
+              "fiscalYearEnd": "2023-03-20T00:00:00", "periodEnd": "2022-09-22T00:00:00",
+              "isAudited": false, "isRepresented": false, "isComposing": false,
+              "items": [{ "itemID": 999, "itemTitle": "unmapped", "amount": null, "amountUnit": "Rial" }]
+            }]
+            """);
+
+        await CreateNormalizer(db).NormalizeAsync(payload, CancellationToken.None);
+
+        var statement = await db.FinancialStatements.SingleAsync(row => row.ExternalStatementId == "810001");
+        var observation = await db.FinancialStatementLineItems.SingleAsync(row => row.FinancialStatementId == statement.Id);
+        Assert.Null(observation.Value);
+        Assert.NotNull(observation.SourceItemCatalogId);
+        Assert.Contains("invalidObservations", statement.WarningsJson);
+        Assert.Contains("NullAmount", statement.WarningsJson);
+        Assert.Contains("999", statement.WarningsJson);
     }
 
     [Fact]

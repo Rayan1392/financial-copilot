@@ -1,0 +1,82 @@
+{
+  "id": "tbl_ec69a81a38ed9e17",
+  "physical": {
+    "Schema": "public",
+    "Name": "Feature126EventStreams",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "RunId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "TehranDate",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "OwnerId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "FencingToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "NextSequence",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "State",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsTerminal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "RunId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_Feature126EventStreams",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Feature126EventStreams\" ON public.\"Feature126EventStreams\" USING btree (\"RunId\")",
+        "Columns": [
+          "RunId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_Feature126EventStreams",
+        "Type": "p",
+        "Columns": [
+          "RunId"
+        ],
+        "Definition": "PRIMARY KEY (\"RunId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

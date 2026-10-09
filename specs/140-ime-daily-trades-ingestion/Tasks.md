@@ -31,7 +31,7 @@ Create a test fixture from the supplied response covering normal and edge-shaped
 
 ### T140-03 — Add/reuse Persian date abstraction
 
-Support strict `yyyy/MM/dd` Jalali validation and Iran-local current-date formatting.
+Support strict `yyyy/MM/dd` Jalali validation, Iran-local current-date formatting, and future-date rejection for Admin requests.
 
 **Acceptance:** valid/invalid date tests pass and no culture-dependent parsing is used.
 
@@ -43,7 +43,7 @@ Model the fixed request fields, outer `{ d }` envelope, and all 34 observed trad
 
 ### T140-05 — Implement typed IME HTTP client
 
-Call `GetAmareMoamelatList`, pass both date fields as the requested Jalali date, perform two-stage deserialization, propagate cancellation, and use existing timeout/retry conventions.
+Call `GetAmareMoamelatList`, pass both date fields as the requested Jalali date, capture the bounded raw HTTP response before typed parsing, perform two-stage deserialization, propagate cancellation, and use existing timeout/retry conventions. Treat this POST as semantically read-only for bounded transient retries; do not retry parse/contract/date-integrity failures.
 
 **Acceptance:** tests distinguish successful empty response, non-2xx, malformed outer JSON, null/missing unusable `d`, and malformed inner JSON.
 
@@ -51,7 +51,7 @@ Call `GetAmareMoamelatList`, pass both date fields as the requested Jalali date,
 
 ### T140-06 — Add import lifecycle persistence
 
-Add/reuse an import/run entity capable of recording source, date, trigger, status, timestamps, counts, HTTP status, raw response, and bounded error diagnostics.
+Add/reuse an import/run entity capable of recording source, date, trigger, status, timestamps, counts, HTTP status, bounded raw response evidence (`RawResponseText` preferred, established `jsonb` allowed only with clarified JSON-value semantics), and bounded error diagnostics.
 
 **Acceptance:** retries/replays create auditable run records without requiring one-run-per-date uniqueness.
 
@@ -77,7 +77,7 @@ Add unique protection equivalent to `(Source, SourceFingerprint)` and appropriat
 
 ### T140-10 — Implement shared daily importer
 
-Create one application service used by all triggers. It must create/track the import lifecycle, call the provider, persist raw response, write conflict-safe rows, finalize counts/status, and expose a typed result.
+Create one application service used by all triggers. It must create/track the import lifecycle, call the provider, retain raw response evidence before parsing determines success/failure, validate every returned row date against the requested target date, write conflict-safe observations, finalize counts/status, and expose a typed result.
 
 **Acceptance:** no HTTP/persistence/import logic is duplicated in Worker or API trigger code.
 
@@ -103,7 +103,7 @@ Schedule Saturday-Wednesday at 17:00 `Asia/Tehran`, using the repository's sched
 
 ### T140-14 — Add authorized Admin API trigger
 
-Add an endpoint following existing route/version/auth conventions that accepts a target Jalali date and invokes the shared importer.
+Add an endpoint following existing route/version/auth conventions that accepts a target Jalali date, rejects future dates before provider invocation, and invokes the shared importer. Reuse an existing long-running Admin job pattern if present; otherwise execute synchronously. Do not add a new queue solely for this feature.
 
 **Acceptance:** authorized valid request returns import outcome; invalid date is rejected before provider call; unauthorized access follows existing policy.
 
@@ -134,7 +134,12 @@ Cover:
 - identical replay inserts zero duplicates;
 - concurrent same-date import remains duplicate-safe;
 - zero `xTalarReportPK` rows remain distinct when their complete source rows differ;
-- changed source row is preserved as a new observation;
+- changed source row is preserved as a new observation and fingerprint is explicitly observation identity only;
+- raw evidence is retained after malformed outer JSON, malformed inner `d`, and date-integrity failure;
+- all response row dates match requested date -> success;
+- mismatched/mixed response dates -> failure;
+- future Admin date rejected before HTTP call;
+- transient POST failures retry only according to existing policy; contract/parse/integrity failures do not retry;
 - persistence failure does not report success.
 
 ### T140-17 — Trigger integration tests
@@ -153,6 +158,32 @@ Run focused tests plus relevant repository regression/build/migration checks. Re
 ### T140-19 — Operational smoke checklist
 
 After deployment, verify one known-date manual import, duplicate replay behavior, raw response retention, parsed count, and first scheduled execution date/time.
+
+## AC-to-task traceability
+
+| Task | Acceptance Criteria |
+|---|---|
+| T140-01 | AC-06, AC-18, AC-19, AC-20, AC-24, AC-27, AC-31 |
+| T140-02 | AC-03, AC-04, AC-07, AC-08, AC-10, AC-11, AC-14, AC-17, AC-31 |
+| T140-03 | AC-02, AC-20, AC-22, AC-23, AC-31 |
+| T140-04 | AC-01, AC-03, AC-04, AC-07 |
+| T140-05 | AC-01, AC-02, AC-03, AC-05, AC-08, AC-09, AC-10, AC-11, AC-26, AC-27, AC-31 |
+| T140-06 | AC-05, AC-06, AC-09, AC-10, AC-11, AC-25, AC-28 |
+| T140-07 | AC-04, AC-30 |
+| T140-08 | AC-12, AC-14, AC-15, AC-16 |
+| T140-09 | AC-12, AC-13, AC-14 |
+| T140-10 | AC-05, AC-12, AC-17, AC-18, AC-25, AC-28 |
+| T140-11 | AC-09, AC-10, AC-11, AC-17, AC-26, AC-28 |
+| T140-12 | AC-29 |
+| T140-13 | AC-19, AC-20 |
+| T140-14 | AC-18, AC-21, AC-22, AC-23, AC-24, AC-25 |
+| T140-15 | AC-01, AC-02, AC-03, AC-05, AC-07, AC-08, AC-09, AC-10, AC-11, AC-17, AC-22, AC-23, AC-26, AC-27 |
+| T140-16 | AC-04, AC-05, AC-06, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-28, AC-30 |
+| T140-17 | AC-18, AC-19, AC-20, AC-21, AC-22, AC-23, AC-24, AC-25 |
+| T140-18 | AC-31 |
+| T140-19 | AC-05, AC-12, AC-18, AC-19, AC-20, AC-25 |
+
+Every AC is mapped to at least one implementation task. Test-oriented tasks provide explicit verification coverage for the new revision requirements.
 
 ## Required implementation report
 

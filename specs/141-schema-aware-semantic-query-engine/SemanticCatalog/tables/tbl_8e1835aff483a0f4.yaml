@@ -1,0 +1,164 @@
+{
+  "id": "tbl_8e1835aff483a0f4",
+  "physical": {
+    "Schema": "public",
+    "Name": "IntradayIndexSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalSnapshotId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingTime",
+        "Type": "time without time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "Value",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "ChangePercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceChangedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IntradayIndexSnapshots_ProviderName_ExternalSnapshotId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IntradayIndexSnapshots_ProviderName_ExternalSnapshotId\" ON public.\"IntradayIndexSnapshots\" USING btree (\"ProviderName\", \"ExternalSnapshotId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalSnapshotId"
+        ]
+      },
+      {
+        "Name": "IX_IntradayIndexSnapshots_TradingInstrumentId_TradingDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IntradayIndexSnapshots_TradingInstrumentId_TradingDate\" ON public.\"IntradayIndexSnapshots\" USING btree (\"TradingInstrumentId\", \"TradingDate\")",
+        "Columns": [
+          "TradingInstrumentId",
+          "TradingDate"
+        ]
+      },
+      {
+        "Name": "PK_IntradayIndexSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IntradayIndexSnapshots\" ON public.\"IntradayIndexSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IntradayIndexSnapshots_TradingInstruments_TradingInstrument~",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_IntradayIndexSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Intraday observations for market/index instruments.",
+    "descriptionFa": "مشاهدات درون‌روزی برای ابزارهای شاخص بازار.",
+    "purpose": "Intraday index series; the instrument table defines index identity.",
+    "grain": "Provider ExternalSnapshotId per TradingInstrumentId and TradingDate/TradingTime.",
+    "columns": {
+      "TradingInstrumentId": "FK to TradingInstruments.Id",
+      "TradingDate/TradingTime": "Exchange-local date and timezone-free time",
+      "Value/ChangePercent": "Index level and change measure",
+      "ProviderName/ExternalSnapshotId": "Provider snapshot identity",
+      "SourceChangedAt": "Source change timestamp"
+    },
+    "units": "Index level and percentage change follow source mapping; numeric columns do not encode unit.",
+    "relationships": [
+      "TradingInstrumentId -> TradingInstruments.Id (physical FK); no direct Companies relationship."
+    ],
+    "metricReferences": [],
+    "providerPolicy": "ProviderName and ExternalSnapshotId identify each observation. Direct TSETMC and StockMarketDB index adapters are separate sources; repository worker defaults enable TSETMC polling and disable StockMarketDB polling, subject to deployment overrides.",
+    "periodSemantics": "Multiple observations within exchange trading date; SourceChangedAt is a separate source timestamp.",
+    "examples": [
+      "روند درون‌روزی شاخص کل",
+      "Show intraday index levels for the trading session"
+    ],
+    "cautions": [
+      "Snapshot polling is not guaranteed complete; max observation is not completeness proof.",
+      "Index identity is on TradingInstruments, not company identity."
+    ],
+    "sourceVerification": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "id": "tbl_806c73129b014e72",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioSourceTraces",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceObjectId",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedRowCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SignalCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioSourceTraces_ReportId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioSourceTraces_ReportId\" ON public.\"FundPortfolioSourceTraces\" USING btree (\"ReportId\")",
+        "Columns": [
+          "ReportId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioSourceTraces_SourceObjectId_SourceRevision",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioSourceTraces_SourceObjectId_SourceRevision\" ON public.\"FundPortfolioSourceTraces\" USING btree (\"SourceObjectId\", \"SourceRevision\")",
+        "Columns": [
+          "SourceObjectId",
+          "SourceRevision"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioSourceTraces",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioSourceTraces\" ON public.\"FundPortfolioSourceTraces\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioSourceTraces",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

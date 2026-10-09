@@ -1,0 +1,114 @@
+{
+  "id": "tbl_8914b23652d9f348",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_outbox_messages",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "AggregateType",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "AggregateId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(220)",
+        "Nullable": false
+      },
+      {
+        "Name": "Payload",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ProcessedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastAttemptAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastError",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_billing_outbox_messages_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_outbox_messages_IdempotencyKey\" ON public.billing_outbox_messages USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_billing_outbox_messages_ProcessedAt_OccurredAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_outbox_messages_ProcessedAt_OccurredAt\" ON public.billing_outbox_messages USING btree (\"ProcessedAt\", \"OccurredAt\")",
+        "Columns": [
+          "ProcessedAt",
+          "OccurredAt"
+        ]
+      },
+      {
+        "Name": "PK_billing_outbox_messages",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_outbox_messages\" ON public.billing_outbox_messages USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_outbox_messages",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

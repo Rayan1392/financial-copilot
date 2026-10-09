@@ -1,0 +1,59 @@
+{
+  "id": "metric_net_profit_growth_rate",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "NET_PROFIT_GROWTH_RATE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Net Profit Growth Rate (Vendor)",
+    "Description": "Governed semantic definition for Net Profit Growth Rate (Vendor).",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "net profit growth rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ رشد سود خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

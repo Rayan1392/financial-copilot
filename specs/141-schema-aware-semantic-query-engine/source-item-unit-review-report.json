@@ -1,0 +1,132 @@
+{
+  "formatVersion": 1,
+  "policyVersion": "financial-statement-item-units-v1",
+  "snapshotItemCount": 296,
+  "classificationCounts": {
+    "MonetaryStatementItem": 285,
+    "MonetaryPerShareItem": 8,
+    "RequiresSemanticReview": 3
+  },
+  "perShareItems": [
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 271,
+      "sourceItemCatalogId": "e51d1dde-6a7b-48d6-9d79-8f417a088e1f",
+      "titleFa": "ارزش دفتری هر سهم",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 160,
+      "sourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "titleFa": "سود خالص هر سهم ",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 161,
+      "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "titleFa": "سود عملیاتی هر سهم ",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 162,
+      "sourceItemCatalogId": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "titleFa": "سود هر سهم قبل از کسر مالیات ",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 163,
+      "sourceItemCatalogId": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "titleFa": "حصه هر سهم از جمع درآمدها",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 168,
+      "sourceItemCatalogId": "515f20cd-549b-4163-a821-2e52f0bead86",
+      "titleFa": "سود خالص تلفیقی هر سهم",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 202,
+      "sourceItemCatalogId": "dc53f4fe-fd63-4783-8af7-092c1cd1cf41",
+      "titleFa": "حصه هر سهم از جمع درآمدهای مشاع",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 317,
+      "sourceItemCatalogId": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "titleFa": "سود خالص هر سهم - کدال",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "effectiveUnit": "IRRPerShare",
+      "reason": "financial-statement-unit-policy-v1:per-share-title-rule"
+    }
+  ],
+  "ambiguousItems": [
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 99,
+      "sourceItemCatalogId": "5e03f84d-b77d-4549-8c2e-caadbe2c9f1f",
+      "titleFa": "نتیجه برابری نرخ ارز (اندوخته تسعیر ارز)",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "reason": "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "CashFlow",
+      "sourceItemId": 35,
+      "sourceItemCatalogId": "f0a6922b-ac3f-4166-b313-656377568843",
+      "titleFa": "تاثیر تغییرات نرخ ارز",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "reason": "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 153,
+      "sourceItemCatalogId": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "titleFa": "تعداد سهام شرکت - به هزار سهم ",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "reason": "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"
+    }
+  ]
+}

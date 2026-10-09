@@ -1,0 +1,28 @@
+{
+  "id": "rel_417c2ca54c1b1e0b",
+  "from": {
+    "schema": "public",
+    "table": "billing_purchase_products",
+    "columns": [
+      "PlanCode"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "billing_subscription_plans",
+    "columns": [
+      "Code"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"PlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

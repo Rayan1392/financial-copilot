@@ -1,0 +1,85 @@
+{
+  "id": "tbl_f7e221119b0d1ad2",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_financial_transactions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Type",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "Currency",
+        "Type": "character varying(8)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_billing_financial_transactions_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_financial_transactions_IdempotencyKey\" ON public.billing_financial_transactions USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "PK_billing_financial_transactions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_financial_transactions\" ON public.billing_financial_transactions USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_financial_transactions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

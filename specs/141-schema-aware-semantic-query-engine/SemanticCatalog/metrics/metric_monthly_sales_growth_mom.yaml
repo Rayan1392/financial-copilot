@@ -1,0 +1,109 @@
+{
+  "id": "metric_monthly_sales_growth_mom",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES_GROWTH_MOM"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales Growth MoM",
+    "Description": "Month-over-month percentage change in reported monthly SalesAmount, only for comparable accepted single-month ProductSales observations with a valid prior-month baseline. It is a derived percentage, not an amount or quantity.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales growth mom",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_GROWTH_MOM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 1
+      },
+      {
+        "Expression": "sales growth month over month",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_GROWTH_MOM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 1
+      },
+      {
+        "Expression": "رشد فروش نسبت به ماه قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_GROWTH_MOM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 1
+      },
+      {
+        "Expression": "رشد فروش ماه به ماه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_GROWTH_MOM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 1
+      },
+      {
+        "Expression": "رشد فروش نسبت به ماه قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_GROWTH_MOM"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 1
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

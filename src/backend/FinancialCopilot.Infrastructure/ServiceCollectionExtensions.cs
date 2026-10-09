@@ -21,6 +21,7 @@ using FinancialCopilot.Application.FinancialData.Metrics;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Features;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.Metrics;
 using FinancialCopilot.Domain.Financial.Insights;
@@ -40,6 +41,7 @@ using FinancialCopilot.Infrastructure.Memory.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
+using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.CodalDb;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
@@ -66,7 +68,6 @@ using FinancialCopilot.Infrastructure.Financial.ProfessionalScanners;
 using FinancialCopilot.Infrastructure.Financial.Features;
 using FinancialCopilot.Infrastructure.Financial.Features.Messaging;
 using FinancialCopilot.Infrastructure.Financial.Scanner;
-using FinancialCopilot.Infrastructure.Financial.Semantics;
 using FinancialCopilot.Infrastructure.Financial.Metadata;
 using FinancialCopilot.Application.FinancialData.Metadata;
 using FinancialCopilot.Application.Administration;
@@ -763,6 +764,74 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISemanticQueryFrameEnricher, SemanticQueryFrameEnricher>();
         services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
+
+        // Feature 141 navigator is injectable for harness/shadow evaluation, but no workflow branch activates it.
+        services.AddSingleton(_ =>
+        {
+            var defaults = new SchemaNavigatorBudgets();
+            int ReadInt(string key, int fallback) => int.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+            TimeSpan? ReadDuration(string key, TimeSpan? fallback) =>
+                TimeSpan.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+            decimal? ReadCost() => decimal.TryParse(configuration["Feature141:SchemaNavigator:Budgets:MaximumProviderCost"], out var value) ? value : null;
+            return defaults with
+            {
+                MaximumModelCalls = ReadInt(nameof(defaults.MaximumModelCalls), defaults.MaximumModelCalls),
+                MaximumNavigationCalls = ReadInt(nameof(defaults.MaximumNavigationCalls), defaults.MaximumNavigationCalls),
+                MaximumExpansionDepth = ReadInt(nameof(defaults.MaximumExpansionDepth), defaults.MaximumExpansionDepth),
+                MaximumCatalogContextTokens = ReadInt(nameof(defaults.MaximumCatalogContextTokens), defaults.MaximumCatalogContextTokens),
+                MaximumInputTokens = ReadInt(nameof(defaults.MaximumInputTokens), defaults.MaximumInputTokens),
+                MaximumHierarchyContextCharacters = ReadInt(nameof(defaults.MaximumHierarchyContextCharacters), defaults.MaximumHierarchyContextCharacters),
+                MaximumInputCharacters = ReadInt(nameof(defaults.MaximumInputCharacters), defaults.MaximumInputCharacters),
+                InitialOutputTokens = ReadInt(nameof(defaults.InitialOutputTokens), defaults.InitialOutputTokens),
+                MaximumOutputTokens = ReadInt(nameof(defaults.MaximumOutputTokens), defaults.MaximumOutputTokens),
+                MaximumTotalOutputTokens = ReadInt(nameof(defaults.MaximumTotalOutputTokens), defaults.MaximumTotalOutputTokens),
+                MaximumRetryAttempts = ReadInt(nameof(defaults.MaximumRetryAttempts), defaults.MaximumRetryAttempts),
+                PerCallTimeout = ReadDuration(nameof(defaults.PerCallTimeout), defaults.PerCallTimeout),
+                TotalTimeout = ReadDuration(nameof(defaults.TotalTimeout), defaults.TotalTimeout),
+                MaximumProviderCost = ReadCost(),
+                MaximumFanOut = ReadInt(nameof(defaults.MaximumFanOut), defaults.MaximumFanOut)
+            };
+        });
+        services.AddSingleton<JsonCatalogNavigationHierarchyProvider>(provider =>
+        {
+            var hierarchyPath = configuration["Feature141:SchemaNavigator:HierarchyPath"];
+            if (string.IsNullOrWhiteSpace(hierarchyPath))
+                throw new InvalidOperationException("Feature141:SchemaNavigator:HierarchyPath must be configured before resolving the navigator.");
+            var catalogPath = configuration["Feature141:SchemaNavigator:CatalogPath"];
+            if (string.IsNullOrWhiteSpace(catalogPath))
+                throw new InvalidOperationException("Feature141:SchemaNavigator:CatalogPath must be configured before resolving the navigator.");
+            return new JsonCatalogNavigationHierarchyProvider(Path.GetFullPath(hierarchyPath), Path.GetFullPath(catalogPath));
+        });
+        services.AddSingleton<ICatalogNavigationHierarchyProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+        services.AddSingleton<ICatalogNavigationOutlineProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+        services.AddSingleton<ISchemaContextExpander>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+        services.AddSingleton<ISchemaContextCompletenessValidator, SchemaContextCompletenessValidator>();
+        services.AddSingleton<LlmVectorlessSchemaNavigator>();
+        services.AddSingleton<IVectorlessSchemaNavigator>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+        services.AddSingleton<IQuestionSchemaRequirementsExtractor>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+        services.AddSingleton<IStructuredQueryPlanBuilder, StructuredQueryPlanBuilder>();
+        services.AddSingleton<IStructuredQueryPlanValidator, StructuredQueryPlanValidator>();
+        services.AddSingleton<IStructuredQueryCompiler, StructuredQueryCompiler>();
+        services.AddSingleton<IPersianStructuredQueryResponseGenerator, PersianStructuredQueryResponseGenerator>();
+        services.AddSingleton<IReviewedCompanyPopulationResolver>(_ => new ReviewedCompanyPopulationResolver(
+            configuration.GetSection("Feature141:ReviewedCompanyPopulations").Get<List<ReviewedCompanyPopulation>>() ?? []));
+        services.AddSingleton<IReviewedProductEquivalenceResolver>(_ => new ReviewedProductEquivalenceResolver(
+            configuration.GetSection("Feature141:ReviewedProductEquivalenceGroups").Get<List<ReviewedProductEquivalenceGroup>>() ?? []));
+        services.AddSingleton<IReviewedProductConceptResolver>(_ => new ReviewedProductConceptResolver(
+            configuration.GetSection("Feature141:ProductCatalog:Concepts").Get<List<ReviewedProductConcept>>() ?? []));
+        services.AddSingleton<IAuthorizedCompanyDiscoveryScopeResolver>(_ => new AuthorizedCompanyDiscoveryScopeResolver(
+            configuration.GetSection("Feature141:CompanyDiscoveryScopes").Get<List<AuthorizedCompanyDiscoveryScope>>() ?? []));
+        services.AddScoped<IStructuredQueryCompanyBinder, StructuredQueryCompanyBinder>();
+        services.AddScoped<IStructuredQueryProductBinder, StructuredQueryProductBinder>();
+        services.AddOptions<StructuredQueryExecutionOptions>()
+            .BindConfiguration(StructuredQueryExecutionOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StructuredQueryExecutionOptions>,
+            StructuredQueryExecutionOptionsValidator>();
+        services.AddSingleton<IDevelopmentStructuredQueryAuthorizer, DevelopmentStructuredQueryAuthorizer>();
+        services.AddScoped<IReadOnlyStructuredQueryExecutor, NpgsqlReadOnlyStructuredQueryExecutor>();
+        // Offline evaluation/planning only. This service is not connected to an AI workflow or endpoint.
+        services.AddScoped<IOfflineStructuredQueryPlanningService, OfflineStructuredQueryPlanningService>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();

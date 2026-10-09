@@ -1,0 +1,67 @@
+{
+  "id": "tbl_1dd3a3ee93aebbc6",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_wallet_projections",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Balance",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "ReservedAmount",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "Revision",
+        "Type": "bigint",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "CustomerAccountId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_billing_wallet_projections",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_wallet_projections\" ON public.billing_wallet_projections USING btree (\"CustomerAccountId\")",
+        "Columns": [
+          "CustomerAccountId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_wallet_projections",
+        "Type": "p",
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "Definition": "PRIMARY KEY (\"CustomerAccountId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

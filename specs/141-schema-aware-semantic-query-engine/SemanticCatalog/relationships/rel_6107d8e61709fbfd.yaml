@@ -1,0 +1,28 @@
+{
+  "id": "rel_6107d8e61709fbfd",
+  "from": {
+    "schema": "public",
+    "table": "IndustryRelativeValuationMetrics",
+    "columns": [
+      "CalculationId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "IndustryRelativeValuationCalculations",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

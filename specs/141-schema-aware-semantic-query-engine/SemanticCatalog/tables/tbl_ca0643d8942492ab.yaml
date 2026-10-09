@@ -1,0 +1,382 @@
+{
+  "id": "tbl_ca0643d8942492ab",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyIndustryRelativeValuations",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeSourceObservationId",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeSourceFactId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "PeSourceVersion",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeSourceObservationTimestamp",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PePersistedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PsSourceObservationId",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PsSourceFactId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "PsSourceVersion",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PsSourceObservationTimestamp",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PsPersistedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "EquilibriumSourceObservationId",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumSourceFactId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "EquilibriumSourceVersion",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumSourceObservationTimestamp",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "EquilibriumPersistedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PeSourceWatermark",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "PsSourceWatermark",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumSourceWatermark",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "CurrentPE",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "HistoricalAveragePE",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "CurrentPS",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "HistoricalAveragePS",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "CurrentMarketPrice",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "EquilibriumPrice",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "PEPercent",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "PSPercent",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "EquilibriumPercent",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "PEIsValid",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "PSIsValid",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumIsValid",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "PEIsOutlier",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "PSIsOutlier",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumIsOutlier",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "PEClassification",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "PSClassification",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumClassification",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "PEReason",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "PSReason",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EquilibriumReason",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "PositiveMetricCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ValidMetricCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "GlobalRank",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "RankVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "CalculationId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryRelativeValuationCalculations",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyIndustryRelativeValuations_CalculationId_CompanyId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_CompanyIndustryRelativeValuations_CalculationId_CompanyId\" ON public.\"CompanyIndustryRelativeValuations\" USING btree (\"CalculationId\", \"CompanyId\")",
+        "Columns": [
+          "CalculationId",
+          "CompanyId"
+        ]
+      },
+      {
+        "Name": "IX_CompanyIndustryRelativeValuations_CalculationId_GlobalRank",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyIndustryRelativeValuations_CalculationId_GlobalRank\" ON public.\"CompanyIndustryRelativeValuations\" USING btree (\"CalculationId\", \"GlobalRank\")",
+        "Columns": [
+          "CalculationId",
+          "GlobalRank"
+        ]
+      },
+      {
+        "Name": "IX_CompanyIndustryRelativeValuations_CompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyIndustryRelativeValuations_CompanyId\" ON public.\"CompanyIndustryRelativeValuations\" USING btree (\"CompanyId\")",
+        "Columns": [
+          "CompanyId"
+        ]
+      },
+      {
+        "Name": "PK_CompanyIndustryRelativeValuations",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyIndustryRelativeValuations\" ON public.\"CompanyIndustryRelativeValuations\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_CompanyIndustryRelativeValuations_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_CompanyIndustryRelativeValuations_IndustryRelativeValuation~",
+        "Type": "f",
+        "Columns": [
+          "CalculationId"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_CompanyIndustryRelativeValuations",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Company rows from a versioned industry-relative valuation calculation, including PE, PS, equilibrium, validity, classification, and rank results.",
+    "descriptionFa": "نتایج ارزش‌گذاری نسبی شرکت در صنعت شامل P/E، P/S، قیمت تعادلی، اعتبار، طبقه‌بندی و رتبه نسخه‌دار.",
+    "purpose": "Persist a governed valuation calculation snapshot and its source-observation provenance.",
+    "grain": "One company per IndustryRelativeValuationCalculations.CalculationId; ranking is scoped to that calculation/version.",
+    "columns": {
+      "CompanyId": "FK to Companies.Id",
+      "CalculationId": "FK to calculation header",
+      "CurrentPE/CurrentPS/HistoricalAveragePE/HistoricalAveragePS": "Inputs and comparison values",
+      "PEPercent/PSPercent/EquilibriumPercent": "Relative deviations",
+      "PEClassification/PSClassification/EquilibriumClassification": "Classification outputs",
+      "IsValid/IsOutlier/Reason": "Quality flags and explanations",
+      "GlobalRank/RankVersion": "Persisted rank and ranking version",
+      "SourceFactId/ObservationId/Timestamp/Version/Watermark": "Source lineage per result family"
+    },
+    "units": "PE/PS are ratios; prices use the registered market-price unit; percentages are percent values as defined by calculator.",
+    "relationships": [
+      "CompanyId -> Companies.Id (physical FK)",
+      "CalculationId -> IndustryRelativeValuationCalculations.Id (physical FK)"
+    ],
+    "metricReferences": [
+      "Feature 125 engine IQR-R7-1.5-v1 normalizes positive current/reference pairs as current ÷ reference × 100; benchmarks per group/metric with R-7 quartiles and 1.5×IQR bounds; requires at least two clean observations; classifies at/below clean average Green and above it Red; ranks by Green count, then PE/PS/equilibrium percentages, valid count, and CompanyId. Not a generic table formula."
+    ],
+    "providerPolicy": "Consume complete calculation snapshot and its source provenance; canonical provider membership and source fact identity/freshness are enforced by Feature 125 calculation orchestration. A valid IQR outlier is excluded from the benchmark and is Unclassifiable; do not recompute GlobalRank.",
+    "periodSemantics": "Calculation snapshot timestamp/source observation watermarks; not a fiscal statement period.",
+    "examples": [
+      "رتبه نسبی P/E شرکت در صنعت",
+      "Show the persisted industry-relative valuation rank"
+    ],
+    "cautions": [
+      "GlobalRank is versioned calculation output and must not be recomputed by sorting raw fields.",
+      "Invalid/outlier values and calculation freshness must be preserved."
+    ],
+    "sourceVerification": "EF/live FKs and Feature 125 IndustryRelativeValuationEngine IQR-R7-1.5-v1, calculation input builder, snapshot writer, and orchestration.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

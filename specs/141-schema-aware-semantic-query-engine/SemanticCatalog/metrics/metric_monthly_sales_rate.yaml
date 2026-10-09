@@ -1,0 +1,94 @@
+{
+  "id": "metric_monthly_sales_rate",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES_RATE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales Rate",
+    "Description": "Provider-reported SalesRate from a monthly product row. Its unit is unverified; do not treat it as a known rate or recompute it from SalesAmount and SalesQuantity.",
+    "Category": 3,
+    "Unit": {
+      "Code": "amount-per-unit",
+      "DisplayLabel": "Amount per unit"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "sales rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_RATE"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

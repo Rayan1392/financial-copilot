@@ -1,0 +1,86 @@
+{
+  "id": "tbl_a57389899167416f",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioReportStatusHistory",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "Details",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioReportStatusHistory_ReportId_CreatedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReportStatusHistory_ReportId_CreatedAtUtc\" ON public.\"FundPortfolioReportStatusHistory\" USING btree (\"ReportId\", \"CreatedAtUtc\")",
+        "Columns": [
+          "ReportId",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioReportStatusHistory",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioReportStatusHistory\" ON public.\"FundPortfolioReportStatusHistory\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioReportStatusHistory",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

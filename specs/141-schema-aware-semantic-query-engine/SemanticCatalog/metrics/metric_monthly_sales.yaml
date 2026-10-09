@@ -1,0 +1,164 @@
+{
+  "id": "metric_monthly_sales",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales",
+    "Description": "Actual monthly SalesAmount for a product in an accepted Noavaran ProductSales report. Dimensional unit is million IRR. This is monetary sales value, never sold quantity.",
+    "Category": 3,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "latest monthly sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مبلغ فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مبلغ فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش آخرین ماه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش ماهیانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش ماه مشابه سال قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش ماه مشابه دوره قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "آخرین فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "آخرین فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -135,7 +135,7 @@ Feature 140 includes:
 1. A typed IME HTTP client for the source endpoint.
 2. Two-stage response parsing.
 3. Daily-date request construction using Persian/Jalali date formatting.
-4. Durable persistence of the original provider response for audit/schema-drift recovery.
+4. Durable persistence of the bounded raw provider response body as received at the application boundary for audit/schema-drift recovery.
 5. Durable persistence of each parsed trade row with all known source fields.
 6. Deterministic idempotency for repeated imports of the same source rows.
 7. A Worker schedule for Saturday through Wednesday at 17:00 Iran time.
@@ -183,9 +183,20 @@ An authorized Admin API operation must accept a Persian date, for example:
 
 The exact route and authorization mechanism must follow existing repository conventions after repo inspection. The endpoint must return an operational result containing at least target date, outcome, received count, inserted count, skipped/duplicate count, and import/run identifier when available.
 
+
+### FR-03A — Admin date boundary and execution strategy
+
+Admin imports must reject any target date later than the current date in `Asia/Tehran` before calling IME.
+
+For execution mechanics, reuse an existing FinancialCopilot Admin long-running-operation/background-job pattern if one already exists. If no such established mechanism exists, execute the one-day import synchronously and return the typed import result. Do not introduce a new queue or background-processing subsystem solely for Feature 140.
+
 ### FR-04 — Raw response preservation
 
-For every provider response that reaches the persistence phase, preserve the original response content in an import/batch record (prefer `jsonb` when the repository uses PostgreSQL JSON persistence; otherwise use the nearest established raw-payload convention).
+For every HTTP response actually received from IME, preserve a bounded raw response body in the import/batch record **before typed parsing determines success or failure**.
+
+The preferred semantic contract is `RawResponseText`: the provider response body as received at the application boundary. If the repository has a mandatory established `jsonb` convention, it may be reused only when the field is documented as a lossless JSON-value representation rather than a byte-for-byte copy; property ordering, whitespace, formatting, and byte-level fidelity are then not guaranteed.
+
+Raw evidence retention applies to successful responses, empty valid results, malformed outer JSON, malformed inner `d`, unexpected contract shapes, date-integrity failures, and non-success HTTP responses where a body was received. Network failures with no HTTP response naturally have no raw body to preserve.
 
 This raw copy exists for:
 
@@ -206,9 +217,9 @@ A newly added provider field must not make the entire raw response unrecoverable
 
 A removed or type-incompatible field that prevents safe parsing must fail the import rather than silently produce corrupted rows.
 
-### FR-07 — Idempotency
+### FR-07 — Idempotency and observation identity
 
-Re-running the same date must not create duplicate trade rows.
+Re-running the same date must not create duplicate exact provider observations. `SourceFingerprint` identifies an exact observed provider row; it is an observation identity, not necessarily a logical/business transaction identifier. `ImeDailyTrades` is an immutable provider-observation store and must not automatically be treated as a canonical/current-trade table by future analytical features.
 
 Because `xTalarReportPK` is observed as `0` for some rows, it must not be treated as the sole universal source identifier.
 
@@ -224,9 +235,16 @@ The implementation may additionally index `xTalarReportPK` and `arzehPk` for dia
 
 If the same source row is returned again, it is skipped as a duplicate.
 
-If the provider later returns a materially different row for the same date/business identifiers, its different complete-row fingerprint is retained as a distinct raw observation rather than silently overwriting history. Future analytical features can define correction/revision semantics if needed.
+If the provider later returns a materially different row for the same date/business identifiers, its different complete-row fingerprint is retained as a distinct raw observation rather than silently overwriting history. Future analytical features can define logical trade identity, revision grouping, or canonical/latest observation selection once provider correction semantics are understood. Feature 140 does not attempt to solve canonicalization.
 
 This rule favors raw-source fidelity over premature interpretation of mutable provider identities.
+
+
+### FR-08A — Requested-date integrity
+
+For every non-empty daily response, every returned row's source `date` must match the requested target Persian date exactly in normalized `yyyy/MM/dd` form.
+
+If any row has another date, the importer must preserve the raw response evidence, fail the import as a provider-contract/integrity failure, report the mismatch count, and must not silently rewrite the row date or report a partially successful import.
 
 ### FR-09 — Import lifecycle
 
@@ -302,33 +320,46 @@ Do not log the full payload routinely; the persisted raw response is the audit a
 
 The Admin request and Worker shutdown cancellation tokens must flow through the importer and HTTP call. Use the existing solution timeout/resilience policy after repository inspection. Do not create unbounded retries.
 
+
+### FR-14A — Retry semantics for the IME POST
+
+Although the provider uses HTTP POST, this operation is semantically read-only from FinancialCopilot's perspective. Bounded retries may therefore be used for transient failures when consistent with existing repository resilience conventions. Examples include timeout, connection reset, temporary network failure, and selected 5xx responses.
+
+Do not retry malformed JSON, invalid `d`, date-integrity mismatches, schema/contract failures, or business validation failures. Do not introduce a custom retry framework when the repository already has one.
+
 ## Acceptance criteria
 
 1. **AC-01:** A typed provider client calls the specified IME endpoint with `Content-Type: application/json` and the supplied constant filter values.
 2. **AC-02:** Daily requests set both provider date fields to the same requested Persian date in `yyyy/MM/dd` form.
 3. **AC-03:** The outer response and the JSON string inside `d` are both deserialized correctly.
 4. **AC-04:** Every known source field listed in this specification has persistence coverage without analytical transformation.
-5. **AC-05:** The original provider response is preserved on the import/batch record for audit and future reparsing.
-6. **AC-06:** Unknown additional JSON properties do not cause known-field data loss and remain available in the raw response.
-7. **AC-07:** `HTTP 200` with `d = "[]"` is a successful zero-row import.
-8. **AC-08:** Non-success HTTP responses create a failed import and no successful trade batch is reported.
-9. **AC-09:** Malformed outer JSON creates a failed import.
-10. **AC-10:** Malformed JSON inside `d` creates a failed import.
-11. **AC-11:** A repeated import containing identical source rows does not duplicate persisted trades.
-12. **AC-12:** Database-level uniqueness protects against concurrent Worker/Admin imports of identical rows.
-13. **AC-13:** Idempotency does not rely solely on `xTalarReportPK`, because zero-valued rows are supported.
-14. **AC-14:** A materially changed complete source row produces a distinct raw observation rather than silently overwriting the previous observation.
-15. **AC-15:** Worker and Admin API invoke the same importer/service implementation.
-16. **AC-16:** The Worker schedule runs Saturday-Wednesday at 17:00 `Asia/Tehran` and does not run Thursday/Friday.
-17. **AC-17:** The schedule remains correct regardless of server-local timezone.
-18. **AC-18:** An authorized admin can request a specific historical Persian date.
-19. **AC-19:** Invalid date format/value is rejected before the provider call.
-20. **AC-20:** Import result exposes target date, status, received count, inserted count, skipped count, and an import identifier where supported.
-21. **AC-21:** Cancellation propagates to the outbound HTTP call and persistence work.
-22. **AC-22:** A parsing or persistence failure cannot be recorded as a successful complete import.
-23. **AC-23:** Logging exposes start, provider outcome, parse failure where applicable, and final import outcome without routine full-payload logging.
-24. **AC-24:** No company mapping, monthly aggregation, forecasting, alerts, LLM tools, charts, or user-facing commodity-exchange query behavior is introduced.
-25. **AC-25:** Focused unit and integration tests pass, or environment/repository blockers are explicitly documented in the implementation report.
+5. **AC-05:** For every HTTP response actually received from IME, the bounded raw response is durably retained even when parsing or validation later fails.
+6. **AC-06:** The raw-response storage type and semantics are explicit: `RawResponseText` is preferred; an established `jsonb` convention may be reused only as a lossless JSON-value representation, not as a byte-for-byte copy.
+7. **AC-07:** Unknown additional JSON properties do not cause known-field data loss and remain recoverable from the retained raw response.
+8. **AC-08:** `HTTP 200` with `d = "[]"` is a successful zero-row import.
+9. **AC-09:** Non-success HTTP responses create a failed import and no successful trade batch is reported; any received bounded response body is retained.
+10. **AC-10:** Malformed outer JSON creates a failed import and retains the received bounded raw body.
+11. **AC-11:** Malformed JSON inside `d` creates a failed import and retains the received bounded raw body.
+12. **AC-12:** A repeated import containing identical source rows does not duplicate persisted observations.
+13. **AC-13:** Database-level uniqueness protects against concurrent Worker/Admin imports of identical observations.
+14. **AC-14:** Idempotency does not rely solely on `xTalarReportPK`, because zero-valued rows are supported.
+15. **AC-15:** `SourceFingerprint` is an exact-observation fingerprint and is not defined as a permanent provider business transaction identifier.
+16. **AC-16:** A materially changed complete source row produces a distinct immutable observation; Feature 140 does not determine whether multiple observations represent revisions of the same logical trade.
+17. **AC-17:** Every row in a non-empty daily result matches the requested Persian trade date; any mismatch or mixed-date response fails the import, preserves raw evidence, and does not persist a successful partial batch.
+18. **AC-18:** Worker and Admin API invoke the same importer/service implementation.
+19. **AC-19:** The Worker schedule runs Saturday-Wednesday at 17:00 `Asia/Tehran` and does not run Thursday/Friday.
+20. **AC-20:** The schedule remains correct regardless of server-local timezone.
+21. **AC-21:** An authorized admin can request a specific historical Persian date.
+22. **AC-22:** Invalid date format/value is rejected before the provider call.
+23. **AC-23:** A future Admin date later than the current `Asia/Tehran` date is rejected before provider invocation unless repository evidence requires a different established project-wide rule.
+24. **AC-24:** Manual execution reuses an existing Admin long-running-operation/job pattern if present; otherwise the one-day import executes synchronously. No new queue is introduced solely for Feature 140.
+25. **AC-25:** Import result exposes target date, status, received count, inserted count, skipped count, and an import identifier where supported.
+26. **AC-26:** Cancellation propagates to the outbound HTTP call and persistence work.
+27. **AC-27:** Bounded retries may apply to transient failures for this semantically read-only POST according to existing repository policy; parse/contract/date-integrity/business-validation failures are not retried.
+28. **AC-28:** A parsing, validation, or persistence failure cannot be recorded as a successful complete import.
+29. **AC-29:** Logging exposes start, provider outcome, parse/integrity failure where applicable, mismatch count where applicable, and final import outcome without routine full-payload logging.
+30. **AC-30:** No company mapping, monthly aggregation, forecasting, alerts, LLM tools, charts, or user-facing commodity-exchange query behavior is introduced.
+31. **AC-31:** Focused unit and integration tests pass, or environment/repository blockers are explicitly documented in the implementation report.
 
 ## Out of scope
 

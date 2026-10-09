@@ -1,0 +1,28 @@
+{
+  "id": "rel_05c50b39490ed505",
+  "from": {
+    "schema": "public",
+    "table": "billing_customer_accounts",
+    "columns": [
+      "SubscriptionPlanCode"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "billing_subscription_plans",
+    "columns": [
+      "Code"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"SubscriptionPlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

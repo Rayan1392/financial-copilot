@@ -1,0 +1,92 @@
+{
+  "id": "tbl_40e574a6c28ec813",
+  "physical": {
+    "Schema": "public",
+    "Name": "NadpcoApiSyncStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Dataset",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSuccessfulSyncAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastOverlapFrom",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunStartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunCompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LastCompaniesConsidered",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastCompaniesEnqueued",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastFailedCompanies",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LastError",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastRunMode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Dataset"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_NadpcoApiSyncStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NadpcoApiSyncStates\" ON public.\"NadpcoApiSyncStates\" USING btree (\"Dataset\")",
+        "Columns": [
+          "Dataset"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NadpcoApiSyncStates",
+        "Type": "p",
+        "Columns": [
+          "Dataset"
+        ],
+        "Definition": "PRIMARY KEY (\"Dataset\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

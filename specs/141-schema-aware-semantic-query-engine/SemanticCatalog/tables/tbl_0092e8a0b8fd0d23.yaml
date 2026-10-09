@@ -1,0 +1,148 @@
+{
+  "id": "tbl_0092e8a0b8fd0d23",
+  "physical": {
+    "Schema": "public",
+    "Name": "Industries",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ParentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "ParentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ParentId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_Industries_ParentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Industries_ParentId\" ON public.\"Industries\" USING btree (\"ParentId\")",
+        "Columns": [
+          "ParentId"
+        ]
+      },
+      {
+        "Name": "IX_Industries_ProviderName_ExternalId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Industries_ProviderName_ExternalId\" ON public.\"Industries\" USING btree (\"ProviderName\", \"ExternalId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalId"
+        ]
+      },
+      {
+        "Name": "PK_Industries",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Industries\" ON public.\"Industries\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_Industries_Industries_ParentId",
+        "Type": "f",
+        "Columns": [
+          "ParentId"
+        ],
+        "Definition": "FOREIGN KEY (\"ParentId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_Industries",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Provider-scoped industry hierarchy.",
+    "descriptionFa": "درخت صنایع به تفکیک ارائه‌دهنده.",
+    "purpose": "Company industry classification and optional parent hierarchy.",
+    "grain": "One provider industry node.",
+    "columns": {
+      "Id": "Canonical UUID",
+      "ExternalId": "Provider industry key",
+      "Name": "Industry label",
+      "ParentId": "Optional self-reference to Industries.Id",
+      "ProviderName": "Source namespace"
+    },
+    "units": "Identifiers and labels; no financial units.",
+    "relationships": [
+      "Companies.IndustryId -> Industries.Id (physical FK)",
+      "Industries.ParentId -> Industries.Id (physical self-FK)"
+    ],
+    "metricReferences": [],
+    "providerPolicy": "Industry is source classification; do not infer SIC-like cross-provider categories.",
+    "periodSemantics": "Current reference state.",
+    "examples": [
+      "شرکت‌های یک صنعت را فهرست کن",
+      "List companies in an industry"
+    ],
+    "cautions": [
+      "IndustryGroup is a separate dimension; its relation to Industries is not physically declared."
+    ],
+    "sourceVerification": "EF Core mapping and live PostgreSQL FKs.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

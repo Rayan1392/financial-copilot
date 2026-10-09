@@ -1,0 +1,116 @@
+{
+  "id": "metric_latest_price",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "LATEST_PRICE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Latest Observed Price",
+    "Description": "Governed semantic definition for Latest Observed Price.",
+    "Category": 2,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      7
+    ],
+    "Aliases": [
+      {
+        "Expression": "latest price",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "price",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "last price",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "closing price",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "آخرین قیمت",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "قیمت",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "قیمت امروز",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "قیمت پایانی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "LATEST_PRICE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "tbl_f557b99a63e3eb92",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_user_claims",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ClaimType",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ClaimValue",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "UserId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_user_claims_UserId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_user_claims_UserId\" ON public.auth_user_claims USING btree (\"UserId\")",
+        "Columns": [
+          "UserId"
+        ]
+      },
+      {
+        "Name": "PK_auth_user_claims",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_user_claims\" ON public.auth_user_claims USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_user_claims_auth_users_UserId",
+        "Type": "f",
+        "Columns": [
+          "UserId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserId\") REFERENCES auth_users(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_auth_user_claims",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

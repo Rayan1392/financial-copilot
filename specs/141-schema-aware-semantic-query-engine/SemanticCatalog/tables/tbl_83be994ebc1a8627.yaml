@@ -1,0 +1,173 @@
+{
+  "id": "tbl_83be994ebc1a8627",
+  "physical": {
+    "Schema": "public",
+    "Name": "DerivedMetrics",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStart",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEnd",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "Value",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "WarningsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "DependencyEvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_DerivedMetrics_ExternalCompanyId_MetricCode_MetricVersion_C~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_DerivedMetrics_ExternalCompanyId_MetricCode_MetricVersion_C~\" ON public.\"DerivedMetrics\" USING btree (\"ExternalCompanyId\", \"MetricCode\", \"MetricVersion\", \"CalculationPolicyVersion\", \"PeriodEnd\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "MetricCode",
+          "MetricVersion",
+          "CalculationPolicyVersion",
+          "PeriodEnd"
+        ]
+      },
+      {
+        "Name": "PK_DerivedMetrics",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_DerivedMetrics\" ON public.\"DerivedMetrics\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_DerivedMetrics",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Versioned per-company, per-metric, per-period values with calculation policy and source/dependency evidence.",
+    "descriptionFa": "مقادیر معیار نسخه‌دار برای شرکت و دوره، همراه با سیاست محاسبه و شواهد منبع و وابستگی.",
+    "purpose": "Persisted output of the governed calculation pipeline and selected externally supplied mapped values.",
+    "grain": "ExternalCompanyId + MetricCode + MetricVersion + CalculationPolicyVersion + PeriodEnd (application upsert key).",
+    "columns": {
+      "ExternalCompanyId": "Provider-facing company identity; no Companies FK",
+      "MetricCode": "Governed metric identity",
+      "MetricVersion/CalculationPolicyVersion": "Semantic and formula versions",
+      "PeriodType/PeriodStart/PeriodEnd": "Observation period",
+      "Value/Unit": "Numeric observation and unit key",
+      "SourceEvidenceJson/DependencyEvidenceJson": "Input provenance and calculation dependencies",
+      "ObservedAt/LastSynchronizedAt": "Observation and ingestion timestamps"
+    },
+    "units": "Use Unit and Feature 015 metric definition; values include unit-dependent monetary, per-share, ratio, and percentage measures.",
+    "relationships": [
+      "No physical FK to Companies; resolve ExternalCompanyId only with matching provider context/source evidence."
+    ],
+    "metricReferences": [
+      "Feature 015 is canonical for metric identity, units, formulas, and dependencies."
+    ],
+    "providerPolicy": "CyclicalWaves statement/monthly data is normalized first and then recalculated through the provider-agnostic metric worker; it does not directly write DerivedMetrics in its normalizers. Noavaran fundamental-index mapped/vendor-precomputed values are separately normalized into DerivedMetrics with VendorPrecomputed evidence. Preserve source provenance; no provider precedence is implied.",
+    "periodSemantics": "Versioned metric observation period, not necessarily a latest-market snapshot.",
+    "examples": [
+      "مقادیر معیارهای مالی با منبع و دوره مشخص",
+      "Show a governed metric with its calculation version and evidence"
+    ],
+    "cautions": [
+      "ExternalCompanyId alone is not globally unique.",
+      "Do not recompute or reinterpret values without the registered metric/policy version."
+    ],
+    "sourceVerification": "DerivedMetricResultStore, MetricRecalculationProcessor, NoavaranFundamentalIndexNormalizer, and CyclicalWaves persistence audit.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

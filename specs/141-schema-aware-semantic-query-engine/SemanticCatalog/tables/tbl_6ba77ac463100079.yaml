@@ -1,0 +1,218 @@
+{
+  "id": "tbl_6ba77ac463100079",
+  "physical": {
+    "Schema": "public",
+    "Name": "MonthlySalesQualityRankingSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanySymbol",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryGroupId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryGroupTitle",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportYear",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportMonth",
+        "Type": "smallint",
+        "Nullable": false
+      },
+      {
+        "Name": "MonthlySalesAmount",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Avg12MonthSalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesVsAvg12MPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesMonthOverMonthPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesYearOverYearPercent",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "QualityScore",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityLabel",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ConfidenceScore",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "RankMarket",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RankIndustry",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "DimensionScoresJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "PositiveDriversJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "NegativeDriversJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "DataCoverageJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "IsEligible",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MonthlySalesQualityRankingSnapshots_PeriodIndustryRank",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlySalesQualityRankingSnapshots_PeriodIndustryRank\" ON public.\"MonthlySalesQualityRankingSnapshots\" USING btree (\"ReportYear\", \"ReportMonth\", \"IndustryId\", \"RankIndustry\")",
+        "Columns": [
+          "ReportYear",
+          "ReportMonth",
+          "IndustryId",
+          "RankIndustry"
+        ]
+      },
+      {
+        "Name": "IX_MonthlySalesQualityRankingSnapshots_PeriodMarketRank",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlySalesQualityRankingSnapshots_PeriodMarketRank\" ON public.\"MonthlySalesQualityRankingSnapshots\" USING btree (\"ReportYear\", \"ReportMonth\", \"RankMarket\")",
+        "Columns": [
+          "ReportYear",
+          "ReportMonth",
+          "RankMarket"
+        ]
+      },
+      {
+        "Name": "IX_MonthlySalesQualityRankingSnapshots_SymbolPeriod",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlySalesQualityRankingSnapshots_SymbolPeriod\" ON public.\"MonthlySalesQualityRankingSnapshots\" USING btree (\"CompanySymbol\", \"ReportYear\", \"ReportMonth\")",
+        "Columns": [
+          "CompanySymbol",
+          "ReportYear",
+          "ReportMonth"
+        ]
+      },
+      {
+        "Name": "PK_MonthlySalesQualityRankingSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MonthlySalesQualityRankingSnapshots\" ON public.\"MonthlySalesQualityRankingSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_MonthlySalesQualityRankingSnapshots_CompanyPeriod",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_MonthlySalesQualityRankingSnapshots_CompanyPeriod\" ON public.\"MonthlySalesQualityRankingSnapshots\" USING btree (\"ExternalCompanyId\", \"ReportYear\", \"ReportMonth\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "ReportYear",
+          "ReportMonth"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MonthlySalesQualityRankingSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

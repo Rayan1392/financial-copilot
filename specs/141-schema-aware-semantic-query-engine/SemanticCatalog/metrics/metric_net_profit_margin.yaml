@@ -1,0 +1,104 @@
+{
+  "id": "metric_net_profit_margin",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "NET_PROFIT_MARGIN"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Net Profit Margin",
+    "Description": "Governed semantic definition for Net Profit Margin.",
+    "Category": 0,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "net profit margin",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "حاشیه سود خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "حاشیه سود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مارجین خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مارجین سود خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT_MARGIN"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

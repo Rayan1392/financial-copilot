@@ -1,0 +1,211 @@
+{
+  "id": "tbl_6eccfbd16fd81a86",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioReports",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalReportId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStartJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PeriodEndJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PeriodStartDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "FiscalYearStartJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "FiscalYearEndJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "OriginalFileName",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "FileSha256",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawStorageKey",
+        "Type": "character varying(1024)",
+        "Nullable": false
+      },
+      {
+        "Name": "RawFileSizeBytes",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "RawMimeType",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ParseStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "SupersedesReportId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceObjectId",
+        "Type": "character varying(512)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioReports_FundId_PeriodEndDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReports_FundId_PeriodEndDate\" ON public.\"FundPortfolioReports\" USING btree (\"FundId\", \"PeriodEndDate\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReports_FundId_ProviderName_PeriodEndDate_Repo~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioReports_FundId_ProviderName_PeriodEndDate_Repo~\" ON public.\"FundPortfolioReports\" USING btree (\"FundId\", \"ProviderName\", \"PeriodEndDate\", \"ReportType\", \"SourceRevision\")",
+        "Columns": [
+          "FundId",
+          "ProviderName",
+          "PeriodEndDate",
+          "ReportType",
+          "SourceRevision"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReports_ParseStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReports_ParseStatus\" ON public.\"FundPortfolioReports\" USING btree (\"ParseStatus\")",
+        "Columns": [
+          "ParseStatus"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReports_ProviderName",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReports_ProviderName\" ON public.\"FundPortfolioReports\" USING btree (\"ProviderName\")",
+        "Columns": [
+          "ProviderName"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReports_ProviderName_FileSha256",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioReports_ProviderName_FileSha256\" ON public.\"FundPortfolioReports\" USING btree (\"ProviderName\", \"FileSha256\")",
+        "Columns": [
+          "ProviderName",
+          "FileSha256"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioReports_SourceObjectId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioReports_SourceObjectId\" ON public.\"FundPortfolioReports\" USING btree (\"SourceObjectId\")",
+        "Columns": [
+          "SourceObjectId"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioReports",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioReports\" ON public.\"FundPortfolioReports\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioReports",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

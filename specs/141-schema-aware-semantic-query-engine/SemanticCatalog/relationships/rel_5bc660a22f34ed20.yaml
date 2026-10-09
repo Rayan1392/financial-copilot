@@ -1,0 +1,28 @@
+{
+  "id": "rel_5bc660a22f34ed20",
+  "from": {
+    "schema": "public",
+    "table": "IndustryRelativeValuationCalculations",
+    "columns": [
+      "GroupId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "IndustryGroups",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

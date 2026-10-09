@@ -1,0 +1,303 @@
+{
+  "id": "tbl_9c0dc13a490141b1",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationIntents",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Channel",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EntityKey",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeduplicationKey",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "Severity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PayloadJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "NotBeforeUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "0"
+      },
+      {
+        "Name": "BatchId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "Category",
+        "Type": "character varying(128)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "'00000000-0000-0000-0000-000000000000'::uuid"
+      },
+      {
+        "Name": "CooldownKey",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "DeadLetteredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DecisionAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DecisionExplanation",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "DecisionReason",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "DeliveredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "EvidenceReference",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastErrorCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "LastErrorRedacted",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseToken",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "NextAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "PreferenceVersion",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceEventId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "SuppressedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "BatchId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationBatches",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"BatchId\") REFERENCES \"NotificationBatches\"(\"Id\") ON DELETE SET NULL"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationIntents_Actor_History",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationIntents_Actor_History\" ON public.\"NotificationIntents\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"CreatedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_NotificationIntents_BatchId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationIntents_BatchId\" ON public.\"NotificationIntents\" USING btree (\"BatchId\")",
+        "Columns": [
+          "BatchId"
+        ]
+      },
+      {
+        "Name": "IX_NotificationIntents_Cooldown",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationIntents_Cooldown\" ON public.\"NotificationIntents\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"CooldownKey\", \"DeliveredAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "CooldownKey",
+          "DeliveredAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_NotificationIntents_Due",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationIntents_Due\" ON public.\"NotificationIntents\" USING btree (\"Status\", \"NotBeforeUtc\", \"ExpiresAtUtc\")",
+        "Columns": [
+          "Status",
+          "NotBeforeUtc",
+          "ExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_NotificationIntents_RetryLease",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationIntents_RetryLease\" ON public.\"NotificationIntents\" USING btree (\"Status\", \"NextAttemptAtUtc\", \"LeaseExpiresAtUtc\")",
+        "Columns": [
+          "Status",
+          "NextAttemptAtUtc",
+          "LeaseExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_NotificationIntents",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationIntents\" ON public.\"NotificationIntents\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_NotificationIntents_Actor_Channel_Dedup",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_NotificationIntents_Actor_Channel_Dedup\" ON public.\"NotificationIntents\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Channel\", \"DeduplicationKey\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Channel",
+          "DeduplicationKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationIntents_NotificationBatches_BatchId",
+        "Type": "f",
+        "Columns": [
+          "BatchId"
+        ],
+        "Definition": "FOREIGN KEY (\"BatchId\") REFERENCES \"NotificationBatches\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "PK_NotificationIntents",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

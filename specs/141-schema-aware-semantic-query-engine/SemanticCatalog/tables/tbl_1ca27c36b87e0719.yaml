@@ -1,0 +1,111 @@
+{
+  "id": "tbl_1ca27c36b87e0719",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationOperationAudits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OperatorActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "OperatorTenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Detail",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_NotificationOperationAudits_NotificationIntentId_OccurredAt~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_NotificationOperationAudits_NotificationIntentId_OccurredAt~\" ON public.\"NotificationOperationAudits\" USING btree (\"NotificationIntentId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "NotificationIntentId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_NotificationOperationAudits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationOperationAudits\" ON public.\"NotificationOperationAudits\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_NotificationOperationAudits_NotificationIntents_Notificatio~",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_NotificationOperationAudits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

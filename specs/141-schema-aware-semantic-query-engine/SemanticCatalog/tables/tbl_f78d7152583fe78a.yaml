@@ -1,0 +1,248 @@
+{
+  "id": "tbl_f78d7152583fe78a",
+  "physical": {
+    "Schema": "public",
+    "Name": "CompanyPsGaugeSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceCompanyIsin",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservationDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "TtmPsRatio",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "ForwardPsRatio",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "GaugeClose",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BoundaryStart",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BoundaryMin",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BoundaryAverage",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BoundaryMax",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BoundaryEnd",
+        "Type": "numeric(28,14)",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketA",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketB",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketC",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketD",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketE",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketF",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "BucketTotal",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderSymbol",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "GaugeFetchedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CurrentValuesFetchedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSyncedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CompletenessStatus",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "GaugeRenderabilityStatus",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityStatus",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityWarningsJson",
+        "Type": "character varying(4096)",
+        "Nullable": false
+      },
+      {
+        "Name": "GaugePayloadHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CurrentValuesPayloadHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedSnapshotHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "FirstSeenAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "GaugeAverage",
+        "Type": "numeric(28,14)",
+        "Nullable": false,
+        "DefaultValue": "0.0"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_CompanyPsGaugeSnapshots_CompanyId_GaugeRenderabilityStatus_O",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_CompanyPsGaugeSnapshots_CompanyId_GaugeRenderabilityStatus_O\" ON public.\"CompanyPsGaugeSnapshots\" USING btree (\"CompanyId\", \"GaugeRenderabilityStatus\", \"ObservationDate\")",
+        "Columns": [
+          "CompanyId",
+          "GaugeRenderabilityStatus",
+          "ObservationDate"
+        ]
+      },
+      {
+        "Name": "IX_CompanyPsGaugeSnapshots_ProviderName_CompanyId_ObservationDa",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_CompanyPsGaugeSnapshots_ProviderName_CompanyId_ObservationDa\" ON public.\"CompanyPsGaugeSnapshots\" USING btree (\"ProviderName\", \"CompanyId\", \"ObservationDate\")",
+        "Columns": [
+          "ProviderName",
+          "CompanyId",
+          "ObservationDate"
+        ]
+      },
+      {
+        "Name": "PK_CompanyPsGaugeSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_CompanyPsGaugeSnapshots\" ON public.\"CompanyPsGaugeSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_CompanyPsGaugeSnapshots_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_CompanyPsGaugeSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "tbl_a2ba1be5cb591b17",
+  "physical": {
+    "Schema": "public",
+    "Name": "Messages",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ConversationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Role",
+        "Type": "character varying(20)",
+        "Nullable": false
+      },
+      {
+        "Name": "Content",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ScannerQueryPlanJson",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "AssistantPayloadJson",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_Messages_ConversationId_CreatedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Messages_ConversationId_CreatedAt\" ON public.\"Messages\" USING btree (\"ConversationId\", \"CreatedAt\")",
+        "Columns": [
+          "ConversationId",
+          "CreatedAt"
+        ]
+      },
+      {
+        "Name": "PK_Messages",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Messages\" ON public.\"Messages\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_Messages",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

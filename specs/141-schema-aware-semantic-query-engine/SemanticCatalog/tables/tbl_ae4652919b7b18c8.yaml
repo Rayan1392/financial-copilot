@@ -1,0 +1,99 @@
+{
+  "id": "tbl_ae4652919b7b18c8",
+  "physical": {
+    "Schema": "public",
+    "Name": "WatchlistSymbols",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Symbol",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Position",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_WatchlistSymbols_TenantId_ActorId_ActorType_Position",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_WatchlistSymbols_TenantId_ActorId_ActorType_Position\" ON public.\"WatchlistSymbols\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Position\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Position"
+        ]
+      },
+      {
+        "Name": "IX_WatchlistSymbols_TenantId_ActorId_ActorType_Symbol",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_WatchlistSymbols_TenantId_ActorId_ActorType_Symbol\" ON public.\"WatchlistSymbols\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Symbol\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Symbol"
+        ]
+      },
+      {
+        "Name": "PK_WatchlistSymbols",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_WatchlistSymbols\" ON public.\"WatchlistSymbols\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_WatchlistSymbols",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

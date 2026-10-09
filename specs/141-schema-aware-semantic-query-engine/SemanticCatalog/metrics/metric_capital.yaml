@@ -1,0 +1,69 @@
+{
+  "id": "metric_capital",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "CAPITAL"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Capital",
+    "Description": "Governed semantic definition for Capital.",
+    "Category": 5,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "capital",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "paid capital",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "سرمایه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "CAPITAL"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

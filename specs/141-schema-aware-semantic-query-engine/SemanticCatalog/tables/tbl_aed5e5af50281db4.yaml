@@ -1,0 +1,193 @@
+{
+  "id": "tbl_aed5e5af50281db4",
+  "physical": {
+    "Schema": "public",
+    "Name": "IntradayTradeSnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalSnapshotId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingTime",
+        "Type": "time without time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ClosingPrice",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "LastTradedPrice",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "PriceChange",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "PriceYesterday",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "TotalTransactions",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Volume",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "TotalCapital",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "ReceivedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IntradayTradeSnapshots_ProviderName_ExternalSnapshotId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IntradayTradeSnapshots_ProviderName_ExternalSnapshotId\" ON public.\"IntradayTradeSnapshots\" USING btree (\"ProviderName\", \"ExternalSnapshotId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalSnapshotId"
+        ]
+      },
+      {
+        "Name": "IX_IntradayTradeSnapshots_TradingInstrumentId_ReceivedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IntradayTradeSnapshots_TradingInstrumentId_ReceivedAt\" ON public.\"IntradayTradeSnapshots\" USING btree (\"TradingInstrumentId\", \"ReceivedAt\")",
+        "Columns": [
+          "TradingInstrumentId",
+          "ReceivedAt"
+        ]
+      },
+      {
+        "Name": "PK_IntradayTradeSnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IntradayTradeSnapshots\" ON public.\"IntradayTradeSnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IntradayTradeSnapshots_TradingInstruments_TradingInstrument~",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_IntradayTradeSnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Intraday instrument trade/quote observations from normalized market-data provider feeds.",
+    "descriptionFa": "مشاهدات درون‌روزی معامله و قیمت برای ابزار معاملاتی از منابع نرمال‌شده داده بازار.",
+    "purpose": "Append-oriented market snapshot history for instrument-level intraday reads.",
+    "grain": "One provider ExternalSnapshotId for one TradingInstrument at TradingDate + TradingTime; ReceivedAt records ingestion receipt.",
+    "columns": {
+      "TradingInstrumentId": "FK to TradingInstruments.Id, not Companies.Id",
+      "TradingDate/TradingTime": "Exchange-local observation date/time fields (time has no time zone)",
+      "LastTradedPrice/ClosingPrice/PriceChange/PriceYesterday": "Price fields",
+      "Volume/TotalTransactions/TotalCapital": "Market activity fields",
+      "ProviderName/ExternalSnapshotId": "Source identity",
+      "ReceivedAt": "Ingestion receipt timestamp"
+    },
+    "units": "Prices and market activity are numeric source values copied by the adapters; PostgreSQL stores no unit/scale metadata and no universal conversion is applied. Verify ProviderName and source mapping before presentation; do not combine provider scales by column name alone.",
+    "relationships": [
+      "TradingInstrumentId -> TradingInstruments.Id (physical FK)",
+      "TradingInstruments.NormalizedCompanyId -> Companies.Id is optional; no direct company FK."
+    ],
+    "metricReferences": [
+      "Existing market quote projection owns latest-price semantics."
+    ],
+    "providerPolicy": "ProviderName and ExternalSnapshotId identify each source row. The direct TSETMC adapter persists TSE TradeLastDay observations; StockMarketDB is a separate ingestion path. Repository worker defaults enable TSETMC polling and disable StockMarketDB polling, but deployment overrides/current runtime state are not certified here.",
+    "periodSemantics": "Intraday point observations; trading date/time are not UTC timestamps. ReceivedAt is a separate timestamp with time zone.",
+    "examples": [
+      "آخرین قیمت ثبت‌شده درون‌روزی نماد",
+      "Show intraday price snapshots for an instrument"
+    ],
+    "cautions": [
+      "Polling gaps, retention, and market calendar affect completeness.",
+      "MAX(TradingDate/TradingTime) does not prove a complete/current market feed."
+    ],
+    "sourceVerification": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings, worker defaults, live PostgreSQL FK/type metadata.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

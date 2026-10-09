@@ -24,6 +24,20 @@ public sealed class CanonicalQueryEntityResolverTests
     }
 
     [Fact]
+    public async Task NewlyPersistedCompany_IsDiscoverableWithoutResolverRegistryChanges()
+    {
+        await using var db = CreateDb();
+        var resolver = CreateResolver(db);
+        Assert.IsType<EntityResolutionResult.NotFound>(await resolver.ResolveMentionAsync("fresh-company"));
+
+        var company = AddCompany(db, "NEWCO", "Fresh Company", "fresh-company");
+        await db.SaveChangesAsync();
+
+        var result = Assert.IsType<EntityResolutionResult.Resolved>(await resolver.ResolveMentionAsync("fresh-company"));
+        Assert.Equal(company.Id, result.Entity.CanonicalId);
+    }
+
+    [Fact]
     public async Task ExactKegahrTicker_ResolvesDeterministically()
     {
         await using var db = CreateDb();

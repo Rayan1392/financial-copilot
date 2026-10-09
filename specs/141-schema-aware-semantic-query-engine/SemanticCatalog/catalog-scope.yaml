@@ -1,0 +1,2001 @@
+{
+  "generatedFrom": "live PostgreSQL metadata, EF Core reconciliation, application source, and owner-supplied definitions",
+  "liveVerified": true,
+  "includedCandidates": [
+    {
+      "table": "public.Companies",
+      "id": "tbl_8646d83cdb350f92",
+      "purpose": "Company identity and Novaran-sourced company dimensions; use the canonical UUID Id for supported relational joins.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider/company identity row; ProviderName + ExternalCompanyId is unique in the live schema.",
+      "sourcePolicy": "Business-owner-confirmed lineage: TSETMC -> Novaran Amin -> Novaran API -> Financial Copilot Companies. ProviderName distinguishes source namespaces and ExternalCompanyId is scoped to that provider. Do not join companies to TSETMC instruments by ticker/name; use only the explicit optional NormalizedCompanyId mapping and retain unresolved or ambiguous state.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "PostgreSQL/EF Core mapping and Noavaran API normalizer; lineage confirmed by product owner. Current instrument-code resolver behavior is separately documented under TradingInstruments."
+    },
+    {
+      "table": "public.TradingInstruments",
+      "id": "tbl_45c7c30ce87b0cf0",
+      "purpose": "Resolve TSETMC instrument identifiers for market observations and optionally link an instrument to a canonical Companies.Id when the application mapping resolves it.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider + ExternalInstrumentId row; ProviderName + ExternalInstrumentId and ProviderName + InstrumentCode are unique in PostgreSQL.",
+      "sourcePolicy": "Product-owner-confirmed historical lineage: TSETMC -> direct TSETMC ingestion / historical migration -> Financial Copilot TradingInstruments. Current code also registers TsetmcDirectFeedSyncService; TsetmcPollingWorker schedules instrument sync at end of day when its worker flag and adapter operational settings are enabled. StockMarketDbSyncService currently reads its instrument dataset but deliberately does not write TradingInstruments. ProviderName must be retained.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "Live read-only PostgreSQL pg_catalog snapshot and EF Core model; TsetmcDirectFeedSyncService, TsetmcPollingWorker, StockMarketDbSyncService, and provider DTO mappings; historical lineage confirmed by product owner."
+    },
+    {
+      "table": "public.Markets",
+      "id": "tbl_c03e3950d24db6ed",
+      "purpose": "Label a company’s market through Companies.MarketId.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider market row.",
+      "sourcePolicy": "Keep provider provenance for external identifiers.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF Core mapping and live PostgreSQL FK."
+    },
+    {
+      "table": "public.Industries",
+      "id": "tbl_0092e8a0b8fd0d23",
+      "purpose": "Company industry classification and optional parent hierarchy.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider industry node.",
+      "sourcePolicy": "Industry is source classification; do not infer SIC-like cross-provider categories.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF Core mapping and live PostgreSQL FKs."
+    },
+    {
+      "table": "public.IndustryGroups",
+      "id": "tbl_10269adb269eff70",
+      "purpose": "Group label reached from Companies.GroupId.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider industry-group row.",
+      "sourcePolicy": "No direct FK from IndustryGroups to Industries is present.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF Core mapping and live PostgreSQL FK inventory."
+    },
+    {
+      "table": "public.MonthlyReports",
+      "id": "tbl_8e759d70dada6bd8",
+      "purpose": "Owns provider/report identity and accepted revision policy for monthly line items.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider + external company + logical period + report type/output type + revision; accepted logical-period uniqueness is indexed.",
+      "sourcePolicy": "Filter provider and accepted logical revision. NoavaranCurrentApi monthly actuals use ProductSales/OutputType=0 for the governed single-month source; service route is distinct. CyclicalWaves is a separate provider and must not be merged by external ID alone.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "Live PostgreSQL schema/indexes, Noavaran route client, monthly normalizers, and Feature 136 revision policy."
+    },
+    {
+      "table": "public.MonthlyReportLineItems",
+      "id": "tbl_8ecd0432a4292998",
+      "purpose": "Persist production, sales quantity, sales amount, and provider-reported sales rate at source-line grain.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider report source row/fingerprint, retaining company/provider product identity and multiplicity.",
+      "sourcePolicy": "Use accepted header with the matching provider, report type and output type. Never merge products by title across companies/providers.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF Core mappings, live PostgreSQL schema, normalizer source, and persisted trend contract; million-IRR scale also supplied by business owner."
+    },
+    {
+      "table": "public.FinancialStatements",
+      "id": "tbl_53d51e26e1ca6929",
+      "purpose": "Groups normalized statement line items by company, statement type, and fiscal period.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider statement identity and period; provider-specific logical revisions may coexist.",
+      "sourcePolicy": "No global provider precedence rule is implemented. NoavaranCurrentApi fetches BalanceSheet, IncomeStatement, and CashFlow endpoint families; CyclicalWaves normalizes quarterly income statement fields only; CodalDb selects one variant per (PeriodEnd.Date, PeriodType), ordered IsAudited=true first, then IsRepresented=true (Restated) first, then IsComposing=true by default (or false when preferConsolidated=false), then StmtId ascending. Provider is distinct from selected statement revision; explicitly select provider and preserve provenance.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "Live PostgreSQL schema; Noavaran client; CyclicalWaves and CodalDb normalizers; CodalDb statement-selection policy."
+    },
+    {
+      "table": "public.FinancialStatementSourceItems",
+      "id": "tbl_36036602dbf76362",
+      "purpose": "Provides canonical catalog IDs for line items and mappings to governed metric codes.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider + statement type + provider SourceItemId definition.",
+      "sourcePolicy": "Never join by SourceItemId alone across providers; join by catalog UUID or provider + source key.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF Core mappings, live PostgreSQL FK inventory, and normalizer/metric mapping code."
+    },
+    {
+      "table": "public.FinancialStatementLineItems",
+      "id": "tbl_4f2ef2d8dd59b46a",
+      "purpose": "Stores statement-level metric observations before governed derived-metric recalculation.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One FinancialStatementId + MetricCode observation in application logic.",
+      "sourcePolicy": "Provider-specific normalization and selection only; do not coalesce duplicate provider values without the existing selection rules.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "Live PostgreSQL/EF reconciliation, Feature 015 registry, provider normalizers."
+    },
+    {
+      "table": "public.FinancialStatementSourceItemMetricMappings",
+      "id": "tbl_a7c77d65fb2aaea2",
+      "purpose": "Connects provider-specific line items to the normalized financial metric registry.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One source-item catalog UUID to one metric mapping; EF declares SourceItemCatalogId unique.",
+      "sourcePolicy": "Source item catalog identity is provider-specific; mapping is not evidence of provider precedence.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF configuration, live PostgreSQL FK, and metric registry."
+    },
+    {
+      "table": "public.DerivedMetrics",
+      "id": "tbl_83be994ebc1a8627",
+      "purpose": "Persisted output of the governed calculation pipeline and selected externally supplied mapped values.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "ExternalCompanyId + MetricCode + MetricVersion + CalculationPolicyVersion + PeriodEnd (application upsert key).",
+      "sourcePolicy": "CyclicalWaves statement/monthly data is normalized first and then recalculated through the provider-agnostic metric worker; it does not directly write DerivedMetrics in its normalizers. Noavaran fundamental-index mapped/vendor-precomputed values are separately normalized into DerivedMetrics with VendorPrecomputed evidence. Preserve source provenance; no provider precedence is implied.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "DerivedMetricResultStore, MetricRecalculationProcessor, NoavaranFundamentalIndexNormalizer, and CyclicalWaves persistence audit."
+    },
+    {
+      "table": "public.CompanyIndustryRelativeValuations",
+      "id": "tbl_ca0643d8942492ab",
+      "purpose": "Persist a governed valuation calculation snapshot and its source-observation provenance.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One company per IndustryRelativeValuationCalculations.CalculationId; ranking is scoped to that calculation/version.",
+      "sourcePolicy": "Consume complete calculation snapshot and its source provenance; canonical provider membership and source fact identity/freshness are enforced by Feature 125 calculation orchestration. A valid IQR outlier is excluded from the benchmark and is Unclassifiable; do not recompute GlobalRank.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "EF/live FKs and Feature 125 IndustryRelativeValuationEngine IQR-R7-1.5-v1, calculation input builder, snapshot writer, and orchestration."
+    },
+    {
+      "table": "public.CompanyMonthlyActivityTrendSnapshots",
+      "id": "tbl_4f3dd93b63d1766f",
+      "purpose": "Chart-ready monthly production/sales trend responses; the AI path reads snapshots instead of aggregating raw line items at request time.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "Company external identity + report year/month and governed output-type selections.",
+      "sourcePolicy": "Respect SourceProviderName, output-type fields, data completeness, and existing specialized response policy.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "Trend snapshot contracts/calculator/query path and README monetary conversion policy."
+    },
+    {
+      "table": "public.IntradayTradeSnapshots",
+      "id": "tbl_aed5e5af50281db4",
+      "purpose": "Append-oriented market snapshot history for instrument-level intraday reads.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One provider ExternalSnapshotId for one TradingInstrument at TradingDate + TradingTime; ReceivedAt records ingestion receipt.",
+      "sourcePolicy": "ProviderName and ExternalSnapshotId identify each source row. The direct TSETMC adapter persists TSE TradeLastDay observations; StockMarketDB is a separate ingestion path. Repository worker defaults enable TSETMC polling and disable StockMarketDB polling, but deployment overrides/current runtime state are not certified here.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings, worker defaults, live PostgreSQL FK/type metadata."
+    },
+    {
+      "table": "public.DailyInstrumentTrades",
+      "id": "tbl_b5b50f52c60bb568",
+      "purpose": "Daily historical observations distinct from intraday snapshots.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "TradingInstrument + TradingDate under provider daily-trade identity policy.",
+      "sourcePolicy": "ProviderName and ExternalTradeId identify the normalized row. The direct TSETMC adapter uses daily trade history; StockMarketDB has a distinct TradeRefined path. Retain source provenance and avoid cross-provider deduplication by date/instrument alone.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata."
+    },
+    {
+      "table": "public.IntradayIndexSnapshots",
+      "id": "tbl_8e1835aff483a0f4",
+      "purpose": "Intraday index series; the instrument table defines index identity.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "Provider ExternalSnapshotId per TradingInstrumentId and TradingDate/TradingTime.",
+      "sourcePolicy": "ProviderName and ExternalSnapshotId identify each observation. Direct TSETMC and StockMarketDB index adapters are separate sources; repository worker defaults enable TSETMC polling and disable StockMarketDB polling, subject to deployment overrides.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata."
+    },
+    {
+      "table": "public.DailyIndexSnapshots",
+      "id": "tbl_5202a05755e60181",
+      "purpose": "Daily historical index levels and close-derived observations.",
+      "classification": "public financial reference or observation data",
+      "rowOwnership": "One TradingInstrumentId + TradingDate observation per provider policy.",
+      "sourcePolicy": "ProviderName and SourceKind distinguish source history and derived rows. Direct TSETMC and StockMarketDB daily-index adapters are separate sources; retain SourceKind and source lineage, and do not merge by instrument/date alone.",
+      "owner": "Financial data domain",
+      "queryable": false,
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false
+      },
+      "status": "candidate-pending-review",
+      "evidence": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata."
+    }
+  ],
+  "excludedByDefault": [
+    {
+      "physical": "public.AlertRuleEvaluationStates",
+      "id": "tbl_b278ebfd08e45a80",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.AlertRuleTriggers",
+      "id": "tbl_08ee8b6125051817",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.AlertRules",
+      "id": "tbl_e7b2c44e5f552c00",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ArchiveFreezeStates",
+      "id": "tbl_9296a2377b15cdf6",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ArchiveImportRuns",
+      "id": "tbl_79523f50acd63dd8",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CodalAlertSubscriptions",
+      "id": "tbl_b89e78627832b88a",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CodalAlertSummaries",
+      "id": "tbl_31c5cc5283a9ab11",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CodalDbSyncStates",
+      "id": "tbl_243540840e91704f",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CompanyProductRevenueMix",
+      "id": "tbl_f6e5b6c7608d2be2",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CompanyPsGaugeSnapshots",
+      "id": "tbl_f78d7152583fe78a",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CompanyPsHistoryPoints",
+      "id": "tbl_36023aac37727344",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CompanyPsSeriesSyncStates",
+      "id": "tbl_b3a6eed88ff0f8d6",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CompanyPsVisualizationLeases",
+      "id": "tbl_85290aa190b5452e",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ComprehensiveAnalyses",
+      "id": "tbl_d9c0b87121d6594e",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ComprehensiveAnalysisCategories",
+      "id": "tbl_9f0b6e7b509ce9fc",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ComprehensiveAnalysisSyncLogs",
+      "id": "tbl_93598e7242488002",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ComprehensiveAnalysisTags",
+      "id": "tbl_607c41a28b4773c5",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ConversationTaskStates",
+      "id": "tbl_059dcb197fca24ba",
+      "mappedContexts": [
+        "ConversationDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.Conversations",
+      "id": "tbl_3d3fb84c7736c89d",
+      "mappedContexts": [
+        "ConversationDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CyclicalWavesAcquisitionChecks",
+      "id": "tbl_2bb52d485c7ebf57",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.CyclicalWavesMetricSnapshots",
+      "id": "tbl_2fb685aa761349e2",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.DynamicMetricAliases",
+      "id": "tbl_0c3a4ef601dd6dce",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.Feature126EventStreams",
+      "id": "tbl_ec69a81a38ed9e17",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.Feature126Events",
+      "id": "tbl_4632715a2e936043",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FeatureComputationJobs",
+      "id": "tbl_d0ac47b7aebcb40e",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FeatureDefinitions",
+      "id": "tbl_d1ddf8051d8886f2",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FeatureSnapshots",
+      "id": "tbl_bd3025a21a57da12",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FinancialMetricDefinitions",
+      "id": "tbl_0c13b29cf9a51ac3",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FollowedSymbols",
+      "id": "tbl_b8acf2cb62be277d",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundAssetAllocationSnapshots",
+      "id": "tbl_0922683ffda7f9c3",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundBankDepositPositions",
+      "id": "tbl_c9a0592d2d48cbbd",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundCommodityCertificatePositions",
+      "id": "tbl_e9161701c9ea1e98",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundCommodityIncomeDetails",
+      "id": "tbl_cbe722292eb64db7",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundDepositIncomeDetails",
+      "id": "tbl_d37e6db1d6fc7776",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundDerivativePositions",
+      "id": "tbl_9cd5e3c4801282f3",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundDividendIncomeDetails",
+      "id": "tbl_736affab6b01192a",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundEquityPeriodActivities",
+      "id": "tbl_6fe63dc1b8b4b227",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundEquityPositionSnapshots",
+      "id": "tbl_579cba8d3bc2fd17",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundEquitySectionTotals",
+      "id": "tbl_5a2cabee72344ed2",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundInvestmentIncomeSummaries",
+      "id": "tbl_dd6c6c1ebccca461",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioAnalyticsSnapshots",
+      "id": "tbl_78f74a69fb1b5cf1",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioExtractionIssues",
+      "id": "tbl_d880ed9b534a333f",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioGovernedMappings",
+      "id": "tbl_521bd48b4df6eae1",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioImportItems",
+      "id": "tbl_d228dcfb74e6ddb8",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioImportRuns",
+      "id": "tbl_fcf96af10bc419d0",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioMappingReviews",
+      "id": "tbl_86c049cdb6d52ffe",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioOperationAudits",
+      "id": "tbl_35c60ebdadbc79de",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioReportSheets",
+      "id": "tbl_bfdd39abfe123de9",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioReportStatusHistory",
+      "id": "tbl_a57389899167416f",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioReports",
+      "id": "tbl_6eccfbd16fd81a86",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioSignals",
+      "id": "tbl_6e663ef22a071a7a",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioSourceTraces",
+      "id": "tbl_806c73129b014e72",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioSourceWatermarks",
+      "id": "tbl_074c5cefdce5866c",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundPortfolioValuationQualitySnapshots",
+      "id": "tbl_299236ab841fcf63",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundSecurityIncomeAttributions",
+      "id": "tbl_c1989b6628187d3e",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundValuationAdjustments",
+      "id": "tbl_254d2269f182c894",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.FundamentalIndexCatchUpRuns",
+      "id": "tbl_7a5a2e8f32a82e87",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryRelativeValuationCalculations",
+      "id": "tbl_ff53c54d44eb8bea",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryRelativeValuationMetrics",
+      "id": "tbl_7d7200fe1a317757",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryRelativeValuationOutbox",
+      "id": "tbl_802c00d954722d30",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryRelativeValuationSourceFacts",
+      "id": "tbl_d512447a19cff471",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryRelativeValuationSourceLeases",
+      "id": "tbl_ed7fbacd39171bc0",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryWatchEvaluations",
+      "id": "tbl_e9e9540c69c705a0",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryWatchStates",
+      "id": "tbl_3debf890cf210c2a",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.IndustryWatchTransitions",
+      "id": "tbl_36d4b4ed5573791a",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.InsightEvents",
+      "id": "tbl_6b3df226748c093e",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.InvestmentFunds",
+      "id": "tbl_4a5ba78bce5821cc",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.LatestMarketQuotes",
+      "id": "tbl_695e4cf5d4e4e3ac",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MarketPulseSnapshots",
+      "id": "tbl_05e138ea8302a28c",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MarketQuoteMismatches",
+      "id": "tbl_73383fe5570694cb",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MarketReports",
+      "id": "tbl_c84a5d06d4893256",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MemoryAuditEvents",
+      "id": "tbl_e395e693366c3bb8",
+      "mappedContexts": [
+        "MemoryDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MemoryConsentPolicies",
+      "id": "tbl_2daa933f14c08d24",
+      "mappedContexts": [
+        "MemoryDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MemoryRecords",
+      "id": "tbl_013900877910e909",
+      "mappedContexts": [
+        "MemoryDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.Messages",
+      "id": "tbl_a2ba1be5cb591b17",
+      "mappedContexts": [
+        "ConversationDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricAliasCandidates",
+      "id": "tbl_6205cf7f8b9c9fa9",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricAliases",
+      "id": "tbl_94ad2a65bb6074e6",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricCalculationPolicies",
+      "id": "tbl_03fcffb63bb6271e",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricDependencies",
+      "id": "tbl_1a74c92054c2e65c",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricPeriodAliases",
+      "id": "tbl_1538138345249bde",
+      "mappedContexts": [
+        "SemanticCatalogDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MetricRecalculationRequests",
+      "id": "tbl_38f8b68fbe5c38d1",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MissingAnswerFeedbacks",
+      "id": "tbl_2265272df2fda63b",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MonthlyActivityBackfillBatches",
+      "id": "tbl_3574e9a7b6b88039",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MonthlyActivityBackfillOutbox",
+      "id": "tbl_1f8a0703cf812d51",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MonthlyActivityBackfillStates",
+      "id": "tbl_c8b7c8583687341b",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.MonthlySalesQualityRankingSnapshots",
+      "id": "tbl_6ba77ac463100079",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NadpcoApiSyncStates",
+      "id": "tbl_40e574a6c28ec813",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NadpcoFundamentalIndexObservations",
+      "id": "tbl_244838cf19fa3839",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NadpcoScheduledSyncRuns",
+      "id": "tbl_4ccdd6de23bfb5aa",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationBatches",
+      "id": "tbl_f70345a79b3c82bf",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationCategoryPreferences",
+      "id": "tbl_389fc12ce1b57892",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationDeliveryAttempts",
+      "id": "tbl_b11f53bd3c528f72",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationIntents",
+      "id": "tbl_9c0dc13a490141b1",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationOperationAudits",
+      "id": "tbl_1ca27c36b87e0719",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationOutcomeHandoffs",
+      "id": "tbl_671b8044976f60ed",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationPreferenceAudits",
+      "id": "tbl_a365336194989511",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationPreferences",
+      "id": "tbl_95dd6f8ebfa88b62",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.NotificationSymbolPreferences",
+      "id": "tbl_84113fabcd33a15c",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ProviderRawPayloads",
+      "id": "tbl_96850226eb472cf9",
+      "mappedContexts": [
+        "FinancialProviderDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.ProviderSyncRuns",
+      "id": "tbl_4dad576ed069c546",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.RadarEventMatches",
+      "id": "tbl_829ba9f101046a78",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.RadarPreferenceAudits",
+      "id": "tbl_18ebaa2f55beaf0c",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.RadarProfiles",
+      "id": "tbl_8d57c84f23ff86b6",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.RadarSymbolOverrides",
+      "id": "tbl_9a5e727342c4fe95",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.SavedFilters",
+      "id": "tbl_866420bcd18b5e3e",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.StockMarketSyncStates",
+      "id": "tbl_e76fc33f7119b314",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.TradingInstruments",
+      "id": "tbl_45c7c30ce87b0cf0",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.UserAlertDeliveryTimeline",
+      "id": "tbl_3f4c9f009a2253d9",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.UserAlertReactionSnapshots",
+      "id": "tbl_a0f48e76de2d0d94",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.UserAlertRecords",
+      "id": "tbl_9881dde7a4f6ad9d",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.UserInsightStates",
+      "id": "tbl_65968c6c943f5935",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.WatchlistSymbols",
+      "id": "tbl_ae4652919b7b18c8",
+      "mappedContexts": [
+        "FinancialIngestionDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_permissions",
+      "id": "tbl_386b44b2352458c8",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_refresh_tokens",
+      "id": "tbl_5ae90895bdd21bd5",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_role_claims",
+      "id": "tbl_950e4f147386c7c3",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_role_permissions",
+      "id": "tbl_09b39938f37dc464",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_roles",
+      "id": "tbl_5a1c5d65221aaf37",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_security_admin_audits",
+      "id": "tbl_880da91c63bbbd6f",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_account_links",
+      "id": "tbl_f65991870a04efec",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_channel_membership_verifications",
+      "id": "tbl_79b189c5ac683252",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_conversation_bindings",
+      "id": "tbl_e0e43c108b41b584",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_link_audits",
+      "id": "tbl_15787b93472ef448",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_link_tokens",
+      "id": "tbl_d68da72959856f0e",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_membership_revalidations",
+      "id": "tbl_9fedf658d16ac889",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_telegram_processed_updates",
+      "id": "tbl_ca13db9a5e329440",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_tenants",
+      "id": "tbl_e33cb7a843e9637a",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_user_claims",
+      "id": "tbl_f557b99a63e3eb92",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_user_logins",
+      "id": "tbl_cc5b98c58de0fa25",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_user_roles",
+      "id": "tbl_bf933221d84e72db",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_user_tenants",
+      "id": "tbl_25dae1bbebfe8f97",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_user_tokens",
+      "id": "tbl_7a983e1088f2e679",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.auth_users",
+      "id": "tbl_e0fed0f262eb20e9",
+      "mappedContexts": [
+        "AuthDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_admin_audits",
+      "id": "tbl_a949c8a65400eb45",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_checkout_intents",
+      "id": "tbl_fbb1a80f9494622e",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_customer_accounts",
+      "id": "tbl_e5000e89a6337454",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_daily_free_allowance_grants",
+      "id": "tbl_0fdc848316fe6a5d",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_financial_transactions",
+      "id": "tbl_f7e221119b0d1ad2",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_invoice_accounts",
+      "id": "tbl_c89942dadeaca638",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_outbox_messages",
+      "id": "tbl_8914b23652d9f348",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_plan_capabilities",
+      "id": "tbl_0b35d055f59059b2",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_purchase_products",
+      "id": "tbl_b42f1ae6c0ee8a15",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_subscription_plans",
+      "id": "tbl_42fef2c8840c89b4",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_usage_ledger_entries",
+      "id": "tbl_2a733a37ed76aa5f",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_usage_reservations",
+      "id": "tbl_eaf6498bebc401ed",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    },
+    {
+      "physical": "public.billing_wallet_projections",
+      "id": "tbl_1dd3a3ee93aebbc6",
+      "mappedContexts": [
+        "BillingDbContext"
+      ],
+      "queryable": false,
+      "reason": "Not in the approved Phase 1 candidate surface; metadata-only inventory, no business rows exposed."
+    }
+  ],
+  "dataPolicy": {
+    "rowDataAccess": "limited bounded profile only",
+    "defaultRuntimeQuerying": false,
+    "allowlistRequired": true,
+    "secretData": "excluded"
+  },
+  "reason": "All listed candidates are unapproved and non-queryable until owner review of physical relationships, semantics, provider/report filters, units and identity policy.",
+  "businessDefinitions": {
+    "reportingTypeMappingSource": "Business-owner supplied definitions; labels are not inferred from integer codes.",
+    "reportingTypes": [
+      {
+        "code": 1000000,
+        "persian": "تولیدی",
+        "english": "Manufacturing",
+        "route": "ProductSales v2",
+        "verified": true
+      },
+      {
+        "code": 1000001,
+        "persian": "ساختمانی",
+        "english": "Construction",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000002,
+        "persian": "سرمایه‌گذاری",
+        "english": "Investment",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000003,
+        "persian": "بانکی",
+        "english": "Banking",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000004,
+        "persian": "لیزینگی",
+        "english": "Leasing",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000005,
+        "persian": "خدماتی",
+        "english": "Services",
+        "route": "ServiceSales v3",
+        "verified": true
+      },
+      {
+        "code": 1000006,
+        "persian": "بیمه‌ای",
+        "english": "Insurance",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000007,
+        "persian": "حمل و نقل دریایی",
+        "english": "Maritime Transportation",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      },
+      {
+        "code": 1000008,
+        "persian": "کشاورزی",
+        "english": "Agriculture",
+        "route": "ProductSales v2",
+        "verified": true
+      },
+      {
+        "code": 1000009,
+        "persian": "تأمین سرمایه",
+        "english": "Investment Banking",
+        "route": "Unsupported: no verified monthly endpoint",
+        "verified": true
+      }
+    ],
+    "salesAmountUnit": {
+      "value": "million IRR",
+      "source": "Business-owner supplied definition corroborated by persisted monthly trend contract",
+      "status": "verified-with-owner-supplied-definition"
+    },
+    "salesRate": {
+      "expression": "SalesAmount / SalesQuantity",
+      "unit": "million IRR per source quantity unit",
+      "policy": "Do not recalculate if quantity is null/zero or when the provider rate is authoritative; preserve negative source values and report quality separately."
+    },
+    "financialStatementFlags": [
+      {
+        "field": "IsAudited",
+        "persian": "حسابرسی‌شده",
+        "english": "Audited Financial Statement",
+        "trueMeans": "Audited",
+        "falseMeans": "Unaudited",
+        "provenance": "business-owner-confirmed",
+        "status": "confirmed"
+      },
+      {
+        "field": "IsRepresented",
+        "persian": "تجدید ارائه‌شده",
+        "english": "Restated Financial Statement",
+        "trueMeans": "Restated",
+        "falseMeans": "Not restated",
+        "provenance": "business-owner-confirmed",
+        "status": "confirmed"
+      },
+      {
+        "field": "IsComposing",
+        "persian": "تلفیقی",
+        "english": "Consolidated Financial Statement",
+        "trueMeans": "Consolidated financial statement",
+        "falseMeans": "Parent-company / separate financial statement",
+        "provenance": "business-owner-confirmed",
+        "status": "confirmed"
+      }
+    ]
+  },
+  "monthlyReportProviderRoutes": {
+    "source": "NoavaranMonthlyReportTypeResolver and NadpcoApiDataProviderClient",
+    "minimumShamsiYear": 1404,
+    "routes": [
+      {
+        "reportingType": 1000000,
+        "companyType": "Manufacturing",
+        "service": "api/v2/MonthlyActivity/ProductSales",
+        "outputTypes": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "monthlyActualPolicy": "OutputType=0"
+      },
+      {
+        "reportingType": 1000005,
+        "companyType": "Services",
+        "service": "api/v3/MonthlyActivity/ServiceSales",
+        "outputTypes": [
+          null
+        ]
+      },
+      {
+        "reportingType": 1000008,
+        "companyType": "Agriculture",
+        "service": "api/v2/MonthlyActivity/ProductSales",
+        "outputTypes": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "monthlyActualPolicy": "OutputType=0"
+      }
+    ],
+    "unsupportedReportingTypes": [
+      1000001,
+      1000002,
+      1000003,
+      1000004,
+      1000006,
+      1000007,
+      1000009
+    ],
+    "coverageCaveat": "A configured route proves code support, not that every company/month has returned and persisted rows. ProductSales fetches output types independently; service does not probe product endpoint. A failed type-0 fetch is not reclassified as a service company."
+  },
+  "financialStatementProviderPolicy": {
+    "precedence": "No global provider precedence is implemented or asserted.",
+    "NoavaranCurrentApi": "Fetches BalanceSheet, IncomeStatement, and CashFlow values through separate api/v2/FS/*/Values endpoint families; statement selection is parameterized by configured year/period/audited/represented/composing filters.",
+    "CyclicalWaves": "Persian ticker detail normalizes quarterly IncomeStatement only (Q0/Q1/Q4 relative periods) with stale-date warnings; it supplies selected PE/PS and average values as precomputed source line items, then Feature 015 recalculation persists derived metrics.",
+    "CodalDb": "Codal source-item normalizers plus CodalDbStatementSelectionPolicy govern source-row normalization and statement selection. Within each (PeriodEnd.Date, PeriodType) group it orders IsAudited=true first, then IsRepresented=true, then IsComposing=true by default (preferConsolidated=true), then StmtId ascending; this is not a global provider precedence rule. Do not merge provider rows without selecting provider.",
+    "restatement": "IsRepresented=true means Restated and false means Not restated, provenance business-owner-confirmed; the physical column remains IsRepresented and provider/revision identity is separate.",
+    "consolidation": "IsComposing=true means consolidated and false means parent-company/separate, provenance business-owner-confirmed. This generic-path definition does not change provider-specific selection behavior."
+  },
+  "relationshipsAndGaps": [
+    "Physical FK: Companies -> Markets, Industries, IndustryGroups; Industries.ParentId -> Industries.Id.",
+    "Physical FK: MonthlyReports.CompanyId -> Companies.Id; ExternalCompanyId is a provider-scoped text key. MonthlyReportLineItems.MonthlyReportId -> MonthlyReports.Id is not enforced by a live FK.",
+    "Physical FK: FinancialStatements.CompanyId -> Companies.Id; FinancialStatementLineItems.FinancialStatementId -> FinancialStatements.Id is not enforced by a live FK in the captured PostgreSQL schema; SourceItemCatalogId does have an FK.",
+    "Physical FK: SourceItemMetricMappings.SourceItemCatalogId -> FinancialStatementSourceItems.Id.",
+    "Physical FK: CompanyIndustryRelativeValuations.CompanyId -> Companies.Id and CalculationId -> IndustryRelativeValuationCalculations.Id.",
+    "Physical FK verified in PostgreSQL and EF: IntradayTradeSnapshots.TradingInstrumentId -> TradingInstruments.Id; required, ON DELETE CASCADE.",
+    "Physical FK verified in PostgreSQL and EF: DailyInstrumentTrades.TradingInstrumentId -> TradingInstruments.Id; required, ON DELETE CASCADE.",
+    "Physical FK verified in PostgreSQL and EF: IntradayIndexSnapshots.TradingInstrumentId -> TradingInstruments.Id; required, ON DELETE CASCADE.",
+    "Physical FK verified in PostgreSQL and EF: DailyIndexSnapshots.TradingInstrumentId -> TradingInstruments.Id; required, ON DELETE CASCADE.",
+    "Physical FK verified in PostgreSQL and EF: TradingInstruments.NormalizedCompanyId -> Companies.Id; optional, non-unique, ON DELETE SET NULL.",
+    "TSETMC application mapping matches source InsCode text to Companies.InstrumentCode, then selects latest LastSynchronizedAt and Id; it does not filter Company.ProviderName and Companies.InstrumentCode is not unique. Treat the resulting link as potentially ambiguous/cross-provider; missing links remain null.",
+    "DerivedMetrics and CompanyMonthlyActivityTrendSnapshots use ExternalCompanyId without a Companies FK; do not join globally without provider identity.",
+    "FinancialStatementLineItems(FinancialStatementId, MetricCode) differs between EF uniqueness and live PostgreSQL index; resolve drift before exposing that grain."
+  ],
+  "additionalDataSources": [
+    {
+      "id": "src_nadpco_company_fundamental_index_values",
+      "kind": "external-provider-endpoint",
+      "semanticApproval": {
+        "state": "candidate-pending-review",
+        "approved": false
+      },
+      "queryAuthorization": {
+        "state": "not-approved",
+        "runtimeQueryable": false,
+        "reason": "External endpoint is not a PostgreSQL table."
+      },
+      "provider": "NoavaranCurrentApi",
+      "physicalIdentity": "POST api/v2/CompanyFundamentalIndex/Values",
+      "sourceDataset": "FundamentalIndexes",
+      "rawPersistence": "ProviderRawPayloads (FinancialProviderDbContext), keyed idempotently by ProviderName + Checksum; stores endpoint, ExternalReference, payload, checksum, ReceivedAt.",
+      "normalizedPersistence": "NadpcoApiFundamentalIndexNormalizer -> DerivedMetrics for scale-verified mapped indexes; it selects canonical variants, prefers audited then non-represented then composing and latest announcement/source ID, and preserves VendorPrecomputed source evidence.",
+      "notACompanyTable": true,
+      "queryable": false,
+      "status": "candidate-pending-review"
+    }
+  ],
+  "proposedApprovedReadScope": {
+    "objects": [
+      "public.Companies",
+      "public.TradingInstruments",
+      "public.Markets",
+      "public.Industries",
+      "public.IndustryGroups",
+      "public.MonthlyReports",
+      "public.MonthlyReportLineItems",
+      "public.FinancialStatements",
+      "public.FinancialStatementSourceItems",
+      "public.FinancialStatementLineItems",
+      "public.FinancialStatementSourceItemMetricMappings",
+      "public.DerivedMetrics",
+      "public.CompanyIndustryRelativeValuations",
+      "public.CompanyMonthlyActivityTrendSnapshots",
+      "public.IntradayTradeSnapshots",
+      "public.DailyInstrumentTrades",
+      "public.IntradayIndexSnapshots",
+      "public.DailyIndexSnapshots"
+    ],
+    "externalSources": [
+      "src_nadpco_company_fundamental_index_values"
+    ],
+    "status": "proposal-pending-human-approval",
+    "queryable": false,
+    "preferredAccess": "Governed Feature 015 metric/read services and existing Feature 076/077/136 monthly-trend projections; do not expose raw tables where provider, accepted-revision, units, or calculation policy would be bypassed.",
+    "excludedDomains": [
+      "billing",
+      "identity",
+      "notifications",
+      "operational sync state",
+      "raw payload content"
+    ]
+  },
+  "exampleQuestionSupport": {
+    "answerableThroughExistingGovernedPaths": [
+      "company financial metrics already registered in Feature 015",
+      "monthly activity trends already persisted by Feature 076/077/136",
+      "instrument quote/daily history where the existing market read model has complete coverage"
+    ],
+    "notApprovedForGenericSemanticSQL": [
+      "cross-company product category comparisons without reviewed aliases",
+      "raw monthly growth/rate recalculation",
+      "unselected provider statement joins",
+      "restatement comparisons until Codal selection policy and provider revision semantics receive human review",
+      "complete/current market claims based on maximum timestamp",
+      "direct raw payload queries",
+      "company-level market joins inferred from ticker or company name"
+    ]
+  },
+  "industryRelativeValuationPolicy": {
+    "algorithmVersion": "IQR-R7-1.5-v1",
+    "normalization": "CurrentValue / ReferenceValue * 100; only positive current and reference values with valid identity, available and fresh source facts are valid.",
+    "benchmark": "Per canonical group and metric; R-7 Q1/Q3; Tukey 1.5*IQR bounds; outliers excluded; clean average available only with at least two clean observations.",
+    "classification": "Valid non-outlier percent <= clean average is Green; above is Red. Outliers and unavailable benchmark cases are Unclassifiable; invalid non-positive input is Red.",
+    "ranking": "Per group: Green metric count descending; then PE, PS, Equilibrium percent ascending with missing values last; valid metric count descending; CompanyId ascending.",
+    "evidence": "IndustryRelativeValuationEngine, calculation input builder, and snapshot writer; snapshots retain algorithm version, membership hash, source barrier hash, and source observations."
+  },
+  "dataSourceLineage": {
+    "Companies": {
+      "path": [
+        "TSETMC",
+        "Novaran Amin",
+        "Novaran API",
+        "Financial Copilot Companies"
+      ],
+      "provenance": "business-owner-confirmed",
+      "sourceCode": "Noavaran API company normalizer persists provider-scoped company identity and attributes."
+    },
+    "TradingInstruments": {
+      "path": [
+        "TSETMC",
+        "direct TSETMC ingestion / historical migration",
+        "Financial Copilot TradingInstruments"
+      ],
+      "provenance": "business-owner-confirmed historical lineage",
+      "currentMechanism": "TsetmcDirectFeedSyncService persists TradingInstruments; TsetmcPollingWorker schedules end-of-day instrument synchronization when enabled and the adapter is operational. Repository Worker defaults enable TSETMC polling and disable StockMarketDB polling; deployment effective settings are not verified.",
+      "stockMarketDbInstrumentBehavior": "StockMarketDbSyncService fetches/counts instrument records for watermarking but deliberately does not write TradingInstruments."
+    },
+    "identityBoundary": "Companies.Id is the internal canonical company UUID; Companies.ProviderName + ExternalCompanyId is a provider-scoped company identity. TradingInstruments.Id is a separate internal instrument UUID; ProviderName + ExternalInstrumentId is its source namespace and adapter-generated external identity; InstrumentCode maps TSETMC InsCode; NormalizedCompanyId is the only declared instrument-to-company FK. Never equate these IDs or join by ticker/name alone."
+  },
+  "codalSelectionPolicyReview": {
+    "implemented": "Within each (PeriodEnd.Date, PeriodType) group: IsAudited=true first; IsRepresented=true second; IsComposing=true by default (preferConsolidated=true); then StmtId ascending. When preferConsolidated=false only the IsComposing ordering reverses; audited and represented ordering is unchanged.",
+    "semanticInterpretation": "IsRepresented=true is Restated per the product owner.",
+    "businessApproval": "The product owner confirmed the flag meaning, not the policy to always prefer restated variants. This preference is implemented but not independently approved.",
+    "risk": "Audited status outranks restatement status, so an audited non-restated row can beat an unaudited restated row. Among ties on earlier flags, StmtId ascending is deterministic but is not a newest-announcement rule and can select an older source identity. Grouping only by date and period type also depends on provider query scope to avoid mixing statement families.",
+    "decisionRequired": "The preference for restated variants and StmtId tie-break still require business review before generic reads rely on them. The generic Feature 141 default is IsComposing=false, which conflicts with current CodalDb preferConsolidated=true behavior. No code sorting was changed.",
+    "genericPathConflict": "Feature 141 defaults to IsComposing=false; CodalDb currently prefers IsComposing=true by default. This phase records the conflict only.",
+    "status": "documented-conflict-no-runtime-change"
+  },
+  "querySelectionPolicy": {
+    "id": "financial-statement-scope-default-v1",
+    "scope": "Feature 141 generic semantic query path only",
+    "default": "IsComposing=false (parent-company / separate financial statement)",
+    "explicitConsolidated": "Use IsComposing=true only when consolidated statements are requested.",
+    "comparison": "Retrieve separate and consolidated values as separately scoped results; never merge them.",
+    "missingDefaultScope": "Never silently substitute consolidated data when parent-company data is unavailable; return a no-data or unsupported outcome.",
+    "independentDimensions": [
+      "IsAudited",
+      "IsRepresented",
+      "IsComposing"
+    ],
+    "noUnapprovedDefaults": [
+      "IsAudited",
+      "IsRepresented"
+    ],
+    "legacyBehavior": "Do not change CodalDb or other provider-specific selection behavior in this phase.",
+    "provenance": "business-owner-confirmed",
+    "status": "confirmed-for-feature-141-generic-path"
+  }
+}

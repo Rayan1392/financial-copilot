@@ -1,0 +1,185 @@
+{
+  "id": "tbl_8ecd0432a4292998",
+  "physical": {
+    "Schema": "public",
+    "Name": "MonthlyReportLineItems",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MonthlyReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductCode",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ProductionQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SalesRate",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "Title",
+        "Type": "character varying(512)",
+        "Nullable": true
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderProductCode",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderProductId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMultiplicity",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "1"
+      },
+      {
+        "Name": "SourcePayloadChecksum",
+        "Type": "character varying(128)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "SourceRowFingerprint",
+        "Type": "character varying(128)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "SourceRowKey",
+        "Type": "character varying(256)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MonthlyReportLineItems_MonthlyReportId_SourceRowFingerprint~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MonthlyReportLineItems_MonthlyReportId_SourceRowFingerprint~\" ON public.\"MonthlyReportLineItems\" USING btree (\"MonthlyReportId\", \"SourceRowFingerprint\", \"SourceMultiplicity\")",
+        "Columns": [
+          "MonthlyReportId",
+          "SourceRowFingerprint",
+          "SourceMultiplicity"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyReportLineItems_MonthlyReportId_SourceRowKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MonthlyReportLineItems_MonthlyReportId_SourceRowKey\" ON public.\"MonthlyReportLineItems\" USING btree (\"MonthlyReportId\", \"SourceRowKey\") WHERE (\"SourceRowKey\" IS NOT NULL)",
+        "Columns": [
+          "MonthlyReportId",
+          "SourceRowKey"
+        ]
+      },
+      {
+        "Name": "PK_MonthlyReportLineItems",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MonthlyReportLineItems\" ON public.\"MonthlyReportLineItems\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MonthlyReportLineItems",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Product- or service-scoped monthly activity measures attached to a provider report by MonthlyReportId.",
+    "descriptionFa": "اقلام فعالیت ماهانه محصول یا خدمت که با شناسه گزارش به سرآیند متصل می‌شوند.",
+    "purpose": "Persist production, sales quantity, sales amount, and provider-reported sales rate at source-line grain.",
+    "grain": "One provider report source row/fingerprint, retaining company/provider product identity and multiplicity.",
+    "columns": {
+      "MonthlyReportId": "Logical join to MonthlyReports.Id (not enforced by physical FK)",
+      "ProviderProductId/ProviderProductCode/ProductCode": "Provider and normalized product keys",
+      "Title": "Provider product/service name",
+      "ProductionQuantity": "Reported production quantity",
+      "SalesQuantity": "Reported sales quantity",
+      "SalesAmount": "Reported amount; source/app convention is million IRR where verified",
+      "SalesRate": "Stored/provider-derived rate; unit follows amount divided by quantity",
+      "Unit": "Source quantity unit",
+      "SourceMultiplicity/SourceRowFingerprint/SourceRowKey": "Duplicate and source-row provenance"
+    },
+    "units": "Quantity uses the row’s Unit. SalesAmount is in million IRR per the owner-supplied definition and trend persistence contract. The line-level SalesRate is a stored source/provider value where present; its implied unit is million IRR per source quantity unit. The separate governed MonthlyAverageSalesRate snapshot is total monthly SalesAmount divided by total SalesQuantity for selected product rows, only when units are not mixed and total quantity is nonzero. It is null when no usable quantity exists. Preserve negative source values; do not substitute the snapshot formula for a source-line SalesRate.",
+    "relationships": [
+      "MonthlyReportId -> MonthlyReports.Id is a logical/application join; no live FK constraint exists."
+    ],
+    "metricReferences": [
+      "Feature 015 monthly sales/production metric definitions; Feature 076/136 governed trend and revision behavior."
+    ],
+    "providerPolicy": "Use accepted header with the matching provider, report type and output type. Never merge products by title across companies/providers.",
+    "periodSemantics": "Period comes from parent MonthlyReports; output type 0 represents single-month actuals in the governed Noavaran path.",
+    "examples": [
+      "فروش ماهانه محصول شرکت X چقدر بود؟",
+      "Show product sales quantity and amount for one accepted report"
+    ],
+    "cautions": [
+      "No physical FK enforces MonthlyReportId.",
+      "Do not compare quantities across units. Mixed product units invalidate a generic aggregate.",
+      "Do not coerce null, zero, or negative amounts/quantities; preserve source values and apply approved metric policy."
+    ],
+    "sourceVerification": "EF Core mappings, live PostgreSQL schema, normalizer source, and persisted trend contract; million-IRR scale also supplied by business owner.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "id": "tbl_cbe722292eb64db7",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundCommodityIncomeDetails",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawInstrumentName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "UnrealizedIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "RealizedIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "TotalIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundCommodityIncomeDetails_FundId_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityIncomeDetails_FundId_PeriodContext\" ON public.\"FundCommodityIncomeDetails\" USING btree (\"FundId\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityIncomeDetails_ReportId_PeriodContext_SourceLog~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundCommodityIncomeDetails_ReportId_PeriodContext_SourceLog~\" ON public.\"FundCommodityIncomeDetails\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityIncomeDetails_ResolutionStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityIncomeDetails_ResolutionStatus\" ON public.\"FundCommodityIncomeDetails\" USING btree (\"ResolutionStatus\")",
+        "Columns": [
+          "ResolutionStatus"
+        ]
+      },
+      {
+        "Name": "PK_FundCommodityIncomeDetails",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundCommodityIncomeDetails\" ON public.\"FundCommodityIncomeDetails\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundCommodityIncomeDetails",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

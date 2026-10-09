@@ -1,0 +1,43 @@
+{
+  "datasetVersion": 4,
+  "purpose": "Post-implementation independent generalization check. The metric compositions and query structures below are absent from the Golden set and earlier held-out fixtures. Expected references are catalog-derived and are not included in runtime prompts.",
+  "cases": [
+    {
+      "id": "holdout-v4-cross-domain-industry-sales-assets",
+      "question": "For companies in each industry, show year-to-date monthly sales beside current assets as a share of total assets.",
+      "domains": ["monthly-activity", "financial-statements", "company-industry"],
+      "tables": ["tbl_4f3dd93b63d1766f"],
+      "metrics": ["MONTHLY_SALES_YTD", "CURRENT_ASSETS_TO_TOTAL_ASSETS"],
+      "metricIds": ["metric_monthly_sales_ytd", "metric_current_assets_to_total_assets"],
+      "dimensions": ["dim_company", "dim_industry", "dim_monthly_period"],
+      "entities": ["company", "industry"],
+      "relationships": [],
+      "nodeIds": ["domain-monthly-activity", "domain-financial-statements", "domain-company-industry", "dimension-dim_company", "dimension-dim_industry", "dimension-dim_monthly_period", "table-tbl_4f3dd93b63d1766f"]
+    },
+    {
+      "id": "holdout-v4-dual-margin-asset-composition",
+      "question": "For each issuer, place operating profit margin, net profit margin, and current assets to total assets together for its latest standalone report.",
+      "domains": ["financial-statements"],
+      "tables": [],
+      "metrics": ["OPERATING_PROFIT_MARGIN", "NET_PROFIT_MARGIN", "CURRENT_ASSETS_TO_TOTAL_ASSETS"],
+      "metricIds": ["metric_operating_profit_margin", "metric_net_profit_margin", "metric_current_assets_to_total_assets"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "statementScope": "standalone",
+      "nodeIds": ["domain-financial-statements", "dimension-dim_company"]
+    },
+    {
+      "id": "holdout-v4-monthly-ytd-by-industry",
+      "question": "Group issuers by industry and rank companies by their year-to-date monthly sales, showing the reporting month.",
+      "domains": ["monthly-activity", "company-industry"],
+      "tables": ["tbl_4f3dd93b63d1766f"],
+      "metrics": ["MONTHLY_SALES_YTD"],
+      "metricIds": ["metric_monthly_sales_ytd"],
+      "dimensions": ["dim_company", "dim_industry", "dim_monthly_period"],
+      "entities": ["company", "industry"],
+      "relationships": [],
+      "nodeIds": ["domain-monthly-activity", "domain-company-industry", "dimension-dim_company", "dimension-dim_industry", "dimension-dim_monthly_period", "table-tbl_4f3dd93b63d1766f"]
+    }
+  ]
+}

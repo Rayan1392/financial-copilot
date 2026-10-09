@@ -1,0 +1,117 @@
+{
+  "id": "tbl_65968c6c943f5935",
+  "physical": {
+    "Schema": "public",
+    "Name": "UserInsightStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "InsightEventId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SeenAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "DismissedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_UserInsightStates_Actor_DismissedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserInsightStates_Actor_DismissedAtUtc\" ON public.\"UserInsightStates\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"DismissedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "DismissedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_UserInsightStates_InsightEventId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserInsightStates_InsightEventId\" ON public.\"UserInsightStates\" USING btree (\"InsightEventId\")",
+        "Columns": [
+          "InsightEventId"
+        ]
+      },
+      {
+        "Name": "PK_UserInsightStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_UserInsightStates\" ON public.\"UserInsightStates\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_UserInsightStates_Actor_InsightEventId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_UserInsightStates_Actor_InsightEventId\" ON public.\"UserInsightStates\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"InsightEventId\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "InsightEventId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_UserInsightStates",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

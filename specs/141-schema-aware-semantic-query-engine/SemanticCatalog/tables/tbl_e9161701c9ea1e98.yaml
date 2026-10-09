@@ -1,0 +1,257 @@
+{
+  "id": "tbl_e9161701c9ea1e98",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundCommodityCertificatePositions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEndDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "CommodityType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CommodityCode",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "ExtractedInstrumentSymbol",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "RawInstrumentName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedInstrumentName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "BeginningQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "BeginningCostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "BeginningMarketValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "PurchasedQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "PurchaseCostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SoldQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SaleProceedsAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EndingQuantity",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EndingUnitPrice",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EndingCostAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "EndingMarketValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "WeightOfTotalAssetsPercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "QuantityReconciliationDifference",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ReconciliationStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IsSectionTotal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundCommodityCertificatePositions_CommodityCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityCertificatePositions_CommodityCode\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"CommodityCode\")",
+        "Columns": [
+          "CommodityCode"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityCertificatePositions_FundId_PeriodEndDate_Peri~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityCertificatePositions_FundId_PeriodEndDate_Peri~\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"FundId\", \"PeriodEndDate\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodEndDate",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityCertificatePositions_ReportId_PeriodContext_So~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundCommodityCertificatePositions_ReportId_PeriodContext_So~\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"NormalizedInstrumentName\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "NormalizedInstrumentName"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityCertificatePositions_ResolutionStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityCertificatePositions_ResolutionStatus\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"ResolutionStatus\")",
+        "Columns": [
+          "ResolutionStatus"
+        ]
+      },
+      {
+        "Name": "IX_FundCommodityCertificatePositions_TradingInstrumentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundCommodityCertificatePositions_TradingInstrumentId\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"TradingInstrumentId\")",
+        "Columns": [
+          "TradingInstrumentId"
+        ]
+      },
+      {
+        "Name": "PK_FundCommodityCertificatePositions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundCommodityCertificatePositions\" ON public.\"FundCommodityCertificatePositions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundCommodityCertificatePositions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

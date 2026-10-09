@@ -1,0 +1,103 @@
+{
+  "id": "tbl_2daa933f14c08d24",
+  "physical": {
+    "Schema": "public",
+    "Name": "MemoryConsentPolicies",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SubjectId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MemoryType",
+        "Type": "character varying(50)",
+        "Nullable": false
+      },
+      {
+        "Name": "Purpose",
+        "Type": "character varying(50)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(20)",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(20)",
+        "Nullable": false
+      },
+      {
+        "Name": "GrantedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "RevokedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MemoryConsentPolicies_TenantId_SubjectId_MemoryType_Purpose",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MemoryConsentPolicies_TenantId_SubjectId_MemoryType_Purpose\" ON public.\"MemoryConsentPolicies\" USING btree (\"TenantId\", \"SubjectId\", \"MemoryType\", \"Purpose\")",
+        "Columns": [
+          "TenantId",
+          "SubjectId",
+          "MemoryType",
+          "Purpose"
+        ]
+      },
+      {
+        "Name": "PK_MemoryConsentPolicies",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MemoryConsentPolicies\" ON public.\"MemoryConsentPolicies\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MemoryConsentPolicies",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

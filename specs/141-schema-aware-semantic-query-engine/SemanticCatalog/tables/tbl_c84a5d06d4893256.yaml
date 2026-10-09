@@ -1,0 +1,305 @@
+{
+  "id": "tbl_c84a5d06d4893256",
+  "physical": {
+    "Schema": "public",
+    "Name": "MarketReports",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Scope",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "WindowKey",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsCurrent",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "Revision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SupersedesReportId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportVersion",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceSchemaVersion",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PromptPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RenderingPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SafetyPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "SnapshotIdsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "InsightEventIdsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Narrative",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CaveatsJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Confidence",
+        "Type": "numeric(5,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ModelName",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ModelMetadataJson",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "GenerationIdempotencyKey",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "ReservationIdempotencyKey",
+        "Type": "character varying(300)",
+        "Nullable": true
+      },
+      {
+        "Name": "FailureReason",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "AttemptCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "LeaseOwner",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "LeaseExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "NextAttemptAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "GeneratedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "PublishedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "SupersedesReportId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "MarketReports",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"SupersedesReportId\") REFERENCES \"MarketReports\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_MarketReports_GenerationIdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MarketReports_GenerationIdempotencyKey\" ON public.\"MarketReports\" USING btree (\"GenerationIdempotencyKey\")",
+        "Columns": [
+          "GenerationIdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_MarketReports_Scope_IsCurrent_PublishedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketReports_Scope_IsCurrent_PublishedAtUtc\" ON public.\"MarketReports\" USING btree (\"Scope\", \"IsCurrent\", \"PublishedAtUtc\")",
+        "Columns": [
+          "Scope",
+          "IsCurrent",
+          "PublishedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_MarketReports_Scope_TenantId_ActorId_ActorType_TradingDate_~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MarketReports_Scope_TenantId_ActorId_ActorType_TradingDate_~\" ON public.\"MarketReports\" USING btree (\"Scope\", \"TenantId\", \"ActorId\", \"ActorType\", \"TradingDate\", \"WindowKey\", \"Revision\")",
+        "Columns": [
+          "Scope",
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "TradingDate",
+          "WindowKey",
+          "Revision"
+        ]
+      },
+      {
+        "Name": "IX_MarketReports_Status_NextAttemptAtUtc_LeaseExpiresAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketReports_Status_NextAttemptAtUtc_LeaseExpiresAtUtc\" ON public.\"MarketReports\" USING btree (\"Status\", \"NextAttemptAtUtc\", \"LeaseExpiresAtUtc\")",
+        "Columns": [
+          "Status",
+          "NextAttemptAtUtc",
+          "LeaseExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_MarketReports_SupersedesReportId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketReports_SupersedesReportId\" ON public.\"MarketReports\" USING btree (\"SupersedesReportId\")",
+        "Columns": [
+          "SupersedesReportId"
+        ]
+      },
+      {
+        "Name": "IX_MarketReports_TenantId_ActorId_ActorType_Scope_IsCurrent_Pu~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketReports_TenantId_ActorId_ActorType_Scope_IsCurrent_Pu~\" ON public.\"MarketReports\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\", \"Scope\", \"IsCurrent\", \"PublishedAtUtc\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType",
+          "Scope",
+          "IsCurrent",
+          "PublishedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_MarketReports",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MarketReports\" ON public.\"MarketReports\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_MarketReports_MarketReports_SupersedesReportId",
+        "Type": "f",
+        "Columns": [
+          "SupersedesReportId"
+        ],
+        "Definition": "FOREIGN KEY (\"SupersedesReportId\") REFERENCES \"MarketReports\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_MarketReports",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

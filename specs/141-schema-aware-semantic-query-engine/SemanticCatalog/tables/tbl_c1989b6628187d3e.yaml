@@ -1,0 +1,177 @@
+{
+  "id": "tbl_c1989b6628187d3e",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundSecurityIncomeAttributions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawSecurityName",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "DividendIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "UnrealizedPriceChangeIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "RealizedSaleIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "TotalIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolutionStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ReconciliationStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundSecurityIncomeAttributions_ExternalCompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundSecurityIncomeAttributions_ExternalCompanyId\" ON public.\"FundSecurityIncomeAttributions\" USING btree (\"ExternalCompanyId\")",
+        "Columns": [
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "IX_FundSecurityIncomeAttributions_FundId_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundSecurityIncomeAttributions_FundId_PeriodContext\" ON public.\"FundSecurityIncomeAttributions\" USING btree (\"FundId\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundSecurityIncomeAttributions_ReconciliationStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundSecurityIncomeAttributions_ReconciliationStatus\" ON public.\"FundSecurityIncomeAttributions\" USING btree (\"ReconciliationStatus\")",
+        "Columns": [
+          "ReconciliationStatus"
+        ]
+      },
+      {
+        "Name": "IX_FundSecurityIncomeAttributions_ReportId_PeriodContext_Sourc~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundSecurityIncomeAttributions_ReportId_PeriodContext_Sourc~\" ON public.\"FundSecurityIncomeAttributions\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow"
+        ]
+      },
+      {
+        "Name": "PK_FundSecurityIncomeAttributions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundSecurityIncomeAttributions\" ON public.\"FundSecurityIncomeAttributions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundSecurityIncomeAttributions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

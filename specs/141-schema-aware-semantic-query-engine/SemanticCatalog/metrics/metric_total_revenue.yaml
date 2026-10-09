@@ -1,0 +1,69 @@
+{
+  "id": "metric_total_revenue",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "TOTAL_REVENUE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Total Revenue",
+    "Description": "Governed semantic definition for Total Revenue.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "total revenue",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "TOTAL_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "کل درآمد",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "TOTAL_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "جمع درآمد",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "TOTAL_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

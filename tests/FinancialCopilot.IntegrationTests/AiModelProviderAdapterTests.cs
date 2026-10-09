@@ -277,6 +277,29 @@ public sealed class AiModelProviderAdapterTests
     }
 
     [Fact]
+    public async Task OpenAiAdapter_ClassifiesTruncatedStructuredOutputAndPreservesUsageMetadata()
+    {
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ => Json(
+            """{"id":"resp_truncated_141","output":[],"usage":{"input_tokens":842,"output_tokens":700},"incomplete_details":{"reason":"max_output_tokens"}}""")));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+        var request = CompletionRequest("openai-truncated") with
+        {
+            StructuredOutput = new AiStructuredOutputContract("NavigationV1", ["schemaVersion"]),
+            MaxOutputTokens = 700
+        };
+
+        var exception = await Assert.ThrowsAsync<AiModelProviderException>(() =>
+            transport.CompleteAsync("gpt-5.6-luna", request, CancellationToken.None));
+
+        Assert.Equal("ModelOutputTruncated", exception.Code);
+        Assert.Equal((int)HttpStatusCode.OK, exception.HttpStatusCode);
+        Assert.Equal("resp_truncated_141", exception.ProviderResponseId);
+        Assert.Equal(842, exception.ProviderReportedInputTokens);
+        Assert.Equal(700, exception.ProviderReportedOutputTokens);
+        Assert.Equal("max_output_tokens", exception.ProviderCompletionReason);
+    }
+
+    [Fact]
     public async Task OpenAiAdapter_ReportsMissingCredentialExplicitly()
     {
         using var httpClient = new HttpClient(new RouteHandler(_ =>
@@ -432,9 +455,12 @@ public sealed class AiModelProviderAdapterTests
         using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ =>
         {
             requestCount++;
-            return Error(
+            var response = Error(
                 HttpStatusCode.TooManyRequests,
                 """{"error":{"message":"You exceeded your current quota.","type":"insufficient_quota","code":"insufficient_quota"}}""");
+            response.Headers.Add("x-request-id", "req_test_quota_001");
+            response.Headers.Add("x-ratelimit-remaining-requests", "0");
+            return response;
         }));
         var transport = new OpenAiHostedAiModelTransport(httpClient);
 
@@ -446,6 +472,11 @@ public sealed class AiModelProviderAdapterTests
 
         Assert.Equal("hosted_provider_quota_exceeded", exception.Code);
         Assert.Contains("You exceeded your current quota.", exception.Message);
+        Assert.Equal((int)HttpStatusCode.TooManyRequests, exception.HttpStatusCode);
+        Assert.Equal("insufficient_quota", exception.ProviderErrorCode);
+        Assert.Equal("req_test_quota_001", exception.ProviderRequestId);
+        Assert.Equal("api.openai.com", exception.RequestHost);
+        Assert.Equal("0", exception.ProviderQuotaMetadata!["x-ratelimit-remaining-requests"]);
         Assert.Equal(1, requestCount);
     }
 

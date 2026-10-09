@@ -1,0 +1,28 @@
+{
+  "id": "rel_c0750e3659173f56",
+  "from": {
+    "schema": "public",
+    "table": "NotificationIntents",
+    "columns": [
+      "BatchId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "NotificationBatches",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"BatchId\") REFERENCES \"NotificationBatches\"(\"Id\") ON DELETE SET NULL",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

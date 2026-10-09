@@ -1,0 +1,193 @@
+{
+  "id": "tbl_b5b50f52c60bb568",
+  "physical": {
+    "Schema": "public",
+    "Name": "DailyInstrumentTrades",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "ClosingPrice",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "LastTradedPrice",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "PriceChange",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "PriceYesterday",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "TotalTransactions",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Volume",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "TotalCapital",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "MarketValue",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceInsertedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalTradeId",
+        "Type": "uuid",
+        "Nullable": false,
+        "DefaultValue": "'00000000-0000-0000-0000-000000000000'::uuid"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_DailyInstrumentTrades_ProviderName_ExternalTradeId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_DailyInstrumentTrades_ProviderName_ExternalTradeId\" ON public.\"DailyInstrumentTrades\" USING btree (\"ProviderName\", \"ExternalTradeId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalTradeId"
+        ]
+      },
+      {
+        "Name": "IX_DailyInstrumentTrades_TradingInstrumentId_TradingDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_DailyInstrumentTrades_TradingInstrumentId_TradingDate\" ON public.\"DailyInstrumentTrades\" USING btree (\"TradingInstrumentId\", \"TradingDate\")",
+        "Columns": [
+          "TradingInstrumentId",
+          "TradingDate"
+        ]
+      },
+      {
+        "Name": "PK_DailyInstrumentTrades",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_DailyInstrumentTrades\" ON public.\"DailyInstrumentTrades\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_DailyInstrumentTrades_TradingInstruments_TradingInstrumentId",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_DailyInstrumentTrades",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "One normalized daily instrument trade/price observation per source trading date and instrument.",
+    "descriptionFa": "مشاهده روزانه قیمت و معامله برای هر ابزار در تاریخ معاملاتی منبع.",
+    "purpose": "Daily historical observations distinct from intraday snapshots.",
+    "grain": "TradingInstrument + TradingDate under provider daily-trade identity policy.",
+    "columns": {
+      "TradingInstrumentId": "FK to TradingInstruments.Id",
+      "TradingDate": "Source trading date",
+      "ClosingPrice/LastTradedPrice/PriceChange/PriceYesterday": "Daily price fields",
+      "Volume/MarketValue/TotalCapital/TotalTransactions": "Daily activity fields",
+      "ExternalTradeId": "Source trade-row GUID",
+      "SourceInsertedAt": "Source insertion timestamp"
+    },
+    "units": "Price, MarketValue, and volume are numeric source values copied by the adapters; PostgreSQL stores no unit/scale metadata and no universal conversion is applied. Verify ProviderName and source mapping before presentation; do not combine provider scales by column name alone.",
+    "relationships": [
+      "TradingInstrumentId -> TradingInstruments.Id (physical FK); optional instrument-to-company relationship through NormalizedCompanyId."
+    ],
+    "metricReferences": [
+      "Daily observation; not a latest quote projection or an intraday event."
+    ],
+    "providerPolicy": "ProviderName and ExternalTradeId identify the normalized row. The direct TSETMC adapter uses daily trade history; StockMarketDB has a distinct TradeRefined path. Retain source provenance and avoid cross-provider deduplication by date/instrument alone.",
+    "periodSemantics": "Daily trading-calendar date, not necessarily Gregorian calendar day coverage.",
+    "examples": [
+      "قیمت پایانی روز معاملاتی نماد",
+      "Show daily close and volume for a trading date"
+    ],
+    "cautions": [
+      "Non-trading days have no row; check source completeness/watermark.",
+      "Do not infer currentness from max date alone."
+    ],
+    "sourceVerification": "TsetmcDirectFeedSyncService and StockMarketDbSyncService mappings; live PostgreSQL FK/type metadata.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

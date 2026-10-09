@@ -1,0 +1,28 @@
+{
+  "id": "rel_38ed0217e96af6f4",
+  "from": {
+    "schema": "public",
+    "table": "IntradayIndexSnapshots",
+    "columns": [
+      "TradingInstrumentId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "TradingInstruments",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "rel_46e34b276f9d6084",
+  "from": {
+    "schema": "public",
+    "table": "MarketPulseSnapshots",
+    "columns": [
+      "SupersedesSnapshotId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "MarketPulseSnapshots",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"SupersedesSnapshotId\") REFERENCES \"MarketPulseSnapshots\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

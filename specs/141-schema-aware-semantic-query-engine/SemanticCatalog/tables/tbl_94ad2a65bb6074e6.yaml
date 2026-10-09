@@ -1,0 +1,81 @@
+{
+  "id": "tbl_94ad2a65bb6074e6",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricAliases",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "Expression",
+        "Type": "character varying(300)",
+        "Nullable": false
+      },
+      {
+        "Name": "Language",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ComparisonQualifier",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MetricAliases_Language_Expression",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MetricAliases_Language_Expression\" ON public.\"MetricAliases\" USING btree (\"Language\", \"Expression\")",
+        "Columns": [
+          "Language",
+          "Expression"
+        ]
+      },
+      {
+        "Name": "PK_MetricAliases",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricAliases\" ON public.\"MetricAliases\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricAliases",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -157,3 +157,27 @@ Align downstream specs and repositories with the richer persistence model.
 - Add this feature to `specs/README.md`.
 - Add an implementation-checklist row immediately after spec `081`.
 - Update related spec notes in `040` and `081` so the ownership boundary is explicit.
+
+## Task 082.9 - Historical Source Identity Audit And Recovery Plan
+
+### Status
+
+- [x] Bounded read-only development-database audit completed.
+- [ ] Design and implement dry-run/resumable replay for historical rows without source identity.
+- [ ] Review replay report before running any bounded backfill.
+
+### Findings
+
+- Successfully normalized current-API source items use the shared catalog and retain their source
+  identity, including unmapped items.
+- The development database contains 78,677 currently unlinked line-item rows with a
+  `MetricCode` but no `SourceItemCatalogId`. All 78,677 parent statement checksums matched a
+  retained `ProviderRawPayloads` record.
+- No database migration is required for the current ingestion correction; the additive source
+  catalog/FK schema from migration
+  `20260630154843_AddNoavaranFinancialStatementSourceCatalogAndVariants` is already present.
+- Do not infer source IDs from titles or execute a bulk replay automatically. Future recovery
+  must compare the original payload item IDs and values, be idempotent/resumable, support dry-run,
+  and leave governed values and unrelated statement variants unchanged.
+- Full counts and query scope are in Feature 141's
+  [`NoavaranFinancialStatementIngestionAudit.md`](../../141-schema-aware-semantic-query-engine/NoavaranFinancialStatementIngestionAudit.md).

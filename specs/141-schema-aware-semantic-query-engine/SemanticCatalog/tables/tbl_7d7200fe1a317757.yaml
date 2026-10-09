@@ -1,0 +1,136 @@
+{
+  "id": "tbl_7d7200fe1a317757",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryRelativeValuationMetrics",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricKind",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "ValidCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "OutlierCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CleanCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Quartile1",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "Quartile3",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "LowerBound",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "UpperBound",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "CleanAverage",
+        "Type": "numeric(28,14)",
+        "Nullable": true
+      },
+      {
+        "Name": "Readiness",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CalculationId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryRelativeValuationCalculations",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryRelativeValuationMetrics_CalculationId_MetricKind",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryRelativeValuationMetrics_CalculationId_MetricKind\" ON public.\"IndustryRelativeValuationMetrics\" USING btree (\"CalculationId\", \"MetricKind\")",
+        "Columns": [
+          "CalculationId",
+          "MetricKind"
+        ]
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationMetrics",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryRelativeValuationMetrics\" ON public.\"IndustryRelativeValuationMetrics\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryRelativeValuationMetrics_IndustryRelativeValuationC~",
+        "Type": "f",
+        "Columns": [
+          "CalculationId"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_IndustryRelativeValuationMetrics",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

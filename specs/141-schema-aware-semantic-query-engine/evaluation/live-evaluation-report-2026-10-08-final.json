@@ -1,0 +1,559 @@
+{
+  "reportVersion": 1,
+  "date": "2026-10-08",
+  "provider": {
+    "key": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "endpointHost": "api.openai.com",
+    "credentialSource": "Development User Secrets",
+    "fallbackUsed": false
+  },
+  "rootCauses": {
+    "fa02": {
+      "before": {
+        "navigationOutputCapTokens": 700,
+        "providerCompletionReason": "max_output_tokens",
+        "contractIssue": "Navigation output repeated requirement declarations already present in the independent extraction."
+      },
+      "after": {
+        "contract": "Compact typed navigation decisions",
+        "truncationCode": "ModelOutputTruncated",
+        "boundedRetryOutputTokens": 1200,
+        "maximumRetries": 1
+      }
+    },
+    "faValue01": {
+      "before": {
+        "outlineCharacters": 19597,
+        "limitCharacters": 18000,
+        "catalogSourceItems": 296,
+        "looselyMatchedSourceNodes": 92
+      },
+      "after": {
+        "outlineCharacters": 15654,
+        "limitCharacters": 18000,
+        "boundedCandidates": 12,
+        "sourceItem161Score": 1018,
+        "similarSourceItem140Score": 1011,
+        "sourceItem161Selected": true
+      }
+    }
+  },
+  "budgets": {
+    "maximumTotalCalls": 4,
+    "maximumNavigationCalls": 3,
+    "maximumRetryAttempts": 1,
+    "initialOutputTokens": 700,
+    "retryOutputTokens": 1200,
+    "maximumTotalOutputTokens": 4200,
+    "maximumInputTokens": 18000,
+    "maximumOutlineCharacters": 18000,
+    "maximumCatalogContextTokens": 10000,
+    "maximumPromptCharacters": 36000,
+    "maximumContextDepth": 2,
+    "maximumFanOut": 12,
+    "perCallTimeoutSeconds": 20,
+    "totalTimeoutSeconds": 45
+  },
+  "golden": {
+    "dataset": "evaluation/navigation-golden-v1.yaml",
+    "predictionArtifact": "artifacts/navigator-optimization-golden-final-v2-live.jsonl",
+    "scoreArtifact": "evaluation/scored-navigator-optimization-golden-final-v2-live.json",
+    "caseCount": 21,
+    "statusCounts": {
+      "completed": 19,
+      "failed": 2
+    },
+    "outcomeCounts": {
+      "unsupported": 16,
+      "clarification": 3
+    },
+    "completenessStatusCounts": {
+      "Unsupported": 16,
+      "ClarificationRequired": 3
+    },
+    "governance": {
+      "retrievalComplete": {
+        "true": 14,
+        "false": 5,
+        "notReported": 2
+      },
+      "semanticReviewApproved": {
+        "true": 0,
+        "false": 19,
+        "notReported": 2
+      },
+      "queryAuthorized": {
+        "true": 0,
+        "false": 19,
+        "notReported": 2
+      },
+      "executable": {
+        "true": 0,
+        "false": 19,
+        "notReported": 2
+      }
+    },
+    "aggregateScores": {
+      "nodeRecall": 0.4839743589743589,
+      "metricRecall": 0.6153846153846154,
+      "dimensionRecall": 0.8095238095238095,
+      "relationshipRecall": null,
+      "domainAccuracy": 0.5238095238095238,
+      "statementScopeAccuracy": 1.0,
+      "financialPolicyRecall": null,
+      "contextCompletenessAccuracy": 1.0,
+      "missingUnsupportedAccuracy": 1.0,
+      "financialReferenceAccuracy": 0.625,
+      "financialOperationAccuracy": 0.875,
+      "financialReferenceTypeAccuracy": 0.625,
+      "sourceItemReferenceAccuracy": 0.75,
+      "governedMetricCodeAccuracy": 0.75,
+      "providerFinancialIndicatorAccuracy": 1.0,
+      "requirementsFinancialReferenceRecall": 0.7142857142857143,
+      "entityResolutionAccuracy": 1.0,
+      "periodInterpretationAccuracy": 1.0,
+      "falsePositiveAcceptanceRate": 0.0
+    },
+    "operations": {
+      "modelCalls": 42,
+      "inputTokens": 218146,
+      "outputTokens": 15062,
+      "latencyMs": 224796,
+      "providerReportedCost": null,
+      "costCurrency": null
+    },
+    "perCase": [
+      {
+        "caseId": "fa-01",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 6565,
+        "outputTokens": 578,
+        "latencyMs": 9054,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-02",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 6082,
+        "outputTokens": 765,
+        "latencyMs": 9937,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-03",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 6149,
+        "outputTokens": 667,
+        "latencyMs": 9757,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-04",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": false,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 10156,
+        "outputTokens": 427,
+        "latencyMs": 6313,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-05",
+        "status": "completed",
+        "outcome": "clarification",
+        "completenessStatus": "ClarificationRequired",
+        "retrievalComplete": false,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 10262,
+        "outputTokens": 634,
+        "latencyMs": 8968,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-06",
+        "status": "completed",
+        "outcome": "clarification",
+        "completenessStatus": "ClarificationRequired",
+        "retrievalComplete": false,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 12598,
+        "outputTokens": 919,
+        "latencyMs": 12959,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-07",
+        "status": "failed",
+        "outcome": null,
+        "completenessStatus": null,
+        "retrievalComplete": null,
+        "semanticReviewApproved": null,
+        "queryAuthorized": null,
+        "executable": null,
+        "modelCalls": 2,
+        "retryAttempts": 1,
+        "inputTokens": 13888,
+        "outputTokens": 985,
+        "latencyMs": 14363,
+        "failureCode": "request_input_token_budget_exceeded"
+      },
+      {
+        "caseId": "fa-08",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 13902,
+        "outputTokens": 954,
+        "latencyMs": 14305,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-09",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 6384,
+        "outputTokens": 958,
+        "latencyMs": 13082,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-10",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 6579,
+        "outputTokens": 649,
+        "latencyMs": 10585,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-11-heldout",
+        "status": "failed",
+        "outcome": null,
+        "completenessStatus": null,
+        "retrievalComplete": null,
+        "semanticReviewApproved": null,
+        "queryAuthorized": null,
+        "executable": null,
+        "modelCalls": 2,
+        "retryAttempts": 1,
+        "inputTokens": 14000,
+        "outputTokens": 886,
+        "latencyMs": 15006,
+        "failureCode": "request_input_token_budget_exceeded"
+      },
+      {
+        "caseId": "fa-12-heldout",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 13974,
+        "outputTokens": 985,
+        "latencyMs": 13489,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-13-heldout-unsupported",
+        "status": "completed",
+        "outcome": "clarification",
+        "completenessStatus": "ClarificationRequired",
+        "retrievalComplete": false,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 7059,
+        "outputTokens": 640,
+        "latencyMs": 9805,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-01",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 11479,
+        "outputTokens": 670,
+        "latencyMs": 9036,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-02",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 9292,
+        "outputTokens": 618,
+        "latencyMs": 9383,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-03",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": false,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 11913,
+        "outputTokens": 550,
+        "latencyMs": 8623,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-04",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 11416,
+        "outputTokens": 607,
+        "latencyMs": 9809,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-05",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 11991,
+        "outputTokens": 495,
+        "latencyMs": 7931,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-06",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 12618,
+        "outputTokens": 865,
+        "latencyMs": 13513,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-07",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 11655,
+        "outputTokens": 653,
+        "latencyMs": 9396,
+        "failureCode": null
+      },
+      {
+        "caseId": "fa-value-08",
+        "status": "completed",
+        "outcome": "unsupported",
+        "completenessStatus": "Unsupported",
+        "retrievalComplete": true,
+        "semanticReviewApproved": false,
+        "queryAuthorized": false,
+        "executable": false,
+        "modelCalls": 2,
+        "retryAttempts": 0,
+        "inputTokens": 10184,
+        "outputTokens": 557,
+        "latencyMs": 9482,
+        "failureCode": null
+      }
+    ]
+  },
+  "heldOut": {
+    "dataset": "evaluation/navigation-heldout-v3-unseen-2026-10-08.json",
+    "predictionArtifact": "artifacts/navigator-heldout-v3-final-live.jsonl",
+    "scoreArtifact": "evaluation/scored-navigator-heldout-v3-final-live.json",
+    "retiredFixtures": [
+      "navigation-heldout-v1.yaml overlaps the baseline",
+      "navigation-heldout-v2 was inspected before final tuning"
+    ],
+    "caseCount": 3,
+    "statusCounts": {
+      "completed": 3
+    },
+    "outcomeCounts": {
+      "unsupported": 2,
+      "clarification": 1
+    },
+    "aggregateScores": {
+      "nodeRecall": 0.42063492063492064,
+      "metricRecall": 0.8333333333333334,
+      "dimensionRecall": 1.0,
+      "relationshipRecall": null,
+      "domainAccuracy": 0.6666666666666666,
+      "statementScopeAccuracy": 1.0,
+      "financialPolicyRecall": null,
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "falsePositiveAcceptanceRate": null
+    },
+    "operations": {
+      "modelCalls": 6,
+      "inputTokens": 24151,
+      "outputTokens": 2178,
+      "latencyMs": 33695,
+      "providerReportedCost": null,
+      "costCurrency": null
+    },
+    "perCase": [
+      {
+        "caseId": "holdout-v3-price-cashflow",
+        "status": "completed",
+        "outcome": "unsupported",
+        "retrievalComplete": true,
+        "modelCalls": 2,
+        "inputTokens": 9324,
+        "outputTokens": 585,
+        "latencyMs": 8501,
+        "failureCode": null
+      },
+      {
+        "caseId": "holdout-v3-industry-efficiency-rank",
+        "status": "completed",
+        "outcome": "clarification",
+        "retrievalComplete": false,
+        "modelCalls": 2,
+        "inputTokens": 7630,
+        "outputTokens": 1058,
+        "latencyMs": 17157,
+        "failureCode": null
+      },
+      {
+        "caseId": "holdout-v3-liquidity-margin",
+        "status": "completed",
+        "outcome": "unsupported",
+        "retrievalComplete": true,
+        "modelCalls": 2,
+        "inputTokens": 7197,
+        "outputTokens": 535,
+        "latencyMs": 8037,
+        "failureCode": null
+      }
+    ]
+  },
+  "limitations": {
+    "providerReportedCost": null,
+    "costUnavailableReason": "No provider cost metadata was returned.",
+    "queryExecutionEnabled": false,
+    "goldenBudgetFailedCases": [
+      "fa-07",
+      "fa-11-heldout"
+    ],
+    "dotnetFocusedUnitTests": "20 passed",
+    "dotnetProviderIntegrationTests": "16 passed",
+    "pythonCatalogAndScorerTests": "21 passed",
+    "catalogHash": "b7ce865504f0b2b78321cd15a17f64b3b11bebb2ea8182bd8709bdc9e71935f4"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "id": "tbl_9f0b6e7b509ce9fc",
+  "physical": {
+    "Schema": "public",
+    "Name": "ComprehensiveAnalysisCategories",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "AnalysisId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "CategoryId",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "CategoryName",
+        "Type": "character varying(200)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "AnalysisId",
+      "CategoryId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "AnalysisId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "ComprehensiveAnalyses",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"AnalysisId\") REFERENCES \"ComprehensiveAnalyses\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "PK_ComprehensiveAnalysisCategories",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ComprehensiveAnalysisCategories\" ON public.\"ComprehensiveAnalysisCategories\" USING btree (\"AnalysisId\", \"CategoryId\")",
+        "Columns": [
+          "AnalysisId",
+          "CategoryId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_ComprehensiveAnalysisCategories_ComprehensiveAnalyses_Analys",
+        "Type": "f",
+        "Columns": [
+          "AnalysisId"
+        ],
+        "Definition": "FOREIGN KEY (\"AnalysisId\") REFERENCES \"ComprehensiveAnalyses\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_ComprehensiveAnalysisCategories",
+        "Type": "p",
+        "Columns": [
+          "AnalysisId",
+          "CategoryId"
+        ],
+        "Definition": "PRIMARY KEY (\"AnalysisId\", \"CategoryId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

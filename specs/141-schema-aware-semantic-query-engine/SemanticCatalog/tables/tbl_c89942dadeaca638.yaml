@@ -1,0 +1,62 @@
+{
+  "id": "tbl_c89942dadeaca638",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_invoice_accounts",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "LegalName",
+        "Type": "character varying(250)",
+        "Nullable": false
+      },
+      {
+        "Name": "BillingEmail",
+        "Type": "character varying(250)",
+        "Nullable": false
+      },
+      {
+        "Name": "SettlementTerms",
+        "Type": "character varying(250)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "CustomerAccountId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_billing_invoice_accounts",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_invoice_accounts\" ON public.billing_invoice_accounts USING btree (\"CustomerAccountId\")",
+        "Columns": [
+          "CustomerAccountId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_invoice_accounts",
+        "Type": "p",
+        "Columns": [
+          "CustomerAccountId"
+        ],
+        "Definition": "PRIMARY KEY (\"CustomerAccountId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

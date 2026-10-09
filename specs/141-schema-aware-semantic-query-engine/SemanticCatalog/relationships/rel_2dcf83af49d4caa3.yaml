@@ -1,0 +1,28 @@
+{
+  "id": "rel_2dcf83af49d4caa3",
+  "from": {
+    "schema": "public",
+    "table": "CyclicalWavesMetricSnapshots",
+    "columns": [
+      "PreviousSnapshotId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "CyclicalWavesMetricSnapshots",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"PreviousSnapshotId\") REFERENCES \"CyclicalWavesMetricSnapshots\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

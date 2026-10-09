@@ -1,0 +1,115 @@
+{
+  "id": "tbl_86c049cdb6d52ffe",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioMappingReviews",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MappingType",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawValue",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "NormalizedValue",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "CandidateJson",
+        "Type": "character varying(10000)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolutionJson",
+        "Type": "character varying(10000)",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolvedByActorId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ResolvedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false,
+        "DefaultValue": "0"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioMappingReviews_ReportId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioMappingReviews_ReportId\" ON public.\"FundPortfolioMappingReviews\" USING btree (\"ReportId\")",
+        "Columns": [
+          "ReportId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioMappingReviews_Status_MappingType",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioMappingReviews_Status_MappingType\" ON public.\"FundPortfolioMappingReviews\" USING btree (\"Status\", \"MappingType\")",
+        "Columns": [
+          "Status",
+          "MappingType"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioMappingReviews",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioMappingReviews\" ON public.\"FundPortfolioMappingReviews\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioMappingReviews",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

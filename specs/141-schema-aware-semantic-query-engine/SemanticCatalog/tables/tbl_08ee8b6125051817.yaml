@@ -1,0 +1,186 @@
+{
+  "id": "tbl_08ee8b6125051817",
+  "physical": {
+    "Schema": "public",
+    "Name": "AlertRuleTriggers",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RuleId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RuleVersion",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TriggerSequence",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceIdentity",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeduplicationKey",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "ObservedValue",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Threshold",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "Operator",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceProvider",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourcePeriod",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceFreshnessUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "TriggeredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "RuleId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "AlertRules",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_AlertRuleTriggers_NotificationIntentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_AlertRuleTriggers_NotificationIntentId\" ON public.\"AlertRuleTriggers\" USING btree (\"NotificationIntentId\")",
+        "Columns": [
+          "NotificationIntentId"
+        ]
+      },
+      {
+        "Name": "IX_AlertRuleTriggers_Rule_History",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_AlertRuleTriggers_Rule_History\" ON public.\"AlertRuleTriggers\" USING btree (\"RuleId\", \"TriggeredAtUtc\")",
+        "Columns": [
+          "RuleId",
+          "TriggeredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_AlertRuleTriggers",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_AlertRuleTriggers\" ON public.\"AlertRuleTriggers\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_AlertRuleTriggers_DeduplicationKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_AlertRuleTriggers_DeduplicationKey\" ON public.\"AlertRuleTriggers\" USING btree (\"DeduplicationKey\")",
+        "Columns": [
+          "DeduplicationKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_AlertRuleTriggers_AlertRules_RuleId",
+        "Type": "f",
+        "Columns": [
+          "RuleId"
+        ],
+        "Definition": "FOREIGN KEY (\"RuleId\") REFERENCES \"AlertRules\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_AlertRuleTriggers_NotificationIntents_NotificationIntentId",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_AlertRuleTriggers",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

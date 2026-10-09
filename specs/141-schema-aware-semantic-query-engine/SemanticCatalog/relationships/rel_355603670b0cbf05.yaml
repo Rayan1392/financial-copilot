@@ -1,0 +1,28 @@
+{
+  "id": "rel_355603670b0cbf05",
+  "from": {
+    "schema": "public",
+    "table": "auth_role_claims",
+    "columns": [
+      "RoleId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_roles",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"RoleId\") REFERENCES auth_roles(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

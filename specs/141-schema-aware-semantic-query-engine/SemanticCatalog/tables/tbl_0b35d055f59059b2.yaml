@@ -1,0 +1,93 @@
+{
+  "id": "tbl_0b35d055f59059b2",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_plan_capabilities",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "PlanCode",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "CapabilityCode",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IsEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "Limit",
+        "Type": "numeric(18,4)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "PlanCode",
+      "CapabilityCode",
+      "PolicyVersion"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "PlanCode"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "billing_subscription_plans",
+        "PrincipalColumns": [
+          "Code"
+        ],
+        "Definition": "FOREIGN KEY (\"PlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "PK_billing_plan_capabilities",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_plan_capabilities\" ON public.billing_plan_capabilities USING btree (\"PlanCode\", \"CapabilityCode\", \"PolicyVersion\")",
+        "Columns": [
+          "PlanCode",
+          "CapabilityCode",
+          "PolicyVersion"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_billing_plan_capabilities_billing_subscription_plans_PlanCo~",
+        "Type": "f",
+        "Columns": [
+          "PlanCode"
+        ],
+        "Definition": "FOREIGN KEY (\"PlanCode\") REFERENCES billing_subscription_plans(\"Code\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_billing_plan_capabilities",
+        "Type": "p",
+        "Columns": [
+          "PlanCode",
+          "CapabilityCode",
+          "PolicyVersion"
+        ],
+        "Definition": "PRIMARY KEY (\"PlanCode\", \"CapabilityCode\", \"PolicyVersion\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

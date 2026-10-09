@@ -1,0 +1,59 @@
+{
+  "id": "metric_tangible_fixed_assets_growth_rate",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "TANGIBLE_FIXED_ASSETS_GROWTH_RATE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Tangible Fixed Assets Growth Rate (Vendor)",
+    "Description": "Governed semantic definition for Tangible Fixed Assets Growth Rate (Vendor).",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "tangible fixed assets growth rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "TANGIBLE_FIXED_ASSETS_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ رشد دارایی‌های ثابت مشهود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "TANGIBLE_FIXED_ASSETS_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

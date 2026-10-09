@@ -1,0 +1,13 @@
+{
+  "id": "dim_product_identity",
+  "physicalTableId": "tbl_8ecd0432a4292998",
+  "columns": [
+    "ProviderProductId",
+    "ProviderProductCode",
+    "ProductCode",
+    "Title",
+    "Unit"
+  ],
+  "status": "unapproved",
+  "runtimeQueryable": false
+}

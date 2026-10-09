@@ -1,0 +1,134 @@
+{
+  "id": "tbl_73383fe5570694cb",
+  "physical": {
+    "Schema": "public",
+    "Name": "MarketQuoteMismatches",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ComparedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "TradingInstrumentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Symbol",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Field",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "BridgeValue",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "DirectValue",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "AbsoluteDiff",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "RelativeDiffPercent",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "BridgeSourceKind",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DirectSourceKind",
+        "Type": "character varying(32)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "TradingInstruments",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_MarketQuoteMismatches_ComparedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketQuoteMismatches_ComparedAt\" ON public.\"MarketQuoteMismatches\" USING btree (\"ComparedAt\")",
+        "Columns": [
+          "ComparedAt"
+        ]
+      },
+      {
+        "Name": "IX_MarketQuoteMismatches_TradingInstrumentId_ComparedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MarketQuoteMismatches_TradingInstrumentId_ComparedAt\" ON public.\"MarketQuoteMismatches\" USING btree (\"TradingInstrumentId\", \"ComparedAt\")",
+        "Columns": [
+          "TradingInstrumentId",
+          "ComparedAt"
+        ]
+      },
+      {
+        "Name": "PK_MarketQuoteMismatches",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MarketQuoteMismatches\" ON public.\"MarketQuoteMismatches\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_MarketQuoteMismatches_TradingInstruments_TradingInstrumentId",
+        "Type": "f",
+        "Columns": [
+          "TradingInstrumentId"
+        ],
+        "Definition": "FOREIGN KEY (\"TradingInstrumentId\") REFERENCES \"TradingInstruments\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_MarketQuoteMismatches",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

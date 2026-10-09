@@ -1,0 +1,60 @@
+{
+  "id": "tbl_386b44b2352458c8",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_permissions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Code",
+        "Type": "character varying(160)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_auth_permissions_Code",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_permissions_Code\" ON public.auth_permissions USING btree (\"Code\")",
+        "Columns": [
+          "Code"
+        ]
+      },
+      {
+        "Name": "PK_auth_permissions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_permissions\" ON public.auth_permissions USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_auth_permissions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

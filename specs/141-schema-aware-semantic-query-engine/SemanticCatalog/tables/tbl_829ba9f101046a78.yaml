@@ -1,0 +1,223 @@
+{
+  "id": "tbl_829ba9f101046a78",
+  "physical": {
+    "Schema": "public",
+    "Name": "RadarEventMatches",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RadarProfileId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "InsightEventId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Decision",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "SuppressionReason",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "AppliedSensitivity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "AppliedPolicyVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationPolicyVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MatchScore",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "HistoricalPercentile",
+        "Type": "numeric",
+        "Nullable": false
+      },
+      {
+        "Name": "ComponentInsightEventIdsJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceReference",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeduplicationKey",
+        "Type": "character varying(512)",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceFreshnessUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "EvaluatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "InsightEventId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "InsightEvents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"InsightEventId\") REFERENCES \"InsightEvents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "RadarProfiles",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_RadarEventMatches_Company_Insight",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarEventMatches_Company_Insight\" ON public.\"RadarEventMatches\" USING btree (\"ExternalCompanyId\", \"InsightEventId\")",
+        "Columns": [
+          "ExternalCompanyId",
+          "InsightEventId"
+        ]
+      },
+      {
+        "Name": "IX_RadarEventMatches_InsightEventId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarEventMatches_InsightEventId\" ON public.\"RadarEventMatches\" USING btree (\"InsightEventId\")",
+        "Columns": [
+          "InsightEventId"
+        ]
+      },
+      {
+        "Name": "IX_RadarEventMatches_NotificationIntentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarEventMatches_NotificationIntentId\" ON public.\"RadarEventMatches\" USING btree (\"NotificationIntentId\")",
+        "Columns": [
+          "NotificationIntentId"
+        ]
+      },
+      {
+        "Name": "IX_RadarEventMatches_Profile_EvaluatedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarEventMatches_Profile_EvaluatedAt\" ON public.\"RadarEventMatches\" USING btree (\"RadarProfileId\", \"EvaluatedAtUtc\")",
+        "Columns": [
+          "RadarProfileId",
+          "EvaluatedAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_RadarEventMatches",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_RadarEventMatches\" ON public.\"RadarEventMatches\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_RadarEventMatches_DeduplicationKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_RadarEventMatches_DeduplicationKey\" ON public.\"RadarEventMatches\" USING btree (\"DeduplicationKey\")",
+        "Columns": [
+          "DeduplicationKey"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_RadarEventMatches_InsightEvents_InsightEventId",
+        "Type": "f",
+        "Columns": [
+          "InsightEventId"
+        ],
+        "Definition": "FOREIGN KEY (\"InsightEventId\") REFERENCES \"InsightEvents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_RadarEventMatches_RadarProfiles_RadarProfileId",
+        "Type": "f",
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_RadarEventMatches",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

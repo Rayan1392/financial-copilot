@@ -195,6 +195,12 @@ public sealed class AiModelExecutionService(
                         failedUsage?.ProviderReportedCurrency,
                         FailureCode: exception.Code),
                     cancellationToken);
+                if (string.Equals(exception.Code, "ModelOutputTruncated", StringComparison.Ordinal))
+                    throw new AiModelProviderException(exception.Status, exception.Code, exception.Message, exception,
+                        exception.HttpStatusCode, exception.ProviderErrorCode, exception.ProviderRequestId,
+                        exception.RequestHost, exception.ProviderQuotaMetadata, exception.ProviderResponseId,
+                        exception.ProviderReportedInputTokens, exception.ProviderReportedOutputTokens,
+                        exception.ProviderCompletionReason, timeProvider.GetUtcNow() - startedAt);
                 if (failedUsage is not null)
                 {
                     usageAccumulator?.Record(failedUsage with

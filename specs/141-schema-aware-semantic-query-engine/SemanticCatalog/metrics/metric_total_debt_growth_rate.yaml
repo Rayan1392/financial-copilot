@@ -1,0 +1,59 @@
+{
+  "id": "metric_total_debt_growth_rate",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "TOTAL_DEBT_GROWTH_RATE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Total Debt Growth Rate (Vendor)",
+    "Description": "Governed semantic definition for Total Debt Growth Rate (Vendor).",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "total debt growth rate",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "TOTAL_DEBT_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نرخ رشد کل بدهی‌ها",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "TOTAL_DEBT_GROWTH_RATE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

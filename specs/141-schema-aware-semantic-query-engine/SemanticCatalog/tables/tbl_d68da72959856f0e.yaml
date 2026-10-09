@@ -1,0 +1,205 @@
+{
+  "id": "tbl_d68da72959856f0e",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_telegram_link_tokens",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TelegramUserId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "TelegramChatId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "Username",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "TokenHash",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Purpose",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ConsumedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "RevokedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ConsumedByTelegramUserId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "TelegramUpdateId",
+        "Type": "bigint",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(160)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "TenantId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_tenants",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Columns": [
+          "ActorId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "auth_users",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\")"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_auth_telegram_link_tokens_ActorId_Status_ExpiresAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_link_tokens_ActorId_Status_ExpiresAtUtc\" ON public.auth_telegram_link_tokens USING btree (\"ActorId\", \"Status\", \"ExpiresAtUtc\")",
+        "Columns": [
+          "ActorId",
+          "Status",
+          "ExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_link_tokens_TelegramUpdateId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_link_tokens_TelegramUpdateId\" ON public.auth_telegram_link_tokens USING btree (\"TelegramUpdateId\") WHERE (\"TelegramUpdateId\" IS NOT NULL)",
+        "Columns": [
+          "TelegramUpdateId"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_link_tokens_TelegramUserId_Status_ExpiresAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_link_tokens_TelegramUserId_Status_ExpiresAtUtc\" ON public.auth_telegram_link_tokens USING btree (\"TelegramUserId\", \"Status\", \"ExpiresAtUtc\")",
+        "Columns": [
+          "TelegramUserId",
+          "Status",
+          "ExpiresAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_link_tokens_TenantId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_auth_telegram_link_tokens_TenantId\" ON public.auth_telegram_link_tokens USING btree (\"TenantId\")",
+        "Columns": [
+          "TenantId"
+        ]
+      },
+      {
+        "Name": "IX_auth_telegram_link_tokens_TokenHash",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_auth_telegram_link_tokens_TokenHash\" ON public.auth_telegram_link_tokens USING btree (\"TokenHash\")",
+        "Columns": [
+          "TokenHash"
+        ]
+      },
+      {
+        "Name": "PK_auth_telegram_link_tokens",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_telegram_link_tokens\" ON public.auth_telegram_link_tokens USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_auth_telegram_link_tokens_auth_tenants_TenantId",
+        "Type": "f",
+        "Columns": [
+          "TenantId"
+        ],
+        "Definition": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "FK_auth_telegram_link_tokens_auth_users_ActorId",
+        "Type": "f",
+        "Columns": [
+          "ActorId"
+        ],
+        "Definition": "FOREIGN KEY (\"ActorId\") REFERENCES auth_users(\"Id\")"
+      },
+      {
+        "Name": "PK_auth_telegram_link_tokens",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

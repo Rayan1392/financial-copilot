@@ -1,0 +1,35 @@
+{
+  "LiveVerified": true,
+  "Differences": [
+    {
+      "Code": "DB_ONLY_INDEX",
+      "Object": "public.FinancialStatementLineItems.FinancialStatementId,MetricCode|False",
+      "Severity": "inventory"
+    },
+    {
+      "Code": "DB_ONLY_OBJECT",
+      "Object": "public.NoavaranEligibleCompanies",
+      "Severity": "inventory"
+    },
+    {
+      "Code": "EF_ONLY_INDEX",
+      "Object": "public.CompanyPsSeriesSyncStates.CompanyId|False",
+      "Severity": "review"
+    },
+    {
+      "Code": "EF_ONLY_INDEX",
+      "Object": "public.FinancialStatementLineItems.FinancialStatementId,MetricCode|True",
+      "Severity": "review"
+    },
+    {
+      "Code": "EF_ONLY_OBJECT",
+      "Object": "public.FundPortfolioAnalyticsSnapshots",
+      "Severity": "breaking"
+    },
+    {
+      "Code": "EF_ONLY_OBJECT",
+      "Object": "public.FundPortfolioSignals",
+      "Severity": "breaking"
+    }
+  ]
+}

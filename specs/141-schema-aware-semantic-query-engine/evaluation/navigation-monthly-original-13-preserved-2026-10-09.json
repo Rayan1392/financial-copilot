@@ -1,0 +1,157 @@
+﻿{
+    "datasetVersion":  1,
+    "purpose":  "Preserved 13-case monthly benchmark, labels derived from unchanged monthly-production-sales-evaluation.json and canonical catalog",
+    "cases":  [
+                  {
+                      "id":  "monthly-01-production-latest",
+                      "question":  "Ú©Ú¯Ù„ Ø¯Ø± Ø¢Ø®Ø±ÛŒÙ† Ù…Ø§Ù‡ Ú†Ù‡ Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯ Ø¯Ø§Ø´ØªÙ‡ Ø§Ø³ØªØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-02-production-product-month",
+                      "question":  "Ù…Ù‚Ø¯Ø§Ø± ØªÙˆÙ„ÛŒØ¯ Ú¯Ù†Ø¯Ù„Ù‡ Ú©Ú¯Ù‡Ø± Ø¯Ø± Ø´Ù‡Ø±ÛŒÙˆØ± Û±Û´Û°Ûµ Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-03-production-mom-growth",
+                      "question":  "ØªÙˆÙ„ÛŒØ¯ Ú©Ù†Ø³Ø§Ù†ØªØ±Ù‡ Ú©Ú¯Ù„ Ù†Ø³Ø¨Øª Ø¨Ù‡ Ù…Ø§Ù‡ Ù‚Ø¨Ù„ Ú†Ù†Ø¯ Ø¯Ø±ØµØ¯ Ø±Ø´Ø¯ Ú©Ø±Ø¯Ù‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "ApprovedPeriodComparison"
+                  },
+                  {
+                      "id":  "monthly-04-production-top-products-growth",
+                      "question":  "Ú©Ø¯Ø§Ù… Ù…Ø­ØµÙˆÙ„Ø§Øª Ú©Ú¯Ù‡Ø± Ø¯Ø± Ø³Ù‡ Ù…Ø§Ù‡ Ø§Ø®ÛŒØ± Ø¨ÛŒØ´ØªØ±ÛŒÙ† Ø±Ø´Ø¯ ØªÙˆÙ„ÛŒØ¯ Ø±Ø§ Ø¯Ø§Ø´ØªÙ‡â€ŒØ§Ù†Ø¯ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "ApprovedPeriodComparison"
+                  },
+                  {
+                      "id":  "monthly-05-sales-amount-month",
+                      "question":  "ÙØ±ÙˆØ´ Ø±ÛŒØ§Ù„ÛŒ Ú©Ú¯Ù„ Ø¯Ø± Ø´Ù‡Ø±ÛŒÙˆØ± Û±Û´Û°Ûµ Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-06-sales-quantity-product-latest",
+                      "question":  "Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´ Ú¯Ù†Ø¯Ù„Ù‡ Ú©Ú¯Ù‡Ø± Ø¯Ø± Ø¢Ø®Ø±ÛŒÙ† Ú¯Ø²Ø§Ø±Ø´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ú†Ù‚Ø¯Ø± Ø§Ø³ØªØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-07-sales-rate-two-months",
+                      "question":  "Ù†Ø±Ø® ÙØ±ÙˆØ´ Ú¯Ù†Ø¯Ù„Ù‡ Ú©Ú¯Ù‡Ø± Ø¯Ø± Ù…Ø±Ø¯Ø§Ø¯ Ùˆ Ø´Ù‡Ø±ÛŒÙˆØ± Û±Û´Û°Ûµ Ú†Ù‚Ø¯Ø± Ø¨ÙˆØ¯Ù‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_rate"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-08-sales-six-month-trend",
+                      "question":  "ÙØ±ÙˆØ´ Ø±ÛŒØ§Ù„ÛŒ Ú©Ú¯Ù„ Ø¯Ø± Ø´Ø´ Ù…Ø§Ù‡ Ú¯Ø°Ø´ØªÙ‡ Ú†Ù‡ Ø±ÙˆÙ†Ø¯ÛŒ Ø¯Ø§Ø´ØªÙ‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-09-cross-company-product-sales",
+                      "question":  "Ú©Ø¯Ø§Ù… Ø´Ø±Ú©Øªâ€ŒÙ‡Ø§ÛŒ ØªÙˆÙ„ÛŒØ¯Ú©Ù†Ù†Ø¯Ù‡ Ú¯Ù†Ø¯Ù„Ù‡ Ø¨ÛŒØ´ØªØ±ÛŒÙ† Ù…Ù‚Ø¯Ø§Ø± ÙØ±ÙˆØ´ Ø±Ø§ Ø¯Ø§Ø´ØªÙ‡â€ŒØ§Ù†Ø¯ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-10-company-sales-comparison",
+                      "question":  "ÙØ±ÙˆØ´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ú©Ú¯Ù„ Ùˆ Ú©Ú¯Ù‡Ø± Ø±Ø§ Ø¨Ø§ Ù‡Ù… Ù…Ù‚Ø§ÛŒØ³Ù‡ Ú©Ù†.",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-11-industry-sales-growth-ranking",
+                      "question":  "Ú©Ø¯Ø§Ù… Ø´Ø±Ú©Øªâ€ŒÙ‡Ø§ÛŒ ÛŒÚ© ØµÙ†Ø¹Øª Ø¨ÛŒØ´ØªØ±ÛŒÙ† Ø±Ø´Ø¯ ÙØ±ÙˆØ´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ø±Ø§ Ø«Ø¨Øª Ú©Ø±Ø¯Ù‡â€ŒØ§Ù†Ø¯ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_monthly_sales_growth_mom"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-12-sales-vs-operating-profit-growth",
+                      "question":  "Ø±Ø´Ø¯ ÙØ±ÙˆØ´ Ù…Ø§Ù‡Ø§Ù†Ù‡ Ú©Ú¯Ù„ Ø¨Ø§ Ø±Ø´Ø¯ Ø³ÙˆØ¯ Ø¹Ù…Ù„ÛŒØ§ØªÛŒ Ø¢Ù† Ú†Ù‡ ØªÙØ§ÙˆØªÛŒ Ø¯Ø§Ø´ØªÙ‡ØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_monthly_sales_growth_mom"
+                                                               },
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_operating_profit_growth_yoy"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "UnsupportedDerivedFinancialMetric"
+                  },
+                  {
+                      "id":  "monthly-13-production-vs-sales-growth",
+                      "question":  "Ø¢ÛŒØ§ Ø±Ø´Ø¯ ØªÙˆÙ„ÛŒØ¯ Ú©Ú¯Ù‡Ø± Ø¨Ø§ Ø±Ø´Ø¯ ÙØ±ÙˆØ´ Ø¢Ù† Ù‡Ù…â€ŒØ¬Ù‡Øª Ø¨ÙˆØ¯Ù‡ Ø§Ø³ØªØŸ",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               },
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "UnsupportedDerivedFinancialMetric"
+                  }
+              ]
+}

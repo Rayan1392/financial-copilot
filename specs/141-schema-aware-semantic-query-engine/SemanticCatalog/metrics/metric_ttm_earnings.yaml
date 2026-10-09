@@ -1,0 +1,53 @@
+{
+  "id": "metric_ttm_earnings",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "TTM_EARNINGS"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "TTM Earnings",
+    "Description": "Governed semantic definition for TTM Earnings.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      7
+    ],
+    "Aliases": [],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "PeriodType": 7,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

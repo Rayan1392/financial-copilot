@@ -1,0 +1,140 @@
+{
+  "datasetCaseCount": 1,
+  "scoredCaseCount": 1,
+  "unscoredCaseIds": [],
+  "aggregate": {
+    "nodeRecall": 0.75,
+    "metricRecall": 1.0,
+    "dimensionRecall": 1.0,
+    "relationshipRecall": null,
+    "domainAccuracy": 0.0,
+    "statementScopeAccuracy": null,
+    "financialPolicyRecall": null,
+    "contextCompletenessAccuracy": null,
+    "missingUnsupportedAccuracy": null,
+    "financialReferenceAccuracy": null,
+    "financialOperationAccuracy": null,
+    "financialReferenceTypeAccuracy": null,
+    "sourceItemReferenceAccuracy": null,
+    "governedMetricCodeAccuracy": null,
+    "providerFinancialIndicatorAccuracy": null,
+    "requirementsFinancialReferenceRecall": null,
+    "entityResolutionAccuracy": null,
+    "periodInterpretationAccuracy": null,
+    "falsePositiveAcceptanceRate": null
+  },
+  "operations": {
+    "modelCalls": 2,
+    "inputTokens": 10662,
+    "outputTokens": 1081,
+    "latencyMs": 13257,
+    "providerReportedCost": null,
+    "costCurrency": null
+  },
+  "perCase": [
+    {
+      "caseId": "fa-01",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.75,
+        "precision": 0.8571428571428571,
+        "correct": 6,
+        "expected": 8,
+        "actual": 7,
+        "missing": [
+          "domain-company-industry",
+          "table-tbl_8646d83cdb350f92"
+        ],
+        "unsupported": [
+          "table-tbl_4f3dd93b63d1766f"
+        ]
+      },
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 1.0,
+        "correct": 1,
+        "expected": 2,
+        "actual": 1,
+        "missing": [
+          "company-industry"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.08333333333333333,
+        "correct": 1,
+        "expected": 1,
+        "actual": 12,
+        "missing": [],
+        "unsupported": [
+          "avg12mmonthlysales",
+          "monthlyproductiongrowthyoy",
+          "monthlysales",
+          "monthlysalesgrowthmom",
+          "monthlysalesgrowthyoy",
+          "monthlysalesquantity",
+          "monthlysalesquantitygrowthyoy",
+          "monthlysalesrate",
+          "monthlysalestoproductionratio",
+          "monthlysalesytd",
+          "monthlysalesytdpreviousmonth"
+        ]
+      },
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "correct": 3,
+        "expected": 3,
+        "actual": 3,
+        "missing": [],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 1
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 11
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 10662,
+      "outputTokens": 1081,
+      "latencyMs": 13257,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    }
+  ]
+}

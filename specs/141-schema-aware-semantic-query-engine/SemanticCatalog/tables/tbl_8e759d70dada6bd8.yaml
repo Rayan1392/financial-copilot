@@ -1,0 +1,270 @@
+{
+  "id": "tbl_8e759d70dada6bd8",
+  "physical": {
+    "Schema": "public",
+    "Name": "MonthlyReports",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalReportId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStart",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEnd",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "SourcePayloadChecksum",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "WarningsJson",
+        "Type": "text",
+        "Nullable": false,
+        "DefaultValue": "''::text"
+      },
+      {
+        "Name": "LogicalVendor",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMode",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportType",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "OutputType",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "VendorPeriodDate",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "PublishedAt",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "IsAccepted",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "true"
+      },
+      {
+        "Name": "LogicalReportKey",
+        "Type": "character varying(512)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "ProviderPublishedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "RevisionFingerprint",
+        "Type": "character varying(128)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "RevisionStatus",
+        "Type": "character varying(32)",
+        "Nullable": false,
+        "DefaultValue": "'Accepted'::character varying"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "CompanyId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Companies",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_MonthlyReports_CompanyId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlyReports_CompanyId\" ON public.\"MonthlyReports\" USING btree (\"CompanyId\")",
+        "Columns": [
+          "CompanyId"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyReports_LogicalPeriod",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MonthlyReports_LogicalPeriod\" ON public.\"MonthlyReports\" USING btree (\"ProviderName\", \"ExternalCompanyId\", \"PeriodStart\", \"PeriodEnd\", \"OutputType\", \"ReportType\", \"IsAccepted\") WHERE ((\"ExternalCompanyId\" IS NOT NULL) AND (\"ReportType\" IS NOT NULL) AND (\"IsAccepted\" = true))",
+        "Columns": [
+          "ProviderName",
+          "ExternalCompanyId",
+          "PeriodStart",
+          "PeriodEnd",
+          "OutputType",
+          "ReportType",
+          "IsAccepted"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyReports_ProviderName_ExternalCompanyId_LastSynchroni~",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlyReports_ProviderName_ExternalCompanyId_LastSynchroni~\" ON public.\"MonthlyReports\" USING btree (\"ProviderName\", \"ExternalCompanyId\", \"LastSynchronizedAt\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalCompanyId",
+          "LastSynchronizedAt"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyReports_ProviderName_ExternalReportId_RevisionFinger~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MonthlyReports_ProviderName_ExternalReportId_RevisionFinger~\" ON public.\"MonthlyReports\" USING btree (\"ProviderName\", \"ExternalReportId\", \"RevisionFingerprint\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalReportId",
+          "RevisionFingerprint"
+        ]
+      },
+      {
+        "Name": "IX_MonthlyReports_ProviderName_LastSynchronizedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MonthlyReports_ProviderName_LastSynchronizedAt\" ON public.\"MonthlyReports\" USING btree (\"ProviderName\", \"LastSynchronizedAt\")",
+        "Columns": [
+          "ProviderName",
+          "LastSynchronizedAt"
+        ]
+      },
+      {
+        "Name": "PK_MonthlyReports",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MonthlyReports\" ON public.\"MonthlyReports\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_MonthlyReports_Companies_CompanyId",
+        "Type": "f",
+        "Columns": [
+          "CompanyId"
+        ],
+        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "PK_MonthlyReports",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Provider-scoped monthly disclosure header with period, report category, output type, acceptance, and revision provenance.",
+    "descriptionFa": "سرآیند گزارش ماهانه به تفکیک منبع، دوره، نوع گزارش، نوع خروجی، پذیرش و نسخه.",
+    "purpose": "Owns provider/report identity and accepted revision policy for monthly line items.",
+    "grain": "One provider + external company + logical period + report type/output type + revision; accepted logical-period uniqueness is indexed.",
+    "columns": {
+      "Id": "Report UUID",
+      "CompanyId": "Nullable FK to Companies.Id",
+      "ExternalCompanyId": "Provider company identifier; not Companies.Id",
+      "ProviderName": "Source/provider",
+      "ExternalReportId": "Provider report identifier",
+      "PeriodStart/PeriodEnd": "Normalized reporting interval",
+      "ReportType/OutputType": "Report family and report view",
+      "IsAccepted/RevisionStatus/RevisionFingerprint": "Accepted revision state and identity",
+      "SourcePayloadChecksum": "Raw payload provenance",
+      "VendorPeriodDate": "Vendor-supplied period date when parsed"
+    },
+    "units": "Dates and identifiers; no monetary measure in header.",
+    "relationships": [
+      "CompanyId -> Companies.Id (physical FK)",
+      "MonthlyReportLineItems.MonthlyReportId -> MonthlyReports.Id is the application join; no physical FK was found in the live schema."
+    ],
+    "metricReferences": [
+      "Feature 015 metric registry governs monthly sales and production calculations; do not duplicate its formulas."
+    ],
+    "providerPolicy": "Filter provider and accepted logical revision. NoavaranCurrentApi monthly actuals use ProductSales/OutputType=0 for the governed single-month source; service route is distinct. CyclicalWaves is a separate provider and must not be merged by external ID alone.",
+    "periodSemantics": "Normalized closed report period; VendorPeriodDate retains vendor period date when available.",
+    "examples": [
+      "آخرین گزارش ماهانه یک شرکت",
+      "Show accepted monthly reports for a company"
+    ],
+    "cautions": [
+      "ExternalCompanyId is provider-scoped and has no FK to Companies.Id.",
+      "Do not select MAX(PeriodEnd) without provider, ReportType, OutputType, IsAccepted, and revision policy."
+    ],
+    "sourceVerification": "Live PostgreSQL schema/indexes, Noavaran route client, monthly normalizers, and Feature 136 revision policy.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

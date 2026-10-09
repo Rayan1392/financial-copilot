@@ -1,0 +1,124 @@
+{
+  "id": "tbl_607c41a28b4773c5",
+  "physical": {
+    "Schema": "public",
+    "Name": "ComprehensiveAnalysisTags",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "AnalysisId",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "TagId",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TagName",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "TagSlug",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "TagTypeId",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IsAnalytic",
+        "Type": "boolean",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "AnalysisId",
+      "TagId"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "AnalysisId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "ComprehensiveAnalyses",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"AnalysisId\") REFERENCES \"ComprehensiveAnalyses\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_ComprehensiveAnalysisTags_TagName_IsAnalytic_AnalysisId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ComprehensiveAnalysisTags_TagName_IsAnalytic_AnalysisId\" ON public.\"ComprehensiveAnalysisTags\" USING btree (\"TagName\", \"IsAnalytic\", \"AnalysisId\")",
+        "Columns": [
+          "TagName",
+          "IsAnalytic",
+          "AnalysisId"
+        ]
+      },
+      {
+        "Name": "IX_ComprehensiveAnalysisTags_TagName_TagTypeId_AnalysisId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ComprehensiveAnalysisTags_TagName_TagTypeId_AnalysisId\" ON public.\"ComprehensiveAnalysisTags\" USING btree (\"TagName\", \"TagTypeId\", \"AnalysisId\")",
+        "Columns": [
+          "TagName",
+          "TagTypeId",
+          "AnalysisId"
+        ]
+      },
+      {
+        "Name": "IX_ComprehensiveAnalysisTags_TagTypeId_AnalysisId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ComprehensiveAnalysisTags_TagTypeId_AnalysisId\" ON public.\"ComprehensiveAnalysisTags\" USING btree (\"TagTypeId\", \"AnalysisId\")",
+        "Columns": [
+          "TagTypeId",
+          "AnalysisId"
+        ]
+      },
+      {
+        "Name": "PK_ComprehensiveAnalysisTags",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ComprehensiveAnalysisTags\" ON public.\"ComprehensiveAnalysisTags\" USING btree (\"AnalysisId\", \"TagId\")",
+        "Columns": [
+          "AnalysisId",
+          "TagId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_ComprehensiveAnalysisTags_ComprehensiveAnalyses_AnalysisId",
+        "Type": "f",
+        "Columns": [
+          "AnalysisId"
+        ],
+        "Definition": "FOREIGN KEY (\"AnalysisId\") REFERENCES \"ComprehensiveAnalyses\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_ComprehensiveAnalysisTags",
+        "Type": "p",
+        "Columns": [
+          "AnalysisId",
+          "TagId"
+        ],
+        "Definition": "PRIMARY KEY (\"AnalysisId\", \"TagId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

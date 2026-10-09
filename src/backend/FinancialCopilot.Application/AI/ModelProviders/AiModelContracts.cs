@@ -28,7 +28,8 @@ public enum AiWorkloadKind
     SuggestedQuestions,
     Summarization,
     Embeddings,
-    ResearchTool
+    ResearchTool,
+    SchemaNavigation
 }
 
 public enum AiMessageRole
@@ -155,6 +156,8 @@ public static class AiWorkloadCapabilities
         {
             AiWorkloadKind.ScannerParsing =>
                 AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
+            AiWorkloadKind.SchemaNavigation =>
+                AiModelCapability.ChatCompletion | AiModelCapability.StructuredOutput,
             AiWorkloadKind.ExplanationGeneration or AiWorkloadKind.SuggestedQuestions or AiWorkloadKind.Summarization =>
                 AiModelCapability.ChatCompletion,
             AiWorkloadKind.Embeddings => AiModelCapability.Embeddings,
@@ -168,11 +171,56 @@ public sealed class AiModelProviderException(
     AiExecutionStatus status,
     string code,
     string message,
-    Exception? innerException = null) : Exception(message, innerException)
+    Exception? innerException = null,
+    int? httpStatusCode = null,
+    string? providerErrorCode = null,
+    string? providerRequestId = null,
+    string? requestHost = null,
+    IReadOnlyDictionary<string, string>? providerQuotaMetadata = null,
+    string? providerResponseId = null,
+    int? providerReportedInputTokens = null,
+    int? providerReportedOutputTokens = null,
+    string? providerCompletionReason = null,
+    TimeSpan? providerLatency = null,
+    int? evaluationModelCalls = null,
+    int? accumulatedProviderInputTokens = null,
+    int? accumulatedProviderOutputTokens = null,
+    TimeSpan? evaluationLatency = null,
+    int? evaluationRetryAttempts = null) : Exception(message, innerException)
 {
     public AiExecutionStatus Status { get; } = status;
 
     public string Code { get; } = code;
+
+    public int? HttpStatusCode { get; } = httpStatusCode;
+
+    public string? ProviderErrorCode { get; } = providerErrorCode;
+
+    public string? ProviderRequestId { get; } = providerRequestId;
+
+    public string? RequestHost { get; } = requestHost;
+
+    public IReadOnlyDictionary<string, string>? ProviderQuotaMetadata { get; } = providerQuotaMetadata;
+
+    public string? ProviderResponseId { get; } = providerResponseId;
+
+    public int? ProviderReportedInputTokens { get; } = providerReportedInputTokens;
+
+    public int? ProviderReportedOutputTokens { get; } = providerReportedOutputTokens;
+
+    public string? ProviderCompletionReason { get; } = providerCompletionReason;
+
+    public TimeSpan? ProviderLatency { get; } = providerLatency;
+
+    public int? EvaluationModelCalls { get; } = evaluationModelCalls;
+
+    public int? AccumulatedProviderInputTokens { get; } = accumulatedProviderInputTokens;
+
+    public int? AccumulatedProviderOutputTokens { get; } = accumulatedProviderOutputTokens;
+
+    public TimeSpan? EvaluationLatency { get; } = evaluationLatency;
+
+    public int? EvaluationRetryAttempts { get; } = evaluationRetryAttempts;
 }
 
 public interface IAiModelClient

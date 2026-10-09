@@ -193,7 +193,16 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             statement.JalaliAnouncementDate,
             statement.AnouncementDate,
             AssumedScale = "MillionRials",
-            SourceAmountUnit = statement.Items.Select(item => item.AmountUnit).FirstOrDefault(unit => !string.IsNullOrWhiteSpace(unit)) ?? "N/A"
+            SourceAmountUnit = statement.Items.Select(item => item.AmountUnit).FirstOrDefault(unit => !string.IsNullOrWhiteSpace(unit)) ?? "N/A",
+            InvalidObservations = statement.Items
+                .Where(item => item.Amount is null)
+                .Select(item => new
+                {
+                    SourceItemId = item.ItemID,
+                    item.ItemTitle,
+                    Reason = "NullAmount"
+                })
+                .ToArray()
         };
         return JsonSerializer.Serialize(new[] { evidence }, JsonOptions);
     }

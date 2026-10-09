@@ -1,0 +1,143 @@
+{
+  "id": "tbl_3f4c9f009a2253d9",
+  "physical": {
+    "Schema": "public",
+    "Name": "UserAlertDeliveryTimeline",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "UserAlertRecordId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "NotificationIntentId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "AttemptNumber",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderMessageId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "ErrorCode",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "NotificationIntents",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "UserAlertRecordId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "UserAlertRecords",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"UserAlertRecordId\") REFERENCES \"UserAlertRecords\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_UserAlertDeliveryTimeline_NotificationIntentId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertDeliveryTimeline_NotificationIntentId\" ON public.\"UserAlertDeliveryTimeline\" USING btree (\"NotificationIntentId\")",
+        "Columns": [
+          "NotificationIntentId"
+        ]
+      },
+      {
+        "Name": "IX_UserAlertDeliveryTimeline_Record_Time",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_UserAlertDeliveryTimeline_Record_Time\" ON public.\"UserAlertDeliveryTimeline\" USING btree (\"UserAlertRecordId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "UserAlertRecordId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_UserAlertDeliveryTimeline",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_UserAlertDeliveryTimeline\" ON public.\"UserAlertDeliveryTimeline\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_UserAlertDeliveryTimeline_NotificationIntents_NotificationI~",
+        "Type": "f",
+        "Columns": [
+          "NotificationIntentId"
+        ],
+        "Definition": "FOREIGN KEY (\"NotificationIntentId\") REFERENCES \"NotificationIntents\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_UserAlertDeliveryTimeline_UserAlertRecords_UserAlertRecordId",
+        "Type": "f",
+        "Columns": [
+          "UserAlertRecordId"
+        ],
+        "Definition": "FOREIGN KEY (\"UserAlertRecordId\") REFERENCES \"UserAlertRecords\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_UserAlertDeliveryTimeline",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

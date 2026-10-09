@@ -11,7 +11,7 @@ This design is implementation-ready at the product/architecture level. Exact nam
 1. **Raw first.** Preserve provider facts before deriving financial meaning.
 2. **One importer, multiple triggers.** Worker and Admin API are orchestration boundaries only.
 3. **Database-enforced idempotency.** Application checks are useful; database uniqueness is authoritative.
-4. **Auditable acquisition.** Keep the original provider response alongside parsed rows.
+4. **Auditable acquisition.** Keep a bounded raw provider response body/value alongside parsed rows, including failure cases where an HTTP response was received.
 5. **No premature company semantics.** IME identities are not assumed to equal TSETMC/company identities.
 6. **Forward-compatible acquisition.** Unknown fields remain recoverable through raw payload storage.
 7. **Explicit time semantics.** Schedule in Iran timezone; timestamps stored canonically in UTC.
@@ -143,10 +143,30 @@ Proposed logical table: `ImeDailyTradeImports`.
 | `RecordsReceived` | parsed source rows |
 | `RecordsInserted` | newly inserted rows |
 | `RecordsSkipped` | duplicate rows |
-| `RawResponse` | original response JSON, preferably `jsonb` |
+| `RawResponseText` | preferred: bounded provider HTTP response body as received at the application boundary; if repository-mandated `jsonb` is reused, document it as a lossless JSON-value representation rather than byte-for-byte raw text |
 | `ErrorCode/ErrorMessage` | bounded failure diagnostics |
 
 Do not enforce one-import-per-date: operations need an audit history of retries/replays. Trade-row uniqueness handles duplication.
+
+### 7.1.1 Raw response storage semantics
+
+Preferred contract: `RawResponseText`, containing the bounded provider body as received at the application boundary. Optional metadata may include `RawResponseHash`, `ContentType`, `HttpStatusCode`, and `FetchedAtUtc`.
+
+If repository discovery proves an established mandatory PostgreSQL `jsonb` convention, reuse it only with the semantic label **lossless JSON-value representation**. In that mode, property order, whitespace, formatting, and byte-for-byte fidelity are not guaranteed.
+
+Retention flow:
+
+```text
+Call IME
+  -> receive HTTP response
+  -> capture bounded raw body/value
+  -> create/update import evidence
+  -> parse outer response
+  -> parse d
+  -> validate row dates
+  -> persist typed observations
+  -> finalize import status
+```
 
 ### 7.2 Trade row table
 
@@ -210,7 +230,7 @@ Price, quantity, and total fields must not use `float`/`double` for persistence.
 
 This design intentionally keeps both:
 
-- original response: provider evidence and schema-drift recovery;
+- raw response evidence: provider evidence and schema-drift recovery, including parse/integrity failures;
 - parsed columns: efficient future deterministic querying.
 
 This is not duplicate business data. They serve different operational purposes.
@@ -264,7 +284,15 @@ If the existing repository prefers EF exception handling over provider-specific 
 
 If any known source field changes, the canonical fingerprint changes and a new observation is stored. This prevents Feature 140 from inventing update semantics for a provider whose revision behavior is not yet documented.
 
-Future features can decide how to choose latest/canonical revisions.
+`SourceFingerprint` identifies an exact observed provider row. It is **not** a proven logical/business transaction identifier. `ImeDailyTrades` is therefore an immutable provider-observation store, not automatically a canonical/current-trade table. Future analytics must introduce explicit revision/canonicalization semantics before aggregating mutually related observations as one logical trade.
+
+Future features may introduce logical trade identity, revision grouping, or canonical/latest observation selection once provider correction semantics are understood.
+
+## 8.6 Requested-date integrity
+
+After parsing and before successful trade persistence, validate that every non-empty source row has `date == targetPersianDate` after strict normalization to `yyyy/MM/dd`.
+
+Any mismatched or mixed-date response is a provider-contract/integrity failure. Preserve the raw response evidence, record the mismatch count, do not rewrite provider dates, and do not persist/report a successful partial batch.
 
 ## 9. Scheduling design
 
@@ -310,9 +338,15 @@ Repository inspection must determine:
 - actual route prefix/versioning;
 - admin authorization policy;
 - response envelope/problem-details conventions;
-- whether the API should execute synchronously or enqueue an existing background command.
+- whether an established Admin long-running-operation/background-job pattern already exists.
 
-For the requested capability, either execution model is acceptable only if both ultimately call the same importer and return/enable inspection of the import result. Avoid introducing a new queue solely for this feature unless it matches the existing architecture.
+Execution decision rule:
+
+1. Reuse the existing Admin long-running-operation/job mechanism when one already exists.
+2. Otherwise execute a one-day import synchronously and return the typed import result.
+3. Do not introduce a new queue/background subsystem solely for Feature 140.
+
+Both modes must ultimately call the same application-level importer.
 
 ## 11. Date handling
 
@@ -325,6 +359,7 @@ Validate yyyy/MM/dd input
 Format current Iran-local date as yyyy/MM/dd
 Reject impossible Jalali dates
 Avoid culture-dependent parsing
+Reject Admin target dates later than the current Iran-local date
 ```
 
 The Worker computes the target date from an Iran-local clock. Store operational timestamps in UTC.
@@ -336,8 +371,8 @@ Use an injected clock/time provider if the repository supports it so schedule/da
 Use existing HTTP resilience infrastructure after repository inspection. Desired behavior:
 
 - finite timeout;
-- bounded retries only for transient errors;
-- no retry for deterministic parse/contract errors;
+- bounded retries only for transient errors; this provider POST is semantically read-only from FinancialCopilot's perspective;
+- no retry for malformed JSON, invalid `d`, date-integrity mismatch, schema/contract failures, or business validation failures;
 - cancellation-aware calls;
 - no infinite provider retry inside a scheduled execution;
 - structured final failure.
@@ -364,7 +399,7 @@ Recommended:
 - create/update Running import state before/around provider acquisition using existing lifecycle conventions;
 - after successful parse, persist trade rows and success counters atomically;
 - a database failure leaves the import Failed, not Succeeded;
-- raw response should be retained on successful HTTP acquisition whenever existing transaction/lifecycle architecture allows it, including parse failures if safely possible.
+- for every HTTP response actually received, capture and durably retain the bounded raw response evidence before typed parsing determines success/failure; network failures with no response naturally have no raw body to retain.
 
 Exact lifecycle transaction boundaries must follow repository patterns to avoid long-lived DB transactions across network calls.
 
@@ -415,7 +450,12 @@ Do not add speculative analytical/materialized indexes yet.
 - all known fields persisted;
 - duplicate rerun;
 - concurrent duplicate import;
-- changed row creates new observation;
+- changed row creates new observation and fingerprint is treated only as observation identity;
+- all returned row dates match requested date -> success;
+- one mismatched/mixed-date response -> failure with raw evidence retained;
+- malformed outer/inner JSON retains raw evidence when a body was received;
+- future Admin date is rejected before provider call;
+- transient POST failures may retry per existing policy while contract/parse/integrity failures do not;
 - transaction failure does not mark success;
 - Admin authorization;
 - Admin and Worker resolve same importer.

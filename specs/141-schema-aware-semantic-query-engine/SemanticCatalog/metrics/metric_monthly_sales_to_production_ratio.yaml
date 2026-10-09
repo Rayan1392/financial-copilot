@@ -1,0 +1,79 @@
+{
+  "id": "metric_monthly_sales_to_production_ratio",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES_TO_PRODUCTION_RATIO"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales to Production Ratio",
+    "Description": "Governed semantic definition for Monthly Sales to Production Ratio.",
+    "Category": 3,
+    "Unit": {
+      "Code": "ratio",
+      "DisplayLabel": "Ratio"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales to production ratio",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_TO_PRODUCTION_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "sales to production ratio",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_TO_PRODUCTION_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت فروش به تولید",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_TO_PRODUCTION_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "نسبت مقدار فروش به تولید",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_TO_PRODUCTION_RATIO"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [],
+    "DataRequirements": []
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

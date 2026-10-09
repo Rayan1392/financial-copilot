@@ -1,0 +1,92 @@
+{
+  "id": "tbl_059dcb197fca24ba",
+  "physical": {
+    "Schema": "public",
+    "Name": "ConversationTaskStates",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "ConversationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "LastCorrelationId",
+        "Type": "character varying(200)",
+        "Nullable": true
+      },
+      {
+        "Name": "StateJson",
+        "Type": "text",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "ConversationId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_ConversationTaskStates_TenantId_ActorId_ExpiresAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_ConversationTaskStates_TenantId_ActorId_ExpiresAt\" ON public.\"ConversationTaskStates\" USING btree (\"TenantId\", \"ActorId\", \"ExpiresAt\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ExpiresAt"
+        ]
+      },
+      {
+        "Name": "PK_ConversationTaskStates",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_ConversationTaskStates\" ON public.\"ConversationTaskStates\" USING btree (\"ConversationId\")",
+        "Columns": [
+          "ConversationId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_ConversationTaskStates",
+        "Type": "p",
+        "Columns": [
+          "ConversationId"
+        ],
+        "Definition": "PRIMARY KEY (\"ConversationId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

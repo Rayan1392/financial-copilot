@@ -1,0 +1,43 @@
+{
+  "datasetVersion": 5,
+  "purpose": "Independent post-freeze generalization fixture with unseen cross-domain and product-period compositions. Labels are catalog-derived and are not included in runtime prompts.",
+  "cases": [
+    {
+      "id": "holdout-v5-industry-growth-liquidity",
+      "question": "Within each industry, compare issuers' year-over-year net profit growth with their latest current ratio.",
+      "domains": ["financial-statements", "company-industry"],
+      "tables": [],
+      "metrics": ["NET_PROFIT_GROWTH_YOY", "CURRENT_RATIO"],
+      "metricIds": ["metric_net_profit_growth_yoy", "metric_current_ratio"],
+      "dimensions": ["dim_company", "dim_industry"],
+      "entities": ["company", "industry"],
+      "relationships": [],
+      "nodeIds": ["domain-financial-statements", "domain-company-industry", "dimension-dim_company", "dimension-dim_industry"]
+    },
+    {
+      "id": "holdout-v5-cashflow-net-margin",
+      "question": "For each issuer, show the latest standalone operating cash flow alongside net profit margin.",
+      "domains": ["financial-statements"],
+      "tables": ["tbl_4f2ef2d8dd59b46a"],
+      "metrics": ["OPERATING_CASH_FLOW", "NET_PROFIT_MARGIN"],
+      "metricIds": ["metric_operating_cash_flow", "metric_net_profit_margin"],
+      "dimensions": ["dim_company"],
+      "entities": ["company"],
+      "relationships": [],
+      "statementScope": "standalone",
+      "nodeIds": ["domain-financial-statements", "dimension-dim_company", "table-tbl_4f2ef2d8dd59b46a"]
+    },
+    {
+      "id": "holdout-v5-product-output-sales-quantity",
+      "question": "By company, product, and month, put monthly production quantity next to monthly sales quantity.",
+      "domains": ["monthly-activity"],
+      "tables": ["tbl_8ecd0432a4292998"],
+      "metrics": ["MONTHLY_PRODUCTION_QUANTITY", "MONTHLY_SALES_QUANTITY"],
+      "metricIds": ["metric_monthly_production_quantity", "metric_monthly_sales_quantity"],
+      "dimensions": ["dim_company", "dim_product_identity", "dim_monthly_period"],
+      "entities": ["company", "product"],
+      "relationships": [],
+      "nodeIds": ["domain-monthly-activity", "dimension-dim_company", "dimension-dim_product_identity", "dimension-dim_monthly_period", "table-tbl_8ecd0432a4292998"]
+    }
+  ]
+}

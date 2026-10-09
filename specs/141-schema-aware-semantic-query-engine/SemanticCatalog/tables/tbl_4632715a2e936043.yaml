@@ -1,0 +1,130 @@
+{
+  "id": "tbl_4632715a2e936043",
+  "physical": {
+    "Schema": "public",
+    "Name": "Feature126Events",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "EventId",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "RunId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventSequence",
+        "Type": "bigint",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpectedPredecessorState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "OwnerId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "FencingToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TehranDate",
+        "Type": "character varying(16)",
+        "Nullable": false
+      },
+      {
+        "Name": "AttemptReason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "RecoveredFromRunId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "FieldsJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "SchemaVersion",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "AppendedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "EventId"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_Feature126Events_RunId_AppendedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Feature126Events_RunId_AppendedAtUtc\" ON public.\"Feature126Events\" USING btree (\"RunId\", \"AppendedAtUtc\")",
+        "Columns": [
+          "RunId",
+          "AppendedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_Feature126Events_RunId_EventSequence",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Feature126Events_RunId_EventSequence\" ON public.\"Feature126Events\" USING btree (\"RunId\", \"EventSequence\")",
+        "Columns": [
+          "RunId",
+          "EventSequence"
+        ]
+      },
+      {
+        "Name": "PK_Feature126Events",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Feature126Events\" ON public.\"Feature126Events\" USING btree (\"EventId\")",
+        "Columns": [
+          "EventId"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_Feature126Events",
+        "Type": "p",
+        "Columns": [
+          "EventId"
+        ],
+        "Definition": "PRIMARY KEY (\"EventId\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

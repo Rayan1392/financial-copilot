@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.API\FinancialCopilot.API.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Billing\FinancialCopilot.Billing.csproj" />
     <ProjectReference Include="..\..\src\backend\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
+    <Compile Include="..\..\tools\SemanticCatalog\EvaluationConfigurationLoader.cs" Link="TestSupport\EvaluationConfigurationLoader.cs" />
   </ItemGroup>
 
 </Project>

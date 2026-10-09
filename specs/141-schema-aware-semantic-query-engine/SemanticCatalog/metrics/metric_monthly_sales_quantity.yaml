@@ -1,0 +1,94 @@
+{
+  "id": "metric_monthly_sales_quantity",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "MONTHLY_SALES_QUANTITY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Monthly Sales Quantity",
+    "Description": "Actual monthly SalesQuantity for a product in an accepted Noavaran ProductSales report. Dimensional unit is the source row quantity unit. This is sold volume, never SalesAmount or a currency value.",
+    "Category": 3,
+    "Unit": {
+      "Code": "quantity",
+      "DisplayLabel": "Quantity"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      0
+    ],
+    "Aliases": [
+      {
+        "Expression": "monthly sales quantity",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "sales quantity",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مقدار فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "مقدار فروش ماهانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "MONTHLY_SALES_QUANTITY"
+        },
+        "PeriodType": 0,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

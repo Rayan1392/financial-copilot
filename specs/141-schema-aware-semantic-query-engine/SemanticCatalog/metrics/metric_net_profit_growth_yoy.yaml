@@ -1,0 +1,109 @@
+{
+  "id": "metric_net_profit_growth_yoy",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "NET_PROFIT_GROWTH_YOY"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Net Profit Growth YoY",
+    "Description": "Governed semantic definition for Net Profit Growth YoY.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "net profit growth yoy",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود خالص سالانه",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود خالص آخرین فصل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود خالص نسبت به سال قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      },
+      {
+        "Expression": "رشد سود نسبت به سال قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "NET_PROFIT_GROWTH_YOY"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 0
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "NET_PROFIT"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

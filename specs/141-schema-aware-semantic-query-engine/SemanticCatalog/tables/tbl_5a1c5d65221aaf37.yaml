@@ -1,0 +1,76 @@
+{
+  "id": "tbl_5a1c5d65221aaf37",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_roles",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "NormalizedName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "ConcurrencyStamp",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "IsEnabled",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "true"
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_auth_roles",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_roles\" ON public.auth_roles USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "RoleNameIndex",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"RoleNameIndex\" ON public.auth_roles USING btree (\"NormalizedName\")",
+        "Columns": [
+          "NormalizedName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_auth_roles",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

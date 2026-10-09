@@ -1,0 +1,120 @@
+{
+  "id": "tbl_35c60ebdadbc79de",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioOperationAudits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EventType",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "RunId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "ReviewId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "CorrelationId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Summary",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioOperationAudits_EventType_CreatedAtUtc",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioOperationAudits_EventType_CreatedAtUtc\" ON public.\"FundPortfolioOperationAudits\" USING btree (\"EventType\", \"CreatedAtUtc\")",
+        "Columns": [
+          "EventType",
+          "CreatedAtUtc"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioOperationAudits_ReportId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioOperationAudits_ReportId\" ON public.\"FundPortfolioOperationAudits\" USING btree (\"ReportId\")",
+        "Columns": [
+          "ReportId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioOperationAudits_ReviewId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioOperationAudits_ReviewId\" ON public.\"FundPortfolioOperationAudits\" USING btree (\"ReviewId\")",
+        "Columns": [
+          "ReviewId"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioOperationAudits_RunId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioOperationAudits_RunId\" ON public.\"FundPortfolioOperationAudits\" USING btree (\"RunId\")",
+        "Columns": [
+          "RunId"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioOperationAudits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioOperationAudits\" ON public.\"FundPortfolioOperationAudits\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioOperationAudits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

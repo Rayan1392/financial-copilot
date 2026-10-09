@@ -1,0 +1,182 @@
+{
+  "id": "tbl_2a733a37ed76aa5f",
+  "physical": {
+    "Schema": "public",
+    "Name": "billing_usage_ledger_entries",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CustomerAccountId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ApiClientId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "EntryType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "OperationCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreditsCharged",
+        "Type": "numeric(18,4)",
+        "Nullable": false
+      },
+      {
+        "Name": "PricingPolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(160)",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalUserId",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "AuditDescription",
+        "Type": "character varying(500)",
+        "Nullable": true
+      },
+      {
+        "Name": "RelatedEntryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletionStatus",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletionTokens",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "EstimatedCost",
+        "Type": "numeric(18,8)",
+        "Nullable": true
+      },
+      {
+        "Name": "ModelName",
+        "Type": "character varying(160)",
+        "Nullable": true
+      },
+      {
+        "Name": "PromptTokens",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "character varying(80)",
+        "Nullable": true
+      },
+      {
+        "Name": "TotalTokens",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "AllocationSource",
+        "Type": "character varying(80)",
+        "Nullable": true
+      },
+      {
+        "Name": "AllowanceDateKey",
+        "Type": "character varying(32)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_billing_usage_ledger_entries_CustomerAccountId_OccurredAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_usage_ledger_entries_CustomerAccountId_OccurredAt\" ON public.billing_usage_ledger_entries USING btree (\"CustomerAccountId\", \"OccurredAt\")",
+        "Columns": [
+          "CustomerAccountId",
+          "OccurredAt"
+        ]
+      },
+      {
+        "Name": "IX_billing_usage_ledger_entries_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_billing_usage_ledger_entries_IdempotencyKey\" ON public.billing_usage_ledger_entries USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "IX_billing_usage_ledger_entries_RelatedEntryId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_billing_usage_ledger_entries_RelatedEntryId\" ON public.billing_usage_ledger_entries USING btree (\"RelatedEntryId\")",
+        "Columns": [
+          "RelatedEntryId"
+        ]
+      },
+      {
+        "Name": "PK_billing_usage_ledger_entries",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_billing_usage_ledger_entries\" ON public.billing_usage_ledger_entries USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_billing_usage_ledger_entries",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

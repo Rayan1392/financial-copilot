@@ -1,0 +1,1491 @@
+{
+  "datasetCaseCount": 13,
+  "scoredCaseCount": 13,
+  "completedCaseCount": 7,
+  "failedCaseCount": 6,
+  "unconditionalSuccessRate": 0.5384615384615384,
+  "failureCodes": {
+    "None": 0
+  },
+  "unscoredCaseIds": [],
+  "aggregate": {
+    "nodeRecall": null,
+    "metricPrecision": 0.46153846153846156,
+    "metricRecall": 0.46153846153846156,
+    "metricExactSetAccuracy": 0.46153846153846156,
+    "dimensionRecall": null,
+    "relationshipRecall": null,
+    "domainAccuracy": null,
+    "domainPrecision": null,
+    "domainRecall": null,
+    "domainF1": null,
+    "statementScopeAccuracy": null,
+    "financialPolicyRecall": null,
+    "contextCompletenessAccuracy": null,
+    "missingUnsupportedAccuracy": null,
+    "financialReferenceAccuracy": null,
+    "financialOperationAccuracy": null,
+    "financialReferenceTypeAccuracy": null,
+    "sourceItemReferenceAccuracy": null,
+    "governedMetricCodeAccuracy": null,
+    "providerFinancialIndicatorAccuracy": null,
+    "requirementsFinancialReferenceRecall": null,
+    "entityResolutionAccuracy": null,
+    "periodInterpretationAccuracy": null,
+    "falsePositiveAcceptanceRate": null
+  },
+  "operations": {
+    "modelCalls": 29,
+    "inputTokens": 144532,
+    "outputTokens": 16561,
+    "latencyMs": 208959,
+    "providerReportedCost": null,
+    "costCurrency": null
+  },
+  "perCase": [
+    {
+      "caseId": "monthly-01-production-latest",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 9
+      },
+      "selectedNodeCount": 9,
+      "finalExpandedContextNodeCount": 9,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 9,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_production_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 7330,
+      "outputTokens": 1040,
+      "latencyMs": 12756,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-02-production-product-month",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 10
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 10,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_production_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 3,
+      "inputTokens": 12110,
+      "outputTokens": 1487,
+      "latencyMs": 18729,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-03-production-mom-growth",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlyproductionquantity"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 8776,
+      "outputTokens": 1099,
+      "latencyMs": 13517,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-04-production-top-products-growth",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlyproductionquantity"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 3,
+      "inputTokens": 12883,
+      "outputTokens": 1618,
+      "latencyMs": 20636,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-05-sales-amount-month",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 9
+      },
+      "selectedNodeCount": 9,
+      "finalExpandedContextNodeCount": 9,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 9,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysales"
+      ],
+      "selectedMeasureIds": [
+        "monthlysales"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 3,
+      "inputTokens": 13632,
+      "outputTokens": 1354,
+      "latencyMs": 19025,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-06-sales-quantity-product-latest",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 10
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 10,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 3,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 1,
+        "missing": [
+          "monthlysalesquantity"
+        ],
+        "unsupported": [
+          "monthlysales"
+        ]
+      },
+      "expectedMeasureIds": [
+        "monthlysalesquantity"
+      ],
+      "selectedMeasureIds": [
+        "monthlysales"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 9126,
+      "outputTokens": 775,
+      "latencyMs": 10370,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-07-sales-rate-two-months",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 10
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 10,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesrate"
+      ],
+      "selectedMeasureIds": [
+        "monthlysalesrate"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 21
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales_rate",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES_RATE",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 11075,
+      "outputTokens": 939,
+      "latencyMs": 11563,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-08-sales-six-month-trend",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 9
+      },
+      "selectedNodeCount": 9,
+      "finalExpandedContextNodeCount": 9,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 9,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysales"
+      ],
+      "selectedMeasureIds": [
+        "monthlysales"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 7852,
+      "outputTokens": 862,
+      "latencyMs": 10242,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-09-cross-company-product-sales",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlysalesquantity"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesquantity"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 13275,
+      "outputTokens": 1760,
+      "latencyMs": 21568,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-10-company-sales-comparison",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 9
+      },
+      "selectedNodeCount": 9,
+      "finalExpandedContextNodeCount": 9,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 9,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 3,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysales"
+      ],
+      "selectedMeasureIds": [
+        "monthlysales"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 4
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 31
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 22
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 13029,
+      "outputTokens": 905,
+      "latencyMs": 11125,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-11-industry-sales-growth-ranking",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlysalesgrowthmom"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesgrowthmom"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 13329,
+      "outputTokens": 1777,
+      "latencyMs": 21373,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-12-sales-vs-operating-profit-growth",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 2,
+        "actual": 0,
+        "missing": [
+          "monthlysalesgrowthmom",
+          "operatingprofitgrowthyoy"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesgrowthmom",
+        "operatingprofitgrowthyoy"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 12909,
+      "outputTokens": 1675,
+      "latencyMs": 21870,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "monthly-13-production-vs-sales-growth",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 2,
+        "actual": 0,
+        "missing": [
+          "monthlyproductionquantity",
+          "monthlysalesquantity"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity",
+        "monthlysalesquantity"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 9206,
+      "outputTokens": 1270,
+      "latencyMs": 16185,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    }
+  ]
+}

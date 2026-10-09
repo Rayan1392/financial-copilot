@@ -1,0 +1,180 @@
+{
+  "id": "tbl_dd6c6c1ebccca461",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundInvestmentIncomeSummaries",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodContext",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "IncomeCategory",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "RawCategory",
+        "Type": "character varying(1000)",
+        "Nullable": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "SourcePercentageOfTotalIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CalculatedPercentageOfTotalIncome",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "PercentageOfTotalAssets",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CumulativeAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "HasSourceFormulaError",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "IsSourceTotal",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "ReconciliationStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceLogicalRow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceSheetId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceAddress",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "ParserProfileVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationVersion",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceEvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundInvestmentIncomeSummaries_FundId_PeriodContext",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundInvestmentIncomeSummaries_FundId_PeriodContext\" ON public.\"FundInvestmentIncomeSummaries\" USING btree (\"FundId\", \"PeriodContext\")",
+        "Columns": [
+          "FundId",
+          "PeriodContext"
+        ]
+      },
+      {
+        "Name": "IX_FundInvestmentIncomeSummaries_IncomeCategory",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundInvestmentIncomeSummaries_IncomeCategory\" ON public.\"FundInvestmentIncomeSummaries\" USING btree (\"IncomeCategory\")",
+        "Columns": [
+          "IncomeCategory"
+        ]
+      },
+      {
+        "Name": "IX_FundInvestmentIncomeSummaries_ReportId_PeriodContext_Source~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundInvestmentIncomeSummaries_ReportId_PeriodContext_Source~\" ON public.\"FundInvestmentIncomeSummaries\" USING btree (\"ReportId\", \"PeriodContext\", \"SourceLogicalRow\", \"IncomeCategory\")",
+        "Columns": [
+          "ReportId",
+          "PeriodContext",
+          "SourceLogicalRow",
+          "IncomeCategory"
+        ]
+      },
+      {
+        "Name": "PK_FundInvestmentIncomeSummaries",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundInvestmentIncomeSummaries\" ON public.\"FundInvestmentIncomeSummaries\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundInvestmentIncomeSummaries",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,0 +1,231 @@
+{
+  "id": "tbl_36d4b4ed5573791a",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryWatchTransitions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CalculationId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "EvaluationKind",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "NextState",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvaluationOutcome",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousEntryStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NewEntryStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "PreviousExitStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "NewExitStreak",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "TransitionDate",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "Reason",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "AlgorithmVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "EventIdentity",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Columns": [
+          "CalculationId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryRelativeValuationCalculations",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryWatchTransitions_CalculationId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchTransitions_CalculationId\" ON public.\"IndustryWatchTransitions\" USING btree (\"CalculationId\")",
+        "Columns": [
+          "CalculationId"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchTransitions_GroupId_CalculationId_EvaluationKi~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchTransitions_GroupId_CalculationId_EvaluationKi~\" ON public.\"IndustryWatchTransitions\" USING btree (\"GroupId\", \"CalculationId\", \"EvaluationKind\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId",
+          "CalculationId",
+          "EvaluationKind"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchTransitions_GroupId_TransitionDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchTransitions_GroupId_TransitionDate\" ON public.\"IndustryWatchTransitions\" USING btree (\"GroupId\", \"TransitionDate\") WHERE (\"GroupId\" IS NOT NULL)",
+        "Columns": [
+          "GroupId",
+          "TransitionDate"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchTransitions_IndustryId_CalculationId_Evaluatio~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryWatchTransitions_IndustryId_CalculationId_Evaluatio~\" ON public.\"IndustryWatchTransitions\" USING btree (\"IndustryId\", \"CalculationId\", \"EvaluationKind\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId",
+          "CalculationId",
+          "EvaluationKind"
+        ]
+      },
+      {
+        "Name": "IX_IndustryWatchTransitions_IndustryId_TransitionDate",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_IndustryWatchTransitions_IndustryId_TransitionDate\" ON public.\"IndustryWatchTransitions\" USING btree (\"IndustryId\", \"TransitionDate\") WHERE (\"GroupId\" IS NULL)",
+        "Columns": [
+          "IndustryId",
+          "TransitionDate"
+        ]
+      },
+      {
+        "Name": "PK_IndustryWatchTransitions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryWatchTransitions\" ON public.\"IndustryWatchTransitions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_IndustryWatchTransitions_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryWatchTransitions_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "FK_IndustryWatchTransitions_IndustryRelativeValuationCalculati~",
+        "Type": "f",
+        "Columns": [
+          "CalculationId"
+        ],
+        "Definition": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT"
+      },
+      {
+        "Name": "PK_IndustryWatchTransitions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

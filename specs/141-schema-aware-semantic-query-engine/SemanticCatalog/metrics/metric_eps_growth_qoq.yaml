@@ -1,0 +1,120 @@
+{
+  "id": "metric_eps_growth_qoq",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "EPS_GROWTH_QOQ"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "EPS Growth QoQ",
+    "Description": "Governed semantic definition for EPS Growth QoQ.",
+    "Category": 1,
+    "Unit": {
+      "Code": "percent",
+      "DisplayLabel": "Percent"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "eps growth qoq",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد سود هر سهم فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد سود فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد سود نسبت به فصل قبل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد سود",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      },
+      {
+        "Expression": "رشد فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "EPS_GROWTH_QOQ"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        },
+        "ComparisonQualifier": 2
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "EPS"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

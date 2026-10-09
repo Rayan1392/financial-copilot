@@ -1,0 +1,134 @@
+{
+  "id": "metric_avg_4q_revenue",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "AVG_4Q_REVENUE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Average 4-Quarter Revenue",
+    "Description": "Governed semantic definition for Average 4-Quarter Revenue.",
+    "Category": 3,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1
+    ],
+    "Aliases": [
+      {
+        "Expression": "average 4 quarter revenue",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "avg 4q revenue",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ۴ فصل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش 4 فصل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش چهار فصل",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش ۴ فصل اخیر",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "میانگین فروش 4 فصل اخیر",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "AVG_4Q_REVENUE"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

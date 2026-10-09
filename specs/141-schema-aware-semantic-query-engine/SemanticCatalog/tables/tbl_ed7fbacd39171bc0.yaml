@@ -1,0 +1,72 @@
+{
+  "id": "tbl_ed7fbacd39171bc0",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryRelativeValuationSourceLeases",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "LeaseName",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "Owner",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "ExpiresAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CurrentRunId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "SupersededRunId",
+        "Type": "character varying(128)",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "LeaseName"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_IndustryRelativeValuationSourceLeases",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryRelativeValuationSourceLeases\" ON public.\"IndustryRelativeValuationSourceLeases\" USING btree (\"LeaseName\")",
+        "Columns": [
+          "LeaseName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_IndustryRelativeValuationSourceLeases",
+        "Type": "p",
+        "Columns": [
+          "LeaseName"
+        ],
+        "Definition": "PRIMARY KEY (\"LeaseName\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

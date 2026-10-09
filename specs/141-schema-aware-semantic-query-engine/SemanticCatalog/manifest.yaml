@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "liveVerified": true,
+  "physicalSchemaHash": "34ab144bfa04d1ef20f44156bf8c9c31c4fbc228a8f1177d26049f5827bb290e",
+  "physicalObjectCount": 162,
+  "relationshipCount": 0,
+  "financialMetricDefinitionCount": 73,
+  "dimensionProposalCount": 4,
+  "dictionaryEntryCount": 0,
+  "aliasProposalCount": 0,
+  "categoryProposalCount": 0,
+  "reconciliationDifferenceCount": 1,
+  "semanticApprovalRequired": true,
+  "runtimeQueryingEnabled": false,
+  "source": "ef-core",
+  "navigationHierarchyHash": "6995d437b5f0a7f1098e1b427e47ba227db51fba28916b1db607fcccb668b0aa"
+}

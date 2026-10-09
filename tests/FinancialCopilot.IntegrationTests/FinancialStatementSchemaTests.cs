@@ -6,9 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace FinancialCopilot.IntegrationTests;
 
 /// <summary>
-/// Spec 029: verifies the new <c>(ProviderName, ExternalStatementId, StatementType)</c> unique
-/// key shape — income and balance rows can share the same <c>ExternalStatementId</c> while a
-/// duplicate triple is rejected.
+/// Specs 029 and 082: verifies provider/type identity and distinct audited, represented, and
+/// consolidated statement variants.
 /// </summary>
 public sealed class FinancialStatementSchemaTests
 {
@@ -31,7 +30,7 @@ public sealed class FinancialStatementSchemaTests
     }
 
     [Fact]
-    public void UniqueIndex_IsConfiguredOnTheNewTriple()
+    public void UniqueIndex_IsConfiguredOnStatementAndVariantIdentity()
     {
         // EF in-memory does not enforce unique-index violations at SaveChanges time, so we verify
         // the relational metadata directly. The configured unique index becomes a PostgreSQL
@@ -46,7 +45,10 @@ public sealed class FinancialStatementSchemaTests
             index.Properties.Select(p => p.Name).SequenceEqual(
                 new[] { nameof(NormalizedFinancialStatementRow.ProviderName),
                         nameof(NormalizedFinancialStatementRow.ExternalStatementId),
-                        nameof(NormalizedFinancialStatementRow.StatementType) }));
+                        nameof(NormalizedFinancialStatementRow.StatementType),
+                        nameof(NormalizedFinancialStatementRow.IsAudited),
+                        nameof(NormalizedFinancialStatementRow.IsRepresented),
+                        nameof(NormalizedFinancialStatementRow.IsComposing) }));
 
         // The OLD two-column unique index must be gone.
         Assert.DoesNotContain(uniqueIndexes, index =>

@@ -1,0 +1,56 @@
+{
+  "id": "monthly-measures",
+  "version": 1,
+  "entries": [
+    {
+      "catalogId": "metric_monthly_production_quantity",
+      "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "ProductionQuantity",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": ["rel_31e410fb3ae11956"],
+      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
+      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
+      "unitPolicy": {"kind":"quantity","code":"source-quantity-unit","compatibleOnlyWithinSameUnit":true},
+      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+    },
+    {
+      "catalogId": "metric_monthly_sales_quantity",
+      "metricCode": "MONTHLY_SALES_QUANTITY",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesQuantity",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": ["rel_31e410fb3ae11956"],
+      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
+      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
+      "unitPolicy": {"kind":"quantity","code":"source-quantity-unit","compatibleOnlyWithinSameUnit":true},
+      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+    },
+    {
+      "catalogId": "metric_monthly_sales",
+      "metricCode": "MONTHLY_SALES",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesAmount",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": ["rel_31e410fb3ae11956"],
+      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
+      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
+      "unitPolicy": {"kind":"monetary","code":"MillionIRR"},
+      "review": {"semanticApproved":false,"queryable":false,"status":"pending-owner-review"}
+    },
+    {
+      "catalogId": "metric_monthly_sales_rate",
+      "metricCode": "MONTHLY_SALES_RATE",
+      "physicalTableId": "tbl_8ecd0432a4292998",
+      "physicalColumn": "SalesRate",
+      "reportTableId": "tbl_8e759d70dada6bd8",
+      "relationshipIds": ["rel_31e410fb3ae11956"],
+      "providerPolicy": {"providerName":"NoavaranCurrentApi","reportType":"ProductSales","outputType":0},
+      "revisionPolicy": {"isAccepted":true,"revisionStatus":"Accepted"},
+      "unitPolicy": {"kind":"provider-reported","code":null,"sourceUnitColumn":"Unit","verified":false,"recomputeAllowed":false},
+      "review": {"semanticApproved":false,"queryable":false,"status":"pending-rate-unit-verification"}
+    }
+  ],
+  "runtimeQueryable": false,
+  "provenance": "Feature 015 metric definitions, Noavaran monthly activity normalization, and Feature 136 accepted revision/output-type behavior. Physical mapping is proposed for offline plan/compiler validation only."
+}

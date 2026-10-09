@@ -1,0 +1,132 @@
+{
+  "id": "tbl_95dd6f8ebfa88b62",
+  "physical": {
+    "Schema": "public",
+    "Name": "NotificationPreferences",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "TimeZoneId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "DeliveryMode",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "QuietHoursStart",
+        "Type": "time without time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "QuietHoursEnd",
+        "Type": "time without time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "MinimumSeverity",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "DailyCap",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "DigestTime",
+        "Type": "time without time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CooldownMinutes",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ConcurrencyToken",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "CreatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "UpdatedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_NotificationPreferences",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_NotificationPreferences\" ON public.\"NotificationPreferences\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UIX_NotificationPreferences_Actor",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UIX_NotificationPreferences_Actor\" ON public.\"NotificationPreferences\" USING btree (\"TenantId\", \"ActorId\", \"ActorType\")",
+        "Columns": [
+          "TenantId",
+          "ActorId",
+          "ActorType"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_NotificationPreferences",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

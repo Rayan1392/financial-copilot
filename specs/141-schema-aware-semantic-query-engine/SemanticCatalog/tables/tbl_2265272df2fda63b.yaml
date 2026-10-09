@@ -1,0 +1,163 @@
+{
+  "id": "tbl_2265272df2fda63b",
+  "physical": {
+    "Schema": "public",
+    "Name": "MissingAnswerFeedbacks",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "QueryText",
+        "Type": "character varying(500)",
+        "Nullable": false
+      },
+      {
+        "Name": "QueryHashSha256",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Classification",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedMetricCode",
+        "Type": "character varying(128)",
+        "Nullable": true
+      },
+      {
+        "Name": "AffectedDataCodeOrName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "SymbolCountTotal",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SymbolCountMatched",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SubmittedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "DateBucket",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "Context",
+        "Type": "character varying(2000)",
+        "Nullable": true
+      },
+      {
+        "Name": "FrequencyCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ResolvedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_MissingAnswerFeedbacks_ActorId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MissingAnswerFeedbacks_ActorId\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"ActorId\")",
+        "Columns": [
+          "ActorId"
+        ]
+      },
+      {
+        "Name": "IX_MissingAnswerFeedbacks_ActorId_QueryHashSha256_Classificati~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_MissingAnswerFeedbacks_ActorId_QueryHashSha256_Classificati~\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"ActorId\", \"QueryHashSha256\", \"Classification\", \"DateBucket\")",
+        "Columns": [
+          "ActorId",
+          "QueryHashSha256",
+          "Classification",
+          "DateBucket"
+        ]
+      },
+      {
+        "Name": "IX_MissingAnswerFeedbacks_Classification",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MissingAnswerFeedbacks_Classification\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"Classification\")",
+        "Columns": [
+          "Classification"
+        ]
+      },
+      {
+        "Name": "IX_MissingAnswerFeedbacks_DateBucket",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MissingAnswerFeedbacks_DateBucket\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"DateBucket\")",
+        "Columns": [
+          "DateBucket"
+        ]
+      },
+      {
+        "Name": "IX_MissingAnswerFeedbacks_RequestedMetricCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MissingAnswerFeedbacks_RequestedMetricCode\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"RequestedMetricCode\")",
+        "Columns": [
+          "RequestedMetricCode"
+        ]
+      },
+      {
+        "Name": "IX_MissingAnswerFeedbacks_SubmittedAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_MissingAnswerFeedbacks_SubmittedAt\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"SubmittedAt\")",
+        "Columns": [
+          "SubmittedAt"
+        ]
+      },
+      {
+        "Name": "PK_MissingAnswerFeedbacks",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MissingAnswerFeedbacks\" ON public.\"MissingAnswerFeedbacks\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MissingAnswerFeedbacks",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

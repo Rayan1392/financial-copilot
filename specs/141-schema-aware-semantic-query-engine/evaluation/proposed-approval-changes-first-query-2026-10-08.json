@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "proposalId": "feature141-first-query-item161-2026-10-08",
+  "status": "proposed-not-applied",
+  "reviewerRecord": {
+    "reviewerId": null,
+    "approvalRecordId": null,
+    "approvedAtUtc": null,
+    "signatureOrAuditReference": null,
+    "requiredBeforeApplication": true
+  },
+  "scope": {
+    "providerName": "NoavaranCurrentApi",
+    "statementType": "IncomeStatement",
+    "sourceItemId": 161,
+    "sourceCatalogId": "source_item_682beceadddc1458",
+    "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+    "referenceType": "DirectSourceItem",
+    "operation": "DirectValueRetrieval",
+    "statementScope": {
+      "field": "IsComposing",
+      "value": false
+    },
+    "periodSelection": "LatestEligibleByPeriodEnd; ties are Ambiguous",
+    "doesNotAuthorize": [
+      "other providers",
+      "other statement types",
+      "other source items",
+      "other financial operations",
+      "other company IDs",
+      "production execution",
+      "chat or workflow routes"
+    ]
+  },
+  "decisionsRequired": [
+    {
+      "id": "source-item-financial-meaning",
+      "question": "Does the Noavaran item titled سود عملیاتی هر سهم represent the requested direct provider-reported value?",
+      "unitTreatment": "If approved, keep Unit=N/A and unit status unknown unless separately verified; do not infer a scale or map a MetricCode.",
+      "decision": null
+    },
+    {
+      "id": "logical-line-header-join",
+      "question": "Approve the application-level FinancialStatementId association while accepting that no physical FK exists and orphan line items remain possible?",
+      "decision": null
+    },
+    {
+      "id": "latest-period-tie",
+      "question": "Confirm that multiple eligible rows at the latest PeriodEnd return Ambiguous without audit/restatement precedence?",
+      "decision": null
+    }
+  ],
+  "proposedChanges": {
+    "sourceItem": {
+      "file": "SemanticCatalog/dictionaries/financial-statement-source-items.yaml",
+      "selector": {
+        "catalogId": "source_item_682beceadddc1458",
+        "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528"
+      },
+      "replaceAfterApproval": {
+        "semanticReviewStatus": "approved",
+        "queryAuthorization.state": "approved",
+        "queryAuthorization.approved": true,
+        "queryAuthorization.queryable": true
+      },
+      "preserve": {
+        "titleFa": "سود عملیاتی هر سهم ",
+        "sourceUnit": "N/A",
+        "sourceUnitStatus": "unknown",
+        "normalizedUnit": null,
+        "mappedMetricCode": null,
+        "identityStatus": "verified-persisted-source-key"
+      }
+    },
+    "tables": [
+      {
+        "file": "SemanticCatalog/tables/tbl_36036602dbf76362.yaml",
+        "tableCatalogId": "tbl_36036602dbf76362",
+        "physicalTable": "public.FinancialStatementSourceItems",
+        "approvedColumns": ["Id", "ProviderName", "StatementType", "SourceItemId", "Unit"],
+        "approvedColumnIds": [
+          "tbl_36036602dbf76362_Id",
+          "tbl_36036602dbf76362_ProviderName",
+          "tbl_36036602dbf76362_StatementType",
+          "tbl_36036602dbf76362_SourceItemId",
+          "tbl_36036602dbf76362_Unit"
+        ]
+      },
+      {
+        "file": "SemanticCatalog/tables/tbl_4f2ef2d8dd59b46a.yaml",
+        "tableCatalogId": "tbl_4f2ef2d8dd59b46a",
+        "physicalTable": "public.FinancialStatementLineItems",
+        "approvedColumns": ["Value", "FinancialStatementId", "SourceItemCatalogId"],
+        "approvedColumnIds": [
+          "tbl_4f2ef2d8dd59b46a_Value",
+          "tbl_4f2ef2d8dd59b46a_FinancialStatementId",
+          "tbl_4f2ef2d8dd59b46a_SourceItemCatalogId"
+        ]
+      },
+      {
+        "file": "SemanticCatalog/tables/tbl_53d51e26e1ca6929.yaml",
+        "tableCatalogId": "tbl_53d51e26e1ca6929",
+        "physicalTable": "public.FinancialStatements",
+        "approvedColumns": [
+          "Id", "CompanyId", "ProviderName", "StatementType", "PeriodEnd", "PeriodType",
+          "IsComposing", "IsAudited", "IsRepresented", "ExternalStatementId", "PeriodStart",
+          "SourcePayloadChecksum", "PublishedAt", "LastSynchronizedAt", "WarningsJson", "LogicalVendor", "SourceMode"
+        ],
+        "approvedColumnIds": [
+          "tbl_53d51e26e1ca6929_Id",
+          "tbl_53d51e26e1ca6929_CompanyId",
+          "tbl_53d51e26e1ca6929_ProviderName",
+          "tbl_53d51e26e1ca6929_StatementType",
+          "tbl_53d51e26e1ca6929_PeriodEnd",
+          "tbl_53d51e26e1ca6929_PeriodType",
+          "tbl_53d51e26e1ca6929_IsComposing",
+          "tbl_53d51e26e1ca6929_IsAudited",
+          "tbl_53d51e26e1ca6929_IsRepresented",
+          "tbl_53d51e26e1ca6929_ExternalStatementId",
+          "tbl_53d51e26e1ca6929_PeriodStart",
+          "tbl_53d51e26e1ca6929_SourcePayloadChecksum",
+          "tbl_53d51e26e1ca6929_PublishedAt",
+          "tbl_53d51e26e1ca6929_LastSynchronizedAt",
+          "tbl_53d51e26e1ca6929_WarningsJson",
+          "tbl_53d51e26e1ca6929_LogicalVendor",
+          "tbl_53d51e26e1ca6929_SourceMode"
+        ]
+      },
+      {
+        "file": "SemanticCatalog/tables/tbl_8646d83cdb350f92.yaml",
+        "tableCatalogId": "tbl_8646d83cdb350f92",
+        "physicalTable": "public.Companies",
+        "approvedColumns": ["Id"],
+        "approvedColumnIds": ["tbl_8646d83cdb350f92_Id"]
+      }
+    ],
+    "relationshipIds": [
+      "rel_cd8a77a2717ac71f",
+      "rel_2588cf95d01a651a",
+      "rel_e4fa0fe989156533"
+    ],
+    "relationshipChangesAfterApproval": {
+      "semantic.approved": true,
+      "semantic.status": "reviewed-approved",
+      "semantic.runtimeJoinable": true,
+      "semantic.queryAuthorization.approved": true,
+      "semantic.queryAuthorization.queryable": true
+    },
+    "tableChangesAfterApproval": {
+      "semantic.status": "reviewed-approved",
+      "semantic.queryable": true,
+      "semantic.semanticApproval.state": "approved",
+      "semantic.semanticApproval.approved": true,
+      "semantic.semanticApproval.provenance": "REPLACE_WITH_REVIEW_RECORD_REFERENCE",
+      "semantic.queryAuthorization.state": "approved",
+      "semantic.queryAuthorization.runtimeQueryable": true,
+      "semantic.queryAuthorization.approvedObjects": "exact approvedColumnIds listed above",
+      "semantic.queryAuthorization.reason": "REPLACE_WITH_REVIEW_RECORD_REFERENCE"
+    }
+  },
+  "applicationInstructions": [
+    "Do not apply while reviewerRecord is incomplete or any required decision is null.",
+    "Do not edit the source-item snapshot; it is source identity evidence, not approval state.",
+    "Record approvals only for the one source, four tables/approved column IDs, and three relationships listed here.",
+    "The current source-items generation command resets source-item semantic/query approval to pending. Run any approved source-item regeneration before applying this reviewed patch, then apply the recorded approval fields to the generated dictionary entry.",
+    "After all separately approved source, field, relationship, and financial-reference edits are recorded, regenerate navigation hierarchy and its lock with `python tools/SemanticCatalog/catalog.py hierarchy build`, then run `python tools/SemanticCatalog/catalog.py validate` and the runtime snapshot validation. Do not treat a build as the approval event.",
+    "Recompute the catalog hash after approval; the hash in the current manifest is not valid for an approved revision."
+  ]
+}

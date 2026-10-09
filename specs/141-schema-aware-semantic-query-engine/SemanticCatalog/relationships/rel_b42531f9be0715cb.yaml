@@ -1,0 +1,28 @@
+{
+  "id": "rel_b42531f9be0715cb",
+  "from": {
+    "schema": "public",
+    "table": "ComprehensiveAnalysisTags",
+    "columns": [
+      "AnalysisId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "ComprehensiveAnalyses",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"AnalysisId\") REFERENCES \"ComprehensiveAnalyses\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

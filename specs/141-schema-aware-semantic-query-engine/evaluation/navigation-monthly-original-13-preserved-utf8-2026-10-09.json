@@ -1,0 +1,157 @@
+﻿{
+    "datasetVersion":  1,
+    "purpose":  "Preserved original monthly 13 questions, UTF-8 sidecar; references mapped from unchanged labels to canonical catalog types",
+    "cases":  [
+                  {
+                      "id":  "monthly-01-production-latest",
+                      "question":  "کگل در آخرین ماه چه مقدار تولید داشته است؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-02-production-product-month",
+                      "question":  "مقدار تولید گندله کگهر در شهریور ۱۴۰۵ چقدر بوده؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-03-production-mom-growth",
+                      "question":  "تولید کنسانتره کگل نسبت به ماه قبل چند درصد رشد کرده؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "ApprovedPeriodComparison"
+                  },
+                  {
+                      "id":  "monthly-04-production-top-products-growth",
+                      "question":  "کدام محصولات کگهر در سه ماه اخیر بیشترین رشد تولید را داشته‌اند؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "ApprovedPeriodComparison"
+                  },
+                  {
+                      "id":  "monthly-05-sales-amount-month",
+                      "question":  "فروش ریالی کگل در شهریور ۱۴۰۵ چقدر بوده؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-06-sales-quantity-product-latest",
+                      "question":  "مقدار فروش گندله کگهر در آخرین گزارش ماهانه چقدر است؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-07-sales-rate-two-months",
+                      "question":  "نرخ فروش گندله کگهر در مرداد و شهریور ۱۴۰۵ چقدر بوده؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_rate"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-08-sales-six-month-trend",
+                      "question":  "فروش ریالی کگل در شش ماه گذشته چه روندی داشته؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-09-cross-company-product-sales",
+                      "question":  "کدام شرکت‌های تولیدکننده گندله بیشترین مقدار فروش را داشته‌اند؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-10-company-sales-comparison",
+                      "question":  "فروش ماهانه کگل و کگهر را با هم مقایسه کن.",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-11-industry-sales-growth-ranking",
+                      "question":  "کدام شرکت‌های یک صنعت بیشترین رشد فروش ماهانه را ثبت کرده‌اند؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_monthly_sales_growth_mom"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "DirectValueRetrieval"
+                  },
+                  {
+                      "id":  "monthly-12-sales-vs-operating-profit-growth",
+                      "question":  "رشد فروش ماهانه کگل با رشد سود عملیاتی آن چه تفاوتی داشته؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_monthly_sales_growth_mom"
+                                                               },
+                                                               {
+                                                                   "referenceType":  "GovernedMetric",
+                                                                   "catalogId":  "metric_operating_profit_growth_yoy"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "UnsupportedDerivedFinancialMetric"
+                  },
+                  {
+                      "id":  "monthly-13-production-vs-sales-growth",
+                      "question":  "آیا رشد تولید کگهر با رشد فروش آن هم‌جهت بوده است؟",
+                      "expectedFinancialValueReferences":  [
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_production_quantity"
+                                                               },
+                                                               {
+                                                                   "referenceType":  "MonthlyMeasure",
+                                                                   "catalogId":  "metric_monthly_sales_quantity"
+                                                               }
+                                                           ],
+                      "expectedFinancialValueOperation":  "UnsupportedDerivedFinancialMetric"
+                  }
+              ]
+}

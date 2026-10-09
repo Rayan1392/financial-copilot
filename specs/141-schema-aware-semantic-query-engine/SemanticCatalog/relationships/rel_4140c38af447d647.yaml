@@ -1,0 +1,28 @@
+{
+  "id": "rel_4140c38af447d647",
+  "from": {
+    "schema": "public",
+    "table": "UserAlertDeliveryTimeline",
+    "columns": [
+      "UserAlertRecordId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "UserAlertRecords",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"UserAlertRecordId\") REFERENCES \"UserAlertRecords\"(\"Id\") ON DELETE CASCADE",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "id": "tbl_d0ac47b7aebcb40e",
+  "physical": {
+    "Schema": "public",
+    "Name": "FeatureComputationJobs",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodStart",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "PeriodEnd",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "IdempotencyKey",
+        "Type": "character varying(256)",
+        "Nullable": false
+      },
+      {
+        "Name": "Status",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequestedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "StartedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "CompletedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "ErrorMessage",
+        "Type": "character varying(1000)",
+        "Nullable": true
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FeatureComputationJobs_IdempotencyKey",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FeatureComputationJobs_IdempotencyKey\" ON public.\"FeatureComputationJobs\" USING btree (\"IdempotencyKey\")",
+        "Columns": [
+          "IdempotencyKey"
+        ]
+      },
+      {
+        "Name": "PK_FeatureComputationJobs",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FeatureComputationJobs\" ON public.\"FeatureComputationJobs\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FeatureComputationJobs",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

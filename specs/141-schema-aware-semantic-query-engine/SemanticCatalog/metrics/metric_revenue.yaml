@@ -1,0 +1,127 @@
+{
+  "id": "metric_revenue",
+  "sourceDefinition": {
+    "Code": {
+      "Value": "REVENUE"
+    },
+    "Version": {
+      "Value": "v1"
+    },
+    "DisplayName": "Revenue",
+    "Description": "Governed semantic definition for Revenue.",
+    "Category": 0,
+    "Unit": {
+      "Code": "amount",
+      "DisplayLabel": "Amount"
+    },
+    "EffectiveFrom": "2026-01-01",
+    "SupportedPeriodTypes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "Aliases": [
+      {
+        "Expression": "revenue",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "sales",
+        "Language": "en-US",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "درآمد",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "درآمد فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش فصلی",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      },
+      {
+        "Expression": "فروش خالص",
+        "Language": "fa-IR",
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "MetricVersion": {
+          "Value": "v1"
+        }
+      }
+    ],
+    "Dependencies": [
+      {
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "RequiredDefinitionVersion": {
+          "Value": "v1"
+        },
+        "Required": true
+      }
+    ],
+    "DataRequirements": [
+      {
+        "MetricCode": {
+          "Value": "REVENUE"
+        },
+        "PeriodType": 1,
+        "Required": true
+      }
+    ]
+  },
+  "provenance": {
+    "source": "src/backend/FinancialCopilot.Domain/Financial/Metrics/PhaseOneFinancialSemanticCatalog.cs",
+    "authority": "Feature 015 existing governed definition",
+    "verified": true
+  },
+  "genericQuery": {
+    "approved": false,
+    "executable": false,
+    "reviewRequired": true
+  }
+}

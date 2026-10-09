@@ -1,0 +1,28 @@
+{
+  "id": "rel_004f4bae14ded981",
+  "from": {
+    "schema": "public",
+    "table": "IndustryRelativeValuationOutbox",
+    "columns": [
+      "CalculationId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "IndustryRelativeValuationCalculations",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"CalculationId\") REFERENCES \"IndustryRelativeValuationCalculations\"(\"Id\") ON DELETE RESTRICT",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

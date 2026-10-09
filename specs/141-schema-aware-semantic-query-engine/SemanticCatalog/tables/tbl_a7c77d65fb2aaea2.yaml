@@ -1,0 +1,130 @@
+{
+  "id": "tbl_a7c77d65fb2aaea2",
+  "physical": {
+    "Schema": "public",
+    "Name": "FinancialStatementSourceItemMetricMappings",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceItemCatalogId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "SourceItemCatalogId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "FinancialStatementSourceItems",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_FinancialStatementSourceItemMetricMappings_MetricCode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FinancialStatementSourceItemMetricMappings_MetricCode\" ON public.\"FinancialStatementSourceItemMetricMappings\" USING btree (\"MetricCode\")",
+        "Columns": [
+          "MetricCode"
+        ]
+      },
+      {
+        "Name": "IX_FinancialStatementSourceItemMetricMappings_SourceItemCatalo~",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FinancialStatementSourceItemMetricMappings_SourceItemCatalo~\" ON public.\"FinancialStatementSourceItemMetricMappings\" USING btree (\"SourceItemCatalogId\")",
+        "Columns": [
+          "SourceItemCatalogId"
+        ]
+      },
+      {
+        "Name": "PK_FinancialStatementSourceItemMetricMappings",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FinancialStatementSourceItemMetricMappings\" ON public.\"FinancialStatementSourceItemMetricMappings\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_FinancialStatementSourceItemMetricMappings_FinancialStateme~",
+        "Type": "f",
+        "Columns": [
+          "SourceItemCatalogId"
+        ],
+        "Definition": "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_FinancialStatementSourceItemMetricMappings",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Mapping from one provider source-item definition to a governed MetricCode.",
+    "descriptionFa": "نگاشت قلم مبدأ ارائه‌دهنده به کد معیار حاکم.",
+    "purpose": "Connects provider-specific line items to the normalized financial metric registry.",
+    "grain": "One source-item catalog UUID to one metric mapping; EF declares SourceItemCatalogId unique.",
+    "columns": {
+      "Id": "Mapping UUID",
+      "SourceItemCatalogId": "FK to FinancialStatementSourceItems.Id",
+      "MetricCode": "Governed normalized metric identity"
+    },
+    "units": "Units are inherited from source item and governed metric definition.",
+    "relationships": [
+      "SourceItemCatalogId -> FinancialStatementSourceItems.Id (physical FK)"
+    ],
+    "metricReferences": [
+      "MetricCode -> Feature 015 financial metric catalog."
+    ],
+    "providerPolicy": "Source item catalog identity is provider-specific; mapping is not evidence of provider precedence.",
+    "periodSemantics": "Static mapping, not a dated observation.",
+    "examples": [
+      "Map provider line items to normalized financial metrics"
+    ],
+    "cautions": [
+      "Do not infer a one-to-one meaning across providers from matching MetricCode alone."
+    ],
+    "sourceVerification": "EF configuration, live PostgreSQL FK, and metric registry.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

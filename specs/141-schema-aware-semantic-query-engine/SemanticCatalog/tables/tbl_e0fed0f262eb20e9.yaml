@@ -1,0 +1,138 @@
+{
+  "id": "tbl_e0fed0f262eb20e9",
+  "physical": {
+    "Schema": "public",
+    "Name": "auth_users",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "IsEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "UserName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "NormalizedUserName",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "Email",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "NormalizedEmail",
+        "Type": "character varying(256)",
+        "Nullable": true
+      },
+      {
+        "Name": "EmailConfirmed",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "PasswordHash",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SecurityStamp",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "ConcurrencyStamp",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PhoneNumber",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PhoneNumberConfirmed",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "TwoFactorEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "LockoutEnd",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "LockoutEnabled",
+        "Type": "boolean",
+        "Nullable": false
+      },
+      {
+        "Name": "AccessFailedCount",
+        "Type": "integer",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "EmailIndex",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"EmailIndex\" ON public.auth_users USING btree (\"NormalizedEmail\")",
+        "Columns": [
+          "NormalizedEmail"
+        ]
+      },
+      {
+        "Name": "PK_auth_users",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_auth_users\" ON public.auth_users USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      },
+      {
+        "Name": "UserNameIndex",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"UserNameIndex\" ON public.auth_users USING btree (\"NormalizedUserName\")",
+        "Columns": [
+          "NormalizedUserName"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_auth_users",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

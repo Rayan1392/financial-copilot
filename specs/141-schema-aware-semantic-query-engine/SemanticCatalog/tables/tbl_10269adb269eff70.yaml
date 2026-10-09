@@ -1,0 +1,113 @@
+{
+  "id": "tbl_10269adb269eff70",
+  "physical": {
+    "Schema": "public",
+    "Name": "IndustryGroups",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_IndustryGroups_ProviderName_ExternalId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_IndustryGroups_ProviderName_ExternalId\" ON public.\"IndustryGroups\" USING btree (\"ProviderName\", \"ExternalId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalId"
+        ]
+      },
+      {
+        "Name": "PK_IndustryGroups",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_IndustryGroups\" ON public.\"IndustryGroups\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_IndustryGroups",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Provider-scoped industry-group lookup dimension.",
+    "descriptionFa": "بُعد مرجع گروه صنعت به تفکیک ارائه‌دهنده.",
+    "purpose": "Group label reached from Companies.GroupId.",
+    "grain": "One provider industry-group row.",
+    "columns": {
+      "Id": "Canonical UUID",
+      "ExternalId": "Provider group key",
+      "Name": "Group label",
+      "ProviderName": "Source namespace"
+    },
+    "units": "Identifiers and labels; no financial units.",
+    "relationships": [
+      "Companies.GroupId -> IndustryGroups.Id (physical FK)"
+    ],
+    "metricReferences": [],
+    "providerPolicy": "No direct FK from IndustryGroups to Industries is present.",
+    "periodSemantics": "Current reference state.",
+    "examples": [
+      "شرکت‌ها بر اساس گروه صنعت",
+      "Group companies by industry group"
+    ],
+    "cautions": [
+      "Do not infer a group-to-industry path without an explicit mapping."
+    ],
+    "sourceVerification": "EF Core mapping and live PostgreSQL FK inventory.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

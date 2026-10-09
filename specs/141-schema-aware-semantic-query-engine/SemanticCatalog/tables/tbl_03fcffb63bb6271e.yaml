@@ -1,0 +1,95 @@
+{
+  "id": "tbl_03fcffb63bb6271e",
+  "physical": {
+    "Schema": "public",
+    "Name": "MetricCalculationPolicies",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DefinitionVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Unit",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Comparison",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MissingDataPolicy",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "FormulaIdentifier",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "FormulaDescription",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EffectiveFrom",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "EffectiveTo",
+        "Type": "date",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "MetricCode",
+      "PolicyVersion"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_MetricCalculationPolicies",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_MetricCalculationPolicies\" ON public.\"MetricCalculationPolicies\" USING btree (\"MetricCode\", \"PolicyVersion\")",
+        "Columns": [
+          "MetricCode",
+          "PolicyVersion"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_MetricCalculationPolicies",
+        "Type": "p",
+        "Columns": [
+          "MetricCode",
+          "PolicyVersion"
+        ],
+        "Definition": "PRIMARY KEY (\"MetricCode\", \"PolicyVersion\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

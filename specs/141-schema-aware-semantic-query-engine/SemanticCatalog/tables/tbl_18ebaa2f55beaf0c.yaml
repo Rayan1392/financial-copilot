@@ -1,0 +1,121 @@
+{
+  "id": "tbl_18ebaa2f55beaf0c",
+  "physical": {
+    "Schema": "public",
+    "Name": "RadarPreferenceAudits",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "RadarProfileId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "TenantId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ActorType",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Action",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "Source",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "Version",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "SnapshotJson",
+        "Type": "jsonb",
+        "Nullable": false
+      },
+      {
+        "Name": "OccurredAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "RadarProfiles",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_RadarPreferenceAudits_Profile_OccurredAt",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_RadarPreferenceAudits_Profile_OccurredAt\" ON public.\"RadarPreferenceAudits\" USING btree (\"RadarProfileId\", \"OccurredAtUtc\")",
+        "Columns": [
+          "RadarProfileId",
+          "OccurredAtUtc"
+        ]
+      },
+      {
+        "Name": "PK_RadarPreferenceAudits",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_RadarPreferenceAudits\" ON public.\"RadarPreferenceAudits\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_RadarPreferenceAudits_RadarProfiles_RadarProfileId",
+        "Type": "f",
+        "Columns": [
+          "RadarProfileId"
+        ],
+        "Definition": "FOREIGN KEY (\"RadarProfileId\") REFERENCES \"RadarProfiles\"(\"Id\") ON DELETE CASCADE"
+      },
+      {
+        "Name": "PK_RadarPreferenceAudits",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

@@ -1,6 +1,6 @@
 # Feature 140 — IME Daily Trades Raw Ingestion
 
-This folder is a specification package for adding daily Iran Mercantile Exchange (IME) raw trade acquisition to FinancialCopilot.
+This folder is the revised specification package for adding daily Iran Mercantile Exchange (IME) raw trade acquisition to FinancialCopilot.
 
 ## Files
 
@@ -17,3 +17,7 @@ Feature 140 is **raw ingestion only**. It does not implement company mapping, an
 ## Repository limitation
 
 The production repository was not available while authoring these specs. The implementing agent must first map conceptual components to existing repository conventions and reuse existing infrastructure wherever possible.
+
+## Revision highlights
+
+The bounded architecture review has been incorporated: observation-vs-transaction fingerprint semantics, requested-date integrity validation, mandatory raw-response evidence retention for received HTTP responses, explicit raw storage semantics, future-date rejection, deterministic Admin execution strategy, read-only POST retry semantics, and AC-to-task traceability.

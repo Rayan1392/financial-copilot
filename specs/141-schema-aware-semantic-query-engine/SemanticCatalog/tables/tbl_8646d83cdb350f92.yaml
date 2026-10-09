@@ -1,0 +1,427 @@
+{
+  "id": "tbl_8646d83cdb350f92",
+  "physical": {
+    "Schema": "public",
+    "Name": "Companies",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ProviderName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "ExternalCompanyId",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Name",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "LastSynchronizedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      },
+      {
+        "Name": "CompanyIsin",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbol",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "GroupId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "IndustryId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "InstrumentCode",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "InstrumentRefPlaceholder",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketId",
+        "Type": "uuid",
+        "Nullable": true
+      },
+      {
+        "Name": "NameEnglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceModifiedAt",
+        "Type": "timestamp with time zone",
+        "Nullable": true
+      },
+      {
+        "Name": "SymbolIsin",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "TseSymbol",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "AcceptionDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "AcceptionDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "BusinessStartDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "BusinessStartDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanyCode",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbolEnglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "CompanySymbolPinglish",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EnlistedDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EnlistedDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EstablishmentDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "EstablishmentDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "FundTypeId",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "FundTypeTitle",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "InExchange",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "IpoDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "IpoDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "MarketBoard",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "NationalId",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "PrecedencyRight",
+        "Type": "integer",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationCity",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationDateGregorian",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationDateJalali",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationNumber",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "RegistrationProvince",
+        "Type": "text",
+        "Nullable": true
+      },
+      {
+        "Name": "LogicalVendor",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "SourceMode",
+        "Type": "character varying(32)",
+        "Nullable": true
+      },
+      {
+        "Name": "EnTicker",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "Ticker",
+        "Type": "character varying(64)",
+        "Nullable": true
+      },
+      {
+        "Name": "ReportingType",
+        "Type": "integer",
+        "Nullable": true
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [
+      {
+        "Columns": [
+          "IndustryId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Industries",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Columns": [
+          "GroupId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "IndustryGroups",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Columns": [
+          "MarketId"
+        ],
+        "PrincipalSchema": "public",
+        "PrincipalTable": "Markets",
+        "PrincipalColumns": [
+          "Id"
+        ],
+        "Definition": "FOREIGN KEY (\"MarketId\") REFERENCES \"Markets\"(\"Id\") ON DELETE SET NULL"
+      }
+    ],
+    "Indexes": [
+      {
+        "Name": "IX_Companies_EnTicker",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Companies_EnTicker\" ON public.\"Companies\" USING btree (\"EnTicker\") WHERE (\"EnTicker\" IS NOT NULL)",
+        "Columns": [
+          "EnTicker"
+        ]
+      },
+      {
+        "Name": "IX_Companies_GroupId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Companies_GroupId\" ON public.\"Companies\" USING btree (\"GroupId\")",
+        "Columns": [
+          "GroupId"
+        ]
+      },
+      {
+        "Name": "IX_Companies_IndustryId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Companies_IndustryId\" ON public.\"Companies\" USING btree (\"IndustryId\")",
+        "Columns": [
+          "IndustryId"
+        ]
+      },
+      {
+        "Name": "IX_Companies_LogicalVendor_SourceMode",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Companies_LogicalVendor_SourceMode\" ON public.\"Companies\" USING btree (\"LogicalVendor\", \"SourceMode\")",
+        "Columns": [
+          "LogicalVendor",
+          "SourceMode"
+        ]
+      },
+      {
+        "Name": "IX_Companies_MarketId",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_Companies_MarketId\" ON public.\"Companies\" USING btree (\"MarketId\")",
+        "Columns": [
+          "MarketId"
+        ]
+      },
+      {
+        "Name": "IX_Companies_ProviderName_ExternalCompanyId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Companies_ProviderName_ExternalCompanyId\" ON public.\"Companies\" USING btree (\"ProviderName\", \"ExternalCompanyId\")",
+        "Columns": [
+          "ProviderName",
+          "ExternalCompanyId"
+        ]
+      },
+      {
+        "Name": "IX_Companies_Ticker",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_Companies_Ticker\" ON public.\"Companies\" USING btree (\"Ticker\") WHERE (\"Ticker\" IS NOT NULL)",
+        "Columns": [
+          "Ticker"
+        ]
+      },
+      {
+        "Name": "PK_Companies",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_Companies\" ON public.\"Companies\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "FK_Companies_Industries_IndustryId",
+        "Type": "f",
+        "Columns": [
+          "IndustryId"
+        ],
+        "Definition": "FOREIGN KEY (\"IndustryId\") REFERENCES \"Industries\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "FK_Companies_IndustryGroups_GroupId",
+        "Type": "f",
+        "Columns": [
+          "GroupId"
+        ],
+        "Definition": "FOREIGN KEY (\"GroupId\") REFERENCES \"IndustryGroups\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "FK_Companies_Markets_MarketId",
+        "Type": "f",
+        "Columns": [
+          "MarketId"
+        ],
+        "Definition": "FOREIGN KEY (\"MarketId\") REFERENCES \"Markets\"(\"Id\") ON DELETE SET NULL"
+      },
+      {
+        "Name": "PK_Companies",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "candidate-pending-review",
+    "queryable": false,
+    "descriptionEn": "Novaran API company catalog rows with optional canonical market, industry, and group links, distinct from TSETMC-derived TradingInstruments.",
+    "descriptionFa": "ردیف‌های فهرست شرکت‌ها به تفکیک منبع، با پیوندهای اختیاری به بازار، صنعت و گروه.",
+    "purpose": "Company identity and Novaran-sourced company dimensions; use the canonical UUID Id for supported relational joins.",
+    "grain": "One provider/company identity row; ProviderName + ExternalCompanyId is unique in the live schema.",
+    "columns": {
+      "Id": "Internal canonical company UUID",
+      "ProviderName": "Source/provider namespace",
+      "ExternalCompanyId": "Provider-specific company key; not Companies.Id",
+      "InstrumentCode": "Optional Novaran-side code used by the current TSETMC instrument linker; not a physical FK",
+      "Ticker/CompanySymbol": "Provider or normalized labels; not stable cross-provider join keys",
+      "ReportingType": "Nullable integer vendor reporting category",
+      "MarketId/IndustryId/GroupId": "Optional physical FKs to reference dimensions"
+    },
+    "units": "ReportingType is an integer code; other identifiers are keys, not measures.",
+    "relationships": [
+      "Companies.MarketId -> Markets.Id (physical FK)",
+      "Companies.IndustryId -> Industries.Id (physical FK)",
+      "Companies.GroupId -> IndustryGroups.Id (physical FK)",
+      "TradingInstruments.NormalizedCompanyId -> Companies.Id is a distinct optional FK populated by instrument-code resolution."
+    ],
+    "metricReferences": [],
+    "providerPolicy": "Business-owner-confirmed lineage: TSETMC -> Novaran Amin -> Novaran API -> Financial Copilot Companies. ProviderName distinguishes source namespaces and ExternalCompanyId is scoped to that provider. Do not join companies to TSETMC instruments by ticker/name; use only the explicit optional NormalizedCompanyId mapping and retain unresolved or ambiguous state.",
+    "periodSemantics": "Company attributes are mutable catalog state; source synchronization timestamps identify freshness.",
+    "examples": [
+      "شرکت‌های صنعت فلزات اساسی را فهرست کن",
+      "List companies in a market or industry"
+    ],
+    "cautions": [
+      "NationalId and registration attributes are outside the initial read scope.",
+      "ReportingType business labels are owner-supplied; resolver support is separately documented."
+    ],
+    "sourceVerification": "PostgreSQL/EF Core mapping and Noavaran API normalizer; lineage confirmed by product owner. Current instrument-code resolver behavior is separately documented under TradingInstruments.",
+    "approvalStatus": "human-review-required",
+    "semanticApproval": {
+      "state": "candidate-pending-review",
+      "approved": false,
+      "provenance": "existing catalog review state; no reviewer approval fabricated"
+    },
+    "queryAuthorization": {
+      "state": "not-approved",
+      "runtimeQueryable": false,
+      "approvedObjects": [],
+      "reason": "Semantic review and navigation inclusion do not grant query access."
+    }
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

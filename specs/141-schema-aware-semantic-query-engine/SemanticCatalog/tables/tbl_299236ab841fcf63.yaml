@@ -1,0 +1,123 @@
+{
+  "id": "tbl_299236ab841fcf63",
+  "physical": {
+    "Schema": "public",
+    "Name": "FundPortfolioValuationQualitySnapshots",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "ReportId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FundId",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "AdjustedSecurityCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "AdjustedValueAmount",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "AdjustedValueExposurePercentage",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MaterialReconciliationIssueCount",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityStatus",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "QualityScore",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "CalculationVersion",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "EvidenceJson",
+        "Type": "character varying(20000)",
+        "Nullable": false
+      },
+      {
+        "Name": "SourceRevision",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "ImportedAtUtc",
+        "Type": "timestamp with time zone",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FundPortfolioValuationQualitySnapshots_QualityStatus",
+        "Unique": false,
+        "Definition": "CREATE INDEX \"IX_FundPortfolioValuationQualitySnapshots_QualityStatus\" ON public.\"FundPortfolioValuationQualitySnapshots\" USING btree (\"QualityStatus\")",
+        "Columns": [
+          "QualityStatus"
+        ]
+      },
+      {
+        "Name": "IX_FundPortfolioValuationQualitySnapshots_ReportId",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FundPortfolioValuationQualitySnapshots_ReportId\" ON public.\"FundPortfolioValuationQualitySnapshots\" USING btree (\"ReportId\")",
+        "Columns": [
+          "ReportId"
+        ]
+      },
+      {
+        "Name": "PK_FundPortfolioValuationQualitySnapshots",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FundPortfolioValuationQualitySnapshots\" ON public.\"FundPortfolioValuationQualitySnapshots\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FundPortfolioValuationQualitySnapshots",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

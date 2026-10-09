@@ -1,0 +1,28 @@
+{
+  "id": "rel_72e40f21b323c1e7",
+  "from": {
+    "schema": "public",
+    "table": "auth_telegram_processed_updates",
+    "columns": [
+      "TenantId"
+    ]
+  },
+  "to": {
+    "schema": "public",
+    "table": "auth_tenants",
+    "columns": [
+      "Id"
+    ]
+  },
+  "physicalConstraint": "FOREIGN KEY (\"TenantId\") REFERENCES auth_tenants(\"Id\")",
+  "inferredCardinality": "many-to-one",
+  "semantic": {
+    "approved": false,
+    "status": "discovered-unapproved",
+    "runtimeJoinable": false
+  },
+  "provenance": {
+    "source": "postgres-pg_catalog",
+    "verified": true
+  }
+}

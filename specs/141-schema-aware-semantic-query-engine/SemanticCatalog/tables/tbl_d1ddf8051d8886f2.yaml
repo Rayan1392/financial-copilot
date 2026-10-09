@@ -1,0 +1,121 @@
+{
+  "id": "tbl_d1ddf8051d8886f2",
+  "physical": {
+    "Schema": "public",
+    "Name": "FeatureDefinitions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "Id",
+        "Type": "uuid",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "FeatureVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DisplayName",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Description",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "PolicyVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "RequiredObservationWindow",
+        "Type": "integer",
+        "Nullable": false
+      },
+      {
+        "Name": "Unit",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "MinimumValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "MaximumValue",
+        "Type": "numeric",
+        "Nullable": true
+      },
+      {
+        "Name": "StrategyKey",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "AlgorithmVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "InputSchemaVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DependenciesJson",
+        "Type": "text",
+        "Nullable": false
+      }
+    ],
+    "PrimaryKeys": [
+      "Id"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "IX_FeatureDefinitions_FeatureCode_FeatureVersion",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"IX_FeatureDefinitions_FeatureCode_FeatureVersion\" ON public.\"FeatureDefinitions\" USING btree (\"FeatureCode\", \"FeatureVersion\")",
+        "Columns": [
+          "FeatureCode",
+          "FeatureVersion"
+        ]
+      },
+      {
+        "Name": "PK_FeatureDefinitions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FeatureDefinitions\" ON public.\"FeatureDefinitions\" USING btree (\"Id\")",
+        "Columns": [
+          "Id"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FeatureDefinitions",
+        "Type": "p",
+        "Columns": [
+          "Id"
+        ],
+        "Definition": "PRIMARY KEY (\"Id\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

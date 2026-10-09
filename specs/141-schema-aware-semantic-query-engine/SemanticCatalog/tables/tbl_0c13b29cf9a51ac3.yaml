@@ -1,0 +1,139 @@
+{
+  "id": "tbl_0c13b29cf9a51ac3",
+  "physical": {
+    "Schema": "public",
+    "Name": "FinancialMetricDefinitions",
+    "ObjectType": "table",
+    "Columns": [
+      {
+        "Name": "MetricCode",
+        "Type": "character varying(128)",
+        "Nullable": false
+      },
+      {
+        "Name": "MetricVersion",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "DisplayName",
+        "Type": "character varying(200)",
+        "Nullable": false
+      },
+      {
+        "Name": "Description",
+        "Type": "text",
+        "Nullable": false
+      },
+      {
+        "Name": "Category",
+        "Type": "character varying(64)",
+        "Nullable": false
+      },
+      {
+        "Name": "UnitCode",
+        "Type": "character varying(32)",
+        "Nullable": false
+      },
+      {
+        "Name": "EffectiveFrom",
+        "Type": "date",
+        "Nullable": false
+      },
+      {
+        "Name": "EffectiveTo",
+        "Type": "date",
+        "Nullable": true
+      },
+      {
+        "Name": "PersianTitle",
+        "Type": "character varying(200)",
+        "Nullable": false,
+        "DefaultValue": "''::character varying"
+      },
+      {
+        "Name": "LookupEligible",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "ScannerEligible",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "IsMonthlyActivityMetric",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "IsValuationMetric",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "IsGrowthMetric",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "IsMarginMetric",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "IsFundamentalMetric",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      },
+      {
+        "Name": "SuppressQuoteContext",
+        "Type": "boolean",
+        "Nullable": false,
+        "DefaultValue": "false"
+      }
+    ],
+    "PrimaryKeys": [
+      "MetricCode",
+      "MetricVersion"
+    ],
+    "ForeignKeys": [],
+    "Indexes": [
+      {
+        "Name": "PK_FinancialMetricDefinitions",
+        "Unique": true,
+        "Definition": "CREATE UNIQUE INDEX \"PK_FinancialMetricDefinitions\" ON public.\"FinancialMetricDefinitions\" USING btree (\"MetricCode\", \"MetricVersion\")",
+        "Columns": [
+          "MetricCode",
+          "MetricVersion"
+        ]
+      }
+    ],
+    "Constraints": [
+      {
+        "Name": "PK_FinancialMetricDefinitions",
+        "Type": "p",
+        "Columns": [
+          "MetricCode",
+          "MetricVersion"
+        ],
+        "Definition": "PRIMARY KEY (\"MetricCode\", \"MetricVersion\")"
+      }
+    ]
+  },
+  "semantic": {
+    "status": "discovered",
+    "queryable": false
+  },
+  "provenance": {
+    "source": "ef-core-model",
+    "verified": false
+  }
+}

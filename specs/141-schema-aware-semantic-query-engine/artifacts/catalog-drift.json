@@ -1,0 +1,12 @@
+[
+  {
+    "Code": "CATALOG_OBJECT_MISSING_FROM_SOURCE",
+    "Object": "tbl_6e663ef22a071a7a",
+    "Severity": "breaking"
+  },
+  {
+    "Code": "CATALOG_OBJECT_MISSING_FROM_SOURCE",
+    "Object": "tbl_78f74a69fb1b5cf1",
+    "Severity": "breaking"
+  }
+]

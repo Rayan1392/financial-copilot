@@ -185,6 +185,8 @@ public interface IStructuredQueryPlanValidator
 public interface IOfflineStructuredQueryPlanningService
 {
     Task<OfflineStructuredQueryPlanningResult> PlanAsync(SchemaNavigationRequest request, CancellationToken cancellationToken);
+    Task<OfflineStructuredQueryPlanningResult> PlanAsync(SchemaNavigationRequest request,
+        QuestionSchemaRequirements independentlyExtractedRequirements, CancellationToken cancellationToken);
 }
 
 public sealed record OfflineStructuredQueryPlanningResult(
@@ -315,6 +317,10 @@ public sealed class StructuredQueryPlanBuilder : IStructuredQueryPlanBuilder
 /// <summary>Deterministic validator independent from LLM output; catalog membership comes from expanded context.</summary>
 public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
 {
+    private readonly bool _executionEnabled;
+
+    public StructuredQueryPlanValidator(bool executionEnabled = false) => _executionEnabled = executionEnabled;
+
     public StructuredQueryPlanValidation Validate(SchemaNavigationRequest request, QuestionSchemaRequirements requirements,
         StructuredQueryPlan plan, SchemaContext context, SchemaContextCompletenessResult completeness)
     {
@@ -324,6 +330,7 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(completeness);
         var issues = new List<string>();
+        issues.AddRange(Feature141OperationRegistry.ValidatePlan(plan));
         if (plan.ContractVersion != 1 || plan.ContractVersion != request.ContractVersion) issues.Add("plan_contract_version_mismatch");
         if (!string.Equals(plan.CatalogVersion, request.CatalogVersion, StringComparison.Ordinal)
             || !string.Equals(plan.CatalogHash, request.CatalogHash, StringComparison.Ordinal)
@@ -494,9 +501,18 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
         if (!completeness.RetrievalComplete) issues.Add("retrieval_requirements_incomplete");
 
         var structural = issues.Count == 0;
-        // This phase has no compiler/executor. Authorization metadata never activates execution here.
-        var executionEligible = false;
-        if (structural) issues.Add("offline_plan_execution_disabled");
+        var directSourceIdentityAuthorized = plan.Sources.Count == 1
+            && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem
+            && plan.Sources[0].SourceItemCatalogId is { } sourceItemId && sourceItemId != Guid.Empty
+            && plan.Sources[0].SourceItemId is > 0
+            && !string.IsNullOrWhiteSpace(plan.Sources[0].ProviderName)
+            && !string.IsNullOrWhiteSpace(plan.Sources[0].StatementType)
+            && (plan.Sources[0].IdentityStatus.Equals("verified", StringComparison.OrdinalIgnoreCase)
+                || plan.Sources[0].IdentityStatus.Equals("verified-persisted-source-key", StringComparison.OrdinalIgnoreCase));
+        var executionEligible = _executionEnabled && structural && completeness.RetrievalComplete
+            && completeness.QueryAuthorized && (completeness.SemanticReviewApproved || directSourceIdentityAuthorized);
+        if (structural && !executionEligible)
+            issues.Add(_executionEnabled ? "plan_execution_not_authorized" : "offline_plan_execution_disabled");
         return new(structural, completeness.RetrievalComplete, completeness.SemanticReviewApproved,
             completeness.QueryAuthorized, executionEligible, issues.Distinct(StringComparer.Ordinal).ToArray());
     }
@@ -553,6 +569,14 @@ public sealed class OfflineStructuredQueryPlanningService(
     public async Task<OfflineStructuredQueryPlanningResult> PlanAsync(SchemaNavigationRequest request, CancellationToken cancellationToken)
     {
         var requirements = await requirementsExtractor.ExtractAsync(request, cancellationToken);
+        return await PlanAsync(request, requirements, cancellationToken);
+    }
+
+    public async Task<OfflineStructuredQueryPlanningResult> PlanAsync(SchemaNavigationRequest request,
+        QuestionSchemaRequirements independentlyExtractedRequirements, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(independentlyExtractedRequirements);
+        var requirements = independentlyExtractedRequirements;
         var navigation = await navigator.NavigateAsync(request, requirements, cancellationToken);
         var required = (requirements.MeasureIds ?? []).Concat(requirements.DimensionIds ?? [])
             .Concat(requirements.RelationshipIds ?? []).Concat((requirements.FinancialValueReferences ?? []).Select(x => x.CatalogId))

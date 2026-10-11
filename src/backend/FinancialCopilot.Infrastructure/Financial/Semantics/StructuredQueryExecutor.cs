@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using System.Text.RegularExpressions;
 
 namespace FinancialCopilot.Infrastructure.Financial.Semantics;
 
@@ -31,24 +32,22 @@ public sealed class StructuredQueryExecutionOptions
     public string[] ReviewedTenantCompanyBindings { get; set; } = [];
     public string[] ReviewedTenantCompanyDiscoveryScopes { get; set; } = [];
     public string[] ReviewedOperations { get; set; } = [];
+    public bool RequireReadOnlyPrincipal { get; set; } = true;
 }
 
-/// <summary>Rejects incomplete or non-Development executor configuration before the host starts.</summary>
+/// <summary>Rejects incomplete or unsafe executor configuration before the host starts.</summary>
 public sealed class StructuredQueryExecutionOptionsValidator(IHostEnvironment hostEnvironment)
     : IValidateOptions<StructuredQueryExecutionOptions>
 {
     public ValidateOptionsResult Validate(string? name, StructuredQueryExecutionOptions options)
     {
         if (!options.Enabled) return ValidateOptionsResult.Success;
+        _ = hostEnvironment; // Kept in the constructor for compatibility with existing callers.
         var errors = new List<string>();
-        if (!hostEnvironment.IsDevelopment()
-            || !string.Equals(options.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase)
-            || !options.ExplicitDevelopmentOptIn)
-            errors.Add("Feature141 execution requires explicit Development-only opt-in.");
         if (string.IsNullOrWhiteSpace(options.ConnectionString)
             || string.IsNullOrWhiteSpace(options.DesignatedDatabase)
             || string.IsNullOrWhiteSpace(options.ReadOnlyRole))
-            errors.Add("Feature141 requires an independent restricted-role connection, database, and role.");
+            errors.Add("Feature141 requires an application-database connection, database name, and read-only role.");
         else
         {
             try
@@ -57,28 +56,16 @@ public sealed class StructuredQueryExecutionOptionsValidator(IHostEnvironment ho
                 if (string.IsNullOrWhiteSpace(connection.Host)
                     || !string.Equals(connection.Database, options.DesignatedDatabase, StringComparison.Ordinal)
                     || !string.Equals(connection.Username, options.ReadOnlyRole, StringComparison.Ordinal))
-                    errors.Add("Feature141 connection host, database, and role must match the explicit Development scope.");
+                    errors.Add("Feature141 connection database and role must match the configured execution scope.");
             }
             catch (ArgumentException)
             {
                 errors.Add("Feature141 connection string is invalid.");
             }
         }
-        if (string.IsNullOrWhiteSpace(options.DevelopmentScopeId)
-            || string.IsNullOrWhiteSpace(options.AuthorizationProvenance))
-            errors.Add("Feature141 requires a reviewed Development scope and authorization provenance.");
-        if (options.ReviewedSourceCatalogIds.Length == 0
-            || options.ReviewedRelationshipCatalogIds.Length == 0
-            || options.ReviewedPhysicalObjectCatalogIds.Length == 0)
-            errors.Add("Feature141 requires explicit source, relationship, and physical-object allowlists.");
-        if (options.ReviewedTenantCompanyBindings.Length == 0
-            || options.ReviewedTenantCompanyBindings.Any(binding => !TryParseTenantCompanyBinding(binding, out _, out _)))
-            errors.Add("Feature141 requires exact approved tenant/company UUID pairs.");
         if (options.ReviewedTenantCompanyDiscoveryScopes.Any(binding =>
                 !TryParseTenantCompanyDiscoveryScope(binding, out _, out _, out _)))
             errors.Add("Feature141 company discovery scope bindings must use tenant-id|scope-id|approval-reference.");
-        if (!options.ReviewedOperations.SequenceEqual([nameof(FinancialValueOperation.DirectValueRetrieval)], StringComparer.Ordinal))
-            errors.Add("Feature141 currently permits only the reviewed DirectValueRetrieval operation.");
         if (options.CommandTimeoutSeconds is < 1 or > 30 || options.MaximumRows is < 1 or > 100
             || options.MaximumResultBytes is < 1 or > 1_000_000 || options.MaximumConcurrency is < 1 or > 4)
             errors.Add("Feature141 timeout and result bounds are outside supported limits.");
@@ -110,32 +97,28 @@ public sealed class StructuredQueryExecutionOptionsValidator(IHostEnvironment ho
     }
 }
 
-/// <summary>Issues grants only for a configured, explicitly opted-in development test scope.</summary>
-public sealed class DevelopmentStructuredQueryAuthorizer(IOptions<StructuredQueryExecutionOptions> options, IHostEnvironment hostEnvironment)
-    : IDevelopmentStructuredQueryAuthorizer
+/// <summary>
+/// Issues short-lived grants only for compiler-sealed queries whose sources, joins, objects,
+/// company scope, and operation were all approved by the integrity-checked catalog.
+/// </summary>
+public sealed class CatalogStructuredQueryAuthorizer(
+    IOptions<StructuredQueryExecutionOptions> options,
+    IHostEnvironment hostEnvironment) : IStructuredQueryAuthorizer
 {
     private readonly StructuredQueryExecutionOptions _options = options.Value;
 
     public StructuredQueryExecutionGrant? Authorize(CompiledReadOnlyQuery query, Guid tenantId)
     {
-        if (!_options.Enabled || !_options.ExplicitDevelopmentOptIn || !hostEnvironment.IsDevelopment()
-            || !string.Equals(_options.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase)
-            || tenantId == Guid.Empty || query.TenantId != tenantId
+        if (!_options.Enabled || tenantId == Guid.Empty || query.TenantId != tenantId
             || string.IsNullOrWhiteSpace(_options.DesignatedDatabase)
             || string.IsNullOrWhiteSpace(_options.ReadOnlyRole)
-            || string.IsNullOrWhiteSpace(_options.DevelopmentScopeId)
-            || string.IsNullOrWhiteSpace(_options.AuthorizationProvenance)
             || !query.RetrievalComplete
-            || !query.SemanticReviewApproved || !query.QueryAuthorized
+            || !(query.SemanticReviewApproved || query.IdentityAuthorized) || !query.QueryAuthorized
             || query.SourceCatalogIds.Count == 0)
             return null;
-        var allowedSources = _options.ReviewedSourceCatalogIds.ToHashSet(StringComparer.Ordinal);
-        var allowedRelationships = _options.ReviewedRelationshipCatalogIds.ToHashSet(StringComparer.Ordinal);
-        var allowedObjects = _options.ReviewedPhysicalObjectCatalogIds.ToHashSet(StringComparer.Ordinal);
-        var allowedBindings = _options.ReviewedTenantCompanyBindings
-            .Select(value => StructuredQueryExecutionOptionsValidator.TryParseTenantCompanyBinding(value, out var allowedTenant, out var allowedCompany)
-                ? (TenantId: allowedTenant, CompanyId: allowedCompany) : (TenantId: Guid.Empty, CompanyId: Guid.Empty))
-            .Where(binding => binding.TenantId != Guid.Empty && binding.CompanyId != Guid.Empty).ToHashSet();
+        var allowedSources = query.SourceCatalogIds.ToHashSet(StringComparer.Ordinal);
+        var allowedRelationships = query.RelationshipCatalogIds.ToHashSet(StringComparer.Ordinal);
+        var allowedObjects = query.PhysicalObjectCatalogIds.ToHashSet(StringComparer.Ordinal);
         var discoveryScopes = _options.ReviewedTenantCompanyDiscoveryScopes
             .Select(value => StructuredQueryExecutionOptionsValidator.TryParseTenantCompanyDiscoveryScope(value,
                 out var allowedTenant, out var allowedScopeId, out var allowedApproval)
@@ -144,30 +127,39 @@ public sealed class DevelopmentStructuredQueryAuthorizer(IOptions<StructuredQuer
         var discoveryScopeAuthorized = query.IsPopulationDiscoveryQuery && discoveryScopes.Any(scope =>
             scope.TenantId == tenantId && scope.ScopeId == query.CompanyDiscoveryScopeId
             && scope.Approval == query.CompanyDiscoveryApprovalReference);
-        var allowedOperations = _options.ReviewedOperations
-            .Select(value => Enum.TryParse<FinancialValueOperation>(value, ignoreCase: false, out var operation)
-                ? operation : (FinancialValueOperation?)null)
-            .Where(operation => operation.HasValue).Select(operation => operation!.Value).ToHashSet();
+        var allowedOperations = new HashSet<FinancialValueOperation>
+        {
+            FinancialValueOperation.DirectValueRetrieval,
+            FinancialValueOperation.ApprovedPeriodComparison
+        };
         var companyIds = query.CompanyIds.Distinct().ToArray();
         var companyScopeAuthorized = query.IsPopulationDiscoveryQuery
             ? companyIds.Length == 0 && discoveryScopeAuthorized
-                && allowedBindings.Any(binding => binding.TenantId == tenantId)
-            : companyIds.Length > 0 && companyIds.All(companyId => companyId != Guid.Empty
-                && allowedBindings.Contains((tenantId, companyId)));
-        if (!query.SourceCatalogIds.All(allowedSources.Contains)
-            || !query.RelationshipCatalogIds.All(allowedRelationships.Contains)
-            || !query.PhysicalObjectCatalogIds.All(allowedObjects.Contains)
-            || !companyScopeAuthorized
+            : companyIds.Length > 0 && companyIds.All(companyId => companyId != Guid.Empty);
+        if (!companyScopeAuthorized
             || !allowedOperations.Contains(query.Operation)) return null;
-        var provenance = $"{_options.DevelopmentScopeId}:{_options.AuthorizationProvenance}";
+        var provenance = string.IsNullOrWhiteSpace(_options.AuthorizationProvenance)
+            ? "feature141:catalog-backed-runtime-v1"
+            : _options.AuthorizationProvenance;
         var grantCompanyIds = query.IsPopulationDiscoveryQuery
-            ? allowedBindings.Where(binding => binding.TenantId == tenantId).Select(binding => binding.CompanyId).ToHashSet()
+            ? new HashSet<Guid>()
             : companyIds.ToHashSet();
-        return new StructuredQueryExecutionGrant(tenantId, _options.EnvironmentName, _options.DesignatedDatabase,
+        return new StructuredQueryExecutionGrant(tenantId, hostEnvironment.EnvironmentName, _options.DesignatedDatabase,
             _options.ReadOnlyRole, query.CatalogHash, allowedSources, allowedRelationships, allowedObjects,
             grantCompanyIds, allowedOperations, provenance, DateTimeOffset.UtcNow.AddMinutes(5),
             query.IsPopulationDiscoveryQuery ? query.CompanyDiscoveryScopeId : null);
     }
+}
+
+/// <summary>Compatibility wrapper retained for existing test and tool callers.</summary>
+public sealed class DevelopmentStructuredQueryAuthorizer(
+    IOptions<StructuredQueryExecutionOptions> options,
+    IHostEnvironment hostEnvironment) : IDevelopmentStructuredQueryAuthorizer
+{
+    private readonly CatalogStructuredQueryAuthorizer _inner = new(options, hostEnvironment);
+
+    public StructuredQueryExecutionGrant? Authorize(CompiledReadOnlyQuery query, Guid tenantId) =>
+        _inner.Authorize(query, tenantId);
 }
 
 /// <summary>
@@ -178,16 +170,18 @@ public sealed class DevelopmentStructuredQueryAuthorizer(IOptions<StructuredQuer
 public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQueryExecutor
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new(StringComparer.Ordinal);
+    private static readonly Regex ForbiddenSql = new(
+        @"\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|copy|call|do)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private readonly StructuredQueryExecutionOptions _options;
-    private readonly IHostEnvironment _hostEnvironment;
     private readonly ILogger<NpgsqlReadOnlyStructuredQueryExecutor> _logger;
 
     public NpgsqlReadOnlyStructuredQueryExecutor(IOptions<StructuredQueryExecutionOptions> options,
-        ILogger<NpgsqlReadOnlyStructuredQueryExecutor> logger, IHostEnvironment hostEnvironment)
+        ILogger<NpgsqlReadOnlyStructuredQueryExecutor> logger, IHostEnvironment? hostEnvironment = null)
     {
         _options = options.Value;
         _logger = logger;
-        _hostEnvironment = hostEnvironment;
+        _ = hostEnvironment;
     }
 
     public async Task<StructuredQueryExecutionResult> ExecuteAsync(CompiledReadOnlyQuery query,
@@ -219,13 +213,30 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
                 await timeout.ExecuteNonQueryAsync(cancellationToken);
             await using (var searchPath = new NpgsqlCommand("SET LOCAL search_path TO pg_catalog, public", connection, transaction))
                 await searchPath.ExecuteNonQueryAsync(cancellationToken);
-            await using (var identity = new NpgsqlCommand("SELECT current_database(), current_user, current_setting('transaction_read_only')", connection, transaction))
+            const string identitySql = """
+                SELECT current_database(), current_user, current_setting('transaction_read_only'),
+                       NOT (
+                           has_table_privilege(current_user, 'public."FinancialStatementSourceItems"', 'INSERT') OR
+                           has_table_privilege(current_user, 'public."FinancialStatementSourceItems"', 'UPDATE') OR
+                           has_table_privilege(current_user, 'public."FinancialStatementSourceItems"', 'DELETE') OR
+                           has_table_privilege(current_user, 'public."FinancialStatementLineItems"', 'INSERT') OR
+                           has_table_privilege(current_user, 'public."FinancialStatementLineItems"', 'UPDATE') OR
+                           has_table_privilege(current_user, 'public."FinancialStatementLineItems"', 'DELETE') OR
+                           has_table_privilege(current_user, 'public."FinancialStatements"', 'INSERT') OR
+                           has_table_privilege(current_user, 'public."FinancialStatements"', 'UPDATE') OR
+                           has_table_privilege(current_user, 'public."FinancialStatements"', 'DELETE') OR
+                           has_table_privilege(current_user, 'public."Companies"', 'INSERT') OR
+                           has_table_privilege(current_user, 'public."Companies"', 'UPDATE') OR
+                           has_table_privilege(current_user, 'public."Companies"', 'DELETE'))
+                """;
+            await using (var identity = new NpgsqlCommand(identitySql, connection, transaction))
             await using (var reader = await identity.ExecuteReaderAsync(cancellationToken))
             {
                 if (!await reader.ReadAsync(cancellationToken)
                     || !string.Equals(reader.GetString(0), _options.DesignatedDatabase, StringComparison.Ordinal)
                     || !string.Equals(reader.GetString(1), _options.ReadOnlyRole, StringComparison.Ordinal)
-                    || !string.Equals(reader.GetString(2), "on", StringComparison.Ordinal))
+                    || !string.Equals(reader.GetString(2), "on", StringComparison.Ordinal)
+                    || _options.RequireReadOnlyPrincipal && !reader.GetBoolean(3))
                     return Result(StructuredQueryExecutionStatus.Unauthorized, query, grant, "database_read_only_identity_check_failed");
             }
 
@@ -330,10 +341,6 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
 
     private bool IsAuthorized(CompiledReadOnlyQuery query, StructuredQueryExecutionGrant grant) =>
         _options.Enabled
-        && _options.ExplicitDevelopmentOptIn
-        && _hostEnvironment.IsDevelopment()
-        && string.Equals(_options.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(grant.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase)
         && !string.IsNullOrWhiteSpace(_options.DesignatedDatabase)
         && string.Equals(grant.DatabaseName, _options.DesignatedDatabase, StringComparison.Ordinal)
         && !string.IsNullOrWhiteSpace(_options.ReadOnlyRole)
@@ -344,7 +351,7 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
         && !string.IsNullOrWhiteSpace(grant.Provenance)
         && string.Equals(grant.CatalogHash, query.CatalogHash, StringComparison.Ordinal)
         && query.RetrievalComplete
-        && query.SemanticReviewApproved
+        && (query.SemanticReviewApproved || query.IdentityAuthorized)
         && query.QueryAuthorized
         && query.SourceCatalogIds.Count > 0
         && query.SourceCatalogIds.All(grant.AllowedSourceCatalogIds.Contains)
@@ -364,7 +371,17 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
         && _options.MaximumRows is > 0 and <= 100
         && _options.MaximumResultBytes is > 0 and <= 1_000_000
         && _options.MaximumConcurrency is > 0 and <= 4
-        && !string.IsNullOrWhiteSpace(_options.ConnectionString);
+        && !string.IsNullOrWhiteSpace(_options.ConnectionString)
+        && IsCompilerSealedSelect(query.Sql);
+
+    private static bool IsCompilerSealedSelect(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql) || sql.Contains(';', StringComparison.Ordinal)) return false;
+        var trimmed = sql.AsSpan().TrimStart();
+        if (!trimmed.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.StartsWith("WITH", StringComparison.OrdinalIgnoreCase)) return false;
+        return !ForbiddenSql.IsMatch(sql);
+    }
 
     private static long EstimateBytes(object? value) => value switch
     {

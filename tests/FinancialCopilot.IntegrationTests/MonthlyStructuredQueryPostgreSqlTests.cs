@@ -788,6 +788,141 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
         }
     }
 
+    [SkippableFact]
+    public async Task FinancialStatementRetrievalExecutesThroughGenericPlanningCompilationAndPersianRendering()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        var databaseName = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database
+            ?? throw new InvalidOperationException("The isolated PostgreSQL test database has no name.");
+        var marketId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+        var snapshot = ApprovedFinancialStatementFixtureSnapshot();
+        var source = Assert.Single(snapshot.DirectSources, item => item.ProviderName == Provider
+            && item.StatementType == "IncomeStatement" && item.SourceItemId == 161);
+        var statementId = Guid.NewGuid();
+        await using (var db = database.CreateContext())
+        {
+            db.Markets.Add(new NormalizedMarketRow
+            {
+                Id = marketId, ProviderName = Provider, ExternalId = "feature141-statement-market",
+                Name = "Feature 141 statement fixture", LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            db.Companies.Add(new NormalizedCompanyRow
+            {
+                Id = companyId, ProviderName = Provider, ExternalCompanyId = "feature141-statement-kgehr",
+                Name = "Fixture Kogهر", Ticker = "کگهر", MarketId = marketId, PrecedencyRight = 0,
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
+            {
+                Id = source.SourceItemCatalogId, ProviderName = source.ProviderName,
+                StatementType = source.StatementType, SourceItemId = source.SourceItemId,
+                TitleFa = "سود عملیاتی هر سهم", Unit = source.SourceUnit,
+                LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            db.FinancialStatements.Add(new NormalizedFinancialStatementRow
+            {
+                Id = statementId, CompanyId = companyId, ProviderName = source.ProviderName,
+                ExternalCompanyId = "feature141-statement-kgehr", ExternalStatementId = "fixture-income-2026-q2",
+                StatementType = source.StatementType, PeriodType = "ThreeMonths",
+                PeriodStart = new DateOnly(2026, 3, 21), PeriodEnd = new DateOnly(2026, 6, 21),
+                PublishedAt = new DateOnly(2026, 7, 22), IsComposing = false,
+                SourcePayloadChecksum = "feature141-statement-fixture", LastSynchronizedAt = DateTimeOffset.UtcNow
+            });
+            db.FinancialStatementLineItems.Add(new NormalizedFinancialStatementLineItemRow
+            {
+                Id = Guid.NewGuid(), FinancialStatementId = statementId,
+                SourceItemCatalogId = source.SourceItemCatalogId, Value = 3_753m
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var role = "feature141_statement_reader_" + Guid.NewGuid().ToString("N");
+        var password = "F141_" + Guid.NewGuid().ToString("N");
+        try
+        {
+            await CreateFinancialStatementRestrictedRoleAsync(database.ConnectionString, role, password);
+            var restrictedConnection = new NpgsqlConnectionStringBuilder(database.ConnectionString)
+            {
+                Username = role, Password = password, Pooling = false
+            }.ConnectionString;
+            await AssertFinancialStatementRoleIsReadOnlyAsync(restrictedConnection, role);
+
+            await using var bindingDb = database.CreateContext();
+            var companyBinder = new StructuredQueryCompanyBinder(new CanonicalQueryEntityResolver(bindingDb,
+                Options.Create(new CanonicalEntityResolutionOptions(Enabled: true))));
+            const string question = "سود عملیاتی هر سهم کگهر چقدر است؟";
+            var financialReference = new FinancialValueCatalogReference(source.CatalogId, source.SourceItemCatalogId,
+                source.ProviderName, source.StatementType, source.SourceItemId, "سود عملیاتی هر سهم", null,
+                source.SourceUnit, source.NormalizedUnit, source.MetricCode, "verified-persisted-source-key", "approved", true,
+                source.SourceUnitStatus);
+            var requirements = new QuestionSchemaRequirements(1, snapshot.CatalogVersion, snapshot.CatalogHash,
+                [], ["dim_company"], ["company"], source.RelationshipIds, ["default-standalone"], ["latest"], [], ["scalar"],
+                StatementScopes: ["standalone"], EntityReferences: ["کگهر"],
+                FinancialValueReferences: [new(nameof(FinancialValueReferenceType.DirectSourceItem), source.CatalogId)],
+                RequestedFinancialValueOperation: nameof(FinancialValueOperation.DirectValueRetrieval),
+                StructuredShape: new StructuredPlanShape([source.CatalogId], [], [], [], [], 0, 1));
+            var nodeIds = new[] { "domain-financial-statements" };
+            var context = new SchemaContext(1, snapshot.CatalogVersion, snapshot.CatalogHash, nodeIds,
+                [new SchemaNodeGovernance(nodeIds[0], true, true, true, true)], [], requirements.DimensionIds,
+                requirements.EntityKinds, requirements.RelationshipIds, requirements.SourcePolicies,
+                requirements.PeriodPolicies, [], requirements.PresentationRequirements, [], requirements.StatementScopes,
+                [], [], requirements.EntityReferences, [financialReference]);
+            var navigation = new SchemaNavigationResult(1, snapshot.CatalogVersion, snapshot.CatalogHash,
+                [new NavigationCandidate(nodeIds[0], 1, "captured live navigator financial-statement branch")], nodeIds,
+                [], requirements.DimensionIds, requirements.EntityKinds, requirements.RelationshipIds,
+                requirements.SourcePolicies, requirements.PeriodPolicies, [], [],
+                SelectedPresentationRequirements: requirements.PresentationRequirements,
+                SelectedStatementScopes: requirements.StatementScopes,
+                SelectedEntityReferences: requirements.EntityReferences,
+                CompletenessStatus: SchemaContextCompletenessStatus.Complete,
+                SelectedFinancialValueReferences: requirements.FinancialValueReferences,
+                FinancialValueOperation: requirements.RequestedFinancialValueOperation,
+                RetrievalComplete: true, SemanticReviewApproved: true, QueryAuthorized: true);
+            var planner = new OfflineStructuredQueryPlanningService(new CapturedRequirementsExtractor(requirements),
+                new CapturedNavigator(navigation), new CapturedContextProvider(context),
+                new SchemaContextCompletenessValidator(), new StructuredQueryPlanBuilder(),
+                new StructuredQueryPlanValidator(), companyBinder);
+            var request = new SchemaNavigationRequest(1, question, snapshot.CatalogVersion, snapshot.CatalogHash,
+                TenantId: TenantId, CorrelationId: "feature141-statement-postfix-fixture");
+            var planning = await planner.PlanAsync(request, CancellationToken.None);
+            Assert.True(planning.Validation.IsStructurallyValid, string.Join("|", planning.Validation.Diagnostics));
+            Assert.Equal(companyId, planning.CompanyBinding?.CompanyId);
+
+            var approvedPlan = planning.Plan with
+                { RetrievalComplete = true, SemanticReviewApproved = true, QueryAuthorized = true, ExecutionEligible = true };
+            var compilation = new StructuredQueryCompiler().Compile(approvedPlan, snapshot);
+            Assert.True(compilation.Success, string.Join("|", compilation.Diagnostics));
+            var query = Assert.IsType<CompiledReadOnlyQuery>(compilation.Query);
+            var execution = await ExecuteAsync(query, databaseName, role, restrictedConnection);
+            Assert.Equal(StructuredQueryExecutionStatus.Succeeded, execution.Status);
+            Assert.Equal(3_753m, Convert.ToDecimal(Assert.Single(execution.Rows)["Value"]));
+            var response = new PersianStructuredQueryResponseGenerator().Generate(new(approvedPlan, execution));
+            Assert.Equal(StructuredAnswerStatus.Answered, response.Status);
+            Assert.Contains("۳٬۷۵۳", response.TextAnswer, StringComparison.Ordinal);
+
+            var root = FindRepositoryRoot();
+            var artifact = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts",
+                LiveArtifactFileName("financial-statement-generic-pipeline-2026-10-09.json"));
+            await File.WriteAllTextAsync(artifact, System.Text.Json.JsonSerializer.Serialize(new
+            {
+                caseId = "financial-statement-operating-profit-per-share", question,
+                executionMode = "captured-navigation-plus-isolated-postgresql-fixture",
+                catalogVersion = snapshot.CatalogVersion, catalogHash = snapshot.CatalogHash,
+                companyBinding = planning.CompanyBinding, plan = approvedPlan,
+                sqlExecuted = query.Sql, sqlParameters = query.Parameters,
+                executionStatus = execution.Status.ToString(), observedRows = execution.Rows,
+                expectedValue = 3_753m, actualValue = Convert.ToDecimal(execution.Rows[0]["Value"]),
+                effectiveUnit = execution.EffectiveUnit, finalPersianAnswer = response.TextAnswer,
+                evidence = response.Evidence, secretValuesLogged = false
+            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        }
+        finally
+        {
+            await DropFinancialStatementRoleAsync(database.ConnectionString, role);
+        }
+    }
+
     private static StructuredQueryCatalogSnapshot RuntimeSnapshot()
     {
         var root = FindRepositoryRoot();
@@ -812,6 +947,26 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             original.DirectSources,
             original.MonthlyMeasures.Select(x => x with
                 { Queryable = true, SemanticApproved = true, UnitVerified = true }).ToArray());
+    }
+
+    private static StructuredQueryCatalogSnapshot ApprovedFinancialStatementFixtureSnapshot()
+    {
+        var original = RuntimeSnapshot();
+        var source = original.DirectSources.Single(item => item.ProviderName == Provider
+            && item.StatementType == "IncomeStatement" && item.SourceItemId == 161);
+        var tableIds = new[] { source.SourceItemsTableCatalogId, source.LineItemsTableCatalogId,
+            source.StatementsTableCatalogId, source.CompaniesTableCatalogId }.ToHashSet(StringComparer.Ordinal);
+        var relationshipIds = source.RelationshipIds.ToHashSet(StringComparer.Ordinal);
+        return new StructuredQueryCatalogSnapshot(original.CatalogVersion, original.CatalogHash, true,
+            original.Tables.Select(item => tableIds.Contains(item.CatalogId)
+                ? item with { Queryable = true, SemanticApproved = true } : item).ToArray(),
+            original.Columns.Select(item => tableIds.Contains(item.TableCatalogId)
+                ? item with { Queryable = true } : item).ToArray(),
+            original.Relationships.Select(item => relationshipIds.Contains(item.CatalogId)
+                ? item with { Queryable = true, SemanticApproved = true, QueryAuthorized = true } : item).ToArray(),
+            original.DirectSources.Select(item => item.CatalogId == source.CatalogId
+                ? item with { Queryable = true, SemanticApproved = true } : item).ToArray(),
+            original.MonthlyMeasures);
     }
 
     private static async Task RunLiveNaturalLanguageFixtureQueryAsync(
@@ -860,7 +1015,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             TenantId: TenantId, CorrelationId: "feature141-live-llm-postgresql-fixture");
         var planning = await planner.PlanAsync(request, CancellationToken.None);
         var artifactPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts",
-            "monthly-production-sales-live-llm-postgresql-readiness-v1-diagnostic-2026-10-09.json");
+            LiveArtifactFileName("monthly-production-sales-live-llm-postgresql-readiness-v2-diagnostic-2026-10-09.json"));
         await File.WriteAllTextAsync(artifactPath, System.Text.Json.JsonSerializer.Serialize(new
         {
             status = "pipeline_diagnostic", provider = available[0].ProviderKey, model = available[0].ModelKey,
@@ -1009,7 +1164,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
             .Select(row => Convert.ToDecimal(row["Value"])));
 
         var populationArtifactPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts",
-            "monthly-company-population-discovery-live-llm-postgresql-readiness-v1.json");
+            LiveArtifactFileName("monthly-company-population-discovery-live-llm-postgresql-readiness-v2.json"));
         await File.WriteAllTextAsync(populationArtifactPath, System.Text.Json.JsonSerializer.Serialize(new
         {
             status = "succeeded_with_partial_coverage", question = populationQuestion, executionMode = "live-llm-plus-isolated-postgresql",
@@ -1087,7 +1242,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
                 null, null, null)
         };
         var casesArtifact = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts",
-            "monthly-production-sales-live-llm-postgresql-fifteen-cases-readiness-v1-2026-10-09.jsonl");
+            LiveArtifactFileName("monthly-production-sales-live-llm-postgresql-fifteen-cases-readiness-v2-2026-10-09.jsonl"));
         var responseGenerator = new PersianStructuredQueryResponseGenerator();
         await using var caseOutput = new StreamWriter(casesArtifact, append: false);
         foreach (var liveCase in cases)
@@ -1422,6 +1577,36 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task CreateFinancialStatementRestrictedRoleAsync(string adminConnectionString,
+        string role, string password)
+    {
+        await using var connection = new NpgsqlConnection(adminConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE ROLE \"{role}\" LOGIN PASSWORD '{password}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT; " +
+            $"GRANT USAGE ON SCHEMA public TO \"{role}\"; " +
+            $"GRANT SELECT ON TABLE public.\"FinancialStatements\", public.\"FinancialStatementLineItems\", " +
+            $"public.\"FinancialStatementSourceItems\", public.\"Companies\" TO \"{role}\";";
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task AssertFinancialStatementRoleIsReadOnlyAsync(string connectionString, string role)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT current_user, rolsuper OR rolcreatedb OR rolcreaterole, " +
+            "has_table_privilege(current_user, 'public.\"FinancialStatements\"', 'SELECT'), " +
+            "has_table_privilege(current_user, 'public.\"FinancialStatements\"', 'INSERT') " +
+            "FROM pg_roles WHERE rolname = current_user";
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(role, reader.GetString(0));
+        Assert.False(reader.GetBoolean(1));
+        Assert.True(reader.GetBoolean(2));
+        Assert.False(reader.GetBoolean(3));
+    }
+
     private static async Task AssertRoleIsReadOnlyAsync(string connectionString, string role)
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -1444,6 +1629,28 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
         command.CommandText = $"REVOKE ALL PRIVILEGES ON TABLE public.\"MonthlyReports\", public.\"MonthlyReportLineItems\", public.\"Companies\" FROM \"{role}\"; " +
             $"REVOKE USAGE ON SCHEMA public FROM \"{role}\"; DROP ROLE IF EXISTS \"{role}\"";
         await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DropFinancialStatementRoleAsync(string adminConnectionString, string role)
+    {
+        await using var connection = new NpgsqlConnection(adminConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"REVOKE ALL PRIVILEGES ON TABLE public.\"FinancialStatements\", " +
+            $"public.\"FinancialStatementLineItems\", public.\"FinancialStatementSourceItems\", " +
+            $"public.\"Companies\" FROM \"{role}\"; REVOKE USAGE ON SCHEMA public FROM \"{role}\"; " +
+            $"DROP ROLE IF EXISTS \"{role}\"";
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static string LiveArtifactFileName(string fileName)
+    {
+        var requestedTag = Environment.GetEnvironmentVariable("FEATURE141_LIVE_ARTIFACT_TAG");
+        if (string.IsNullOrWhiteSpace(requestedTag)) return fileName;
+        var tag = new string(requestedTag.Where(character => char.IsLetterOrDigit(character)
+            || character is '-' or '_').ToArray());
+        if (tag.Length == 0) throw new InvalidOperationException("FEATURE141_LIVE_ARTIFACT_TAG contains no safe filename characters.");
+        return $"{Path.GetFileNameWithoutExtension(fileName)}-{tag}{Path.GetExtension(fileName)}";
     }
 
     private static string FindRepositoryRoot()

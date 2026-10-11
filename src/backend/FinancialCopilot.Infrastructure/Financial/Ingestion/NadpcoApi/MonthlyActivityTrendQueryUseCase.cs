@@ -1,10 +1,12 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 internal sealed class MonthlyActivityTrendQueryUseCase(
     ICompanyResolverService companyResolver,
-    ICompanyMonthlyActivityTrendSnapshotRepository repository)
+    ICompanyMonthlyActivityTrendSnapshotRepository repository,
+    ILogger<MonthlyActivityTrendQueryUseCase> logger)
     : IMonthlyActivityTrendQueryUseCase
 {
     private const decimal MillionRialToBillionTooman = 0.0001m;
@@ -23,13 +25,28 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
     {
         var symbol = query.SymbolOrCompanyName;
         if (string.IsNullOrWhiteSpace(symbol))
+        {
+            logger.LogInformation(
+                "Monthly activity trend skipped. Route={Route} CompanyResolution={CompanyResolution} Reason={ReasonCode}",
+                "monthly_activity_trend", "not_attempted", "company_reference_missing");
             return null;
+        }
 
         var company = await companyResolver.ResolveBySymbolAsync(symbol, ct);
         if (company is null)
+        {
+            logger.LogInformation(
+                "Monthly activity trend company resolution completed. Route={Route} ExtractedCompanySymbol={CompanySymbol} CompanyResolution={CompanyResolution} DataRetrieval={DataRetrieval}",
+                "monthly_activity_trend", symbol, "not_found", "not_attempted");
             return null;
+        }
 
-        var latest = query.LatestReportYear.HasValue && query.LatestReportMonth.HasValue
+        var requestedPeriods = query.LastAvailableMonths is > 0
+            ? await repository.GetLatestAvailablePeriodsAsync(company.ExternalCompanyId, Math.Clamp(query.LastAvailableMonths.Value, 1, 120), ct)
+            : null;
+        var latest = requestedPeriods is { Count: > 0 }
+            ? requestedPeriods[0]
+            : query.LatestReportYear.HasValue && query.LatestReportMonth.HasValue
             ? await repository.GetCompanyTrendAsync(
                 company.ExternalCompanyId,
                 query.LatestReportYear.Value,
@@ -40,7 +57,16 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             : await repository.GetLatestAsync(company.ExternalCompanyId, ct);
 
         if (latest is null)
+        {
+            logger.LogInformation(
+                "Monthly activity trend retrieval completed. Route={Route} ExtractedCompanySymbol={CompanySymbol} CompanyResolution={CompanyResolution} RequestedMetric={RequestedMetric} RequestedPeriod={RequestedPeriod} ChartRequested={ChartRequested} GrowthCalculation={GrowthCalculation} DataRetrieval={DataRetrieval} ObservationCount={ObservationCount}",
+                "monthly_activity_trend", symbol, "resolved", "monthly_sales_amount",
+                query.LatestReportYear.HasValue && query.LatestReportMonth.HasValue
+                    ? $"{query.LatestReportYear.Value}/{query.LatestReportMonth.Value:D2}"
+                    : "latest_available",
+                true, "not_calculated_no_snapshot", "no_latest_snapshot", 0);
             return null;
+        }
 
         var annualBase = await repository.GetAnnualComparisonBaseAsync(
             company.ExternalCompanyId,
@@ -48,7 +74,21 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             latest.ReportMonth,
             ct);
 
-        var chartPoints = BuildChartPoints(latest.ReportYear, latest.ReportMonth, annualBase);
+        logger.LogInformation(
+            "Monthly activity trend retrieval completed. Route={Route} ExtractedCompanySymbol={CompanySymbol} CompanyResolution={CompanyResolution} RequestedMetric={RequestedMetric} RequestedPeriod={RequestedPeriod} ChartRequested={ChartRequested} GrowthCalculation={GrowthCalculation} DataRetrieval={DataRetrieval} ObservationCount={ObservationCount} LatestReportPeriod={LatestReportPeriod}",
+            "monthly_activity_trend", latest.CompanySymbol ?? symbol, "resolved", "monthly_sales_amount",
+            query.LatestReportYear.HasValue && query.LatestReportMonth.HasValue
+                ? $"{query.LatestReportYear.Value}/{query.LatestReportMonth.Value:D2}"
+                : "latest_available",
+            true, latest.SalesAmountMomGrowthPercent.HasValue ? "month_over_month_growth_available" : "month_over_month_growth_unavailable",
+            "observations_found", annualBase.Count,
+            $"{latest.ReportYear}/{latest.ReportMonth:D2}");
+
+        var chartPoints = !query.IncludeChartPayload
+            ? []
+            : requestedPeriods is not null
+                ? BuildLatestAvailableChartPoints(requestedPeriods)
+                : BuildChartPoints(latest.ReportYear, latest.ReportMonth, annualBase);
         var insights = BuildInsights(latest);
         var missingPoints = BuildMissingDataPoints(chartPoints);
 
@@ -76,7 +116,32 @@ internal sealed class MonthlyActivityTrendQueryUseCase(
             Insights: insights,
             MissingDataPoints: missingPoints,
             SourceProviderName: latest.SourceProviderName,
-            CalculatedAtUtc: latest.CalculatedAtUtc);
+            CalculatedAtUtc: latest.CalculatedAtUtc)
+        {
+            SalesAmountMomGrowthPercent = latest.SalesAmountMomGrowthPercent,
+            RequestedPeriod = query.LastAvailableMonths is > 0
+                ? $"last_available_months:{Math.Clamp(query.LastAvailableMonths.Value, 1, 120)}"
+                : null,
+            RequestedOperations = query.RequestedOperations?.ToArray() ?? [],
+            UnsupportedParts = query.UnsupportedParts?.ToArray() ?? []
+        };
+    }
+
+    private static IReadOnlyList<MonthlyActivityTrendChartPoint> BuildLatestAvailableChartPoints(
+        IReadOnlyList<CompanyMonthlyActivityTrendSnapshot> snapshots)
+    {
+        var ordered = snapshots.OrderBy(item => item.ReportYear).ThenBy(item => item.ReportMonth).ToArray();
+        var average = ordered.LastOrDefault()?.Average12MonthSalesAmount;
+        return ordered.Select((snapshot, index) => new MonthlyActivityTrendChartPoint(
+            FiscalMonthIndex: index + 1,
+            FiscalMonthNameFa: $"{snapshot.ReportYear}/{snapshot.ReportMonth:D2}",
+            PreviousFiscalYear: null,
+            PreviousFiscalYearSalesAmount: null,
+            CurrentFiscalYear: snapshot.ReportYear,
+            CurrentFiscalYearSalesAmount: ConvertMillionRialToBillionTooman(snapshot.MonthlySalesAmount),
+            Average12MonthSalesAmount: ConvertMillionRialToBillionTooman(average),
+            IsCurrentYearReported: true,
+            IsPreviousYearReported: false)).ToArray();
     }
 
     private static IReadOnlyList<MonthlyActivityTrendChartPoint> BuildChartPoints(

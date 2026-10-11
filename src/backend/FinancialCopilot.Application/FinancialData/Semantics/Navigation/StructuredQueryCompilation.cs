@@ -64,7 +64,8 @@ public sealed class CompiledReadOnlyQuery
         string? effectiveUnit = null, string? effectiveUnitStatus = null, string? effectiveUnitProvenance = null,
         bool isMonthlyValueQuery = false, IReadOnlyList<Guid>? companyIds = null,
         string? companyDiscoveryScopeId = null, string? companyDiscoveryApprovalReference = null,
-        bool companyDiscoveryCoverageComplete = false, string? productMappingCoverageStatus = null)
+        bool companyDiscoveryCoverageComplete = false, string? productMappingCoverageStatus = null,
+        bool identityAuthorized = false)
     {
         Sql = sql; Parameters = Array.AsReadOnly(parameters.ToArray()); TenantId = tenantId; CatalogVersion = catalogVersion; CatalogHash = catalogHash;
         QueryFingerprint = queryFingerprint; MaximumRows = maximumRows; ResultShape = resultShape;
@@ -81,6 +82,7 @@ public sealed class CompiledReadOnlyQuery
         CompanyDiscoveryApprovalReference = companyDiscoveryApprovalReference;
         CompanyDiscoveryCoverageComplete = companyDiscoveryCoverageComplete;
         ProductMappingCoverageStatus = productMappingCoverageStatus;
+        IdentityAuthorized = identityAuthorized;
     }
 
     public string Sql { get; }
@@ -97,6 +99,8 @@ public sealed class CompiledReadOnlyQuery
     public Guid CompanyId { get; }
     public FinancialValueOperation Operation { get; }
     public bool SemanticReviewApproved { get; }
+    /// <summary>Authorizes exact registered source retrieval without asserting canonical equivalence.</summary>
+    public bool IdentityAuthorized { get; }
     public bool QueryAuthorized { get; }
     public bool RetrievalComplete { get; }
     public string? EffectiveUnit { get; }
@@ -122,7 +126,7 @@ public sealed record StructuredQueryExecutionResult(StructuredQueryExecutionStat
     string? DiagnosticCode, string? EffectiveUnit = null, string? EffectiveUnitStatus = null,
     string? EffectiveUnitProvenance = null);
 
-/// <summary>A short-lived, separately issued development-only execution grant.</summary>
+/// <summary>A short-lived grant issued from an integrity-checked catalog-backed query.</summary>
 public sealed class StructuredQueryExecutionGrant
 {
     internal StructuredQueryExecutionGrant(Guid tenantId, string environmentName, string databaseName,
@@ -156,10 +160,13 @@ public sealed class StructuredQueryExecutionGrant
     public DateTimeOffset ExpiresAt { get; }
 }
 
-public interface IDevelopmentStructuredQueryAuthorizer
+public interface IStructuredQueryAuthorizer
 {
     StructuredQueryExecutionGrant? Authorize(CompiledReadOnlyQuery query, Guid tenantId);
 }
+
+/// <summary>Compatibility alias for older integration tests and tooling.</summary>
+public interface IDevelopmentStructuredQueryAuthorizer : IStructuredQueryAuthorizer;
 
 public interface IReadOnlyStructuredQueryExecutor
 {
@@ -186,6 +193,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(snapshot);
+        var operationDiagnostics = Feature141OperationRegistry.ValidatePlan(plan);
+        if (operationDiagnostics.Count > 0) return new(false, null, operationDiagnostics);
         try { return CompileCore(plan, snapshot); }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
         {
@@ -1160,20 +1169,27 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var persistedStatementType = statementColumns["StatementType"];
         var isComposing = statementColumns["IsComposing"];
         var periodEnd = statementColumns["PeriodEnd"];
+        var requestedConsolidationScope = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal)
+            ? true
+            : plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) ? false : (bool?)null;
+        var scopeFilter = requestedConsolidationScope.HasValue
+            ? $" AND st_scope.{Q(isComposing.Name)} = @is_composing"
+            : string.Empty;
         var parameters = new List<StructuredQueryParameter>
         {
             new("company_id", plan.Entities[0].ResolvedEntityId!.Value),
             new("source_item_catalog_id", source.SourceItemCatalogId), new("provider_name", source.ProviderName),
-            new("statement_type", source.StatementType), new("source_item_id", source.SourceItemId),
-            new("is_composing", plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal))
+            new("statement_type", source.StatementType), new("source_item_id", source.SourceItemId)
         };
+        if (requestedConsolidationScope.HasValue)
+            parameters.Add(new("is_composing", requestedConsolidationScope.Value));
         var sql = $"WITH latest_period AS (\n" +
-                  $"  SELECT MAX(st_latest.{Q(periodEnd.Name)}) AS \"PeriodEnd\"\n" +
-                  $"  FROM {QT(statements)} st_latest\n" +
-                  $"  WHERE st_latest.{Q(statementCompanyFk.Name)} = @company_id\n" +
-                  $"    AND st_latest.{Q(statementProvider.Name)} = @provider_name\n" +
-                  $"    AND st_latest.{Q(persistedStatementType.Name)} = @statement_type\n" +
-                  $"    AND st_latest.{Q(isComposing.Name)} = @is_composing\n" +
+                  $"  SELECT MAX(st_scope.{Q(periodEnd.Name)}) AS \"PeriodEnd\"\n" +
+                  $"  FROM {QT(statements)} st_scope\n" +
+                  $"  WHERE st_scope.{Q(statementCompanyFk.Name)} = @company_id\n" +
+                  $"    AND st_scope.{Q(statementProvider.Name)} = @provider_name\n" +
+                  $"    AND st_scope.{Q(persistedStatementType.Name)} = @statement_type" + scopeFilter + "\n" +
+                  $"  GROUP BY st_scope.{Q(isComposing.Name)}\n" +
                   $")\n" +
                   $"SELECT li.{Q(value.Name)} AS \"Value\", st.{Q(periodEnd.Name)} AS \"PeriodEnd\", " +
                   $"st.{Q(statementId.Name)} AS \"StatementId\", st.{Q(statementProvider.Name)} AS \"ProviderName\", " +
@@ -1194,8 +1210,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
                   $"  AND st.{Q(statementProvider.Name)} = @provider_name\n  AND st.{Q(persistedStatementType.Name)} = @statement_type\n" +
                   $"  AND EXISTS (SELECT 1 FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id " +
                   $"AND si.{Q(provider.Name)} = @provider_name AND si.{Q(statementType.Name)} = @statement_type AND si.{Q(srcId.Name)} = @source_item_id)\n" +
-                  $"  AND st.{Q(isComposing.Name)} = @is_composing\n" +
-                  $"  AND st.{Q(periodEnd.Name)} = (SELECT \"PeriodEnd\" FROM latest_period)\n" +
+                  (requestedConsolidationScope.HasValue ? $"  AND st.{Q(isComposing.Name)} = @is_composing\n" : string.Empty) +
+                  $"  AND st.{Q(periodEnd.Name)} IN (SELECT \"PeriodEnd\" FROM latest_period)\n" +
                   $"ORDER BY st.{Q(periodEnd.Name)} DESC, st.{Q(statementColumns["PeriodType"].Name)}, st.{Q(statementId.Name)}\nLIMIT @row_limit OFFSET @row_offset";
         parameters.Add(new("row_limit", Math.Min(plan.Pagination.Limit, MaximumRows) + 1));
         parameters.Add(new("row_offset", plan.Pagination.Offset));
@@ -1228,11 +1244,23 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var queryAuthorized = plan.QueryAuthorized && source.Queryable
             && requiredTables.All(table => table.Queryable) && requiredColumnsAuthorized
             && relationships.All(relationship => relationship.Queryable && relationship.QueryAuthorized);
+        var identityAuthorized = queryAuthorized && source.IdentityVerified
+            && plan.Sources.Count == 1
+            && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem
+            && plan.Sources[0].SourceItemCatalogId == source.SourceItemCatalogId
+            && plan.Sources[0].ProviderName == source.ProviderName
+            && plan.Sources[0].StatementType == source.StatementType
+            && plan.Sources[0].SourceItemId == source.SourceItemId;
         return new(true, new(sql, parameters, plan.TenantId, snapshot.CatalogVersion, snapshot.CatalogHash, fingerprint,
             Math.Min(plan.Pagination.Limit, MaximumRows), plan.Presentation, plan.Sources.Select(x => x.CatalogId).ToArray(),
             source.RelationshipIds, physicalObjectIds, plan.Entities[0].ResolvedEntityId!.Value,
             plan.FinancialOperation.Operation, semanticReviewApproved, queryAuthorized, plan.RetrievalComplete,
-            source.EffectiveUnit ?? source.NormalizedUnit, source.EffectiveUnitStatus, source.EffectiveUnitProvenance), []);
+            string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
+                ? source.SourceUnit : null,
+            source.SourceUnitStatus,
+            string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
+                ? "registered-source-unit" : null,
+            identityAuthorized: identityAuthorized), []);
     }
 
     private static string Q(string value) => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";

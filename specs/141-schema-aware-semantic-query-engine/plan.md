@@ -149,3 +149,20 @@ The company binding seam is now implemented as an adapter over the existing cano
 - Verified: isolated PostgreSQL execution for direct retrieval, MoM growth, company totals, product ranking, ambiguity, revision/output filtering, and authorization rejection.
 - Pending: owner review/query authorization; company-by-sales/growth ranking; industry/category policy; planner+compiler live inference evaluation; Development activation.
 - Evaluation gate: only 6/8 completed original rows and 2/2 completed held-out rows extracted the expected measure. Five original rows and one held-out row failed extraction/navigation limits.
+
+## Option B Phase 1 plan status (2026-10-10)
+
+- Implemented: independent typed `CanonicalSemanticIntent`, deterministic shape/operation/period/entity/filter validation, provider-neutral LLM extraction, and an evaluation-only shadow CLI. Production/Development chat routing and the existing planner/compiler/executor remain unchanged.
+- Implemented: versioned correction overlay and reproducible benchmark builder over the immutable 40-case development set, 10-case historical holdout-v2, and 10-case historical holdout-v3. Explicitly adjudicated cases have exact canonical expectations; inherited-only and unreviewed labels remain visible but are not scored.
+- Implemented: independent scorer taxonomy separates malformed/truncated output, typed schema rejection, semantic rejection, catalog/policy/authorization limitations, planner/compiler support, provider timeout/cancellation, provider failure, and internal errors. Denominators are reported per field and for unconditional/conditional validity.
+- Live evidence: full 60-case existing development/historical shadow run completed (54 valid intents; 5 unsupported semantic intents; 1 provider failure; no unmatched attempts). On the 11 adjudicated cases, exact rates were operation 10/11, comparison 10/11, entity scope 10/11, period 9/11, output 9/10, products 6/6, and clarification 2/3. Measure labels are not reliably comparable yet because English gold IDs are scored against free-form Persian concept labels; two concrete unit/qualifier misses are documented in the methodology report.
+- Phase 1 status: plumbing and a first measurement pass are complete; Phase 1 is not closed. Remaining: adjudicate 49 cases; resolve the measure-concept contract/gold vocabulary and scoring alignment; inspect case-level aggregation/ranking/unit disagreements; run whole-solution and catalog-integrity gates; then make a fresh unseen evaluation before recommending Phase 2. No production/Development routing or query execution was enabled.
+- Detailed outcomes, telemetry, limitations, and the no-go Phase 2 recommendation are recorded in `evaluation/canonical-intent-phase1-methodology-2026-10-10.md` and the JSON scorecard artifact.
+
+## Option B Phase 1.5 plan status (2026-10-10)
+
+- Implemented the business-measure registry, v2 qualifier/unit-aware intent, deterministic canonicalizer/validator, v3 reviewed-gold overlay and scorer, and frozen independent-question holdout.
+- Gold: 30 adjudicated, 1 disputed, 29 pending on the 60-case benchmark; 20 rows were reviewed prediction-blind, 10 have prior prediction exposure. One reviewer; no second-person/domain consensus.
+- Evaluation: same-60 run and first-pass 12-case holdout both completed in shadow-only mode, but Option B provider failed 60/60 and 12/12; semantic accuracy is therefore not estimable. Legacy baselines and per-case rows remain in scorecards.
+- Gates: focused Release build, 14 canonical-intent unit tests, 5 Python builder/scorer tests, and catalog integrity validation pass. Full UnitTests: 2,040 passed, 1 failed (Feature126 worker scope assertion).
+- Decision: Phase 1.5 evidence is provider-inconclusive, not a semantic quality pass. Keep routing and execution disabled; independently review gold and restore provider availability before a new evaluation.

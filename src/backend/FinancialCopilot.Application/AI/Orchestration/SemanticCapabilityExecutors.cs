@@ -125,15 +125,84 @@ public sealed class MonthlyActivityTrendCapabilityExecutor(
         var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
         if (symbol is null) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
         var presentation = frame.Value(QuerySlotType.Presentation);
+        var period = frame.Interpretation.Period;
+        int? lastAvailableMonths = null;
+        var unsupported = (frame.Interpretation.UnsupportedParts ?? []).ToList();
+        if (period is not null)
+        {
+            if (string.Equals(period.Value, "LastAvailableMonths", StringComparison.OrdinalIgnoreCase)
+                && period.Count is >= 1 and <= 120)
+                lastAvailableMonths = period.Count;
+            else if (string.Equals(period.Value, "LatestAvailable", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(period.Value, "Unspecified", StringComparison.OrdinalIgnoreCase))
+            {
+                // The specialized executor already selects the latest persisted observation.
+            }
+            else
+                unsupported.Add($"period:{period.Value}{(period.Count.HasValue ? $":{period.Count.Value}" : string.Empty)}");
+        }
+
+        var operations = frame.Interpretation.RequestedOperations ?? [];
+        var supportedOperations = new HashSet<string>(["LatestValue", "TimeSeries", "Chart", "MonthOverMonthGrowth"], StringComparer.OrdinalIgnoreCase);
+        unsupported.AddRange(operations.Where(operation => !supportedOperations.Contains(operation)));
         var result = await useCase.ExecuteAsync(new MonthlyActivityTrendQuery(
             frame.Interpretation.OriginalText,
             symbol,
             context.MonthlyActivityTrendReportYear,
             context.MonthlyActivityTrendReportMonth,
-            IncludeChartPayload: !string.Equals(presentation, nameof(PresentationKind.Summary), StringComparison.OrdinalIgnoreCase)), cancellationToken);
+            IncludeChartPayload: !string.Equals(presentation, nameof(PresentationKind.Summary), StringComparison.OrdinalIgnoreCase),
+            LastAvailableMonths: lastAvailableMonths,
+            RequestedOperations: operations,
+            UnsupportedParts: unsupported.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()), cancellationToken);
         return result is null
             ? NoData(frame)
             : Success(frame, result);
+    }
+}
+
+public sealed class MonthlyProductComparisonCapabilityExecutor(
+    IMonthlyProductComparisonUseCase useCase) : IConversationalCapabilityExecutor
+{
+    public string CapabilityCode => "monthly_product_comparison";
+
+    public async Task<CapabilityExecutionResult> ExecuteAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var symbol = frame.Value(QuerySlotType.CompanyOrSymbol);
+        if (symbol is null) return Missing(frame, DialogueOutcomeReasonCodes.RequiredInputMissing);
+        var product = frame.Value(QuerySlotType.Product);
+        var currentPeriodText = frame.Value(QuerySlotType.Period);
+        var comparisonPeriodText = frame.Value(QuerySlotType.ComparisonBaseline);
+        var currentPeriod = ParseJalaliPeriod(currentPeriodText);
+        var comparisonPeriod = ParseJalaliPeriod(comparisonPeriodText);
+        if ((!string.IsNullOrWhiteSpace(currentPeriodText) && currentPeriod is null) ||
+            (!string.IsNullOrWhiteSpace(comparisonPeriodText) && comparisonPeriod is null))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported,
+                "unsupported_period_format");
+        var result = await useCase.ExecuteAsync(new MonthlyProductComparisonQuery(
+            symbol,
+            currentPeriod,
+            comparisonPeriod,
+            product,
+            string.IsNullOrWhiteSpace(product) ? MonthlyProductComparisonFocus.All : MonthlyProductComparisonFocus.Sales),
+            cancellationToken);
+        return result.State is MonthlyProductComparisonState.Unavailable or MonthlyProductComparisonState.Error
+            ? new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData,
+                result.BlockingReason?.ToString() ?? DialogueOutcomeReasonCodes.SupportedButNoRows, result)
+            : Success(frame, result);
+    }
+
+    private static JalaliPeriod? ParseJalaliPeriod(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var parts = value.Split('/', StringSplitOptions.TrimEntries);
+        return parts.Length == 2 && int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year)
+            && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var month)
+            && JalaliPeriod.TryCreate(year, month, out var period)
+                ? period
+                : null;
     }
 }
 

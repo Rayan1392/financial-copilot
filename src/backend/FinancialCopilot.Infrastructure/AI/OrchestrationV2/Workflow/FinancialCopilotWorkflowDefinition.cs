@@ -20,6 +20,7 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Agents.AI.Workflows.InProc;
 using Microsoft.Agents.AI.Workflows.Observability;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.CyclicalWaves;
 
@@ -67,9 +68,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     IExplainInsightUseCase explainInsightUseCase,
     FinancialCopilotAgentFactory agentFactory,
     TimeProvider timeProvider,
+    ILogger<FinancialCopilotWorkflowDefinition> logger,
     ISemanticRoutingLatencySink? routingLatencySink = null,
     ISemanticRoutingCanaryTelemetrySink? canaryTelemetrySink = null,
-    ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null)
+    ISemanticRoutingDiagnosticSink? routingDiagnosticSink = null,
+    Feature141ChatQueryService? feature141ChatQueryService = null)
 {
     internal static readonly ActivitySource ActivitySource =
         new("FinancialCopilot.AI.OrchestrationV2.Workflow", "2.0");
@@ -244,6 +247,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step3.AgentExecution");
         var request = msg.Request;
+        logger.LogInformation(
+            "Chat routing disposition observed. SelectedRoute={SelectedRoute} Capability={Capability} Disposition={Disposition} CorrelationId={CorrelationId}",
+            request.SemanticFrame is not null ? "semantic_capability"
+                : request.SemanticShadowFrame is not null ? "explicit_rollback"
+                : request.SemanticRoutingDisposition is "Unsupported" or "Clarification" ? "semantic_stop"
+                : "controlled_fallback",
+            request.SemanticFrame?.CapabilityCode ?? request.SemanticShadowFrame?.CapabilityCode ?? "none",
+            request.SemanticRoutingDisposition ?? "Unspecified",
+            request.CorrelationId);
 
         ScannerToolResult? scannerResult = null;
         SymbolLookupToolResult? lookupResult = null;
@@ -265,6 +277,16 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         if (request.SemanticFrame is { } semanticFrame)
         {
+            var interpretation = semanticFrame.Interpretation;
+            var entities = string.Join(',', interpretation.EntityMentions
+                .Select(entity => $"{entity.EntityType ?? "entity"}:{entity.Text}"));
+            logger.LogInformation(
+                "Chat semantic route selected. Route={Route} Capability={Capability} ExtractedEntities={Entities} RequestedMetrics={Metrics} RequestedPeriod={Period} RequestedComparison={Comparison} Presentation={Presentation}",
+                "semantic_capability", semanticFrame.CapabilityCode, entities,
+                string.Join(',', interpretation.Metrics.Select(metric => metric.MetricCode)),
+                interpretation.Period?.Value,
+                interpretation.Comparison?.Value,
+                interpretation.Presentation?.Kind.ToString());
             var semantic = await semanticExecutionCoordinator.ExecuteAsync(
                 semanticFrame,
                 new QueryExecutionContext(
@@ -274,9 +296,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request.ExternalUserId?.StartsWith("telegram:", StringComparison.Ordinal) == true ? "telegram" : "web-ai",
                     request.ActorType, request.AuthenticationMode, request.UserId, request.ApiClientId,
                     request.Context?.MonthlyActivityTrendReportYear,
-                    request.Context?.MonthlyActivityTrendReportMonth),
+                    request.Context?.MonthlyActivityTrendReportMonth,
+                    request),
                 request,
                 ct);
+            logger.LogInformation(
+                "Chat semantic route completed. Route={Route} Capability={Capability} Status={Status} ReasonCode={ReasonCode} PayloadType={PayloadType}",
+                "semantic_capability", semanticFrame.CapabilityCode, semantic.Execution.Status,
+                semantic.Execution.ReasonCode, semantic.Execution.Payload?.GetType().Name ?? "none");
             switch (semantic.Execution.Payload)
             {
                 case SemanticScannerPayload scanner:
@@ -355,6 +382,33 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 MonthlyProductComparisonResult: monthlyProductComparisonResult,
                 MonthlyProductTrendResult: monthlyProductTrendResult,
                 FinancialStatementValueSearchResult: financialStatementValueSearchResult);
+        }
+
+        if (request.SemanticFrame is null && request.SemanticRoutingDisposition is "Unsupported" or "Clarification")
+        {
+            var requiresClarification = request.SemanticRoutingDisposition == "Clarification";
+            var outcome = requiresClarification ? DialogueOutcome.ClarificationNeeded : DialogueOutcome.Unsupported;
+            var reasonCode = requiresClarification ? "low_confidence_or_unresolved_semantic_intent" : "unsupported_semantic_intent";
+            var replyLanguage = AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message);
+            var response = AiDialogueOutcomePolicy.ComposeSystemMessage(new DialogueOutcomeResult(
+                outcome, reasonCode, replyLanguage, null, false));
+            UsageAccountingResult? dispositionUsage = null;
+            if (msg.Reservation is not null)
+                dispositionUsage = await billingFunctions.FinalizeAsync(
+                    msg.Reservation,
+                    requiresClarification ? "ClarificationRequired" : "ValidationFailed",
+                    false,
+                    CancellationToken.None);
+
+            logger.LogInformation(
+                "Chat semantic request stopped before legacy routing. Route={Route} Disposition={Disposition} CorrelationId={CorrelationId}",
+                "semantic_capability", request.SemanticRoutingDisposition, request.CorrelationId);
+            return new AgentExecutedMessage(
+                request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+                msg.Reservation, response, null, null, null, null, null, null, null, null,
+                requiresClarification ? "ClarificationRequired" : "ValidationFailed", false,
+                null, dispositionUsage, SemanticOutcome: outcome, SemanticOutcomeReasonCode: reasonCode,
+                SemanticReplyLanguage: replyLanguage);
         }
 
         // Shadow and non-admitted Canary requests deliberately execute the legacy route.
@@ -449,6 +503,22 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                          "from_date_iso: ISO 8601 date to filter analyses published after this date (optional). " +
                          "limit: max results 1-5 (default 3).");
 
+        string? feature141Answer = null;
+        AIFunction? feature141Tool = null;
+        if (feature141ChatQueryService?.IsEnabled(request) == true)
+        {
+            feature141Tool = AIFunctionFactory.Create(
+                async (string query) =>
+                {
+                    _ = query; // Use the original server-bound chat request, never model-rewritten text.
+                    feature141Answer = await feature141ChatQueryService
+                        .ExecuteAsync(request, ct).ConfigureAwait(false);
+                    return feature141Answer;
+                },
+                name: "query_registered_financial_source",
+                description: "Query a registered financial-statement source item through the governed Feature 141 planner and read-only PostgreSQL executor. Use for direct reported statement-item values or per-share statement values not covered by an existing specialized capability. Do NOT use for monthly-sales/product capabilities, symbol market metrics, screening, or analysis posts. Preserve the requested company, item, period, consolidation scope, and unit; the tool returns a Persian answer or a safe clarification.");
+        }
+
         UsageAccountingResult? usage = null;
 
         var isMonthlySalesQualityRanking = MonthlySalesQualityRankingIntentRules.LooksLikeMonthlySalesQualityRankingQuery(request.Message);
@@ -496,6 +566,32 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         }
 
         var isMonthlyActivityTrend = MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(request.Message);
+        if (request.SemanticFrame is null)
+        {
+            var selectedRoute = isMonthlyProductComparison ? "monthly_product_comparison"
+                : isMonthlyProductTrend ? "monthly_product_trend"
+                : isMonthlyActivityTrend ? "monthly_activity_trend"
+                : "agent_tool_selection";
+            var companySymbol = isMonthlyActivityTrend
+                ? MonthlyActivityTrendIntentRules.ExtractCompanySymbol(request.Message)
+                : null;
+            var product = isMonthlyProductTrend
+                ? MonthlyProductTrendIntentRules.BuildQuery(request.Message).ProductText
+                : null;
+            logger.LogInformation(
+                "Chat route selected. Route={Route} ExtractedCompanySymbol={CompanySymbol} ExtractedProduct={Product} RequestedMetric={RequestedMetric} RequestedPeriod={RequestedPeriod} ChartRequested={ChartRequested} GrowthCalculationRequested={GrowthCalculationRequested}",
+                selectedRoute, companySymbol, product,
+                selectedRoute is "monthly_activity_trend" or "monthly_product_trend" ? "monthly_sales_amount" : null,
+                request.Context?.MonthlyActivityTrendReportYear is { } year && request.Context.MonthlyActivityTrendReportMonth is { } month
+                    ? $"{year}/{month:D2}"
+                    : "not_structured_by_legacy_route",
+                request.Message.Contains("\u0646\u0645\u0648\u062f\u0627\u0631", StringComparison.Ordinal)
+                    || request.Message.Contains("\u0686\u0627\u0631\u062a", StringComparison.Ordinal)
+                    || request.Message.Contains("chart", StringComparison.OrdinalIgnoreCase),
+                request.Message.Contains("\u062f\u0631\u0635\u062f", StringComparison.Ordinal)
+                    || request.Message.Contains("\u062a\u063a\u06cc\u06cc\u0631", StringComparison.Ordinal)
+                    || request.Message.Contains("growth", StringComparison.OrdinalIgnoreCase));
+        }
         if (isMonthlyProductComparison)
         {
             var comparison = await monthlyProductComparisonUseCase.ExecuteAsync(
@@ -785,7 +881,14 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 directCompletionStatus, false, modelClient, directUsage);
         }
 
-        var agent = agentFactory.Create(chatClientAdapter, BuildSystemInstructions(), [scannerTool, lookupTool, comprehensiveAnalysisTool]);
+        var agentTools = new List<AITool> { scannerTool, lookupTool, comprehensiveAnalysisTool };
+        if (feature141Tool is not null) agentTools.Add(feature141Tool);
+        var systemInstructions = BuildSystemInstructions();
+        if (feature141Tool is not null)
+        {
+            systemInstructions += "\n\nFor a generic registered financial-statement item request not covered by screen_stocks, lookup_symbol_metrics, query_comprehensive_analysis, or an earlier deterministic capability, call query_registered_financial_source. Preserve every measure, unit, company, statement, consolidation, operation, comparison, and period detail. Never invent a value or infer financial-concept equivalence. Present the tool's Persian answer or clarification faithfully. Existing specialized capabilities always take priority.";
+        }
+        var agent = agentFactory.Create(chatClientAdapter, systemInstructions, agentTools);
 
         string agentResponseText;
         var completionStatus = "Completed";
@@ -796,6 +899,12 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             var session = await agent.CreateSessionAsync(request.CorrelationId, ct);
             var agentResponse = await agent.RunAsync(msg.EnrichedMessage, session, options: null, ct);
             agentResponseText = agentResponse.Text;
+
+            // Keep existing specialized tools authoritative if the model chose one. Otherwise
+            // surface the typed Feature 141 result through the normal chat persistence path.
+            if (feature141Answer is not null
+                && scannerResult is null && lookupResult is null && comprehensiveAnalysisResult is null)
+                agentResponseText = feature141Answer;
 
             fromCache = scannerResult?.FromCache ?? false;
             completionStatus = scannerResult?.CompletionStatus ?? lookupResult?.CompletionStatus ?? "Completed";
@@ -1413,12 +1522,28 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             ? $"{result.CompanyName} ({result.CompanySymbol})"
             : result.CompanySymbol;
 
+        if (result.RequestedPeriod is not null)
+            sb.AppendLine($"بازه درخواستی: {result.RequestedPeriod}");
+
         sb.AppendLine($"### روند فروش ماهانه - {companyLabel}");
         sb.AppendLine($"آخرین دوره گزارش: {result.LatestReportYear}/{result.LatestReportMonth:D2} | واحد: {result.UnitLabelFa}");
         sb.AppendLine();
 
         if (result.LatestMonthlySalesAmount.HasValue)
             sb.AppendLine($"**خلاصه آخرین ماه:** فروش {FormatTrendAmount(result.LatestMonthlySalesAmount.Value)} {result.UnitLabelFa}");
+
+        if (result.SalesAmountMomGrowthPercent.HasValue)
+        {
+            var momSign = result.SalesAmountMomGrowthPercent.Value >= 0 ? "+" : string.Empty;
+            sb.AppendLine($"**تغییر نسبت به ماه قبل:** {momSign}{result.SalesAmountMomGrowthPercent.Value:F1}٪");
+        }
+        else
+        {
+            sb.AppendLine("**تغییر نسبت به ماه قبل:** با دادهٔ موجود قابل محاسبه نیست.");
+        }
+
+        if (result.UnsupportedParts.Count > 0)
+            sb.AppendLine($"بخش‌های اجرا‌نشده: {string.Join("، ", result.UnsupportedParts)}");
 
         if (result.SameMonthPreviousYearSalesAmount.HasValue)
         {

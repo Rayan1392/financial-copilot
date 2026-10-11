@@ -188,6 +188,7 @@ public static class AiDialogueOutcomePolicy
         {
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.DifferentIndustries => "این دو نماد متعلق به صنایع مختلف هستند. کدام را نسبت به صنعت خودش بررسی کنم؟",
             DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.InvalidIndustryMembership => "این نماد عضو صنعت انتخاب‌شده نیست. لطفاً نماد یا صنعت درست را مشخص کنید.",
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "نماد یا شرکت درخواست‌شده در فهرست شرکت‌های معتبر پیدا نشد.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "برای پاسخ دقیق، لطفاً اطلاعات بیشتری درباره نماد، معیار یا بازه موردنظر بنویسید.",
             DialogueOutcome.DisambiguationNeeded =>
@@ -209,6 +210,7 @@ public static class AiDialogueOutcomePolicy
     private static string ComposeEnglish(DialogueOutcomeResult outcome, string? detail) =>
         outcome.Outcome switch
         {
+            DialogueOutcome.ClarificationNeeded when outcome.ReasonCode == DialogueOutcomeReasonCodes.EntityNotFound => "The requested symbol or company was not found in the authoritative company catalog.",
             DialogueOutcome.ClarificationNeeded => detail
                 ?? "Please provide more information about the symbol, metric, or period you want.",
             DialogueOutcome.DisambiguationNeeded =>

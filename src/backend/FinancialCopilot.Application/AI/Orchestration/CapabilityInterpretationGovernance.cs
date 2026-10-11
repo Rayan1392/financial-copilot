@@ -115,7 +115,10 @@ public sealed record QueryInterpretationProposal(
     IReadOnlyCollection<SemanticEntityProposal>? Entities = null,
     IReadOnlyCollection<string>? MetricHints = null,
     string? Period = null,
-    string? Comparison = null);
+    string? Comparison = null,
+    int? PeriodCount = null,
+    IReadOnlyCollection<string>? Operations = null,
+    IReadOnlyCollection<string>? UnsupportedParts = null);
 
 public sealed record SemanticEntityProposal(
     string Text,
@@ -150,9 +153,9 @@ public sealed class LlmQueryInterpretationProposalProvider(
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["capabilityCodes", "missingSlots", "presentation", "confidence", "evidence", "intent", "entities", "metricHints"],
+          "required": ["capabilityCodes", "missingSlots", "presentation", "confidence", "evidence", "intent", "entities", "metricHints", "period", "comparison", "periodCount", "operations", "unsupportedParts"],
           "properties": {
-            "capabilityCodes": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 128 } },
+            "capabilityCodes": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 128 } },
             "missingSlots": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 128 } },
             "presentation": { "type": ["string", "null"], "enum": ["Table", "Chart", "Gauge", "Summary", "List", null] },
             "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -173,14 +176,19 @@ public sealed class LlmQueryInterpretationProposalProvider(
                 }
               }
             },
-            "metricHints": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 128 } }
+            "metricHints": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 128 } },
+            "period": { "type": ["string", "null"], "maxLength": 128 },
+            "comparison": { "type": ["string", "null"], "maxLength": 128 },
+            "periodCount": { "type": ["integer", "null"], "minimum": 1, "maximum": 120 },
+            "operations": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 64 } },
+            "unsupportedParts": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 128 } }
           }
         }
         """;
 
     private static readonly AiStructuredOutputContract Contract = new(
         "QueryInterpretationProposal_v2",
-        ["capabilityCodes", "missingSlots", "presentation", "confidence", "evidence", "intent", "entities", "metricHints"],
+        ["capabilityCodes", "missingSlots", "presentation", "confidence", "evidence", "intent", "entities", "metricHints", "period", "comparison", "periodCount", "operations", "unsupportedParts"],
         SchemaJson);
 
     public async Task<QueryInterpretationProposal?> ProposeAsync(
@@ -201,7 +209,7 @@ public sealed class LlmQueryInterpretationProposalProvider(
             [
                 new AiConversationMessage(
                     AiMessageRole.System,
-                    $"Return exactly one JSON object and no prose, markdown, explanation, or reasoning. The top-level fields must be exactly capabilityCodes, missingSlots, presentation, confidence, evidence, intent, entities, and metricHints. Use null for presentation or intent when absent. presentation must be one of Table, Chart, Gauge, Summary, or List. entities must contain objects with text, entityType, scope, and confidence; return every company/symbol and product mention as a separate entity span. Classify product mentions with entityType=product and preserve the product base text after removing only a grammatical possessive suffix. For product-specific sales or trend requests, choose the product-specific capability and do not silently replace it with a company-wide metric. Allowed capability codes: {string.Join(", ", registry.GetEnabled().Select(item => item.Code).OrderBy(item => item, StringComparer.Ordinal))}. Capability codes must come from this governed catalog; never return routes, SQL, formulas, canonical IDs, metric definitions, tool names, or executable arguments. Entities are mentions only. Metric hints are non-authoritative aliases and must never be treated as canonical MetricCode values."),
+                    $"Return exactly one JSON object and no prose, markdown, explanation, or reasoning. The top-level fields must be exactly capabilityCodes, missingSlots, presentation, confidence, evidence, intent, entities, metricHints, period, comparison, periodCount, operations, and unsupportedParts. Choose one primary capability; represent additional work on the same data domain in operations. Use null for absent scalar fields and an empty array for absent collections. presentation must be one of Table, Chart, Gauge, Summary, or List. period is a canonical period kind such as LastAvailableMonths, LatestAvailable, or an explicitly requested fiscal period; periodCount is the requested number of periods. operations must preserve each requested operation such as TimeSeries, Chart, and MonthOverMonthGrowth. Put requested work unsupported by the chosen capability in unsupportedParts. entities must contain objects with text, entityType, scope, and confidence; return every company/symbol and product mention as separate entity spans. Allowed capability codes: {string.Join(", ", registry.GetEnabled().Select(item => item.Code).OrderBy(item => item, StringComparer.Ordinal))}. Capability codes must come from this governed catalog; never return routes, SQL, formulas, canonical IDs, metric definitions, tool names, or executable arguments. Entities are mentions only. Metric hints are non-authoritative aliases and must never be treated as canonical MetricCode values."),
                 new AiConversationMessage(AiMessageRole.User, originalText)
             ],
             StructuredOutput: Contract,
@@ -254,7 +262,10 @@ public sealed class LlmQueryInterpretationProposalProvider(
                     : null,
                 root.TryGetProperty("comparison", out var comparisonProperty) && comparisonProperty.ValueKind == JsonValueKind.String
                     ? comparisonProperty.GetString()
-                    : null);
+                    : null,
+                root.TryGetProperty("periodCount", out var countProperty) && countProperty.TryGetInt32(out var count) ? count : null,
+                ReadStrings(root, "operations").Take(10).ToArray(),
+                ReadStrings(root, "unsupportedParts").Take(10).ToArray());
         }
         catch (AiModelProviderException)
         {
@@ -342,12 +353,13 @@ public sealed class HybridCapabilityInterpreter(
                     deterministic.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
                     deterministic.CapabilityCandidates.FirstOrDefault()?.Confidence);
 
-            var hasExplicitProductScope = deterministic.EntityMentions.Any(entity =>
-                string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase)) ||
-                deterministic.CapabilityCandidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
+            if (proposal.CapabilityCodes.Count > 1)
+                return new HybridInterpretationResult(
+                    deterministic, null, false, "InvalidStructuredOutput",
+                    deterministic.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
+                    deterministic.CapabilityCandidates.FirstOrDefault()?.Confidence);
+
             var proposedCandidates = proposal.CapabilityCodes
-                .Where(code => hasExplicitProductScope || code is not ("product_sales_value" or "product_sales_trend" or "product_revenue_mix"))
                 .Select(code => registry.Find(code))
                 .Where(definition => definition?.Enabled == true)
                 .Cast<CapabilityDefinition>()
@@ -360,21 +372,20 @@ public sealed class HybridCapabilityInterpreter(
                         value,
                         QueryValueProvenance.ModelProposed)).ToArray()))
                 .ToArray();
-            if (proposedCandidates.Length == 0)
+            if (proposedCandidates.Length == 0 && proposal.CapabilityCodes.Any(code => registry.Find(code) is null))
                 return new HybridInterpretationResult(
                     deterministic, null, false, "InvalidStructuredOutput",
+                    deterministic.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
+                    deterministic.CapabilityCandidates.FirstOrDefault()?.Confidence);
+            if (proposedCandidates.Length == 0)
+                return new HybridInterpretationResult(
+                    deterministic with { CapabilityCandidates = [] }, null, true, "Unsupported",
                     deterministic.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
                     deterministic.CapabilityCandidates.FirstOrDefault()?.Confidence);
 
             var modelEvidence = proposal.Evidence
                 .Select(value => new InterpretationEvidence("model-proposed", value, QueryValueProvenance.ModelProposed))
                 .ToArray();
-            var deterministicProductSurfaces = deterministic.EntityMentions
-                .Where(entity => string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
-                                 string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase))
-                .SelectMany(entity => entity.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                .Select(ProductSemanticIntentRules.NormalizeProductSurface)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var modelEntities = (proposal.Entities ?? [])
                 .Select(entity => new EntityMention(
                     entity.Text,
@@ -383,23 +394,23 @@ public sealed class HybridCapabilityInterpreter(
                     QueryValueProvenance.ModelProposed,
                     entity.EntityType,
                     entity.Scope))
-                .Where(entity => entity.Start >= 0 &&
-                    (hasExplicitProductScope ||
-                     !string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) &&
-                     !string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase)) &&
-                    !deterministicProductSurfaces.Contains(ProductSemanticIntentRules.NormalizeProductSurface(entity.Text)))
+                .Where(entity => entity.Start >= 0)
                 .Take(20)
                 .ToArray();
             var semantic = deterministic with
             {
                 CapabilityCandidates = proposedCandidates,
-                EntityMentions = deterministic.EntityMentions.Concat(modelEntities).Take(20).ToArray(),
+                EntityMentions = modelEntities,
                 MissingSlots = proposal.MissingSlots.ToArray(),
-                Presentation = proposal.Presentation is null ? deterministic.Presentation :
+                Presentation = proposal.Presentation is null ? null :
                     new PresentationPreference(Enum.Parse<PresentationKind>(proposal.Presentation, true), QueryValueProvenance.ModelProposed),
-                Confidence = Math.Max(deterministic.Confidence, proposal.Confidence),
+                Period = proposal.Period is null ? null : new PeriodSelection(proposal.Period, QueryValueProvenance.ModelProposed, proposal.PeriodCount),
+                Comparison = proposal.Comparison is null ? null : new ComparisonSelection(proposal.Comparison, QueryValueProvenance.ModelProposed),
+                UnsupportedParts = proposal.UnsupportedParts?.ToArray() ?? [],
+                RequestedOperations = proposal.Operations?.ToArray() ?? [],
+                Confidence = proposal.Confidence,
                 ConfidenceBand = InterpretationConfidencePolicy.Band(proposal.Confidence),
-                Evidence = deterministic.Evidence.Concat(modelEvidence).Take(40).ToArray()
+                Evidence = modelEvidence.Take(40).ToArray()
             };
             var arbitrationStart = Stopwatch.GetTimestamp();
             var arbitration = SemanticArbitrator.Arbitrate(deterministic, semantic, registry);
@@ -409,19 +420,14 @@ public sealed class HybridCapabilityInterpreter(
                 CapabilityCandidates = arbitration.Candidates,
                 Evidence = semantic.Evidence.Concat(arbitration.Vetoes.Select(value =>
                     new InterpretationEvidence("arbitration-veto", value, QueryValueProvenance.PolicyDefaulted))
-                    .Concat(arbitration.ModelConfidenceUsed
-                        ? []
-                        : [new InterpretationEvidence(
-                            "arbitration-reason",
-                            SemanticArbitrationReasonCodes.DeterministicCandidatePreferred,
-                            QueryValueProvenance.PolicyDefaulted)])
                     .Take(40).ToArray()).ToArray(),
-                Confidence = arbitration.ModelConfidenceUsed ? semantic.Confidence : deterministic.Confidence,
-                ConfidenceBand = InterpretationConfidencePolicy.Band(arbitration.ModelConfidenceUsed ? semantic.Confidence : deterministic.Confidence)
+                Confidence = semantic.Confidence,
+                ConfidenceBand = semantic.ConfidenceBand
             };
             validator.Validate(merged);
             return new HybridInterpretationResult(
-                merged, null, true, "Completed",
+                merged, null, true,
+                proposal.Confidence < InterpretationConfidencePolicy.LowThreshold ? "LowConfidence" : "Completed",
                 deterministic.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
                 deterministic.CapabilityCandidates.FirstOrDefault()?.Confidence);
         }
@@ -540,62 +546,13 @@ public static class SemanticArbitrator
         QueryInterpretation semantic,
         IConversationalCapabilityRegistry registry)
     {
-        var deterministicProductScope = deterministic.EntityMentions.Any(entity =>
-            string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase) ||
-            deterministic.CapabilityCandidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix"));
-        var semanticProductMention = semantic.EntityMentions.Any(entity =>
-            string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(entity.Scope, "product", StringComparison.OrdinalIgnoreCase));
         var vetoes = new List<string>();
         var semanticCandidates = semantic.CapabilityCandidates
             .Where(candidate => registry.Find(candidate.CapabilityCode) is { Enabled: true })
-            .Where(candidate =>
-            {
-                if (!deterministicProductScope && candidate.CapabilityCode is "product_sales_value" or "product_sales_trend" or "product_revenue_mix")
-                {
-                    vetoes.Add(candidate.CapabilityCode == "product_revenue_mix" && semanticProductMention
-                        ? SemanticArbitrationReasonCodes.ProductScopeVeto
-                        : SemanticArbitrationReasonCodes.ProductCapabilityWithoutExplicitProductScope);
-                    return false;
-                }
-                if (deterministicProductScope && candidate.CapabilityCode == "product_revenue_mix" &&
-                    deterministic.EntityMentions.Any(entity => string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase)))
-                {
-                    vetoes.Add(SemanticArbitrationReasonCodes.ProductScopeVeto);
-                    return false;
-                }
-                return true;
-            })
             .ToArray();
-
-        var deterministicCodes = deterministic.CapabilityCandidates
-            .Select(candidate => candidate.CapabilityCode)
-            .ToHashSet(StringComparer.Ordinal);
-        var deterministicTop = deterministic.CapabilityCandidates.FirstOrDefault();
-        var semanticIndustryComparison = semanticCandidates.FirstOrDefault(candidate =>
-            candidate.CapabilityCode is "symbol_vs_industry_relative_valuation" or
-                "industry_relative_valuation_ranking" or
-                "industry_relative_valuation_summary" or
-                "symbol_pair_within_industry");
-        var semanticComparisonWins = semanticIndustryComparison is not null &&
-            (deterministicTop is null || semanticIndustryComparison.Confidence > deterministicTop.Confidence);
-        var candidates = semanticCandidates
-            .Concat(deterministic.CapabilityCandidates.Where(candidate =>
-                !semanticCandidates.Any(other => other.CapabilityCode == candidate.CapabilityCode) &&
-                !(deterministicProductScope && candidate.CapabilityCode == "product_revenue_mix" &&
-                  deterministic.EntityMentions.Any(entity => string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase)))))
-            .OrderByDescending(candidate => semanticComparisonWins
-                ? candidate.CapabilityCode == semanticIndustryComparison!.CapabilityCode
-                : deterministicCodes.Contains(candidate.CapabilityCode))
-            .ThenByDescending(candidate => candidate.Confidence)
-            .ThenBy(candidate => candidate.CapabilityCode, StringComparer.Ordinal)
-            .ToArray();
-
-        var modelConfidenceUsed = candidates.Length > 0 && !deterministicCodes.Contains(candidates[0].CapabilityCode);
-        if (!modelConfidenceUsed && semanticCandidates.Any(candidate => !deterministicCodes.Contains(candidate.CapabilityCode)))
-            vetoes.Add(SemanticArbitrationReasonCodes.DeterministicCandidatePreferred);
-        return new(candidates, vetoes, modelConfidenceUsed);
+        if (semanticCandidates.Length == 0)
+            vetoes.Add("llm_capability_unavailable_or_disabled");
+        return new(semanticCandidates, vetoes, semanticCandidates.Length > 0);
     }
 }
 

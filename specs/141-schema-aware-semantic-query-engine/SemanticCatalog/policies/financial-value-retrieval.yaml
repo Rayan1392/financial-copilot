@@ -42,7 +42,7 @@
     "requiresSemanticReviewUnit": null,
     "classificationRules": {
       "perShareMarkers": ["هر سهم", "هرسهم", "به ازای هر سهم", "per share", "earnings per share", "eps"],
-      "requiresReviewMarkers": ["تعداد", "درصد", "نرخ", "مقدار تولید", "مقدار فروش", "quantity", "percent", "percentage", "ratio", "shares outstanding"]
+      "requiresReviewMarkers": ["تعداد", "درصد", "نرخ", "مقدار تولید", "مقدار فروش", "\u0646\u0648\u0639 \u062f\u0648\u0631\u0647 \u0645\u0627\u0644\u06cc", "quantity", "percent", "percentage", "ratio", "shares outstanding"]
     },
     "classificationRuleProvenance": "business-owner-confirmed unit policy with deterministic explainable title rules; unmatched monetary statement entries use the ordinary statement unit",
     "reviewedItems": [
@@ -61,8 +61,18 @@
           "status": "owner-approved-source-item-semantics",
           "provenance": "business-owner-confirmed:Feature141-2026-10-08",
           "approvalScope": ["source-item-meaning", "effective-unit"],
-          "queryAuthorization": false
-        }
+          "queryAuthorization": true
+        },
+        "canonicalConceptBindings": [
+          {
+            "canonicalConceptId": "operatingProfitPerShare",
+            "dimension": "CurrencyPerShare",
+            "valueForm": "ReportedValue",
+            "status": "approved",
+            "evidence": "Owner-approved source-item meaning matches the reviewed canonical Persian term and IRRPerShare dimension.",
+            "provenance": "business-owner-confirmed:Feature141-2026-10-08;canonical-business-measure-registry"
+          }
+        ]
       }
     ]
   },
@@ -91,9 +101,12 @@
     }
   },
   "governance": {
-    "dictionaryInclusionGrantsQueryAuthorization": false,
-    "queryableUntilSemanticAndRuntimeApproval": false,
-    "sqlExecutionActivated": false
+    "registeredDirectSourceIdentityGrantsQueryAuthorization": true,
+    "registeredIdentityScope": ["ProviderName", "StatementType", "SourceItemId"],
+    "canonicalConceptEquivalenceStillRequiresEvidence": true,
+    "queryableOnlyThroughCatalogValidatedCompiler": true,
+    "sqlExecutionActivated": true,
+    "authorizationProvenance": "product-owner-approved:Feature141-full-chat-activation"
   },
   "provenance": {
     "sourceItemSnapshot": "read-only persisted FinancialStatementSourceItems catalog export",

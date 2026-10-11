@@ -123,6 +123,11 @@ class CatalogArtifactTests(unittest.TestCase):
         self.assertEqual(entry["normalizedUnit"], "IRRPerShare")
         self.assertTrue(entry["semanticApproval"]["approved"])
         self.assertEqual(entry["effectiveUnitProvenance"], "business-owner-confirmed:Feature141-2026-10-08")
+        self.assertEqual(entry["identityApproval"]["status"], "OwnerApproved")
+        self.assertEqual(entry["titleApproval"]["status"], "OwnerApproved")
+        self.assertTrue(any("\u0600" <= character <= "\u06ff" for character in entry["titleFa"]))
+        self.assertNotIn("\u00d9", entry["titleFa"])
+        self.assertEqual(entry["canonicalConceptBindings"][0]["canonicalConceptId"], "operatingProfitPerShare")
         self.assertIsNone(entry["mappedMetricCode"])
         self.assertFalse(entry["queryAuthorization"]["queryable"])
         ordinary = next(item for item in dictionary["entries"] if item["sourceItemId"] == 1
@@ -138,6 +143,83 @@ class CatalogArtifactTests(unittest.TestCase):
         ambiguous = next(item for item in dictionary["entries"] if item["effectiveUnitStatus"] == "requires-semantic-review")
         self.assertIsNone(ambiguous["effectiveUnit"])
         self.assertEqual(ambiguous["unitClassification"], "RequiresSemanticReview")
+
+    def test_all_source_item_rows_are_owner_approved_exactly_once_without_approving_meaning_or_query_access(self):
+        module = self.load_catalog_module()
+        snapshot = module.read(CATALOG / "source-item-snapshot.json")
+        dictionary = module.build_source_item_dictionary()
+        self.assertEqual(len(snapshot["items"]), 296)
+        self.assertEqual(len(dictionary["entries"]), 296)
+        key = lambda item: (item["providerName"], item["statementType"], item["sourceItemId"])
+        source = {key(item): item for item in snapshot["items"]}
+        entries = {key(item): item for item in dictionary["entries"]}
+        self.assertEqual(len(source), 296)
+        self.assertEqual(len(entries), 296)
+        self.assertEqual(source.keys(), entries.keys())
+        for identity, entry in entries.items():
+            original = source[identity]
+            self.assertEqual(entry["sourceItemCatalogId"], original["sourceItemCatalogId"])
+            self.assertEqual(entry["titleFa"], original["titleFa"])
+            self.assertEqual(entry["identityApproval"]["status"], "OwnerApproved")
+            self.assertEqual(entry["titleApproval"]["status"], "OwnerApproved")
+            self.assertFalse(entry["queryAuthorization"]["approved"])
+            self.assertFalse(entry["queryAuthorization"]["queryable"])
+        self.assertEqual(sum(item["semanticReviewStatus"] == "approved" for item in entries.values()), 1)
+
+    def test_reviewed_direct_source_bindings_preserve_similar_items_and_leave_unreviewed_concepts_incomplete(self):
+        module = self.load_catalog_module()
+        dictionary = module.build_source_item_dictionary()
+        bound = module.resolve_canonical_source_item_bindings(dictionary, "operatingProfitPerShare",
+            provider_name="NoavaranCurrentApi", statement_type="IncomeStatement", expected_dimension="CurrencyPerShare")
+        self.assertEqual(bound["status"], "bound")
+        self.assertEqual(bound["referenceType"], "DirectSourceItem")
+        self.assertEqual((bound["statementType"], bound["sourceItemId"], bound["effectiveUnit"]),
+                         ("IncomeStatement", 161, "IRRPerShare"))
+        self.assertFalse(bound["queryAuthorized"])
+        self.assertEqual(module.resolve_canonical_source_item_bindings(dictionary, "operatingProfitPerShare",
+            expected_dimension="CurrencyAmount")["status"], "incomplete")
+        self.assertEqual(module.resolve_canonical_source_item_bindings(dictionary, "netProfit")["status"], "incomplete")
+
+        hierarchy = module.build_hierarchy()
+        node = next(item for item in hierarchy["nodes"] if item["nodeId"] == f"direct-source-item-{bound['catalogId']}")
+        reference = node["sourceItemReferences"][0]
+        self.assertEqual(reference["identityApproval"]["status"], "OwnerApproved")
+        self.assertEqual(reference["titleApproval"]["status"], "OwnerApproved")
+        self.assertEqual(reference["canonicalConceptBindings"][0]["canonicalConceptId"], "operatingProfitPerShare")
+        self.assertTrue(node["semanticApproval"]["approved"])
+        self.assertFalse(node["queryAuthorization"]["queryable"])
+
+        unreviewed = [
+            ("IncomeStatement", 143, "NET_PROFIT"),
+            ("IncomeStatement", 160, "EPS"),
+            ("IncomeStatement", 168, "EPS_CONSOLIDATED"),
+            ("IncomeStatement", 317, None),
+            ("BalanceSheet", 271, None),
+            ("BalanceSheet", 286, None),
+        ]
+        for statement_type, source_item_id, metric_code in unreviewed:
+            entry = next(item for item in dictionary["entries"]
+                         if item["statementType"] == statement_type and item["sourceItemId"] == source_item_id)
+            self.assertEqual(entry["mappedMetricCode"], metric_code)
+            self.assertEqual(entry["semanticReviewStatus"], "pending-review")
+            self.assertEqual(entry["canonicalConceptBindings"], [])
+        self.assertNotEqual(
+            next(item for item in dictionary["entries"] if item["statementType"] == "IncomeStatement" and item["sourceItemId"] == 160)["catalogId"],
+            next(item for item in dictionary["entries"] if item["statementType"] == "IncomeStatement" and item["sourceItemId"] == 168)["catalogId"])
+        codal_item = next(item for item in dictionary["entries"]
+                          if item["statementType"] == "IncomeStatement" and item["sourceItemId"] == 317)
+        self.assertIn("کدال", codal_item["titleFa"])
+        self.assertEqual(codal_item["canonicalConceptBindings"], [])
+
+    def test_categorical_financial_statement_item_does_not_receive_monetary_unit(self):
+        module = self.load_catalog_module()
+        dictionary = module.build_source_item_dictionary()
+        item = next(entry for entry in dictionary["entries"]
+                    if entry["providerName"] == "NoavaranCurrentApi"
+                    and entry["statementType"] == "BalanceSheet" and entry["sourceItemId"] == 286)
+        self.assertIsNone(item["effectiveUnit"])
+        self.assertEqual(item["effectiveUnitStatus"], "requires-semantic-review")
+        self.assertEqual(item["unitClassification"], "RequiresSemanticReview")
 
     def test_source_item_unit_classification_is_bounded_to_statement_dictionary_and_reports_ambiguous_titles(self):
         spec = importlib.util.spec_from_file_location("catalog_units", ROOT / "tools/SemanticCatalog/catalog.py")

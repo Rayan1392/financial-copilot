@@ -420,7 +420,7 @@ public sealed class ConversationDialogueGate(
         }
         var state = transition?.Current ?? active;
         var effectiveSlots = state?.Slots ?? slots;
-        var effectiveCapability = state?.ActiveCapability ?? capability;
+        var effectiveCapability = detectedCapability ?? state?.ActiveCapability ?? capability;
         var frameSlotsByType = validatedFrameSlots.ToDictionary(slot => slot.Type);
         foreach (var slot in effectiveSlots)
         {
@@ -455,15 +455,25 @@ public sealed class ConversationDialogueGate(
                 hybridResult?.LegacyConfidence ?? interpretation.CapabilityCandidates.FirstOrDefault()?.Confidence,
                 hybridResult?.SemanticStatus ?? "Completed");
         var routing = frame is null ? null : rolloutCoordinator.Decide(frame.CapabilityCode, request.ActorId.ToString("N"));
-        // A semantic provider timeout/error is not an admitted semantic execution. Keep the
-        // deterministic, canonical frame as the observational shadow frame and let the legacy
-        // route execute it. Rollout percentages and arbitration remain unchanged.
-        var semanticProviderFailed = hybridResult?.SemanticStatus is "Timeout" or "ProviderError";
+        var modelUnsupported = hybridResult?.ModelProposalUsed == true && hybridResult.SemanticStatus == "Unsupported";
+        var unresolvedSlots = validatedFrameSlots.Any(slot => slot.ValidationState is
+            QuerySlotValidationState.Missing or QuerySlotValidationState.Ambiguous or
+            QuerySlotValidationState.Invalid or QuerySlotValidationState.Unsupported);
+        var explicitRollback = routing?.Mode is SemanticRoutingMode.Legacy or SemanticRoutingMode.Rollback;
+        var deterministicFallback = hybridResult is { ModelProposalUsed: false } &&
+            hybridResult.SemanticStatus is "Timeout" or "ProviderError" or "InvalidStructuredOutput" or "Unavailable";
+        var disposition = modelUnsupported ? "Unsupported"
+            : unresolvedSlots ? "Clarification"
+            : explicitRollback ? "Rollback"
+            : deterministicFallback ? "DeterministicFallback"
+            : frame is not null ? "SemanticPrimary"
+            : "Unsupported";
         var routedRequest = request with
         {
             OriginalUserMessage = request.OriginalUserMessage ?? request.Message,
-            SemanticFrame = routing?.ExecuteSemanticRoute == true && !semanticProviderFailed ? frame : null,
-            SemanticShadowFrame = routing?.ExecuteSemanticRoute == false || semanticProviderFailed ? frame : null
+            SemanticFrame = routing?.ExecuteSemanticRoute == true && !modelUnsupported ? frame : null,
+            SemanticShadowFrame = explicitRollback ? frame : null,
+            SemanticRoutingDisposition = disposition
         };
 
         if (canaryTelemetrySink is not null && frame is not null && routing is

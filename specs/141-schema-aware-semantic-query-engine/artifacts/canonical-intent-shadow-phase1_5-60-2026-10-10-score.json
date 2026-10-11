@@ -1,0 +1,6725 @@
+{
+  "benchmarkVersion": 3,
+  "shadowPathOnly": true,
+  "casesInBenchmark": 60,
+  "casesEvaluated": 60,
+  "casesNotRun": 0,
+  "casesWithAdjudicatedGold": 30,
+  "casesWithDisputedGold": 1,
+  "casesWithOnlyInheritedMeasureLabels": 0,
+  "casesAwaitingGoldAdjudication": 29,
+  "unconditionalValidIntent": {
+    "correct": 0,
+    "denominator": 60,
+    "rate": 0.0
+  },
+  "unconditionalFieldMetrics": {
+    "aggregation": {
+      "correct": 0,
+      "denominator": 1,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "categoryLabels": {
+      "correct": 0,
+      "denominator": 4,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "comparison": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 15,
+      "legacyAccuracy": 0.5
+    },
+    "effectiveSourceUnits": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "entityScope": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 23,
+      "legacyAccuracy": 0.7666666666666667
+    },
+    "measureConcepts": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 16,
+      "legacyAccuracy": 0.5333333333333333
+    },
+    "measureQualifiers": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "operation": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 11,
+      "legacyAccuracy": 0.36666666666666664
+    },
+    "output": {
+      "correct": 0,
+      "denominator": 29,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "period": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 14,
+      "legacyAccuracy": 0.4666666666666667
+    },
+    "productLabels": {
+      "correct": 0,
+      "denominator": 10,
+      "accuracy": 0.0,
+      "legacyCorrect": 8,
+      "legacyAccuracy": 0.8
+    },
+    "ranking": {
+      "correct": 0,
+      "denominator": 3,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "requestedUnits": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "requiresClarification": {
+      "correct": 0,
+      "denominator": 6,
+      "accuracy": 0.0,
+      "legacyCorrect": 2,
+      "legacyAccuracy": 0.3333333333333333
+    },
+    "thresholds": {
+      "correct": 0,
+      "denominator": 4,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "unitDimensions": {
+      "correct": 0,
+      "denominator": 30,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    }
+  },
+  "conditionalFieldMetrics": {
+    "aggregation": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "categoryLabels": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "comparison": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "effectiveSourceUnits": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "entityScope": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "measureConcepts": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "measureQualifiers": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "operation": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "output": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "period": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "productLabels": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "ranking": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "requestedUnits": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "requiresClarification": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "thresholds": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    },
+    "unitDimensions": {
+      "correct": 0,
+      "denominator": 0,
+      "accuracy": null
+    }
+  },
+  "metricDenominators": {
+    "aggregation": 1,
+    "categoryLabels": 4,
+    "comparison": 30,
+    "effectiveSourceUnits": 30,
+    "entityScope": 30,
+    "measureConcepts": 30,
+    "measureQualifiers": 30,
+    "operation": 30,
+    "output": 29,
+    "period": 30,
+    "productLabels": 10,
+    "ranking": 3,
+    "requestedUnits": 30,
+    "requiresClarification": 6,
+    "thresholds": 4,
+    "unitDimensions": 30
+  },
+  "failureCategories": {
+    "malformed_or_truncated_model_output": 0,
+    "structured_schema_validation_failure": 0,
+    "unsupported_semantic_intent": 0,
+    "unknown_catalog_reference": 0,
+    "missing_catalog_coverage": 0,
+    "semantic_policy_rejection": 0,
+    "query_authorization_rejection": 0,
+    "planner_or_compiler_unsupported_operation": 0,
+    "provider_timeout_or_cancellation": 0,
+    "provider_failure_or_unavailable": 60,
+    "internal_implementation_error": 0,
+    "completed": 0,
+    "unmatched_attempt_reconciled_as_canceled": 0
+  },
+  "unsupportedIntentClassification": {
+    "correct": 0,
+    "denominator": 0,
+    "accuracy": null
+  },
+  "unmatchedStartedAttempts": 0,
+  "optionBTokenTotals": {
+    "input": 0,
+    "output": 0,
+    "reportedCases": 0
+  },
+  "optionBLatencyMs": {
+    "mean": 0.7666666666666667,
+    "max": 46
+  },
+  "perCase": [
+    {
+      "caseId": "fa-02",
+      "question": "کدام محصولات کگل رشد تولید داشته‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "«رشد تولید» مشخص نمی‌کند رشد نسبت به ماه قبل است یا ماه مشابه سال قبل؛ همچنین دوره مقایسه صریحی ارائه نشده است."
+        },
+        "modelCalls": 1,
+        "inputTokens": 4211,
+        "outputTokens": 818,
+        "latencyMs": 11057
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 46
+      }
+    },
+    {
+      "caseId": "fa-03",
+      "question": "روند فروش کگل را نمایش بده.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 4222,
+        "outputTokens": 652,
+        "latencyMs": 6562
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-04",
+      "question": "سود خالص فولاد چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_net_profit"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7572,
+        "outputTokens": 656,
+        "latencyMs": 7452
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-05",
+      "question": "سود خالص تلفیقی فولاد چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_net_profit"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7575,
+        "outputTokens": 732,
+        "latencyMs": 8452
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-06",
+      "question": "مقایسه سود خالص اصلی و تلفیقی فولاد",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5736,
+        "outputTokens": 698,
+        "latencyMs": 9004
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-07",
+      "question": "کدام شرکت‌های صنعت فلزات اساسی بیشترین رشد فروش را داشته‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 27598
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-08",
+      "question": "نسبت P/E شرکت‌های یک صنعت را مقایسه کن.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_pe_ttm"
+          ],
+          "entityKinds": [
+            "company",
+            "industry"
+          ],
+          "entityReferences": [],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "مقایسه نسبت P/E شرکت‌های یک صنعت درخواست شده است، اما صنعت یا فهرست شرکت‌های موردنظر مشخص نشده و کاتالوگ نیز نگاشت صریحی برای صنعت ارائه نمی‌کند."
+        },
+        "modelCalls": 1,
+        "inputTokens": 7111,
+        "outputTokens": 669,
+        "latencyMs": 7506
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-09",
+      "question": "قیمت پایانی کگل در ماه گذشته",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 6613
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-10",
+      "question": "روند شاخص کل در شش ماه گذشته",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 4933
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-01",
+      "question": "آخرین سود عملیاتی هر سهم کگل چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5629,
+        "outputTokens": 362,
+        "latencyMs": 4300
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-02",
+      "question": "آخرین سود عملیاتی کگل چقدر است؟",
+      "goldStatus": "disputed",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_operating_profit"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7328,
+        "outputTokens": 679,
+        "latencyMs": 7182
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-03",
+      "question": "سود خالص هر سهم کگل چقدر است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "earningspershare"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "earningspershare",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "earningspershare",
+              "currencypershare",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "earningspershare",
+              "irrpershare",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "earningspershare",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5580,
+        "outputTokens": 399,
+        "latencyMs": 4488
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-04",
+      "question": "موجودی نقد کگهر در پایان سال ۱۴۰۴ چقدر بود؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 9772
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-05",
+      "question": "هزینه استهلاک فولاد در آخرین صورت سود و زیان چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5779,
+        "outputTokens": 404,
+        "latencyMs": 4749
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-06",
+      "question": "سود خالص تلفیقی فولاد در آخرین گزارش چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5668,
+        "outputTokens": 490,
+        "latencyMs": 5496
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-07",
+      "question": "رشد سود عملیاتی کگل نسبت به سال قبل چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 7674
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "fa-value-08",
+      "question": "حاشیه سود خالص کگهر چقدر است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_net_profit_margin"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7575,
+        "outputTokens": 582,
+        "latencyMs": 7632
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-01",
+      "question": "آخرین گزارش جداگانه فولاد چه میزان سود خالص ثبت کرده است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_net_profit"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7597,
+        "outputTokens": 508,
+        "latencyMs": 5565
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-02",
+      "question": "سود خالص شرکت فولاد در آخرین صورت مالی چقدر گزارش شده؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "netprofit"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 4986
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-03",
+      "question": "در گزارش تلفیقی فولاد، رقم سود خالص چقدر است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "netprofit"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "consolidated",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5667,
+        "outputTokens": 397,
+        "latencyMs": 4225
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-04",
+      "question": "سود خالص جداگانه و تلفیقی فولاد را کنار هم مقایسه کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "netprofit",
+            "netprofit"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "consolidated",
+              "companytotal"
+            ],
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "standalone",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "currencyamount",
+              ""
+            ],
+            [
+              "netprofit",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "unspecified",
+              ""
+            ],
+            [
+              "netprofit",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ],
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "statementscope",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "comparison",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5690,
+        "outputTokens": 676,
+        "latencyMs": 7148
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-05",
+      "question": "آخرین مقدار گزارش‌شده سود عملیاتی هر سهم کگل چیست؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5570,
+        "outputTokens": 422,
+        "latencyMs": 4848
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-06",
+      "question": "موجودی وجه نقد کگهر در پایان سال ۱۴۰۴ چه مبلغی بود؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7189,
+        "outputTokens": 722,
+        "latencyMs": 8285
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-07",
+      "question": "هزینه استهلاک فولاد را از آخرین صورت سود و زیان پیدا کن.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "فولاد"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5954,
+        "outputTokens": 469,
+        "latencyMs": 5655
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-08",
+      "question": "سود عملیاتی هر سهم کگل نسبت به سال قبل چند درصد تغییر کرد؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "operatingprofitpershare"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "percentagechange",
+              "unspecified",
+              "unspecified",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "currencypershare",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "irrpershare",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "growthrate",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "yearoveryear",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 6030
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-09",
+      "question": "حاشیه سود ناخالص کگهر در تازه‌ترین گزارش چند درصد است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 6955
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-10",
+      "question": "نسبت قیمت به درآمد شرکت‌های صنعت فولاد را در یک جدول مقایسه کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "priceearningsratio"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "priceearningsratio",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "priceearningsratio",
+              "ratio",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "priceearningsratio",
+              "ratio",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "priceearningsratio",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "multicompany",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "categoryLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "صنعت فولاد"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 12573
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-11",
+      "question": "بیشترین قیمت پایانی کگل در ماه گذشته چه بوده است؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 5213
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-12",
+      "question": "در سال اخیر کدام شرکت‌ها بر اساس گزارش مثبت، گندله تولید کرده‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 12,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "«سال اخیر» فاقد بازهٔ تقویمی صریح است و «گزارش مثبت» مفهوم مستقلی در کاتالوگ ندارد؛ مثبت بودن به‌صورت مقدار تولید بیشتر از صفر بازنمایی شده است."
+        },
+        "modelCalls": 2,
+        "inputTokens": 12772,
+        "outputTokens": 1431,
+        "latencyMs": 16479
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-13",
+      "question": "شرکت‌های دارای تولید مثبت گندله سنگ‌آهن در شهریور ۱۴۰۵ را پیدا کن.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله سنگ‌آهن"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "کاتالوگ موجود سنجه تولید، شناسه محصول، یا رابطه لازم برای یافتن شرکت‌های دارای تولید مثبت گندله سنگ‌آهن در دوره درخواست‌شده را ارائه نمی‌کند؛ بنابراین شرط تولید مثبت قابل نمایش ایمن نیست."
+        },
+        "modelCalls": 1,
+        "inputTokens": 7856,
+        "outputTokens": 685,
+        "latencyMs": 8647
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-14",
+      "question": "مقدار تولید گندله کگهر در ماه شهریور ۱۴۰۵ چقدر ثبت شده؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 4577,
+        "outputTokens": 748,
+        "latencyMs": 6653
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-15",
+      "question": "رشد تولید محصولات کگل در مقایسه با دوره مشابه پارسال چه‌قدر بوده؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "GrowthPercentage",
+          "comparison": "YearOverYear",
+          "maximumPeriods": 13,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 11082,
+        "outputTokens": 1297,
+        "latencyMs": 16431
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-16",
+      "question": "مبالغ فروش ماهانه کگل را برای شش گزارش آخر به ترتیب زمانی بیاور.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "timeseries",
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:6",
+          "optionBCorrect": false,
+          "expected": "relativeperiods:month:6",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 6,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5409,
+        "outputTokens": 641,
+        "latencyMs": 7624
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-17",
+      "question": "فروش ریالی کگل در شهریور ۱۴۰۵ به چه میزان رسید؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "irr",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "The requested period is expressed in the Persian calendar as شهریور ۱۴۰۵, but the contract requires explicit Gregorian yyyy-MM-dd bounds and no safe calendar conversion is available from the catalog context."
+        },
+        "modelCalls": 1,
+        "inputTokens": 4565,
+        "outputTokens": 823,
+        "latencyMs": 10447
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-18",
+      "question": "در آخرین گزارش، مقدار فروش گندله کگهر چند تن بوده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "ton",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 4348,
+        "outputTokens": 622,
+        "latencyMs": 6032
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-19",
+      "question": "کدام شرکت‌های صنعت فولاد رشد فروش ماهانه بیشتری داشته‌اند؟",
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "ranking",
+        "output",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "rank",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "categoryLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "صنعت فولاد"
+          ],
+          "optionBActual": []
+        },
+        "ranking": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "descending:salesamount",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "rankedlist",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": true,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationTimeoutException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 31642
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-20",
+      "question": "شرکت‌های یک صنعت را با رشد فروش ماهانه مرتب کن.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales_growth_mom"
+          ],
+          "entityKinds": [
+            "company",
+            "industry"
+          ],
+          "entityReferences": [],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "رشد فروش ماهانه می‌تواند به رشد مبلغ فروش یا رشد مقدار فروش اشاره کند؛ سؤال این تمایز را مشخص نکرده است."
+        },
+        "modelCalls": 1,
+        "inputTokens": 7642,
+        "outputTokens": 831,
+        "latencyMs": 9627
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-21",
+      "question": "کدام شرکت‌های صنعت معدن در شهریور گندله تولید مثبت داشته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "categoryLabels",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "discoverpopulation",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "categoryLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "معدن"
+          ],
+          "optionBActual": []
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionQuantity",
+              "greaterThan",
+              0,
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 8883
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-22",
+      "question": "شرکت‌های تولیدکننده گندله را از نظر فروش مقایسه کن؛ منظورم فروش کل شرکت است یا خود محصول؟",
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "multicompany",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "comparison",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": true,
+          "legacyActual": true,
+          "optionBCorrect": false,
+          "expected": true,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "«فروش» مبهم است: مشخص نیست مقایسه بر اساس مبلغ فروش خود محصول گندله باشد یا فروش کل شرکت. کاتالوگ برای فروش محصول، metric_monthly_sales را ارائه می‌کند؛ فروش کل شرکت در کاتالوگ قابل نمایندگی نیست."
+        },
+        "modelCalls": 1,
+        "inputTokens": 6952,
+        "outputTokens": 854,
+        "latencyMs": 10813
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-dev-23",
+      "question": "آیا رشد تولید کگهر با رشد فروش آن هم‌جهت بوده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity",
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ],
+            [
+              "salesamount",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ],
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ],
+            [
+              "salesamount",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ],
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "crossmeasure",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "comparison",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": false,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "provider_failure_or_unavailable",
+        "extractedIntent": null,
+        "modelCalls": 2,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "latencyMs": 11274
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-01",
+      "question": "کدام شرکت‌ها در گزارش شهریور ۱۴۰۵ تولید مثبت گندله سنگ‌آهن داشته‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله سنگ‌آهن"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7076,
+        "outputTokens": 812,
+        "latencyMs": 10691
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-02",
+      "question": "در صنعت معدن، کدام شرکت‌ها در آخرین گزارش ماهانه گندله تولید کرده‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 15334,
+        "outputTokens": 1400,
+        "latencyMs": 17624
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-03",
+      "question": "کدام تولیدکنندگان در آخرین گزارش، بیش از ۳۰ تن گندله فروخته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "salesquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "ton",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "discoverpopulation",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesQuantity",
+              "greaterThan",
+              30,
+              "ton"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "provider_failure_or_unavailable",
+        "extractedIntent": null,
+        "modelCalls": 1,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "latencyMs": 0
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-04",
+      "question": "تولیدکنندگان گندله را بر پایه فروش کل شرکت در شهریور ۱۴۰۵ از بیشترین به کمترین مرتب کن.",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 14868,
+        "outputTokens": 1528,
+        "latencyMs": 17092
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-05",
+      "question": "کدام محصولات کگهر در سه ماه اخیر بیشترین رشد تولید ماهانه را داشته‌اند؟",
+      "goldStatus": "gold_adjudication_pending",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "GrowthPercentage",
+          "comparison": "MonthOverMonth",
+          "maximumPeriods": 3,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 9333,
+        "outputTokens": 2238,
+        "latencyMs": 22582
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-06",
+      "question": "تولید کگل در شهریور ۱۴۰۵ نسبت به ماه مشابه سال قبل چند درصد تغییر کرد؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "growthrate",
+          "optionBCorrect": false,
+          "expected": "growthrate",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "yearoveryear",
+          "optionBCorrect": false,
+          "expected": "yearoveryear",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": "relativeperiods:month:13",
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_growth_yoy"
+          ],
+          "entityKinds": [
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "کگل"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "GrowthPercentage",
+          "comparison": "YearOverYear",
+          "maximumPeriods": 13,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5681,
+        "outputTokens": 792,
+        "latencyMs": 7522
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-07",
+      "question": "فروش ریالی کگل را برای شش گزارش ماهانه اخیر به ترتیب زمان نشان بده.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "irr",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "timeseries",
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:6",
+          "optionBCorrect": false,
+          "expected": "relativeperiods:month:6",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 6,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5887,
+        "outputTokens": 798,
+        "latencyMs": 10101
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-08",
+      "question": "فروش ریالی کگل در شهریور ۱۴۰۵ چه مبلغی ثبت شد؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "irr",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 8716
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-09",
+      "question": "مانده وجه نقد کگهر در پایان سال مالی ۱۴۰۴ چقدر گزارش شده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "cashbalance"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitfiscalyear:۱۴۰۴",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 6688
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v2-10",
+      "question": "آیا رشد تولید و رشد فروش کگهر در آخرین دوره هم‌جهت بوده‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity",
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity",
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ],
+            [
+              "salesamount",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ],
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ],
+            [
+              "salesamount",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ],
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "crossmeasure",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "comparison",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": false,
+          "legacyActual": true,
+          "optionBCorrect": false,
+          "expected": false,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_growth_yoy",
+            "metric_monthly_sales_growth_yoy",
+            "metric_monthly_sales_quantity_growth_yoy"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "رشد فروش مشخص نکرده است که منظور رشد مبلغ فروش است یا رشد مقدار فروش؛ همچنین معیارهای رشد ماهانه در کاتالوگ در سطح محصول تعریف شده‌اند و برای شرکت بدون تعیین محصول، مقایسه مستقیم شرکت‌محور به‌طور ایمن قابل نمایش نیست."
+        },
+        "modelCalls": 2,
+        "inputTokens": 11133,
+        "outputTokens": 2339,
+        "latencyMs": 29613
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-01",
+      "question": "در گزارش مرداد ۱۴۰۵، کدام شرکت‌ها گندله تولید مثبت داشته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "discoverpopulation",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:مرداد ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionQuantity",
+              "greaterThan",
+              0,
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7070,
+        "outputTokens": 764,
+        "latencyMs": 11327
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-02",
+      "question": "کدام شرکت‌های صنعت معدن در تازه‌ترین گزارش، گندله تولید کرده‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "categoryLabels",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "discoverpopulation",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "categoryLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "معدن"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "مفهوم تولید گندله و گزارش تولید در کاتالوگ قابل نمایش نیست؛ فقط ابعاد شرکت و صنعت موجود است."
+        },
+        "modelCalls": 1,
+        "inputTokens": 7644,
+        "outputTokens": 816,
+        "latencyMs": 9621
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-03",
+      "question": "در آخرین گزارش ماهانه، کدام تولیدکنندگان گندله بیش از ۳۰ تن فروش داشته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "ton",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "discoverpopulation",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesQuantity",
+              "greaterThan",
+              30,
+              "ton"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "table",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "The request specifies a threshold of 30 tons, but the catalog exposes SalesQuantity only as a quantity/source unit and does not verify that its unit is tons."
+        },
+        "modelCalls": 1,
+        "inputTokens": 5496,
+        "outputTokens": 980,
+        "latencyMs": 12015
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-04",
+      "question": "شرکت‌های تولیدکننده گندله را بر پایه مجموع تولید سه ماه اخیر از بیشترین به کمترین مرتب کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "aggregation",
+        "ranking",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "rank",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:3",
+          "optionBCorrect": false,
+          "expected": "relativeperiods:month:3",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "aggregation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "sum:acrossperiods",
+          "optionBActual": null
+        },
+        "ranking": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "descending:productionquantity",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "rankedlist",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": 3,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 6632,
+        "outputTokens": 647,
+        "latencyMs": 7500
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-05",
+      "question": "در سه ماه اخیر کدام محصولات کگهر بیشترین رشد مقدار تولید ماهانه را داشته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "ranking",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "growthrate",
+          "optionBCorrect": false,
+          "expected": "rank",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "monthovermonth",
+          "optionBCorrect": false,
+          "expected": "periodoverperiod",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:3",
+          "optionBCorrect": false,
+          "expected": "relativeperiods:month:3",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "ranking": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "descending:productionquantity",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "rankedlist",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "GrowthPercentage",
+          "comparison": "MonthOverMonth",
+          "maximumPeriods": 3,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 10334,
+        "outputTokens": 1429,
+        "latencyMs": 15163
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-06",
+      "question": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور سال قبل چند درصد تغییر داشته است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "growthrate",
+          "optionBCorrect": false,
+          "expected": "growthrate",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "yearoveryear",
+          "optionBCorrect": false,
+          "expected": "yearoveryear",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": "relativeperiods:month:13",
+          "optionBCorrect": false,
+          "expected": "explicitmonth:شهریور ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": []
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "GrowthPercentage",
+          "comparison": "YearOverYear",
+          "maximumPeriods": 13,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 11846,
+        "outputTokens": 1430,
+        "latencyMs": 13818
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-07",
+      "question": "مبلغ فروش ریالی کگل را برای شش گزارش ماهانه آخر به ترتیب ماه نشان بده.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "irr",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "timeseries",
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:6",
+          "optionBCorrect": false,
+          "expected": "relativeperiods:month:6",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "timeseries",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 6,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5410,
+        "outputTokens": 769,
+        "latencyMs": 10039
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-08",
+      "question": "مبلغ فروش ریالی کگل در مرداد ۱۴۰۵ چقدر ثبت شده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "irr",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:مرداد ۱۴۰۵",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگل"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 4664,
+        "outputTokens": 786,
+        "latencyMs": 8175
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-09",
+      "question": "وجه نقد پایان سال مالی ۱۴۰۴ کگهر چقدر گزارش شده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "cashbalance"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "currencyamount",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "cashbalance",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "retrieve",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "none",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitfiscalyear:۱۴۰۴",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": false,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 5333
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    },
+    {
+      "caseId": "readiness-holdout-v3-10",
+      "question": "آیا رشد تولید و مقدار فروش کگهر در دوره اخیر یکسان بوده است؟",
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": "not_adjudicated",
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "requiresClarification"
+      ],
+      "optionBFailureCategory": "provider_failure_or_unavailable",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity",
+            "salesquantity"
+          ],
+          "optionBCorrect": false,
+          "expected": [
+            "productionquantity",
+            "salesquantity"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "percentagechange",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ],
+            [
+              "salesquantity",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity",
+              ""
+            ],
+            [
+              "salesquantity",
+              "physicalquantity",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified",
+              ""
+            ],
+            [
+              "salesquantity",
+              "unspecified",
+              ""
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ],
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": false,
+          "expected": "compare",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "none",
+          "optionBCorrect": false,
+          "expected": "crossmeasure",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "requiresClarification": {
+          "legacyCorrect": true,
+          "legacyActual": true,
+          "optionBCorrect": false,
+          "expected": true,
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_growth_yoy",
+            "metric_monthly_sales_quantity"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "کگهر"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": true,
+          "uncertaintyReason": "کگهر به‌عنوان شرکت ذکر شده اما محصول مشخص نشده است؛ همچنین رشد تولید درصدی و مقدار فروش کمیتی با واحدهای متفاوت هستند و برابری مستقیم آن‌ها معنای قابل‌نمایشی ندارد."
+        },
+        "modelCalls": 2,
+        "inputTokens": 12126,
+        "outputTokens": 1642,
+        "latencyMs": 20583
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "provider_failure",
+        "diagnostic": "hosted_provider_failed|http:na|upstream:provider_error",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 0
+      }
+    }
+  ]
+}

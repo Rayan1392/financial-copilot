@@ -105,6 +105,17 @@ public sealed class MonthlyProductComparison129Tests
         Assert.False(MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery("ترکیب فروش محصولات"));
     }
 
+    [Fact]
+    public void CompanyMonthlySalesTrendWithChartAndGrowth_RemainsCompanyTrend()
+    {
+        const string query = "\u0631\u0648\u0646\u062f \u0645\u0628\u0644\u063a \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u0646\u0645\u0627\u062f \u06a9\u06af\u0644 \u062f\u0631 12 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631 \u0686\u0627\u0631\u062a \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u062f\u0631\u0635\u062f \u062a\u063a\u06cc\u06cc\u0631 \u0641\u0631\u0648\u0634 \u0622\u062e\u0631\u06cc\u0646 \u0645\u0627\u0647 \u0646\u0633\u0628\u062a \u0628\u0647 \u0645\u0627\u0647 \u0642\u0628\u0644";
+
+        Assert.False(MonthlyProductComparisonIntentRules.LooksLikeMonthlyProductComparisonQuery(query));
+        Assert.False(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(query));
+        Assert.True(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(query));
+        Assert.Equal("\u06a9\u06af\u0644", MonthlyActivityTrendIntentRules.ExtractCompanySymbol(query));
+    }
+
     [Theory]
     [InlineData("فروش محصولات شغدیر بین 1405/04 و 1405/03 را مقایسه کن")]
     [InlineData("تغییر تولید و فروش محصولات کگهر بین ماه جاری 1405/04 و ماه قبل 1405/03 را مقایسه کن")]

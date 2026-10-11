@@ -64,9 +64,32 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
 
             if (response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadFromJsonAsync<OpenAiResponse>(
-                    cancellationToken: cancellationToken) ??
-                    throw Failure("OpenAI response API returned an empty response.");
+                OpenAiResponse? body;
+                try
+                {
+                    body = await response.Content.ReadFromJsonAsync<OpenAiResponse>(
+                        cancellationToken: cancellationToken);
+                }
+                catch (JsonException exception)
+                {
+                    throw new AiModelProviderException(
+                        AiExecutionStatus.Failed,
+                        "hosted_response_deserialization_failed",
+                        "The successful provider response could not be deserialized.",
+                        exception,
+                        httpStatusCode: (int)response.StatusCode,
+                        requestHost: response.RequestMessage?.RequestUri?.Host ?? httpClient.BaseAddress?.Host);
+                }
+
+                if (body is null)
+                {
+                    throw new AiModelProviderException(
+                        AiExecutionStatus.Failed,
+                        "hosted_response_deserialization_failed",
+                        "The successful provider response body was empty.",
+                        httpStatusCode: (int)response.StatusCode,
+                        requestHost: response.RequestMessage?.RequestUri?.Host ?? httpClient.BaseAddress?.Host);
+                }
 
                 var outputText = GetOutputText(body.Output);
                 var toolCalls = MapToolCalls(body.Output);

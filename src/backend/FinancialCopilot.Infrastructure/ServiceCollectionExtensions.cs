@@ -86,6 +86,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure;
 
@@ -715,6 +716,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISemanticOfflineRegressionRunner, SemanticOfflineRegressionRunner>();
         services.AddSingleton<ISemanticPhraseCandidatePolicy, SemanticPhraseCandidatePolicy>();
         services.AddScoped<IConversationalCapabilityExecutor, MonthlyActivityTrendCapabilityExecutor>();
+        services.AddScoped<IConversationalCapabilityExecutor, MonthlyProductComparisonCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, SymbolMetricLookupCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, ProductRevenueMixCapabilityExecutor>();
         services.AddScoped<IConversationalCapabilityExecutor, ProductSalesValueCapabilityExecutor>();
@@ -765,7 +767,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICanonicalCompanyRouteAdapter, CanonicalCompanyRouteAdapter>();
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
-        // Feature 141 navigator is injectable for harness/shadow evaluation, but no workflow branch activates it.
+        // Feature 141 uses the packaged, integrity-checked catalog for both navigation and SQL compilation.
         services.AddSingleton(_ =>
         {
             var defaults = new SchemaNavigatorBudgets();
@@ -792,16 +794,23 @@ public static class ServiceCollectionExtensions
                 MaximumFanOut = ReadInt(nameof(defaults.MaximumFanOut), defaults.MaximumFanOut)
             };
         });
-        services.AddSingleton<JsonCatalogNavigationHierarchyProvider>(provider =>
+        string ResolveFeature141Path(string key)
         {
-            var hierarchyPath = configuration["Feature141:SchemaNavigator:HierarchyPath"];
-            if (string.IsNullOrWhiteSpace(hierarchyPath))
-                throw new InvalidOperationException("Feature141:SchemaNavigator:HierarchyPath must be configured before resolving the navigator.");
-            var catalogPath = configuration["Feature141:SchemaNavigator:CatalogPath"];
-            if (string.IsNullOrWhiteSpace(catalogPath))
-                throw new InvalidOperationException("Feature141:SchemaNavigator:CatalogPath must be configured before resolving the navigator.");
-            return new JsonCatalogNavigationHierarchyProvider(Path.GetFullPath(hierarchyPath), Path.GetFullPath(catalogPath));
-        });
+            var configured = configuration[key];
+            if (string.IsNullOrWhiteSpace(configured))
+                throw new InvalidOperationException($"{key} must be configured before activating Feature 141.");
+            if (Path.IsPathFullyQualified(configured)) return configured;
+            var packaged = Path.GetFullPath(configured, AppContext.BaseDirectory);
+            if (File.Exists(packaged) || Directory.Exists(packaged)) return packaged;
+            return Path.GetFullPath(configured);
+        }
+
+        var feature141HierarchyPath = ResolveFeature141Path("Feature141:SchemaNavigator:HierarchyPath");
+        var feature141CatalogPath = ResolveFeature141Path("Feature141:SchemaNavigator:CatalogPath");
+        services.AddSingleton(_ => new JsonCatalogNavigationHierarchyProvider(
+            feature141HierarchyPath, feature141CatalogPath));
+        services.AddSingleton(_ => new StructuredQueryCatalogSnapshotBuilder().Build(
+            feature141CatalogPath, feature141HierarchyPath));
         services.AddSingleton<ICatalogNavigationHierarchyProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
         services.AddSingleton<ICatalogNavigationOutlineProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
         services.AddSingleton<ISchemaContextExpander>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
@@ -810,7 +819,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IVectorlessSchemaNavigator>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
         services.AddSingleton<IQuestionSchemaRequirementsExtractor>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
         services.AddSingleton<IStructuredQueryPlanBuilder, StructuredQueryPlanBuilder>();
-        services.AddSingleton<IStructuredQueryPlanValidator, StructuredQueryPlanValidator>();
+        services.AddSingleton<IStructuredQueryPlanValidator>(_ => new StructuredQueryPlanValidator(executionEnabled: true));
         services.AddSingleton<IStructuredQueryCompiler, StructuredQueryCompiler>();
         services.AddSingleton<IPersianStructuredQueryResponseGenerator, PersianStructuredQueryResponseGenerator>();
         services.AddSingleton<IReviewedCompanyPopulationResolver>(_ => new ReviewedCompanyPopulationResolver(
@@ -825,13 +834,40 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStructuredQueryProductBinder, StructuredQueryProductBinder>();
         services.AddOptions<StructuredQueryExecutionOptions>()
             .BindConfiguration(StructuredQueryExecutionOptions.SectionName)
+            .PostConfigure(options =>
+            {
+                options.Enabled = configuration.GetValue<bool>("Feature141:Enabled");
+                options.ConnectionString = configuration.GetConnectionString("Feature141ReadOnly") ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(options.ConnectionString)) return;
+                NpgsqlConnectionStringBuilder builder;
+                try
+                {
+                    builder = new NpgsqlConnectionStringBuilder(options.ConnectionString);
+                }
+                catch (ArgumentException)
+                {
+                    // Never allow parser exceptions to echo a connection string into startup logs.
+                    throw new InvalidOperationException(
+                        "Feature141:QueryExecution requires a valid ConnectionStrings:Feature141ReadOnly value.");
+                }
+                if (string.IsNullOrWhiteSpace(options.DesignatedDatabase))
+                    options.DesignatedDatabase = builder.Database ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(options.ReadOnlyRole))
+                    options.ReadOnlyRole = builder.Username ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(options.AuthorizationProvenance))
+                    options.AuthorizationProvenance = "feature141:catalog-backed-runtime-v1";
+            })
             .ValidateOnStart();
         services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StructuredQueryExecutionOptions>,
             StructuredQueryExecutionOptionsValidator>();
+        services.AddSingleton<CatalogStructuredQueryAuthorizer>();
+        services.AddSingleton<IStructuredQueryAuthorizer>(provider =>
+            provider.GetRequiredService<CatalogStructuredQueryAuthorizer>());
         services.AddSingleton<IDevelopmentStructuredQueryAuthorizer, DevelopmentStructuredQueryAuthorizer>();
         services.AddScoped<IReadOnlyStructuredQueryExecutor, NpgsqlReadOnlyStructuredQueryExecutor>();
-        // Offline evaluation/planning only. This service is not connected to an AI workflow or endpoint.
         services.AddScoped<IOfflineStructuredQueryPlanningService, OfflineStructuredQueryPlanningService>();
+        services.AddScoped<Feature141ChatQueryService>();
+        services.AddScoped<IConversationalCapabilityExecutor, RegisteredFinancialSourceCapabilityExecutor>();
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();

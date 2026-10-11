@@ -46,7 +46,20 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
-    public void ShadowMode_IsObservationalAndRecordsOneBoundedComparison()
+    public void CompleteLowConfidenceFrame_IsValidatedBySlotsAndCanReachExecutor()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var executor = new Executor("monthly_activity_trend");
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [executor]);
+
+        var result = dispatcher.Validate(Frame("monthly_activity_trend") with { SemanticStatus = "LowConfidence" });
+
+        Assert.Null(result);
+        Assert.Equal(0, executor.Calls);
+    }
+
+    [Fact]
+    public void ShadowMode_RunsSemanticRouteAndRecordsOneBoundedComparison()
     {
         var telemetry = new RecordingTelemetry();
         var coordinator = new SemanticRoutingRolloutCoordinator(
@@ -55,7 +68,7 @@ public sealed class SemanticCapabilityDispatcherTests
         var decision = coordinator.Decide("monthly_activity_trend");
         coordinator.RecordShadowComparison("monthly_activity_trend", "legacy_trend", "semantic_trend", "correlation");
 
-        Assert.False(decision.ExecuteSemanticRoute);
+        Assert.True(decision.ExecuteSemanticRoute);
         Assert.True(decision.RunShadowComparison);
         var comparison = Assert.Single(telemetry.Items);
         Assert.False(comparison.Agreement);
@@ -91,7 +104,7 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
-    public void CanaryNonCohort_RemainsShadowObservableAndDoesNotExecuteSemanticRoute()
+    public void CanaryNonCohort_RemainsShadowObservableAndStillExecutesSemanticRoute()
     {
         var telemetry = new RecordingTelemetry();
         var canary = new SemanticRoutingRolloutCoordinator(
@@ -99,12 +112,12 @@ public sealed class SemanticCapabilityDispatcherTests
             telemetry);
         var actor = Enumerable.Range(0, 1000)
             .Select(index => $"canary-test-actor-{index}")
-            .First(key => !canary.Decide("symbol_metric_lookup", key).ExecuteSemanticRoute);
+            .First(key => canary.Decide("symbol_metric_lookup", key).RunShadowComparison);
 
         var decision = canary.Decide("symbol_metric_lookup", actor);
         canary.RecordShadowComparison("symbol_metric_lookup", "legacy_metric", "symbol_metric_lookup", "canary-shadow", cohortKey: actor);
 
-        Assert.False(decision.ExecuteSemanticRoute);
+        Assert.True(decision.ExecuteSemanticRoute);
         Assert.True(decision.RunShadowComparison);
         var comparison = Assert.Single(telemetry.Items);
         Assert.Equal(SemanticRoutingMode.Canary, comparison.Mode);

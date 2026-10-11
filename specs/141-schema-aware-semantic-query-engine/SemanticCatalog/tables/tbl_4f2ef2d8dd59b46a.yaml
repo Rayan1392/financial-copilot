@@ -1,157 +1,162 @@
 {
-  "id": "tbl_4f2ef2d8dd59b46a",
-  "physical": {
-    "Schema": "public",
-    "Name": "FinancialStatementLineItems",
-    "ObjectType": "table",
-    "Columns": [
-      {
-        "Name": "Id",
-        "Type": "uuid",
-        "Nullable": false
-      },
-      {
-        "Name": "FinancialStatementId",
-        "Type": "uuid",
-        "Nullable": false
-      },
-      {
-        "Name": "MetricCode",
-        "Type": "character varying(128)",
-        "Nullable": true
-      },
-      {
-        "Name": "Value",
-        "Type": "numeric",
-        "Nullable": true
-      },
-      {
-        "Name": "SourceItemCatalogId",
-        "Type": "uuid",
-        "Nullable": true
-      }
-    ],
-    "PrimaryKeys": [
-      "Id"
-    ],
-    "ForeignKeys": [
-      {
-        "Columns": [
-          "SourceItemCatalogId"
-        ],
-        "PrincipalSchema": "public",
-        "PrincipalTable": "FinancialStatementSourceItems",
-        "PrincipalColumns": [
-          "Id"
-        ],
-        "Definition": "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL"
-      }
-    ],
-    "Indexes": [
-      {
-        "Name": "IX_FinancialStatementLineItems_FinancialStatementId_MetricCode",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatementLineItems_FinancialStatementId_MetricCode\" ON public.\"FinancialStatementLineItems\" USING btree (\"FinancialStatementId\", \"MetricCode\") WHERE (\"MetricCode\" IS NOT NULL)",
-        "Columns": [
-          "FinancialStatementId",
-          "MetricCode"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatementLineItems_FinancialStatementId_SourceItem~",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"IX_FinancialStatementLineItems_FinancialStatementId_SourceItem~\" ON public.\"FinancialStatementLineItems\" USING btree (\"FinancialStatementId\", \"SourceItemCatalogId\") WHERE (\"SourceItemCatalogId\" IS NOT NULL)",
-        "Columns": [
-          "FinancialStatementId",
-          "SourceItemCatalogId"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatementLineItems_SourceItemCatalogId",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatementLineItems_SourceItemCatalogId\" ON public.\"FinancialStatementLineItems\" USING btree (\"SourceItemCatalogId\")",
-        "Columns": [
-          "SourceItemCatalogId"
-        ]
-      },
-      {
-        "Name": "PK_FinancialStatementLineItems",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"PK_FinancialStatementLineItems\" ON public.\"FinancialStatementLineItems\" USING btree (\"Id\")",
-        "Columns": [
-          "Id"
-        ]
-      }
-    ],
-    "Constraints": [
-      {
-        "Name": "FK_FinancialStatementLineItems_FinancialStatementSourceItems_S~",
-        "Type": "f",
-        "Columns": [
-          "SourceItemCatalogId"
-        ],
-        "Definition": "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL"
-      },
-      {
-        "Name": "PK_FinancialStatementLineItems",
-        "Type": "p",
-        "Columns": [
-          "Id"
-        ],
-        "Definition": "PRIMARY KEY (\"Id\")"
-      }
-    ]
-  },
-  "semantic": {
-    "status": "candidate-pending-review",
-    "queryable": false,
-    "descriptionEn": "Normalized statement values keyed to a metric code, statement row, and optional provider source-item definition.",
-    "descriptionFa": "مقادیر نرمال‌شده اقلام صورت مالی با کد معیار و پیوند اختیاری به قلم مبدأ.",
-    "purpose": "Stores statement-level metric observations before governed derived-metric recalculation.",
-    "grain": "One FinancialStatementId + MetricCode observation in application logic.",
-    "columns": {
-      "FinancialStatementId": "Application link to statement header; no live FK found",
-      "MetricCode": "Metric identity, including provider codes where applicable",
-      "Value": "Numeric source/normalized observation",
-      "SourceItemCatalogId": "Optional FK to source-item catalog"
-    },
-    "units": "Values can be million IRR for monetary statement items, IRR per share for EPS-like values, ratios, or percent; use source catalog Unit plus Feature 015 registry. Do not assume all values share a scale.",
-    "relationships": [
-      "SourceItemCatalogId -> FinancialStatementSourceItems.Id (physical FK)",
-      "FinancialStatementId -> FinancialStatements.Id is expected application key but not a live FK."
-    ],
-    "metricReferences": [
-      "MetricCode and unit governance come from Feature 015; avoid duplicating formulas."
-    ],
-    "providerPolicy": "Provider-specific normalization and selection only; do not coalesce duplicate provider values without the existing selection rules.",
-    "periodSemantics": "Inherits statement header period.",
-    "examples": [
-      "درآمد صورت مالی فصل اخیر",
-      "Show net profit from a selected statement period"
-    ],
-    "cautions": [
-      "Live inventory reports a uniqueness mismatch for (FinancialStatementId, MetricCode): EF expects unique, while PostgreSQL index is non-unique.",
-      "Per-share IRR must remain distinct from million-IRR statement values."
-    ],
-    "sourceVerification": "Live PostgreSQL/EF reconciliation, Feature 015 registry, provider normalizers.",
-    "approvalStatus": "human-review-required",
-    "semanticApproval": {
-      "state": "candidate-pending-review",
-      "approved": false,
-      "provenance": "existing catalog review state; no reviewer approval fabricated"
-    },
-    "queryAuthorization": {
-      "state": "not-approved",
-      "runtimeQueryable": false,
-      "approvedObjects": [],
-      "reason": "Semantic review and navigation inclusion do not grant query access."
-    },
-    "relationshipCatalogIds": [
-      "rel_2588cf95d01a651a"
-    ]
-  },
-  "provenance": {
-    "source": "ef-core-model",
-    "verified": false
-  }
+    "id":  "tbl_4f2ef2d8dd59b46a",
+    "physical":  {
+                     "Schema":  "public",
+                     "Name":  "FinancialStatementLineItems",
+                     "ObjectType":  "table",
+                     "Columns":  [
+                                     {
+                                         "Name":  "Id",
+                                         "Type":  "uuid",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "FinancialStatementId",
+                                         "Type":  "uuid",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "MetricCode",
+                                         "Type":  "character varying(128)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "Value",
+                                         "Type":  "numeric",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "SourceItemCatalogId",
+                                         "Type":  "uuid",
+                                         "Nullable":  true
+                                     }
+                                 ],
+                     "PrimaryKeys":  [
+                                         "Id"
+                                     ],
+                     "ForeignKeys":  [
+                                         {
+                                             "Columns":  [
+                                                             "SourceItemCatalogId"
+                                                         ],
+                                             "PrincipalSchema":  "public",
+                                             "PrincipalTable":  "FinancialStatementSourceItems",
+                                             "PrincipalColumns":  [
+                                                                      "Id"
+                                                                  ],
+                                             "Definition":  "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL"
+                                         }
+                                     ],
+                     "Indexes":  [
+                                     {
+                                         "Name":  "IX_FinancialStatementLineItems_FinancialStatementId_MetricCode",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatementLineItems_FinancialStatementId_MetricCode\" ON public.\"FinancialStatementLineItems\" USING btree (\"FinancialStatementId\", \"MetricCode\") WHERE (\"MetricCode\" IS NOT NULL)",
+                                         "Columns":  [
+                                                         "FinancialStatementId",
+                                                         "MetricCode"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatementLineItems_FinancialStatementId_SourceItem~",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"IX_FinancialStatementLineItems_FinancialStatementId_SourceItem~\" ON public.\"FinancialStatementLineItems\" USING btree (\"FinancialStatementId\", \"SourceItemCatalogId\") WHERE (\"SourceItemCatalogId\" IS NOT NULL)",
+                                         "Columns":  [
+                                                         "FinancialStatementId",
+                                                         "SourceItemCatalogId"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatementLineItems_SourceItemCatalogId",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatementLineItems_SourceItemCatalogId\" ON public.\"FinancialStatementLineItems\" USING btree (\"SourceItemCatalogId\")",
+                                         "Columns":  [
+                                                         "SourceItemCatalogId"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "PK_FinancialStatementLineItems",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"PK_FinancialStatementLineItems\" ON public.\"FinancialStatementLineItems\" USING btree (\"Id\")",
+                                         "Columns":  [
+                                                         "Id"
+                                                     ]
+                                     }
+                                 ],
+                     "Constraints":  [
+                                         {
+                                             "Name":  "FK_FinancialStatementLineItems_FinancialStatementSourceItems_S~",
+                                             "Type":  "f",
+                                             "Columns":  [
+                                                             "SourceItemCatalogId"
+                                                         ],
+                                             "Definition":  "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL"
+                                         },
+                                         {
+                                             "Name":  "PK_FinancialStatementLineItems",
+                                             "Type":  "p",
+                                             "Columns":  [
+                                                             "Id"
+                                                         ],
+                                             "Definition":  "PRIMARY KEY (\"Id\")"
+                                         }
+                                     ]
+                 },
+    "semantic":  {
+                     "status":  "owner-approved-runtime-query",
+                     "queryable":  true,
+                     "descriptionEn":  "Normalized statement values keyed to a metric code, statement row, and optional provider source-item definition.",
+                     "descriptionFa":  "مقادیر نرمال‌شده اقلام صورت مالی با کد معیار و پیوند اختیاری به قلم مبدأ.",
+                     "purpose":  "Stores statement-level metric observations before governed derived-metric recalculation.",
+                     "grain":  "One FinancialStatementId + MetricCode observation in application logic.",
+                     "columns":  {
+                                     "FinancialStatementId":  "Application link to statement header; no live FK found",
+                                     "MetricCode":  "Metric identity, including provider codes where applicable",
+                                     "Value":  "Numeric source/normalized observation",
+                                     "SourceItemCatalogId":  "Optional FK to source-item catalog"
+                                 },
+                     "units":  "Values can be million IRR for monetary statement items, IRR per share for EPS-like values, ratios, or percent; use source catalog Unit plus Feature 015 registry. Do not assume all values share a scale.",
+                     "relationships":  [
+                                           "SourceItemCatalogId -\u003e FinancialStatementSourceItems.Id (physical FK)",
+                                           "FinancialStatementId -\u003e FinancialStatements.Id is expected application key but not a live FK."
+                                       ],
+                     "metricReferences":  [
+                                              "MetricCode and unit governance come from Feature 015; avoid duplicating formulas."
+                                          ],
+                     "providerPolicy":  "Provider-specific normalization and selection only; do not coalesce duplicate provider values without the existing selection rules.",
+                     "periodSemantics":  "Inherits statement header period.",
+                     "examples":  [
+                                      "درآمد صورت مالی فصل اخیر",
+                                      "Show net profit from a selected statement period"
+                                  ],
+                     "cautions":  [
+                                      "Live inventory reports a uniqueness mismatch for (FinancialStatementId, MetricCode): EF expects unique, while PostgreSQL index is non-unique.",
+                                      "Per-share IRR must remain distinct from million-IRR statement values."
+                                  ],
+                     "sourceVerification":  "Live PostgreSQL/EF reconciliation, Feature 015 registry, provider normalizers.",
+                     "approvalStatus":  "owner-approved",
+                     "semanticApproval":  {
+                                              "state":  "owner-approved-runtime-query",
+                                              "approved":  true,
+                                              "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                          },
+                     "queryAuthorization":  {
+                                                "state":  "authorized",
+                                                "runtimeQueryable":  true,
+                                                "approvedObjects":  [
+                                                                        "tbl_4f2ef2d8dd59b46a_FinancialStatementId",
+                                                                        "tbl_4f2ef2d8dd59b46a_Value",
+                                                                        "tbl_4f2ef2d8dd59b46a_SourceItemCatalogId"
+                                                                    ],
+                                                "reason":  "Limited to compiler-referenced SELECT columns for registered financial source retrieval.",
+                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                            },
+                     "relationshipCatalogIds":  [
+                                                    "rel_2588cf95d01a651a"
+                                                ]
+                 },
+    "provenance":  {
+                       "source":  "ef-core-model",
+                       "verified":  false
+                   }
 }

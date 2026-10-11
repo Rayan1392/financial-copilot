@@ -1,517 +1,343 @@
-# Feature 140 — Design: IME Daily Trades Raw Ingestion
+# Feature 140 — Design: IME Daily Trades Ingestion + Company Mapping
 
 ## 1. Design status
 
 **READY_FOR_REPOSITORY_VALIDATION**
 
-This design is implementation-ready at the product/architecture level. Exact namespaces, project ownership, scheduler library, authorization attributes, EF configuration style, migration naming, and resilience helpers are intentionally not asserted because the repository was not available.
+This revision extends Feature 140 with deterministic IME producer → FinancialCopilot company mapping.
 
 ## 2. Design principles
 
-1. **Raw first.** Preserve provider facts before deriving financial meaning.
-2. **One importer, multiple triggers.** Worker and Admin API are orchestration boundaries only.
-3. **Database-enforced idempotency.** Application checks are useful; database uniqueness is authoritative.
-4. **Auditable acquisition.** Keep a bounded raw provider response body/value alongside parsed rows, including failure cases where an HTTP response was received.
-5. **No premature company semantics.** IME identities are not assumed to equal TSETMC/company identities.
-6. **Forward-compatible acquisition.** Unknown fields remain recoverable through raw payload storage.
-7. **Explicit time semantics.** Schedule in Iran timezone; timestamps stored canonically in UTC.
+1. Raw provider facts remain immutable.
+2. Mapping is a separate identity layer, not a mutation of source data.
+3. `Companies.Id` is the canonical company target.
+4. IME symbol prefix is a lookup key, not self-proving identity.
+5. Unmapped rows are valid ingestion results.
+6. Conflicts are surfaced, not guessed away.
+7. Historical observations must be re-resolvable after mapping updates.
 
 ## 3. Logical architecture
 
 ```text
-                   +----------------------+
-                   | FinancialCopilot     |
-                   | Worker Scheduler     |
-                   +----------+-----------+
-                              |
-                              | target Jalali date
-                              v
-+------------------+   +------+-------------------+   +--------------------+
-| Admin API        +-->| IME Daily Trade Importer +-->| IME Provider Client|
-| authorized POST  |   | application service      |   | typed HttpClient   |
-+------------------+   +-------------+-------------+   +----------+---------+
-                                    |                            |
-                                    |                            v
-                                    |                  IME GetAmareMoamelatList
-                                    |
-                         +----------+-----------+
-                         | Persistence boundary |
-                         +-----+-----------+-----+
-                               |           |
-                               v           v
-                      Import/batch      Parsed raw
-                      audit record      trade rows
+IME API
+  |
+  v
+IME Daily Trade Importer
+  |
+  +--> Raw response evidence
+  |
+  +--> ImeDailyTrades
+          |
+          +--> derive ImeProducerCode
+          |
+          v
+     IME Producer Resolver
+          |
+          v
+ImeProducerCompanyMappings
+          |
+          v
+      Companies
+      Id (canonical)
+      CompanySymbol
+      Name
+      TseSymbol
+      InstrumentCode
 ```
 
-No AI orchestration dependency exists in this feature.
+## 4. Mapping model
 
-## 4. Proposed components
-
-Names are conceptual and must be aligned with repository conventions.
+Conceptual table:
 
 ```text
-Application
-  IImeDailyTradeImporter
-  ImeDailyTradeImporter
-  ImeDailyTradeImportRequest
-  ImeDailyTradeImportResult
-
-Infrastructure / Provider
-  IImeMarketDataClient
-  ImeMarketDataClient
-  ImeApiEnvelope
-  ImeTradeRecordDto
-
-Persistence
-  ImeDailyTradeImport
-  ImeDailyTrade
-  configurations / migration / repository or DbContext access
-
-Worker
-  ImeDailyTradeImportJob
-
-API
-  Admin IME import endpoint/controller
+ImeProducerCompanyMappings
 ```
 
-If the repository already has provider abstractions, data-sync lifecycle objects, job infrastructure, or admin operation patterns, reuse them rather than creating parallel frameworks.
-
-## 5. Request contract
-
-Provider request DTO:
-
-```text
-Language              = 8
-fari                  = false
-GregorianFromDate     = target Jalali yyyy/MM/dd
-GregorianToDate       = target Jalali yyyy/MM/dd
-MainCat               = 0
-Cat                   = 0
-SubCat                = 0
-Producer              = 0
-```
-
-The odd naming (`Gregorian*` carrying Jalali values) is provider-owned and must remain unchanged at the boundary.
-
-## 6. Response parsing
-
-### 6.1 Outer envelope
-
-```csharp
-// conceptual only
-sealed record ImeApiEnvelope(string? d);
-```
-
-### 6.2 Inner payload
-
-`d` contains a JSON string representing an array. A successful parser performs:
-
-```text
-body -> ImeApiEnvelope -> envelope.d -> IReadOnlyList<ImeTradeRecordDto>
-```
-
-### 6.3 Failure distinction
-
-Treat these differently:
-
-```text
-200 + d="[]"                 => Success, zero rows
-200 + d missing/null          => Parse/contract failure unless repository evidence proves provider uses it for no-data
-200 + malformed d             => Parse failure
-non-2xx                       => Provider failure
-request timeout/network error => Provider failure
-```
-
-This prevents contract failures from being misclassified as valid empty trading days.
-
-## 7. Persistence model
-
-### 7.1 Import/batch table
-
-Proposed logical table: `ImeDailyTradeImports`.
+Suggested columns:
 
 | Column | Purpose |
 |---|---|
-| `Id` | UUID/import identity |
-| `Source` | Stable source value such as `IME` |
-| `TargetPersianDate` | Requested date string or validated structured value |
-| `TriggerType` | Scheduled/Admin |
-| `Status` | Running/Succeeded/Failed using existing conventions |
-| `StartedAtUtc` | execution start |
-| `CompletedAtUtc` | completion |
-| `HttpStatusCode` | nullable provider status |
-| `RecordsReceived` | parsed source rows |
-| `RecordsInserted` | newly inserted rows |
-| `RecordsSkipped` | duplicate rows |
-| `RawResponseText` | preferred: bounded provider HTTP response body as received at the application boundary; if repository-mandated `jsonb` is reused, document it as a lossless JSON-value representation rather than byte-for-byte raw text |
-| `ErrorCode/ErrorMessage` | bounded failure diagnostics |
+| Id | mapping identity |
+| ImeProducerCode | normalized prefix such as KRPT / SHPC |
+| ImeProducerName | observed producer display value |
+| NormalizedProducerName | normalized lookup value |
+| CompanyId | FK -> Companies.Id |
+| MappingStatus | Confirmed / Conflict / Disabled |
+| MappingSource | Manual / Seeded / ExactProducerName / ReviewedAutomatic |
+| IsActive | active mapping flag |
+| CreatedAtUtc | audit |
+| UpdatedAtUtc | audit |
 
-Do not enforce one-import-per-date: operations need an audit history of retries/replays. Trade-row uniqueness handles duplication.
+Optional audit fields should reuse repository conventions.
 
-### 7.1.1 Raw response storage semantics
+### 4.1 Why not map directly to CompanySymbol?
 
-Preferred contract: `RawResponseText`, containing the bounded provider body as received at the application boundary. Optional metadata may include `RawResponseHash`, `ContentType`, `HttpStatusCode`, and `FetchedAtUtc`.
+`CompanySymbol` is descriptive business data and may change or have aliases.
 
-If repository discovery proves an established mandatory PostgreSQL `jsonb` convention, reuse it only with the semantic label **lossless JSON-value representation**. In that mode, property order, whitespace, formatting, and byte-for-byte fidelity are not guaranteed.
-
-Retention flow:
+The stable relation is:
 
 ```text
-Call IME
-  -> receive HTTP response
-  -> capture bounded raw body/value
-  -> create/update import evidence
-  -> parse outer response
-  -> parse d
-  -> validate row dates
-  -> persist typed observations
-  -> finalize import status
+ImeProducer -> Companies.Id
 ```
 
-### 7.2 Trade row table
-
-Proposed logical table: `ImeDailyTrades`.
-
-Ingestion metadata:
+Then user-facing symbol is obtained from:
 
 ```text
-Id                  UUID
-ImportId            FK to import record
-Source              IME
-SourceFingerprint   deterministic hash
-FetchedAtUtc
-CreatedAtUtc
+Companies.CompanySymbol
 ```
 
-Source fields (preserve provider names semantically; database casing may follow repository convention):
+### 4.2 Producer-code extraction
 
-| Source field | Suggested .NET type | Notes |
-|---|---|---|
-| GoodsName | string? | preserve text |
-| Symbol | string? | IME commodity symbol; not a TSETMC symbol |
-| ProducerName | string? | no company mapping here |
-| ContractType | string? | preserve localized text |
-| MinPrice | decimal? | avoid binary floating-point persistence |
-| Price | decimal? | same |
-| MaxPrice | decimal? | same |
-| arze | decimal? | preserve field meaning/name; no translation assumption |
-| ArzeBasePrice | decimal? | |
-| arzeMinPrice | decimal? | |
-| taghaza | decimal? | |
-| taghazavoroudi | decimal? | |
-| taghazaMaxPrice | decimal? | |
-| Quantity | decimal? | |
-| TotalPrice | decimal? | may exceed 32-bit integer |
-| date | string or validated provider-date value | keep source representation available |
-| DeliveryDate | string? | source Jalali format observed |
-| Warehouse | string? | |
-| ArzehKonandeh | string? | |
-| SettlementDate | string?/date? | observed Gregorian-like values and nulls; do not assume without repo/provider validation |
-| Category | string? | hierarchical source code |
-| xTalarReportPK | long?/decimal? | zero appears in observed data; not universal identity |
-| bArzehRadifTarSarresid | string? | nullable source field; semantics not inferred |
-| cBrokerSpcName | string? | |
-| ModeDescription | string? | |
-| MethodDescription | string? | |
-| MinPrice1 | decimal? | preserve separately |
-| Price1 | decimal? | preserve separately |
-| Currency | string? | e.g. ریال |
-| Unit | string? | e.g. تن |
-| arzehPk | string? | preserve source representation |
-| Talar | string? | |
-| PacketName | string? | |
-| Tasvieh | string? | |
-
-### 7.3 Why decimals
-
-Price, quantity, and total fields must not use `float`/`double` for persistence. Decimal/numeric types avoid binary floating-point artifacts and are safer for future financial aggregation. Exact precision/scale must be selected from observed ranges and repository conventions during implementation.
-
-### 7.4 Raw + parsed dual persistence
-
-This design intentionally keeps both:
-
-- raw response evidence: provider evidence and schema-drift recovery, including parse/integrity failures;
-- parsed columns: efficient future deterministic querying.
-
-This is not duplicate business data. They serve different operational purposes.
-
-## 8. Idempotency design
-
-### 8.1 Problem
-
-No single observed field is proven to be a globally reliable unique ID. In particular, `xTalarReportPK` can be `0`.
-
-### 8.2 Canonical fingerprint
-
-Build a stable canonical representation of every known source field in a fixed field order, with explicit null representation and culture-invariant numeric formatting, then hash it (e.g. SHA-256).
-
-Conceptual input:
+For:
 
 ```text
-GoodsName=<...>|Symbol=<...>|ProducerName=<...>|...|Tasvieh=<...>
+KRPT-AMMONIAB-00
 ```
 
-Prefer canonical JSON serialization if the solution already has a stable checksum convention.
-
-### 8.3 Database constraint
-
-Recommended unique constraint:
+derive:
 
 ```text
-UNIQUE (Source, SourceFingerprint)
+KRPT
 ```
 
-`ImportId` is not part of uniqueness because the same row may be returned by multiple replay runs.
-
-### 8.4 Insert algorithm
-
-Conceptually:
+For:
 
 ```text
-Begin import lifecycle
-Call provider
-Parse complete response
-Begin persistence transaction
-Insert rows using conflict-safe semantics against unique fingerprint
-Count inserted vs skipped
-Persist raw response / finalize import success
-Commit
+SHPC-PBR1220WWP-00
+SHPC-OAVAMB-00
 ```
 
-If the existing repository prefers EF exception handling over provider-specific `ON CONFLICT`, follow the established pattern, but retain database uniqueness.
-
-### 8.5 Changed-source observation
-
-If any known source field changes, the canonical fingerprint changes and a new observation is stored. This prevents Feature 140 from inventing update semantics for a provider whose revision behavior is not yet documented.
-
-`SourceFingerprint` identifies an exact observed provider row. It is **not** a proven logical/business transaction identifier. `ImeDailyTrades` is therefore an immutable provider-observation store, not automatically a canonical/current-trade table. Future analytics must introduce explicit revision/canonicalization semantics before aggregating mutually related observations as one logical trade.
-
-Future features may introduce logical trade identity, revision grouping, or canonical/latest observation selection once provider correction semantics are understood.
-
-## 8.6 Requested-date integrity
-
-After parsing and before successful trade persistence, validate that every non-empty source row has `date == targetPersianDate` after strict normalization to `yyyy/MM/dd`.
-
-Any mismatched or mixed-date response is a provider-contract/integrity failure. Preserve the raw response evidence, record the mismatch count, do not rewrite provider dates, and do not persist/report a successful partial batch.
-
-## 9. Scheduling design
-
-Required schedule:
+derive:
 
 ```text
-Saturday-Wednesday
-17:00
-Asia/Tehran
+SHPC
 ```
 
-If Quartz/Hangfire/another scheduler is already present, express the schedule using that scheduler's timezone-aware mechanism.
-
-Do not implement the business rule as `if DayOfWeek ...` inside a continuously polling loop when the repository already supports cron/calendar scheduling.
-
-If cron is used, validate day-of-week numbering for the actual scheduler; do not copy a cron expression blindly across libraries because Sunday numbering differs between implementations.
-
-## 10. Admin API design
-
-Conceptual request:
-
-```json
-{
-  "date": "1405/07/15"
-}
-```
-
-Conceptual response:
-
-```json
-{
-  "importId": "...",
-  "date": "1405/07/15",
-  "status": "Succeeded",
-  "recordsReceived": 129,
-  "recordsInserted": 129,
-  "recordsSkipped": 0
-}
-```
-
-Repository inspection must determine:
-
-- actual route prefix/versioning;
-- admin authorization policy;
-- response envelope/problem-details conventions;
-- whether an established Admin long-running-operation/background-job pattern already exists.
-
-Execution decision rule:
-
-1. Reuse the existing Admin long-running-operation/job mechanism when one already exists.
-2. Otherwise execute a one-day import synchronously and return the typed import result.
-3. Do not introduce a new queue/background subsystem solely for Feature 140.
-
-Both modes must ultimately call the same application-level importer.
-
-## 11. Date handling
-
-Create/reuse a Persian calendar date service rather than embedding conversion in Worker/API.
-
-Responsibilities:
+Algorithm:
 
 ```text
-Validate yyyy/MM/dd input
-Format current Iran-local date as yyyy/MM/dd
-Reject impossible Jalali dates
-Avoid culture-dependent parsing
-Reject Admin target dates later than the current Iran-local date
+trim Symbol
+find first '-'
+take non-empty prefix
+normalize invariantly
+store original Symbol unchanged
 ```
 
-The Worker computes the target date from an Iran-local clock. Store operational timestamps in UTC.
+If a safe prefix cannot be extracted, `ImeProducerCode = null`.
 
-Use an injected clock/time provider if the repository supports it so schedule/date tests are deterministic.
+### 4.3 Resolution semantics
 
-## 12. Resilience
-
-Use existing HTTP resilience infrastructure after repository inspection. Desired behavior:
-
-- finite timeout;
-- bounded retries only for transient errors; this provider POST is semantically read-only from FinancialCopilot's perspective;
-- no retry for malformed JSON, invalid `d`, date-integrity mismatch, schema/contract failures, or business validation failures;
-- cancellation-aware calls;
-- no infinite provider retry inside a scheduled execution;
-- structured final failure.
-
-If retries exist, one logical import run should remain one import lifecycle unless existing solution conventions model attempts separately.
-
-## 13. Concurrency
-
-Possible collision:
+Resolution order:
 
 ```text
-17:00 Worker import(date=X)
-Admin import(date=X)
+1. confirmed active code mapping
+2. optional exact normalized ProducerName candidate
+3. unresolved
 ```
 
-Correctness is guaranteed by unique row fingerprints. Optionally add an application/distributed lock per target date if the repository already has a locking mechanism, to reduce duplicate provider traffic and write contention.
+A candidate is not automatically a confirmed mapping unless an existing deterministic repository rule explicitly permits it.
 
-Do not make a new distributed-lock subsystem mandatory solely for Feature 140. Database uniqueness is required regardless.
+### 4.4 Conflict semantics
 
-## 14. Transaction boundary
-
-Recommended:
-
-- create/update Running import state before/around provider acquisition using existing lifecycle conventions;
-- after successful parse, persist trade rows and success counters atomically;
-- a database failure leaves the import Failed, not Succeeded;
-- for every HTTP response actually received, capture and durably retain the bounded raw response evidence before typed parsing determines success/failure; network failures with no response naturally have no raw body to retain.
-
-Exact lifecycle transaction boundaries must follow repository patterns to avoid long-lived DB transactions across network calls.
-
-## 15. Security and operational constraints
-
-- No credentials are present in the supplied IME call; do not assume none will ever be needed.
-- Do not expose the manual import endpoint without existing admin authorization.
-- Do not accept arbitrary target URLs from the API.
-- Apply existing request rate/operational safeguards to manual backfill calls.
-- Bound logged error bodies/messages.
-
-## 16. Performance/indexing
-
-Initial expected volume (129 rows in the supplied example) is small enough for a single daily transaction, but design for history.
-
-Recommended indexes, subject to repository/query conventions:
+Conflict examples:
 
 ```text
-UNIQUE (Source, SourceFingerprint)
-INDEX (date)
-INDEX (Symbol, date)
-INDEX (ProducerName, date)
-INDEX (arzehPk)
-INDEX (xTalarReportPK)   -- non-unique
-INDEX (ImportId)
+same ImeProducerCode
+-> multiple materially different ProducerName values
+-> candidate companies differ
 ```
 
-Do not add speculative analytical/materialized indexes yet.
-
-## 17. Testing strategy
-
-### Unit
-
-- request construction;
-- Jalali validation/formatting;
-- outer envelope parsing;
-- inner `d` parsing;
-- empty array;
-- malformed outer/inner JSON;
-- fingerprint stability;
-- null and Persian text handling;
-- schedule calendar behavior.
-
-### Integration
-
-- migration/schema;
-- raw payload persistence;
-- all known fields persisted;
-- duplicate rerun;
-- concurrent duplicate import;
-- changed row creates new observation and fingerprint is treated only as observation identity;
-- all returned row dates match requested date -> success;
-- one mismatched/mixed-date response -> failure with raw evidence retained;
-- malformed outer/inner JSON retains raw evidence when a body was received;
-- future Admin date is rejected before provider call;
-- transient POST failures may retry per existing policy while contract/parse/integrity failures do not;
-- transaction failure does not mark success;
-- Admin authorization;
-- Admin and Worker resolve same importer.
-
-### HTTP/provider contract fixture
-
-Use a representative fixture from the supplied payload, including:
-
-- a normal row with non-zero `xTalarReportPK`;
-- a row where `xTalarReportPK = 0`;
-- null `SettlementDate`;
-- a non-null `SettlementDate`;
-- Persian strings;
-- decimal values.
-
-No live IME endpoint dependency should be required for normal CI tests.
-
-## 18. Deployment notes
-
-Before enabling the Worker schedule:
-
-1. Apply migration.
-2. Verify provider connectivity from deployment environment.
-3. Run one admin import for a known date.
-4. Verify raw import record and parsed row count.
-5. Rerun the same date and verify inserted count is zero for identical rows.
-6. Enable schedule.
-7. Observe the first scheduled run and confirm timezone/date.
-
-No historical bulk backfill is required for feature completion.
-
-## 19. Repository-validation checklist
-
-The implementing agent must inspect and record:
-
-- actual Worker scheduler technology and timezone support;
-- existing `TimeProvider`/clock abstraction;
-- existing Admin controller/authorization pattern;
-- current data-ingestion lifecycle/run entities;
-- current raw-payload/checksum conventions;
-- HTTP client + resilience registration conventions;
-- EF naming/type/index conventions;
-- migration/testing infrastructure;
-- whether PostgreSQL `jsonb` is already used;
-- whether bulk insert / conflict-ignore helpers already exist.
-
-Where an existing equivalent exists, use it instead of the conceptual component names in this document.
-
-## 20. Explicit non-goals
-
-No Feature 140 code should answer questions like:
+Result:
 
 ```text
-فولاد خوزستان امروز در بورس کالا چقدر فروخت؟
-قیمت شمش فولاد خوزستان نسبت به هفته قبل چقدر تغییر کرده؟
-فروش ماهانه فخوز را قبل از کدال پیش‌بینی کن
+MappingStatus = Conflict
+ResolvedCompanyId = null
 ```
 
-Feature 140 only ensures the source facts required for such later features are reliably available.
+until reviewed.
+
+## 5. Trade model changes
+
+Keep all original source fields.
+
+Add derived/link metadata:
+
+```text
+ImeProducerCode       string?
+ResolvedCompanyId     uuid? FK Companies.Id
+ProducerMappingId     uuid? FK ImeProducerCompanyMappings
+MappingResolvedAtUtc  timestamp?
+```
+
+If the repository prefers join-time resolution, `ResolvedCompanyId` may be omitted from the trade row, but mapping semantics must remain deterministic and efficient for future company aggregation.
+
+## 6. Historical re-resolution
+
+Raw observations are immutable.
+
+When a new mapping is created or corrected:
+
+```text
+mapping change
+   ->
+re-resolve affected historical rows
+   ->
+update only mapping metadata/linkage
+   ->
+never modify raw provider fields/fingerprint
+```
+
+If `SourceFingerprint` currently includes only provider source fields, mapping changes must not change the fingerprint.
+
+## 7. Mapping lifecycle
+
+Recommended service boundaries:
+
+```text
+IImeProducerCodeExtractor
+IImeProducerCompanyResolver
+IImeProducerMappingService
+```
+
+Conceptual responsibilities:
+
+- extract producer code;
+- resolve current mapping;
+- list unmapped producer identities;
+- detect conflicts;
+- create/update/disable mappings;
+- re-resolve historical observations.
+
+Reuse existing application/service patterns rather than creating parallel frameworks.
+
+## 8. Companies lookup
+
+Repository discovery must inspect `Companies` and confirm:
+
+- canonical PK type for `Id`;
+- indexes on `CompanySymbol`, `Name`, `TseSymbol`, `InstrumentCode`;
+- provider-specific duplicates;
+- whether multiple company rows can represent the same legal entity/provider.
+
+Mapping creation must always target a concrete `Companies.Id`.
+
+If duplicate candidate company rows exist, require explicit selection.
+
+## 9. Seed strategy
+
+Do not hardcode company GUIDs.
+
+Optional seed candidates:
+
+```text
+KRPT -> Companies row for پتروشیمی کرمانشاه / کرماشا
+SHPC -> Companies row for پتروشیمی شازند / شاراک
+```
+
+The implementation must query/verify actual rows before persisting mappings.
+
+If no unique company candidate exists, leave unmapped/conflict.
+
+## 10. Admin API additions
+
+Follow existing Admin conventions.
+
+Conceptual endpoints:
+
+```text
+GET  /api/admin/ime/producer-mappings/unmapped
+GET  /api/admin/ime/producer-mappings/conflicts
+GET  /api/admin/ime/producer-mappings
+POST /api/admin/ime/producer-mappings
+PUT  /api/admin/ime/producer-mappings/{id}
+POST /api/admin/ime/producer-mappings/{id}/disable
+POST /api/admin/ime/producer-mappings/{id}/re-resolve
+```
+
+Exact routes are repository-dependent.
+
+No UI is required.
+
+## 11. Import flow with mapping
+
+```text
+Receive IME response
+  ->
+retain raw response
+  ->
+parse rows
+  ->
+validate target date
+  ->
+compute observation fingerprint
+  ->
+extract ImeProducerCode
+  ->
+resolve confirmed mapping if available
+  ->
+persist raw observation + mapping metadata
+  ->
+report inserted/skipped/unmapped/conflict counts
+```
+
+Suggested additional import counters:
+
+```text
+RecordsMapped
+RecordsUnmapped
+MappingConflicts
+```
+
+## 12. Idempotency interaction
+
+Mapping metadata must not participate in `SourceFingerprint`.
+
+Reason:
+
+```text
+provider observation identity != company mapping state
+```
+
+A later mapping correction must not create a duplicate raw observation.
+
+## 13. Query-readiness
+
+Feature 140 does not aggregate sales, but after mapping the data becomes suitable for a future query:
+
+```text
+ImeDailyTrades
+  where ResolvedCompanyId = X
+  and date between ...
+```
+
+or equivalent join through the mapping table.
+
+## 14. Tests
+
+Add coverage for:
+
+- producer-code extraction;
+- two SHPC symbols -> same SHPC mapping;
+- KRPT symbol -> KRPT mapping;
+- unresolved producer;
+- conflict detection;
+- mapping uniqueness;
+- mapping to Companies.Id;
+- re-resolution after new mapping;
+- mapping changes not affecting SourceFingerprint;
+- no raw field mutation;
+- Admin mapping authorization;
+- duplicate/ambiguous company candidates.
+
+All previously approved ingestion tests remain required.
+
+## 15. Explicit non-goals
+
+No implementation of:
+
+- monthly sales aggregation;
+- sales forecasting;
+- Codal reconciliation;
+- price/volume alerts;
+- AI tools;
+- user-facing analytical IME questions.

@@ -240,7 +240,9 @@ public sealed class CapabilitySlotValidator(IConversationalCapabilityRegistry re
             QuerySlotType.Insight => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric when interpretation.Metrics.FirstOrDefault() is { } metric => new(type, metric.MetricCode, metric.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Metric => new(type, null, QueryValueProvenance.UserExplicit, 0m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode),
-            QuerySlotType.Period when interpretation.Period is { } period => new(type, period.Value, period.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
+            QuerySlotType.Period when interpretation.Period is { } period => new(type,
+                period.Count.HasValue ? $"{period.Value}:{period.Count.Value}" : period.Value,
+                period.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.ComparisonBaseline when interpretation.Comparison is { } comparison => new(type, comparison.Value, comparison.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             QuerySlotType.Presentation when interpretation.Presentation is { } presentation => new(type, presentation.Kind.ToString(), presentation.Provenance, interpretation.Confidence, QuerySlotValidationState.Valid, capabilityCode),
             _ => new(type, null, QueryValueProvenance.PolicyDefaulted, 1m, required ? QuerySlotValidationState.Missing : QuerySlotValidationState.Valid, capabilityCode)

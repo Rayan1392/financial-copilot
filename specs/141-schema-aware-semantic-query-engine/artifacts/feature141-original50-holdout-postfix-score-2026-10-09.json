@@ -1,0 +1,1380 @@
+{
+  "datasetCaseCount": 10,
+  "scoredCaseCount": 10,
+  "completedCaseCount": 7,
+  "failedCaseCount": 3,
+  "unconditionalSuccessRate": 0.7,
+  "failureCodes": {
+    "None": 0
+  },
+  "unscoredCaseIds": [],
+  "aggregate": {
+    "nodeRecall": 0.4962962962962963,
+    "metricPrecision": 0.4444444444444444,
+    "metricRecall": 0.4444444444444444,
+    "metricExactSetAccuracy": 0.4444444444444444,
+    "dimensionRecall": 0.525,
+    "relationshipRecall": null,
+    "domainAccuracy": 0.3,
+    "domainPrecision": 0.4,
+    "domainRecall": 0.5,
+    "domainF1": 0.4333333333333333,
+    "statementScopeAccuracy": 0.0,
+    "financialPolicyRecall": null,
+    "contextCompletenessAccuracy": 1.0,
+    "missingUnsupportedAccuracy": 0.0,
+    "financialReferenceAccuracy": 0.0,
+    "financialOperationAccuracy": 0.0,
+    "financialReferenceTypeAccuracy": 0.0,
+    "sourceItemReferenceAccuracy": 0.0,
+    "governedMetricCodeAccuracy": 1.0,
+    "providerFinancialIndicatorAccuracy": 1.0,
+    "requirementsFinancialReferenceRecall": 0.0,
+    "entityResolutionAccuracy": 0.0,
+    "periodInterpretationAccuracy": 0.0,
+    "falsePositiveAcceptanceRate": 0.0
+  },
+  "operations": {
+    "modelCalls": 20,
+    "inputTokens": 115018,
+    "outputTokens": 11989,
+    "latencyMs": 149308,
+    "providerReportedCost": null,
+    "costCurrency": null
+  },
+  "perCase": [
+    {
+      "caseId": "readiness-holdout-v2-01",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.8,
+        "f1": 0.888888888888889,
+        "correct": 8,
+        "expected": 8,
+        "actual": 10,
+        "missing": [],
+        "unsupported": [
+          "financial-semantic-catalog",
+          "shared-dimensions"
+        ]
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 8,
+      "nodeFalsePositives": 2,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 2,
+        "expected": 2,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [],
+        "accuracy": 1.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 3,
+        "expected": 3,
+        "actual": 3,
+        "missing": [],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 1
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_production_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 13340,
+      "outputTokens": 1067,
+      "latencyMs": 12718,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-02",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.7272727272727273,
+        "f1": 0.8421052631578948,
+        "correct": 8,
+        "expected": 8,
+        "actual": 11,
+        "missing": [],
+        "unsupported": [
+          "dimension-dim_industry",
+          "financial-semantic-catalog",
+          "shared-dimensions"
+        ]
+      },
+      "selectedNodeCount": 11,
+      "finalExpandedContextNodeCount": 11,
+      "nodeTruePositives": 8,
+      "nodeFalsePositives": 3,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": 5,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 2,
+        "expected": 2,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [],
+        "accuracy": 1.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.75,
+        "f1": 0.8571428571428571,
+        "correct": 3,
+        "expected": 3,
+        "actual": 4,
+        "missing": [],
+        "unsupported": [
+          "dim_industry"
+        ]
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_production_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 13995,
+      "outputTokens": 1172,
+      "latencyMs": 14504,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-03",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.8,
+        "precision": 0.8,
+        "f1": 0.8000000000000002,
+        "correct": 8,
+        "expected": 10,
+        "actual": 10,
+        "missing": [
+          "dimension-dim_industry",
+          "table-tbl_0092e8a0b8fd0d23"
+        ],
+        "unsupported": [
+          "financial-semantic-catalog",
+          "shared-dimensions"
+        ]
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 8,
+      "nodeFalsePositives": 2,
+      "missingRequiredNodeCount": 2,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 2,
+        "expected": 2,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [],
+        "accuracy": 1.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 1,
+        "missing": [
+          "monthlysalesgrowthyoy"
+        ],
+        "unsupported": [
+          "monthlysalesquantity"
+        ]
+      },
+      "expectedMeasureIds": [
+        "monthlysalesgrowthyoy"
+      ],
+      "selectedMeasureIds": [
+        "monthlysalesquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.75,
+        "precision": 1.0,
+        "f1": 0.8571428571428571,
+        "correct": 3,
+        "expected": 4,
+        "actual": 3,
+        "missing": [
+          "dim_industry"
+        ],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 8798,
+      "outputTokens": 993,
+      "latencyMs": 13814,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-04",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 10,
+        "actual": 0,
+        "missing": [
+          "dimension-dim_company",
+          "dimension-dim_industry",
+          "dimension-dim_monthly_period",
+          "dimension-dim_product_identity",
+          "domain-company-industry",
+          "domain-monthly-activity",
+          "table-tbl_0092e8a0b8fd0d23",
+          "table-tbl_8646d83cdb350f92",
+          "table-tbl_8e759d70dada6bd8",
+          "table-tbl_8ecd0432a4292998"
+        ],
+        "unsupported": []
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 10,
+      "llmSelectedNodeCount": 0,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 2,
+        "actual": 0,
+        "missing": [
+          "company-industry",
+          "monthly-activity"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlysalesgrowthyoy"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesgrowthyoy"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 4,
+        "actual": 0,
+        "missing": [
+          "dim_company",
+          "dim_industry",
+          "dim_monthly_period",
+          "dim_product_identity"
+        ],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 3,
+      "inputTokens": 21953,
+      "outputTokens": 1627,
+      "latencyMs": 21752,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-05",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.2,
+        "precision": 0.125,
+        "f1": 0.15384615384615385,
+        "correct": 1,
+        "expected": 5,
+        "actual": 8,
+        "missing": [
+          "domain-financial-statements",
+          "table-tbl_4f2ef2d8dd59b46a",
+          "table-tbl_53d51e26e1ca6929",
+          "table-tbl_8646d83cdb350f92"
+        ],
+        "unsupported": [
+          "dimension-dim_monthly_period",
+          "dimension-dim_product_identity",
+          "domain-monthly-activity",
+          "financial-semantic-catalog",
+          "shared-dimensions",
+          "table-tbl_8e759d70dada6bd8",
+          "table-tbl_8ecd0432a4292998"
+        ]
+      },
+      "selectedNodeCount": 8,
+      "finalExpandedContextNodeCount": 8,
+      "nodeTruePositives": 1,
+      "nodeFalsePositives": 7,
+      "missingRequiredNodeCount": 4,
+      "llmSelectedNodeCount": 3,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 1,
+        "missing": [
+          "financial-statements"
+        ],
+        "unsupported": [
+          "monthly-activity"
+        ],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 1,
+        "missing": [
+          "netprofit"
+        ],
+        "unsupported": [
+          "monthlyproductionquantity"
+        ]
+      },
+      "expectedMeasureIds": [
+        "netprofit"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductionquantity"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.3333333333333333,
+        "f1": 0.5,
+        "correct": 1,
+        "expected": 1,
+        "actual": 3,
+        "missing": [],
+        "unsupported": [
+          "dim_monthly_period",
+          "dim_product_identity"
+        ]
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 1
+      },
+      "statementScopeAccuracy": 0.0,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation",
+        "statement_scope_interpretation_error"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_production_quantity",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_QUANTITY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "ApprovedPeriodComparison",
+      "modelCalls": 2,
+      "inputTokens": 9115,
+      "outputTokens": 1076,
+      "latencyMs": 14572,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-06",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.8,
+        "precision": 0.4,
+        "f1": 0.5333333333333333,
+        "correct": 4,
+        "expected": 5,
+        "actual": 10,
+        "missing": [
+          "dimension-dim_product_identity"
+        ],
+        "unsupported": [
+          "dimension-dim_company",
+          "domain-company-industry",
+          "financial-semantic-catalog",
+          "shared-dimensions",
+          "table-tbl_4f3dd93b63d1766f",
+          "table-tbl_8646d83cdb350f92"
+        ]
+      },
+      "selectedNodeCount": 10,
+      "finalExpandedContextNodeCount": 10,
+      "nodeTruePositives": 4,
+      "nodeFalsePositives": 6,
+      "missingRequiredNodeCount": 1,
+      "llmSelectedNodeCount": 2,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.5,
+        "f1": 0.6666666666666666,
+        "correct": 1,
+        "expected": 1,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [
+          "company-industry"
+        ],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlyproductiongrowthyoy"
+      ],
+      "selectedMeasureIds": [
+        "monthlyproductiongrowthyoy"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.5,
+        "precision": 0.5,
+        "f1": 0.5,
+        "correct": 1,
+        "expected": 2,
+        "actual": 2,
+        "missing": [
+          "dim_product_identity"
+        ],
+        "unsupported": [
+          "dim_company"
+        ]
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "GovernedMetric",
+          "catalogId": "metric_monthly_production_growth_yoy",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_PRODUCTION_GROWTH_YOY",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 3,
+      "inputTokens": 17535,
+      "outputTokens": 2531,
+      "latencyMs": 28747,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-07",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.6666666666666666,
+        "precision": 0.2222222222222222,
+        "f1": 0.3333333333333333,
+        "correct": 2,
+        "expected": 3,
+        "actual": 9,
+        "missing": [
+          "table-tbl_4f3dd93b63d1766f"
+        ],
+        "unsupported": [
+          "dimension-dim_company",
+          "domain-company-industry",
+          "financial-semantic-catalog",
+          "shared-dimensions",
+          "table-tbl_8646d83cdb350f92",
+          "table-tbl_8e759d70dada6bd8",
+          "table-tbl_8ecd0432a4292998"
+        ]
+      },
+      "selectedNodeCount": 9,
+      "finalExpandedContextNodeCount": 9,
+      "nodeTruePositives": 2,
+      "nodeFalsePositives": 7,
+      "missingRequiredNodeCount": 1,
+      "llmSelectedNodeCount": 3,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.5,
+        "f1": 0.6666666666666666,
+        "correct": 1,
+        "expected": 1,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [
+          "company-industry"
+        ],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "correct": 1,
+        "expected": 1,
+        "actual": 1,
+        "missing": [],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysales"
+      ],
+      "selectedMeasureIds": [
+        "monthlysales"
+      ],
+      "candidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 1.0,
+        "precision": 0.5,
+        "f1": 0.6666666666666666,
+        "correct": 1,
+        "expected": 1,
+        "actual": 2,
+        "missing": [],
+        "unsupported": [
+          "dim_company"
+        ]
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 2
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "authorization_limitation"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales",
+          "providerName": null,
+          "statementType": null,
+          "sourceItemId": null,
+          "sourceItemCatalogId": null,
+          "metricCode": "MONTHLY_SALES",
+          "unitStatus": null,
+          "queryable": false
+        }
+      ],
+      "predictedFinancialValueOperation": "DirectValueRetrieval",
+      "modelCalls": 2,
+      "inputTokens": 11358,
+      "outputTokens": 827,
+      "latencyMs": 10490,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-08",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 3,
+        "actual": 0,
+        "missing": [
+          "dimension-dim_monthly_period",
+          "domain-monthly-activity",
+          "table-tbl_4f3dd93b63d1766f"
+        ],
+        "unsupported": []
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 3,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthly-activity"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlysales"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysales"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "dim_monthly_period"
+        ],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 1,
+      "inputTokens": 2619,
+      "outputTokens": 748,
+      "latencyMs": 9222,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-09",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 0,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "financial-statements"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "expectedMeasureIds": [],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "dim_company"
+        ],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": 0.0,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": 1.0,
+      "missingUnsupportedAccuracy": 0.0,
+      "financialReferenceAccuracy": 0.0,
+      "financialOperationAccuracy": 0.0,
+      "financialReferenceTypeAccuracy": 0.0,
+      "sourceItemReferenceAccuracy": 0.0,
+      "governedMetricCodeAccuracy": 1.0,
+      "providerFinancialIndicatorAccuracy": 1.0,
+      "requirementsFinancialReferenceRecall": 0.0,
+      "entityResolutionAccuracy": 0.0,
+      "periodInterpretationAccuracy": 0.0,
+      "failureClassification": [
+        "entity_resolution_or_extraction_error",
+        "financial_operation_classification_error",
+        "period_interpretation_error",
+        "requirements_extraction_error",
+        "statement_scope_interpretation_error",
+        "unsupported_or_ambiguity_classification_error"
+      ],
+      "expectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_b7bcc0f92e19ac4f",
+          "sourceItemCatalogId": "c7fff58f-d0f7-4120-8e11-dc50ec890a93",
+          "providerName": "NoavaranCurrentApi",
+          "statementType": "BalanceSheet",
+          "sourceItemId": 1,
+          "metricCode": null,
+          "unitStatus": "unknown"
+        }
+      ],
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 1,
+      "inputTokens": 4173,
+      "outputTokens": 527,
+      "latencyMs": 8158,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    },
+    {
+      "caseId": "readiness-holdout-v2-10",
+      "status": "scored",
+      "nodeRecall": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 10,
+        "actual": 0,
+        "missing": [
+          "dimension-dim_company",
+          "dimension-dim_industry",
+          "dimension-dim_monthly_period",
+          "dimension-dim_product_identity",
+          "domain-company-industry",
+          "domain-monthly-activity",
+          "table-tbl_0092e8a0b8fd0d23",
+          "table-tbl_8646d83cdb350f92",
+          "table-tbl_8e759d70dada6bd8",
+          "table-tbl_8ecd0432a4292998"
+        ],
+        "unsupported": []
+      },
+      "selectedNodeCount": 0,
+      "finalExpandedContextNodeCount": 0,
+      "nodeTruePositives": 0,
+      "nodeFalsePositives": 0,
+      "missingRequiredNodeCount": 10,
+      "llmSelectedNodeCount": null,
+      "domainAccuracy": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 2,
+        "actual": 0,
+        "missing": [
+          "company-industry",
+          "monthly-activity"
+        ],
+        "unsupported": [],
+        "accuracy": 0.0,
+        "contract": "exact-set-match-of-catalog-domain-node-ids"
+      },
+      "metricCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 1,
+        "actual": 0,
+        "missing": [
+          "monthlysalesgrowthyoy"
+        ],
+        "unsupported": []
+      },
+      "expectedMeasureIds": [
+        "monthlysalesgrowthyoy"
+      ],
+      "selectedMeasureIds": [],
+      "candidateMeasureIds": [],
+      "dimensionCorrectness": {
+        "applicable": true,
+        "recall": 0.0,
+        "precision": 0.0,
+        "f1": 0.0,
+        "correct": 0,
+        "expected": 4,
+        "actual": 0,
+        "missing": [
+          "dim_company",
+          "dim_industry",
+          "dim_monthly_period",
+          "dim_product_identity"
+        ],
+        "unsupported": []
+      },
+      "relationshipCoverage": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "statementScopeAccuracy": null,
+      "financialPolicyRecall": {
+        "applicable": false,
+        "recall": null,
+        "precision": null,
+        "f1": null,
+        "correct": 0,
+        "expected": 0,
+        "actual": 0
+      },
+      "contextCompletenessAccuracy": null,
+      "missingUnsupportedAccuracy": null,
+      "financialReferenceAccuracy": null,
+      "financialOperationAccuracy": null,
+      "financialReferenceTypeAccuracy": null,
+      "sourceItemReferenceAccuracy": null,
+      "governedMetricCodeAccuracy": null,
+      "providerFinancialIndicatorAccuracy": null,
+      "requirementsFinancialReferenceRecall": null,
+      "entityResolutionAccuracy": null,
+      "periodInterpretationAccuracy": null,
+      "failureClassification": [
+        "none"
+      ],
+      "expectedFinancialValueReferences": null,
+      "predictedFinancialValueReferences": [],
+      "predictedFinancialValueOperation": null,
+      "modelCalls": 2,
+      "inputTokens": 12132,
+      "outputTokens": 1421,
+      "latencyMs": 15331,
+      "providerReportedCost": null,
+      "providerReportedCurrency": null
+    }
+  ]
+}

@@ -2,210 +2,249 @@
 
 ## Execution rule
 
-Before changing production code, inspect the repository and map every conceptual component in `Design.md` to existing conventions. Do not introduce duplicate scheduler, HTTP, repository, admin, clock, retry, raw-payload, or sync-lifecycle infrastructure when an equivalent already exists.
+Before production changes, inspect repository conventions and the existing `Companies` model.
 
-## Slice S1 — Repository discovery and contract fixture
+## Slice S1 — Repository discovery
 
 ### T140-01 — Audit existing architecture
 
-Identify and document:
+Identify:
 
-- Worker scheduling mechanism and timezone support;
-- admin endpoint/authentication convention;
-- HTTP client/resilience convention;
-- ingestion/sync-run lifecycle models;
-- raw JSON persistence convention;
-- EF Core/PostgreSQL migration conventions;
-- clock/Persian-date helpers;
-- conflict-safe/idempotent insert conventions.
+- scheduler/timezone infrastructure;
+- Admin auth/routes;
+- HTTP resilience;
+- import lifecycle/raw payload persistence;
+- EF/PostgreSQL conventions;
+- `Companies` entity/table ownership;
+- `Companies.Id` type;
+- indexes/uniqueness around `CompanySymbol`, `Name`, `TseSymbol`, `InstrumentCode`;
+- whether duplicate company rows exist across providers.
 
-**Acceptance:** a short implementation note maps Feature 140 concepts to concrete repository types/paths before new architecture is introduced.
+**Acceptance:** implementation note maps Feature 140 concepts to concrete repository types/paths.
 
-### T140-02 — Add representative IME response fixture
+## Slice S2 — IME ingestion foundation
 
-Create a test fixture from the supplied response covering normal and edge-shaped rows, including `xTalarReportPK = 0`, nullable fields, Persian text, decimals, and both null/non-null settlement data.
+### T140-02 — Provider fixtures and contracts
 
-**Acceptance:** CI tests do not require the live IME service.
+Keep all previously approved IME request/response fixtures and all 34 source fields.
 
-## Slice S2 — Provider client and date contract
+### T140-03 — Date and HTTP client
 
-### T140-03 — Add/reuse Persian date abstraction
+Keep previously approved Jalali-date validation, raw-response retention, two-stage parsing, retry rules, and requested-date integrity.
 
-Support strict `yyyy/MM/dd` Jalali validation, Iran-local current-date formatting, and future-date rejection for Admin requests.
+### T140-04 — Raw trade persistence and fingerprint
 
-**Acceptance:** valid/invalid date tests pass and no culture-dependent parsing is used.
+Keep raw observation persistence and database idempotency.
 
-### T140-04 — Add IME provider request/response contracts
+**Important:** mapping fields must not participate in `SourceFingerprint`.
 
-Model the fixed request fields, outer `{ d }` envelope, and all 34 observed trade fields.
+## Slice S3 — Producer identity extraction
 
-**Acceptance:** supplied fixture deserializes without dropping any known field.
+### T140-05 — Add producer-code extraction
 
-### T140-05 — Implement typed IME HTTP client
+Implement deterministic extraction:
 
-Call `GetAmareMoamelatList`, pass both date fields as the requested Jalali date, capture the bounded raw HTTP response before typed parsing, perform two-stage deserialization, propagate cancellation, and use existing timeout/retry conventions. Treat this POST as semantically read-only for bounded transient retries; do not retry parse/contract/date-integrity failures.
+```text
+KRPT-AMMONIAB-00 -> KRPT
+SHPC-PBR1220WWP-00 -> SHPC
+SHPC-OAVAMB-00 -> SHPC
+```
 
-**Acceptance:** tests distinguish successful empty response, non-2xx, malformed outer JSON, null/missing unusable `d`, and malformed inner JSON.
+Handle null/empty/malformed symbols safely.
 
-## Slice S3 — Persistence and idempotency
+### T140-06 — Persist producer-code metadata
 
-### T140-06 — Add import lifecycle persistence
+Add `ImeProducerCode` as derived ingestion metadata or equivalent indexed resolution key without altering original `Symbol`.
 
-Add/reuse an import/run entity capable of recording source, date, trigger, status, timestamps, counts, HTTP status, bounded raw response evidence (`RawResponseText` preferred, established `jsonb` allowed only with clarified JSON-value semantics), and bounded error diagnostics.
+## Slice S4 — Company mapping persistence
 
-**Acceptance:** retries/replays create auditable run records without requiring one-run-per-date uniqueness.
+### T140-07 — Add IME producer-company mapping model
 
-### T140-07 — Add raw trade-row persistence
+Create/reuse persistence equivalent to:
 
-Add entity/configuration/migration for all known IME source fields plus ingestion metadata.
+```text
+ImeProducerCompanyMappings
+ImeProducerCode
+ImeProducerName
+NormalizedProducerName
+CompanyId -> Companies.Id
+MappingStatus
+MappingSource
+IsActive
+audit timestamps
+```
 
-**Acceptance:** database schema preserves all known fields and does not contain analytical/company-mapping columns.
+### T140-08 — Enforce active mapping uniqueness
 
-### T140-08 — Implement canonical source fingerprint
+Prevent one active producer code from resolving to multiple active companies.
 
-Use stable field ordering, explicit nulls, culture-invariant numeric formatting, and an established cryptographic checksum convention (prefer existing repository helper; otherwise SHA-256).
+### T140-09 — Add company FK/indexes
 
-**Acceptance:** identical rows always produce identical fingerprints; a changed source field changes the fingerprint.
+Add FK to `Companies.Id` and repository-appropriate lookup indexes.
 
-### T140-09 — Enforce database uniqueness
+Do not duplicate `CompanySymbol` as canonical mapping data.
 
-Add unique protection equivalent to `(Source, SourceFingerprint)` and appropriate lookup indexes.
+## Slice S5 — Resolver
 
-**Acceptance:** identical concurrent/replayed rows cannot be duplicated even when `xTalarReportPK = 0`.
+### T140-10 — Implement producer-company resolver
 
-## Slice S4 — Shared importer
+Resolution priority:
 
-### T140-10 — Implement shared daily importer
+1. active confirmed code mapping;
+2. optional exact normalized-name candidate;
+3. unresolved.
 
-Create one application service used by all triggers. It must create/track the import lifecycle, call the provider, retain raw response evidence before parsing determines success/failure, validate every returned row date against the requested target date, write conflict-safe observations, finalize counts/status, and expose a typed result.
+Do not confirm fuzzy matches automatically.
 
-**Acceptance:** no HTTP/persistence/import logic is duplicated in Worker or API trigger code.
+### T140-11 — Add conflict detection
 
-### T140-11 — Implement failure and transaction semantics
+Detect materially inconsistent producer identities for the same code and surface `Conflict` rather than guessing.
 
-Ensure provider, parse, cancellation, and persistence failures cannot be marked successful. Avoid holding a database transaction open across the network request if that conflicts with existing lifecycle patterns.
+### T140-12 — Link imported trades
 
-**Acceptance:** injected failures leave deterministic failed state and no false successful completion.
+Store `ResolvedCompanyId` / `ProducerMappingId` or implement equivalent deterministic join-time linkage according to repository conventions.
 
-### T140-12 — Add structured telemetry
+Unmapped rows must still ingest successfully.
 
-Emit bounded structured events and counts according to existing logging conventions.
+### T140-13 — Historical re-resolution
 
-**Acceptance:** start, provider outcome, parse failure when applicable, and final outcome are observable without routine full-payload logs.
+When mapping is created/changed, re-resolve affected historical observations without changing raw fields or `SourceFingerprint`.
 
-## Slice S5 — Triggers
+## Slice S6 — Mapping Admin operations
 
-### T140-13 — Add Worker schedule
+### T140-14 — List mapping state
 
-Schedule Saturday-Wednesday at 17:00 `Asia/Tehran`, using the repository's scheduler/timezone mechanism.
+Add authorized operations to list:
 
-**Acceptance:** schedule tests prove correct included/excluded weekdays and independence from server-local timezone.
+- mappings;
+- unmapped producer identities;
+- conflicts.
 
-### T140-14 — Add authorized Admin API trigger
+### T140-15 — Create/update/disable mapping
 
-Add an endpoint following existing route/version/auth conventions that accepts a target Jalali date, rejects future dates before provider invocation, and invokes the shared importer. Reuse an existing long-running Admin job pattern if present; otherwise execute synchronously. Do not add a new queue solely for this feature.
+Add authorized operations to map an IME producer identity to `Companies.Id`.
 
-**Acceptance:** authorized valid request returns import outcome; invalid date is rejected before provider call; unauthorized access follows existing policy.
+Validate company existence and mapping uniqueness.
 
-## Slice S6 — Verification
+### T140-16 — Re-resolution operation
 
-### T140-15 — Provider/parser unit tests
+Support re-resolution of affected historical rows after mapping changes using existing background/admin execution patterns.
+
+Do not create a new queue solely for this feature.
+
+## Slice S7 — Existing triggers
+
+### T140-17 — Worker schedule and daily importer
+
+Keep Saturday-Wednesday 17:00 `Asia/Tehran` and shared importer behavior.
+
+Extend import result/telemetry with:
+
+```text
+RecordsMapped
+RecordsUnmapped
+MappingConflicts
+```
+
+### T140-18 — Historical Admin import
+
+Keep previously approved one-day historical import behavior and future-date rejection.
+
+## Slice S8 — Tests
+
+### T140-19 — Producer-code tests
 
 Cover:
 
-- exact fixed request parameters;
-- two-stage deserialization;
-- Persian strings;
-- decimal values;
-- empty `[]`;
-- HTTP failure;
-- malformed outer JSON;
-- missing/unusable `d`;
-- malformed inner JSON;
-- cancellation.
+- KRPT;
+- SHPC with multiple product symbols;
+- whitespace;
+- null/empty;
+- malformed symbols.
 
-### T140-16 — Persistence/idempotency integration tests
+### T140-20 — Mapping persistence tests
 
 Cover:
 
-- all known fields persisted;
-- raw response persisted;
-- first import inserts rows;
-- identical replay inserts zero duplicates;
-- concurrent same-date import remains duplicate-safe;
-- zero `xTalarReportPK` rows remain distinct when their complete source rows differ;
-- changed source row is preserved as a new observation and fingerprint is explicitly observation identity only;
-- raw evidence is retained after malformed outer JSON, malformed inner `d`, and date-integrity failure;
-- all response row dates match requested date -> success;
-- mismatched/mixed response dates -> failure;
-- future Admin date rejected before HTTP call;
-- transient POST failures retry only according to existing policy; contract/parse/integrity failures do not retry;
-- persistence failure does not report success.
+- FK to Companies;
+- active uniqueness;
+- disabled mapping behavior;
+- no duplicated CompanySymbol truth;
+- ambiguous company candidate rejection.
 
-### T140-17 — Trigger integration tests
+### T140-21 — Resolver tests
 
 Cover:
 
-- Worker and Admin resolve/use the same importer;
-- Admin authorization;
-- historical date request;
-- scheduler timezone/weekdays.
+- confirmed code mapping;
+- unmapped producer;
+- exact-name candidate;
+- fuzzy match not auto-confirmed;
+- conflict;
+- two SHPC products resolving to one company;
+- KRPT resolving to one company.
 
-### T140-18 — Regression/build verification
+### T140-22 — Re-resolution tests
 
-Run focused tests plus relevant repository regression/build/migration checks. Record unrelated existing failures separately rather than weakening Feature 140 tests.
+Cover:
 
-### T140-19 — Operational smoke checklist
+- historical unmapped row becomes resolved after mapping creation;
+- changed mapping updates linkage only;
+- raw fields unchanged;
+- SourceFingerprint unchanged.
 
-After deployment, verify one known-date manual import, duplicate replay behavior, raw response retention, parsed count, and first scheduled execution date/time.
+### T140-23 — Regression tests
 
-## AC-to-task traceability
+Run all ingestion, schedule, Admin, idempotency, raw-response, date-integrity, retry, and mapping tests.
 
-| Task | Acceptance Criteria |
+## Acceptance-criteria traceability
+
+| Task | ACs |
 |---|---|
-| T140-01 | AC-06, AC-18, AC-19, AC-20, AC-24, AC-27, AC-31 |
-| T140-02 | AC-03, AC-04, AC-07, AC-08, AC-10, AC-11, AC-14, AC-17, AC-31 |
-| T140-03 | AC-02, AC-20, AC-22, AC-23, AC-31 |
-| T140-04 | AC-01, AC-03, AC-04, AC-07 |
-| T140-05 | AC-01, AC-02, AC-03, AC-05, AC-08, AC-09, AC-10, AC-11, AC-26, AC-27, AC-31 |
-| T140-06 | AC-05, AC-06, AC-09, AC-10, AC-11, AC-25, AC-28 |
-| T140-07 | AC-04, AC-30 |
-| T140-08 | AC-12, AC-14, AC-15, AC-16 |
-| T140-09 | AC-12, AC-13, AC-14 |
-| T140-10 | AC-05, AC-12, AC-17, AC-18, AC-25, AC-28 |
-| T140-11 | AC-09, AC-10, AC-11, AC-17, AC-26, AC-28 |
-| T140-12 | AC-29 |
-| T140-13 | AC-19, AC-20 |
-| T140-14 | AC-18, AC-21, AC-22, AC-23, AC-24, AC-25 |
-| T140-15 | AC-01, AC-02, AC-03, AC-05, AC-07, AC-08, AC-09, AC-10, AC-11, AC-17, AC-22, AC-23, AC-26, AC-27 |
-| T140-16 | AC-04, AC-05, AC-06, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-28, AC-30 |
-| T140-17 | AC-18, AC-19, AC-20, AC-21, AC-22, AC-23, AC-24, AC-25 |
-| T140-18 | AC-31 |
-| T140-19 | AC-05, AC-12, AC-18, AC-19, AC-20, AC-25 |
-
-Every AC is mapped to at least one implementation task. Test-oriented tasks provide explicit verification coverage for the new revision requirements.
+| T140-01 | AC-05, AC-06, AC-07, AC-16, AC-17 |
+| T140-02 | AC-01, AC-02, AC-21 |
+| T140-03 | AC-01, AC-21 |
+| T140-04 | AC-01, AC-02, AC-12, AC-13, AC-21 |
+| T140-05 | AC-03, AC-04, AC-18, AC-19 |
+| T140-06 | AC-02, AC-03, AC-04 |
+| T140-07 | AC-05, AC-06 |
+| T140-08 | AC-07 |
+| T140-09 | AC-05, AC-06 |
+| T140-10 | AC-08, AC-09, AC-11, AC-19 |
+| T140-11 | AC-10, AC-20 |
+| T140-12 | AC-08, AC-09, AC-12 |
+| T140-13 | AC-12, AC-13 |
+| T140-14 | AC-14, AC-16 |
+| T140-15 | AC-15, AC-16, AC-17 |
+| T140-16 | AC-13, AC-16 |
+| T140-17 | AC-01, AC-08, AC-09, AC-10, AC-21 |
+| T140-18 | AC-01, AC-16, AC-21 |
+| T140-19 | AC-03, AC-04, AC-18, AC-19 |
+| T140-20 | AC-05, AC-06, AC-07, AC-17 |
+| T140-21 | AC-08, AC-09, AC-10, AC-11, AC-18, AC-19, AC-20 |
+| T140-22 | AC-12, AC-13 |
+| T140-23 | AC-01 through AC-22 |
 
 ## Required implementation report
 
-Create `ImplementationReport.md` in this feature folder with:
+Create `ImplementationReport.md` with:
 
-```text
-1. Outcome
-2. Repository architecture reused
-3. Files changed
-4. Migration/schema
-5. Provider client and parsing behavior
-6. Raw-response persistence
-7. Source-fingerprint/idempotency strategy
-8. Worker schedule and timezone evidence
-9. Admin endpoint/auth evidence
-10. Unit/integration/regression/build results
-11. Operational smoke status
-12. Remaining blockers
-```
+1. outcome;
+2. repository architecture reused;
+3. Companies model/index findings;
+4. files changed;
+5. migrations/schema;
+6. provider ingestion results;
+7. mapping model;
+8. mapping seed/candidate evidence;
+9. unresolved/conflict counts;
+10. re-resolution behavior;
+11. tests/build/regression;
+12. operational smoke status;
+13. remaining blockers.
 
 Final successful marker:
 
 ```text
-FEATURE_140_IME_DAILY_TRADES_INGESTION_IMPLEMENTED
+FEATURE_140_IME_INGESTION_AND_COMPANY_MAPPING_IMPLEMENTED
 ```

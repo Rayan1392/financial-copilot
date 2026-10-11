@@ -105,7 +105,24 @@ public sealed record FinancialValueCatalogReference(
     string IdentityStatus,
     string SemanticReviewStatus,
     bool Queryable,
-    string? SourceUnitStatus = null);
+    string? SourceUnitStatus = null,
+    string? IdentityApprovalStatus = null,
+    string? TitleApprovalStatus = null,
+    IReadOnlyList<CanonicalFinancialMeasureBinding>? CanonicalConceptBindings = null,
+    string? EffectiveUnitStatus = null,
+    string? UnitClassification = null,
+    string? EffectiveUnit = null,
+    string? EffectiveUnitProvenance = null,
+    string? QueryAuthorizationStatus = null);
+
+/// <summary>Reviewed semantic equivalence; separate from provider identity, unit evidence, and runtime authorization.</summary>
+public sealed record CanonicalFinancialMeasureBinding(
+    string CanonicalConceptId,
+    string Dimension,
+    string ValueForm,
+    string Status,
+    string? Evidence,
+    string? Provenance);
 
 public sealed record FinancialPeriodComparisonFacts(
     bool SameCompany,
@@ -180,7 +197,14 @@ public sealed record SchemaNavigationResult(
     IReadOnlyList<string>? CandidateMeasureIds = null,
     IReadOnlyList<string>? RequiredMeasureIds = null,
     IReadOnlyList<string>? CandidateDimensionIds = null,
-    IReadOnlyList<string>? CandidateRelationshipIds = null);
+    IReadOnlyList<string>? CandidateRelationshipIds = null)
+{
+    public int RequirementsCalls { get; init; }
+    public int NavigationCalls { get; init; }
+    public int ExpansionCalls { get; init; }
+    public int RequirementsRetryAttempts { get; init; }
+    public int NavigationRetryAttempts { get; init; }
+}
 
 public sealed record SchemaContextExpansionRequest(
     int ContractVersion,
@@ -300,6 +324,10 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
             return new(SchemaContextCompletenessStatus.Unsupported, [], ["period_comparison_scope_missing"]);
 
         var governanceDiagnostics = new List<string>();
+        var selectedFinancialReferences = requirements.FinancialValueReferences ?? [];
+        var directSourceIdentityRequest = selectedFinancialReferences.Count > 0
+            && selectedFinancialReferences.All(reference => reference.ReferenceType
+                == nameof(FinancialValueReferenceType.DirectSourceItem));
         if (context.NodeGovernance.GroupBy(item => item.NodeId, StringComparer.Ordinal).Any(group => group.Count() > 1))
             governanceDiagnostics.Add("Schema context contains duplicate node-governance records.");
         var governance = context.NodeGovernance.ToDictionary(item => item.NodeId, StringComparer.Ordinal);
@@ -310,7 +338,7 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
                 governanceDiagnostics.Add($"Unknown navigation node: {nodeId}.");
                 continue;
             }
-            if (!node.NavigationMetadataApproved)
+            if (!node.NavigationMetadataApproved && !directSourceIdentityRequest)
                 governanceDiagnostics.Add($"Navigation metadata is not approved: {nodeId}.");
         }
 
@@ -337,8 +365,8 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
             context.MeasureIds.Concat(context.DimensionIds).Concat(context.RelationshipIds)
                 .Concat(context.ProviderFinancialIndicatorIds ?? []).Concat((context.FinancialValueReferences ?? []).Select(x => x.CatalogId)).ToArray(), missing);
 
-        var selectedFinancialReferences = requirements.FinancialValueReferences ?? [];
         var resolvedFinancialReferences = context.FinancialValueReferences ?? [];
+        var directSourceIdentityAuthorized = directSourceIdentityRequest;
         foreach (var selectedReference in selectedFinancialReferences)
         {
             if (!Enum.TryParse<FinancialValueReferenceType>(selectedReference.ReferenceType, out var referenceType))
@@ -369,14 +397,26 @@ public sealed class SchemaContextCompletenessValidator : ISchemaContextCompleten
                     || !(string.Equals(resolved.IdentityStatus, "verified", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(resolved.IdentityStatus, "verified-persisted-source-key", StringComparison.OrdinalIgnoreCase))))
                 governanceDiagnostics.Add($"Direct source-item identity is incomplete: {selectedReference.CatalogId}.");
-            if (!resolved.Queryable || !string.Equals(resolved.SemanticReviewStatus, "approved", StringComparison.OrdinalIgnoreCase))
+            if (referenceType == FinancialValueReferenceType.DirectSourceItem
+                && (!resolved.Queryable || !resolved.SourceItemCatalogId.HasValue
+                    || string.IsNullOrWhiteSpace(resolved.ProviderName)
+                    || string.IsNullOrWhiteSpace(resolved.StatementType) || resolved.SourceItemId <= 0
+                    || !(string.Equals(resolved.IdentityStatus, "verified", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(resolved.IdentityStatus, "verified-persisted-source-key", StringComparison.OrdinalIgnoreCase))))
+                directSourceIdentityAuthorized = false;
+            if (!resolved.Queryable || referenceType != FinancialValueReferenceType.DirectSourceItem
+                && !string.Equals(resolved.SemanticReviewStatus, "approved", StringComparison.OrdinalIgnoreCase))
                 governanceDiagnostics.Add($"Financial value reference is not approved for retrieval: {selectedReference.CatalogId}.");
         }
 
         var semanticReviewApproved = context.NodeIds.All(id => governance.TryGetValue(id, out var item) && item.SemanticMeaningApproved)
             && resolvedFinancialReferences.All(item => string.Equals(item.SemanticReviewStatus, "approved", StringComparison.OrdinalIgnoreCase));
-        var queryAuthorized = context.NodeIds.All(id => governance.TryGetValue(id, out var item) && item.QueryAuthorized)
-            && resolvedFinancialReferences.All(item => item.Queryable);
+        var queryAuthorized = directSourceIdentityRequest
+            ? directSourceIdentityAuthorized
+                && selectedFinancialReferences.All(reference => resolvedFinancialReferences.Any(item =>
+                    string.Equals(item.CatalogId, reference.CatalogId, StringComparison.Ordinal) && item.Queryable))
+            : context.NodeIds.All(id => governance.TryGetValue(id, out var item) && item.QueryAuthorized)
+                && resolvedFinancialReferences.All(item => item.Queryable);
         var diagnostics = context.Diagnostics.Concat(governanceDiagnostics).Distinct(StringComparer.Ordinal).ToArray();
         var retrievalComplete = missing.Count == 0;
         var status = governanceDiagnostics.Count > 0 ? SchemaContextCompletenessStatus.Unsupported

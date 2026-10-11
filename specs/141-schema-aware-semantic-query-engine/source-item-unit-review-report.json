@@ -3,9 +3,9 @@
   "policyVersion": "financial-statement-item-units-v1",
   "snapshotItemCount": 296,
   "classificationCounts": {
-    "MonetaryStatementItem": 285,
+    "MonetaryStatementItem": 284,
     "MonetaryPerShareItem": 8,
-    "RequiresSemanticReview": 3
+    "RequiresSemanticReview": 4
   },
   "perShareItems": [
     {
@@ -104,6 +104,16 @@
       "sourceItemId": 99,
       "sourceItemCatalogId": "5e03f84d-b77d-4549-8c2e-caadbe2c9f1f",
       "titleFa": "نتیجه برابری نرخ ارز (اندوخته تسعیر ارز)",
+      "titleEn": null,
+      "rawProviderUnit": "N/A",
+      "reason": "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"
+    },
+    {
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "BalanceSheet",
+      "sourceItemId": 286,
+      "sourceItemCatalogId": "67731fc6-cc77-42aa-a78e-2b2fd284778f",
+      "titleFa": "نوع دوره مالی",
       "titleEn": null,
       "rawProviderUnit": "N/A",
       "reason": "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"

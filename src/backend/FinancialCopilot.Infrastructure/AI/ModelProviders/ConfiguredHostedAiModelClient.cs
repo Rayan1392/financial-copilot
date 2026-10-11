@@ -90,12 +90,30 @@ public sealed class ConfiguredHostedAiModelClient(
         {
             throw;
         }
+        catch (HttpRequestException exception)
+        {
+            throw new AiModelProviderException(
+                AiExecutionStatus.RuntimeUnavailable,
+                "hosted_provider_transport_failed",
+                "The hosted AI request failed before an HTTP response was received.",
+                exception,
+                httpStatusCode: (int?)exception.StatusCode,
+                providerErrorCode: exception.HttpRequestError.ToString());
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            throw new AiModelProviderException(
+                AiExecutionStatus.InvalidStructuredOutput,
+                "hosted_request_serialization_failed",
+                "The hosted AI request or response could not be processed as JSON.",
+                exception);
+        }
         catch (Exception exception)
         {
             throw new AiModelProviderException(
                 AiExecutionStatus.Failed,
-                "hosted_provider_failed",
-                "Hosted AI provider request failed.",
+                "hosted_client_internal_error",
+                "The hosted AI client failed before returning a provider response.",
                 exception);
         }
     }

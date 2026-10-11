@@ -1,28 +1,34 @@
 {
-  "id": "rel_cd8a77a2717ac71f",
-  "from": {
-    "schema": "public",
-    "table": "FinancialStatementLineItems",
-    "columns": [
-      "SourceItemCatalogId"
-    ]
-  },
-  "to": {
-    "schema": "public",
-    "table": "FinancialStatementSourceItems",
-    "columns": [
-      "Id"
-    ]
-  },
-  "physicalConstraint": "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL",
-  "inferredCardinality": "many-to-one",
-  "semantic": {
-    "approved": false,
-    "status": "discovered-unapproved",
-    "runtimeJoinable": false
-  },
-  "provenance": {
-    "source": "postgres-pg_catalog",
-    "verified": true
-  }
+    "id":  "rel_cd8a77a2717ac71f",
+    "from":  {
+                 "schema":  "public",
+                 "table":  "FinancialStatementLineItems",
+                 "columns":  [
+                                 "SourceItemCatalogId"
+                             ]
+             },
+    "to":  {
+               "schema":  "public",
+               "table":  "FinancialStatementSourceItems",
+               "columns":  [
+                               "Id"
+                           ]
+           },
+    "physicalConstraint":  "FOREIGN KEY (\"SourceItemCatalogId\") REFERENCES \"FinancialStatementSourceItems\"(\"Id\") ON DELETE SET NULL",
+    "inferredCardinality":  "many-to-one",
+    "semantic":  {
+                     "approved":  true,
+                     "status":  "owner-approved-runtime-join",
+                     "runtimeJoinable":  true,
+                     "queryAuthorization":  {
+                                                "approved":  true,
+                                                "queryable":  true,
+                                                "reason":  "Join is limited to the verified source-item, statement, and company identity path.",
+                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "postgres-pg_catalog",
+                       "verified":  true
+                   }
 }

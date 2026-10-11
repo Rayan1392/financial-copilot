@@ -17,9 +17,14 @@ if (args.Length > 0 && string.Equals(args[0], "evaluate-navigator", StringCompar
     await NavigatorEvaluationCli.RunAsync(args.Skip(1).ToArray());
     return;
 }
+if (args.Length > 0 && string.Equals(args[0], "evaluate-canonical-intent", StringComparison.OrdinalIgnoreCase))
+{
+    await CanonicalIntentShadowEvaluationCli.RunAsync(args.Skip(1).ToArray());
+    return;
+}
 if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Contains("-h", StringComparer.OrdinalIgnoreCase))
 {
-    Console.WriteLine("SemanticCatalog commands: validate-catalog | evaluate-navigator | export-source-item-snapshot | --self-test | --version");
+    Console.WriteLine("SemanticCatalog commands: validate-catalog | evaluate-navigator | evaluate-canonical-intent | export-source-item-snapshot | --self-test | --version");
     Console.WriteLine("Use 'evaluate-navigator --help' for live evaluation options. Help does not discover or write catalog artifacts.");
     return;
 }

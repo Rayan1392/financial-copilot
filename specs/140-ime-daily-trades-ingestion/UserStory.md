@@ -1,389 +1,328 @@
-# Feature 140 — IME Daily Trades Raw Ingestion
+# Feature 140 — IME Daily Trades Ingestion and Company Mapping
 
 ## Status
 
-Planned. Specification-only package. No production repository was available while this feature was authored, so repository-specific class names, routes, scheduler technology, EF conventions, and existing admin authorization policies must be verified during implementation.
+Planned. Specification package revised to include deterministic mapping between IME producers and FinancialCopilot `Companies`.
+
+Repository-specific class names, routes, scheduler technology, EF conventions, and authorization policies must still be validated during implementation.
 
 ## Product intent
 
-FinancialCopilot needs a durable daily history of Iran Mercantile Exchange (IME) transactions before analytical behavior is added on top of it.
+FinancialCopilot needs a durable daily history of Iran Mercantile Exchange (IME) transactions and a reliable identity bridge from IME producer identities to listed companies already stored in `Companies`.
 
-The immediate feature is deliberately narrow: **collect the daily IME transaction payload, preserve it faithfully, and make the same import operation callable from both the Worker schedule and an Admin API trigger.**
+The feature now has two bounded responsibilities:
 
-The strategic purpose is to build a first-party historical dataset that can later support:
+1. ingest and preserve daily IME trade observations;
+2. resolve each IME producer identity to a `Companies.Id` through an explicit mapping layer.
 
-- company-level commodity-exchange transaction questions;
-- daily and monthly price/volume trends;
-- abnormal price, demand, supply, or traded-volume alerts;
-- pre-Codal estimates of monthly company sales using observed IME transactions;
-- reconciliation of IME transaction activity with published monthly production/sales reports;
-- later AI tools that answer questions from deterministic stored data rather than query-time scraping.
+The strategic purpose is to make future company-level commodity-exchange analytics possible without query-time scraping or fuzzy identity guesses.
 
-None of those analytical capabilities are implemented by Feature 140.
+Future features may then aggregate IME sales by company and estimate monthly sales before Codal publication.
 
-## User stories
+## Companies contract
 
-### Story 1 — Scheduled daily acquisition
+The existing `Companies` table is the canonical FinancialCopilot company identity source.
 
-As a FinancialCopilot operator, I want IME daily trades collected automatically after the normal trading day, so that historical trade data accumulates without manual intervention.
+The mapping must reference:
 
-### Story 2 — Manual/replay acquisition
+```text
+Companies.Id
+```
 
-As an administrator, I want to trigger the exact same importer for a specified Persian date through the API, so that I can backfill, replay, or repair a day without running Worker code manually.
+and may expose/use existing descriptive columns such as:
 
-### Story 3 — Faithful raw preservation
+```text
+Name
+CompanySymbol
+TseSymbol
+InstrumentCode
+SymbolsIn
+ProviderName
+ExternalCompanyId
+```
 
-As a future analytics developer, I want the source response and all known trade fields preserved without analytical transformation, so that later features can derive metrics without having to reacquire historical source data.
+`CompanySymbol` is the expected stock/company symbol for most user-facing company identity purposes, but Feature 140 must not duplicate it into the mapping as the canonical value. The mapping points to `Companies.Id`; symbol/name values are read from `Companies`.
 
 ## Source contract
 
-### Endpoint
+IME rows contain, among other fields:
 
 ```text
-POST https://ime.co.ir/subsystems/ime/services/home/imedata.asmx/GetAmareMoamelatList
-Content-Type: application/json
-```
-
-### Request
-
-```json
-{
-  "Language": 8,
-  "fari": false,
-  "GregorianFromDate": "1405/07/15",
-  "GregorianToDate": "1405/07/15",
-  "MainCat": 0,
-  "Cat": 0,
-  "SubCat": 0,
-  "Producer": 0
-}
-```
-
-Despite the provider field names `GregorianFromDate` and `GregorianToDate`, the observed request uses a **Persian/Jalali date string**. Feature 140 must preserve this provider contract and must not rename or reinterpret it at the HTTP boundary.
-
-For a daily import both date fields are the same target date, formatted as `yyyy/MM/dd`.
-
-### Response envelope
-
-The service returns an outer JSON object whose `d` property contains the trade array serialized as a JSON string:
-
-```json
-{
-  "d": "[{\"GoodsName\":\"...\",\"Symbol\":\"...\"}]"
-}
-```
-
-The client therefore performs two-stage deserialization:
-
-```text
-HTTP JSON body
-  -> deserialize envelope
-  -> read d
-  -> deserialize d string
-  -> trade rows
-```
-
-An HTTP 200 with `d = "[]"` is a valid successful import containing zero trades.
-
-## Known source row fields
-
-Feature 140 must preserve all observed fields:
-
-```text
-GoodsName
 Symbol
 ProducerName
-ContractType
-MinPrice
-Price
-MaxPrice
-arze
-ArzeBasePrice
-arzeMinPrice
-taghaza
-taghazavoroudi
-taghazaMaxPrice
-Quantity
-TotalPrice
-date
-DeliveryDate
-Warehouse
 ArzehKonandeh
-SettlementDate
-Category
-xTalarReportPK
-bArzehRadifTarSarresid
-cBrokerSpcName
-ModeDescription
-MethodDescription
-MinPrice1
-Price1
-Currency
-Unit
-arzehPk
-Talar
-PacketName
-Tasvieh
 ```
 
-Field names are source terminology. Feature 140 must not reinterpret their business meaning beyond safe type parsing.
+Observed examples:
+
+```text
+KRPT-AMMONIAB-00
+ProducerName = پتروشیمی کرمانشاه
+```
+
+```text
+SHPC-PBR1220WWP-00
+ProducerName = پتروشیمی شازند
+```
+
+```text
+SHPC-OAVAMB-00
+ProducerName = پتروشیمی شازند
+```
+
+The leading segment of `Symbol` is treated as an IME producer code candidate:
+
+```text
+KRPT-AMMONIAB-00 -> KRPT
+SHPC-PBR1220WWP-00 -> SHPC
+```
+
+This producer code is useful for deterministic lookup but is not assumed to be globally correct without an explicit mapping record.
 
 ## Scope
 
 Feature 140 includes:
 
-1. A typed IME HTTP client for the source endpoint.
-2. Two-stage response parsing.
-3. Daily-date request construction using Persian/Jalali date formatting.
-4. Durable persistence of the bounded raw provider response body as received at the application boundary for audit/schema-drift recovery.
-5. Durable persistence of each parsed trade row with all known source fields.
-6. Deterministic idempotency for repeated imports of the same source rows.
-7. A Worker schedule for Saturday through Wednesday at 17:00 Iran time.
-8. A manual Admin API trigger accepting a requested Persian date.
-9. Shared import/application logic between Worker and Admin API.
-10. Structured operational telemetry and import-result reporting.
-11. Unit/integration coverage for parsing, persistence, replay, scheduling, failures, and concurrency.
+1. IME daily HTTP ingestion.
+2. Raw response retention.
+3. Parsed trade persistence.
+4. Deterministic observation fingerprint/idempotency.
+5. Worker schedule and Admin manual import.
+6. Extraction of `ImeProducerCode` from IME `Symbol`.
+7. Explicit IME producer → `Companies.Id` mapping persistence.
+8. Mapping resolution for ingested observations.
+9. Detection/reporting of unmapped or conflicting producers.
+10. Admin/service operations required to review/create/update producer mappings.
+11. Tests for mapping resolution and mapping safety.
+
+Feature 140 still does NOT include:
+
+- monthly aggregation;
+- sales prediction;
+- Codal comparison;
+- alerts;
+- AI/LLM tools;
+- chat answers;
+- automated investment conclusions.
 
 ## Functional requirements
 
 ### FR-01 — Shared importer
 
-There must be one application-level import operation conceptually equivalent to:
+Worker and Admin triggers must use the same import service.
+
+### FR-02 — Raw preservation
+
+All IME provider fields remain preserved exactly as provider facts. Company identity resolution is additive metadata and must not overwrite `ProducerName`, `Symbol`, or `ArzehKonandeh`.
+
+### FR-03 — Producer-code extraction
+
+For each non-empty IME `Symbol`, derive `ImeProducerCode` from the segment before the first `-`.
+
+Examples:
 
 ```text
-ImportDailyTrades(targetPersianDate, triggerContext, cancellationToken)
+KRPT-AMMONIAB-00 -> KRPT
+SHPC-OAVAMB-00   -> SHPC
 ```
 
-Both Worker and Admin API call this operation. HTTP acquisition, parsing, persistence, and idempotency logic must not be duplicated in trigger-specific code.
+The derivation must:
 
-### FR-02 — Scheduled trigger
+- trim surrounding whitespace;
+- use an invariant normalization suitable for lookup;
+- preserve the original `Symbol`;
+- fail safely when the symbol is null/empty/malformed;
+- not invent a code when no safe segment exists.
 
-The Worker triggers the import:
+### FR-04 — Mapping table
 
-- Saturday;
-- Sunday;
-- Monday;
-- Tuesday;
-- Wednesday;
-- at 17:00 using `Asia/Tehran` explicitly.
-
-Thursday and Friday are excluded.
-
-The schedule must not rely on the host operating system's local timezone.
-
-### FR-03 — Admin trigger
-
-An authorized Admin API operation must accept a Persian date, for example:
-
-```json
-{
-  "date": "1405/07/15"
-}
-```
-
-The exact route and authorization mechanism must follow existing repository conventions after repo inspection. The endpoint must return an operational result containing at least target date, outcome, received count, inserted count, skipped/duplicate count, and import/run identifier when available.
-
-
-### FR-03A — Admin date boundary and execution strategy
-
-Admin imports must reject any target date later than the current date in `Asia/Tehran` before calling IME.
-
-For execution mechanics, reuse an existing FinancialCopilot Admin long-running-operation/background-job pattern if one already exists. If no such established mechanism exists, execute the one-day import synchronously and return the typed import result. Do not introduce a new queue or background-processing subsystem solely for Feature 140.
-
-### FR-04 — Raw response preservation
-
-For every HTTP response actually received from IME, preserve a bounded raw response body in the import/batch record **before typed parsing determines success or failure**.
-
-The preferred semantic contract is `RawResponseText`: the provider response body as received at the application boundary. If the repository has a mandatory established `jsonb` convention, it may be reused only when the field is documented as a lossless JSON-value representation rather than a byte-for-byte copy; property ordering, whitespace, formatting, and byte-level fidelity are then not guaranteed.
-
-Raw evidence retention applies to successful responses, empty valid results, malformed outer JSON, malformed inner `d`, unexpected contract shapes, date-integrity failures, and non-success HTTP responses where a body was received. Network failures with no HTTP response naturally have no raw body to preserve.
-
-This raw copy exists for:
-
-- auditability;
-- provider schema-drift diagnosis;
-- reparsing without reacquiring data;
-- evidence when future analytics disagree with parsed values.
-
-It is not the primary query model for future analytics.
-
-### FR-05 — Parsed source-row persistence
-
-Persist each trade as an explicit row containing all known source fields plus ingestion metadata. Do not aggregate, normalize to company-level facts, convert units, calculate derived prices, map symbols, or alter source values in this feature.
-
-### FR-06 — Forward-compatible schema drift
-
-A newly added provider field must not make the entire raw response unrecoverable. Unknown JSON fields should be tolerated by deserialization unless existing solution policy explicitly requires strict contracts. The original payload remains stored so a future migration can recover new fields.
-
-A removed or type-incompatible field that prevents safe parsing must fail the import rather than silently produce corrupted rows.
-
-### FR-07 — Idempotency and observation identity
-
-Re-running the same date must not create duplicate exact provider observations. `SourceFingerprint` identifies an exact observed provider row; it is an observation identity, not necessarily a logical/business transaction identifier. `ImeDailyTrades` is an immutable provider-observation store and must not automatically be treated as a canonical/current-trade table by future analytical features.
-
-Because `xTalarReportPK` is observed as `0` for some rows, it must not be treated as the sole universal source identifier.
-
-Use a deterministic `SourceFingerprint` computed from the canonical serialized values of the complete known source row. The database must enforce uniqueness at the persistence boundary, for example:
+Create a dedicated mapping model conceptually equivalent to:
 
 ```text
-(Source = "IME", SourceFingerprint)
+ImeProducerCompanyMappings
+--------------------------
+Id
+ImeProducerCode
+ImeProducerName
+NormalizedProducerName
+CompanyId              -> FK Companies.Id
+MappingStatus
+MappingSource
+IsActive
+CreatedAtUtc
+UpdatedAtUtc
 ```
 
-The implementation may additionally index `xTalarReportPK` and `arzehPk` for diagnostics/querying, but neither alone is defined as the universal idempotency key by this specification.
+Exact column naming must follow repository conventions.
 
-### FR-08 — Replay semantics
+`CompanyId` is canonical. Do not duplicate `CompanySymbol` as an authoritative mapping value.
 
-If the same source row is returned again, it is skipped as a duplicate.
+### FR-05 — Mapping identity and uniqueness
 
-If the provider later returns a materially different row for the same date/business identifiers, its different complete-row fingerprint is retained as a distinct raw observation rather than silently overwriting history. Future analytical features can define logical trade identity, revision grouping, or canonical/latest observation selection once provider correction semantics are understood. Feature 140 does not attempt to solve canonicalization.
+An active IME producer code should resolve to at most one active company mapping.
 
-This rule favors raw-source fidelity over premature interpretation of mutable provider identities.
+The database must prevent ambiguous active mappings for the same normalized producer code.
 
+If repository patterns support filtered unique indexes, prefer an active-only unique constraint. Otherwise use an equivalent repository-approved design.
 
-### FR-08A — Requested-date integrity
+### FR-06 — Mapping status/source
 
-For every non-empty daily response, every returned row's source `date` must match the requested target Persian date exactly in normalized `yyyy/MM/dd` form.
-
-If any row has another date, the importer must preserve the raw response evidence, fail the import as a provider-contract/integrity failure, report the mismatch count, and must not silently rewrite the row date or report a partially successful import.
-
-### FR-09 — Import lifecycle
-
-Track import execution separately from trade rows. At minimum capture:
+At minimum distinguish:
 
 ```text
-ImportId
-Source
-TargetPersianDate
-TriggerType (Scheduled | Admin)
-StartedAtUtc
-CompletedAtUtc
-Status
-HttpStatusCode when available
-RecordsReceived
-RecordsInserted
-RecordsSkipped
-Error summary when failed
-RawResponse
+Confirmed
+Unmapped
+Conflict
+Disabled
 ```
 
-Follow existing repository lifecycle/status conventions when they exist.
-
-### FR-10 — Atomic persistence
-
-Once parsing succeeds, parsed-row persistence and successful import completion must be atomic where practical. A partially inserted batch must not be reported as a successful complete import.
-
-Database uniqueness remains the final concurrency/idempotency guard.
-
-### FR-11 — Provider failures
-
-Timeout, connection failure, non-success status, malformed outer JSON, missing/unusable `d`, and malformed inner JSON are failed imports. They must produce structured diagnostics and must not be converted to an empty successful day.
-
-### FR-12 — Empty successful day
-
-`HTTP 200` plus a valid empty inner array is successful and records:
+and mapping provenance such as:
 
 ```text
-RecordsReceived = 0
-RecordsInserted = 0
+Manual
+ExactProducerName
+Seeded
+ReviewedAutomatic
 ```
 
-### FR-13 — Observability
+Do not silently promote a fuzzy name match to a confirmed mapping.
 
-Use existing structured logging conventions. Recommended event names:
+### FR-07 — Resolution order
+
+For an ingested row:
+
+1. extract `ImeProducerCode`;
+2. resolve an active confirmed mapping by producer code;
+3. if no code mapping exists, optionally produce a name-based candidate using normalized `ProducerName`;
+4. name-based candidates are suggestions unless repository/business rules explicitly mark an exact deterministic rule as safe;
+5. unresolved rows remain ingested successfully as raw observations.
+
+Unmapped identity must never cause loss of valid IME trade data.
+
+### FR-08 — Mapping target
+
+The mapping target is `Companies.Id`.
+
+Once resolved, future company-level queries obtain:
 
 ```text
-IME_IMPORT_STARTED
-IME_API_REQUEST
-IME_API_SUCCESS
-IME_API_FAILURE
-IME_PARSE_FAILURE
-IME_IMPORT_COMPLETED
-IME_IMPORT_FAILED
+Companies.CompanySymbol
+Companies.Name
+...
 ```
 
-Recommended fields:
+through the company relation.
+
+Do not map directly to a copied stock symbol string.
+
+### FR-09 — Trade linkage
+
+Do not mutate provider fields.
+
+Preferred model:
 
 ```text
-ImportId
-TriggerType
-TargetPersianDate
-RecordsReceived
-RecordsInserted
-RecordsSkipped
-ElapsedMilliseconds
-HttpStatusCode
+ImeDailyTrade
+  Raw provider fields
+  ImeProducerCode
+  ResolvedCompanyId?   (nullable FK Companies.Id)
+  MappingId?           (nullable FK)
 ```
 
-Do not log the full payload routinely; the persisted raw response is the audit artifact.
+If existing architecture strongly prefers resolution through joins rather than denormalized nullable FKs, repository discovery may choose that implementation, but the semantics must remain equivalent.
 
-### FR-14 — Cancellation and timeout
+### FR-10 — Historical remapping
 
-The Admin request and Worker shutdown cancellation tokens must flow through the importer and HTTP call. Use the existing solution timeout/resilience policy after repository inspection. Do not create unbounded retries.
+Changing a producer mapping must not rewrite or destroy the raw provider observation.
 
+The implementation must support future re-resolution of historical rows.
 
-### FR-14A — Retry semantics for the IME POST
+Preferred behavior:
 
-Although the provider uses HTTP POST, this operation is semantically read-only from FinancialCopilot's perspective. Bounded retries may therefore be used for transient failures when consistent with existing repository resilience conventions. Examples include timeout, connection reset, temporary network failure, and selected 5xx responses.
+- raw observation remains immutable;
+- mapping metadata may be recomputed;
+- mapping changes are auditable;
+- no raw source field is modified.
 
-Do not retry malformed JSON, invalid `d`, date-integrity mismatches, schema/contract failures, or business validation failures. Do not introduce a custom retry framework when the repository already has one.
+### FR-11 — Conflict detection
+
+If one producer code appears with materially different producer names suggesting multiple identities, record/report a conflict rather than auto-binding to multiple companies.
+
+Examples of differences caused only by whitespace/Unicode normalization may be normalized; business-distinct names must not be collapsed without review.
+
+### FR-12 — Admin mapping operations
+
+Provide backend operations, following existing Admin API patterns, for at least:
+
+```text
+list unmapped producer identities
+list mapping conflicts
+create/update/disable a mapping
+resolve mapping to Companies.Id
+```
+
+No Admin UI is required in Feature 140.
+
+### FR-13 — Mapping seed/bootstrap
+
+Repository implementation may seed obvious mappings only when evidence is explicit and reviewable.
+
+Examples may include:
+
+```text
+KRPT -> company whose CompanySymbol is کرماشا
+SHPC -> company whose CompanySymbol is شاراک
+```
+
+but implementation must verify the actual `Companies` records before inserting seed mappings.
+
+Do not hardcode `Companies.Id`.
+
+### FR-14 — Existing ingestion requirements
+
+All previously approved ingestion requirements remain:
+
+- two-stage `{ d }` parsing;
+- raw response evidence retention;
+- requested-date integrity;
+- idempotent observation persistence;
+- Saturday-Wednesday 17:00 `Asia/Tehran`;
+- Admin historical import;
+- future-date rejection;
+- bounded retries for transient provider failures only;
+- database-level uniqueness.
 
 ## Acceptance criteria
 
-1. **AC-01:** A typed provider client calls the specified IME endpoint with `Content-Type: application/json` and the supplied constant filter values.
-2. **AC-02:** Daily requests set both provider date fields to the same requested Persian date in `yyyy/MM/dd` form.
-3. **AC-03:** The outer response and the JSON string inside `d` are both deserialized correctly.
-4. **AC-04:** Every known source field listed in this specification has persistence coverage without analytical transformation.
-5. **AC-05:** For every HTTP response actually received from IME, the bounded raw response is durably retained even when parsing or validation later fails.
-6. **AC-06:** The raw-response storage type and semantics are explicit: `RawResponseText` is preferred; an established `jsonb` convention may be reused only as a lossless JSON-value representation, not as a byte-for-byte copy.
-7. **AC-07:** Unknown additional JSON properties do not cause known-field data loss and remain recoverable from the retained raw response.
-8. **AC-08:** `HTTP 200` with `d = "[]"` is a successful zero-row import.
-9. **AC-09:** Non-success HTTP responses create a failed import and no successful trade batch is reported; any received bounded response body is retained.
-10. **AC-10:** Malformed outer JSON creates a failed import and retains the received bounded raw body.
-11. **AC-11:** Malformed JSON inside `d` creates a failed import and retains the received bounded raw body.
-12. **AC-12:** A repeated import containing identical source rows does not duplicate persisted observations.
-13. **AC-13:** Database-level uniqueness protects against concurrent Worker/Admin imports of identical observations.
-14. **AC-14:** Idempotency does not rely solely on `xTalarReportPK`, because zero-valued rows are supported.
-15. **AC-15:** `SourceFingerprint` is an exact-observation fingerprint and is not defined as a permanent provider business transaction identifier.
-16. **AC-16:** A materially changed complete source row produces a distinct immutable observation; Feature 140 does not determine whether multiple observations represent revisions of the same logical trade.
-17. **AC-17:** Every row in a non-empty daily result matches the requested Persian trade date; any mismatch or mixed-date response fails the import, preserves raw evidence, and does not persist a successful partial batch.
-18. **AC-18:** Worker and Admin API invoke the same importer/service implementation.
-19. **AC-19:** The Worker schedule runs Saturday-Wednesday at 17:00 `Asia/Tehran` and does not run Thursday/Friday.
-20. **AC-20:** The schedule remains correct regardless of server-local timezone.
-21. **AC-21:** An authorized admin can request a specific historical Persian date.
-22. **AC-22:** Invalid date format/value is rejected before the provider call.
-23. **AC-23:** A future Admin date later than the current `Asia/Tehran` date is rejected before provider invocation unless repository evidence requires a different established project-wide rule.
-24. **AC-24:** Manual execution reuses an existing Admin long-running-operation/job pattern if present; otherwise the one-day import executes synchronously. No new queue is introduced solely for Feature 140.
-25. **AC-25:** Import result exposes target date, status, received count, inserted count, skipped count, and an import identifier where supported.
-26. **AC-26:** Cancellation propagates to the outbound HTTP call and persistence work.
-27. **AC-27:** Bounded retries may apply to transient failures for this semantically read-only POST according to existing repository policy; parse/contract/date-integrity/business-validation failures are not retried.
-28. **AC-28:** A parsing, validation, or persistence failure cannot be recorded as a successful complete import.
-29. **AC-29:** Logging exposes start, provider outcome, parse/integrity failure where applicable, mismatch count where applicable, and final import outcome without routine full-payload logging.
-30. **AC-30:** No company mapping, monthly aggregation, forecasting, alerts, LLM tools, charts, or user-facing commodity-exchange query behavior is introduced.
-31. **AC-31:** Focused unit and integration tests pass, or environment/repository blockers are explicitly documented in the implementation report.
+1. **AC-01:** IME daily ingestion behavior remains compatible with the previously approved Feature 140 contract.
+2. **AC-02:** Every parsed row preserves original `Symbol`, `ProducerName`, and all other provider fields.
+3. **AC-03:** `ImeProducerCode` is deterministically extracted from valid IME symbols such as `KRPT-AMMONIAB-00 -> KRPT`.
+4. **AC-04:** Null/empty/malformed symbols do not cause import failure and do not produce invented producer codes.
+5. **AC-05:** A dedicated mapping persistence model links IME producer identity to `Companies.Id`.
+6. **AC-06:** `CompanyId` is the canonical mapping target; `CompanySymbol` is read from `Companies`, not duplicated as mapping truth.
+7. **AC-07:** One active producer code cannot resolve to multiple active companies.
+8. **AC-08:** A confirmed code mapping resolves ingested rows to the expected `Companies.Id`.
+9. **AC-09:** An unmapped producer does not block ingestion and remains queryable as unmapped.
+10. **AC-10:** A conflicting producer identity is surfaced as conflict and is not silently auto-mapped.
+11. **AC-11:** Fuzzy/name similarity alone cannot create a confirmed mapping without explicit review or an approved deterministic rule.
+12. **AC-12:** Mapping changes do not modify raw IME provider fields.
+13. **AC-13:** Historical rows can be re-resolved after a mapping is created/changed.
+14. **AC-14:** Backend Admin operations can list unmapped/conflicting producers.
+15. **AC-15:** Backend Admin operations can create/update/disable a mapping to `Companies.Id`.
+16. **AC-16:** Mapping operations follow existing authorization and API conventions.
+17. **AC-17:** Mapping seed data, if used, resolves by existing company records and never hardcodes `Companies.Id`.
+18. **AC-18:** Tests cover `KRPT` and `SHPC` style producer-code extraction and multi-product reuse of the same producer code.
+19. **AC-19:** Tests prove two different IME product symbols with the same producer prefix resolve to the same company mapping.
+20. **AC-20:** Tests cover producer-name normalization without collapsing materially different business identities.
+21. **AC-21:** Existing raw-response, date-integrity, retry, scheduling, and idempotency ACs continue to pass.
+22. **AC-22:** No monthly aggregation, forecasting, alerts, AI tools, or user-facing IME analytics are introduced.
 
 ## Out of scope
 
-- Mapping IME `Symbol`, `ProducerName`, or `ArzehKonandeh` to FinancialCopilot companies.
-- Mapping IME commodity symbols to TSETMC symbols.
-- Monthly sales aggregation or prediction.
+- Monthly/company sales aggregation.
+- Sales prediction.
 - Codal reconciliation.
-- Price trend metrics.
-- Supply/demand indicators.
 - Price/volume alerts.
-- AI/LLM tools and semantic routes.
-- Chat answers about IME data.
-- Admin UI changes; only the backend trigger contract is in scope.
-- Historical bulk backfill orchestration beyond manually importing a specified day.
-- Provider correction/revision business semantics beyond preserving changed raw observations.
-
-## Product follow-up candidates
-
-Future features should be separate and depend on Feature 140 rather than expanding its scope:
-
-1. IME producer/company identity mapping.
-2. Daily commodity/company aggregation.
-3. Monthly IME sales estimation and Codal pre-publication forecast.
-4. Commodity price/supply/demand trend metrics.
-5. Alert rules for material price or traded-volume changes.
-6. Deterministic FinancialCopilot tools for company IME questions.
-7. AI-generated proactive IME insights based on deterministic metrics.
+- LLM tools.
+- User-facing analytical responses.
+- Automated fuzzy entity resolution that confirms mappings without review.

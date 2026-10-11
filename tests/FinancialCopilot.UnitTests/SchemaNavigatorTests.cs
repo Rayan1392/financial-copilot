@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.FinancialData.Semantics.Intent;
 using FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,6 +8,249 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class SchemaNavigatorTests
 {
+    [Fact]
+    public async Task ReviewedCanonicalSourceBinding_IsExactAndDoesNotGrantQueryAuthorization()
+    {
+        var root = FindRepositoryRoot();
+        var hierarchyPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts", "navigation-hierarchy.yaml");
+        var catalogPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "SemanticCatalog");
+        using var hierarchy = JsonDocument.Parse(await File.ReadAllTextAsync(hierarchyPath));
+        var catalogHash = CanonicalSemanticCatalogIntegrityValidator.Validate(catalogPath, hierarchy.RootElement);
+        var catalogVersion = hierarchy.RootElement.GetProperty("catalogVersion").GetString()!;
+        var directItemNode = hierarchy.RootElement.GetProperty("nodes").EnumerateArray()
+            .Single(node => node.TryGetProperty("sourceItemReferences", out var refs)
+                && refs.EnumerateArray().Any(reference => reference.GetProperty("statementType").GetString() == "IncomeStatement"
+                    && reference.GetProperty("sourceItemId").GetInt32() == 161))
+            .GetProperty("nodeId").GetString()!;
+        var provider = new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath);
+        var context = await provider.GetContextAsync(new SchemaContextExpansionRequest(1, catalogVersion, catalogHash,
+            [directItemNode], 0), CancellationToken.None);
+        Assert.NotNull(context);
+
+        var measure = new RequestedMeasure("سود عملیاتی هر سهم", "operatingProfitPerShare",
+            MeasureCanonicalizationStatus.Canonicalized, ["operatingProfitPerShare"], MeasureConceptKind.FinancialStatementItem,
+            BusinessMeasureDimension.CurrencyPerShare, new MeasureQualifiers(), SemanticUnit.Unspecified, null,
+            EffectiveUnitEvidence.Unresolved);
+        var binding = CanonicalSourceItemBindingResolver.Resolve(measure, context.FinancialValueReferences!,
+            "NoavaranCurrentApi", "IncomeStatement");
+
+        Assert.Equal(CanonicalSourceItemBindingStatus.Bound, binding.Status);
+        Assert.Equal("canonical_source_item_bound", binding.DiagnosticCode);
+        Assert.Equal(nameof(FinancialValueReferenceType.DirectSourceItem), binding.Selection!.ReferenceType);
+        Assert.Equal("NoavaranCurrentApi", binding.Reference!.ProviderName);
+        Assert.Equal("IncomeStatement", binding.Reference.StatementType);
+        Assert.Equal(161, binding.Reference.SourceItemId);
+        Assert.Equal("IRRPerShare", binding.Reference.NormalizedUnit);
+        Assert.False(binding.QueryAuthorized);
+
+        var dimensionMismatch = CanonicalSourceItemBindingResolver.Resolve(measure with
+            { Dimension = BusinessMeasureDimension.CurrencyAmount }, context.FinancialValueReferences!);
+        Assert.Equal(CanonicalSourceItemBindingStatus.Incompatible, dimensionMismatch.Status);
+        var unreviewedConcept = CanonicalSourceItemBindingResolver.Resolve(measure with { ConceptId = "netProfit" },
+            context.FinancialValueReferences!);
+        Assert.Equal(CanonicalSourceItemBindingStatus.Incomplete, unreviewedConcept.Status);
+        var unresolvedUnitReference = context.FinancialValueReferences!.Single() with
+            { EffectiveUnitStatus = "requires-semantic-review" };
+        var unresolvedUnit = CanonicalSourceItemBindingResolver.Resolve(measure, [unresolvedUnitReference]);
+        Assert.Equal(CanonicalSourceItemBindingStatus.Incomplete, unresolvedUnit.Status);
+        Assert.Equal("canonical_source_item_effective_unit_unresolved", unresolvedUnit.DiagnosticCode);
+    }
+
+    [Fact]
+    public async Task ExactApprovedSourceTitles_ResolveIdentityWithoutCreatingAliasesOrAuthorization()
+    {
+        var (provider, catalogVersion, catalogHash) = CreateHierarchyProvider();
+        var references = await provider.GetFinancialSourceReferencesAsync(catalogVersion, catalogHash, CancellationToken.None);
+        Assert.Equal(296, references.Count);
+
+        var cases = new[]
+        {
+            ("سود خالص", "IncomeStatement", 143, "MillionIRR", "MonetaryStatementItem"),
+            ("سود عملیاتی هر سهم", "IncomeStatement", 161, "IRRPerShare", "CurrencyPerShare"),
+            ("جمع کل دارایی‌ها", "BalanceSheet", 138, "MillionIRR", "MonetaryStatementItem"),
+            ("جریان وجه نقد عملیاتی", "CashFlow", 1, "MillionIRR", "MonetaryStatementItem")
+        };
+
+        foreach (var (title, statementType, sourceItemId, unit, dimensionEvidence) in cases)
+        {
+            var result = FinancialSourceItemTitleResolver.Resolve(new(title, "NoavaranCurrentApi", statementType), references);
+            Assert.Equal(FinancialSourceTitleResolutionStatus.Resolved, result.Status);
+            Assert.Equal(statementType, result.Reference!.StatementType);
+            Assert.Equal(sourceItemId, result.Reference.SourceItemId);
+            Assert.NotNull(result.Reference.SourceItemCatalogId);
+            Assert.Equal(FinancialSourceItemTitleResolver.NormalizeTitle(title),
+                FinancialSourceItemTitleResolver.NormalizeTitle(result.Reference.TitleFa!));
+            Assert.Equal(unit, result.Reference.NormalizedUnit);
+            Assert.Equal(dimensionEvidence, result.DimensionEvidence);
+            Assert.Equal("not-authorized", result.AuthorizationStatus);
+            Assert.False(result.QueryAuthorized);
+        }
+
+        var operatingPerShare = FinancialSourceItemTitleResolver.Resolve(
+            new("سود عملیاتی هر سهم", "NoavaranCurrentApi", "IncomeStatement"), references);
+        Assert.Equal("operatingProfitPerShare", Assert.Single(operatingPerShare.Reference!.CanonicalConceptBindings!,
+            binding => binding.Status == "approved").CanonicalConceptId);
+        var netProfit = FinancialSourceItemTitleResolver.Resolve(new("سود خالص", "NoavaranCurrentApi", "IncomeStatement"), references);
+        Assert.Empty(netProfit.Reference!.CanonicalConceptBindings ?? []);
+    }
+
+    [Fact]
+    public async Task ExactSourceTitleResolution_IsOrthographicOnlyAndReturnsTypedScopeBlockers()
+    {
+        var (provider, catalogVersion, catalogHash) = CreateHierarchyProvider();
+        var references = await provider.GetFinancialSourceReferencesAsync(catalogVersion, catalogHash, CancellationToken.None);
+        // Arabic/Persian letter variants, ZWNJ, and repeated whitespace normalize; content does not.
+        var arabicYehVariant = "جریان وجه نقد عملیاتی".Replace('\u06CC', '\u064A');
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Resolved,
+            FinancialSourceItemTitleResolver.Resolve(new(arabicYehVariant, "NoavaranCurrentApi", "CashFlow"), references).Status);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Resolved,
+            FinancialSourceItemTitleResolver.Resolve(new("سود  خالص", "NoavaranCurrentApi", "IncomeStatement"), references).Status);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.NotFound,
+            FinancialSourceItemTitleResolver.Resolve(new("سود خالص اضافی", "NoavaranCurrentApi", "IncomeStatement"), references).Status);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Incompatible,
+            FinancialSourceItemTitleResolver.Resolve(new("سود خالص", "NoavaranCurrentApi", "BalanceSheet"), references).Status);
+
+        var qualifiers = new Dictionary<string, string?> { ["consolidation"] = "consolidated" };
+        var qualified = FinancialSourceItemTitleResolver.Resolve(
+            new("سود خالص", "NoavaranCurrentApi", "IncomeStatement", qualifiers), references);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Incomplete, qualified.Status);
+        Assert.Equal("statement_qualifier_evidence_unavailable", qualified.DiagnosticCode);
+        Assert.Equal("consolidated", qualified.StatementQualifiers!["consolidation"]);
+    }
+
+    [Fact]
+    public async Task DuplicateExactSourceTitles_ReturnAmbiguityWithoutArbitrarySelection()
+    {
+        var (provider, catalogVersion, catalogHash) = CreateHierarchyProvider();
+        var references = await provider.GetFinancialSourceReferencesAsync(catalogVersion, catalogHash, CancellationToken.None);
+        var original = references.Single(reference => reference.StatementType == "IncomeStatement" && reference.SourceItemId == 143);
+        var duplicate = original with
+        {
+            CatalogId = "source_item_test_duplicate",
+            SourceItemCatalogId = Guid.NewGuid(),
+            StatementType = "CashFlow",
+            SourceItemId = 999
+        };
+
+        var ambiguous = FinancialSourceItemTitleResolver.Resolve(new("سود خالص"), [original, duplicate]);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Ambiguous, ambiguous.Status);
+        Assert.Null(ambiguous.Reference);
+        Assert.Equal(2, ambiguous.Candidates!.Count);
+
+        var disambiguated = FinancialSourceItemTitleResolver.Resolve(
+            new("سود خالص", StatementType: "IncomeStatement"), [original, duplicate]);
+        Assert.Equal(FinancialSourceTitleResolutionStatus.Resolved, disambiguated.Status);
+        Assert.Equal(143, disambiguated.Reference!.SourceItemId);
+    }
+
+    private static (JsonCatalogNavigationHierarchyProvider Provider, string Version, string Hash) CreateHierarchyProvider()
+    {
+        var root = FindRepositoryRoot();
+        var hierarchyPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts", "navigation-hierarchy.yaml");
+        var catalogPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "SemanticCatalog");
+        using var hierarchy = JsonDocument.Parse(File.ReadAllText(hierarchyPath));
+        var version = hierarchy.RootElement.GetProperty("catalogVersion").GetString()!;
+        var hash = CanonicalSemanticCatalogIntegrityValidator.Validate(catalogPath, hierarchy.RootElement);
+        return (new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath), version, hash);
+    }
+
+    [Fact]
+    public async Task RequirementsAndNavigationContracts_EnumerateOnlyCurrentCatalogCandidates()
+    {
+        var (hierarchyPath, catalogPath, catalogHash) = CreateCatalogFixture(navigationApproved: true);
+        try
+        {
+            var model = new FakeExecutionService(RequirementsOutput(), NavigationOutput());
+            var provider = new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath);
+            var navigator = new LlmVectorlessSchemaNavigator(model, provider, provider, provider,
+                new SchemaContextCompletenessValidator());
+            var request = new SchemaNavigationRequest(1, "revenue for فولاد", "v1", catalogHash,
+                TenantId: Guid.NewGuid());
+
+            var requirements = await navigator.ExtractAsync(request, CancellationToken.None);
+            await navigator.NavigateAsync(request, requirements, CancellationToken.None);
+
+            using var requirementsSchema = JsonDocument.Parse(model.Contracts[0].JsonSchema!);
+            var candidateMetricIds = requirementsSchema.RootElement.GetProperty("properties").GetProperty("requirements")
+                .GetProperty("properties").GetProperty("measureIds").GetProperty("items").GetProperty("enum");
+            Assert.Equal(["metric_revenue"], candidateMetricIds.EnumerateArray().Select(item => item.GetString()));
+
+            using var navigationSchema = JsonDocument.Parse(model.Contracts[1].JsonSchema!);
+            var candidateNodeIds = navigationSchema.RootElement.GetProperty("properties").GetProperty("selectedNodeIds")
+                .GetProperty("items").GetProperty("enum");
+            Assert.Contains("domain-financial", candidateNodeIds.EnumerateArray().Select(item => item.GetString()));
+            Assert.DoesNotContain("metric_revenue", candidateNodeIds.EnumerateArray().Select(item => item.GetString()));
+        }
+        finally { Directory.Delete(catalogPath, recursive: true); }
+    }
+
+    [Fact]
+    public async Task RequirementsExtraction_RejectsInventedCatalogIdsWithFieldAndValueDiagnostic()
+    {
+        var (hierarchyPath, catalogPath, catalogHash) = CreateCatalogFixture(navigationApproved: true);
+        try
+        {
+            var invalidOutput = RequirementsOutput().Replace(
+                "\"measureIds\":[\"metric_revenue\"]", "\"measureIds\":[\"metric_invented\"]", StringComparison.Ordinal);
+            var model = new FakeExecutionService(invalidOutput);
+            var provider = new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath);
+            var navigator = new LlmVectorlessSchemaNavigator(model, provider, provider, provider,
+                new SchemaContextCompletenessValidator());
+            var request = new SchemaNavigationRequest(1, "revenue", "v1", catalogHash, TenantId: Guid.NewGuid());
+
+            var exception = await Assert.ThrowsAsync<SchemaNavigationOutputException>(() =>
+                navigator.ExtractAsync(request, CancellationToken.None));
+
+            Assert.Equal("requirements_contain_unknown_catalog_id", exception.Code);
+            Assert.Contains("field=measureIds", exception.DiagnosticDetail, StringComparison.Ordinal);
+            Assert.Contains("metric_invented", exception.DiagnosticDetail, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(catalogPath, recursive: true); }
+    }
+
+    [Fact]
+    public async Task RequirementsExtraction_EnforcesTypedPerCallTimeoutWhenProviderIgnoresCancellation()
+    {
+        var (hierarchyPath, catalogPath, catalogHash) = CreateCatalogFixture(navigationApproved: true);
+        try
+        {
+            var model = new NonCooperativeExecutionService();
+            var provider = new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath);
+            var navigator = new LlmVectorlessSchemaNavigator(model, provider, provider, provider,
+                new SchemaContextCompletenessValidator(), new SchemaNavigatorBudgets(
+                    PerCallTimeout: TimeSpan.FromMilliseconds(30), TotalTimeout: TimeSpan.FromSeconds(2)));
+            var request = new SchemaNavigationRequest(1, "revenue", "v1", catalogHash, TenantId: Guid.NewGuid());
+
+            var exception = await Assert.ThrowsAsync<SchemaNavigationTimeoutException>(() =>
+                navigator.ExtractAsync(request, CancellationToken.None));
+
+            Assert.Equal("provider_call_timeout", exception.Code);
+            Assert.Equal("schema_requirements_v1", exception.Stage);
+            Assert.Equal("per_call_deadline", exception.Reason);
+        }
+        finally { Directory.Delete(catalogPath, recursive: true); }
+    }
+
+    [Fact]
+    public void OperationRegistry_NormalizesOnlyTypedDirectRetrievalAndDeclaresCompilerBoundaries()
+    {
+        var direct = new QuestionSchemaRequirements(1, "v1", "hash", [], [], [], [], [], [], [], [])
+        {
+            FinancialValueReferences = [new(nameof(FinancialValueReferenceType.MonthlyMeasure), "metric_monthly_sales")],
+            RequestedFinancialValueOperation = nameof(FinancialValueOperation.UnsupportedDerivedFinancialMetric),
+            StructuredShape = new([], [], [], [], [])
+        };
+        var comparisonIntent = Feature141OperationRegistry.NormalizeRequirementOperation(direct, "مبلغ فروش کگل چقدر است؟");
+        var derivedIntent = Feature141OperationRegistry.NormalizeRequirementOperation(direct, "رشد فروش کگل نسبت به ماه قبل چند درصد بود؟");
+
+        Assert.Equal(nameof(FinancialValueOperation.DirectValueRetrieval), comparisonIntent.Operation);
+        Assert.Equal("normalized_unsupported_label_to_cataloged_direct_retrieval_from_typed_shape", comparisonIntent.Diagnostic);
+        Assert.Equal(nameof(FinancialValueOperation.UnsupportedDerivedFinancialMetric), derivedIntent.Operation);
+        Assert.Contains(Feature141OperationRegistry.Definitions, item => item.Id == "YearOverYear" && item.CompilerSupported);
+        Assert.Contains(Feature141OperationRegistry.Definitions, item => item.Id == "ConditionalCompanyFiltering" && item.CompilerSupported);
+        Assert.Equal(1, Feature141OperationRegistry.Version);
+    }
+
     [Fact]
     public async Task RequirementsExtraction_NormalizesExplicitMonthlyGrowthWithScopedComparison()
     {
@@ -344,6 +588,25 @@ public sealed class SchemaNavigatorTests
     }
 
     [Fact]
+    public async Task HierarchyProvider_RequiredCatalogAncestorCannotCauseNonTerminatingBudgetTrim()
+    {
+        var root = FindRepositoryRoot();
+        var hierarchyPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts", "navigation-hierarchy.yaml");
+        var catalogPath = Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "SemanticCatalog");
+        using var hierarchy = JsonDocument.Parse(File.ReadAllText(hierarchyPath));
+        var hash = CanonicalSemanticCatalogIntegrityValidator.Validate(catalogPath, hierarchy.RootElement);
+        var provider = new JsonCatalogNavigationHierarchyProvider(hierarchyPath, catalogPath);
+
+        var operation = provider.GetCompactOutlineAsync("1", hash,
+            "سود خالص فولاد چقدر است؟",
+            ["metric_net_profit", "dim_company"], 1, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<SchemaNavigationBudgetException>(async () =>
+            await operation.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal("catalog_outline_budget_exceeded", exception.Code);
+    }
+
+    [Fact]
     public async Task HierarchyProvider_BuildsSmallMonthlyOutlineWithCanonicalMeasureUnitsAndNoStatementSourceItems()
     {
         var root = FindRepositoryRoot();
@@ -555,16 +818,25 @@ public sealed class SchemaNavigatorTests
     private sealed class FakeExecutionService(params string[] outputs) : IAiModelExecutionService
     {
         public int CallCount { get; private set; }
+        public List<AiStructuredOutputContract> Contracts { get; } = [];
 
         public Task<AiModelResult> ExecuteAsync(AiModelSelectionRequest selection, AiModelRequest request,
             CancellationToken cancellationToken)
         {
+            if (request.StructuredOutput is { } contract) Contracts.Add(contract);
             var output = outputs[CallCount++];
             var usage = new AiExecutionUsageFacts(selection.CorrelationId, "fake", "fake-model", AiExecutionStatus.Completed,
                 TimeSpan.FromMilliseconds(10), 1, InputTokens: 6, OutputTokens: 2, ProviderReportedCost: 0.01m,
                 ProviderReportedCurrency: "USD");
             return Task.FromResult(new AiModelResult(null, output, [], usage));
         }
+    }
+
+    private sealed class NonCooperativeExecutionService : IAiModelExecutionService
+    {
+        public Task<AiModelResult> ExecuteAsync(AiModelSelectionRequest selection, AiModelRequest request,
+            CancellationToken cancellationToken) => new TaskCompletionSource<AiModelResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously).Task;
     }
 
 

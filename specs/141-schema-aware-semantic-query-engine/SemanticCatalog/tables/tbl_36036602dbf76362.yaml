@@ -1,134 +1,143 @@
 {
-  "id": "tbl_36036602dbf76362",
-  "physical": {
-    "Schema": "public",
-    "Name": "FinancialStatementSourceItems",
-    "ObjectType": "table",
-    "Columns": [
-      {
-        "Name": "Id",
-        "Type": "uuid",
-        "Nullable": false
-      },
-      {
-        "Name": "ProviderName",
-        "Type": "character varying(64)",
-        "Nullable": false
-      },
-      {
-        "Name": "StatementType",
-        "Type": "character varying(32)",
-        "Nullable": false
-      },
-      {
-        "Name": "SourceItemId",
-        "Type": "integer",
-        "Nullable": false
-      },
-      {
-        "Name": "TitleFa",
-        "Type": "character varying(512)",
-        "Nullable": true
-      },
-      {
-        "Name": "TitleEn",
-        "Type": "character varying(512)",
-        "Nullable": true
-      },
-      {
-        "Name": "Unit",
-        "Type": "character varying(128)",
-        "Nullable": true
-      },
-      {
-        "Name": "LastSynchronizedAt",
-        "Type": "timestamp with time zone",
-        "Nullable": false
-      }
-    ],
-    "PrimaryKeys": [
-      "Id"
-    ],
-    "ForeignKeys": [],
-    "Indexes": [
-      {
-        "Name": "IX_FinancialStatementSourceItems_ProviderName_StatementType_So~",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"IX_FinancialStatementSourceItems_ProviderName_StatementType_So~\" ON public.\"FinancialStatementSourceItems\" USING btree (\"ProviderName\", \"StatementType\", \"SourceItemId\")",
-        "Columns": [
-          "ProviderName",
-          "StatementType",
-          "SourceItemId"
-        ]
-      },
-      {
-        "Name": "PK_FinancialStatementSourceItems",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"PK_FinancialStatementSourceItems\" ON public.\"FinancialStatementSourceItems\" USING btree (\"Id\")",
-        "Columns": [
-          "Id"
-        ]
-      }
-    ],
-    "Constraints": [
-      {
-        "Name": "PK_FinancialStatementSourceItems",
-        "Type": "p",
-        "Columns": [
-          "Id"
-        ],
-        "Definition": "PRIMARY KEY (\"Id\")"
-      }
-    ]
-  },
-  "semantic": {
-    "status": "candidate-pending-review",
-    "queryable": false,
-    "descriptionEn": "Provider-specific source-item catalog defining statement line identities, labels, and source units.",
-    "descriptionFa": "فرهنگ اقلام مبدأ صورت مالی شامل شناسه ارائه‌دهنده، عنوان و واحد مبدأ.",
-    "purpose": "Provides canonical catalog IDs for line items and mappings to governed metric codes.",
-    "grain": "One provider + statement type + provider SourceItemId definition.",
-    "columns": {
-      "Id": "Internal catalog UUID",
-      "SourceItemId": "Provider-defined source item integer; not the row UUID",
-      "ProviderName": "Provider namespace",
-      "StatementType": "Applicable statement family",
-      "TitleFa/TitleEn": "Localized labels",
-      "Unit": "Source unit declaration"
-    },
-    "units": "Unit is provider/source definition metadata; normalize monetary and per-share units per Feature 015.",
-    "relationships": [
-      "FinancialStatementLineItems.SourceItemCatalogId -> FinancialStatementSourceItems.Id (physical FK)",
-      "FinancialStatementSourceItemMetricMappings.SourceItemCatalogId -> FinancialStatementSourceItems.Id (physical FK)"
-    ],
-    "metricReferences": [
-      "FinancialStatementSourceItemMetricMappings.MetricCode -> Feature 015 metric registry identity."
-    ],
-    "providerPolicy": "Never join by SourceItemId alone across providers; join by catalog UUID or provider + source key.",
-    "periodSemantics": "Definition rows are not period observations.",
-    "examples": [
-      "کدام قلم مبدأ متناظر با درآمد عملیاتی است؟",
-      "Find the provider source item mapped to net profit"
-    ],
-    "cautions": [
-      "One provider’s title or source ID does not imply equivalent meaning at another provider."
-    ],
-    "sourceVerification": "EF Core mappings, live PostgreSQL FK inventory, and normalizer/metric mapping code.",
-    "approvalStatus": "human-review-required",
-    "semanticApproval": {
-      "state": "candidate-pending-review",
-      "approved": false,
-      "provenance": "existing catalog review state; no reviewer approval fabricated"
-    },
-    "queryAuthorization": {
-      "state": "not-approved",
-      "runtimeQueryable": false,
-      "approvedObjects": [],
-      "reason": "Semantic review and navigation inclusion do not grant query access."
-    }
-  },
-  "provenance": {
-    "source": "ef-core-model",
-    "verified": false
-  }
+    "id":  "tbl_36036602dbf76362",
+    "physical":  {
+                     "Schema":  "public",
+                     "Name":  "FinancialStatementSourceItems",
+                     "ObjectType":  "table",
+                     "Columns":  [
+                                     {
+                                         "Name":  "Id",
+                                         "Type":  "uuid",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "ProviderName",
+                                         "Type":  "character varying(64)",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "StatementType",
+                                         "Type":  "character varying(32)",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "SourceItemId",
+                                         "Type":  "integer",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "TitleFa",
+                                         "Type":  "character varying(512)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "TitleEn",
+                                         "Type":  "character varying(512)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "Unit",
+                                         "Type":  "character varying(128)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "LastSynchronizedAt",
+                                         "Type":  "timestamp with time zone",
+                                         "Nullable":  false
+                                     }
+                                 ],
+                     "PrimaryKeys":  [
+                                         "Id"
+                                     ],
+                     "ForeignKeys":  [
+
+                                     ],
+                     "Indexes":  [
+                                     {
+                                         "Name":  "IX_FinancialStatementSourceItems_ProviderName_StatementType_So~",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"IX_FinancialStatementSourceItems_ProviderName_StatementType_So~\" ON public.\"FinancialStatementSourceItems\" USING btree (\"ProviderName\", \"StatementType\", \"SourceItemId\")",
+                                         "Columns":  [
+                                                         "ProviderName",
+                                                         "StatementType",
+                                                         "SourceItemId"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "PK_FinancialStatementSourceItems",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"PK_FinancialStatementSourceItems\" ON public.\"FinancialStatementSourceItems\" USING btree (\"Id\")",
+                                         "Columns":  [
+                                                         "Id"
+                                                     ]
+                                     }
+                                 ],
+                     "Constraints":  [
+                                         {
+                                             "Name":  "PK_FinancialStatementSourceItems",
+                                             "Type":  "p",
+                                             "Columns":  [
+                                                             "Id"
+                                                         ],
+                                             "Definition":  "PRIMARY KEY (\"Id\")"
+                                         }
+                                     ]
+                 },
+    "semantic":  {
+                     "status":  "owner-approved-runtime-query",
+                     "queryable":  true,
+                     "descriptionEn":  "Provider-specific source-item catalog defining statement line identities, labels, and source units.",
+                     "descriptionFa":  "فرهنگ اقلام مبدأ صورت مالی شامل شناسه ارائه‌دهنده، عنوان و واحد مبدأ.",
+                     "purpose":  "Provides canonical catalog IDs for line items and mappings to governed metric codes.",
+                     "grain":  "One provider + statement type + provider SourceItemId definition.",
+                     "columns":  {
+                                     "Id":  "Internal catalog UUID",
+                                     "SourceItemId":  "Provider-defined source item integer; not the row UUID",
+                                     "ProviderName":  "Provider namespace",
+                                     "StatementType":  "Applicable statement family",
+                                     "TitleFa/TitleEn":  "Localized labels",
+                                     "Unit":  "Source unit declaration"
+                                 },
+                     "units":  "Unit is provider/source definition metadata; normalize monetary and per-share units per Feature 015.",
+                     "relationships":  [
+                                           "FinancialStatementLineItems.SourceItemCatalogId -\u003e FinancialStatementSourceItems.Id (physical FK)",
+                                           "FinancialStatementSourceItemMetricMappings.SourceItemCatalogId -\u003e FinancialStatementSourceItems.Id (physical FK)"
+                                       ],
+                     "metricReferences":  [
+                                              "FinancialStatementSourceItemMetricMappings.MetricCode -\u003e Feature 015 metric registry identity."
+                                          ],
+                     "providerPolicy":  "Never join by SourceItemId alone across providers; join by catalog UUID or provider + source key.",
+                     "periodSemantics":  "Definition rows are not period observations.",
+                     "examples":  [
+                                      "کدام قلم مبدأ متناظر با درآمد عملیاتی است؟",
+                                      "Find the provider source item mapped to net profit"
+                                  ],
+                     "cautions":  [
+                                      "One provider’s title or source ID does not imply equivalent meaning at another provider."
+                                  ],
+                     "sourceVerification":  "EF Core mappings, live PostgreSQL FK inventory, and normalizer/metric mapping code.",
+                     "approvalStatus":  "owner-approved",
+                     "semanticApproval":  {
+                                              "state":  "owner-approved-runtime-query",
+                                              "approved":  true,
+                                              "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                          },
+                     "queryAuthorization":  {
+                                                "state":  "authorized",
+                                                "runtimeQueryable":  true,
+                                                "approvedObjects":  [
+                                                                        "tbl_36036602dbf76362_Id",
+                                                                        "tbl_36036602dbf76362_ProviderName",
+                                                                        "tbl_36036602dbf76362_StatementType",
+                                                                        "tbl_36036602dbf76362_SourceItemId",
+                                                                        "tbl_36036602dbf76362_Unit"
+                                                                    ],
+                                                "reason":  "Limited to compiler-referenced SELECT columns for registered financial source retrieval.",
+                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "ef-core-model",
+                       "verified":  false
+                   }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -15,7 +16,7 @@ internal static class NavigatorEvaluationCli
     {
         if (args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Length == 0)
         {
-            Console.WriteLine("Usage: dotnet run --project tools/SemanticCatalog -- evaluate-navigator --tenant-id <guid> [--environment <name>] [--launch-profile <name>] [--dataset <json/yaml>] [--hierarchy <json>] [--output <jsonl>] [--limit <count>] [--case-ids <id,id>] [--retry-failed-from <jsonl>] [--inspect-outline-only]");
+            Console.WriteLine("Usage: dotnet run --project tools/SemanticCatalog -- evaluate-navigator --tenant-id <guid> [--environment <name>] [--launch-profile <name>] [--dataset <json/yaml>] [--hierarchy <json>] [--output <jsonl>] [--limit <count>] [--case-ids <id,id>] [--retry-failed-from <jsonl>] [--overwrite-output] [--reconcile-only] [--inspect-outline-only] [--outline-limit <characters>] [--outline-dump-dir <directory>]");
             return;
         }
 
@@ -33,6 +34,7 @@ internal static class NavigatorEvaluationCli
         var catalogHash = CanonicalSemanticCatalogIntegrityValidator.Validate(catalogPath, hierarchy.RootElement);
         var catalogReferences = BuildCatalogReferences(hierarchy.RootElement, catalogPath);
         using var dataset = JsonDocument.Parse(await File.ReadAllTextAsync(datasetPath));
+        var datasetVersion = ReadString(dataset.RootElement, "datasetVersion") ?? Path.GetFileNameWithoutExtension(datasetPath);
         var allCases = dataset.RootElement.GetProperty("cases").EnumerateArray().ToArray();
         var cases = allCases.AsEnumerable();
         var requestedCaseIds = GetOption(args, "--case-ids")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -50,11 +52,27 @@ internal static class NavigatorEvaluationCli
         {
             cases = cases.Where(item => requestedCaseIds.Contains(item.GetProperty("id").GetString()!));
         }
+        else if (File.Exists(outputPath) && !args.Contains("--overwrite-output", StringComparer.OrdinalIgnoreCase))
+        {
+            recordedRows = await ReadEvaluationRowsAsync(outputPath);
+        }
         cases = cases.Take(limit);
         var caseArray = cases.ToArray();
         cases = caseArray;
         if (caseArray.Length == 0 && requestedCaseIds is null) throw new InvalidOperationException("The evaluation dataset contains no cases.");
         ValidateExpectedCatalogReferences(caseArray, catalogReferences);
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        var reconciledAttempts = ReconcileInterruptedRows(recordedRows);
+        if (reconciledAttempts > 0)
+        {
+            await PersistEvaluationRowsAsync(outputPath, recordedRows);
+            Console.Error.WriteLine($"Reconciled {reconciledAttempts} interrupted evaluation attempt(s) as terminal Canceled records.");
+        }
+        if (args.Contains("--reconcile-only", StringComparer.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"Reconciliation complete: {reconciledAttempts} interrupted attempt(s) finalized in {outputPath}.");
+            return;
+        }
 
         var apiConfig = Path.Combine(root, "src", "backend", "FinancialCopilot.API");
         var inMemory = new Dictionary<string, string?>
@@ -71,7 +89,11 @@ internal static class NavigatorEvaluationCli
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging();
         services.AddFinancialCopilotInfrastructure(configuration);
+        services.AddSingleton<EvaluationSchemaNavigationObserver>();
+        services.AddSingleton<ISchemaNavigationExecutionObserver>(provider =>
+            provider.GetRequiredService<EvaluationSchemaNavigationObserver>());
         using var provider = services.BuildServiceProvider();
+        var evaluationObserver = provider.GetRequiredService<EvaluationSchemaNavigationObserver>();
         var eligibleProviders = provider.GetRequiredService<IAiProviderCapabilityRegistry>()
             .GetAvailableProviders(tenantId)
             .Where(item => (item.Capabilities & AiWorkloadCapabilities.RequiredFor(AiWorkloadKind.SchemaNavigation)) ==
@@ -91,7 +113,38 @@ internal static class NavigatorEvaluationCli
         Console.WriteLine($"AI configuration: environment={environmentName}; provider={selectedProvider?.ProviderKey ?? "none"}; model={selectedProvider?.ModelKey ?? "none"}; endpointHost={endpointHost}; credentialSource={credentialSource.Item1}; credentialConfigured={credentialSource.Item2}.");
         if (eligibleProviders.Length == 0)
         {
-            Console.Error.WriteLine("Live evaluation blocked: no enabled tenant-eligible provider supports structured schema-navigation output. No model requests were sent.");
+            foreach (var item in caseArray)
+            {
+                var caseId = item.GetProperty("id").GetString()!;
+                var timestamp = DateTimeOffset.UtcNow;
+                var row = JsonSerializer.SerializeToNode(new
+                {
+                    schemaVersion = 2,
+                    caseId,
+                    questionId = caseId,
+                    datasetVersion,
+                    questionText = item.GetProperty("question").GetString(),
+                    catalogVersion,
+                    catalogHash,
+                    attemptId = Guid.NewGuid().ToString("N"),
+                    attemptTimestampUtc = timestamp,
+                    completedAtUtc = timestamp,
+                    status = "failed",
+                    terminalStatus = "ProviderError",
+                    failureStage = "provider_initialization",
+                    errorCategory = "compatible_provider_not_configured",
+                    failureCategory = "provider_failure",
+                    failureCode = "compatible_provider_not_configured",
+                    provider = (string?)null,
+                    model = (string?)null,
+                    navigationCallCount = 0,
+                    retryCount = 0,
+                    latencyMs = 0,
+                    secretValuesLogged = false
+                })!.AsObject();
+                await PersistEvaluationRowsAsync(outputPath, recordedRows, caseId, row);
+            }
+            Console.Error.WriteLine("Live evaluation blocked: no enabled tenant-eligible provider supports structured schema-navigation output. Terminal ProviderError records were persisted; no model requests were sent.");
             Environment.ExitCode = 3;
             return;
         }
@@ -101,6 +154,8 @@ internal static class NavigatorEvaluationCli
             var outlineProvider = provider.GetRequiredService<ICatalogNavigationOutlineProvider>();
             var maximumCharacters = Math.Min(Math.Min(budgets.MaximumHierarchyContextCharacters, budgets.MaximumInputCharacters / 2),
                 budgets.MaximumCatalogContextTokens * 2);
+            if (int.TryParse(GetOption(args, "--outline-limit"), out var requestedOutlineLimit))
+                maximumCharacters = Math.Clamp(requestedOutlineLimit, 1, 100_000);
             foreach (var item in caseArray)
             {
                 var caseId = item.GetProperty("id").GetString()!;
@@ -108,6 +163,13 @@ internal static class NavigatorEvaluationCli
                 {
                     var outline = await outlineProvider.GetCompactOutlineAsync(catalogVersion, catalogHash,
                         item.GetProperty("question").GetString()!, maximumCharacters, CancellationToken.None);
+                    var outlineDumpDirectory = GetOption(args, "--outline-dump-dir");
+                    if (!string.IsNullOrWhiteSpace(outlineDumpDirectory))
+                    {
+                        var directory = FullPath(root, outlineDumpDirectory);
+                        Directory.CreateDirectory(directory);
+                        await File.WriteAllTextAsync(Path.Combine(directory, $"{caseId}.jsonl"), outline);
+                    }
                     var nodeCount = 0;
                     var sourceCandidateCount = 0;
                     var candidateSummary = new List<object>();
@@ -152,7 +214,6 @@ internal static class NavigatorEvaluationCli
         var navigator = provider.GetRequiredService<IVectorlessSchemaNavigator>();
         var requirementsExtractor = provider.GetRequiredService<IQuestionSchemaRequirementsExtractor>();
         Console.WriteLine($"Live evaluation budget: {caseArray.Length} cases; at most {budgets.MaximumModelCalls} total calls per case including extraction and retries, {budgets.MaximumNavigationCalls} navigation calls, {budgets.MaximumRetryAttempts} bounded retry, {caseArray.Length * budgets.MaximumInputTokens} input tokens and {caseArray.Length * budgets.MaximumTotalOutputTokens} output tokens across all cases (request-wide caps). Initial per-call output cap {budgets.InitialOutputTokens}; adaptive retry cap {budgets.MaximumOutputTokens}. Provider billing estimates are unavailable unless the provider returns cost metadata.");
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         var completed = 0;
 
         foreach (var item in caseArray)
@@ -160,84 +221,159 @@ internal static class NavigatorEvaluationCli
             var caseId = item.GetProperty("id").GetString()!;
             var question = item.GetProperty("question").GetString()!;
             var correlationId = $"feature141-eval-{caseId}-{Guid.NewGuid():N}";
+            var attemptId = Guid.NewGuid().ToString("N");
+            var attemptTimestamp = DateTimeOffset.UtcNow;
             var stopwatch = Stopwatch.StartNew();
             using var caseTimeout = new CancellationTokenSource(budgets.EffectiveTotalTimeout);
             SchemaNavigationResult? result = null;
             QuestionSchemaRequirements? requirements = null;
             Exception? failure = null;
             var executionPhase = "requirements_extraction";
-            try
+            var startedRow = JsonSerializer.SerializeToNode(new
             {
-                var request = new SchemaNavigationRequest(1, question,
-                    catalogVersion, catalogHash, TenantId: tenantId, CorrelationId: correlationId);
-                requirements = await requirementsExtractor.ExtractAsync(request, caseTimeout.Token);
-                executionPhase = "schema_navigation";
-                result = await navigator.NavigateAsync(request, requirements, caseTimeout.Token);
+                schemaVersion = 2,
+                caseId,
+                questionId = caseId,
+                datasetVersion,
+                questionText = question,
+                catalogVersion,
+                catalogHash,
+                attemptId,
+                attemptTimestampUtc = attemptTimestamp,
+                status = "running",
+                terminalStatus = (string?)null,
+                failureStage = "requirements_extraction",
+                errorCategory = (string?)null,
+                provider = selectedProvider?.ProviderKey,
+                model = selectedProvider?.ModelKey,
+                correlationId,
+                navigationCallCount = 0,
+                retryCount = 0,
+                secretValuesLogged = false
+            })!.AsObject();
+            await PersistEvaluationRowsAsync(outputPath, recordedRows, caseId, startedRow);
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                eventType = "evaluation_attempt_started",
+                caseId,
+                attemptId,
+                correlationId,
+                phase = executionPhase,
+                hardDeadlineMs = (long)budgets.EffectiveTotalTimeout.TotalMilliseconds,
+                secretValuesLogged = false
+            }));
+
+            var deadlineResult = await NavigatorEvaluationReliability.ExecuteWithHardDeadlineAsync(
+                async cancellationToken =>
+                {
+                    var request = new SchemaNavigationRequest(1, question,
+                        catalogVersion, catalogHash, TenantId: tenantId, CorrelationId: correlationId);
+                    var extracted = await requirementsExtractor.ExtractAsync(request, cancellationToken);
+                    executionPhase = "schema_navigation";
+                    var navigated = await navigator.NavigateAsync(request, extracted, cancellationToken);
+                    return new CaseExecution(extracted, navigated);
+                },
+                budgets.EffectiveTotalTimeout);
+
+            if (deadlineResult.State == EvaluationDeadlineState.Completed)
+            {
+                requirements = deadlineResult.Value!.Requirements;
+                result = deadlineResult.Value.Result;
             }
-            catch (AiModelProviderException exception)
+            else if (deadlineResult.State == EvaluationDeadlineState.TimedOut)
+            {
+                failure = new SchemaNavigationTimeoutException(
+                    "evaluation_hard_timeout", executionPhase, "runner_hard_deadline", deadlineResult.Exception);
+            }
+            else if (deadlineResult.State == EvaluationDeadlineState.Canceled)
+            {
+                failure = new OperationCanceledException("Evaluation attempt canceled by the runner.", deadlineResult.Exception);
+            }
+            else
+            {
+                failure = deadlineResult.Exception ?? new InvalidOperationException("Evaluation attempt failed without an exception.");
+            }
+            stopwatch.Stop();
+
+            if (failure is AiModelProviderException providerException)
             {
                 Console.Error.WriteLine(JsonSerializer.Serialize(new
                 {
                     eventType = "ai_provider_case_failed",
-                    exceptionType = exception.GetType().Name,
-                    errorCode = exception.Code,
+                    exceptionType = providerException.GetType().Name,
+                    errorCode = providerException.Code,
                     provider = selectedProvider?.ProviderKey,
                     model = selectedProvider?.ModelKey,
-                    endpointHost = exception.RequestHost ?? endpointHost,
-                    httpStatus = exception.HttpStatusCode,
-                    providerErrorCode = exception.ProviderErrorCode,
-                    providerRequestId = exception.ProviderRequestId,
-                    quotaMetadata = exception.ProviderQuotaMetadata,
+                    endpointHost = providerException.RequestHost ?? endpointHost,
+                    httpStatus = providerException.HttpStatusCode,
+                    providerErrorCode = providerException.ProviderErrorCode,
+                    providerRequestId = providerException.ProviderRequestId,
+                    quotaMetadata = providerException.ProviderQuotaMetadata,
                     phase = executionPhase,
                     caseId,
+                    attemptId,
                     correlationId,
                     secretValuesLogged = false
                 }));
-                failure = exception;
             }
-            catch (SchemaNavigationOutputException exception)
+            else if (failure is SchemaNavigationOutputException outputException)
             {
                 Console.Error.WriteLine(JsonSerializer.Serialize(new
                 {
                     eventType = "schema_navigation_case_failed",
-                    exceptionType = exception.GetType().Name,
-                    errorCode = exception.Code,
+                    exceptionType = outputException.GetType().Name,
+                    errorCode = outputException.Code,
                     provider = selectedProvider?.ProviderKey,
                     model = selectedProvider?.ModelKey,
                     phase = executionPhase,
-                    inputTokens = exception.InputTokens,
-                    outputTokens = exception.OutputTokens,
-                    latencyMs = exception.ModelLatency is { } latency ? (long?)latency.TotalMilliseconds : null,
-                    providerReportedCost = exception.ProviderReportedCost,
-                    providerReportedCurrency = exception.ProviderReportedCurrency,
+                    inputTokens = outputException.InputTokens,
+                    outputTokens = outputException.OutputTokens,
+                    latencyMs = outputException.ModelLatency is { } latency ? (long?)latency.TotalMilliseconds : null,
+                    providerReportedCost = outputException.ProviderReportedCost,
+                    providerReportedCurrency = outputException.ProviderReportedCurrency,
                     caseId,
+                    attemptId,
                     correlationId,
                     secretValuesLogged = false
                 }));
-                failure = exception;
             }
-            catch (SchemaNavigationBudgetException exception) { failure = exception; }
-            catch (OperationCanceledException exception) { failure = exception; }
-            catch (Exception exception) { failure = exception; }
-            stopwatch.Stop();
 
             if (failure is not null)
             {
                 var providerFailure = failure as AiModelProviderException;
                 var outputFailure = failure as SchemaNavigationOutputException;
+                var timeoutFailure = failure as SchemaNavigationTimeoutException;
                 var code = providerFailure?.Code ?? (failure as SchemaNavigationBudgetException)?.Code
-                    ?? outputFailure?.Code ?? failure.GetType().Name;
+                    ?? outputFailure?.Code ?? timeoutFailure?.Code ?? failure.GetType().Name;
                 var modelCalls = providerFailure?.EvaluationModelCalls ?? outputFailure?.ModelCalls
-                    ?? (requirements?.ModelCalls ?? (failure is AiModelProviderException ? 1 : 0));
+                    ?? (requirements?.ModelCalls ?? (failure is AiModelProviderException or SchemaNavigationTimeoutException ? 1 : 0));
                 if (failure is OperationCanceledException && executionPhase == "schema_navigation") modelCalls++;
+                var terminalStatus = TerminalStatus(failure);
+                var errorCategory = FailureCategory(failure);
                 var failedRow = JsonSerializer.SerializeToNode(new
                 {
-                    schemaVersion = 1, caseId, status = "failed", phase = executionPhase,
+                    schemaVersion = 2,
+                    caseId,
+                    questionId = caseId,
+                    datasetVersion,
+                    questionText = question,
+                    catalogVersion,
+                    catalogHash,
+                    attemptId,
+                    attemptTimestampUtc = attemptTimestamp,
+                    completedAtUtc = DateTimeOffset.UtcNow,
+                    status = "failed",
+                    terminalStatus,
+                    phase = executionPhase,
+                    failureStage = executionPhase,
                     provider = selectedProvider?.ProviderKey, model = selectedProvider?.ModelKey,
                     expectedFinancialValueReferences = GetJsonValue(item, "expectedFinancialValueReferences"),
                     expectedFinancialValueOperation = GetJsonValue(item, "expectedFinancialValueOperation"),
                     predictedFinancialValueReferences = (JsonNode?)null,
-                    failureCategory = FailureCategory(failure), failureCode = code,
+                    errorCategory,
+                    failureCategory = errorCategory,
+                    failureCode = code,
+                    failureDetail = outputFailure?.DiagnosticDetail ?? (failure is SchemaNavigationOutputException ? failure.Message : null),
                     modelCalls, inputTokens = providerFailure?.AccumulatedProviderInputTokens ?? outputFailure?.InputTokens ?? requirements?.InputTokens ?? providerFailure?.ProviderReportedInputTokens,
                     outputTokens = providerFailure?.AccumulatedProviderOutputTokens ?? outputFailure?.OutputTokens ?? requirements?.OutputTokens ?? providerFailure?.ProviderReportedOutputTokens,
                     estimatedInputTokens = outputFailure?.EstimatedInputTokens ?? requirements?.EstimatedInputTokens,
@@ -251,6 +387,20 @@ internal static class NavigatorEvaluationCli
                     providerErrorCode = providerFailure?.ProviderErrorCode,
                     correlationId,
                     providerCompletionReason = providerFailure?.ProviderCompletionReason,
+                    timeoutStage = timeoutFailure?.Stage,
+                    timeoutReason = timeoutFailure?.Reason,
+                    requirementsCalls = requirements?.ModelCalls ?? outputFailure?.ModelCalls,
+                    requirementsRetryAttempts = requirements?.RetryAttempts ?? outputFailure?.RetryAttempts,
+                    navigationCalls = (int?)null,
+                    navigationCallCount = executionPhase == "schema_navigation" ? Math.Max(1, modelCalls - (requirements?.ModelCalls ?? 1)) : 0,
+                    expansionCalls = (int?)null,
+                    navigationRetryAttempts = (int?)null,
+                    retryCount = providerFailure?.EvaluationRetryAttempts ?? outputFailure?.RetryAttempts ?? requirements?.RetryAttempts ?? 0,
+                    llmRequestInitiated = modelCalls > 0,
+                    callDiagnostics = FailureCallDiagnostics(executionPhase, modelCalls,
+                        providerFailure?.EvaluationRetryAttempts ?? outputFailure?.RetryAttempts ?? requirements?.RetryAttempts ?? 0,
+                        providerFailure?.ProviderCompletionReason, terminalStatus),
+                    providerCallDiagnostics = evaluationObserver.GetSnapshot(correlationId),
                     observedBudget = (failure as SchemaNavigationBudgetException)?.Observed,
                     configuredBudget = (failure as SchemaNavigationBudgetException)?.Limit,
                     diagnostics = new[] { code, executionPhase }, secretValuesLogged = false
@@ -272,18 +422,37 @@ internal static class NavigatorEvaluationCli
             {
                 var failedReferenceRow = JsonSerializer.SerializeToNode(new
                 {
-                    schemaVersion = 1, caseId, status = "failed", phase = executionPhase,
+                    schemaVersion = 2,
+                    caseId,
+                    questionId = caseId,
+                    datasetVersion,
+                    questionText = question,
+                    catalogVersion,
+                    catalogHash,
+                    attemptId,
+                    attemptTimestampUtc = attemptTimestamp,
+                    completedAtUtc = DateTimeOffset.UtcNow,
+                    status = "failed",
+                    terminalStatus = "CatalogReferenceFailure",
+                    phase = executionPhase,
+                    failureStage = "catalog_reference_validation",
                     provider = selectedProvider?.ProviderKey, model = selectedProvider?.ModelKey,
                     expectedFinancialValueReferences = GetJsonValue(item, "expectedFinancialValueReferences"),
                     expectedFinancialValueOperation = GetJsonValue(item, "expectedFinancialValueOperation"),
                     predictedFinancialValueReferences = successfulResult.SelectedFinancialValueReferences,
+                    errorCategory = "invalid_catalog_reference",
                     failureCategory = "invalid_catalog_reference", failureCode = "navigator_selected_unrecognized_financial_reference",
                     failureDetail = exception.Message, modelCalls = successfulResult.ModelCalls,
                     inputTokens = successfulResult.InputTokens, outputTokens = successfulResult.OutputTokens,
                     retryAttempts = successfulResult.RetryAttempts,
+                    retryCount = successfulResult.RetryAttempts,
+                    navigationCallCount = successfulResult.NavigationCalls,
                     latencyMs = (long)(successfulResult.ModelLatency?.TotalMilliseconds ?? 0),
                     wallLatencyMs = (long)stopwatch.Elapsed.TotalMilliseconds,
                     providerResponseId = successfulRequirements.ProviderResponseId,
+                    llmRequestInitiated = successfulResult.ModelCalls > 0,
+                    callDiagnostics = SuccessfulCallDiagnostics(successfulRequirements, successfulResult, "CatalogReferenceFailure"),
+                    providerCallDiagnostics = evaluationObserver.GetSnapshot(correlationId),
                     correlationId, secretValuesLogged = false
                 })!.AsObject();
                 await PersistEvaluationRowsAsync(outputPath, recordedRows, caseId, failedReferenceRow);
@@ -297,11 +466,26 @@ internal static class NavigatorEvaluationCli
                 }));
                 continue;
             }
+            var successfulTerminalStatus = ResultTerminalStatus(successfulResult);
             var row = JsonSerializer.SerializeToNode(new
             {
-                schemaVersion = 1,
+                schemaVersion = 2,
                 caseId,
+                questionId = caseId,
+                datasetVersion,
+                questionText = question,
+                catalogVersion,
+                catalogHash,
+                attemptId,
+                attemptTimestampUtc = attemptTimestamp,
+                completedAtUtc = DateTimeOffset.UtcNow,
                 status = "completed",
+                terminalStatus = successfulTerminalStatus,
+                failureStage = successfulTerminalStatus == "Completed" ? null : "semantic_validation",
+                errorCategory = successfulTerminalStatus == "Completed" ? null : ResultErrorCategory(successfulResult),
+                provider = selectedProvider?.ProviderKey,
+                model = selectedProvider?.ModelKey,
+                correlationId,
                 expectedFinancialValueReferences = GetJsonValue(item, "expectedFinancialValueReferences"),
                 expectedFinancialValueOperation = GetJsonValue(item, "expectedFinancialValueOperation"),
                 selectedNodeIds = successfulResult.SelectedNodeIds,
@@ -351,8 +535,10 @@ internal static class NavigatorEvaluationCli
                     productReferences = successfulRequirements.ProductReferences,
                     financialValueReferences = successfulRequirements.FinancialValueReferences,
                     financialValueOperation = successfulRequirements.RequestedFinancialValueOperation,
+                    structuredShape = successfulRequirements.StructuredShape,
                     unknownOrAmbiguous = successfulRequirements.HasUnknownOrAmbiguousRequirements,
                     uncertaintyReason = successfulRequirements.UncertaintyReason,
+                    normalizationDiagnostics = successfulRequirements.NormalizationDiagnostics,
                     extractionLatencyMs = (long)(successfulRequirements.ModelLatency?.TotalMilliseconds ?? 0)
                 },
                 financialValueReferences = enrichedFinancialReferences,
@@ -368,15 +554,36 @@ internal static class NavigatorEvaluationCli
                 isComplete = successfulResult.CompletenessStatus == SchemaContextCompletenessStatus.Complete,
                 outcome = Outcome(successfulResult.CompletenessStatus),
                 modelCalls = successfulResult.ModelCalls,
+                requirementsCalls = successfulResult.RequirementsCalls,
+                navigationCalls = successfulResult.NavigationCalls,
+                expansionCalls = successfulResult.ExpansionCalls,
+                requirementsRetryAttempts = successfulResult.RequirementsRetryAttempts,
+                navigationRetryAttempts = successfulResult.NavigationRetryAttempts,
+                navigationCallCount = successfulResult.NavigationCalls,
+                navigationLatencyMs = Math.Max(0, (long)(successfulResult.ModelLatency?.TotalMilliseconds ?? 0)
+                    - (long)(successfulRequirements.ModelLatency?.TotalMilliseconds ?? 0)),
                 retryAttempts = successfulResult.RetryAttempts,
+                retryCount = successfulResult.RetryAttempts,
                 inputTokens = successfulResult.InputTokens,
                 outputTokens = successfulResult.OutputTokens,
+                tokenUsage = new
+                {
+                    inputTokens = successfulResult.InputTokens,
+                    outputTokens = successfulResult.OutputTokens,
+                    estimatedInputTokens = successfulResult.EstimatedInputTokens,
+                    estimatedOutputTokens = successfulResult.EstimatedOutputTokens
+                },
                 estimatedInputTokens = successfulResult.EstimatedInputTokens,
                 estimatedOutputTokens = successfulResult.EstimatedOutputTokens,
                 latencyMs = (long)(successfulResult.ModelLatency?.TotalMilliseconds ?? stopwatch.Elapsed.TotalMilliseconds),
                 wallLatencyMs = (long)stopwatch.Elapsed.TotalMilliseconds,
                 providerReportedCost = successfulResult.ProviderReportedCost,
                 providerReportedCurrency = successfulResult.ProviderReportedCurrency,
+                providerCompletionReason = (string?)null,
+                providerCompletionReasonAvailability = "not_returned_by_execution-usage-contract",
+                llmRequestInitiated = successfulResult.ModelCalls > 0,
+                callDiagnostics = SuccessfulCallDiagnostics(successfulRequirements, successfulResult, successfulTerminalStatus),
+                providerCallDiagnostics = evaluationObserver.GetSnapshot(correlationId),
                 diagnostics = successfulResult.Diagnostics
             })!.AsObject();
             await PersistEvaluationRowsAsync(outputPath, recordedRows, caseId, row);
@@ -396,6 +603,8 @@ internal static class NavigatorEvaluationCli
         [property: JsonPropertyName("metricCode")] string? MetricCode = null,
         [property: JsonPropertyName("unitStatus")] string? SourceUnitStatus = null,
         [property: JsonPropertyName("queryable")] bool Queryable = false);
+
+    private sealed record CaseExecution(QuestionSchemaRequirements Requirements, SchemaNavigationResult Result);
 
     private sealed record CatalogReferenceIndex(
         IReadOnlyDictionary<string, CatalogFinancialReference> DirectSourceItems,
@@ -567,12 +776,145 @@ internal static class NavigatorEvaluationCli
     private static string FailureCategory(Exception exception) => exception switch
     {
         AiModelProviderException { Code: "ModelOutputTruncated" } => "model_output_truncated",
+        AiModelProviderException { Status: AiExecutionStatus.TimedOut } => "provider_timeout",
+        AiModelProviderException { Status: AiExecutionStatus.InvalidStructuredOutput } => "invalid_structured_output",
         AiModelProviderException => "provider_failure",
         SchemaNavigationBudgetException => "context_or_token_budget_exceeded",
-        SchemaNavigationOutputException => "invalid_structured_output_or_catalog_reference",
-        OperationCanceledException => "timeout_or_cancellation",
+        SchemaNavigationOutputException output when IsCatalogReferenceFailure(output.Code) => "invalid_catalog_reference",
+        SchemaNavigationOutputException => "invalid_structured_output",
+        SchemaNavigationTimeoutException => "timeout",
+        OperationCanceledException => "canceled",
         _ => "unexpected_evaluation_failure"
     };
+
+    private static string TerminalStatus(Exception exception) => exception switch
+    {
+        AiModelProviderException { Status: AiExecutionStatus.TimedOut } => "Timeout",
+        AiModelProviderException { Status: AiExecutionStatus.InvalidStructuredOutput } => "InvalidStructuredOutput",
+        AiModelProviderException => "ProviderError",
+        SchemaNavigationTimeoutException => "Timeout",
+        SchemaNavigationOutputException output when output.Code.Contains("unsupported", StringComparison.OrdinalIgnoreCase) => "UnsupportedOperation",
+        SchemaNavigationOutputException output when IsCatalogReferenceFailure(output.Code) => "CatalogReferenceFailure",
+        SchemaNavigationOutputException => "InvalidStructuredOutput",
+        SchemaNavigationBudgetException => "SemanticValidationFailure",
+        OperationCanceledException => "Canceled",
+        InvalidDataException => "CatalogReferenceFailure",
+        _ => "InternalError"
+    };
+
+    private static bool IsCatalogReferenceFailure(string code) =>
+        code.Contains("catalog", StringComparison.OrdinalIgnoreCase)
+        || code.Contains("reference", StringComparison.OrdinalIgnoreCase)
+        || code.Contains("unknown", StringComparison.OrdinalIgnoreCase);
+
+    private static string ResultTerminalStatus(SchemaNavigationResult result) => result.CompletenessStatus switch
+    {
+        SchemaContextCompletenessStatus.Complete => "Completed",
+        SchemaContextCompletenessStatus.Unsupported => "UnsupportedOperation",
+        SchemaContextCompletenessStatus.CatalogMismatch => "CatalogReferenceFailure",
+        _ => "SemanticValidationFailure"
+    };
+
+    private static string? ResultErrorCategory(SchemaNavigationResult result) => result.CompletenessStatus switch
+    {
+        SchemaContextCompletenessStatus.Unsupported => "unsupported_operation",
+        SchemaContextCompletenessStatus.CatalogMismatch => "catalog_mismatch",
+        SchemaContextCompletenessStatus.ClarificationRequired => "clarification_required",
+        SchemaContextCompletenessStatus.Complete => null,
+        _ => "incomplete_semantic_context"
+    };
+
+    private static object[] SuccessfulCallDiagnostics(
+        QuestionSchemaRequirements requirements,
+        SchemaNavigationResult result,
+        string terminalStatus) =>
+    [
+        new
+        {
+            callType = "RequirementsExtraction",
+            callCount = result.RequirementsCalls,
+            retryCount = result.RequirementsRetryAttempts,
+            inputTokens = requirements.InputTokens,
+            outputTokens = requirements.OutputTokens,
+            latencyMs = (long)(requirements.ModelLatency?.TotalMilliseconds ?? 0),
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_exposed_on_success"
+        },
+        new
+        {
+            callType = "InitialNavigation",
+            callCount = result.NavigationCalls > 0 ? 1 : 0,
+            retryCount = 0,
+            inputTokens = (int?)null,
+            outputTokens = (int?)null,
+            latencyMs = Math.Max(0, (long)(result.ModelLatency?.TotalMilliseconds ?? 0)
+                - (long)(requirements.ModelLatency?.TotalMilliseconds ?? 0)),
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_exposed_on_success"
+        },
+        new
+        {
+            callType = "HierarchyExpansion",
+            callCount = result.ExpansionCalls,
+            retryCount = 0,
+            inputTokens = (int?)null,
+            outputTokens = (int?)null,
+            latencyMs = 0L,
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_exposed_on_success"
+        },
+        new
+        {
+            callType = "StructuredOutputRetry",
+            callCount = result.RetryAttempts,
+            retryCount = result.RetryAttempts,
+            inputTokens = (int?)null,
+            outputTokens = (int?)null,
+            latencyMs = 0L,
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_exposed_on_success"
+        },
+        new
+        {
+            callType = "Planning",
+            callCount = 0,
+            retryCount = 0,
+            inputTokens = (int?)null,
+            outputTokens = (int?)null,
+            latencyMs = 0L,
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_applicable_to_navigator_evaluation",
+            terminalStatus
+        }
+    ];
+
+    private static object[] FailureCallDiagnostics(
+        string phase,
+        int modelCalls,
+        int retryCount,
+        string? finishReason,
+        string terminalStatus) =>
+    [
+        new
+        {
+            callType = phase == "requirements_extraction" ? "RequirementsExtraction" : "InitialNavigationOrExpansion",
+            callCount = modelCalls,
+            retryCount,
+            completed = false,
+            finishReason,
+            finishReasonAvailability = finishReason is null ? "provider_did_not_return_finish_reason" : "provider_reported",
+            terminalStatus
+        },
+        new
+        {
+            callType = "Planning",
+            callCount = 0,
+            retryCount = 0,
+            completed = false,
+            finishReason = (string?)null,
+            finishReasonAvailability = "not_reached"
+        }
+    ];
 
     private static bool IsCompletedRow(JsonObject row)
     {
@@ -582,9 +924,10 @@ internal static class NavigatorEvaluationCli
         return row["failureCategory"] is null;
     }
 
-    private static async Task<Dictionary<string, JsonObject>> ReadEvaluationRowsAsync(string path)
+    internal static async Task<Dictionary<string, JsonObject>> ReadEvaluationRowsAsync(string path)
     {
         var rows = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+        if (!File.Exists(path)) return rows;
         foreach (var line in await File.ReadAllLinesAsync(path))
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
@@ -600,9 +943,54 @@ internal static class NavigatorEvaluationCli
         string caseId, JsonObject row)
     {
         rows[caseId] = row;
-        var temporary = outputPath + ".tmp";
-        await File.WriteAllLinesAsync(temporary, rows.Values.Select(value => value.ToJsonString()));
-        File.Move(temporary, outputPath, overwrite: true);
+        await PersistEvaluationRowsAsync(outputPath, rows);
+    }
+
+    internal static async Task PersistEvaluationRowsAsync(string outputPath, Dictionary<string, JsonObject> rows)
+    {
+        var temporary = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                16_384, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                16_384, leaveOpen: true))
+            {
+                foreach (var value in rows.Values)
+                    await writer.WriteLineAsync(value.ToJsonString());
+                await writer.FlushAsync();
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(temporary, outputPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+    }
+
+    internal static int ReconcileInterruptedRows(Dictionary<string, JsonObject> rows)
+    {
+        var reconciled = 0;
+        foreach (var row in rows.Values)
+        {
+            var status = row["status"]?.GetValue<string>();
+            var terminal = row["terminalStatus"]?.GetValue<string>();
+            if (!string.Equals(status, "running", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(terminal)) continue;
+
+            row["status"] = "failed";
+            row["terminalStatus"] = "Canceled";
+            row["completedAtUtc"] = DateTimeOffset.UtcNow;
+            row["failureStage"] = "process_reconciliation";
+            row["errorCategory"] = "interrupted_process";
+            row["failureCategory"] = "interrupted_process";
+            row["failureCode"] = "evaluation_process_interrupted_before_terminal_persistence";
+            row["diagnostics"] = new JsonArray("attempt_start_was_durable", "terminal_record_reconciled_on_next_runner_start");
+            row["secretValuesLogged"] = false;
+            reconciled++;
+        }
+        return reconciled;
     }
 
     private static string FindRepositoryRoot()

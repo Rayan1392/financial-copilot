@@ -34,7 +34,8 @@ public sealed record QueryExecutionContext(
     Guid? UserId = null,
     Guid? ApiClientId = null,
     int? MonthlyActivityTrendReportYear = null,
-    int? MonthlyActivityTrendReportMonth = null);
+    int? MonthlyActivityTrendReportMonth = null,
+    AiQueryRequest? Request = null);
 
 public sealed record CapabilityExecutionResult(
     string CapabilityCode,
@@ -95,7 +96,7 @@ public sealed class SemanticCapabilityDispatcher(
         var requiredSlots = definition.RequiredSlots
             .Select(required => frame.Slots.FirstOrDefault(slot => QuerySlotSchema.Name(slot.Type) == required.Name))
             .ToArray();
-        if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Ambiguous))
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Ambiguous))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.DisambiguationRequired, DialogueOutcomeReasonCodes.EntityAmbiguous);
         if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "different_industries"))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, "different_industries");
@@ -105,7 +106,9 @@ public sealed class SemanticCapabilityDispatcher(
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
         if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Invalid && slot.Detail == "product_not_found"))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.NoData, DialogueOutcomeReasonCodes.SupportedButNoRows);
-        if (requiredSlots.Any(slot => slot?.ValidationState == QuerySlotValidationState.Unsupported))
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Invalid))
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.ClarificationRequired, DialogueOutcomeReasonCodes.EntityNotFound);
+        if (frame.Slots.Any(slot => slot.ValidationState == QuerySlotValidationState.Unsupported))
             return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Unsupported, "unsupported_slot");
 
         var missingRequired = definition.RequiredSlots.Any(required =>
@@ -205,12 +208,12 @@ public static class SemanticBillingCompletionStatus
 
 public sealed record SemanticRoutingOptions(
     IReadOnlyDictionary<string, SemanticRoutingMode>? Capabilities = null,
-    SemanticRoutingMode DefaultMode = SemanticRoutingMode.Shadow,
+    SemanticRoutingMode DefaultMode = SemanticRoutingMode.SemanticPrimary,
     int CanaryPercentage = 10,
     int SemanticInterpretationTimeoutMilliseconds = 5000,
     int SemanticInterpretationMaxOutputTokens = 384)
 {
-    public SemanticRoutingOptions() : this((IReadOnlyDictionary<string, SemanticRoutingMode>?)null, SemanticRoutingMode.Shadow, 10, 5000, 384) { }
+    public SemanticRoutingOptions() : this((IReadOnlyDictionary<string, SemanticRoutingMode>?)null, SemanticRoutingMode.SemanticPrimary, 10, 5000, 384) { }
 
     public const string SectionName = "SemanticRouting";
     public SemanticRoutingMode ModeFor(string capabilityCode) => Capabilities?.TryGetValue(capabilityCode, out var mode) == true ? mode : DefaultMode;
@@ -259,8 +262,9 @@ public sealed class SemanticRoutingRolloutCoordinator(
             : (int?)null;
         var inCanaryCohort = mode == SemanticRoutingMode.Canary &&
             (string.IsNullOrWhiteSpace(cohortKey) || cohortBucket < Math.Clamp(options.CanaryPercentage, 0, 100));
+        var rollback = mode is SemanticRoutingMode.Legacy or SemanticRoutingMode.Rollback;
         return new(capabilityCode, mode,
-            ExecuteSemanticRoute: mode == SemanticRoutingMode.SemanticPrimary || inCanaryCohort,
+            ExecuteSemanticRoute: !rollback,
             RunShadowComparison: mode == SemanticRoutingMode.Shadow ||
                 (mode == SemanticRoutingMode.Canary && !inCanaryCohort),
             InCanaryCohort: mode == SemanticRoutingMode.Canary ? inCanaryCohort : null,

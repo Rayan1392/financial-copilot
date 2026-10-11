@@ -1,0 +1,2944 @@
+{
+  "benchmarkVersion": 1,
+  "shadowPathOnly": true,
+  "casesInBenchmark": 12,
+  "casesEvaluated": 12,
+  "casesNotRun": 0,
+  "casesWithAdjudicatedGold": 12,
+  "casesWithDisputedGold": 0,
+  "casesWithOnlyInheritedMeasureLabels": 0,
+  "casesAwaitingGoldAdjudication": 0,
+  "unconditionalValidIntent": {
+    "correct": 9,
+    "denominator": 12,
+    "rate": 0.75
+  },
+  "unconditionalFieldMetrics": {
+    "aggregation": {
+      "correct": 0,
+      "denominator": 1,
+      "accuracy": 0.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "categoryLabels": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "comparison": {
+      "correct": 9,
+      "denominator": 10,
+      "accuracy": 0.9,
+      "legacyCorrect": 7,
+      "legacyAccuracy": 0.7
+    },
+    "effectiveSourceUnits": {
+      "correct": 8,
+      "denominator": 10,
+      "accuracy": 0.8,
+      "legacyCorrect": 1,
+      "legacyAccuracy": 0.1
+    },
+    "entityScope": {
+      "correct": 9,
+      "denominator": 10,
+      "accuracy": 0.9,
+      "legacyCorrect": 9,
+      "legacyAccuracy": 0.9
+    },
+    "measureConcepts": {
+      "correct": 9,
+      "denominator": 10,
+      "accuracy": 0.9,
+      "legacyCorrect": 5,
+      "legacyAccuracy": 0.5
+    },
+    "measureQualifiers": {
+      "correct": 7,
+      "denominator": 10,
+      "accuracy": 0.7,
+      "legacyCorrect": 1,
+      "legacyAccuracy": 0.1
+    },
+    "measureResolution": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "operation": {
+      "correct": 9,
+      "denominator": 10,
+      "accuracy": 0.9,
+      "legacyCorrect": 4,
+      "legacyAccuracy": 0.4
+    },
+    "output": {
+      "correct": 9,
+      "denominator": 10,
+      "accuracy": 0.9,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "period": {
+      "correct": 7,
+      "denominator": 10,
+      "accuracy": 0.7,
+      "legacyCorrect": 4,
+      "legacyAccuracy": 0.4
+    },
+    "productLabels": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0,
+      "legacyCorrect": 1,
+      "legacyAccuracy": 1.0
+    },
+    "ranking": {
+      "correct": 2,
+      "denominator": 2,
+      "accuracy": 1.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "requestedUnits": {
+      "correct": 8,
+      "denominator": 10,
+      "accuracy": 0.8,
+      "legacyCorrect": 1,
+      "legacyAccuracy": 0.1
+    },
+    "requiresClarification": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "thresholds": {
+      "correct": 2,
+      "denominator": 2,
+      "accuracy": 1.0,
+      "legacyCorrect": 0,
+      "legacyAccuracy": 0.0
+    },
+    "unitDimensions": {
+      "correct": 8,
+      "denominator": 10,
+      "accuracy": 0.8,
+      "legacyCorrect": 1,
+      "legacyAccuracy": 0.1
+    }
+  },
+  "conditionalFieldMetrics": {
+    "aggregation": {
+      "correct": 0,
+      "denominator": 1,
+      "accuracy": 0.0
+    },
+    "categoryLabels": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0
+    },
+    "comparison": {
+      "correct": 9,
+      "denominator": 9,
+      "accuracy": 1.0
+    },
+    "effectiveSourceUnits": {
+      "correct": 8,
+      "denominator": 9,
+      "accuracy": 0.8888888888888888
+    },
+    "entityScope": {
+      "correct": 9,
+      "denominator": 9,
+      "accuracy": 1.0
+    },
+    "measureConcepts": {
+      "correct": 9,
+      "denominator": 9,
+      "accuracy": 1.0
+    },
+    "measureQualifiers": {
+      "correct": 7,
+      "denominator": 9,
+      "accuracy": 0.7777777777777778
+    },
+    "measureResolution": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0
+    },
+    "operation": {
+      "correct": 9,
+      "denominator": 9,
+      "accuracy": 1.0
+    },
+    "output": {
+      "correct": 9,
+      "denominator": 9,
+      "accuracy": 1.0
+    },
+    "period": {
+      "correct": 7,
+      "denominator": 9,
+      "accuracy": 0.7777777777777778
+    },
+    "productLabels": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0
+    },
+    "ranking": {
+      "correct": 2,
+      "denominator": 2,
+      "accuracy": 1.0
+    },
+    "requestedUnits": {
+      "correct": 8,
+      "denominator": 9,
+      "accuracy": 0.8888888888888888
+    },
+    "requiresClarification": {
+      "correct": 1,
+      "denominator": 1,
+      "accuracy": 1.0
+    },
+    "thresholds": {
+      "correct": 2,
+      "denominator": 2,
+      "accuracy": 1.0
+    },
+    "unitDimensions": {
+      "correct": 8,
+      "denominator": 9,
+      "accuracy": 0.8888888888888888
+    }
+  },
+  "metricDenominators": {
+    "aggregation": 1,
+    "categoryLabels": 1,
+    "comparison": 10,
+    "effectiveSourceUnits": 10,
+    "entityScope": 10,
+    "measureConcepts": 10,
+    "measureQualifiers": 10,
+    "measureResolution": 1,
+    "operation": 10,
+    "output": 10,
+    "period": 10,
+    "productLabels": 1,
+    "ranking": 2,
+    "requestedUnits": 10,
+    "requiresClarification": 1,
+    "thresholds": 2,
+    "unitDimensions": 10
+  },
+  "failureCategories": {
+    "malformed_or_truncated_model_output": 0,
+    "structured_schema_validation_failure": 0,
+    "invalid_structured_output": 0,
+    "request_serialization_failure": 0,
+    "response_deserialization_failure": 0,
+    "invalid_request_schema": 0,
+    "provider_transport_failure": 0,
+    "provider_authentication_failure": 0,
+    "provider_quota_failure": 0,
+    "provider_rate_limited": 0,
+    "semantic_validation_failure": 1,
+    "unsupported_semantic_intent": 2,
+    "unknown_catalog_reference": 0,
+    "missing_catalog_coverage": 0,
+    "semantic_policy_rejection": 0,
+    "query_authorization_rejection": 0,
+    "planner_or_compiler_unsupported_operation": 0,
+    "provider_timeout_or_cancellation": 0,
+    "provider_failure_or_unavailable": 0,
+    "internal_implementation_error": 0,
+    "completed": 9,
+    "unmatched_attempt_reconciled_as_canceled": 0
+  },
+  "unsupportedIntentClassification": {
+    "correct": 2,
+    "denominator": 2,
+    "accuracy": 1.0
+  },
+  "unmatchedStartedAttempts": 0,
+  "optionBTokenTotals": {
+    "input": 28943,
+    "output": 6785,
+    "reportedCases": 12
+  },
+  "optionBLatencyMs": {
+    "mean": 6250.25,
+    "max": 7975
+  },
+  "perCase": [
+    {
+      "caseId": "independent-01",
+      "question": "مبلغ فروش ریالی شرکت آریا در دی ۱۴۰۴ چقدر بوده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": [
+            "salesamount"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "irr"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "irr"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "retrieve",
+          "optionBActual": "retrieve"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "explicitmonth:دی 1404",
+          "optionBActual": "explicitmonth:دی 1404"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "scalar",
+          "optionBActual": "scalar"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "شرکت آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5080,
+        "outputTokens": 802,
+        "latencyMs": 10098
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "مبلغ فروش ریالی",
+              "conceptId": "salesAmount",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "salesAmount"
+              ],
+              "kind": "salesAmount",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyDiscrete",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "irr",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "retrieve",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "explicitMonth",
+            "granularity": "month",
+            "userPeriodLabel": "دی ۱۴۰۴",
+            "numberOfPeriods": 1,
+            "startLabel": "دی ۱۴۰۴",
+            "endLabel": "دی ۱۴۰۴"
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "scalar",
+            "requestedFields": [
+              "مبلغ فروش ریالی"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2410,
+        "outputTokens": 502,
+        "latencyMs": 6196,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"مبلغ فروش ریالی\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesAmount\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyDiscrete\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"irr\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"retrieve\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"explicitMonth\",\"granularity\":\"month\",\"userPeriodLabel\":\"دی ۱۴۰۴\",\"numberOfPeriods\":1,\"startLabel\":\"دی ۱۴۰۴\",\"endLabel\":\"دی ۱۴۰۴\"},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"scalar\",\"requestedFields\":[\"مبلغ فروش ریالی\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-02",
+      "question": "کدام شرکت‌ها در آخرین گزارش ماهانه بیش از ۵۰۰ تن گندله فروخته‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "productLabels",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesquantity"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "salesquantity"
+          ],
+          "optionBActual": [
+            "salesquantity"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesquantity",
+              "physicalquantity"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesquantity",
+              "physicalquantity"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesquantity",
+              "ton"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesquantity",
+              "ton"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesquantity",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "discoverpopulation",
+          "optionBActual": "discoverpopulation"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": true,
+          "expected": "latestavailable",
+          "optionBActual": "latestavailable"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": true,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": "unboundcompanypopulation"
+        },
+        "productLabels": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "گندله"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "گندله"
+          ],
+          "optionBActual": [
+            "گندله"
+          ]
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesQuantity",
+              "greaterThan",
+              500,
+              "ton"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesQuantity",
+              "greaterThan",
+              500,
+              "ton"
+            ]
+          ]
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "table",
+          "optionBActual": "table"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [],
+          "productReferences": [
+            "گندله"
+          ],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 6478,
+        "outputTokens": 700,
+        "latencyMs": 7461
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "مقدار فروش",
+              "conceptId": "salesQuantity",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "salesQuantity"
+              ],
+              "kind": "salesQuantity",
+              "dimension": "physicalQuantity",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyDiscrete",
+                "statementScope": "unspecified",
+                "valueGrain": "productLevel"
+              },
+              "requestedUnit": "ton",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "discoverPopulation",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "latestAvailable",
+            "granularity": "month",
+            "userPeriodLabel": "آخرین گزارش ماهانه",
+            "numberOfPeriods": null,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "unboundCompanyPopulation",
+            "companyLabels": []
+          },
+          "products": [
+            {
+              "userLabel": "گندله",
+              "conceptLabel": null,
+              "provenance": "explicit"
+            }
+          ],
+          "categories": [],
+          "filters": {
+            "kind": "measureThreshold",
+            "measureConcept": "salesQuantity",
+            "threshold": {
+              "value": 500,
+              "unit": "ton",
+              "operator": "greaterThan"
+            }
+          },
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "table",
+            "requestedFields": [
+              "company",
+              "مقدار فروش"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2413,
+        "outputTokens": 634,
+        "latencyMs": 7315,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"مقدار فروش\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesQuantity\",\"dimension\":\"physicalQuantity\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyDiscrete\",\"statementScope\":\"unspecified\",\"valueGrain\":\"productLevel\"},\"requestedUnit\":\"ton\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"discoverPopulation\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"latestAvailable\",\"granularity\":\"month\",\"userPeriodLabel\":\"آخرین گزارش ماهانه\",\"numberOfPeriods\":null,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"unboundCompanyPopulation\",\"companyLabels\":[]},\"products\":[{\"userLabel\":\"گندله\",\"conceptLabel\":null,\"provenance\":\"explicit\"}],\"categories\":[],\"filters\":{\"kind\":\"measureThreshold\",\"measureConcept\":\"مقدار فروش\",\"threshold\":{\"value\":500,\"unit\":\"ton\",\"operator\":\"greaterThan\"}},\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"table\",\"requestedFields\":[\"company\",\"مقدار فروش\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-03",
+      "question": "سود خالص جداگانه و تلفیقی شرکت آریا را در آخرین گزارش با هم مقایسه کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            "netprofit",
+            "netprofit"
+          ],
+          "optionBActual": [
+            "netprofit",
+            "netprofit"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "consolidated",
+              "companytotal"
+            ],
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "standalone",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "consolidated",
+              "companytotal"
+            ],
+            [
+              "netprofit",
+              "reportedvalue",
+              "unspecified",
+              "standalone",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "netprofit",
+              "currencyamount"
+            ],
+            [
+              "netprofit",
+              "currencyamount"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "netprofit",
+              "currencyamount"
+            ],
+            [
+              "netprofit",
+              "currencyamount"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "netprofit",
+              "unspecified"
+            ],
+            [
+              "netprofit",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "netprofit",
+              "unspecified"
+            ],
+            [
+              "netprofit",
+              "unspecified"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ],
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ],
+            [
+              "netprofit",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "compare",
+          "optionBActual": "compare"
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "statementscope",
+          "optionBActual": "statementscope"
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "latestavailable",
+          "optionBCorrect": true,
+          "expected": "latestavailable",
+          "optionBActual": "latestavailable"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "comparison",
+          "optionBActual": "comparison"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5629,
+        "outputTokens": 731,
+        "latencyMs": 9242
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "سود خالص",
+              "conceptId": "netProfit",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "netProfit"
+              ],
+              "kind": "financialStatementItem",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "unspecified",
+                "statementScope": "standalone",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            },
+            {
+              "userPhrase": "سود خالص",
+              "conceptId": "netProfit",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "netProfit"
+              ],
+              "kind": "financialStatementItem",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "unspecified",
+                "statementScope": "consolidated",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "compare",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "statementScope",
+            "baselineDescription": "سود خالص جداگانه شرکت آریا",
+            "targetDescription": "سود خالص تلفیقی شرکت آریا"
+          },
+          "period": {
+            "kind": "latestAvailable",
+            "granularity": "unspecified",
+            "userPeriodLabel": "آخرین گزارش",
+            "numberOfPeriods": null,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "شرکت آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "comparison",
+            "requestedFields": []
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2417,
+        "outputTokens": 513,
+        "latencyMs": 5182,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"سود خالص\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"financialStatementItem\",\"dimension\":\"unknown\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"standalone\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"},{\"userPhrase\":\"سود خالص\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"financialStatementItem\",\"dimension\":\"unknown\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"consolidated\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"compare\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"statementScope\",\"baselineDescription\":\"سود خالص جداگانه شرکت آریا\",\"targetDescription\":\"سود خالص تلفیقی شرکت آریا\"},\"period\":{\"kind\":\"latestAvailable\",\"granularity\":\"unspecified\",\"userPeriodLabel\":\"آخرین گزارش\",\"numberOfPeriods\":null,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"شرکت آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"comparison\",\"requestedFields\":[]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-04",
+      "question": "سود عملیاتی هر سهم شرکت آریا نسبت به سال قبل چند درصد تغییر کرد؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "semantic_validation_failure",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": false,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            "operatingprofitpershare"
+          ],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "percentagechange",
+              "unspecified",
+              "unspecified",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "currencypershare"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "irrpershare"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "operatingprofitpershare",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": []
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "growthrate",
+          "optionBActual": null
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "yearoveryear",
+          "optionBActual": null
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": null
+        },
+        "entityScope": {
+          "legacyCorrect": false,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": false,
+          "expected": "namedcompanies",
+          "optionBActual": null
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "scalar",
+          "optionBActual": null
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 5933
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "semantic_validation_failure",
+        "diagnostic": "relative_period_incomplete",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": 2409,
+        "outputTokens": 548,
+        "latencyMs": 5611,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"سود عملیاتی هر سهم\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"financialStatementItem\",\"dimension\":\"currencyPerShare\",\"qualifiers\":{\"valueForm\":\"percentageChange\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"unspecified\"},\"requestedUnit\":\"percent\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"growthRate\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"yearOverYear\",\"baselineDescription\":\"سال قبل\",\"targetDescription\":\"سال جاری\"},\"period\":{\"kind\":\"relativePeriods\",\"granularity\":\"unspecified\",\"userPeriodLabel\":\"سال جاری نسبت به سال قبل\",\"numberOfPeriods\":2,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"scalar\",\"requestedFields\":[\"percentageChange\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-05",
+      "question": "مبلغ فروش ماهانه شرکت آریا را برای چهار گزارش آخر به ترتیب زمانی نمایش بده.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": [
+            "salesamount"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "unspecified"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "timeseries",
+          "optionBCorrect": true,
+          "expected": "timeseries",
+          "optionBActual": "timeseries"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:4",
+          "optionBCorrect": true,
+          "expected": "relativeperiods:month:4",
+          "optionBActual": "relativeperiods:month:4"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "timeseries",
+          "optionBActual": "timeseries"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 4,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7141,
+        "outputTokens": 610,
+        "latencyMs": 6861
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "مبلغ فروش",
+              "conceptId": "salesAmount",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "salesAmount"
+              ],
+              "kind": "salesAmount",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyDiscrete",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "timeSeries",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "relativePeriods",
+            "granularity": "month",
+            "userPeriodLabel": "چهار گزارش آخر",
+            "numberOfPeriods": 4,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "timeSeries",
+            "requestedFields": [
+              "period",
+              "company",
+              "salesAmount"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2410,
+        "outputTokens": 410,
+        "latencyMs": 4776,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"مبلغ فروش\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesAmount\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyDiscrete\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"timeSeries\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"relativePeriods\",\"granularity\":\"month\",\"userPeriodLabel\":\"چهار گزارش آخر\",\"numberOfPeriods\":4,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"timeSeries\",\"requestedFields\":[\"period\",\"company\",\"salesAmount\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-06",
+      "question": "فروش تجمعی شرکت آریا از ابتدای سال مالی تا پایان خرداد ۱۴۰۵ چه مبلغی بوده است؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": [
+            "salesamount"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlycumulative",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlycumulative",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "unspecified"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "retrieve",
+          "optionBActual": "retrieve"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "explicitmonth:خرداد 1405",
+          "optionBActual": "daterange:از ابتدای سال مالی تا پایان خرداد 1405"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "scalar",
+          "optionBActual": "scalar"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales_ytd"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 2,
+        "inputTokens": 10507,
+        "outputTokens": 1751,
+        "latencyMs": 19239
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "مبلغ فروش",
+              "conceptId": "salesAmount",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "salesAmount"
+              ],
+              "kind": "salesAmount",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyCumulative",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "retrieve",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "dateRange",
+            "granularity": "month",
+            "userPeriodLabel": "از ابتدای سال مالی تا پایان خرداد ۱۴۰۵",
+            "numberOfPeriods": null,
+            "startLabel": "ابتدای سال مالی",
+            "endLabel": "پایان خرداد ۱۴۰۵"
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "scalar",
+            "requestedFields": [
+              "مبلغ فروش"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2417,
+        "outputTokens": 716,
+        "latencyMs": 7975,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"مبلغ فروش\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesAmount\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyCumulative\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"retrieve\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"dateRange\",\"granularity\":\"month\",\"userPeriodLabel\":\"از ابتدای سال مالی تا پایان خرداد ۱۴۰۵\",\"numberOfPeriods\":null,\"startLabel\":\"ابتدای سال مالی\",\"endLabel\":\"پایان خرداد ۱۴۰۵\"},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"scalar\",\"requestedFields\":[\"مبلغ فروش\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-07",
+      "question": "فروش شرکت آریا در خرداد ۱۴۰۵ چقدر بود؟",
+      "goldStatus": "genuinely_ambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "output",
+        "requiresClarification",
+        "measureResolution"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": true,
+          "expected": [],
+          "optionBActual": []
+        },
+        "measureQualifiers": {
+          "legacyCorrect": true,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [],
+          "optionBActual": [
+            [
+              "",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": true,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [],
+          "optionBActual": [
+            [
+              "",
+              "unknown"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": true,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [],
+          "optionBActual": [
+            [
+              "",
+              "unspecified"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": true,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [],
+          "optionBActual": [
+            [
+              "",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": true,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "retrieve",
+          "optionBActual": "retrieve"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "explicitmonth:خرداد 1405",
+          "optionBActual": "explicitmonth:خرداد 1405"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "scalar",
+          "optionBActual": "scalar"
+        },
+        "requiresClarification": {
+          "legacyCorrect": false,
+          "legacyActual": false,
+          "optionBCorrect": true,
+          "expected": true,
+          "optionBActual": true
+        },
+        "measureResolution": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "فروش",
+              "ambiguous",
+              [
+                "salesamount",
+                "salesquantity"
+              ]
+            ]
+          ],
+          "optionBActual": [
+            [
+              "فروش",
+              "ambiguous",
+              [
+                "salesamount",
+                "salesquantity"
+              ]
+            ]
+          ]
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [
+            "آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 5077,
+        "outputTokens": 867,
+        "latencyMs": 10681
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "فروش",
+              "conceptId": null,
+              "canonicalizationStatus": "ambiguous",
+              "candidateConceptIds": [
+                "salesAmount",
+                "salesQuantity"
+              ],
+              "kind": "salesAmount",
+              "dimension": "unknown",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyDiscrete",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "retrieve",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "explicitMonth",
+            "granularity": "month",
+            "userPeriodLabel": "خرداد ۱۴۰۵",
+            "numberOfPeriods": 1,
+            "startLabel": "خرداد ۱۴۰۵",
+            "endLabel": "خرداد ۱۴۰۵"
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "scalar",
+            "requestedFields": [
+              "value"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": true,
+            "questions": [
+              "منظورتان از «فروش» مبلغ فروش است یا مقدار فروش؟"
+            ],
+            "unresolvedPoints": [
+              "ambiguous_reviewed_measure_term"
+            ]
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2407,
+        "outputTokens": 491,
+        "latencyMs": 5740,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"فروش\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesAmount\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyDiscrete\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"retrieve\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"explicitMonth\",\"granularity\":\"month\",\"userPeriodLabel\":\"خرداد ۱۴۰۵\",\"numberOfPeriods\":1,\"startLabel\":\"خرداد ۱۴۰۵\",\"endLabel\":\"خرداد ۱۴۰۵\"},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"scalar\",\"requestedFields\":[\"value\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-08",
+      "question": "قیمت سهم فولاد را برای پایان سال آینده پیش‌بینی کن.",
+      "goldStatus": "genuinely_unsupported",
+      "catalogStatus": null,
+      "expectedFields": [],
+      "optionBFailureCategory": "unsupported_semantic_intent",
+      "expectedOptionBFailureCategory": "unsupported_semantic_intent",
+      "unsupportedClassificationCorrect": true,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 6274
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "unsupported_semantic_intent",
+        "diagnostic": "unsupported_operation",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": 2405,
+        "outputTokens": 569,
+        "latencyMs": 5980,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"قیمت سهم\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"otherBusinessMeasure\",\"dimension\":\"currencyPerShare\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"unspecified\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"unsupported\",\"direction\":null,\"unsupportedReason\":\"forecastNotSupported\"},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"relativePeriods\",\"granularity\":\"fiscalYear\",\"userPeriodLabel\":\"پایان سال آینده\",\"numberOfPeriods\":1,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"فولاد\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"scalar\",\"requestedFields\":[]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-09",
+      "question": "آیا افزایش سود خالص شرکت آریا باعث رشد قیمت سهم آن شده است؟",
+      "goldStatus": "genuinely_unsupported",
+      "catalogStatus": null,
+      "expectedFields": [],
+      "optionBFailureCategory": "unsupported_semantic_intent",
+      "expectedOptionBFailureCategory": "unsupported_semantic_intent",
+      "unsupportedClassificationCorrect": true,
+      "optionBValidIntent": false,
+      "fieldScores": {},
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 8365
+      },
+      "optionB": {
+        "status": "failed",
+        "failureCategory": "unsupported_semantic_intent",
+        "diagnostic": "unsupported_operation",
+        "intent": null,
+        "modelCalls": 1,
+        "inputTokens": 2408,
+        "outputTokens": 651,
+        "latencyMs": 6724,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"سود خالص\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"financialStatementItem\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"absoluteChange\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"},{\"userPhrase\":\"قیمت سهم\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"providerReportedIndicator\",\"dimension\":\"currencyPerShare\",\"qualifiers\":{\"valueForm\":\"percentageChange\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"percent\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"unsupported\",\"direction\":null,\"unsupportedReason\":\"causalAnalysisNotSupported\"},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"unspecified\",\"granularity\":\"unspecified\",\"userPeriodLabel\":null,\"numberOfPeriods\":null,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"شرکت آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"explanation\",\"requestedFields\":[]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-10",
+      "question": "شرکت‌های صنعت پتروشیمی را بر اساس نسبت P/E از کمترین به بیشترین رتبه‌بندی کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "categoryLabels",
+        "ranking",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            "priceearningsratio"
+          ],
+          "optionBActual": [
+            "priceearningsratio"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "priceearningsratio",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "priceearningsratio",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "priceearningsratio",
+              "ratio"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "priceearningsratio",
+              "ratio"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "priceearningsratio",
+              "ratio"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "priceearningsratio",
+              "ratio"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "priceearningsratio",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "priceearningsratio",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "rank",
+          "optionBActual": "rank"
+        },
+        "comparison": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "latestavailable",
+          "optionBActual": "unspecified"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": true,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": "unboundcompanypopulation"
+        },
+        "categoryLabels": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            "پتروشیمی"
+          ],
+          "optionBActual": [
+            "پتروشیمی"
+          ]
+        },
+        "ranking": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "ascending:priceearningsratio",
+          "optionBActual": "ascending:priceearningsratio"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "rankedlist",
+          "optionBActual": "rankedlist"
+        }
+      },
+      "legacy": {
+        "status": "failed",
+        "failureCategory": "internal_error",
+        "extractedIntent": {
+          "exceptionType": "SchemaNavigationOutputException"
+        },
+        "modelCalls": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "latencyMs": 9663
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "نسبت P/E",
+              "conceptId": "priceEarningsRatio",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "priceEarningsRatio"
+              ],
+              "kind": "providerReportedIndicator",
+              "dimension": "ratio",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "unspecified",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "ratio",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "rank",
+            "direction": "ascending",
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "unspecified",
+            "granularity": "unspecified",
+            "userPeriodLabel": null,
+            "numberOfPeriods": null,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "unboundCompanyPopulation",
+            "companyLabels": []
+          },
+          "products": [],
+          "categories": [
+            {
+              "userLabel": "صنعت پتروشیمی",
+              "categoryKind": "industry",
+              "provenance": "explicit"
+            }
+          ],
+          "filters": null,
+          "aggregation": null,
+          "ranking": {
+            "direction": "ascending",
+            "measureConcept": "priceEarningsRatio",
+            "limit": null
+          },
+          "output": {
+            "kind": "rankedList",
+            "requestedFields": [
+              "company",
+              "نسبت P/E",
+              "rank"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": true,
+            "questions": [
+              "منظور شما P/E جاری (پس‌نگر) است یا P/E پیشرو؟"
+            ],
+            "unresolvedPoints": [
+              "نوع نسبت P/E مشخص نشده است."
+            ]
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2415,
+        "outputTokens": 641,
+        "latencyMs": 6928,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"نسبت P/E\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"providerReportedIndicator\",\"dimension\":\"ratio\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"ratio\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"rank\",\"direction\":\"ascending\",\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"unspecified\",\"granularity\":\"unspecified\",\"userPeriodLabel\":null,\"numberOfPeriods\":null,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"unboundCompanyPopulation\",\"companyLabels\":[]},\"products\":[],\"categories\":[{\"userLabel\":\"صنعت پتروشیمی\",\"categoryKind\":\"industry\",\"provenance\":\"explicit\"}],\"filters\":null,\"aggregation\":null,\"ranking\":{\"direction\":\"ascending\",\"measureConcept\":\"نسبت P/E\",\"limit\":null},\"output\":{\"kind\":\"rankedList\",\"requestedFields\":[\"company\",\"نسبت P/E\",\"rank\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":true,\"questions\":[\"منظور شما P/E جاری (پس‌نگر) است یا P/E پیشرو؟\"],\"unresolvedPoints\":[\"نوع نسبت P/E مشخص نشده است.\"]}}"
+      }
+    },
+    {
+      "caseId": "independent-11",
+      "question": "کدام شرکت‌ها در خرداد ۱۴۰۵ بیش از ۵۰۰ میلیارد ریال فروش ریالی ثبت کرده‌اند؟",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "thresholds",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "salesamount"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "salesamount"
+          ],
+          "optionBActual": [
+            "salesamount"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "companytotal"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "currencyamount"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "billionirr"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "billionirr"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesamount",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "retrieve",
+          "optionBCorrect": true,
+          "expected": "discoverpopulation",
+          "optionBActual": "discoverpopulation"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "explicitmonth:خرداد 1405",
+          "optionBActual": "explicitmonth:خرداد 1405"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "unboundcompanypopulation",
+          "optionBCorrect": true,
+          "expected": "unboundcompanypopulation",
+          "optionBActual": "unboundcompanypopulation"
+        },
+        "thresholds": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "salesAmount",
+              "greaterThan",
+              500,
+              "billionIRR"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "salesAmount",
+              "greaterThan",
+              500,
+              "billionIRR"
+            ]
+          ]
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "table",
+          "optionBActual": "table"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_sales"
+          ],
+          "entityKinds": [
+            "company"
+          ],
+          "entityReferences": [],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "DirectValue",
+          "comparison": "None",
+          "maximumPeriods": null,
+          "periodPolicies": [
+            "explicit-period"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 6666,
+        "outputTokens": 811,
+        "latencyMs": 8178
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "فروش ریالی",
+              "conceptId": "salesAmount",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "salesAmount"
+              ],
+              "kind": "salesAmount",
+              "dimension": "currencyAmount",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "monthlyDiscrete",
+                "statementScope": "unspecified",
+                "valueGrain": "companyTotal"
+              },
+              "requestedUnit": "billionIRR",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "discoverPopulation",
+            "direction": null,
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "explicitMonth",
+            "granularity": "month",
+            "userPeriodLabel": "خرداد ۱۴۰۵",
+            "numberOfPeriods": 1,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "unboundCompanyPopulation",
+            "companyLabels": []
+          },
+          "products": [],
+          "categories": [],
+          "filters": {
+            "kind": "measureThreshold",
+            "measureConcept": "salesAmount",
+            "threshold": {
+              "value": 500,
+              "unit": "billionIRR",
+              "operator": "greaterThan"
+            }
+          },
+          "aggregation": null,
+          "ranking": null,
+          "output": {
+            "kind": "table",
+            "requestedFields": [
+              "company",
+              "فروش ریالی"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2416,
+        "outputTokens": 539,
+        "latencyMs": 6152,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"فروش ریالی\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"salesAmount\",\"dimension\":\"currencyAmount\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"monthlyDiscrete\",\"statementScope\":\"unspecified\",\"valueGrain\":\"companyTotal\"},\"requestedUnit\":\"billionIRR\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"discoverPopulation\",\"direction\":null,\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"explicitMonth\",\"granularity\":\"month\",\"userPeriodLabel\":\"خرداد ۱۴۰۵\",\"numberOfPeriods\":1,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"unboundCompanyPopulation\",\"companyLabels\":[]},\"products\":[],\"categories\":[],\"filters\":{\"kind\":\"measureThreshold\",\"measureConcept\":\"فروش ریالی\",\"threshold\":{\"value\":500,\"unit\":\"billionIRR\",\"operator\":\"greaterThan\"}},\"aggregation\":null,\"ranking\":null,\"output\":{\"kind\":\"table\",\"requestedFields\":[\"company\",\"فروش ریالی\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    },
+    {
+      "caseId": "independent-12",
+      "question": "محصولات شرکت آریا را بر اساس مجموع مقدار تولید در سه ماه اخیر از بیشترین به کمترین مرتب کن.",
+      "goldStatus": "adjudicated_unambiguous",
+      "catalogStatus": null,
+      "expectedFields": [
+        "measureConcepts",
+        "measureQualifiers",
+        "unitDimensions",
+        "requestedUnits",
+        "effectiveSourceUnits",
+        "operation",
+        "comparison",
+        "period",
+        "entityScope",
+        "aggregation",
+        "ranking",
+        "output"
+      ],
+      "optionBFailureCategory": "completed",
+      "expectedOptionBFailureCategory": null,
+      "unsupportedClassificationCorrect": null,
+      "optionBValidIntent": true,
+      "fieldScores": {
+        "measureConcepts": {
+          "legacyCorrect": true,
+          "legacyActual": [
+            "productionquantity"
+          ],
+          "optionBCorrect": true,
+          "expected": [
+            "productionquantity"
+          ],
+          "optionBActual": [
+            "productionquantity"
+          ]
+        },
+        "measureQualifiers": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": false,
+          "expected": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "monthlydiscrete",
+              "unspecified",
+              "productlevel"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "productionquantity",
+              "reportedvalue",
+              "unspecified",
+              "unspecified",
+              "productlevel"
+            ]
+          ]
+        },
+        "unitDimensions": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "productionquantity",
+              "physicalquantity"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "productionquantity",
+              "physicalquantity"
+            ]
+          ]
+        },
+        "requestedUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "productionquantity",
+              "unspecified"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "productionquantity",
+              "unspecified"
+            ]
+          ]
+        },
+        "effectiveSourceUnits": {
+          "legacyCorrect": false,
+          "legacyActual": [],
+          "optionBCorrect": true,
+          "expected": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ],
+          "optionBActual": [
+            [
+              "productionquantity",
+              "null",
+              "unresolved"
+            ]
+          ]
+        },
+        "operation": {
+          "legacyCorrect": false,
+          "legacyActual": "timeseries",
+          "optionBCorrect": true,
+          "expected": "rank",
+          "optionBActual": "rank"
+        },
+        "comparison": {
+          "legacyCorrect": true,
+          "legacyActual": "none",
+          "optionBCorrect": true,
+          "expected": "none",
+          "optionBActual": "none"
+        },
+        "period": {
+          "legacyCorrect": true,
+          "legacyActual": "relativeperiods:month:3",
+          "optionBCorrect": true,
+          "expected": "relativeperiods:month:3",
+          "optionBActual": "relativeperiods:month:3"
+        },
+        "entityScope": {
+          "legacyCorrect": true,
+          "legacyActual": "namedcompanies",
+          "optionBCorrect": true,
+          "expected": "namedcompanies",
+          "optionBActual": "namedcompanies"
+        },
+        "aggregation": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": false,
+          "expected": "sum:acrossperiods",
+          "optionBActual": "sum:product"
+        },
+        "ranking": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "descending:productionquantity",
+          "optionBActual": "descending:productionquantity"
+        },
+        "output": {
+          "legacyCorrect": false,
+          "legacyActual": null,
+          "optionBCorrect": true,
+          "expected": "rankedlist",
+          "optionBActual": "rankedlist"
+        }
+      },
+      "legacy": {
+        "status": "completed",
+        "failureCategory": null,
+        "extractedIntent": {
+          "measureIds": [
+            "metric_monthly_production_quantity"
+          ],
+          "entityKinds": [
+            "company",
+            "product"
+          ],
+          "entityReferences": [
+            "آریا"
+          ],
+          "productReferences": [],
+          "populationDiscoveryRequested": false,
+          "operation": "TimeSeries",
+          "comparison": "None",
+          "maximumPeriods": 3,
+          "periodPolicies": [
+            "latest"
+          ],
+          "hasUnknownOrAmbiguousRequirements": false,
+          "uncertaintyReason": null
+        },
+        "modelCalls": 1,
+        "inputTokens": 7376,
+        "outputTokens": 733,
+        "latencyMs": 7903
+      },
+      "optionB": {
+        "status": "completed",
+        "failureCategory": null,
+        "diagnostic": null,
+        "intent": {
+          "contractVersion": 2,
+          "measures": [
+            {
+              "userPhrase": "مقدار تولید",
+              "conceptId": "productionQuantity",
+              "canonicalizationStatus": "canonicalized",
+              "candidateConceptIds": [
+                "productionQuantity"
+              ],
+              "kind": "productionQuantity",
+              "dimension": "physicalQuantity",
+              "qualifiers": {
+                "valueForm": "reportedValue",
+                "reportingBasis": "unspecified",
+                "statementScope": "unspecified",
+                "valueGrain": "productLevel"
+              },
+              "requestedUnit": "unspecified",
+              "effectiveSourceUnit": null,
+              "effectiveSourceUnitEvidence": "unresolved"
+            }
+          ],
+          "operation": {
+            "kind": "rank",
+            "direction": "descending",
+            "unsupportedReason": null
+          },
+          "comparison": {
+            "mode": "none",
+            "baselineDescription": null,
+            "targetDescription": null
+          },
+          "period": {
+            "kind": "relativePeriods",
+            "granularity": "month",
+            "userPeriodLabel": "سه ماه اخیر",
+            "numberOfPeriods": 3,
+            "startLabel": null,
+            "endLabel": null
+          },
+          "entityScope": {
+            "kind": "namedCompanies",
+            "companyLabels": [
+              "آریا"
+            ]
+          },
+          "products": [],
+          "categories": [],
+          "filters": null,
+          "aggregation": {
+            "function": "sum",
+            "scope": "product"
+          },
+          "ranking": {
+            "direction": "descending",
+            "measureConcept": "productionQuantity",
+            "limit": null
+          },
+          "output": {
+            "kind": "rankedList",
+            "requestedFields": [
+              "محصول",
+              "مجموع مقدار تولید"
+            ]
+          },
+          "constraints": [],
+          "ambiguity": {
+            "requiresClarification": false,
+            "questions": [],
+            "unresolvedPoints": []
+          }
+        },
+        "modelCalls": 1,
+        "inputTokens": 2416,
+        "outputTokens": 571,
+        "latencyMs": 6424,
+        "rawStructuredOutput": "{\"contractVersion\":2,\"measures\":[{\"userPhrase\":\"مقدار تولید\",\"conceptId\":null,\"canonicalizationStatus\":\"unrecognized\",\"candidateConceptIds\":[],\"kind\":\"productionQuantity\",\"dimension\":\"physicalQuantity\",\"qualifiers\":{\"valueForm\":\"reportedValue\",\"reportingBasis\":\"unspecified\",\"statementScope\":\"unspecified\",\"valueGrain\":\"productLevel\"},\"requestedUnit\":\"unspecified\",\"effectiveSourceUnit\":null,\"effectiveSourceUnitEvidence\":\"unresolved\"}],\"operation\":{\"kind\":\"rank\",\"direction\":\"descending\",\"unsupportedReason\":null},\"comparison\":{\"mode\":\"none\",\"baselineDescription\":null,\"targetDescription\":null},\"period\":{\"kind\":\"relativePeriods\",\"granularity\":\"month\",\"userPeriodLabel\":\"سه ماه اخیر\",\"numberOfPeriods\":3,\"startLabel\":null,\"endLabel\":null},\"entityScope\":{\"kind\":\"namedCompanies\",\"companyLabels\":[\"آریا\"]},\"products\":[],\"categories\":[],\"filters\":null,\"aggregation\":{\"function\":\"sum\",\"scope\":\"product\"},\"ranking\":{\"direction\":\"descending\",\"measureConcept\":\"مقدار تولید\",\"limit\":null},\"output\":{\"kind\":\"rankedList\",\"requestedFields\":[\"محصول\",\"مجموع مقدار تولید\"]},\"constraints\":[],\"ambiguity\":{\"requiresClarification\":false,\"questions\":[],\"unresolvedPoints\":[]}}"
+      }
+    }
+  ]
+}

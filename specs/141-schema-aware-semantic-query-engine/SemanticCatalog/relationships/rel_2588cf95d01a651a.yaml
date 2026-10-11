@@ -1,52 +1,53 @@
 {
-  "id": "rel_2588cf95d01a651a",
-  "from": {
-    "schema": "public",
-    "table": "FinancialStatementLineItems",
-    "columns": [
-      "FinancialStatementId"
-    ]
-  },
-  "to": {
-    "schema": "public",
-    "table": "FinancialStatements",
-    "columns": [
-      "Id"
-    ]
-  },
-  "physicalConstraint": null,
-  "physicalConstraintPresent": false,
-  "inferredCardinality": "many-to-one",
-  "joinGrain": {
-    "manySide": "One persisted FinancialStatementLineItems row per statement observation.",
-    "oneSide": "One FinancialStatements header row identified by Id.",
-    "sourceItemObservationUniqueness": "The captured PostgreSQL partial unique index enforces at most one non-NULL SourceItemCatalogId per FinancialStatementId; NULL source identities are excluded."
-  },
-  "nullableBehavior": {
-    "fromKeyNullable": false,
-    "toKeyNullable": false,
-    "referentialIntegrityEnforced": false,
-    "orphanBehavior": "A non-NULL line-item key can still be orphaned because PostgreSQL has no FK constraint."
-  },
-  "verification": {
-    "status": "verified-application-logical-relationship",
-    "applicationModelField": "FinancialStatementLineItems.FinancialStatementId",
-    "targetIdentity": "FinancialStatements.Id",
-    "physicalForeignKey": "not-present-in-captured-live-schema",
-    "dataJoinUniqueness": "cataloged partial unique index; live duplicate/orphan row scan not performed in this session"
-  },
-  "semantic": {
-    "approved": false,
-    "status": "pending-owner-semantic-approval",
-    "runtimeJoinable": false,
-    "queryAuthorization": {
-      "approved": false,
-      "queryable": false,
-      "reason": "Logical join documentation does not grant runtime query access."
-    }
-  },
-  "provenance": {
-    "source": "EF/application persistence model plus captured live PostgreSQL column/index metadata",
-    "verified": true
-  }
+    "id":  "rel_2588cf95d01a651a",
+    "from":  {
+                 "schema":  "public",
+                 "table":  "FinancialStatementLineItems",
+                 "columns":  [
+                                 "FinancialStatementId"
+                             ]
+             },
+    "to":  {
+               "schema":  "public",
+               "table":  "FinancialStatements",
+               "columns":  [
+                               "Id"
+                           ]
+           },
+    "physicalConstraint":  null,
+    "physicalConstraintPresent":  false,
+    "inferredCardinality":  "many-to-one",
+    "joinGrain":  {
+                      "manySide":  "One persisted FinancialStatementLineItems row per statement observation.",
+                      "oneSide":  "One FinancialStatements header row identified by Id.",
+                      "sourceItemObservationUniqueness":  "The captured PostgreSQL partial unique index enforces at most one non-NULL SourceItemCatalogId per FinancialStatementId; NULL source identities are excluded."
+                  },
+    "nullableBehavior":  {
+                             "fromKeyNullable":  false,
+                             "toKeyNullable":  false,
+                             "referentialIntegrityEnforced":  false,
+                             "orphanBehavior":  "A non-NULL line-item key can still be orphaned because PostgreSQL has no FK constraint."
+                         },
+    "verification":  {
+                         "status":  "verified-application-logical-relationship",
+                         "applicationModelField":  "FinancialStatementLineItems.FinancialStatementId",
+                         "targetIdentity":  "FinancialStatements.Id",
+                         "physicalForeignKey":  "not-present-in-captured-live-schema",
+                         "dataJoinUniqueness":  "cataloged partial unique index; live duplicate/orphan row scan not performed in this session"
+                     },
+    "semantic":  {
+                     "approved":  true,
+                     "status":  "owner-approved-runtime-join",
+                     "runtimeJoinable":  true,
+                     "queryAuthorization":  {
+                                                "approved":  true,
+                                                "queryable":  true,
+                                                "reason":  "Join is limited to the verified source-item, statement, and company identity path.",
+                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "EF/application persistence model plus captured live PostgreSQL column/index metadata",
+                       "verified":  true
+                   }
 }

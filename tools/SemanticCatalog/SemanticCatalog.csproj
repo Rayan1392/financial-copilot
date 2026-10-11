@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="FinancialCopilot.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/backend/FinancialCopilot.Infrastructure/FinancialCopilot.Infrastructure.csproj" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.4" />
   </ItemGroup>

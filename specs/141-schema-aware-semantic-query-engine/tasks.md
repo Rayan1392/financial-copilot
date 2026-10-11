@@ -494,3 +494,30 @@ statement observations.
 - [ ] Implement company-by-sales/growth ranking and reviewed industry/product-category filters; the current ranking support is top-N products within one company.
 - [ ] Improve extraction validation and Navigator relevance/precision, then evaluate live Planner -> Compiler eligibility using reviewed catalog metadata and authorized identity bindings.
 - [ ] Keep Development execution and production routing disabled until catalog approvals and grants are explicitly configured.
+
+## Option B Phase 1 — benchmark and canonical intent (2026-10-10)
+
+- [x] Add a typed, schema-independent canonical intent contract covering measures, operation/comparison, reporting period, named companies and unbound population, products/categories, boolean and numeric filters, aggregation/ranking, output shape, provenance, and clarification.
+- [x] Add independent deterministic validation for required arguments, periods, units, contradictory conjunctions, ranking/aggregation completeness, population-scope consistency, and provenance.
+- [x] Add provider-neutral, bounded LLM extraction and a shadow CLI that compares legacy requirements extraction and Option B on identical Persian input without invoking downstream query stages.
+- [x] Add versioned correction manifest, benchmark builder, and distinct failure taxonomy/scorer. Historical source datasets and run artifacts are preserved.
+- [x] Run the full existing 60-case development/historical-v2/v3 shadow set and publish per-question field correctness, failure categories, tokens, and latency; preserve raw rows and a reproducible scorecard.
+- [x] Keep unreviewed cases out of exact semantic-gold denominators and report the 49-case adjudication backlog.
+- [x] Record a no-go Phase 2 recommendation based on the current incomplete gold, non-comparable measure-concept labels, and observed qualifier/unit misses.
+- [ ] Adjudicate remaining original 50 and historical holdout gold; only reviewed cases contribute exact semantic accuracy.
+- [ ] Align canonical measure concepts with an explicit, language-independent gold vocabulary and update semantic scoring without rewriting source labels to fit model outputs.
+- [x] Run Release solution build (0 warnings/errors), 2,033 UnitTests, 12 ArchitectureTests, 4 scorer/builder Python tests, and SemanticCatalog source/hierarchy integrity validation.
+- [ ] Review per-question unit, threshold, aggregation, ranking, and clarification disagreements.
+- [ ] Freeze scoring rules and evaluate newly authored unseen questions before making any Phase 2 routing recommendation; keep routing and query execution disabled meanwhile.
+
+## Option B Phase 1.5 — canonical measures and holdout
+
+- [x] Add an independent business-measure concept registry with reviewed Persian aliases and no physical catalog identifiers.
+- [x] Preserve requested dimensions, value form, reporting basis, statement scope, grain, requested unit, and unresolved source-unit evidence.
+- [x] Add deterministic canonicalization, ambiguity retention, unknown-term preservation, unit/qualifier validation, and unsupported-operation handling.
+- [x] Add v3 reviewed-gold overlay and scoring with source-question hashes and reviewer/blinding provenance; retain 30 adjudicated rows and 1 disputed row without changing source datasets.
+- [x] Add a new, frozen 12-question first-pass holdout, distinct from the historical 60; keep it unchanged after evaluation.
+- [x] Run same 60 and holdout once in shadow-only mode. Both were inconclusive for semantic quality because Option B provider failures occurred on every case (60/60 and 12/12).
+- [x] Release tool build; focused semantic tests 14/14; Python scoring/builder tests 5/5; catalog integrity passes.
+- [ ] Obtain independent human/domain review of v3 gold and resolve the `fa-value-02` source-vs-correction conflict.
+- [ ] Restore provider availability, then evaluate semantic accuracy with nonzero valid-output denominators before considering Phase 2; do not activate routing or execution based on these failed runs.

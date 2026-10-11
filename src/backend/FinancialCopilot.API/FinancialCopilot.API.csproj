@@ -25,4 +25,15 @@
     <ProjectReference Include="..\FinancialCopilot.Infrastructure\FinancialCopilot.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\..\specs\141-schema-aware-semantic-query-engine\SemanticCatalog\**\*"
+             Link="Feature141Catalog\SemanticCatalog\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\specs\141-schema-aware-semantic-query-engine\artifacts\navigation-hierarchy.yaml"
+             Link="Feature141Catalog\navigation-hierarchy.yaml"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

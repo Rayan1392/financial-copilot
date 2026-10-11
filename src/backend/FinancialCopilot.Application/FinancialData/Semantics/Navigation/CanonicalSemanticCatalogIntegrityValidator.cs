@@ -3,17 +3,42 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 
 /// <summary>Validates the canonical JSON-subset YAML package and its generated hierarchy without rebuilding either.</summary>
 public static class CanonicalSemanticCatalogIntegrityValidator
 {
+    private static readonly ConcurrentDictionary<string, Lazy<string>> ValidatedSnapshots = new(StringComparer.Ordinal);
     private static readonly string[] RootFiles = ["catalog.yaml", "catalog-scope.yaml", "manifest.yaml", "navigation.yaml", "source-item-snapshot.json"];
     private static readonly string[] PackageFolders = ["tables", "relationships", "metrics", "dimensions", "dictionaries", "sources", "policies"];
     private static readonly JsonWriterOptions WriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public static string Validate(string catalogDirectory, JsonElement hierarchy)
+    {
+        var version = hierarchy.TryGetProperty("catalogVersion", out var versionElement) ? versionElement.GetString() : null;
+        var declaredHash = hierarchy.TryGetProperty("catalogHash", out var catalogHashElement) ? catalogHashElement.GetString() : null;
+        var hierarchyHash = hierarchy.TryGetProperty("hierarchyHash", out var hierarchyHashElement) ? hierarchyHashElement.GetString() : null;
+        if (string.IsNullOrWhiteSpace(version) || string.IsNullOrWhiteSpace(declaredHash)
+            || string.IsNullOrWhiteSpace(hierarchyHash))
+            return ValidateSnapshot(catalogDirectory, hierarchy);
+
+        // Catalog packages are immutable, versioned snapshots during a process lifetime. The
+        // expensive source-file scan is required once per identity; every caller still compares
+        // the requested catalog version/hash with this loaded hierarchy in the provider.
+        var key = $"{Path.GetFullPath(catalogDirectory)}\0{version}\0{declaredHash}\0{hierarchyHash}";
+        var validation = ValidatedSnapshots.GetOrAdd(key, _ => new Lazy<string>(
+            () => ValidateSnapshot(catalogDirectory, hierarchy), LazyThreadSafetyMode.ExecutionAndPublication));
+        try { return validation.Value; }
+        catch
+        {
+            ValidatedSnapshots.TryRemove(key, out _);
+            throw;
+        }
+    }
+
+    private static string ValidateSnapshot(string catalogDirectory, JsonElement hierarchy)
     {
         var actualHash = ComputeSourceHash(catalogDirectory);
         var manifestPath = Path.Combine(catalogDirectory, "manifest.yaml");

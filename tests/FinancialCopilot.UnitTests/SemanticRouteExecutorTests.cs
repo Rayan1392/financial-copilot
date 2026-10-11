@@ -78,6 +78,39 @@ public sealed class SemanticRouteExecutorTests
         Assert.Equal(CapabilityExecutionStatus.NoData, result.Status);
     }
 
+    [Theory]
+    [InlineData("LatestAvailable", null, "LatestValue")]
+    [InlineData("LastAvailableMonths", 12, "TimeSeries,Chart,MonthOverMonthGrowth")]
+    public async Task MonthlyTrendExecutor_PreservesCanonicalPeriodAndCompoundOperations(
+        string period,
+        int? periodCount,
+        string operationsText)
+    {
+        var useCase = new RecordingTrendUseCase();
+        var executor = new MonthlyActivityTrendCapabilityExecutor(useCase);
+        var operations = operationsText.Split(',');
+        var interpretation = new QueryInterpretation(
+            "monthly sales request", "monthly sales request", "en", [], [], [],
+            new PeriodSelection(period, QueryValueProvenance.ModelProposed, periodCount),
+            null,
+            new PresentationPreference(
+                operations.Contains("Chart") ? PresentationKind.Chart : PresentationKind.Summary,
+                QueryValueProvenance.ModelProposed),
+            [], [], 0.45m, [], 1,
+            InterpretationConfidencePolicy.Band(0.45m), operations);
+        var frame = new ValidatedQueryFrame(
+            "monthly_activity_trend", 1,
+            [Symbol("\u06a9\u06af\u0644")], interpretation,
+            SemanticStatus: "LowConfidence");
+
+        await executor.ExecuteAsync(frame, Context(), default);
+
+        Assert.Equal("\u06a9\u06af\u0644", useCase.Query!.SymbolOrCompanyName);
+        Assert.Equal(periodCount, useCase.Query.LastAvailableMonths);
+        Assert.Equal(operations, useCase.Query.RequestedOperations);
+        Assert.Empty(useCase.Query.UnsupportedParts!);
+    }
+
     [Fact]
     public async Task DirectLookupExecutor_UsesCanonicalSymbolAndGovernedMetricCode()
     {

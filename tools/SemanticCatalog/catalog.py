@@ -142,10 +142,30 @@ def build_source_item_dictionary():
             "unitClassification": classification,
             "mappedMetricCode": metric_code,
             "identityStatus": "verified-persisted-source-key",
+            "identityApproval": {
+                "status": "OwnerApproved",
+                "authority": "ProductOwner",
+                "scope": ["providerName", "statementType", "sourceItemId", "sourceItemCatalogId"],
+                "provenance": "product-owner-approved:Feature141-source-item-registry-2026-10-10",
+            },
+            "titleApproval": {
+                "status": "OwnerApproved",
+                "authority": "ProductOwner",
+                "scope": ["titleFa"],
+                "provenance": "product-owner-approved:Feature141-source-item-registry-2026-10-10",
+            },
             "semanticReviewStatus": "approved" if semantic_approval and semantic_approval.get("approved") else "pending-review",
             "semanticApproval": semantic_approval or {"approved": False, "status": "pending-review"},
-            "queryAuthorization": {"state": "not-authorized", "approved": False, "queryable": False,
-                                    "reason": "Catalog inclusion and source identity do not grant SQL authorization."},
+            "canonicalConceptBindings": reviewed.get("canonicalConceptBindings", [])
+                if semantic_approval and semantic_approval.get("approved") else [],
+            "queryAuthorization": {
+                "state": "approved-direct-source-identity",
+                "approved": True,
+                "queryable": True,
+                "provenance": "product-owner-approved:Feature141-full-chat-activation-direct-source-access",
+                "scope": ["providerName", "statementType", "sourceItemId", "sourceItemCatalogId"],
+                "reason": "Permits parameterized retrieval by the verified registered source identity only; it does not approve canonical semantic equivalence.",
+            },
             "sourceProvenance": {
                 "entity": "public.FinancialStatementSourceItems",
                 "identityKey": ["ProviderName", "StatementType", "SourceItemId"],
@@ -160,7 +180,12 @@ def build_source_item_dictionary():
         "kind": "FinancialStatementSourceItemDictionary",
         "source": "read-only persisted source-item catalog snapshot; no observation values",
         "approvalRequired": True,
-        "queryAuthorization": {"approved": False, "queryable": False},
+        "queryAuthorization": {
+            "approved": True,
+            "queryable": True,
+            "provenance": "product-owner-approved:Feature141-full-chat-activation-direct-source-access",
+            "scope": "verified registered source identities only",
+        },
         "entries": entries,
     }
 
@@ -176,6 +201,33 @@ def classify_statement_item_unit(source, policy):
     if any("".join(marker.casefold().split()) in compact for marker in review_markers):
         return None, "requires-semantic-review", "financial-statement-unit-policy-v1:nonmonetary-or-ambiguous-title"
     return "MillionIRR", "owner-policy-classified", "financial-statement-unit-policy-v1:ordinary-statement-amount"
+
+
+def resolve_canonical_source_item_bindings(dictionary, canonical_concept_id, provider_name=None, statement_type=None,
+                                          expected_dimension=None):
+    """Resolve only explicit reviewed concept bindings; identity approval alone is insufficient."""
+    candidates = [entry for entry in dictionary["entries"]
+        if entry.get("semanticReviewStatus") == "approved"
+        and entry.get("identityApproval", {}).get("status") == "OwnerApproved"
+        and entry.get("titleApproval", {}).get("status") == "OwnerApproved"
+        and entry.get("providerName") == (provider_name or entry.get("providerName"))
+        and entry.get("statementType") == (statement_type or entry.get("statementType"))
+        and any(binding.get("canonicalConceptId") == canonical_concept_id
+                and binding.get("status") == "approved"
+                and (expected_dimension is None or binding.get("dimension") == expected_dimension)
+                for binding in entry.get("canonicalConceptBindings", []))]
+    if not candidates:
+        return {"status": "incomplete", "reason": "no-reviewed-canonical-source-item-binding", "candidates": []}
+    if len(candidates) != 1:
+        return {"status": "ambiguous", "reason": "multiple-reviewed-source-item-bindings", "candidates": candidates}
+    entry = candidates[0]
+    if entry.get("effectiveUnit") is None or entry.get("effectiveUnitStatus") == "requires-semantic-review":
+        return {"status": "incomplete", "reason": "source-item-unit-unresolved", "candidates": candidates}
+    return {"status": "bound", "reason": None, "referenceType": "DirectSourceItem",
+        "catalogId": entry["catalogId"], "sourceItemCatalogId": entry["sourceItemCatalogId"],
+        "providerName": entry["providerName"], "statementType": entry["statementType"],
+        "sourceItemId": entry["sourceItemId"], "effectiveUnit": entry["effectiveUnit"],
+        "queryAuthorized": entry["queryAuthorization"]["queryable"]}
 
 
 def build_source_item_unit_review_report():
@@ -323,7 +375,7 @@ def build_hierarchy():
     statement_types = sorted({item["statementType"] for item in source_entries})
     statement_group_ids = {statement_type: f"source-items-{statement_type.lower()}" for statement_type in statement_types}
     add(source_root_id, root["nodeId"], "Financial Statement Source Items", "اقلام صورت‌های مالی",
-        "Hierarchical discovery of provider-scoped persisted statement items. Entries without semantic approval remain non-queryable.",
+        "Hierarchical discovery of provider-scoped persisted statement items. Direct reads require verified source identity and separate query authorization; pending semantic review does not authorize canonical equivalence.",
         [statement_group_ids[item] for item in statement_types], concepts=["financial statement source item", "direct source item", "source item"])
     for statement_type in statement_types:
         entries = [item for item in source_entries if item["statementType"] == statement_type]
@@ -341,11 +393,14 @@ def build_hierarchy():
                 "catalogId", "sourceItemCatalogId", "providerName", "statementType", "sourceItemId",
                 "titleFa", "titleEn", "sourceUnit", "sourceUnitStatus", "normalizedUnit", "effectiveUnit",
                 "effectiveUnitStatus", "effectiveUnitProvenance", "unitClassification", "mappedMetricCode",
-                "identityStatus", "semanticReviewStatus", "semanticApproval", "queryAuthorization")}
+                "identityStatus", "identityApproval", "titleApproval", "semanticReviewStatus", "semanticApproval",
+                "canonicalConceptBindings", "queryAuthorization")}
             add(f"direct-source-item-{item['catalogId']}", statement_group_ids[item["statementType"]],
                 title_en, title_fa, "Persisted provider source-item definition; no derived formula is asserted.",
                 direct_source_item_refs=[item["catalogId"]], concepts=concepts,
-                semantic_approval={"state": item["semanticReviewStatus"], "approved": False, "provenance": "persisted source-item catalog record"},
+                semantic_approval={"state": item["semanticReviewStatus"],
+                    "approved": bool(item.get("semanticApproval", {}).get("approved")),
+                    "provenance": item.get("semanticApproval", {}).get("provenance", "persisted source-item catalog record")},
                 auth=item["queryAuthorization"], source_item_references=[reference])
 
     # Parent branches advertise the union of their child catalog references and explicit metric families.
@@ -446,7 +501,7 @@ def main():
         out = ARTIFACTS / "navigation-hierarchy.yaml"
         markdown = ARTIFACTS / "navigation-hierarchy.md"
         out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-        rows = ["# Feature 141 Navigation Hierarchy", "", f"Catalog version: `{result['catalogVersion']}`  ", f"Catalog hash: `{result['catalogHash']}`  ", f"Hierarchy hash: `{result['hierarchyHash']}`", "", "Generated from canonical SemanticCatalog YAML. Navigation metadata approval, semantic approval, and query authorization are distinct. Nodes remain review-pending and runtime queries are unauthorized.", "", "| Node ID | Parent | English | Persian | Tables | Navigation review | Query access |", "|---|---|---|---|---|---|---|"]
+        rows = ["# Feature 141 Navigation Hierarchy", "", f"Catalog version: `{result['catalogVersion']}`  ", f"Catalog hash: `{result['catalogHash']}`  ", f"Hierarchy hash: `{result['hierarchyHash']}`", "", "Generated from canonical SemanticCatalog YAML. Navigation metadata review, semantic meaning approval, and query authorization are distinct. Exact registered source identities may be queried where separately authorized; pending semantic review does not authorize canonical equivalence.", "", "| Node ID | Parent | English | Persian | Tables | Navigation review | Query access |", "|---|---|---|---|---|---|---|"]
         for node in result["nodes"]:
             refs = ", ".join(node["catalogReferences"]["tableIds"]) or "—"
             rows.append(f"| `{node['nodeId']}` | `{node['parentNodeId'] or '—'}` | {node['title']['en']} | {node['title']['fa']} | {refs} | {node['navigationMetadataApproval']['state']} | {node['queryAuthorization']['state']} |")

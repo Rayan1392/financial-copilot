@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Collections.Concurrent;
 
 namespace FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 
@@ -8,6 +9,9 @@ namespace FinancialCopilot.Application.FinancialData.Semantics.Navigation;
 public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath, string catalogPath) :
     ICatalogNavigationHierarchyProvider, ICatalogNavigationOutlineProvider, ISchemaContextExpander
 {
+    private readonly Lazy<IReadOnlySet<string>> _monthlyMeasureIds = new(() => ReadMonthlyMeasureIdsFromDisk(catalogPath));
+    private readonly ConcurrentDictionary<string, Lazy<MetricSemantic?>> _metricSemanticCache = new(StringComparer.Ordinal);
+
     private sealed record Node(string Id, string? ParentId,
         string[] Concepts, string[] Children, string[] Tables, string[] Metrics, string[] Dimensions, string[] Relationships,
         string[] DirectSourceItems, string[] ProviderIndicators, FinancialValueCatalogReference[] SourceItemReferences,
@@ -18,6 +22,18 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
         int maximumCharacters, CancellationToken cancellationToken)
         => await GetCompactOutlineAsync(catalogVersion, catalogHash, question, [], maximumCharacters, cancellationToken);
 
+    /// <summary>
+    /// Loads the approved source-identity index. This is deliberately separate from the
+    /// bounded/ranked Navigator outline and does not imply semantic approval or authorization.
+    /// </summary>
+    public async Task<IReadOnlyList<FinancialValueCatalogReference>> GetFinancialSourceReferencesAsync(
+        string catalogVersion, string catalogHash, CancellationToken cancellationToken)
+    {
+        var document = await LoadAsync(catalogVersion, catalogHash, cancellationToken);
+        using (document)
+            return FinancialReferences(ParseNodes(document.RootElement).Values);
+    }
+
     public async Task<string> GetCompactOutlineAsync(string catalogVersion, string catalogHash, string question,
         IReadOnlyList<string> requiredCatalogIds, int maximumCharacters, CancellationToken cancellationToken)
     {
@@ -27,11 +43,13 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
             var nodes = ParseNodes(document.RootElement);
             var rootNodes = nodes.Values.Where(node => node.ParentId is null || !nodes.ContainsKey(node.ParentId)).ToArray();
             var rootIds = rootNodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
-            var monthlyMeasureIds = ReadMonthlyMeasureIds();
+            var monthlyMeasureIds = _monthlyMeasureIds.Value;
             var metricSemantics = ReadMetricSemantics(nodes.Values.SelectMany(node => node.Metrics).Distinct(StringComparer.Ordinal),
                 monthlyMeasureIds);
+            var normalizedQuestion = Normalize(question);
+            var questionTokens = Tokens(normalizedQuestion).ToHashSet(StringComparer.Ordinal);
             var scores = nodes.Values.ToDictionary(node => node.Id,
-                node => MatchScore(question, node, metricSemantics), StringComparer.Ordinal);
+                node => MatchScore(normalizedQuestion, questionTokens, node, metricSemantics), StringComparer.Ordinal);
             var required = (requiredCatalogIds ?? []).ToHashSet(StringComparer.Ordinal);
             var requiredMonthlyMeasure = required.Any(id => id.StartsWith("metric_monthly_", StringComparison.Ordinal));
             var industryQuery = question.Contains("industry", StringComparison.OrdinalIgnoreCase)
@@ -73,6 +91,7 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
                 .ThenByDescending(node => scores[node.Id])
                 .ThenBy(node => node.Id, StringComparer.Ordinal)
                 .Take(10).ToArray();
+            var activeOptionalNodeIds = optionalNodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
             foreach (var node in optionalNodes) AddAncestors(node);
             foreach (var candidate in sourceCandidates) AddAncestors(candidate.Node);
 
@@ -80,12 +99,27 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
                 .OrderBy(node => node.Id, StringComparer.Ordinal).ToArray();
             var candidateByNode = sourceCandidates.ToDictionary(candidate => candidate.Node.Id,
                 candidate => candidate, StringComparer.Ordinal);
+            var selectedSourceItemsByNode = sourceCandidates
+                .SelectMany(candidate => candidate.Node.SourceItemReferences
+                    .Where(reference => candidate.Node.DirectSourceItems.Contains(reference.CatalogId, StringComparer.Ordinal))
+                    .Select(reference => (candidate.Node.Id, Reference: reference,
+                        Score: SourceItemScore(question, reference), NodeScore: candidate.Score)))
+                .OrderByDescending(item => item.Score)
+                .ThenByDescending(item => item.NodeScore)
+                .ThenBy(item => item.Reference.CatalogId, StringComparer.Ordinal)
+                .Take(12)
+                .GroupBy(item => item.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key,
+                    group => (IReadOnlySet<string>)group.Select(item => item.Reference.CatalogId).ToHashSet(StringComparer.Ordinal),
+                    StringComparer.Ordinal);
             var serialized = baseNodes.Select(node => SerializeOutlineNode(node, question,
-                candidateByNode.TryGetValue(node.Id, out var candidate) ? candidate : null, metricSemantics, includedIds, monthlyQuery));
+                candidateByNode.TryGetValue(node.Id, out var candidate) ? candidate : null, metricSemantics,
+                includedIds, monthlyQuery, selectedSourceItemsByNode));
             var result = string.Join('\n', serialized);
             while (result.Length > maximumCharacters)
             {
-                var removable = optionalNodes.Where(node => includedIds.Contains(node.Id)
+                cancellationToken.ThrowIfCancellationRequested();
+                var removable = optionalNodes.Where(node => activeOptionalNodeIds.Contains(node.Id)
                         && !requiredNodeIds.Contains(node.Id, StringComparer.Ordinal))
                     .OrderBy(node => scores[node.Id]).ThenByDescending(node => node.Id, StringComparer.Ordinal)
                     .FirstOrDefault();
@@ -95,20 +129,26 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
                     if (candidateToRemove.Node is null) break;
                     sourceCandidates = sourceCandidates.Where(candidate => candidate.Node.Id != candidateToRemove.Node.Id).ToArray();
                     candidateByNode.Remove(candidateToRemove.Node.Id);
-                    // A pruned candidate must leave the included set too. Otherwise the next
-                    // serialization treats it as an ordinary node and emits its full source
-                    // item list, undoing the size reduction.
-                    includedIds.Remove(candidateToRemove.Node.Id);
                 }
                 else
                 {
-                    includedIds.Remove(removable.Id);
-                    foreach (var childId in removable.Children) includedIds.Remove(childId);
+                    activeOptionalNodeIds.Remove(removable.Id);
                 }
+                // Rebuild, rather than deleting a node and its direct children in place. A
+                // pruned candidate/optional node may have added multiple ancestor levels;
+                // leaving those orphan ancestors included defeats the budget reduction.
+                includedIds.Clear();
+                includedIds.UnionWith(rootIds);
+                foreach (var nodeId in requiredNodeIds)
+                    if (nodes.TryGetValue(nodeId, out var requiredNode)) AddAncestors(requiredNode);
+                foreach (var nodeId in activeOptionalNodeIds)
+                    if (nodes.TryGetValue(nodeId, out var optionalNode)) AddAncestors(optionalNode);
+                foreach (var candidate in sourceCandidates) AddAncestors(candidate.Node);
                 baseNodes = nodes.Values.Where(node => includedIds.Contains(node.Id))
                     .OrderBy(node => node.Id, StringComparer.Ordinal).ToArray();
                 result = string.Join('\n', baseNodes.Select(node => SerializeOutlineNode(node, question,
-                    candidateByNode.TryGetValue(node.Id, out var candidate) ? candidate : null, metricSemantics, includedIds, monthlyQuery)));
+                    candidateByNode.TryGetValue(node.Id, out var candidate) ? candidate : null, metricSemantics,
+                    includedIds, monthlyQuery, selectedSourceItemsByNode)));
             }
 
             if (result.Length > maximumCharacters)
@@ -130,7 +170,7 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
 
     private static string SerializeOutlineNode(Node node, string question, (Node Node, double Score)? candidate,
         IReadOnlyDictionary<string, MetricSemantic> metricSemantics, IReadOnlySet<string> includedNodeIds,
-        bool monthlyQuery)
+        bool monthlyQuery, IReadOnlyDictionary<string, IReadOnlySet<string>> selectedSourceItemsByNode)
     {
         var rankedConcepts = node.Concepts.Select(concept => (Concept: concept, Score: ConceptScore(question, concept)))
             .Where(item => item.Score > 0).OrderByDescending(item => item.Score).ThenBy(item => item.Concept, StringComparer.Ordinal)
@@ -138,7 +178,8 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
         if (rankedConcepts.Length == 0 && node.ParentId == "financial-semantic-catalog")
             rankedConcepts = node.Concepts.Take(2).ToArray();
         var sourceItems = candidate is null ? [] : candidate.Value.Node.SourceItemReferences
-            .Where(reference => node.DirectSourceItems.Contains(reference.CatalogId, StringComparer.Ordinal))
+            .Where(reference => selectedSourceItemsByNode.TryGetValue(node.Id, out var selectedIds)
+                && selectedIds.Contains(reference.CatalogId))
             .Select(reference => new OutlineSourceItem(reference.CatalogId, reference.ProviderName, reference.StatementType,
                 reference.SourceItemId, reference.TitleFa?.Trim(), reference.TitleEn?.Trim(), reference.MetricCode,
                 node.Id, node.ParentId, candidate.Value.Score))
@@ -157,7 +198,10 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
                     metric.Aliases.Take(1).Select(alias => Compact(alias, 56)).ToArray())).ToArray(),
             isSourceCandidate ? [] : node.Dimensions,
             isSourceCandidate ? [] : node.Relationships,
-            isSourceCandidate ? sourceItems.Select(item => item.CatalogId).ToArray() : monthlyQuery ? [] : node.DirectSourceItems,
+            // Source item IDs are exposed through the bounded, ranked candidate objects above.
+            // Emitting a node's full direct-source list here bypasses candidate ranking and can
+            // add thousands of IDs to an otherwise compact outline.
+            isSourceCandidate ? sourceItems.Select(item => item.CatalogId).ToArray() : [],
             isSourceCandidate ? [] : node.ProviderIndicators,
             node.NavigationApproved, node.SemanticApproved, node.Queryable, sourceItems);
         return JsonSerializer.Serialize(row, OutlineJsonOptions);
@@ -385,10 +429,31 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
             String(reference, "semanticReviewStatus"),
             reference.TryGetProperty("queryAuthorization", out var auth)
                 && auth.TryGetProperty("queryable", out var queryable) && queryable.ValueKind == JsonValueKind.True,
-            NullableString(reference, "sourceUnitStatus"))).ToArray();
+            NullableString(reference, "sourceUnitStatus"),
+            ApprovalStatus(reference, "identityApproval"), ApprovalStatus(reference, "titleApproval"),
+            ParseCanonicalConceptBindings(reference), NullableString(reference, "effectiveUnitStatus"),
+            NullableString(reference, "unitClassification"), NullableString(reference, "effectiveUnit"),
+            NullableString(reference, "effectiveUnitProvenance"),
+            reference.TryGetProperty("queryAuthorization", out var queryAuthorization)
+                ? NullableString(queryAuthorization, "state") : null)).ToArray();
     }
 
-    private IReadOnlySet<string> ReadMonthlyMeasureIds()
+    private static string? ApprovalStatus(JsonElement reference, string propertyName) =>
+        reference.TryGetProperty(propertyName, out var approval) && approval.ValueKind == JsonValueKind.Object
+            ? NullableString(approval, "status") : null;
+
+    private static IReadOnlyList<CanonicalFinancialMeasureBinding> ParseCanonicalConceptBindings(JsonElement reference)
+    {
+        if (!reference.TryGetProperty("canonicalConceptBindings", out var bindings)
+            || bindings.ValueKind != JsonValueKind.Array) return [];
+        return bindings.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new CanonicalFinancialMeasureBinding(String(item, "canonicalConceptId"),
+                String(item, "dimension"), String(item, "valueForm"), String(item, "status"),
+                NullableString(item, "evidence"), NullableString(item, "provenance")))
+            .Where(item => !string.IsNullOrWhiteSpace(item.CanonicalConceptId)).ToArray();
+    }
+
+    private static IReadOnlySet<string> ReadMonthlyMeasureIdsFromDisk(string catalogPath)
     {
         var path = Path.Combine(catalogPath, "dictionaries", "monthly-measures.yaml");
         if (!File.Exists(path)) return new HashSet<string>(StringComparer.Ordinal);
@@ -405,56 +470,74 @@ public sealed class JsonCatalogNavigationHierarchyProvider(string hierarchyPath,
         var result = new Dictionary<string, MetricSemantic>(StringComparer.Ordinal);
         foreach (var id in metricIds)
         {
-            var path = Path.Combine(catalogPath, "metrics", $"{id}.yaml");
-            if (!File.Exists(path)) continue;
-            using var document = JsonDocument.Parse(File.ReadAllText(path));
-            if (!document.RootElement.TryGetProperty("sourceDefinition", out var definition)) continue;
-            var aliases = definition.TryGetProperty("Aliases", out var aliasArray) && aliasArray.ValueKind == JsonValueKind.Array
-                ? aliasArray.EnumerateArray().Where(alias => alias.TryGetProperty("Expression", out _))
-                    .Select(alias => String(alias, "Expression")).Where(value => !string.IsNullOrWhiteSpace(value))
-                    .Distinct(StringComparer.Ordinal).ToArray()
-                : [];
-            var unit = definition.TryGetProperty("Unit", out var unitNode) && unitNode.ValueKind == JsonValueKind.Object
-                ? unitNode : default;
-            var referenceType = monthlyMeasureIds.Contains(id)
-                ? nameof(FinancialValueReferenceType.MonthlyMeasure)
-                : nameof(FinancialValueReferenceType.GovernedMetric);
-            result[id] = new MetricSemantic(id, referenceType, String(definition, "Description"),
-                unit.ValueKind == JsonValueKind.Object ? String(unit, "Code") : string.Empty,
-                unit.ValueKind == JsonValueKind.Object ? String(unit, "DisplayLabel") : string.Empty, aliases);
+            var semantic = _metricSemanticCache.GetOrAdd(id, key => new Lazy<MetricSemantic?>(
+                () => ReadMetricSemanticFromDisk(catalogPath, key, monthlyMeasureIds.Contains(key),
+                    nameof(FinancialValueReferenceType.MonthlyMeasure), nameof(FinancialValueReferenceType.GovernedMetric)),
+                LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+            if (semantic is not null) result[id] = semantic;
         }
         return result;
     }
 
-    private static double MatchScore(string question, Node node,
+    private static MetricSemantic? ReadMetricSemanticFromDisk(string catalogPath, string id, bool monthly,
+        string monthlyReferenceType, string governedReferenceType)
+    {
+        var path = Path.Combine(catalogPath, "metrics", $"{id}.yaml");
+        if (!File.Exists(path)) return null;
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        if (!document.RootElement.TryGetProperty("sourceDefinition", out var definition)) return null;
+        var aliases = definition.TryGetProperty("Aliases", out var aliasArray) && aliasArray.ValueKind == JsonValueKind.Array
+            ? aliasArray.EnumerateArray().Where(alias => alias.TryGetProperty("Expression", out _))
+                .Select(alias => String(alias, "Expression")).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal).ToArray()
+            : [];
+        var unit = definition.TryGetProperty("Unit", out var unitNode) && unitNode.ValueKind == JsonValueKind.Object
+            ? unitNode : default;
+        return new MetricSemantic(id, monthly ? monthlyReferenceType : governedReferenceType,
+            String(definition, "Description"),
+            unit.ValueKind == JsonValueKind.Object ? String(unit, "Code") : string.Empty,
+            unit.ValueKind == JsonValueKind.Object ? String(unit, "DisplayLabel") : string.Empty, aliases);
+    }
+
+    private static double MatchScore(string normalizedQuestion, IReadOnlySet<string> questionTokens, Node node,
         IReadOnlyDictionary<string, MetricSemantic> metricSemantics)
     {
-        var normalizedQuestion = Normalize(question);
-        var questionTokens = Tokens(normalizedQuestion).ToHashSet(StringComparer.Ordinal);
         var best = 0d;
         foreach (var reference in node.SourceItemReferences)
         {
             foreach (var text in new[] { reference.TitleFa, reference.TitleEn, reference.MetricCode }.OfType<string>())
-                best = Math.Max(best, ConceptScore(normalizedQuestion, text));
+                best = Math.Max(best, ConceptScoreNormalized(normalizedQuestion, questionTokens, text));
         }
-        foreach (var concept in node.Concepts) best = Math.Max(best, ConceptScore(normalizedQuestion, concept));
+        foreach (var concept in node.Concepts)
+            best = Math.Max(best, ConceptScoreNormalized(normalizedQuestion, questionTokens, concept));
         foreach (var metricId in node.Metrics)
         {
             if (!metricSemantics.TryGetValue(metricId, out var semantic)) continue;
             foreach (var alias in semantic.Aliases)
-                best = Math.Max(best, ConceptScore(normalizedQuestion, alias));
-            best = Math.Max(best, ConceptScore(normalizedQuestion, semantic.Description));
+                best = Math.Max(best, ConceptScoreNormalized(normalizedQuestion, questionTokens, alias));
+            best = Math.Max(best, ConceptScoreNormalized(normalizedQuestion, questionTokens, semantic.Description));
         }
         return best;
     }
 
+    private static double SourceItemScore(string question, FinancialValueCatalogReference reference) =>
+        new[] { reference.TitleFa, reference.TitleEn, reference.MetricCode }.OfType<string>()
+            .Select(text => ConceptScore(question, text)).DefaultIfEmpty(0).Max();
+
     private static double ConceptScore(string question, string concept)
+    {
+        var normalizedQuestion = Normalize(question);
+        return ConceptScoreNormalized(normalizedQuestion,
+            Tokens(normalizedQuestion).ToHashSet(StringComparer.Ordinal), concept);
+    }
+
+    private static double ConceptScoreNormalized(string normalizedQuestion, IReadOnlySet<string> questionTokens,
+        string concept)
     {
         var normalized = Normalize(concept);
         if (normalized.Length == 0) return 0;
-        if (question.Contains(normalized, StringComparison.Ordinal) && Tokens(normalized).Length >= 2)
+        if (normalizedQuestion.Contains(normalized, StringComparison.Ordinal) && Tokens(normalized).Length >= 2)
             return 1000 + normalized.Length;
-        var questionTokens = Tokens(question).ToHashSet(StringComparer.Ordinal);
         var conceptTokens = Tokens(normalized).ToHashSet(StringComparer.Ordinal);
         if (conceptTokens.Count < 2) return 0;
         var overlap = conceptTokens.Count(questionTokens.Contains);

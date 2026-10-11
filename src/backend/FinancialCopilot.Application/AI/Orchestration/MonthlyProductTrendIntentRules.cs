@@ -99,6 +99,18 @@ public static class MonthlyProductTrendIntentRules
         if (tokens.Count < 2) return (null, null);
 
         var companyIndex = -1;
+        for (var index = 0; index < tokens.Count - 1; index++)
+        {
+            if (tokens[index] is "\u0646\u0645\u0627\u062f" or "\u0634\u0631\u06a9\u062a" or "\u0633\u0647\u0645")
+            {
+                companyIndex = index + 1;
+                break;
+            }
+        }
+
+        // Prefer a labeled company slot. Trailing period/calculation words must not
+        // replace the company symbol and leak into the product slot.
+        if (companyIndex < 0)
         for (var index = tokens.Count - 1; index >= 0; index--)
         {
             if (!StopWords.Contains(tokens[index]) && !UnicodeStopWords.Contains(tokens[index]) && !CommandStopWords.Contains(tokens[index]) && !UnicodeCommandStopWords.Contains(tokens[index]) && !Regex.IsMatch(tokens[index], @"^\d+$"))
@@ -163,7 +175,7 @@ public static class MonthlyProductTrendIntentRules
         // accept any token left after removing only generic trend vocabulary.
         var genericTerms = new[]
         {
-            "روند", "فروش", "ماهانه", "تولید", "نمودار", "چارت", "سال", "جاری", "قبل",
+            "روند", "مبلغ", "فروش", "ماهانه", "ماه", "اخیر", "آخرین", "نسبت", "درصد", "تغییر", "به", "قبل", "نماد", "شرکت", "سهم", "تولید", "نمودار", "چارت", "سال", "جاری",
             "Ø±ÙˆÙ†Ø¯", "ÙØ±ÙˆØ´", "Ù…Ø§Ù‡Ø§Ù†Ù‡", "ØªÙˆÙ„ÛŒØ¯", "Ù†Ù…ÙˆØ¯Ø§Ø±", "Ú†Ø§Ø±Øª"
         };
 

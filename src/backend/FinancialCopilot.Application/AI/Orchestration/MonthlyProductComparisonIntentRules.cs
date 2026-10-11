@@ -42,8 +42,18 @@ public static class MonthlyProductComparisonIntentRules
              !text.Contains("\u062a\u063a\u06cc\u06cc\u0631", StringComparison.Ordinal));
         if (asksForRevenueMix) return false;
         if (text.Contains("monthly sales", StringComparison.Ordinal) && !text.Contains("product", StringComparison.Ordinal)) return false;
+        // A change request on company-level monthly sales is still a sales trend. The
+        // comparison capability decomposes product rows and therefore needs an explicit
+        // product entity/scope in the request; words such as "change" or "versus" alone
+        // do not turn a company metric into a product comparison.
+        if (!HasExplicitProductScope(text)) return false;
         return ComparisonTerms.Any(text.Contains);
     }
+
+    private static bool HasExplicitProductScope(string text) =>
+        text.Contains("product", StringComparison.Ordinal)
+        || text.Contains("\u0645\u062d\u0635\u0648\u0644", StringComparison.Ordinal)
+        || text.Contains("\u0645\u062d\u0635\u0648\u0644\u0627\u062a", StringComparison.Ordinal);
 
     public static MonthlyProductComparisonQuery BuildQuery(string query)
     {

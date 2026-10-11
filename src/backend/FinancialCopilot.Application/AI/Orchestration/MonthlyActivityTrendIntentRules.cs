@@ -79,6 +79,19 @@ public static class MonthlyActivityTrendIntentRules
 
         var normalized = NormalizeText(query);
 
+        // A labeled company/symbol entity is stronger evidence than nearby metric,
+        // period, chart, or calculation words. Prefer that slot before scanning the
+        // remaining natural-language text for ticker-like tokens.
+        foreach (var marker in new[] { "\u0646\u0645\u0627\u062f", "\u0634\u0631\u06a9\u062a", "\u0633\u0647\u0645" })
+        {
+            var markerIndex = normalized.IndexOf(marker, StringComparison.Ordinal);
+            if (markerIndex < 0) continue;
+            var afterMarker = normalized[(markerIndex + marker.Length)..];
+            var explicitCandidates = ExtractCandidateTokens(afterMarker);
+            var explicitCandidate = SelectBestCandidate(explicitCandidates);
+            if (explicitCandidate is not null) return explicitCandidate;
+        }
+
         // Strip the matched trend phrase to reduce noise before symbol extraction.
         var matchedPhrase = NormalizedTrendPhrases
             .OrderByDescending(p => p.Length)

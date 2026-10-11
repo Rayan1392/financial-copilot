@@ -62,7 +62,8 @@ public sealed record AiQueryRequest(
     string? OriginalUserMessage = null,
     ValidatedQueryFrame? SemanticFrame = null,
     ValidatedQueryFrame? SemanticShadowFrame = null,
-    string? SuggestedActionId = null);
+    string? SuggestedActionId = null,
+    string? SemanticRoutingDisposition = null);
 
 public sealed record AiQueryContext(
     Guid? InsightEventId = null,

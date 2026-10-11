@@ -71,13 +71,16 @@ public static class CapabilityExecutionRoutes
     public const string PersonalizedInsightExplanation = "personalized_insight_explanation";
     public const string IndustryRelativeValuation = "industry_relative_valuation_read";
     public const string FinancialStatementValueSearch = "financial_statement_value_search";
+    public const string RegisteredFinancialSource = "registered_financial_source";
+    public const string MonthlyProductComparison = "monthly_product_comparison";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         Scanner, SymbolLookup, ComprehensiveAnalysis, MonthlyActivityTrend, ProductRevenueMix,
         ProductSalesValue, ProductSalesTrend,
         FinancialStatementTable, FinancialStatementPeriodAnalysis, DisclosureListing,
-        MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch
+        MonthlySalesQualityRanking, PsGaugeVisualization, PersonalizedInsightExplanation, IndustryRelativeValuation, FinancialStatementValueSearch,
+        RegisteredFinancialSource, MonthlyProductComparison
     };
 }
 
@@ -198,6 +201,11 @@ public static class InitialConversationalCapabilityCatalog
             [Alias("en", "monthly sales trend"), Alias("fa", "روند فروش ماهانه")],
             [Example("en", "chart monthly sales for فولاد"), Example("fa", "چارت روند فروش فولاد")],
             [Slot("symbol", "symbol", true)], [Slot("period", "period", false), Slot("presentation", "presentation", false)]),
+        Definition("monthly_product_comparison", CapabilityExecutionRoutes.MonthlyProductComparison, "comparison", "product-comparison",
+            [Alias("en", "monthly product sales comparison"), Alias("fa", "مقایسه فروش محصولات")],
+            [Example("en", "compare product sales for فولاد across two months"), Example("fa", "فروش محصولات فولاد را بین دو ماه مقایسه کن")],
+            [Slot("symbol", "symbol", true)],
+            [Slot("product", "product", false), Slot("period", "period", false), Slot("comparison", "period", false)]),
         Definition("product_revenue_mix", CapabilityExecutionRoutes.ProductRevenueMix, "table", "product",
             [Alias("en", "product revenue mix"), Alias("fa", "ترکیب فروش محصولات")],
             [Example("en", "product mix for فولاد"), Example("fa", "ترکیب فروش محصولات فولاد")],
@@ -231,6 +239,11 @@ public static class InitialConversationalCapabilityCatalog
             [Example("en", "which company has revenue 3300508?"), Example("fa", "نمادی را پیدا کن با درآمد 3300508")],
             [Slot("numericClues", "numeric-clue-list", true)],
             [Slot("metric", "metric", false), Slot("sourceTitle", "source-title", false), Slot("governedAlias", "governed-alias", false), Slot("statementType", "statement-type", false)], false),
+        Definition("registered_financial_source", CapabilityExecutionRoutes.RegisteredFinancialSource, "table", "registered-financial-source",
+            [Alias("en", "catalog governed financial source query"), Alias("fa", "پرس‌وجوی قلم مالی در فهرست منابع")],
+            [Example("en", "retrieve a registered financial source item for فولاد"), Example("fa", "قلم ثبت‌شده صورت مالی فولاد را پیدا کن")],
+            [Slot("symbol", "symbol", true)],
+            [Slot("metric", "metric", false), Slot("period", "period", false), Slot("presentation", "presentation", false)]),
         Definition("disclosure_listing", CapabilityExecutionRoutes.DisclosureListing, "list", "disclosure",
             [Alias("en", "company disclosures"), Alias("fa", "اطلاعیه‌های شرکت")],
             [Example("en", "latest disclosures for فولاد"), Example("fa", "آخرین اطلاعیه‌های فولاد")],
@@ -288,12 +301,14 @@ public static class InitialConversationalCapabilityCatalog
         CapabilityExecutionRoutes.SymbolLookup => ["canonical_company_identity", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.ComprehensiveAnalysis => ["canonical_company_identity", "comprehensive_analysis_posts", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.MonthlyActivityTrend => ["canonical_company_identity", "monthly_activity_reports"],
+        CapabilityExecutionRoutes.MonthlyProductComparison => ["canonical_company_identity", "monthly_product_sales"],
         CapabilityExecutionRoutes.ProductRevenueMix => ["canonical_company_identity", "monthly_product_sales"],
         CapabilityExecutionRoutes.ProductSalesValue => ["canonical_company_identity", "monthly_product_sales"],
         CapabilityExecutionRoutes.ProductSalesTrend => ["canonical_company_identity", "monthly_product_sales"],
         CapabilityExecutionRoutes.FinancialStatementTable => ["canonical_company_identity", "financial_statements"],
         CapabilityExecutionRoutes.FinancialStatementPeriodAnalysis => ["canonical_company_identity", "financial_statements"],
         CapabilityExecutionRoutes.FinancialStatementValueSearch => ["financial_statements"],
+        CapabilityExecutionRoutes.RegisteredFinancialSource => ["financial_statements", "registered_financial_source_catalog"],
         CapabilityExecutionRoutes.DisclosureListing => ["company_disclosures"],
         CapabilityExecutionRoutes.MonthlySalesQualityRanking => ["monthly_activity_reports", "normalized_financial_metrics"],
         CapabilityExecutionRoutes.PsGaugeVisualization => ["canonical_company_identity", "normalized_financial_metrics"],
@@ -329,7 +344,7 @@ public sealed record MetricSelection(
     string? UserText,
     QueryValueProvenance Provenance);
 
-public sealed record PeriodSelection(string Value, QueryValueProvenance Provenance);
+public sealed record PeriodSelection(string Value, QueryValueProvenance Provenance, int? Count = null);
 
 public sealed record ComparisonSelection(string Value, QueryValueProvenance Provenance);
 
@@ -352,7 +367,8 @@ public sealed record QueryInterpretation(
     decimal Confidence,
     IReadOnlyList<InterpretationEvidence> Evidence,
     int RegistryVersion,
-    InterpretationConfidenceBand ConfidenceBand = InterpretationConfidenceBand.Low);
+    InterpretationConfidenceBand ConfidenceBand = InterpretationConfidenceBand.Low,
+    IReadOnlyList<string>? RequestedOperations = null);
 
 public sealed class QueryInterpretationValidator(IConversationalCapabilityRegistry registry)
 {

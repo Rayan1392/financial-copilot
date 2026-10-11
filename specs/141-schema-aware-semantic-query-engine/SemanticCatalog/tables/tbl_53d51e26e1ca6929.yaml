@@ -1,321 +1,340 @@
 {
-  "id": "tbl_53d51e26e1ca6929",
-  "physical": {
-    "Schema": "public",
-    "Name": "FinancialStatements",
-    "ObjectType": "table",
-    "Columns": [
-      {
-        "Name": "Id",
-        "Type": "uuid",
-        "Nullable": false
-      },
-      {
-        "Name": "ProviderName",
-        "Type": "text",
-        "Nullable": false
-      },
-      {
-        "Name": "ExternalCompanyId",
-        "Type": "text",
-        "Nullable": false
-      },
-      {
-        "Name": "ExternalStatementId",
-        "Type": "text",
-        "Nullable": false
-      },
-      {
-        "Name": "PeriodType",
-        "Type": "text",
-        "Nullable": false
-      },
-      {
-        "Name": "PeriodStart",
-        "Type": "date",
-        "Nullable": false
-      },
-      {
-        "Name": "PeriodEnd",
-        "Type": "date",
-        "Nullable": false
-      },
-      {
-        "Name": "SourcePayloadChecksum",
-        "Type": "text",
-        "Nullable": false
-      },
-      {
-        "Name": "LastSynchronizedAt",
-        "Type": "timestamp with time zone",
-        "Nullable": false
-      },
-      {
-        "Name": "WarningsJson",
-        "Type": "text",
-        "Nullable": false,
-        "DefaultValue": "''::text"
-      },
-      {
-        "Name": "StatementType",
-        "Type": "character varying(32)",
-        "Nullable": false,
-        "DefaultValue": "''::character varying"
-      },
-      {
-        "Name": "LogicalVendor",
-        "Type": "character varying(64)",
-        "Nullable": true
-      },
-      {
-        "Name": "SourceMode",
-        "Type": "character varying(32)",
-        "Nullable": true
-      },
-      {
-        "Name": "VendorPeriodDate",
-        "Type": "date",
-        "Nullable": true
-      },
-      {
-        "Name": "CompanyId",
-        "Type": "uuid",
-        "Nullable": true
-      },
-      {
-        "Name": "IsAudited",
-        "Type": "boolean",
-        "Nullable": false,
-        "DefaultValue": "false"
-      },
-      {
-        "Name": "IsComposing",
-        "Type": "boolean",
-        "Nullable": false,
-        "DefaultValue": "false"
-      },
-      {
-        "Name": "IsRepresented",
-        "Type": "boolean",
-        "Nullable": false,
-        "DefaultValue": "false"
-      },
-      {
-        "Name": "StatementTitle",
-        "Type": "character varying(512)",
-        "Nullable": true
-      },
-      {
-        "Name": "PublishedAt",
-        "Type": "date",
-        "Nullable": true
-      }
-    ],
-    "PrimaryKeys": [
-      "Id"
-    ],
-    "ForeignKeys": [
-      {
-        "Columns": [
-          "CompanyId"
-        ],
-        "PrincipalSchema": "public",
-        "PrincipalTable": "Companies",
-        "PrincipalColumns": [
-          "Id"
-        ],
-        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
-      }
-    ],
-    "Indexes": [
-      {
-        "Name": "IX_FinancialStatements_CompanyId",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatements_CompanyId\" ON public.\"FinancialStatements\" USING btree (\"CompanyId\")",
-        "Columns": [
-          "CompanyId"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatements_ProviderName_ExternalCompanyId_Statemen~",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatements_ProviderName_ExternalCompanyId_Statemen~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"ExternalCompanyId\", \"StatementType\", \"PeriodType\", \"PeriodEnd\", \"IsComposing\", \"IsAudited\", \"IsRepresented\")",
-        "Columns": [
-          "ProviderName",
-          "ExternalCompanyId",
-          "StatementType",
-          "PeriodType",
-          "PeriodEnd",
-          "IsComposing",
-          "IsAudited",
-          "IsRepresented"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatements_ProviderName_ExternalStatementId_Statem~",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"IX_FinancialStatements_ProviderName_ExternalStatementId_Statem~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"ExternalStatementId\", \"StatementType\", \"IsAudited\", \"IsRepresented\", \"IsComposing\")",
-        "Columns": [
-          "ProviderName",
-          "ExternalStatementId",
-          "StatementType",
-          "IsAudited",
-          "IsRepresented",
-          "IsComposing"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatements_ProviderName_StatementType",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatements_ProviderName_StatementType\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"StatementType\")",
-        "Columns": [
-          "ProviderName",
-          "StatementType"
-        ]
-      },
-      {
-        "Name": "IX_FinancialStatements_ProviderName_StatementType_IsComposing_~",
-        "Unique": false,
-        "Definition": "CREATE INDEX \"IX_FinancialStatements_ProviderName_StatementType_IsComposing_~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"StatementType\", \"IsComposing\", \"LastSynchronizedAt\")",
-        "Columns": [
-          "ProviderName",
-          "StatementType",
-          "IsComposing",
-          "LastSynchronizedAt"
-        ]
-      },
-      {
-        "Name": "PK_FinancialStatements",
-        "Unique": true,
-        "Definition": "CREATE UNIQUE INDEX \"PK_FinancialStatements\" ON public.\"FinancialStatements\" USING btree (\"Id\")",
-        "Columns": [
-          "Id"
-        ]
-      }
-    ],
-    "Constraints": [
-      {
-        "Name": "FK_FinancialStatements_Companies_CompanyId",
-        "Type": "f",
-        "Columns": [
-          "CompanyId"
-        ],
-        "Definition": "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
-      },
-      {
-        "Name": "PK_FinancialStatements",
-        "Type": "p",
-        "Columns": [
-          "Id"
-        ],
-        "Definition": "PRIMARY KEY (\"Id\")"
-      }
-    ]
-  },
-  "semantic": {
-    "status": "candidate-pending-review",
-    "queryable": false,
-    "descriptionEn": "Provider-scoped financial statement header and reporting-period/revision attributes.",
-    "descriptionFa": "سرآیند صورت مالی به تفکیک ارائه‌دهنده و ویژگی‌های دوره و نسخه.",
-    "purpose": "Groups normalized statement line items by company, statement type, and fiscal period.",
-    "grain": "One provider statement identity and period; provider-specific logical revisions may coexist.",
-    "columns": {
-      "Id": "Statement UUID",
-      "CompanyId": "Nullable FK to Companies.Id",
-      "ExternalCompanyId": "Provider company key",
-      "ProviderName": "Source/provider",
-      "ExternalStatementId": "Provider statement key",
-      "StatementType": "BalanceSheet, IncomeStatement, or CashFlow",
-      "PeriodType/PeriodStart/PeriodEnd": "Period duration and Gregorian bounds",
-      "IsAudited": "false=Unaudited, true=Audited; business-owner-confirmed",
-      "IsRepresented": "false=Not restated, true=Restated; business-owner-confirmed",
-      "IsComposing": "false=Parent-company/separate, true=consolidated; business-owner-confirmed",
-      "PublishedAt/VendorPeriodDate": "Disclosure and vendor period dates",
-      "WarningsJson/SourcePayloadChecksum": "Quality and payload provenance"
-    },
-    "units": "Header contains period flags/dates; value units are on source-item definitions/metric registry, not the header.",
-    "relationships": [
-      "CompanyId -> Companies.Id (physical FK)",
-      "FinancialStatementLineItems.FinancialStatementId is the application association; live schema does not enforce this FK."
-    ],
-    "metricReferences": [
-      "Feature 015 financial metric definitions and unit governance are authoritative."
-    ],
-    "providerPolicy": "No global provider precedence rule is implemented. NoavaranCurrentApi fetches BalanceSheet, IncomeStatement, and CashFlow endpoint families; CyclicalWaves normalizes quarterly income statement fields only; CodalDb selects one variant per (PeriodEnd.Date, PeriodType), ordered IsAudited=true first, then IsRepresented=true (Restated) first, then IsComposing=true by default (or false when preferConsolidated=false), then StmtId ascending. Provider is distinct from selected statement revision; explicitly select provider and preserve provenance.",
-    "periodSemantics": "PeriodType is duration (e.g. ThreeMonths), distinct from StatementType. IsRepresented=true denotes Restated per the business owner; the physical column is unchanged and there is no separate IsRestated column. Provider revision identity remains separate from this semantic flag.",
-    "examples": [
-      "فروش و سود خالص فصل اخیر از صورت سود و زیان",
-      "Show audited income statement values for a fiscal period"
-    ],
-    "cautions": [
-      "IsComposing is independent of audit and restatement flags.",
-      "CodalDb currently prefers IsComposing=true by default, which conflicts with Feature 141's generic-path default; the provider-specific behavior is unchanged.",
-      "CodalDb restatement preference and StmtId tie-break have no additional business approval in this phase.",
-      "CyclicalWaves period dates can be estimated and carry stale-data warnings.",
-      "Do not infer latest accepted revision by MAX(PeriodEnd) alone."
-    ],
-    "sourceVerification": "Live PostgreSQL schema; Noavaran client; CyclicalWaves and CodalDb normalizers; CodalDb statement-selection policy.",
-    "approvalStatus": "human-review-required",
-    "businessDefinitions": [
-      {
-        "field": "IsAudited",
-        "persian": "حسابرسی‌شده",
-        "english": "Audited Financial Statement",
-        "trueMeans": "Audited",
-        "falseMeans": "Unaudited",
-        "provenance": "business-owner-confirmed",
-        "status": "confirmed"
-      },
-      {
-        "field": "IsRepresented",
-        "persian": "تجدید ارائه‌شده",
-        "english": "Restated Financial Statement",
-        "trueMeans": "Restated",
-        "falseMeans": "Not restated",
-        "provenance": "business-owner-confirmed",
-        "status": "confirmed"
-      },
-      {
-        "field": "IsComposing",
-        "persian": "تلفیقی",
-        "english": "Consolidated Financial Statement",
-        "trueMeans": "Consolidated financial statement",
-        "falseMeans": "Parent-company / separate financial statement",
-        "provenance": "business-owner-confirmed",
-        "status": "confirmed"
-      }
-    ],
-    "statementScopePolicy": {
-      "provenance": "business-owner-confirmed",
-      "status": "confirmed-for-feature-141-generic-path",
-      "defaultFilter": {
-        "field": "IsComposing",
-        "value": false
-      },
-      "explicitConsolidatedValue": true,
-      "compareScopes": "Retrieve separately; never merge.",
-      "fallback": "No silent substitution when parent-company data is unavailable.",
-      "independentDimensions": [
-        "IsAudited",
-        "IsRepresented",
-        "IsComposing"
-      ],
-      "providerBehaviorChange": false
-    },
-    "semanticApproval": {
-      "state": "candidate-pending-review",
-      "approved": false,
-      "provenance": "existing catalog review state; no reviewer approval fabricated"
-    },
-    "queryAuthorization": {
-      "state": "not-approved",
-      "runtimeQueryable": false,
-      "approvedObjects": [],
-      "reason": "Semantic review and navigation inclusion do not grant query access."
-    }
-  },
-  "provenance": {
-    "source": "ef-core-model",
-    "verified": false
-  }
+    "id":  "tbl_53d51e26e1ca6929",
+    "physical":  {
+                     "Schema":  "public",
+                     "Name":  "FinancialStatements",
+                     "ObjectType":  "table",
+                     "Columns":  [
+                                     {
+                                         "Name":  "Id",
+                                         "Type":  "uuid",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "ProviderName",
+                                         "Type":  "text",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "ExternalCompanyId",
+                                         "Type":  "text",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "ExternalStatementId",
+                                         "Type":  "text",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "PeriodType",
+                                         "Type":  "text",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "PeriodStart",
+                                         "Type":  "date",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "PeriodEnd",
+                                         "Type":  "date",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "SourcePayloadChecksum",
+                                         "Type":  "text",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "LastSynchronizedAt",
+                                         "Type":  "timestamp with time zone",
+                                         "Nullable":  false
+                                     },
+                                     {
+                                         "Name":  "WarningsJson",
+                                         "Type":  "text",
+                                         "Nullable":  false,
+                                         "DefaultValue":  "\u0027\u0027::text"
+                                     },
+                                     {
+                                         "Name":  "StatementType",
+                                         "Type":  "character varying(32)",
+                                         "Nullable":  false,
+                                         "DefaultValue":  "\u0027\u0027::character varying"
+                                     },
+                                     {
+                                         "Name":  "LogicalVendor",
+                                         "Type":  "character varying(64)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "SourceMode",
+                                         "Type":  "character varying(32)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "VendorPeriodDate",
+                                         "Type":  "date",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "CompanyId",
+                                         "Type":  "uuid",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "IsAudited",
+                                         "Type":  "boolean",
+                                         "Nullable":  false,
+                                         "DefaultValue":  "false"
+                                     },
+                                     {
+                                         "Name":  "IsComposing",
+                                         "Type":  "boolean",
+                                         "Nullable":  false,
+                                         "DefaultValue":  "false"
+                                     },
+                                     {
+                                         "Name":  "IsRepresented",
+                                         "Type":  "boolean",
+                                         "Nullable":  false,
+                                         "DefaultValue":  "false"
+                                     },
+                                     {
+                                         "Name":  "StatementTitle",
+                                         "Type":  "character varying(512)",
+                                         "Nullable":  true
+                                     },
+                                     {
+                                         "Name":  "PublishedAt",
+                                         "Type":  "date",
+                                         "Nullable":  true
+                                     }
+                                 ],
+                     "PrimaryKeys":  [
+                                         "Id"
+                                     ],
+                     "ForeignKeys":  [
+                                         {
+                                             "Columns":  [
+                                                             "CompanyId"
+                                                         ],
+                                             "PrincipalSchema":  "public",
+                                             "PrincipalTable":  "Companies",
+                                             "PrincipalColumns":  [
+                                                                      "Id"
+                                                                  ],
+                                             "Definition":  "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+                                         }
+                                     ],
+                     "Indexes":  [
+                                     {
+                                         "Name":  "IX_FinancialStatements_CompanyId",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatements_CompanyId\" ON public.\"FinancialStatements\" USING btree (\"CompanyId\")",
+                                         "Columns":  [
+                                                         "CompanyId"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatements_ProviderName_ExternalCompanyId_Statemen~",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatements_ProviderName_ExternalCompanyId_Statemen~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"ExternalCompanyId\", \"StatementType\", \"PeriodType\", \"PeriodEnd\", \"IsComposing\", \"IsAudited\", \"IsRepresented\")",
+                                         "Columns":  [
+                                                         "ProviderName",
+                                                         "ExternalCompanyId",
+                                                         "StatementType",
+                                                         "PeriodType",
+                                                         "PeriodEnd",
+                                                         "IsComposing",
+                                                         "IsAudited",
+                                                         "IsRepresented"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatements_ProviderName_ExternalStatementId_Statem~",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"IX_FinancialStatements_ProviderName_ExternalStatementId_Statem~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"ExternalStatementId\", \"StatementType\", \"IsAudited\", \"IsRepresented\", \"IsComposing\")",
+                                         "Columns":  [
+                                                         "ProviderName",
+                                                         "ExternalStatementId",
+                                                         "StatementType",
+                                                         "IsAudited",
+                                                         "IsRepresented",
+                                                         "IsComposing"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatements_ProviderName_StatementType",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatements_ProviderName_StatementType\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"StatementType\")",
+                                         "Columns":  [
+                                                         "ProviderName",
+                                                         "StatementType"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "IX_FinancialStatements_ProviderName_StatementType_IsComposing_~",
+                                         "Unique":  false,
+                                         "Definition":  "CREATE INDEX \"IX_FinancialStatements_ProviderName_StatementType_IsComposing_~\" ON public.\"FinancialStatements\" USING btree (\"ProviderName\", \"StatementType\", \"IsComposing\", \"LastSynchronizedAt\")",
+                                         "Columns":  [
+                                                         "ProviderName",
+                                                         "StatementType",
+                                                         "IsComposing",
+                                                         "LastSynchronizedAt"
+                                                     ]
+                                     },
+                                     {
+                                         "Name":  "PK_FinancialStatements",
+                                         "Unique":  true,
+                                         "Definition":  "CREATE UNIQUE INDEX \"PK_FinancialStatements\" ON public.\"FinancialStatements\" USING btree (\"Id\")",
+                                         "Columns":  [
+                                                         "Id"
+                                                     ]
+                                     }
+                                 ],
+                     "Constraints":  [
+                                         {
+                                             "Name":  "FK_FinancialStatements_Companies_CompanyId",
+                                             "Type":  "f",
+                                             "Columns":  [
+                                                             "CompanyId"
+                                                         ],
+                                             "Definition":  "FOREIGN KEY (\"CompanyId\") REFERENCES \"Companies\"(\"Id\") ON DELETE SET NULL"
+                                         },
+                                         {
+                                             "Name":  "PK_FinancialStatements",
+                                             "Type":  "p",
+                                             "Columns":  [
+                                                             "Id"
+                                                         ],
+                                             "Definition":  "PRIMARY KEY (\"Id\")"
+                                         }
+                                     ]
+                 },
+    "semantic":  {
+                     "status":  "owner-approved-runtime-query",
+                     "queryable":  true,
+                     "descriptionEn":  "Provider-scoped financial statement header and reporting-period/revision attributes.",
+                     "descriptionFa":  "سرآیند صورت مالی به تفکیک ارائه‌دهنده و ویژگی‌های دوره و نسخه.",
+                     "purpose":  "Groups normalized statement line items by company, statement type, and fiscal period.",
+                     "grain":  "One provider statement identity and period; provider-specific logical revisions may coexist.",
+                     "columns":  {
+                                     "Id":  "Statement UUID",
+                                     "CompanyId":  "Nullable FK to Companies.Id",
+                                     "ExternalCompanyId":  "Provider company key",
+                                     "ProviderName":  "Source/provider",
+                                     "ExternalStatementId":  "Provider statement key",
+                                     "StatementType":  "BalanceSheet, IncomeStatement, or CashFlow",
+                                     "PeriodType/PeriodStart/PeriodEnd":  "Period duration and Gregorian bounds",
+                                     "IsAudited":  "false=Unaudited, true=Audited; business-owner-confirmed",
+                                     "IsRepresented":  "false=Not restated, true=Restated; business-owner-confirmed",
+                                     "IsComposing":  "false=Parent-company/separate, true=consolidated; business-owner-confirmed",
+                                     "PublishedAt/VendorPeriodDate":  "Disclosure and vendor period dates",
+                                     "WarningsJson/SourcePayloadChecksum":  "Quality and payload provenance"
+                                 },
+                     "units":  "Header contains period flags/dates; value units are on source-item definitions/metric registry, not the header.",
+                     "relationships":  [
+                                           "CompanyId -\u003e Companies.Id (physical FK)",
+                                           "FinancialStatementLineItems.FinancialStatementId is the application association; live schema does not enforce this FK."
+                                       ],
+                     "metricReferences":  [
+                                              "Feature 015 financial metric definitions and unit governance are authoritative."
+                                          ],
+                     "providerPolicy":  "No global provider precedence rule is implemented. NoavaranCurrentApi fetches BalanceSheet, IncomeStatement, and CashFlow endpoint families; CyclicalWaves normalizes quarterly income statement fields only; CodalDb selects one variant per (PeriodEnd.Date, PeriodType), ordered IsAudited=true first, then IsRepresented=true (Restated) first, then IsComposing=true by default (or false when preferConsolidated=false), then StmtId ascending. Provider is distinct from selected statement revision; explicitly select provider and preserve provenance.",
+                     "periodSemantics":  "PeriodType is duration (e.g. ThreeMonths), distinct from StatementType. IsRepresented=true denotes Restated per the business owner; the physical column is unchanged and there is no separate IsRestated column. Provider revision identity remains separate from this semantic flag.",
+                     "examples":  [
+                                      "فروش و سود خالص فصل اخیر از صورت سود و زیان",
+                                      "Show audited income statement values for a fiscal period"
+                                  ],
+                     "cautions":  [
+                                      "IsComposing is independent of audit and restatement flags.",
+                                      "CodalDb currently prefers IsComposing=true by default, which conflicts with Feature 141\u0027s generic-path default; the provider-specific behavior is unchanged.",
+                                      "CodalDb restatement preference and StmtId tie-break have no additional business approval in this phase.",
+                                      "CyclicalWaves period dates can be estimated and carry stale-data warnings.",
+                                      "Do not infer latest accepted revision by MAX(PeriodEnd) alone."
+                                  ],
+                     "sourceVerification":  "Live PostgreSQL schema; Noavaran client; CyclicalWaves and CodalDb normalizers; CodalDb statement-selection policy.",
+                     "approvalStatus":  "owner-approved",
+                     "businessDefinitions":  [
+                                                 {
+                                                     "field":  "IsAudited",
+                                                     "persian":  "حسابرسی‌شده",
+                                                     "english":  "Audited Financial Statement",
+                                                     "trueMeans":  "Audited",
+                                                     "falseMeans":  "Unaudited",
+                                                     "provenance":  "business-owner-confirmed",
+                                                     "status":  "confirmed"
+                                                 },
+                                                 {
+                                                     "field":  "IsRepresented",
+                                                     "persian":  "تجدید ارائه‌شده",
+                                                     "english":  "Restated Financial Statement",
+                                                     "trueMeans":  "Restated",
+                                                     "falseMeans":  "Not restated",
+                                                     "provenance":  "business-owner-confirmed",
+                                                     "status":  "confirmed"
+                                                 },
+                                                 {
+                                                     "field":  "IsComposing",
+                                                     "persian":  "تلفیقی",
+                                                     "english":  "Consolidated Financial Statement",
+                                                     "trueMeans":  "Consolidated financial statement",
+                                                     "falseMeans":  "Parent-company / separate financial statement",
+                                                     "provenance":  "business-owner-confirmed",
+                                                     "status":  "confirmed"
+                                                 }
+                                             ],
+                     "statementScopePolicy":  {
+                                                  "provenance":  "business-owner-confirmed",
+                                                  "status":  "confirmed-for-feature-141-generic-path",
+                                                  "defaultFilter":  {
+                                                                        "field":  "IsComposing",
+                                                                        "value":  false
+                                                                    },
+                                                  "explicitConsolidatedValue":  true,
+                                                  "compareScopes":  "Retrieve separately; never merge.",
+                                                  "fallback":  "No silent substitution when parent-company data is unavailable.",
+                                                  "independentDimensions":  [
+                                                                                "IsAudited",
+                                                                                "IsRepresented",
+                                                                                "IsComposing"
+                                                                            ],
+                                                  "providerBehaviorChange":  false
+                                              },
+                     "semanticApproval":  {
+                                              "state":  "owner-approved-runtime-query",
+                                              "approved":  true,
+                                              "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                          },
+                     "queryAuthorization":  {
+                                                "state":  "authorized",
+                                                "runtimeQueryable":  true,
+                                                "approvedObjects":  [
+                                                                        "tbl_53d51e26e1ca6929_Id",
+                                                                        "tbl_53d51e26e1ca6929_ProviderName",
+                                                                        "tbl_53d51e26e1ca6929_StatementType",
+                                                                        "tbl_53d51e26e1ca6929_CompanyId",
+                                                                        "tbl_53d51e26e1ca6929_IsComposing",
+                                                                        "tbl_53d51e26e1ca6929_PeriodEnd",
+                                                                        "tbl_53d51e26e1ca6929_PeriodType",
+                                                                        "tbl_53d51e26e1ca6929_IsAudited",
+                                                                        "tbl_53d51e26e1ca6929_IsRepresented",
+                                                                        "tbl_53d51e26e1ca6929_ExternalStatementId",
+                                                                        "tbl_53d51e26e1ca6929_PeriodStart",
+                                                                        "tbl_53d51e26e1ca6929_SourcePayloadChecksum",
+                                                                        "tbl_53d51e26e1ca6929_PublishedAt",
+                                                                        "tbl_53d51e26e1ca6929_LastSynchronizedAt",
+                                                                        "tbl_53d51e26e1ca6929_WarningsJson",
+                                                                        "tbl_53d51e26e1ca6929_LogicalVendor",
+                                                                        "tbl_53d51e26e1ca6929_SourceMode"
+                                                                    ],
+                                                "reason":  "Limited to compiler-referenced SELECT columns for registered financial source retrieval.",
+                                                "provenance":  "product-owner-approved:Feature141-full-chat-activation"
+                                            }
+                 },
+    "provenance":  {
+                       "source":  "ef-core-model",
+                       "verified":  false
+                   }
 }

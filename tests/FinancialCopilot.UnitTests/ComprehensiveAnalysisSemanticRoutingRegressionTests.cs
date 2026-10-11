@@ -32,7 +32,7 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
     [InlineData("comprehensive_analysis", "تحلیل بنیادی فولاد")]
     [InlineData("comprehensive_analysis", "بنیادی فولاد")]
     [InlineData("comprehensive_analysis", "فولاد؟")]
-    public async Task HybridInterpreter_ModelEntityVariants_KeepTheCanonicalCompany(string capability, string modelEntity)
+    public async Task HybridInterpreter_ValidatesModelEntityMentionsWithoutSubstitutingRawTextEntities(string capability, string modelEntity)
     {
         var prepared = await PrepareAsync("تحلیل بنیادی فولاد؟", useTickerForCanonical: false, extraRows: CyclicalWavesDuplicate,
             proposal: Proposal(capability, new SemanticEntityProposal(modelEntity, "company", null, 0.9m)));
@@ -40,8 +40,9 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
 
         Assert.Equal("comprehensive_analysis", frame.CapabilityCode);
         var company = Assert.Single(frame.Slots, slot => slot.Type == QuerySlotType.CompanyOrSymbol);
-        Assert.Equal(QuerySlotValidationState.Valid, company.ValidationState);
-        Assert.Equal(FouladCanonicalId, company.CanonicalEntity!.CanonicalId);
+        Assert.Equal(modelEntity is "فولاد" or "فولاد؟" ? QuerySlotValidationState.Valid : QuerySlotValidationState.Invalid, company.ValidationState);
+        if (company.ValidationState == QuerySlotValidationState.Valid)
+            Assert.Equal(FouladCanonicalId, company.CanonicalEntity!.CanonicalId);
     }
 
     [Fact]
@@ -85,13 +86,46 @@ public sealed class ComprehensiveAnalysisSemanticRoutingRegressionTests
     [InlineData("P/S فولاد")]
     [InlineData("EPS فولاد")]
     [InlineData("فروش فولاد")]
-    public async Task HybridInterpreter_ModelCannotHijackMetricQueriesIntoComprehensiveAnalysis(string query)
+    public async Task HybridInterpreter_ValidModelCapabilityIsTheAuthoritativeRoute(string query)
     {
         var prepared = await PrepareAsync(query, useTickerForCanonical: false, extraRows: CyclicalWavesDuplicate,
             proposal: Proposal("comprehensive_analysis", new SemanticEntityProposal("فولاد", "company", null, 0.95m)));
         var frame = Assert.IsType<ValidatedQueryFrame>(prepared.Result.Request.SemanticFrame);
 
-        Assert.NotEqual("comprehensive_analysis", frame.CapabilityCode);
+        Assert.Equal("comprehensive_analysis", frame.CapabilityCode);
+    }
+
+    [Theory]
+    [InlineData("\u0645\u0628\u0644\u063a \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0644 \u062f\u0631 \u0622\u062e\u0631\u06cc\u0646 \u06af\u0632\u0627\u0631\u0634 \u0686\u0642\u062f\u0631 \u0628\u0648\u062f\u0647 \u0627\u0633\u062a\u061f", "Summary", "LatestAvailable", null, "LatestValue")]
+    [InlineData("\u0631\u0648\u0646\u062f \u0641\u0631\u0648\u0634 \u0645\u0627\u0647\u0627\u0646\u0647 \u06a9\u06af\u0644 \u0631\u0627 \u062f\u0631 \u06f1\u06f2 \u0645\u0627\u0647 \u0627\u062e\u06cc\u0631 \u0646\u0645\u0648\u062f\u0627\u0631 \u06a9\u0646 \u0648 \u062f\u0631\u0635\u062f \u0631\u0634\u062f \u0622\u062e\u0631\u06cc\u0646 \u0645\u0627\u0647 \u0646\u0633\u0628\u062a \u0628\u0647 \u0645\u0627\u0647 \u0642\u0628\u0644 \u0631\u0627 \u0647\u0645 \u0628\u06af\u0648.", "Chart", "LastAvailableMonths", 12, "TimeSeries,Chart,MonthOverMonthGrowth")]
+    public async Task CompleteMonthlySalesProposal_WithLowModelConfidence_ReachesSemanticPrimary(
+        string query,
+        string presentation,
+        string period,
+        int? periodCount,
+        string operationsText)
+    {
+        var operations = operationsText.Split(',');
+        var proposal = new QueryInterpretationProposal(
+            ["monthly_activity_trend"], [], presentation, 0.45m, ["monthly sales"],
+            "MonthlyActivity", [new SemanticEntityProposal("\u06a9\u06af\u0644", "company", null, 0.99m)],
+            ["SalesAmount"], period, null, periodCount, operations, []);
+
+        var prepared = await PrepareAsync(query, proposal: proposal);
+        var frame = Assert.IsType<ValidatedQueryFrame>(prepared.Result.Request.SemanticFrame);
+
+        Assert.Equal("SemanticPrimary", prepared.Result.Request.SemanticRoutingDisposition);
+        Assert.Equal("monthly_activity_trend", frame.CapabilityCode);
+        Assert.Equal("LowConfidence", frame.SemanticStatus);
+        var company = Assert.Single(frame.Slots, slot => slot.Type == QuerySlotType.CompanyOrSymbol);
+        Assert.Equal(QuerySlotValidationState.Valid, company.ValidationState);
+        Assert.Equal("\u06a9\u06af\u0644", company.Value);
+        Assert.NotNull(company.CanonicalEntity);
+        Assert.Equal(period, frame.Interpretation.Period!.Value);
+        Assert.Equal(periodCount, frame.Interpretation.Period.Count);
+        Assert.Equal(operations, frame.Interpretation.RequestedOperations);
+        var dispatcher = new SemanticCapabilityDispatcher(prepared.Registry, [new StubExecutor(frame.CapabilityCode)]);
+        Assert.Null(dispatcher.Validate(frame));
     }
 
     private sealed class StubProposalProvider(QueryInterpretationProposal proposal) : IQueryInterpretationProposalProvider

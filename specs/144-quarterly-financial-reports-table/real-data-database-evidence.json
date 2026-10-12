@@ -1,0 +1,2769 @@
+{
+  "persistedCompanyReports": [
+    {
+      "id": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "externalStatementId": "553383",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "SixMonths",
+      "periodStart": "2026-03-21",
+      "periodEnd": "2026-09-22",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "D43D32EC6B32E03162F169306F4C4E36B5A1CB4E44C901FE5A0A38040E56D03F",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:553383,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221405/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221405/06/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/07/18\u0022,\u0022anouncementDate\u0022:\u00222026-10-10T07:46:50\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022,\u0022invalidObservations\u0022:[]}]"
+    },
+    {
+      "id": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "externalStatementId": "546627",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "ThreeMonths",
+      "periodStart": "2026-03-21",
+      "periodEnd": "2026-06-21",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "DFFA913925253F67E6872A38C44E39E55D7AEB6E5C2E432BFEED42737B290950",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:546627,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221405/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221405/03/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/04/20\u0022,\u0022anouncementDate\u0022:\u00222026-07-11T09:49:16\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "externalStatementId": "538950",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "TwelveMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2026-03-20",
+      "isComposing": false,
+      "isAudited": true,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "D9E23C1999A2F8AA29B2C815BF03C1D6F91046E109CDD10E72A1CD1E4F6C3F45",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:538950,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/02/30\u0022,\u0022anouncementDate\u0022:\u00222026-05-20T14:27:55\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "147cbe16-d70a-4759-926d-45a638c2c33b",
+      "externalStatementId": "538950",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "TwelveMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2026-03-20",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "B5F306BDF1058D085E3545B8536CD427E352E777C5D0AAF91389F5041B5A6AF3",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:538950,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/02/30\u0022,\u0022anouncementDate\u0022:\u00222026-05-20T14:27:55\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "externalStatementId": "532579",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "NineMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2025-12-21",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "D9E23C1999A2F8AA29B2C815BF03C1D6F91046E109CDD10E72A1CD1E4F6C3F45",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:532579,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/09/30\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/10/23\u0022,\u0022anouncementDate\u0022:\u00222026-01-13T10:27:38\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "externalStatementId": "530286",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "SixMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2025-09-22",
+      "isComposing": false,
+      "isAudited": true,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "D9E23C1999A2F8AA29B2C815BF03C1D6F91046E109CDD10E72A1CD1E4F6C3F45",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:530286,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/06/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/08/21\u0022,\u0022anouncementDate\u0022:\u00222025-11-12T15:57:14\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "bcf304dd-67a3-4056-bc30-5446540e0763",
+      "externalStatementId": "530286",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "SixMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2025-09-22",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "B5F306BDF1058D085E3545B8536CD427E352E777C5D0AAF91389F5041B5A6AF3",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:530286,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/06/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/08/21\u0022,\u0022anouncementDate\u0022:\u00222025-11-12T15:57:14\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "externalStatementId": "524153",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "ThreeMonths",
+      "periodStart": "2025-03-21",
+      "periodEnd": "2025-06-21",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "56E72AA79276827EFCC5E8D545565A990454D200258A1FFADADC8C834D378D6F",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:524153,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/03/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/04/07\u0022,\u0022anouncementDate\u0022:\u00222025-06-28T15:51:27\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "3437b7cf-fb04-4815-899b-78c9e17a9468",
+      "externalStatementId": "538951",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "TwelveMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2025-03-20",
+      "isComposing": false,
+      "isAudited": true,
+      "isRepresented": true,
+      "sourcePayloadChecksum": "857F8A92275203BC2BE40A512DBAF99691FC8E9D0C470CE7D05311972217D093",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:538951,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:true,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/02/30\u0022,\u0022anouncementDate\u0022:\u00222026-05-20T14:27:55\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "2b064e33-f72a-43a7-9fea-65e6ab3040a9",
+      "externalStatementId": "538951",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "TwelveMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2025-03-20",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "B5F306BDF1058D085E3545B8536CD427E352E777C5D0AAF91389F5041B5A6AF3",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:538951,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:true,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliAnouncementDate\u0022:\u00221405/02/30\u0022,\u0022anouncementDate\u0022:\u00222026-05-20T14:27:55\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "bea316fd-e5e1-443c-86a5-3a134f03b904",
+      "externalStatementId": "519161",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "NineMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2024-12-20",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "857F8A92275203BC2BE40A512DBAF99691FC8E9D0C470CE7D05311972217D093",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:519161,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/09/30\u0022,\u0022jalaliAnouncementDate\u0022:\u00221403/10/28\u0022,\u0022anouncementDate\u0022:\u00222025-01-17T11:42:22\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "24d5c806-3f53-4053-91af-37794a2bda95",
+      "externalStatementId": "517117",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "SixMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2024-09-21",
+      "isComposing": false,
+      "isAudited": true,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "857F8A92275203BC2BE40A512DBAF99691FC8E9D0C470CE7D05311972217D093",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:517117,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/06/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221403/08/23\u0022,\u0022anouncementDate\u0022:\u00222024-11-13T16:55:25\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "40a48ebc-0ed0-4615-bc57-4d2083b729f5",
+      "externalStatementId": "517117",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "SixMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2024-09-21",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "B5F306BDF1058D085E3545B8536CD427E352E777C5D0AAF91389F5041B5A6AF3",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:517117,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:true,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/06/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221403/08/23\u0022,\u0022anouncementDate\u0022:\u00222024-11-13T16:55:25\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    },
+    {
+      "id": "8bb3b24f-4bb1-418a-adcc-315ed0d621d7",
+      "externalStatementId": "513559",
+      "providerName": "NoavaranCurrentApi",
+      "statementType": "IncomeStatement",
+      "periodType": "ThreeMonths",
+      "periodStart": "2024-03-21",
+      "periodEnd": "2024-06-20",
+      "isComposing": false,
+      "isAudited": false,
+      "isRepresented": false,
+      "sourcePayloadChecksum": "857F8A92275203BC2BE40A512DBAF99691FC8E9D0C470CE7D05311972217D093",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:513559,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221403/12/30\u0022,\u0022jalaliPeriodEnd\u0022:\u00221403/03/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221403/04/19\u0022,\u0022anouncementDate\u0022:\u00222024-07-09T06:55:57\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+    }
+  ],
+  "catalogEvidence": [
+    {
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "titleFa": "\u0628\u0647\u0627\u06CC \u062A\u0645\u0627\u0645 \u0634\u062F\u0647 \u06A9\u0627\u0644\u0627\u06CC \u0641\u0631\u0648\u0634 \u0631\u0641\u062A\u0647 \u0648 \u062E\u062F\u0645\u0627\u062A \u0627\u0631\u0627\u0626\u0647 \u0634\u062F\u0647",
+      "unit": "N/A"
+    },
+    {
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "titleFa": "\u0647\u0632\u06CC\u0646\u0647 \u0647\u0627\u06CC \u0641\u0631\u0648\u0634\u060C \u0627\u062F\u0627\u0631\u06CC \u0648 \u0639\u0645\u0648\u0645\u06CC",
+      "unit": "N/A"
+    },
+    {
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "titleFa": "\u0647\u0632\u06CC\u0646\u0647\u200C\u0647\u0627\u06CC \u0645\u0627\u0644\u06CC",
+      "unit": "N/A"
+    },
+    {
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "titleFa": "\u0641\u0631\u0648\u0634 \u062E\u0627\u0644\u0635 \u0648 \u062F\u0631\u0622\u0645\u062F \u0627\u0631\u0627\u06CC\u0647 \u062E\u062F\u0645\u0627\u062A",
+      "unit": "N/A"
+    },
+    {
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "titleFa": "\u062E\u0627\u0644\u0635 \u0633\u0627\u06CC\u0631 \u062F\u0631\u0622\u0645\u062F\u0647\u0627 \u0648 \u0647\u0632\u06CC\u0646\u0647 \u0647\u0627\u06CC \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC",
+      "unit": "N/A"
+    },
+    {
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "titleFa": "\u062E\u0627\u0644\u0635 \u0633\u0627\u06CC\u0631 \u062F\u0631\u0622\u0645\u062F\u0647\u0627 \u0648 \u0647\u0632\u06CC\u0646\u0647\u200C\u0647\u0627\u06CC \u063A\u06CC\u0631 \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC",
+      "unit": "N/A"
+    },
+    {
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "titleFa": "\u0633\u0648\u062F \u0646\u0627\u062E\u0627\u0644\u0635",
+      "unit": "N/A"
+    },
+    {
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "titleFa": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC",
+      "unit": "N/A"
+    },
+    {
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "titleFa": "\u0633\u0648\u062F \u0646\u0627\u0634\u06CC \u0627\u0632 \u0641\u0639\u0627\u0644\u06CC\u062A \u0647\u0627\u06CC \u0639\u0627\u062F\u06CC \u0642\u0628\u0644 \u0627\u0632 \u0645\u0627\u0644\u06CC\u0627\u062A",
+      "unit": "N/A"
+    },
+    {
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "titleFa": "\u0633\u0648\u062F \u062E\u0627\u0644\u0635",
+      "unit": "N/A"
+    },
+    {
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "titleFa": "\u062A\u0639\u062F\u0627\u062F \u0633\u0647\u0627\u0645 \u0634\u0631\u06A9\u062A - \u0628\u0647 \u0647\u0632\u0627\u0631 \u0633\u0647\u0645 ",
+      "unit": "N/A"
+    },
+    {
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "titleFa": "\u0633\u0648\u062F \u062E\u0627\u0644\u0635 \u0647\u0631 \u0633\u0647\u0645 ",
+      "unit": "N/A"
+    },
+    {
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "titleFa": "\u0633\u0648\u062F (\u0632\u06CC\u0627\u0646) \u0639\u0645\u0644\u06CC\u0627\u062A \u0645\u062A\u0648\u0642\u0641 \u0634\u062F\u0647",
+      "unit": "N/A"
+    },
+    {
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "titleFa": "\u0633\u0648\u062F (\u0632\u06CC\u0627\u0646) \u0639\u0645\u0644\u06CC\u0627\u062A \u062F\u0631 \u062D\u0627\u0644 \u062A\u062F\u0627\u0648\u0645",
+      "unit": "N/A"
+    },
+    {
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "titleFa": "\u0645\u0627\u0644\u06CC\u0627\u062A \u0633\u0627\u0644 \u062C\u0627\u0631\u06CC",
+      "unit": "N/A"
+    }
+  ],
+  "sourceObservations": [
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "de1eb461-027b-401e-a6e3-11272cf4c69f",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -10824535
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "0e9c7dcb-fdb0-4455-b0db-7a241b7afcd7",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -93755
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "57dfb59a-16d8-4b84-934e-2b6dc41bde77",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "1d6eb4ea-92b8-4061-8414-594c5c6e4d24",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "37b5e8c5-ef84-49bd-a6d0-a7468f582ed8",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 13973325
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "744e8583-f402-4ac9-8334-66678fcddbb5",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "fb59666e-5684-4fe1-a0ec-f426178f5056",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -450000
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "bd6f5378-cbba-47f1-ab05-ef8baae447dd",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "c4c885f3-cc5a-4edb-a36b-9079c3514116",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "2a0f43c9-bc62-4d89-b0a2-a1c6fc8acdb6",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5949
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "8fe74b99-61d9-4a22-a129-ad37ac2daaea",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 107217
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "fd5723e0-383a-42ac-9b5b-a266aaaf6f50",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "c033d994-f2d7-4ca3-8913-44c3add0bd83",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 3148790
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "5850b22d-94c3-4efe-9c1e-35012c4213f3",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 3060984
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "efb48526-9796-4af6-b603-cc4a459894d3",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3168201
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "626ccde4-1863-45e9-ac00-987cb63ab784",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 2611459
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "719f5e62-7eee-495a-8f91-68e12e08521a",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2611459
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "3546ff63-336b-442b-971d-a0093e0cadc7",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "76096dbd-acb4-48cc-ad9d-364df9f9fbdf",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 85601
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "0ebabcf1-2182-4e9c-874f-08b9259dbf08",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "cb719f84-4586-4e60-913b-66b94fd16f9d",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "a08e77a5-1040-4271-b7ca-bbcd5761c535",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3168201
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "b0c25a46-5c9a-4b11-be0a-851a74871e2d",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "2c1bdd26-9f8b-4be2-ba82-0460ca841ed8",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 13057
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "0c6df940-f6cb-42f6-849f-a5aebfb28b0e",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 15304
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "a27ffe9f-8645-484d-8363-3222dda6b8f4",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 15841
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "31e3da10-c800-4aa1-abf1-aaf81effc255",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 69866
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "97623bf0-784b-48f8-8e20-7e9cb8095cdf",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "3dbf3022-097e-4b29-93e6-52fbef1e7fb8",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2611459
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "38294149-072e-43ad-a8d2-94903372efcf",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 13973325
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "de1a6fc9-68cf-4ac5-b51f-d1a3fd6f4479",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3148790
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "1a3fc3d5-e2d1-460a-9ff8-ebeed2ffaade",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3060984
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "b15472b8-3392-46fe-9c4a-05559e364874",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3168201
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "538d5db1-2d3e-4bd1-ae99-ceb05b79dacb",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2611459
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "ae10753f-0677-4e1d-84ca-39ca5f49ade9",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "3293a096-b7ab-4883-ab9a-8dd727783053",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 13057
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "9bff6b78-30c7-4a29-8e82-f40b01f58825",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3168201
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "d3b2419d-97d5-42de-b0f0-7d6882ed2ce7",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "61c2cff1-8c34-4448-815e-061065659948",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "05390791-694a-4cf5-96ad-8fe8efb892d3",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "e1e6714f-673d-4ef0-8ca8-6e1b0fc8dd7a",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -556742
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "305a6a17-27f5-417c-9ac5-56d8a49590cc",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "d1bd0ac7-ac7a-436b-a1f1-0d12406f8370",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -556742
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "bd1442f6-d48b-4c37-b729-b9ec8648927d",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "d536b81b-8a35-4150-8d63-4cbb538a19d0",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+      "lineItemId": "bfe4dd59-933a-4062-82d3-dcef3fee1937",
+      "id": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "sourceItemId": 348,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "34c11310-104d-48aa-bee5-c330b6ae31ed",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -4751954
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "a5bf91a5-8fdb-4056-9659-fce4552476b3",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -38377
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "7d8c28e1-abf6-46ee-8a91-0c859fe8b078",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "af3d00f2-521a-45b1-8680-85ebd4d7efa4",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "ec0bca43-5815-49ba-a5c1-4bd4a126ae21",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 7365921
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "7827e112-726c-4f27-a1d0-5dfa50814d2b",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "234b7b22-3a93-4743-ba53-c25780869995",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -2300000
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "b486512e-acbe-4d7a-94a7-527c9c463081",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "7f302b62-b4cd-49fb-8033-b26b207823d3",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "d18c294d-2056-46f6-a9e0-533d67753ba0",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -16415
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "23647c7f-a96e-4edd-bb93-91b82c33c042",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 61495
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "03b01378-0511-44c0-808c-093aee210859",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "de422dc1-1338-4939-8c36-54954d3534c5",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 2613967
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "c04c2b2b-6e2e-429d-84e5-d064b04237d1",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 2559175
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "1413092f-61a0-44b2-b127-31783aad82de",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2620670
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "c912ec5d-b700-413a-b25b-9d221eb01974",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 2031019
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "4efae0ea-2ab4-4eb3-89a3-72cfc3bbe33a",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2031019
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "11a5bd48-258d-4570-9961-7961fb4c218e",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "834b4bdc-2ac6-4f88-824d-8fb5b7000198",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 397060
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "fa032049-7abb-4b29-8836-a411c5542b67",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "53eb6749-1ec8-4f28-b913-84890ceca8ec",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2428079
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "93a8f674-bdee-42ac-836d-29735da0be07",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2620670
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "5dd8f04f-b4e0-4e77-a0b5-f174727082b3",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "c367f850-2404-4f4d-afe3-6ae0ae24feef",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 10155
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "d8c2d28f-7e7e-4318-88ef-1ef3ca09c4c7",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 12795
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "f4cd6ad8-e736-4232-9b19-a580bcd2f9bc",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 13103
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "4fff865b-25ef-430c-bb7f-a4bdc89f85bc",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 36829
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "666b2b30-c89b-45a8-81c4-56e1d19ed4fb",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "d2a75738-8cf0-407b-9807-d96fd17ec043",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2031019
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "be11318a-a57a-4f82-b29c-0d7901222ae4",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 7365921
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "ac86948e-cb3f-4ed9-bad0-05472fdd8f8f",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2613967
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "bfce2e85-fb4f-4e04-95b9-ae2670a95a87",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2559175
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "c6077c1c-751a-43d7-86d6-4cbe905049ac",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2620670
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "207faa8f-10fc-4d44-926f-e7435f4b4063",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2031019
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "ec89d623-cc4b-4ef0-ab38-d38586e99617",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2428079
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "0ba930ba-ec24-4a0d-8067-2820c7fb1248",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 10155
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "9db8f1a2-73c4-4260-9e57-d22bf5e8a234",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2620670
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "d0a67945-4c9c-4039-9c6b-21330b3f9303",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2428079
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "6ef5d52d-0840-46de-89bf-0c9bd1d54160",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2428079
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "d22ba999-c4ce-482c-a054-6ed293c3ec51",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "6d991fd3-e190-4863-b78e-b69f7c47dbb9",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -589651
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "55cdef6a-9be1-43fd-910b-b9fbdb5ff3fb",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "19b6cd3e-0286-43b7-ac39-b48efeafd24e",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -589651
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "2c4349f9-08cb-409d-8e3b-478f9152c621",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "3987811d-65c6-4e83-97c8-5013b519c196",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+      "lineItemId": "ab460c62-3170-4947-af3a-30338aedec65",
+      "id": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "sourceItemId": 348,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "948bfad3-eafd-41bd-b178-2fc4dd5865e7",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -10932857
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "4a976c3a-226d-4d86-b6b0-20b4231c8060",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -81005
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "7ba0012c-5216-4148-93d8-ab8ab8f5d341",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "7f06eab0-7cf9-46e5-b7b0-a5b55dbc8fa2",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "c29fd4b3-a243-4dad-9a14-8cf293c9b5ac",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 16754501
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "810bdbc2-9b7e-4a4e-a097-efac92281167",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "9d540c3a-451e-4a65-92de-23740770dd2e",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -2300000
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "3ef6d260-2613-42a4-b535-fdc929f47546",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "4275e4df-b521-498d-9300-62527e610120",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "7d1aadcb-0649-49c7-a239-92ead8b0fa18",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 12902
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "fd76eeed-e7e9-41dd-ac21-b2c8e8dfe339",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 264422
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "7ff5652a-78a5-4352-81ba-87b28e2f1df5",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "a97f4937-8282-41f8-9daa-73a984fe25a0",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 5821644
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "49295ab3-7435-4ab8-8fb0-06f0a6e43a92",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 5753541
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "3badd70f-c77d-4b23-92dd-5bb1692806f4",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 6017963
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "5a197e44-17d5-4524-ae02-594be32cacd3",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 4993546
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "74723dd1-5d19-49e0-9fcd-eafd759c98d5",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 4993546
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "a2a3dd57-3358-4aad-9b12-c29082581789",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2697060
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "c8a67092-9b68-4e8e-9d2d-78c578b82356",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 397060
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "34069b70-9b8f-4b06-8c7f-40d1222788f8",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "d11a718b-7284-431f-9417-edad741b359a",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5390606
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "4cae4024-1bee-49e4-85d3-28aa63649eac",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 6017963
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "d233915a-00ee-4a44-885c-467307dd8f3a",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 24967
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "29f15647-f105-4e47-a455-f27e7c637880",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 28767
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "bb5d0d5e-f95d-42be-b03c-0b9febc28aad",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 30089
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "6824c8a4-c9c0-4852-a921-72b67661d974",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 83772
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "86402e24-a5a2-4f13-8351-c072ff3a6856",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "c41800f2-bdb1-4aad-85f8-625a42944fd1",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 4993546
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "8fcbf09a-863d-49ff-831b-49bbfbbb39dc",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 16754501
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "0f3eebb4-ca4e-4efd-9b36-38de85261a2f",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5821644
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "75f90741-5051-477b-9eb5-a7ec352db26f",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5753541
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "482f3533-fec1-467e-869f-a0adc87bd73c",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 6017963
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "e94ae41c-159c-48ce-a815-227a5fe169fa",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 4993546
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "ab2694b7-173c-4610-88f7-dd4b25b4d339",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5390606
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "95542632-12d0-4774-ad7a-762b218be993",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 24968
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "fa1de5be-a5fe-4f49-bf1c-cf271430a451",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 6017963
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "8e9d8d46-44c0-4af2-bf39-82f2e9859f51",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5390606
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "525875b5-ead9-401b-b3c7-eb780f341211",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5390606
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "f9ababec-3350-4162-8244-e641d9502144",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "a997c2e5-bb33-47bf-a1b8-b53c23f48f49",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -1024417
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "336d8f81-80d0-4743-9462-a73de77d0c85",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "905066c2-161c-4198-a345-511f9029810e",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -1024417
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "3d45ebb0-0a26-4581-ad64-e837704b8df9",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "d4f89daa-d934-4f2a-b654-00315ac6b826",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+      "lineItemId": "223390e2-70bb-4daf-997f-2e3ac50bea92",
+      "id": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "sourceItemId": 348,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "f1f92184-6265-4cb9-bb41-25a2848fae0d",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -4223187
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "87716193-bafb-4cb2-b9c7-81d6de80018d",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -36753
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "92f4242e-7a73-459a-8c2f-439e9c55954c",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "881eb481-9dae-45b5-9aec-f1d963fb9464",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "02ef7973-3369-4a85-8752-76a9088e48e5",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 5330384
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "3a791e3d-1705-4cc6-97a6-103caf2e6baf",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "68467f45-bca3-479a-98df-8c26ceb26a73",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -450000
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "0087030e-dc71-41de-89b6-82e21af09df9",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "e68be406-b63a-41a3-8097-c656909e364e",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "1390a5e2-2b42-4220-9055-be490abcecc3",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 12971
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "1f09a32e-e969-485a-a606-f969dd7c3f9e",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 18002
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "60d255c1-7d50-4c64-b5bb-a1754f21bec7",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "c82e2cfe-96c0-4e01-b9a2-aaebcfbebf56",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 1107197
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "f20dffa3-c332-4b9b-97d8-6ba4cc4bea87",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 1083415
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "10f626b4-f517-4e8e-bb0f-21b507a92ee4",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1101417
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9cfd2c74-5f65-4433-a31c-bd721913e047",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 947274
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "58ae1166-c090-4854-87ef-3e02665ef8f9",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 947274
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "c0fddd3f-fb38-4a09-9193-5db351f5154c",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "dbc91d99-d060-4961-a69d-19aebd69a9d6",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 85601
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "75dbee36-9d85-4985-9e8c-00424a854024",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "eecd4264-ef91-4535-97db-6800238cff7f",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1032875
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "36dfb5ed-278e-4db7-b7a6-b2c71acdf949",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1101417
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "b5420fb9-d7db-4230-a3c6-92c1c3d2a43d",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9498005c-8c74-4ff5-a38b-487ee2b50305",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 4736
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "98ac8b61-a65f-49a2-8620-d6eda1a5675a",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5417
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "ef2d5fb1-3477-47b8-bb31-1c629db8b73c",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 5507
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "821b8296-6bf6-46a4-ac13-c979b010a8bb",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 26651
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "560b9899-dcf0-4ae1-a5b5-c53bb15d6dce",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "8c562d43-84e0-4372-9242-7824bfdb99a8",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 947274
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9003f7de-bdf8-4a97-a9c5-05e2a858d2c7",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 5330384
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "0543ac21-a230-453d-bb46-ae0f9cbd9707",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1107197
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9c949d43-22d5-4a0c-a8e6-cb2b25bec9bf",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1083415
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "a99767e0-ba2d-4801-ab2e-d2a802fa7978",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1101417
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "fa44854f-ac7f-4bc7-bd9f-21553c22df0a",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 947274
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "0192ec4a-0ed7-4fb9-892e-64d937564b1c",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1032875
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "edd66565-ad2d-472d-8d4d-1d41ed446595",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 4736
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9aacd7e1-2df4-4272-8546-c1432b1a5d41",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1101417
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "83a8ea9c-de6d-415e-b71f-aac6a4a13cc8",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1032875
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "35b9b7bf-23b2-4a4e-a101-7da8df8c016b",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1032875
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "63b6c718-0c60-45f4-85f6-55ebb7427565",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "c0eb30b6-e560-436b-bc04-f77e17184231",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -154143
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "e6619c1c-1a56-4c44-b3c2-9b9c5ff8eef5",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "53caf7b4-1698-4452-ac59-fc91890241fb",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -154143
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "aa726c78-7391-4edc-b743-c25c69a8862e",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "9f5061a0-620b-453a-9112-8e8116c1aff2",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+      "lineItemId": "43fe2ceb-208c-41a7-97bd-384403901bb0",
+      "id": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "sourceItemId": 348,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "bc946cc9-0a31-48f2-bf26-974b1714db04",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -7086132
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "5bca760a-8a64-4b7b-af72-720639f096da",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -55333
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "d8df95c6-a88a-4f9a-97e6-3fa8bbfbebbc",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "2b2ad678-8f5d-4e65-b326-5d7f2ddcc174",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "cf5a9224-e400-4e02-b9e6-ae337f8aebe5",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 9198189
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "f268afb4-9f47-4a0c-b021-c6e04e54cec2",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "02b24b58-629e-4315-926e-e4d045d6ac6f",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -450000
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "dca20028-9570-4314-aa0a-3a5897670444",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "867d6b86-7524-4335-87f1-fee6e24a41ac",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "23e3223e-1ce5-438d-b304-523389dc0498",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -2383
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "c61ec948-53bf-4533-914f-4713f79bcadb",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 35441
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "26acde26-bb3f-48e5-b503-9209641eda47",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "16a200f5-71d0-48d6-8fcf-e60e3a1042b4",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 2112057
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "ace5b2ad-4114-40dd-a985-71c16b272d18",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 2054341
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "bcd222ab-c1ff-4b93-8bb7-6bc80a839f74",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2089782
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "e0d13c78-6453-4720-8fc6-405cd8fdaffe",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 1797213
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "bff37fde-e324-4a67-98f3-41f964aac859",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1797213
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "9a7f8a7f-c940-4a4e-b0bc-2ab88188a946",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "c133b230-8233-4137-ae7f-251db009e19a",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 85601
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "ea7c4e11-35de-40a1-ba1a-cd700c7fb6ec",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "5d4f6b38-7108-426f-be72-fa73e2fafd00",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1882814
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "303966b8-9efe-4c89-8d2b-207e5a443395",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2089782
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b70145fc-cc55-4635-85ec-dc8f2273b47c",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b6563454-8ba7-40f9-8ce0-d1e720542dd7",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 8986
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "118dcb9a-9b07-4941-8c6c-9e82884e3b28",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 10271
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "0a45e67e-15ac-477c-bdd5-9c8613540b02",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 10448
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "c6f362ac-0694-45f1-a0d1-dbc5d689f23e",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 45990
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "98c305a7-ca21-4a6e-ab16-18d2a91876ef",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "ebde80fc-a4fa-42e2-970d-45a834cf4d1e",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1797213
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "562dd8fd-dd95-4f33-86a5-be76fb49d4ff",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 9198189
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "148ce03c-e957-40e0-9bf6-3e30be49fc06",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2112057
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "5c4b6810-ad43-48d7-9bfe-02a3fc9bf13a",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2054341
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b2e12228-3247-4411-a26a-9c83c0f5431c",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2089782
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b4f066ed-1d9f-4a65-ae0f-21293bd48bd3",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1797213
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "6b71fa27-5540-438d-97f0-b9c0970fa73b",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1882814
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "f0a09dbc-ee74-4085-9ed8-cc081071ce41",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 8986
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "789ddfd9-6017-43e3-8f44-23164bee8b01",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2089782
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "f2e603ff-2cf6-4c8c-aedd-d6b350850790",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1882814
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b780d11f-1987-4c15-94ac-97b58cb41de3",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 1882814
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "b9ee77b1-3fd6-4a53-aa43-45fda2b428b9",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "38ef6b0e-d19e-43b7-8903-d2d36f5f5dfd",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -292569
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "0df29e2e-73ab-4072-899a-f600bda98034",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "68f55b68-d427-4fd2-823c-99dd9c1c63b9",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -292569
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "38efe1f7-0de1-4a40-8e74-387ac1814fb0",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "bca2d77c-431f-4e4d-b352-f075f303294d",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+      "lineItemId": "e9a9c6cf-1ed8-4182-a0c2-2427a48d9125",
+      "id": "560ac83a-449e-44a1-b29d-4c23405715cf",
+      "sourceItemId": 348,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "2d670e74-88f9-41a7-a359-d8c26c22e8bd",
+      "id": "57940eb5-27f8-42b1-8827-d64dc49eab2d",
+      "sourceItemId": 1,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -1994634
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "914f4545-2a29-46f5-8843-0123c1464014",
+      "id": "c04b4fae-69db-48d9-a63e-c96a932e7b89",
+      "sourceItemId": 5,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -13941
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "c12f5392-31c1-4424-aa00-986087394b58",
+      "id": "cac8221d-c594-41b7-bdea-bf7f1a490bf6",
+      "sourceItemId": 6,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "6f67a158-d764-4ef5-a5c8-51b78b6d991d",
+      "id": "b8342891-ad45-4c4b-a4dd-361bb5f37adb",
+      "sourceItemId": 12,
+      "metricCode": "FINANCE_COSTS",
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "631ef555-182e-408a-9ccc-ba884ca902a3",
+      "id": "07c03a70-a1fa-4b9b-861c-937748e2a1dc",
+      "sourceItemId": 15,
+      "metricCode": "REVENUE",
+      "unit": "N/A",
+      "value": 2621454
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "a1c175fc-2f7b-4b04-8e2f-5f52c3a928dc",
+      "id": "e4663857-0f93-4dc0-854a-578d2219e85d",
+      "sourceItemId": 29,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "7da96881-21a9-4592-85c4-d7db00be0ca6",
+      "id": "8bdc13d4-d080-4913-b33c-4898b64a3194",
+      "sourceItemId": 32,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -450000
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "dd660c00-40ef-4a31-a35a-aac37053124e",
+      "id": "a28e4fb1-0d84-4825-8856-ad60057bdf7c",
+      "sourceItemId": 34,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "8605d652-6cc4-46c1-a020-f46cd93bb81f",
+      "id": "f2760e5c-be40-4b7e-82d8-7acf8cb4383b",
+      "sourceItemId": 36,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "baf6e9e5-f0fc-469c-99f4-0c49b1d7ad1e",
+      "id": "17f91e30-ba52-4789-89d0-3ffd3ac61c17",
+      "sourceItemId": 39,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2517
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "40397197-910d-48cf-8c16-1062062aaa61",
+      "id": "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
+      "sourceItemId": 40,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 743
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "3b56ad1b-96e1-4285-bf22-fc5bb774541f",
+      "id": "87408819-415c-4eee-865b-a71fd794d510",
+      "sourceItemId": 62,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "8466806c-47b5-4f33-aeb4-002c92413177",
+      "id": "917b2bbb-3859-42f0-9864-2eac3f98a3b3",
+      "sourceItemId": 139,
+      "metricCode": "GROSS_PROFIT",
+      "unit": "N/A",
+      "value": 626820
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "f012f4eb-9f31-4006-854d-d9af89f4c59b",
+      "id": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+      "sourceItemId": 140,
+      "metricCode": "OPERATING_PROFIT",
+      "unit": "N/A",
+      "value": 615396
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "446b116f-7b2b-465a-bbf0-77c4f9a06504",
+      "id": "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3",
+      "sourceItemId": 142,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 616139
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "2a1df15a-b1c6-4815-8a61-524aa2457e12",
+      "id": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+      "sourceItemId": 143,
+      "metricCode": "NET_PROFIT",
+      "unit": "N/A",
+      "value": 508315
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "05d54798-b6ca-4646-ac3a-45b42f15c025",
+      "id": "52a19de6-4a0a-4be9-8dbc-3b487a05c08d",
+      "sourceItemId": 144,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 508315
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "c1fad65b-e79c-4bf5-8f87-34d8dd2b9890",
+      "id": "8d8a2c1f-1877-4f68-99b0-8422978bbd83",
+      "sourceItemId": 145,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 535601
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "f1636cb2-59c9-423b-8e4a-8cee75ac8ee9",
+      "id": "85f31da2-edd0-47a5-a23b-8f8adca72685",
+      "sourceItemId": 146,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 85601
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "54d97fb2-ccb3-4887-97db-43d813a2a985",
+      "id": "95f8343a-ed35-4f94-89d8-a346252ca01c",
+      "sourceItemId": 147,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "96693446-e4f5-4c94-a4b9-465ebd0c2e3b",
+      "id": "f2244560-53b9-4e1d-a2fb-d2fcb74e1e0f",
+      "sourceItemId": 148,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 593916
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "13612b24-f683-4299-9400-6f283e6963ae",
+      "id": "8829a6ea-5665-444d-912c-656df707a0e6",
+      "sourceItemId": 149,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 616139
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "b0267f1b-4d0e-4443-9f24-2613050b59ad",
+      "id": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
+      "sourceItemId": 153,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 200000
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "e0d36bf6-cba0-492b-82d6-b3b4c4b691ad",
+      "id": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+      "sourceItemId": 160,
+      "metricCode": "EPS",
+      "unit": "N/A",
+      "value": 2541
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "9d57bd48-666e-46e1-a084-36b998b69049",
+      "id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "sourceItemId": 161,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3076
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "b8230e3e-c654-4612-9925-463f2c3d14fc",
+      "id": "2dd8a720-0cfe-4a43-a7ff-971b4e5bc366",
+      "sourceItemId": 162,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 3080
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "2f7d6941-919f-4d33-abd7-bd55501f0b43",
+      "id": "49264c8b-4348-4109-9334-6533d12ccaa0",
+      "sourceItemId": 163,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 13107
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "3753522b-19b9-4131-979a-f420ea750146",
+      "id": "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+      "sourceItemId": 278,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "1bcbec94-fd80-4a65-b888-9f46377d615c",
+      "id": "abdbd529-7e27-43cc-a955-10ae19aea4cb",
+      "sourceItemId": 279,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 508315
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "a7416acd-f2de-494e-ae5b-64755100bbd5",
+      "id": "a3121d6b-107c-4f39-91a0-543cb8622524",
+      "sourceItemId": 300,
+      "metricCode": "TOTAL_REVENUE",
+      "unit": "N/A",
+      "value": 2621454
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "8e7a6705-57d3-4d36-8442-7dda43a6fb67",
+      "id": "b63f0700-49cf-47c6-a014-9412ead39c18",
+      "sourceItemId": 310,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 626820
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "e25e9b01-eea9-4968-8877-c5e1ec38f0a4",
+      "id": "2c19bd69-aa98-45b1-a0c4-ccbf88d25506",
+      "sourceItemId": 311,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 615396
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "dae56427-4cba-4b87-84ba-645103a107fa",
+      "id": "8b5f9ffb-ee8e-41c8-a300-5883ea53753b",
+      "sourceItemId": 312,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 616139
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "893d010c-200a-46e3-9d51-bb7fe6cf78f5",
+      "id": "6c445213-defd-44ed-abcd-e8da12ce3203",
+      "sourceItemId": 313,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 508315
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "689c7aa7-1cbd-4c02-a504-97102c1cb4d7",
+      "id": "678fefbd-0883-407c-9333-817f3d49230e",
+      "sourceItemId": 316,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 593916
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "ed0a7c8a-0e4e-413e-8da9-da4951d27323",
+      "id": "1d244aae-7e5d-44e6-9ec4-c1659828856d",
+      "sourceItemId": 317,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 2542
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "ec09f992-b989-4077-84bd-26207a191b02",
+      "id": "85221549-c05e-46aa-9f8f-cc207a0923a3",
+      "sourceItemId": 330,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 616139
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "5bbe06f0-3b5b-4ec0-84b2-d58575e2a757",
+      "id": "38d24718-0972-4117-8b98-3c5cadfa0b11",
+      "sourceItemId": 331,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 593916
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "fd8316cf-da4a-4786-9502-c70646cdb04e",
+      "id": "dd4960e6-87c3-4b99-b3cd-a336b2dfbfcb",
+      "sourceItemId": 332,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 593916
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "08845e2a-c681-475e-b721-b5afe9207295",
+      "id": "443cd6ca-fc73-418e-a805-0507ce64b277",
+      "sourceItemId": 333,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "210d4d86-48a2-43d6-852c-e3f311665878",
+      "id": "31f4454a-78d2-41fb-8caa-b86564423cd6",
+      "sourceItemId": 334,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": -107824
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "58010269-cb5f-460b-a314-dc4f1092a17c",
+      "id": "3ac8706d-2889-4161-9b48-22c93f1b5df4",
+      "sourceItemId": 335,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "1f6d7632-7547-49a4-b5d6-cb39bde19639",
+      "id": "6c4c1ac3-8578-44d9-bcc3-8556be73ed84",
+      "sourceItemId": 336,
+      "metricCode": "INCOME_TAX",
+      "unit": "N/A",
+      "value": -107824
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "a2261d7a-635b-475f-a8d3-9c10ad0026b5",
+      "id": "a6865656-da79-430c-8168-73f821542486",
+      "sourceItemId": 338,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    },
+    {
+      "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+      "lineItemId": "73d2081e-0fe3-411d-b9c3-5b9a6651352a",
+      "id": "2ce59b0e-e9f9-40c1-94f9-10598aea342b",
+      "sourceItemId": 340,
+      "metricCode": null,
+      "unit": "N/A",
+      "value": 0
+    }
+  ]
+}

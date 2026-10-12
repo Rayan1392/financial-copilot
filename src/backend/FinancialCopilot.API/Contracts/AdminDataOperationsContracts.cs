@@ -494,3 +494,15 @@ public sealed record AdminComprehensiveAnalysisBackfillResponse(int RowsUpdated)
 
 // --- Spec 067: CyclicalWaves CompanyId backfill ---
 public sealed record AdminBackfillCyclicalWavesCompanyIdResponse(int Resolved, int Unresolved);
+
+public sealed record AdminManualNoavaranFinancialStatementBackfillRequest(
+    string Symbol,
+    int FiscalYearEnding,
+    int PeriodMonths,
+    string StatementType);
+
+public sealed record AdminManualNoavaranFinancialStatementBackfillResponse(
+    Guid? RunId,
+    string Outcome,
+    int ProcessedRecords,
+    string? Message);

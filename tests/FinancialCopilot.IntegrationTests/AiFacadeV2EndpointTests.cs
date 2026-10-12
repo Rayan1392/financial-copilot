@@ -1945,6 +1945,54 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         Assert.Contains("| ردیف | شرح | مبلغ |", root.GetProperty("textAnswer").GetString());
     }
 
+    [Fact]
+    public async Task V2QuarterlyTable_PersistsStructuredResult_ReplaysIt_AndChargesOnlyOnce()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadBillingReservations().Count;
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "جدول صورت سود و زیان 5 فصل اخیر غالبر" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(16, quarterly.GetProperty("rows").GetArrayLength());
+        Assert.Equal("IncomeStatement", quarterly.GetProperty("statementType").GetString());
+        var period = quarterly.GetProperty("periodsNewestFirst")[0].GetProperty("label").GetString()!;
+        var rows = quarterly.GetProperty("rows").EnumerateArray().ToArray();
+        var zeroCell = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 15)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(0m, zeroCell.GetProperty("value").GetDecimal());
+        Assert.Equal((int)QuarterlyCellState.Available, zeroCell.GetProperty("state").GetInt32());
+        var missingCell = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 5)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(JsonValueKind.Null, missingCell.GetProperty("value").ValueKind);
+        Assert.Equal((int)QuarterlyCellState.MissingObservation, missingCell.GetProperty("state").GetInt32());
+        Assert.Contains("-", root.GetProperty("textAnswer").GetString());
+        Assert.Contains("(", root.GetProperty("textAnswer").GetString());
+
+        using var replayResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var replay = await ReadJsonAsync(replayResponse);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        var assistant = replay.RootElement.GetProperty("messages").EnumerateArray().Last()
+            .GetProperty("assistantContent").GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(quarterly.GetRawText(), assistant.GetRawText());
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
+
+        using var unauthorized = await _factory.CreateClient().PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "جدول صورت سود و زیان 5 فصل اخیر غالبر" }, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+    }
+
     [Theory]
     [InlineData("آخرین ترازنامه غالبر", "BalanceSheet")]
     [InlineData("آخرین جریان وجه نقد غالبر را نمایش بده", "CashFlow")]
@@ -1981,6 +2029,41 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     }
 }
 
+internal sealed class QuarterlyFinancialReports144ApiFake : IQuarterlyFinancialReportsQueryUseCase
+{
+    public Task<QuarterlyFinancialReportTableResult> ExecuteAsync(
+        QuarterlyFinancialReportTableQuery query, CancellationToken cancellationToken = default)
+    {
+        var start = new DateOnly(2025, 3, 21);
+        var end = DateOnly.FromDateTime(new System.Globalization.PersianCalendar()
+            .AddMonths(start.ToDateTime(TimeOnly.MinValue), 3).AddDays(-1));
+        var items = QuarterlyFinancialReportsNormalizer.ApprovedMappings.Select(mapping =>
+        {
+            var unit = mapping.SourceItemId switch
+            {
+                153 => "thousand_shares",
+                160 => "rial_per_share",
+                _ => "million_rial"
+            };
+            decimal? value = mapping.SourceItemId switch
+            {
+                15 => 0m,
+                1 => -123.456789m,
+                _ => null
+            };
+            return new QuarterlySourceObservation(Guid.NewGuid(), Guid.Parse(mapping.CatalogId),
+                mapping.SourceItemId, null, unit, value);
+        }).ToArray();
+        IReadOnlyList<QuarterlyReportObservation> reports =
+        [new(Guid.NewGuid(), "feature144-api-report", "NoavaranCurrentApi", "FS-001", "IncomeStatement", 3,
+            start, end, false, false, false, "feature144-api-checksum", DateTimeOffset.UtcNow,
+            "1404/04/01", "1404/12/29", items, "MillionRials", "Rial", "IRR", "Accrual", "api-lineage")];
+        var result = QuarterlyFinancialReportsNormalizer.Normalize(query.CompanySymbol, null, "FS-001", reports,
+            query.QuarterCount, query.EndingPeriod, DateTimeOffset.UtcNow);
+        return Task.FromResult(result);
+    }
+}
+
 public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
 {
     private readonly string _dbName = $"v2-financial-statement-analysis-{Guid.NewGuid():N}";
@@ -2007,6 +2090,8 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
         builder.ConfigureTestServices(services =>
         {
             ReplaceIngestionDbContext(services, _dbName);
+            services.RemoveAll<IQuarterlyFinancialReportsQueryUseCase>();
+            services.AddSingleton<IQuarterlyFinancialReportsQueryUseCase, QuarterlyFinancialReports144ApiFake>();
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
         });
@@ -3745,5 +3830,6 @@ internal sealed class V2SymbolLookupFakeAiModelClient : IAiModelClient
         return $$"""{"detectedLanguage":"fa","pairs":[{"symbolName":"{{symbol}}","metricTerm":"{{metricTerm}}"}],"clarificationRequired":false,"clarificationMessage":null}""";
     }
 }
+
 
 

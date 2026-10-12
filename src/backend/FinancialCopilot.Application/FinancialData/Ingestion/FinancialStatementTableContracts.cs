@@ -16,7 +16,10 @@ public sealed record FinancialStatementTableQuery(
     int? PeriodMonths = null,
     bool? IsAudited = null,
     bool? IsRepresented = null,
-    bool? IsComposing = null);
+    bool? IsComposing = null,
+    bool UseQuarterlyReportTable = false,
+    int QuarterCount = 5,
+    DateOnly? EndingPeriod = null);
 
 public sealed record FinancialStatementTableSelection(
     string ExternalCompanyId,
@@ -66,12 +69,13 @@ public sealed record BalanceSheetTableRow(
     FinancialStatementTableLineItem? LiabilityOrEquity);
 
 public sealed record FinancialStatementTableResult(
-    FinancialStatementTableSource Source,
+    FinancialStatementTableSource? Source,
     IReadOnlyList<FinancialStatementTableLineItem> LineItems,
     IReadOnlyList<BalanceSheetTableRow> BalanceSheetRows,
     IReadOnlyList<string> Warnings,
     string? RenderedAnswer,
-    DateTimeOffset GeneratedAtUtc);
+    DateTimeOffset GeneratedAtUtc,
+    QuarterlyFinancialReportTableResult? QuarterlyResult = null);
 
 public interface IFinancialStatementTableRepository
 {
@@ -81,6 +85,10 @@ public interface IFinancialStatementTableRepository
 
     Task<IReadOnlyList<FinancialStatementTableLineItem>> GetStatementLineItemsAsync(
         Guid statementId,
+        CancellationToken ct = default);
+
+    Task<IReadOnlyList<QuarterlyReportObservation>> GetQuarterlyIncomeStatementReportsAsync(
+        QuarterlyFinancialReportSelection selection,
         CancellationToken ct = default);
 }
 

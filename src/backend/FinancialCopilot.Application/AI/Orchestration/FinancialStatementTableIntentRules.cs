@@ -1,10 +1,61 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Domain.Financial.Entities;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace FinancialCopilot.Application.AI.Orchestration;
 
 public static class FinancialStatementTableIntentRules
 {
+    public static bool LooksLikeQuarterlyReportTableQuery(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return false;
+        var normalized = NormalizeText(query);
+        var hasQuarter = ContainsAny(normalized, "فصلی", "فصل", "quarterly", "quarter", "دوره اخیر", "دوره های اخیر", "دوره‌های اخیر");
+        if (!hasQuarter)
+            return false;
+
+        var hasIncomeStatement = ResolveStatementType(normalized) == FinancialStatementType.IncomeStatement ||
+                                 ContainsAny(normalized, "income statement", "income statements", "profit and loss", "profit & loss", "financial report", "financial reports");
+        var hasTableIntent = ContainsAny(normalized,
+            "جدول", "گزارش", "صورت سود", "صورت درآمد", "جدول درآمد",
+            "table", "report", "show", "display", "give me", "latest", "last");
+        var hasAnalysisIntent = ContainsAny(normalized, "تحلیل", "بررسی", "ارزیابی", "analyze", "analyse", "analysis", "review");
+        if (hasIncomeStatement)
+            return hasTableIntent && (!hasAnalysisIntent || ContainsAny(normalized, "جدول", "table", "report", "show", "display"));
+
+        // Preserve established Persian shorthand such as "گزارش فصلی" and "عملکرد ۵ فصل اخیر".
+        return ContainsAny(normalized, "گزارش", "جدول", "عملکرد") && !hasAnalysisIntent;
+    }
+
+    public static int ResolveQuarterCount(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return 5;
+        var normalized = NormalizeText(query);
+        var match = Regex.Match(normalized, @"(?<count>\d+)\s*(?:فصل|دوره|quarters?)");
+        if (!match.Success || !int.TryParse(match.Groups["count"].Value, out var count)) return 5;
+        return count;
+    }
+
+    public static DateOnly? ResolveEndingPeriod(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return null;
+        var normalized = NormalizeText(query);
+        var match = Regex.Match(normalized, @"(?<year>13\d{2}|14\d{2})[/-](?<month>\d{1,2})[/-](?<day>\d{1,2})");
+        if (match.Success && int.TryParse(match.Groups["year"].Value, out var year) &&
+            int.TryParse(match.Groups["month"].Value, out var month) && int.TryParse(match.Groups["day"].Value, out var day))
+        {
+            try
+            {
+                return DateOnly.FromDateTime(new PersianCalendar().ToDateTime(year, month, day, 0, 0, 0, 0));
+            }
+            catch (ArgumentOutOfRangeException) { return null; }
+        }
+
+        var iso = Regex.Match(normalized, @"(?<date>20\d{2}-\d{2}-\d{2})");
+        return iso.Success && DateOnly.TryParse(iso.Groups["date"].Value, out var parsed) ? parsed : null;
+    }
+
     private static readonly string[] IncomeAliases =
     [
         "صورت سود و زیان",
@@ -74,6 +125,29 @@ public static class FinancialStatementTableIntentRules
         "جدول",
         "چیست",
         "چیه",
+        "فصلی",
+        "فصل",
+        "quarterly",
+        "quarter",
+        "financial",
+        "statement",
+        "statements",
+        "report",
+        "reports",
+        "table",
+        "income",
+        "profit",
+        "loss",
+        "show",
+        "display",
+        "latest",
+        "last",
+        "give",
+        "me",
+        "recent",
+        "recently",
+        "دوره",
+        "اخیر",
         "لطفا",
         "لطفاً"
     ];
@@ -205,7 +279,8 @@ public static class FinancialStatementTableIntentRules
                      "3 ماهه", "سه ماهه", "6 ماهه", "شش ماهه", "9 ماهه", "نه ماهه",
                      "12 ماهه", "دوازده ماهه", "سالانه", "حسابرسی شده", "حسابرسی نشده",
                      "تجدید ارائه شده", "تجدید ارائه نشده", "تلفیقی", "غیرتلفیقی",
-                     "غیر تلفیقی", "شرکت اصلی", "اصلی"
+                     "غیر تلفیقی", "شرکت اصلی", "اصلی", "فصل اخیر", "فصل آخر",
+                     "دوره اخیر", "last quarters", "last quarter", "quarterly"
                  })
         {
             normalized = normalized.Replace(NormalizeText(phrase), " ", StringComparison.OrdinalIgnoreCase);

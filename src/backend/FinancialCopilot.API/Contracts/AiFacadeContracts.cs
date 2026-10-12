@@ -408,11 +408,12 @@ public sealed record FinancialStatementSourceReferenceResponse(
     bool IsComposing);
 
 public sealed record FinancialStatementTableHttpResponse(
-    FinancialStatementTableSourceHttpResponse Source,
+    FinancialStatementTableSourceHttpResponse? Source,
     IReadOnlyList<FinancialStatementTableLineItemHttpResponse> LineItems,
     IReadOnlyList<BalanceSheetTableRowHttpResponse> BalanceSheetRows,
     IReadOnlyList<string> Warnings,
-    DateTimeOffset GeneratedAtUtc);
+    DateTimeOffset GeneratedAtUtc,
+    QuarterlyFinancialReportTableResult? QuarterlyResult = null);
 
 public sealed record FinancialStatementTableSourceHttpResponse(
     Guid StatementId,

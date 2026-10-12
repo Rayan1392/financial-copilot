@@ -365,14 +365,19 @@ public sealed class FinancialStatementTableCapabilityExecutor(IFinancialStatemen
     public string CapabilityCode => "financial_statement_table";
     public async Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken)
     {
+        var quarterly = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(frame.Interpretation.OriginalText);
         var query = new FinancialStatementTableQuery(
             frame.Interpretation.OriginalText,
             frame.Value(QuerySlotType.CompanyOrSymbol),
-            ParseEnum<FinancialStatementType>(frame.Value(QuerySlotType.StatementType)),
+            ParseEnum<FinancialStatementType>(frame.Value(QuerySlotType.StatementType)) ??
+                (quarterly ? FinancialStatementType.IncomeStatement : null),
             ParseInt(frame.Value(QuerySlotType.Period)),
             ParseBool(frame.Value(QuerySlotType.AuditStatus)),
             ParseBool(frame.Value(QuerySlotType.RestatementStatus)),
-            ParseBool(frame.Value(QuerySlotType.ConsolidationScope)));
+            ParseBool(frame.Value(QuerySlotType.ConsolidationScope)),
+            UseQuarterlyReportTable: quarterly,
+            QuarterCount: FinancialStatementTableIntentRules.ResolveQuarterCount(frame.Interpretation.OriginalText),
+            EndingPeriod: FinancialStatementTableIntentRules.ResolveEndingPeriod(frame.Interpretation.OriginalText));
         var result = await useCase.ExecuteAsync(query, cancellationToken);
         return result is null ? NoData(frame) : Success(frame, result);
     }

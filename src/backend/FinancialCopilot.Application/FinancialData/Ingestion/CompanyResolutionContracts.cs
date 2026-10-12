@@ -29,6 +29,29 @@ public interface ICompanyResolverService
     Task<ResolvedCompany?> ResolveBySymbolAsync(string symbol, CancellationToken ct = default);
 }
 
+public enum CompanyResolutionStatus
+{
+    Resolved,
+    NotFound,
+    Ambiguous,
+    InvalidIdentifier,
+    UnsupportedProviderCompany
+}
+
+public sealed record CompanyResolutionOutcome(
+    CompanyResolutionStatus Status,
+    ResolvedCompany? Company = null,
+    string? Reason = null);
+
+/// <summary>Detailed, provider-aware result used where guessing a company is unsafe.</summary>
+public interface ICompanyResolutionOutcomeService
+{
+    Task<CompanyResolutionOutcome> ResolveAsync(
+        string? identifier,
+        string providerName,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>Summary result returned by <see cref="ICyclicalWavesCompanyMappingService.SyncMappingAsync"/>.</summary>
 public sealed record CompanyMappingResult(int Matched, int Updated, int Skipped, int Unmatched);
 

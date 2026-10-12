@@ -91,6 +91,35 @@ describe("MarkdownMessage", () => {
     expect(paragraphs[1].textContent).toContain("سود/زیان ناخالص");
   });
 
+  it("renders a quarterly financial table with 16 rows inside an RTL message", () => {
+    const labels = [
+      "فروش", "بهای تمام‌شده کالای فروش‌رفته", "سود ناخالص", "حاشیه سود ناخالص",
+      "هزینه‌های عمومی و اداری", "سایر درآمدهای عملیاتی", "سود عملیاتی", "هزینه‌های مالی",
+      "سایر درآمدها و هزینه‌ها", "سود پیش از مالیات", "مالیات", "سود عملیات مستمر",
+      "عملیات متوقف‌شده", "سود خالص", "سود هر سهم", "تعداد سهام",
+    ];
+    const rows = labels.map((label, index) => `| ${label} | ${index === 7 ? "-" : "1,234"} | ${index === 1 ? "(−4,751)" : "—"} |`);
+    const content = [
+      "### جدول گزارش فصلی چخزر",
+      "واحد مبالغ: میلیون ریال؛ EPS: ریال به‌ازای هر سهم؛ تعداد سهام: هزار سهم",
+      "",
+      "| شرح | سال مالی 1405، فصل 2 | تغییر فصل‌به‌فصل |",
+      "|---|---:|---:|",
+      ...rows,
+    ].join("\n");
+
+    const { container } = render(<MarkdownMessage content={content} direction="rtl" />);
+    const table = container.querySelector("table");
+
+    expect(container.firstElementChild?.getAttribute("dir")).toBe("rtl");
+    expect(table?.querySelectorAll("tbody tr")).toHaveLength(16);
+    expect(Array.from(table?.querySelectorAll("tbody tr") ?? []).map((row) => row.cells[0]?.textContent))
+      .toEqual(labels);
+    expect(table?.textContent).toContain("سال مالی 1405، فصل 2");
+    expect(table?.textContent).toContain("(−4,751)");
+    expect(table?.textContent).toContain("-");
+  });
+
   it("renders empty content without throwing", () => {
     const { container } = render(<MarkdownMessage content="" />);
     expect(container).not.toBeNull();

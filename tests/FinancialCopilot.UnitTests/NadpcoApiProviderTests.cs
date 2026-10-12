@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure.Financial.Providers;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
@@ -398,6 +399,135 @@ public sealed class NadpcoApiProviderTests
         Assert.All(requests, r => Assert.Contains("fromYear=1401", r.Uri));
         Assert.All(requests, r => Assert.Contains("perTId=6", r.Uri));
         Assert.All(requests, r => Assert.Contains("isAudited=false", r.Uri));
+    }
+
+    [Theory]
+    [InlineData(ManualNoavaranFinancialStatementType.BalanceSheet, "api/v2/FS/BalanceSheet/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.IncomeStatement, "api/v2/FS/IncomeStatement/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.CashFlow, "api/v2/FS/CashFlow/Values")]
+    [InlineData(ManualNoavaranFinancialStatementType.FinancialRatios, "api/v2/CompanyFundamentalIndex/Values")]
+    public async Task DataProvider_ManualFinancialStatement_UsesSelectedEndpointAndExactFiscalScope(
+        ManualNoavaranFinancialStatementType type,
+        string expectedPath)
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<(string Uri, string Body)>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(async request =>
+        {
+            requests.Add((request.RequestUri!.OriginalString,
+                request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync()));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            };
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions
+            {
+                StatementIsAudited = false,
+                FundamentalIndexIsAudited = true
+            }),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance,
+            CreateProductBoundary());
+
+        var payload = await client.FetchManualFinancialStatementAsync("3", 1404, 6, type, CancellationToken.None);
+
+        var request = Assert.Single(requests);
+        Assert.Contains(expectedPath, request.Uri, StringComparison.Ordinal);
+        Assert.Contains("fromYear=1404", request.Uri);
+        Assert.Contains("toYear=1404", request.Uri);
+        Assert.Contains("perTId=6", request.Uri);
+        Assert.Contains("\"companyIds\":[3]", request.Body);
+        if (type == ManualNoavaranFinancialStatementType.FinancialRatios)
+        {
+            Assert.Equal(ProviderDataset.FundamentalIndexes, payload.Dataset);
+            Assert.Contains("\"companyIndexIds\":[", request.Body);
+            Assert.Contains("isAudited=true", request.Uri);
+        }
+        else
+        {
+            Assert.Equal(ProviderDataset.FinancialStatements, payload.Dataset);
+            Assert.Contains("\"items\":[]", request.Body);
+            Assert.Contains("isAudited=false", request.Uri);
+        }
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(6)]
+    [InlineData(9)]
+    [InlineData(12)]
+    public async Task DataProvider_ManualFinancialStatement_MapsSupportedMonthsToPeriodTypeId(int months)
+    {
+        await using var dbContext = CreateProviderDbContext();
+        string? endpoint = null;
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            endpoint = request.RequestUri!.OriginalString;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            });
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        await client.FetchManualFinancialStatementAsync(
+            "3", 1404, months, ManualNoavaranFinancialStatementType.IncomeStatement, CancellationToken.None);
+
+        Assert.Contains($"perTId={months}", endpoint);
+    }
+
+    [Fact]
+    public async Task ManualBackfillService_RepeatedIdenticalPayloadIsReportedAsAlreadyPersisted()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var provider = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+        var processor = new CapturingFinancialDataSyncProcessor();
+        var service = new FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi.ManualNoavaranFinancialStatementBackfillService(
+            provider, processor, TimeProvider.System);
+        var request = new ManualNoavaranFinancialStatementBackfillRequest(
+            "3", 1404, 12, ManualNoavaranFinancialStatementType.IncomeStatement);
+
+        var first = await service.ExecuteAsync(request, CancellationToken.None);
+        var second = await service.ExecuteAsync(request, CancellationToken.None);
+
+        Assert.Equal("Persisted", first.Outcome);
+        Assert.Equal("AlreadyExists", second.Outcome);
+        Assert.Equal(first.RunId, second.RunId);
+        Assert.Equal(2, processor.Requests.Count);
+        Assert.Equal(processor.Requests[0].IdempotencyKey, processor.Requests[1].IdempotencyKey);
+        Assert.Equal("1404", processor.Requests[0].SourceDateRangeStartJalali);
+        Assert.Equal("1404", processor.Requests[0].SourceDateRangeEndJalali);
     }
 
     [Fact]
@@ -1140,6 +1270,46 @@ public sealed class NadpcoApiProviderTests
         public Task<ProviderRawPayload> FetchMonthlyReportsAsync(
             string externalCompanyId,
             CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class CapturingFinancialDataSyncProcessor : IFinancialDataSyncProcessor
+    {
+        private Guid? _runId;
+        public List<DataSyncRequest> Requests { get; } = [];
+
+        public Task<DataSyncProcessingResult> ProcessPayloadAsync(
+            DataSyncRequest request,
+            ProviderRawPayload payload,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            _runId ??= request.RequestId;
+            var run = new DataSyncRun(
+                _runId.Value,
+                request.IdempotencyKey,
+                request.Dataset,
+                request.ExternalReference,
+                DataSyncRunStatus.Completed,
+                request.RequestedAt,
+                request.RequestedAt,
+                request.RequestedAt,
+                ProcessedRecords: 1,
+                ErrorCount: 0,
+                ErrorMessage: null,
+                SourcePayloadChecksum: payload.Checksum,
+                ProviderName: request.ProviderName);
+            return Task.FromResult(new DataSyncProcessingResult(run, AlreadyProcessed: Requests.Count > 1));
+        }
+
+        public Task<DataSyncProcessingResult> ProcessAsync(DataSyncRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DataSyncProcessingResult> ProcessProviderAsync(
+            DataSyncRequest request,
+            Func<Task<ProviderRawPayload>> payloadFactory,
+            CancellationToken cancellationToken,
+            bool rethrowProviderExceptions = false) =>
             throw new NotSupportedException();
     }
 }

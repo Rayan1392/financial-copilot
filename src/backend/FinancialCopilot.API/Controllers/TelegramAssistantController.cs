@@ -13,6 +13,7 @@ namespace FinancialCopilot.API.Controllers;
 public sealed class TelegramAssistantController(
     ITelegramAiAssistantAdapter assistantAdapter,
     ITelegramChannelMonthlyReportHandler channelHandler,
+    ITelegramChannelFinancialStatementHandler financialStatementHandler,
     FinancialCopilot.Application.Authentication.ICurrentActorContext actorContext) : ControllerBase
 {
     [HttpPost("updates")]
@@ -46,7 +47,8 @@ public sealed class TelegramAssistantController(
             request.ChatType);
 
         var result = request.Kind == TelegramAssistantUpdateKind.ChannelPost
-            ? await channelHandler.HandleAsync(update, actorContext.Actor, cancellationToken)
+            ? await financialStatementHandler.HandleIfRecognizedAsync(update, actorContext.Actor, cancellationToken)
+                ?? await channelHandler.HandleAsync(update, actorContext.Actor, cancellationToken)
             : await assistantAdapter.HandleAsync(update, cancellationToken);
         return result.Status == TelegramAssistantResultStatus.ValidationError
             ? BadRequest(result)

@@ -301,6 +301,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITelegramAssistantResponseRenderer, TelegramAssistantResponseRenderer>();
         services.AddSingleton<ITelegramDisclosurePaginationStateStore, TelegramDisclosurePaginationStateStore>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
+        services.AddOptions<TelegramChannelFinancialStatementOptions>()
+            .BindConfiguration(TelegramChannelFinancialStatementOptions.SectionName);
+        services.AddSingleton<ITelegramFinancialStatementRecognizer, TelegramFinancialStatementRecognizer>();
+        services.AddScoped<ITelegramChannelFinancialStatementHandler, TelegramChannelFinancialStatementHandler>();
         services.AddOptions<TelegramChannelMonthlyReportOptions>()
             .BindConfiguration(TelegramChannelMonthlyReportOptions.SectionName)
             .Validate(options => options.MaximumTextLength is > 0 and <= 4096 && options.ProcessingTimeoutSeconds is > 0 and <= 120 &&
@@ -1344,12 +1348,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiCompanyNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFinancialStatementNormalizer>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexNormalizer>();
+        services.AddScoped<IManualNoavaranFinancialStatementBackfillService, ManualNoavaranFinancialStatementBackfillService>();
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiMonthlyActivityNormalizer>();
         services.AddScoped<IFinancialStatementAnalysisRepository, EfCoreFinancialStatementAnalysisRepository>();
         services.AddScoped<IFinancialStatementSelectionService, FinancialStatementSelectionService>();
         services.AddScoped<IFinancialStatementAnalysisRenderer, FinancialStatementAnalysisRenderer>();
         services.AddScoped<IFinancialStatementAnalysisUseCase, FinancialStatementAnalysisUseCase>();
         services.AddScoped<IFinancialStatementTableRepository, EfCoreFinancialStatementTableRepository>();
+        services.AddScoped<IQuarterlyFinancialReportsRepository>(provider =>
+            (IQuarterlyFinancialReportsRepository)provider.GetRequiredService<IFinancialStatementTableRepository>());
+        services.AddScoped<IQuarterlyFinancialReportsQueryUseCase, QuarterlyFinancialReportsQueryUseCase>();
         services.AddScoped<IFinancialStatementTableRenderer, FinancialStatementTableRenderer>();
         services.AddScoped<IFinancialStatementTableQueryUseCase, FinancialStatementTableQueryUseCase>();
         // Spec 075 â€” product revenue mix: calculator + repository wired after monthly-activity ingestion.
@@ -1431,7 +1439,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFundamentalIndexCoverageProvider>(sp =>
             sp.GetRequiredService<NadpcoApiDataProviderClient>());
         services.AddScoped<IFinancialPayloadNormalizer, NadpcoApiFundamentalIndexCoverageNormalizer>();
-        services.AddScoped<ICompanyResolverService, CompanyResolverService>();
+        services.AddScoped<CompanyResolverService>();
+        services.AddScoped<ICompanyResolverService>(sp => sp.GetRequiredService<CompanyResolverService>());
+        services.AddScoped<ICompanyResolutionOutcomeService>(sp => sp.GetRequiredService<CompanyResolverService>());
         services.AddScoped<ICyclicalWavesCompanyMappingService, CyclicalWavesCompanyMappingService>();
         services.AddScoped<IBackfillCyclicalWavesCompanyIdService, BackfillCyclicalWavesCompanyIdService>();
         services.AddScoped<IDerivedMetricRecalculationPublisher, StoredDerivedMetricRecalculationPublisher>();

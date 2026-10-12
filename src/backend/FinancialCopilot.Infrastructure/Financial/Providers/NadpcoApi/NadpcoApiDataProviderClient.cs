@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 using Microsoft.Extensions.Logging;
@@ -321,6 +323,88 @@ public sealed class NadpcoApiDataProviderClient(
             companyId,
             json,
             cancellationToken);
+    }
+
+    public async Task<ProviderRawPayload> FetchManualFinancialStatementAsync(
+        string externalCompanyId,
+        int fiscalYearEnding,
+        int periodMonths,
+        ManualNoavaranFinancialStatementType statementType,
+        CancellationToken cancellationToken)
+    {
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var (dataset, endpoint, json) = statementType switch
+        {
+            ManualNoavaranFinancialStatementType.BalanceSheet => await FetchStatementAsync(
+                "api/v2/FS/BalanceSheet/Values", FinancialStatementType.BalanceSheet),
+            ManualNoavaranFinancialStatementType.IncomeStatement => await FetchStatementAsync(
+                "api/v2/FS/IncomeStatement/Values", FinancialStatementType.IncomeStatement),
+            ManualNoavaranFinancialStatementType.CashFlow => await FetchStatementAsync(
+                "api/v2/FS/CashFlow/Values", FinancialStatementType.CashFlow),
+            ManualNoavaranFinancialStatementType.FinancialRatios => await FetchRatiosAsync(),
+            _ => throw new ArgumentOutOfRangeException(nameof(statementType))
+        };
+
+        return await StorePayloadAsync(dataset, endpoint, companyId, json, cancellationToken);
+
+        async Task<(ProviderDataset Dataset, string Endpoint, string Json)> FetchStatementAsync(
+            string path,
+            FinancialStatementType selectedType)
+        {
+            var endpointUrl = BuildManualStatementEndpoint(path);
+            var selectedPayload = await PostJsonForPayloadAsync(
+                endpointUrl,
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()),
+                cancellationToken);
+            var empty = "[]";
+            var envelope = selectedType switch
+            {
+                FinancialStatementType.BalanceSheet => new NadpcoFinancialStatementEnvelope(selectedPayload, empty, empty),
+                FinancialStatementType.IncomeStatement => new NadpcoFinancialStatementEnvelope(empty, selectedPayload, empty),
+                FinancialStatementType.CashFlow => new NadpcoFinancialStatementEnvelope(empty, empty, selectedPayload),
+                _ => throw new ArgumentOutOfRangeException(nameof(selectedType))
+            };
+            return (ProviderDataset.FinancialStatements, endpointUrl, JsonSerializer.Serialize(envelope, JsonOptions));
+        }
+
+        async Task<(ProviderDataset Dataset, string Endpoint, string Json)> FetchRatiosAsync()
+        {
+            var endpointUrl = BuildManualFundamentalIndexEndpoint();
+            var payload = await PostJsonForPayloadAsync(
+                endpointUrl,
+                new NadpcoApiFundamentalIndexRequest(
+                    companyIds,
+                    NadpcoApiFundamentalIndexMap.MappedIndexIds.ToArray()),
+                cancellationToken);
+            return (ProviderDataset.FundamentalIndexes, endpointUrl, payload);
+        }
+
+        string BuildManualStatementEndpoint(string path) => BuildManualEndpoint(
+            path,
+            _settings.StatementIsAudited,
+            _settings.StatementIsRepresented,
+            _settings.StatementIsComposing);
+
+        string BuildManualFundamentalIndexEndpoint() => BuildManualEndpoint(
+            "api/v2/CompanyFundamentalIndex/Values",
+            _settings.FundamentalIndexIsAudited,
+            _settings.FundamentalIndexIsRepresented,
+            _settings.FundamentalIndexIsComposing);
+
+        string BuildManualEndpoint(string path, bool? isAudited, bool? isRepresented, bool? isComposing)
+        {
+            var query = new List<string>
+            {
+                $"fromYear={fiscalYearEnding}",
+                $"toYear={fiscalYearEnding}",
+                $"perTId={periodMonths}"
+            };
+            if (isAudited is not null) query.Add($"isAudited={isAudited.Value.ToString().ToLowerInvariant()}");
+            if (isRepresented is not null) query.Add($"isRepresented={isRepresented.Value.ToString().ToLowerInvariant()}");
+            if (isComposing is not null) query.Add($"isComposing={isComposing.Value.ToString().ToLowerInvariant()}");
+            return $"{path}?{string.Join("&", query)}";
+        }
     }
 
     // Spec 050: all-index coverage. Sends an EMPTY companyIndexIds so the vendor returns every index,

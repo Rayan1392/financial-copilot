@@ -12,6 +12,7 @@ using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Adapters;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Bridge;
 using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Functions;
@@ -774,10 +775,22 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 SemanticReplyLanguage: unsupportedOutcome.ReplyLanguage);
         }
 
-        var isFinancialStatementTable = FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(request.Message);
+        var isQuarterlyStatementTable = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message);
+        var isFinancialStatementTable = isQuarterlyStatementTable ||
+            FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(request.Message);
         if (isFinancialStatementTable)
         {
             var tableQuery = FinancialStatementTableIntentRules.BuildQuery(request.Message);
+            if (isQuarterlyStatementTable)
+            {
+                tableQuery = tableQuery with
+                {
+                    StatementType = FinancialStatementType.IncomeStatement,
+                    UseQuarterlyReportTable = true,
+                    QuarterCount = FinancialStatementTableIntentRules.ResolveQuarterCount(request.Message),
+                    EndingPeriod = FinancialStatementTableIntentRules.ResolveEndingPeriod(request.Message)
+                };
+            }
             financialStatementTableResult = await financialStatementTableQueryUseCase.ExecuteAsync(tableQuery, ct);
 
             UsageAccountingResult? statementTableUsage = null;

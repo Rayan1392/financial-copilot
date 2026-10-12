@@ -17,6 +17,15 @@ Implementation agents must use [implementation-checklist.md](./implementation-ch
 
 - `141-schema-aware-semantic-query-engine` — add a catalog-governed, structured-plan fallback for generic questions over explicitly approved persisted financial data; generate, enrich, validate, document, index, and maintain the version-controlled semantic database catalog before production query execution is enabled.
 
+## Manual Data Acquisition
+
+- `142-manual-noavaran-financial-statement-backfill` — add a DataAdmin-only, company/year/period/category scoped Noavaran current-API financial statement backfill to `/getCompanyId`, reusing provider acquisition and normalized persistence.
+- `143-telegram-financial-statement-report-trigger` — recognize authorized CodalMirror financial-statement announcements and invoke Feature 142's application service through Feature 130/133's existing Telegram channel boundary.
+
+## Financial Statement Reporting
+
+- `144-quarterly-financial-reports-table` — proposed, read-only quarterly income-statement comparison table over persisted statement observations, with standalone-quarter normalization, typed comparisons, and traceable source/calculation evidence.
+
 ## Phase 1 Scanner MVP Specs
 
 1. `001-project-foundation`

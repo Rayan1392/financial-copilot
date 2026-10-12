@@ -1,0 +1,349 @@
+using System.Globalization;
+using System.Text.Json;
+using FinancialCopilot.Application.Authentication;
+using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Application.Telegram;
+using FinancialCopilot.Infrastructure.Authentication.Persistence;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace FinancialCopilot.Infrastructure.Authentication;
+
+/// <summary>Ingestion-only handler for authorized CodalMirror announcement posts.</summary>
+public sealed class TelegramChannelFinancialStatementHandler(
+    AuthDbContext auth,
+    FinancialIngestionDbContext financial,
+    ICompanyResolverService companies,
+    IManualNoavaranFinancialStatementBackfillService backfill,
+    ITelegramFinancialStatementRecognizer recognizer,
+    IOptions<TelegramChannelMonthlyReportOptions> channelAuthorization,
+    IOptions<TelegramChannelFinancialStatementOptions> configured,
+    TimeProvider clock,
+    ILogger<TelegramChannelFinancialStatementHandler> logger) : ITelegramChannelFinancialStatementHandler
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly ManualNoavaranFinancialStatementType[] Categories =
+    [
+        ManualNoavaranFinancialStatementType.BalanceSheet,
+        ManualNoavaranFinancialStatementType.IncomeStatement,
+        ManualNoavaranFinancialStatementType.CashFlow,
+        ManualNoavaranFinancialStatementType.FinancialRatios
+    ];
+
+    public async Task<TelegramAssistantResult?> HandleIfRecognizedAsync(
+        TelegramAssistantUpdate update, CurrentActor actor, CancellationToken cancellationToken)
+    {
+        if (update.Kind != TelegramAssistantUpdateKind.ChannelPost ||
+            !string.Equals(update.ChatType, "channel", StringComparison.OrdinalIgnoreCase) ||
+            update.TelegramChatId == 0 || update.TelegramMessageId is not > 0)
+            return null;
+
+        var announcement = recognizer.Recognize(update.Text);
+        var candidate = update.Text?.Contains("صورت‌های مالی", StringComparison.Ordinal) == true ||
+            update.Text?.Contains("صورت های مالی", StringComparison.Ordinal) == true ||
+            update.Text?.Contains("صورتهای مالی", StringComparison.Ordinal) == true;
+        if (!candidate) return null;
+
+        var authOptions = channelAuthorization.Value;
+        if (actor.ActorType != ActorType.ApiClient || actor.AuthenticationMode != AuthenticationMode.ApiClient ||
+            authOptions.AllowedChannelIds.Length == 0 || !authOptions.AllowedChannelIds.Contains(
+                update.TelegramChatId.ToString(CultureInfo.InvariantCulture), StringComparer.Ordinal) ||
+            (Guid.TryParse(authOptions.AuthorizedApiClientId, out var apiClientId) && actor.ApiClientId != apiClientId) ||
+            (Guid.TryParse(authOptions.AuthorizedTenantId, out var tenantId) && actor.TenantId != tenantId))
+        {
+            logger.LogWarning("Financial statement channel post rejected by authorization. ChatId={ChatId}, MessageId={MessageId}, CorrelationId={CorrelationId}",
+                update.TelegramChatId, update.TelegramMessageId, update.CorrelationId);
+            return Empty(TelegramAssistantResultStatus.Unsupported, update);
+        }
+
+        if (announcement is null)
+        {
+            logger.LogWarning("Feature 143 rejected an ambiguous or malformed financial statement post. ChatId={ChatId}, MessageId={MessageId}, CorrelationId={CorrelationId}",
+                update.TelegramChatId, update.TelegramMessageId, update.CorrelationId);
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+
+        var key = $"channel-financial-statement:{update.TelegramChatId}:{update.TelegramMessageId}";
+        var existing = await auth.TelegramProcessedUpdates.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.IdempotencyKey == key, cancellationToken);
+        Dictionary<string, FinancialStatementCategoryOutcome> prior = new(StringComparer.Ordinal);
+        if (existing is not null)
+        {
+            if (existing.Status is "Feature143:Completed" or "Feature143:Disabled" or "Feature143:Unresolved")
+                return Empty(TelegramAssistantResultStatus.Replayed, update);
+            if (existing.Status == "Feature143:Partial")
+            {
+                var acquired = await auth.TelegramProcessedUpdates.Where(x => x.Id == existing.Id && x.Status == "Feature143:Partial")
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "Feature143:Processing"), cancellationToken);
+                if (acquired != 1) return Empty(TelegramAssistantResultStatus.Replayed, update);
+                try
+                {
+                    prior = JsonSerializer.Deserialize<Dictionary<string, FinancialStatementCategoryOutcome>>(existing.ResponseJson, JsonOptions)
+                        ?? new(StringComparer.Ordinal);
+                }
+                catch (JsonException)
+                {
+                    logger.LogWarning("Feature 143 checkpoint JSON is invalid. ChatId={ChatId}, MessageId={MessageId}, CorrelationId={CorrelationId}",
+                        update.TelegramChatId, update.TelegramMessageId, update.CorrelationId);
+                    return Empty(TelegramAssistantResultStatus.Replayed, update);
+                }
+            }
+            else
+            {
+                if (existing.Status == "Feature143:Claimed")
+                    return Empty(TelegramAssistantResultStatus.Replayed, update);
+            // A prior invocation stopped after its durable claim. Its provider-side completion
+            // cannot be proven; fail closed for operator review rather than replaying blindly.
+                logger.LogWarning("Financial statement post requires review after an ambiguous in-flight attempt. ChatId={ChatId}, MessageId={MessageId}, Status={Status}, CorrelationId={CorrelationId}",
+                    update.TelegramChatId, update.TelegramMessageId, existing.Status, existing.CorrelationId);
+                return Empty(TelegramAssistantResultStatus.Replayed, update);
+            }
+        }
+
+        var claim = existing is null ? new TelegramProcessedUpdateRow
+        {
+            Id = Guid.NewGuid(), IdempotencyKey = key, TelegramUpdateId = update.TelegramUpdateId,
+            TelegramUserId = 0, TelegramChatId = update.TelegramChatId, TenantId = actor.TenantId,
+            Status = "Feature143:Claimed", ResponseJson = "{}", ProcessedAtUtc = clock.GetUtcNow(),
+            ExpiresAtUtc = clock.GetUtcNow().AddDays(3650), CorrelationId = update.CorrelationId
+        } : await auth.TelegramProcessedUpdates.SingleAsync(x => x.Id == existing.Id, cancellationToken);
+        if (existing is null) auth.TelegramProcessedUpdates.Add(claim);
+        try { if (existing is null) await auth.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException)
+        {
+            auth.Entry(claim).State = EntityState.Detached;
+            var winner = await auth.TelegramProcessedUpdates.AsNoTracking().AnyAsync(x => x.IdempotencyKey == key, cancellationToken);
+            if (!winner) throw;
+            logger.LogInformation("Duplicate financial statement channel delivery was suppressed. ChatId={ChatId}, MessageId={MessageId}, CorrelationId={CorrelationId}",
+                update.TelegramChatId, update.TelegramMessageId, update.CorrelationId);
+            return Empty(TelegramAssistantResultStatus.Replayed, update);
+        }
+
+        var options = configured.Value;
+        if (!options.AutoBackfillEnabled)
+        {
+            claim.Status = "Feature143:Disabled";
+            claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "Disabled", Announcement = announcement }, JsonOptions);
+            await auth.SaveChangesAsync(cancellationToken);
+            Log(update, announcement, null, null, "Disabled", "Automation is disabled.");
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+
+        var resolved = await companies.ResolveBySymbolAsync(announcement.Symbol, cancellationToken);
+        if (resolved is null || !int.TryParse(resolved.ExternalCompanyId, out _))
+        {
+            claim.Status = "Feature143:Unresolved";
+            claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "CompanyUnresolved", Announcement = announcement }, JsonOptions);
+            await auth.SaveChangesAsync(cancellationToken);
+            Log(update, announcement, null, null, "CompanyUnresolved", "Ticker did not resolve to a provider company.");
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+
+        var eligible = await financial.NoavaranEligibleCompanies.AsNoTracking()
+            .AnyAsync(x => x.ExternalCompanyId == resolved.ExternalCompanyId, cancellationToken);
+        if (!eligible)
+        {
+            claim.Status = "Feature143:Unresolved";
+            claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "CompanyUnresolved", Reason = "NotNoavaranEligible", Announcement = announcement }, JsonOptions);
+            await auth.SaveChangesAsync(cancellationToken);
+            Log(update, announcement, resolved.ExternalCompanyId, null, "CompanyUnresolved", "Company is outside the Noavaran eligible universe.");
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+
+        var periodEnd = DateOnly.FromDateTime(new PersianCalendar().ToDateTime(
+            announcement.PeriodYear, announcement.PeriodMonth, announcement.PeriodDay, 0, 0, 0, 0));
+        var periodType = announcement.PeriodMonths switch
+        {
+            3 => "ThreeMonths", 6 => "SixMonths", 9 => "NineMonths", 12 => "TwelveMonths", _ => string.Empty
+        };
+        // The catalog has no fiscal-calendar field. Resolve only from exact persisted Noavaran
+        // report evidence for this company and exact period; never derive FY from the Jalali year.
+        var evidenceRows = await financial.FinancialStatements.AsNoTracking()
+            .Where(x => x.ExternalCompanyId == resolved.ExternalCompanyId && x.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                x.PeriodEnd == periodEnd && x.PeriodType == periodType)
+            .Select(x => x.WarningsJson).ToListAsync(cancellationToken);
+        var fiscalYearEnds = announcement.IsAnnualFiscalYearHeader
+            ? [$"{announcement.PeriodYear:D4}/{announcement.PeriodMonth:D2}/{announcement.PeriodDay:D2}"]
+            : evidenceRows.Select(ReadFiscalYearEnd).Where(x => x is not null).Select(x => x!).Distinct(StringComparer.Ordinal).ToArray();
+        var fiscalYearEnd = fiscalYearEnds.FirstOrDefault();
+        if (fiscalYearEnds.Length != 1 || string.IsNullOrWhiteSpace(fiscalYearEnd))
+        {
+            claim.Status = "Feature143:Unresolved";
+            claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "FiscalYearUnresolved", Announcement = announcement }, JsonOptions);
+            await auth.SaveChangesAsync(cancellationToken);
+            Log(update, announcement, resolved.ExternalCompanyId, null, "FiscalYearUnresolved", "No unique authoritative fiscal-year end exists for the exact announcement period.");
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+        var fiscalYearEnding = int.Parse(fiscalYearEnd[..4], CultureInfo.InvariantCulture);
+
+        foreach (var category in Categories)
+        {
+            prior.TryGetValue(category.ToString(), out var checkpoint);
+            if (checkpoint is not null && (checkpoint.Outcome is "Persisted" or "AlreadyExists" or "ReviewRequired" || checkpoint.Attempts >= 3))
+                continue;
+            try
+            {
+                var result = await backfill.ExecuteAsync(new ManualNoavaranFinancialStatementBackfillRequest(
+                    resolved.ExternalCompanyId, fiscalYearEnding, announcement.PeriodMonths, category), cancellationToken);
+                var outcome = result.Outcome;
+                var message = result.Message;
+                if (result.Outcome is "Persisted" or "AlreadyExists")
+                {
+                    var validation = await ValidatePersistedPeriodAsync(
+                        resolved.ExternalCompanyId, periodEnd, periodType, fiscalYearEnd, category, announcement, result.RunId, cancellationToken);
+                    if (!validation.Matches)
+                    {
+                        outcome = "ReviewRequired";
+                        message = validation.Reason;
+                    }
+                    else if (announcement.IsAmendment)
+                    {
+                        outcome = "ReviewRequired";
+                        message = "Provider variant semantics cannot verify that this is the announced amendment.";
+                    }
+                }
+                prior[category.ToString()] = new(outcome, result.ProcessedRecords, message, (checkpoint?.Attempts ?? 0) + 1);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception exception)
+            {
+                prior[category.ToString()] = new("UpstreamFailed", 0, exception.Message, (checkpoint?.Attempts ?? 0) + 1);
+            }
+
+            claim.Status = "Feature143:Processing";
+            claim.ResponseJson = JsonSerializer.Serialize(prior, JsonOptions);
+            await auth.SaveChangesAsync(cancellationToken);
+            Log(update, announcement, resolved.ExternalCompanyId, fiscalYearEnding, category + ":" + prior[category.ToString()].Outcome,
+                prior[category.ToString()].Message, prior[category.ToString()].ProcessedRecords);
+        }
+
+        claim.Status = prior.Values.All(x => x.Outcome is "Persisted" or "AlreadyExists")
+            ? "Feature143:Completed"
+            : prior.Values.All(x => x.Outcome is "Persisted" or "AlreadyExists" or "ReviewRequired" || x.Attempts >= 3)
+                ? "Feature143:ReviewRequired" : "Feature143:Partial";
+        claim.ResponseJson = JsonSerializer.Serialize(prior, JsonOptions);
+        await auth.SaveChangesAsync(cancellationToken);
+        Log(update, announcement, resolved.ExternalCompanyId, fiscalYearEnding,
+            claim.Status == "Feature143:Completed" ? "Persisted" : claim.Status == "Feature143:Partial" ? "PartiallyPersisted" : "ReviewRequired",
+            null, prior.Values.Sum(x => x.ProcessedRecords));
+        return Empty(TelegramAssistantResultStatus.Accepted, update);
+    }
+
+    private static string? ReadFiscalYearEnd(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var nodes = doc.RootElement.ValueKind == JsonValueKind.Array
+                ? doc.RootElement.EnumerateArray().ToArray()
+                : new[] { doc.RootElement };
+            foreach (var node in nodes)
+            {
+                if (node.TryGetProperty("jalaliFiscalYearEnd", out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    var digits = new string(value.GetString()!.Where(char.IsDigit).ToArray());
+                    if (digits.Length == 8) return $"{digits[..4]}/{digits[4..6]}/{digits[6..8]}";
+                }
+            }
+        }
+        catch (JsonException) { }
+        return null;
+    }
+
+    private async Task<(bool Matches, string? Reason)> ValidatePersistedPeriodAsync(
+        string externalCompanyId,
+        DateOnly periodEnd,
+        string periodType,
+        string fiscalYearEnd,
+        ManualNoavaranFinancialStatementType category,
+        TelegramFinancialStatementRecognition announcement,
+        Guid? ingestionRunId,
+        CancellationToken cancellationToken)
+    {
+        var expectedDataset = category == ManualNoavaranFinancialStatementType.FinancialRatios
+            ? "FundamentalIndexes"
+            : "FinancialStatements";
+        var ingestionRun = ingestionRunId is null
+            ? null
+            : await financial.SyncRuns.AsNoTracking()
+                .Where(x => x.Id == ingestionRunId.Value &&
+                    x.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                    x.ExternalReference == externalCompanyId &&
+                    x.Dataset == expectedDataset &&
+                    x.Status == "Completed" &&
+                    x.ProcessedRecords > 0)
+                .Select(x => new { x.SourcePayloadChecksum })
+                .SingleOrDefaultAsync(cancellationToken);
+        if (ingestionRun is null || string.IsNullOrWhiteSpace(ingestionRun.SourcePayloadChecksum))
+            return (false, "The completed Noavaran ingestion run for this company and category could not be verified.");
+
+        if (category == ManualNoavaranFinancialStatementType.FinancialRatios)
+        {
+            var evidence = await financial.DerivedMetrics.AsNoTracking()
+                .Where(x => x.ExternalCompanyId == externalCompanyId && x.PeriodEnd == periodEnd && x.PeriodType == periodType)
+                .Select(x => x.SourceEvidenceJson).ToListAsync(cancellationToken);
+            var matched = evidence.Any(x => EvidenceMatchesVariant(x, announcement, fiscalYearEnd));
+            return matched ? (true, null) : (false, "No persisted fundamental-index report matches the exact company, period, and explicit variants.");
+        }
+
+        var statementType = category switch
+        {
+            ManualNoavaranFinancialStatementType.BalanceSheet => "BalanceSheet",
+            ManualNoavaranFinancialStatementType.IncomeStatement => "IncomeStatement",
+            ManualNoavaranFinancialStatementType.CashFlow => "CashFlow",
+            _ => string.Empty
+        };
+        var rows = await financial.FinancialStatements.AsNoTracking()
+            .Where(x => x.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                x.SourcePayloadChecksum == ingestionRun.SourcePayloadChecksum &&
+                x.ExternalCompanyId == externalCompanyId &&
+                x.StatementType == statementType && x.PeriodEnd == periodEnd && x.PeriodType == periodType)
+            .Select(x => new { x.ExternalStatementId, x.IsAudited, x.IsComposing, x.WarningsJson })
+            .ToListAsync(cancellationToken);
+        var rowMatches = rows.Any(x =>
+            !string.IsNullOrWhiteSpace(x.ExternalStatementId) &&
+            (announcement.IsAudited is null || x.IsAudited == announcement.IsAudited.Value) &&
+            (announcement.IsConsolidated is null || x.IsComposing == announcement.IsConsolidated.Value) &&
+            ReadFiscalYearEnd(x.WarningsJson) == fiscalYearEnd);
+        return rowMatches ? (true, null) : (false, "No persisted statement matches the exact company, period, and explicit variants.");
+    }
+
+    private static bool EvidenceMatchesVariant(string json, TelegramFinancialStatementRecognition announcement, string fiscalYearEnd)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var rows = document.RootElement.ValueKind == JsonValueKind.Array
+                ? document.RootElement.EnumerateArray().ToArray() : [document.RootElement];
+            return rows.Any(row =>
+                (row.TryGetProperty("jalaliFiscalYearEnd", out var yearEnd) && yearEnd.ValueKind == JsonValueKind.String && CanonicalJalaliDate(yearEnd.GetString()) == fiscalYearEnd) &&
+                (announcement.IsAudited is null || (row.TryGetProperty("isAudited", out var audited) &&
+                    audited.ValueKind is (JsonValueKind.True or JsonValueKind.False) && audited.GetBoolean() == announcement.IsAudited.Value)) &&
+                (announcement.IsConsolidated is null || (row.TryGetProperty("isComposing", out var composing) &&
+                    composing.ValueKind is (JsonValueKind.True or JsonValueKind.False) && composing.GetBoolean() == announcement.IsConsolidated.Value)));
+        }
+        catch (JsonException) { return false; }
+    }
+
+    private static string? CanonicalJalaliDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var digits = new string(value.Where(char.IsDigit).ToArray());
+        return digits.Length == 8 ? $"{digits[..4]}/{digits[4..6]}/{digits[6..8]}" : null;
+    }
+
+    private void Log(TelegramAssistantUpdate update, TelegramFinancialStatementRecognition item, string? companyId,
+        int? fiscalYear, string outcome, string? reason, int records = 0) =>
+        logger.LogInformation("Feature 143 outcome={Outcome}, ChatId={ChatId}, MessageId={MessageId}, Ticker={Ticker}, CompanyId={CompanyId}, Category={Category}, PeriodEnd={PeriodEnd}, FiscalYearEnding={FiscalYearEnding}, PeriodMonths={PeriodMonths}, IsAudited={IsAudited}, IsAmendment={IsAmendment}, IsConsolidated={IsConsolidated}, Records={Records}, FailureReason={FailureReason}, CorrelationId={CorrelationId}",
+            outcome, update.TelegramChatId, update.TelegramMessageId, item.Symbol, companyId, item.Category,
+            $"{item.PeriodYear:D4}/{item.PeriodMonth:D2}/{item.PeriodDay:D2}", fiscalYear, item.PeriodMonths,
+            item.IsAudited, item.IsAmendment, item.IsConsolidated, records, reason, update.CorrelationId);
+
+    private static TelegramAssistantResult Empty(TelegramAssistantResultStatus status, TelegramAssistantUpdate update) =>
+        new(status, null, null, null, [], update.CorrelationId);
+
+    private sealed record FinancialStatementCategoryOutcome(string Outcome, int ProcessedRecords, string? Message, int Attempts);
+}

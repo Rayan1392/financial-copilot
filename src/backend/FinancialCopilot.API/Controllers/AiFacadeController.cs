@@ -635,7 +635,7 @@ public sealed class AiFacadeController(
         if (result is null) return null;
 
         return new FinancialStatementTableHttpResponse(
-            new FinancialStatementTableSourceHttpResponse(
+            result.Source is null ? null : new FinancialStatementTableSourceHttpResponse(
                 result.Source.StatementId,
                 result.Source.ExternalStatementId,
                 ProviderSources.GetDisplayName(result.Source.ProviderName),
@@ -660,7 +660,8 @@ public sealed class AiFacadeController(
                 row.Asset is null ? null : MapFinancialStatementTableLineItem(row.Asset),
                 row.LiabilityOrEquity is null ? null : MapFinancialStatementTableLineItem(row.LiabilityOrEquity))).ToList(),
             result.Warnings,
-            result.GeneratedAtUtc);
+            result.GeneratedAtUtc,
+            result.QuarterlyResult);
     }
 
     private static FinancialStatementTableLineItemHttpResponse MapFinancialStatementTableLineItem(

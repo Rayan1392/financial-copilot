@@ -23,8 +23,86 @@ namespace FinancialCopilot.Infrastructure.Financial.Ingestion;
 /// </summary>
 public sealed class CompanyResolverService(
     FinancialIngestionDbContext dbContext,
-    ILogger<CompanyResolverService> logger) : ICompanyResolverService
+    ILogger<CompanyResolverService> logger) : ICompanyResolverService, ICompanyResolutionOutcomeService
 {
+    public async Task<CompanyResolutionOutcome> ResolveAsync(
+        string? identifier,
+        string providerName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(identifier) || identifier.Length > 128 || identifier.Any(char.IsControl))
+            return new(CompanyResolutionStatus.InvalidIdentifier, Reason: "invalid_company_identifier");
+
+        var normalized = PersianSymbolNormalizer.Normalize(identifier);
+        if (normalized.Length == 0)
+            return new(CompanyResolutionStatus.InvalidIdentifier, Reason: "invalid_company_identifier");
+        if (!string.Equals(providerName, "NoavaranCurrentApi", StringComparison.Ordinal))
+            return new(CompanyResolutionStatus.UnsupportedProviderCompany, Reason: "unsupported_provider");
+
+        var allCandidates = await dbContext.Companies.AsNoTracking().ToListAsync(cancellationToken);
+        var providerCandidates = allCandidates.Where(company =>
+            string.Equals(company.ProviderName, providerName, StringComparison.Ordinal)).ToArray();
+        var providerResult = ResolveDetailed(providerCandidates, normalized);
+        if (providerResult.Status == CompanyResolutionStatus.Resolved)
+            return providerResult;
+        if (providerResult.Status == CompanyResolutionStatus.Ambiguous)
+            return providerResult;
+
+        var otherProviderResult = ResolveDetailed(allCandidates.Where(company =>
+            !string.Equals(company.ProviderName, providerName, StringComparison.Ordinal)).ToArray(), normalized);
+        return otherProviderResult.Status switch
+        {
+            CompanyResolutionStatus.Resolved => new(CompanyResolutionStatus.UnsupportedProviderCompany,
+                Reason: "company_not_available_from_requested_provider"),
+            CompanyResolutionStatus.Ambiguous => otherProviderResult,
+            _ => new(CompanyResolutionStatus.NotFound, Reason: "company_not_found")
+        };
+    }
+
+    private static CompanyResolutionOutcome ResolveDetailed(
+        IReadOnlyCollection<NormalizedCompanyRow> candidates,
+        string normalized)
+    {
+        var tiers = new Func<NormalizedCompanyRow, bool>[]
+        {
+            company => company.Ticker is not null && PersianSymbolNormalizer.Normalize(company.Ticker) == normalized,
+            company => company.TseSymbol is not null && PersianSymbolNormalizer.Normalize(company.TseSymbol) == normalized,
+            company => (company.EnTicker is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.EnTicker), normalized, StringComparison.OrdinalIgnoreCase)) ||
+                       (company.SymbolIsin is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.SymbolIsin), normalized, StringComparison.OrdinalIgnoreCase)) ||
+                       (company.CompanyIsin is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.CompanyIsin), normalized, StringComparison.OrdinalIgnoreCase)),
+            company => company.InstrumentCode is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.InstrumentCode), normalized, StringComparison.OrdinalIgnoreCase),
+            company => (company.CompanySymbol is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.CompanySymbol), normalized, StringComparison.OrdinalIgnoreCase)) ||
+                       (company.Name is not null && string.Equals(PersianSymbolNormalizer.Normalize(company.Name), normalized, StringComparison.OrdinalIgnoreCase))
+        };
+
+        foreach (var tier in tiers)
+        {
+            var matches = candidates.Where(tier).DistinctBy(company => company.Id).Take(2).ToArray();
+            if (matches.Length > 1)
+                return new(CompanyResolutionStatus.Ambiguous, Reason: "company_identifier_ambiguous");
+            if (matches.Length == 1)
+                return Resolved(matches[0]);
+        }
+
+        if (normalized.Length >= 3)
+        {
+            var fragments = candidates.Where(company => company.Name is not null &&
+                    PersianSymbolNormalizer.Normalize(company.Name).Contains(normalized, StringComparison.OrdinalIgnoreCase))
+                .DistinctBy(company => company.Id).Take(2).ToArray();
+            if (fragments.Length > 1)
+                return new(CompanyResolutionStatus.Ambiguous, Reason: "company_name_fragment_ambiguous");
+            if (fragments.Length == 1)
+                return Resolved(fragments[0]);
+        }
+
+        return new(CompanyResolutionStatus.NotFound, Reason: "company_not_found");
+    }
+
+    private static CompanyResolutionOutcome Resolved(NormalizedCompanyRow company) => new(
+        CompanyResolutionStatus.Resolved,
+        new ResolvedCompany(company.Id, company.ExternalCompanyId, company.Ticker, company.EnTicker,
+            company.InstrumentCode, company.SymbolIsin, company.CompanyIsin, company.TseSymbol, company.CompanySymbol));
+
     public async Task<ResolvedCompany?> ResolveBySymbolAsync(string symbol, CancellationToken ct = default)
     {
         var normalized = PersianSymbolNormalizer.Normalize(symbol);

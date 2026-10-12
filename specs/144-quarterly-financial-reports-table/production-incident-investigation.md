@@ -2,7 +2,7 @@
 
 **Investigation date:** 2026-10-12  
 **Scope:** V2 quarterly financial report table, company resolution, billing, and deployment evidence  
-**Deployment status:** No deployment performed
+**Deployment status:** Deployed to the VPS on 2026-10-12 from source commit `b5a53286dd421ba04829b1e325baf393038cb0c4`
 
 ## Findings
 
@@ -67,9 +67,16 @@ The actual production reservation ID and ledger row for the reported request wer
 
 Local source evidence shows the production settings file in the working tree specifies `MicrosoftAgentFrameworkV2` and workflow `maf-orchestration-v2.0`. That settings file was already modified before this investigation, so it is not evidence of the deployed configuration. The local source has the V2 quarterly route, resolver registrations, Feature 144 use case registration, and structured API mapping described above.
 
-The deployed image/version/commit and production catalog could not be checked: Docker and `kubectl` were unavailable, and no production runtime or read-only catalog session was connected. The local repository HEAD before these edits was `1a857c4`; this incident fix is uncommitted and therefore is not in that commit.
+The VPS was on `develop` at `1a857c4` before deployment. Its existing edits to `.dockerignore`, `docker/api.Dockerfile`, and `docker/appsettings.Production.json` were saved in a Git stash during fast-forward and restored afterward. The `.dockerignore` edit re-includes the tracked Feature 141 `navigation-hierarchy.yaml` required by API publish; the first build attempt without that saved edit failed with MSB3030. The build succeeded after restoring the server's original edits.
 
-**Redeployment and verification required:** build a new API image from the reviewed source changes, deploy it with V2 enabled, and record the resulting image digest and source commit. Then run the two exact queries against production using the approved read-only verification path and confirm the activity tags, canonical company IDs/symbols, typed result outcome, structured HTTP result, and usage ledger completion status. Do not deploy until the billing decision is made if the current company-not-found charging behavior is not accepted.
+Only API and Worker were rebuilt and recreated. PostgreSQL, Redis, RabbitMQ, frontend, and Telegram gateway were left running. Both rebuilt images use the existing tag `3963f94-tzdata`; their image IDs are:
+
+- API: `sha256:10e301150420da77b7306c930b6b6c71a5df16a246d31a5593c1de96818f9c1f`
+- Worker: `sha256:db34d1e1449b9bbe566ed48278fd15c0f7ca66b128b283b953f53ee2f68df857`
+
+The server checkout and `origin/develop` were both `b5a53286dd421ba04829b1e325baf393038cb0c4` after deployment. The API container is running and returned `Healthy` from `http://127.0.0.1:5074/health`; `https://api.sapioai.ir/health` returned HTTP 200 and `Healthy`. Root filesystem usage was 71% before build and 81% after it, so no cleanup was performed. The server's three pre-existing edits are restored, with a backup stash named `before-feature144-deploy-20261012` retained.
+
+The production catalog, production company resolution for `چخزر`/`کگل`, and usage ledger for the reported incident were not queried. No production Feature 144 request was sent because its current `AiQuery.Scanner` charge could debit a real account. These remain unverified. The Product Owner decision about zero-charging `CompanyNotFound` also remains open; the deployed version retains the existing one-credit charging behavior. No financial source data or billing policy was changed.
 
 ## Files changed
 
@@ -93,4 +100,4 @@ Pre-existing edits to `.dockerignore`, `docker/api.Dockerfile`, and `docker/apps
 - A broader adjacent unit filter had **73 passed and 5 failed**. The failures are two Feature 141 authorization tests and three Feature 143 handler tests. These same failures and their fixture/configuration causes are already recorded in `implementation-report.md`; they do not touch the modified files. Feature 083, Feature 142, Billing, and V1 intent tests passed in their focused filters.
 - No production test or production catalog query was run. The PostgreSQL integration database was not connected for this incident run.
 
-No V1 intent, route, or orchestration code was changed. No financial source data, billing semantics, deployment, commit, or push was changed.
+No V1 intent, route, or orchestration code was changed. No financial source data or billing semantics were changed. Source commit `b5a5328` was pushed to `develop` and deployed to the VPS.

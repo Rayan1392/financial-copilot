@@ -780,18 +780,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             FinancialStatementTableIntentRules.LooksLikeFinancialStatementTableQuery(request.Message);
         if (isFinancialStatementTable)
         {
-            var tableQuery = FinancialStatementTableIntentRules.BuildQuery(request.Message);
+            var tableQuery = isQuarterlyStatementTable
+                ? FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message)
+                : FinancialStatementTableIntentRules.BuildQuery(request.Message);
+            stepActivity?.SetTag("workflow.capability_code", "financial_statement_table");
             if (isQuarterlyStatementTable)
             {
-                tableQuery = tableQuery with
-                {
-                    StatementType = FinancialStatementType.IncomeStatement,
-                    UseQuarterlyReportTable = true,
-                    QuarterCount = FinancialStatementTableIntentRules.ResolveQuarterCount(request.Message),
-                    EndingPeriod = FinancialStatementTableIntentRules.ResolveEndingPeriod(request.Message)
-                };
+                stepActivity?.SetTag("feature144.original_query", request.Message);
+                stepActivity?.SetTag("feature144.normalized_query", FinancialStatementTableIntentRules.NormalizeText(request.Message));
+                stepActivity?.SetTag("feature144.extracted_company_candidate", tableQuery.CompanyQuery);
+                stepActivity?.SetTag("feature144.resolver_argument", tableQuery.CompanyQuery);
             }
             financialStatementTableResult = await financialStatementTableQueryUseCase.ExecuteAsync(tableQuery, ct);
+            if (tableQuery.UseQuarterlyReportTable && financialStatementTableResult?.QuarterlyResult is { } quarterlyResult)
+            {
+                stepActivity?.SetTag("feature144.company_resolution_status", quarterlyResult.CompanyResolutionStatus.ToString());
+                stepActivity?.SetTag("feature144.canonical_company_id", quarterlyResult.ExternalCompanyId);
+                stepActivity?.SetTag("feature144.canonical_symbol", quarterlyResult.CompanySymbol);
+                stepActivity?.SetTag("feature144.typed_outcome", quarterlyResult.Outcome.ToString());
+                stepActivity?.SetTag("feature144.error_reason", quarterlyResult.Reason);
+            }
 
             UsageAccountingResult? statementTableUsage = null;
             if (msg.Reservation is not null)

@@ -91,6 +91,7 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
             string.Empty, "چخزر", QuarterCount: 1));
 
         Assert.Equal(CompanyResolutionStatus.Resolved, result.CompanyResolutionStatus);
+        Assert.Equal(QuarterlyFinancialReportOutcome.SuccessfulTable, result.Outcome);
         Assert.Equal("12783", result.ExternalCompanyId);
         Assert.Equal("چخزر", result.CompanySymbol);
         Assert.Equal(16, result.Rows.Count);
@@ -113,7 +114,44 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
 
         Assert.Equal(CompanyResolutionStatus.NotFound, result.CompanyResolutionStatus);
         Assert.Equal("Unavailable", result.Status);
+        Assert.Equal(QuarterlyFinancialReportOutcome.CompanyNotFound, result.Outcome);
         Assert.Equal(16, result.Rows.Count);
+        Assert.Null(repository.LastSelection);
+    }
+
+    [Fact]
+    public async Task QuarterlyUseCase_ReturnsDistinctOutcomeWhenCompanyExistsWithoutPersistedReports()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(Company("12783", "چخزر", "NoavaranCurrentApi"));
+        await db.SaveChangesAsync();
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(
+            new EmptyQuarterlyRepository(), Resolver(db), TimeProvider.System);
+
+        var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
+            string.Empty, "چخزر", QuarterCount: 1));
+
+        Assert.Equal(CompanyResolutionStatus.Resolved, result.CompanyResolutionStatus);
+        Assert.Equal(QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports, result.Outcome);
+        Assert.Equal("no_compatible_reports", result.Reason?.Split(':')[0]);
+    }
+
+    [Fact]
+    public async Task QuarterlyUseCase_ReturnsTypedAmbiguousCompanyOutcome()
+    {
+        await using var db = CreateDbContext();
+        db.Companies.AddRange(
+            Company("first", "نماد", "NoavaranCurrentApi"),
+            Company("second", "نماد", "NoavaranCurrentApi"));
+        await db.SaveChangesAsync();
+        var repository = new QuarterlyRepositoryFake();
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System);
+
+        var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
+            string.Empty, "نماد", QuarterCount: 1));
+
+        Assert.Equal(CompanyResolutionStatus.Ambiguous, result.CompanyResolutionStatus);
+        Assert.Equal(QuarterlyFinancialReportOutcome.CompanyAmbiguous, result.Outcome);
         Assert.Null(repository.LastSelection);
     }
 
@@ -152,5 +190,12 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
                 "MillionRials", "Rial", "IRR", "Accrual", "lineage-1")];
             return Task.FromResult(reports);
         }
+    }
+
+    private sealed class EmptyQuarterlyRepository : IQuarterlyFinancialReportsRepository
+    {
+        public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
+            QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<QuarterlyReportObservation>>([]);
     }
 }

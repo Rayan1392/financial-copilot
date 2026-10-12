@@ -2,11 +2,29 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.AI.Orchestration;
 using System.Globalization;
 using System.Text.Json;
+using FinancialCopilot.Domain.Financial.Entities;
 
 namespace FinancialCopilot.UnitTests;
 
 public sealed class QuarterlyFinancialReports144Tests
 {
+    [Theory]
+    [InlineData("جدول گزارشات فصلی چخزر", "چخزر")]
+    [InlineData("جدول گزارشات فصلی کگل", "کگل")]
+    [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر")]
+    [InlineData("گزارش فصلی چخزر", "چخزر")]
+    [InlineData("صورت سود و زیان فصلی کگل", "کگل")]
+    public void BuildQuarterlyQuery_RemovesPersianReportCuesWithoutLeakingPluralSuffix(
+        string message,
+        string expectedCompany)
+    {
+        Assert.True(FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message));
+        var query = FinancialStatementTableIntentRules.BuildQuarterlyQuery(message);
+        Assert.Equal(expectedCompany, query.CompanyQuery);
+        Assert.Equal(FinancialStatementType.IncomeStatement, query.StatementType);
+        Assert.True(query.UseQuarterlyReportTable);
+    }
+
     [Fact]
     public void Normalize_UsesAdjacentYtdDifferencesAndPreservesZeroMissingAndProvenance()
     {
@@ -119,6 +137,7 @@ public sealed class QuarterlyFinancialReports144Tests
 
         Assert.Equal("Unavailable", result.Status);
         Assert.Contains("conflicting_report_revision", result.Reason);
+        Assert.Equal(QuarterlyFinancialReportOutcome.SourceObservationsUnavailable, result.Outcome);
     }
 
     [Fact]

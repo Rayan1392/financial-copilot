@@ -39,7 +39,7 @@ public static class QuarterlyFinancialReportsNormalizer
     {
         if (quarterCount is < 1 or > 12)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
-                "invalid_quarter_count", "Quarter count must be from 1 to 12.");
+                "invalid_quarter_count", "Quarter count must be from 1 to 12.", QuarterlyFinancialReportOutcome.InvalidQuery);
 
         var candidates = reports.Where(report => report.ProviderName == "NoavaranCurrentApi" &&
                 report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId)
@@ -65,11 +65,15 @@ public static class QuarterlyFinancialReportsNormalizer
             .ToList();
         if (compatible.Count == 0)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
-                "no_compatible_reports", "No persisted Noavaran income-statement periods match the requested fiscal range.");
+                "no_compatible_reports", "No persisted Noavaran income-statement periods match the requested fiscal range.",
+                candidates.Count == 0
+                    ? QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports
+                    : QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
         var scopeGroups = compatible.GroupBy(report => report.IsComposing).ToList();
         if (scopeGroups.Count != 1)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
-                "conflicting_report_scope", "Separate and consolidated reports cannot be combined; specify one statement scope.");
+                "conflicting_report_scope", "Separate and consolidated reports cannot be combined; specify one statement scope.",
+                QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
 
         var isComposing = scopeGroups[0].Key;
         var reportByYearAndDuration = new Dictionary<(DateOnly FiscalStart, int Months), QuarterlyReportObservation>();
@@ -87,7 +91,8 @@ public static class QuarterlyFinancialReportsNormalizer
                 string.Equals(report.ExternalReportId, winner.ExternalReportId, StringComparison.Ordinal)).ToArray();
             if (unresolved.Length > 1 && unresolved.Skip(1).Any(report => !SourceValuesEqual(winner, report)))
                 return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
-                    "conflicting_report_revision", "Top-priority reports have conflicting source values and no deterministic version winner.");
+                    "conflicting_report_revision", "Top-priority reports have conflicting source values and no deterministic version winner.",
+                    QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
             reportByYearAndDuration[group.Key] = unresolved.OrderByDescending(report => report.ReportId).First();
         }
 
@@ -247,6 +252,12 @@ public static class QuarterlyFinancialReportsNormalizer
         var coverageReason = selected.Count < quarterCount
             ? $"Only {selected.Count} fiscal quarters could be established from persisted report evidence; {quarterCount} were requested."
             : null;
+        var tableOutcome = rows.SelectMany(row => row.Cells.Values)
+            .Any(cell => cell.State == QuarterlyCellState.Available)
+            ? (selected.Count < quarterCount
+                ? QuarterlyFinancialReportOutcome.PartialTable
+                : QuarterlyFinancialReportOutcome.SuccessfulTable)
+            : QuarterlyFinancialReportOutcome.SourceObservationsUnavailable;
         return new QuarterlyFinancialReportTableResult(companySymbol, companyName, externalCompanyId,
             "NoavaranCurrentApi", "IncomeStatement", isComposing, quarterCount,
             selected.Select(item => item.Period).ToArray(), rows, comparisons,
@@ -257,11 +268,12 @@ public static class QuarterlyFinancialReportsNormalizer
                     report.ProviderName, report.StatementType, report.PeriodStart, report.PeriodEnd, report.PeriodMonths,
                     report.IsAudited, report.IsRepresented, report.IsComposing, report.SourcePayloadChecksum,
                     report.LastSynchronizedAt, report.AssumedScale, report.SourceAmountUnit, report.CurrencyCode,
-                    report.AccountingBasis, report.ReportRevisionLineage, report.FiscalYearEvidence)).ToArray());
+                    report.AccountingBasis, report.ReportRevisionLineage, report.FiscalYearEvidence)).ToArray(),
+            Outcome: tableOutcome);
     }
 
     private static QuarterlyFinancialReportTableResult Unavailable(string symbol, string? name, string id,
-        int count, DateTimeOffset now, string reason, string detail)
+        int count, DateTimeOffset now, string reason, string detail, QuarterlyFinancialReportOutcome outcome)
     {
         var orderedRows = new List<(string Id, string Label, int? SourceId, string? Catalog, QuarterlyRowPolicy Policy, string Unit)>
         {
@@ -276,7 +288,7 @@ public static class QuarterlyFinancialReportsNormalizer
             row.SourceId, row.Catalog is null ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
             new Dictionary<string, QuarterlyFinancialCell>())).ToArray();
         return new(symbol, name, id, "NoavaranCurrentApi", "IncomeStatement", null, count,
-            [], rows, [], null, "Unavailable", $"{reason}: {detail}", now, []);
+            [], rows, [], null, "Unavailable", $"{reason}: {detail}", now, [], Outcome: outcome);
     }
 
     private static bool IsExpectedYtdBoundary(DateOnly fiscalStart, DateOnly end, int months)

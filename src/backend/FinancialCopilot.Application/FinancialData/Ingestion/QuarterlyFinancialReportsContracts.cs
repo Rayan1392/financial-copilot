@@ -3,6 +3,17 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 public enum QuarterlyCellState { Available, MissingObservation, IncompatibleObservation, ConflictingObservation, UnsupportedFiscalPeriod, MissingPredecessor, CalculationUnavailable }
 public enum QuarterlyComparisonState { Available, MissingCurrent, MissingPrevious, NonPositiveBase, SignChanged, Unavailable }
 public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin }
+public enum QuarterlyFinancialReportOutcome
+{
+    SuccessfulTable,
+    PartialTable,
+    CompanyNotFound,
+    CompanyAmbiguous,
+    CompanyFoundNoPersistedReports,
+    SourceObservationsUnavailable,
+    CompanyUnavailableFromProvider,
+    InvalidQuery
+}
 
 public sealed record QuarterlyFinancialReportTableQuery(
     string ExternalCompanyId,
@@ -119,7 +130,8 @@ public sealed record QuarterlyFinancialReportTableResult(
     string? Reason,
     DateTimeOffset GeneratedAtUtc,
     IReadOnlyList<QuarterlySelectedReportReference>? SelectedReports = null,
-    CompanyResolutionStatus CompanyResolutionStatus = CompanyResolutionStatus.Resolved);
+    CompanyResolutionStatus CompanyResolutionStatus = CompanyResolutionStatus.Resolved,
+    QuarterlyFinancialReportOutcome Outcome = QuarterlyFinancialReportOutcome.SuccessfulTable);
 
 public sealed record QuarterlyFinancialReportSelection(
     string ExternalCompanyId,
@@ -167,7 +179,14 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
             {
                 Status = "Unavailable",
                 Reason = resolution.Reason ?? resolution.Status.ToString(),
-                CompanyResolutionStatus = resolution.Status
+                CompanyResolutionStatus = resolution.Status,
+                Outcome = resolution.Status switch
+                {
+                    CompanyResolutionStatus.NotFound => QuarterlyFinancialReportOutcome.CompanyNotFound,
+                    CompanyResolutionStatus.Ambiguous => QuarterlyFinancialReportOutcome.CompanyAmbiguous,
+                    CompanyResolutionStatus.UnsupportedProviderCompany => QuarterlyFinancialReportOutcome.CompanyUnavailableFromProvider,
+                    _ => QuarterlyFinancialReportOutcome.InvalidQuery
+                }
             };
         }
 
@@ -180,7 +199,8 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
             {
                 Status = "Unavailable",
                 Reason = "company_identifier_mismatch",
-                CompanyResolutionStatus = CompanyResolutionStatus.UnsupportedProviderCompany
+                CompanyResolutionStatus = CompanyResolutionStatus.UnsupportedProviderCompany,
+                Outcome = QuarterlyFinancialReportOutcome.CompanyUnavailableFromProvider
             };
         }
 

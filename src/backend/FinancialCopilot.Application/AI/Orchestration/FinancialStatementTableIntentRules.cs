@@ -181,6 +181,23 @@ public static class FinancialStatementTableIntentRules
             ResolveComposingPreference(normalized));
     }
 
+    /// <summary>
+    /// Builds the quarterly report table request used by the V2 workflow. Persian plural report
+    /// cues are removed as whole words so their suffixes cannot become part of a ticker hint.
+    /// </summary>
+    public static FinancialStatementTableQuery BuildQuarterlyQuery(string userMessage)
+    {
+        var query = BuildQuery(userMessage);
+        return query with
+        {
+            CompanyQuery = ExtractQuarterlyCompanyHint(userMessage),
+            StatementType = FinancialStatementType.IncomeStatement,
+            UseQuarterlyReportTable = true,
+            QuarterCount = ResolveQuarterCount(userMessage),
+            EndingPeriod = ResolveEndingPeriod(userMessage)
+        };
+    }
+
     public static string NormalizeText(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -298,6 +315,51 @@ public static class FinancialStatementTableIntentRules
             .ToList();
 
         return tokens.Count == 0 ? null : string.Join(' ', tokens);
+    }
+
+    private static string? ExtractQuarterlyCompanyHint(string userMessage)
+    {
+        var normalized = NormalizeText(userMessage);
+        var phraseCues = IncomeAliases
+            .Concat(BalanceAliases)
+            .Concat(CashFlowAliases)
+            .Concat(TableActionAliases)
+            .Concat(AnalysisAliases)
+            .Concat(["گزارشات", "گزارش ها", "گزارش های"])
+            .OrderByDescending(phrase => phrase.Length);
+        foreach (var phrase in phraseCues)
+            normalized = RemoveWholePhrase(normalized, NormalizeText(phrase));
+
+        foreach (var phrase in new[]
+                 {
+                     "3 ماهه", "سه ماهه", "6 ماهه", "شش ماهه", "9 ماهه", "نه ماهه",
+                     "12 ماهه", "دوازده ماهه", "سالانه", "فصل اخیر", "فصل آخر", "دوره اخیر",
+                     "دوره آخر", "last quarters", "last quarter", "quarterly", "financial reports",
+                     "financial report", "income statements", "income statement", "profit and loss",
+                     "profit & loss", "reports", "report", "table", "quarter", "quarters"
+                 })
+        {
+            normalized = RemoveWholePhrase(normalized, NormalizeText(phrase));
+        }
+
+        foreach (var ch in new[] { "؟", "?", "!", "،", ",", ":", ";", "(", ")", "«", "»" })
+            normalized = normalized.Replace(ch, " ", StringComparison.OrdinalIgnoreCase);
+
+        while (normalized.Contains("  ", StringComparison.Ordinal))
+            normalized = normalized.Replace("  ", " ", StringComparison.Ordinal);
+
+        var stopWords = StopWords.Concat(["های", "ها", "اخیر", "آخر", "فصلی", "فصل", "دوره"]);
+        var tokens = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => !stopWords.Contains(token, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+        return tokens.Length == 0 ? null : string.Join(' ', tokens);
+    }
+
+    private static string RemoveWholePhrase(string value, string phrase)
+    {
+        var words = Regex.Escape(phrase).Replace("\\ ", "\\s+");
+        return Regex.Replace(value, $"(?<![\\p{{L}}\\p{{N}}]){words}(?![\\p{{L}}\\p{{N}}])", " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static bool ContainsAny(string value, IEnumerable<string> candidates) =>

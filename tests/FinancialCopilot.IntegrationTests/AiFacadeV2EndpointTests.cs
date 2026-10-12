@@ -1994,6 +1994,83 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     }
 
     [Theory]
+    [InlineData("جدول گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("جدول گزارشات فصلی کگل", "کگل", "FS-KGL")]
+    [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارش فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("صورت سود و زیان فصلی کگل", "کگل", "FS-KGL")]
+    public async Task V2AiQuery_QuarterlyReportAliasesResolveCanonicalCompanyAndReturnStructuredTable(
+        string message,
+        string expectedSymbol,
+        string expectedCompanyId)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
+        Assert.False(root.GetProperty("clarificationRequired").GetBoolean());
+        Assert.Equal(0, _factory.Fake.OuterToolSelectionCalls);
+
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(expectedSymbol, quarterly.GetProperty("companySymbol").GetString());
+        Assert.Equal(expectedCompanyId, quarterly.GetProperty("externalCompanyId").GetString());
+        Assert.Equal((int)CompanyResolutionStatus.Resolved,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal("Partial", quarterly.GetProperty("status").GetString());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.PartialTable,
+            quarterly.GetProperty("outcome").GetInt32());
+        Assert.Equal(16, quarterly.GetProperty("rows").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_UnknownQuarterlyTickerReturnsTypedCompanyNotFoundOutcome()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "جدول گزارشات فصلی نمادناموجود" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var quarterly = document.RootElement.GetProperty("financialStatementTableResult")
+            .GetProperty("quarterlyResult");
+        Assert.Equal("Unavailable", quarterly.GetProperty("status").GetString());
+        Assert.Equal("company_not_found", quarterly.GetProperty("reason").GetString());
+        Assert.Equal((int)CompanyResolutionStatus.NotFound,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyNotFound,
+            quarterly.GetProperty("outcome").GetInt32());
+    }
+
+    [Fact]
+    public async Task V2AiQuery_ResolvedCompanyWithoutPersistedReportsReturnsTypedUnavailableResult()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/ai/v1/query", new { message = "جدول گزارش فصلی بدونگزارش" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var quarterly = document.RootElement.GetProperty("financialStatementTableResult")
+            .GetProperty("quarterlyResult");
+        Assert.Equal("Unavailable", quarterly.GetProperty("status").GetString());
+        Assert.Equal("no_compatible_reports", quarterly.GetProperty("reason").GetString()!.Split(':')[0]);
+        Assert.Equal((int)CompanyResolutionStatus.Resolved,
+            quarterly.GetProperty("companyResolutionStatus").GetInt32());
+        Assert.Equal((int)QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports,
+            quarterly.GetProperty("outcome").GetInt32());
+    }
+
+    [Theory]
     [InlineData("آخرین ترازنامه غالبر", "BalanceSheet")]
     [InlineData("آخرین جریان وجه نقد غالبر را نمایش بده", "CashFlow")]
     public async Task V2AiQuery_FullStatementTables_ReturnExpectedStatementTypeWithoutToolLoop(
@@ -2029,11 +2106,14 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     }
 }
 
-internal sealed class QuarterlyFinancialReports144ApiFake : IQuarterlyFinancialReportsQueryUseCase
+internal sealed class QuarterlyFinancialReports144RepositoryFake : IQuarterlyFinancialReportsRepository
 {
-    public Task<QuarterlyFinancialReportTableResult> ExecuteAsync(
-        QuarterlyFinancialReportTableQuery query, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
+        QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default)
     {
+        if (selection.ExternalCompanyId == "FS-NO-REPORT")
+            return Task.FromResult<IReadOnlyList<QuarterlyReportObservation>>([]);
+
         var start = new DateOnly(2025, 3, 21);
         var end = DateOnly.FromDateTime(new System.Globalization.PersianCalendar()
             .AddMonths(start.ToDateTime(TimeOnly.MinValue), 3).AddDays(-1));
@@ -2055,12 +2135,10 @@ internal sealed class QuarterlyFinancialReports144ApiFake : IQuarterlyFinancialR
                 mapping.SourceItemId, null, unit, value);
         }).ToArray();
         IReadOnlyList<QuarterlyReportObservation> reports =
-        [new(Guid.NewGuid(), "feature144-api-report", "NoavaranCurrentApi", "FS-001", "IncomeStatement", 3,
+        [new(Guid.NewGuid(), "feature144-api-report", "NoavaranCurrentApi", selection.ExternalCompanyId, "IncomeStatement", 3,
             start, end, false, false, false, "feature144-api-checksum", DateTimeOffset.UtcNow,
             "1404/04/01", "1404/12/29", items, "MillionRials", "Rial", "IRR", "Accrual", "api-lineage")];
-        var result = QuarterlyFinancialReportsNormalizer.Normalize(query.CompanySymbol, null, "FS-001", reports,
-            query.QuarterCount, query.EndingPeriod, DateTimeOffset.UtcNow);
-        return Task.FromResult(result);
+        return Task.FromResult(reports);
     }
 }
 
@@ -2090,8 +2168,8 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
         builder.ConfigureTestServices(services =>
         {
             ReplaceIngestionDbContext(services, _dbName);
-            services.RemoveAll<IQuarterlyFinancialReportsQueryUseCase>();
-            services.AddSingleton<IQuarterlyFinancialReportsQueryUseCase, QuarterlyFinancialReports144ApiFake>();
+            services.RemoveAll<IQuarterlyFinancialReportsRepository>();
+            services.AddSingleton<IQuarterlyFinancialReportsRepository, QuarterlyFinancialReports144RepositoryFake>();
             services.RemoveAll<IAiModelClient>();
             services.AddSingleton<IAiModelClient>(Fake);
         });
@@ -2124,10 +2202,46 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
             Name = "غالبر",
             ProviderName = "NoavaranCurrentApi",
             ExternalCompanyId = "FS-001",
+            Ticker = "غالبر",
             CompanySymbol = "غالبر",
             TseSymbol = "غالبر",
             LastSynchronizedAt = now
         });
+
+        db.Companies.AddRange(
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000002"),
+                Name = "شرکت چخزر",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-CHAKHAZAR",
+                Ticker = "چخزر",
+                CompanySymbol = "چخزر",
+                TseSymbol = "چخزر",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000003"),
+                Name = "شرکت کگل",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-KGL",
+                Ticker = "کگل",
+                CompanySymbol = "کگل",
+                TseSymbol = "کگل",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000004"),
+                Name = "شرکت بدون گزارش",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-NO-REPORT",
+                Ticker = "بدونگزارش",
+                CompanySymbol = "بدونگزارش",
+                TseSymbol = "بدونگزارش",
+                LastSynchronizedAt = now
+            });
 
         AddStatement(db, Guid.Parse("57100000-0000-0000-0000-000000000001"), "inc-parent-1404", FinancialStatementType.IncomeStatement, false, "1404/12/29", "1405/04/09 09:23:24", new Dictionary<string, decimal?>
         {

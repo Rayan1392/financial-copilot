@@ -1,4 +1,5 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
+using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -103,6 +104,155 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
         Assert.NotEqual(Guid.Empty, zero.LineItemId);
         Assert.Contains(reports, report => report.ExternalReportId == "q1" &&
             report.SourcePayloadChecksum == "checksum-q1" && report.Items.Single().LineItemId == zero.LineItemId);
+    }
+
+    [SkippableFact]
+    public async Task NonEsfandFiscalCalendar_MapsAndCalculatesFiveConsecutiveQuarters()
+    {
+        await using var database = await fixture.CreateDatabaseAsync();
+        var sourceIds = QuarterlyFinancialReportsNormalizer.ApprovedMappings
+            .Where(mapping => mapping.SourceItemId is 15 or 139 or 160 or 153)
+            .ToDictionary(mapping => mapping.SourceItemId, mapping => Guid.Parse(mapping.CatalogId));
+        var now = DateTimeOffset.UtcNow;
+        var fy1404Start = JalaliDate(1403, 10, 1);
+        var fy1405Start = JalaliDate(1404, 10, 1);
+
+        await using (var db = database.CreateContext())
+        {
+            db.FinancialStatementSourceItems.AddRange(sourceIds.Select(pair => new FinancialStatementSourceItemCatalogRow
+            {
+                Id = pair.Value, ProviderName = "NoavaranCurrentApi", StatementType = "IncomeStatement",
+                SourceItemId = pair.Key, TitleFa = $"item-{pair.Key}",
+                Unit = pair.Key == 153 ? "thousand_shares" : pair.Key == 160 ? "rial_per_share" : "million_rial",
+                LastSynchronizedAt = now
+            }));
+            var reports = new[]
+            {
+                Report("company-144", "fy1404-q1", "ThreeMonths", fy1404Start, JalaliDate(1403, 12, 29), false, "r1", now, "1404/09/30"),
+                Report("company-144", "fy1404-q2", "SixMonths", fy1404Start, JalaliDate(1404, 3, 31), false, "r1", now, "1404/09/30"),
+                Report("company-144", "fy1404-q3", "NineMonths", fy1404Start, JalaliDate(1404, 6, 31), false, "r1", now, "1404/09/30"),
+                Report("company-144", "fy1404-q4", "TwelveMonths", fy1404Start, JalaliDate(1404, 9, 30), false, "r1", now, "1404/09/30"),
+                Report("company-144", "fy1405-q1", "ThreeMonths", fy1405Start, JalaliDate(1404, 12, 29), false, "r1", now, "1405/09/30"),
+                Report("company-144", "fy1405-q2", "SixMonths", fy1405Start, JalaliDate(1405, 3, 31), false, "r1", now, "1405/09/30"),
+                Report("company-144", "fy1405-q2-audited", "SixMonths", fy1405Start, JalaliDate(1405, 3, 31), false, "r2", now, "1405/09/30")
+            };
+            reports[^1].IsAudited = true;
+            db.FinancialStatements.AddRange(reports);
+            var cumulative = new[]
+            {
+                (Revenue: 100m, GrossProfit: 40m, Eps: 10m, Shares: 200_000m),
+                (Revenue: 250m, GrossProfit: 100m, Eps: 25m, Shares: 210_000m),
+                (Revenue: 400m, GrossProfit: 160m, Eps: 40m, Shares: 220_000m),
+                (Revenue: 600m, GrossProfit: 240m, Eps: 60m, Shares: 230_000m),
+                (Revenue: 80m, GrossProfit: 30m, Eps: 8m, Shares: 240_000m),
+                (Revenue: 190m, GrossProfit: 75m, Eps: 18m, Shares: 245_000m),
+                (Revenue: 200m, GrossProfit: 80m, Eps: 20m, Shares: 250_000m)
+            };
+            db.FinancialStatementLineItems.AddRange(reports.SelectMany((report, index) => new[]
+            {
+                Line(report.Id, sourceIds[15], "REVENUE", cumulative[index].Revenue),
+                Line(report.Id, sourceIds[139], "GROSS_PROFIT", cumulative[index].GrossProfit),
+                Line(report.Id, sourceIds[160], "EPS", cumulative[index].Eps),
+                Line(report.Id, sourceIds[153], "SHARES", cumulative[index].Shares)
+            }));
+            await db.SaveChangesAsync();
+        }
+
+        var apiConfigPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/backend/FinancialCopilot.API"));
+        var configuration = new ConfigurationBuilder().SetBasePath(apiConfigPath)
+            .AddJsonFile("appsettings.json").AddJsonFile("appsettings.Development.json", optional: true)
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:FinancialCopilot"] = database.ConnectionString }).Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddFinancialCopilotInfrastructure(configuration);
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IQuarterlyFinancialReportsRepository>();
+        var reportsFromStore = await repository.GetIncomeStatementReportsAsync(new("company-144", 5, null, false));
+
+        Assert.Equal(7, reportsFromStore.Count);
+        Assert.Contains(reportsFromStore, report => report.FiscalYearEvidence == "1405/09/30" &&
+            report.PeriodEnd == JalaliDate(1404, 12, 29));
+        var result = QuarterlyFinancialReportsNormalizer.Normalize("دتولید", "fixture", "company-144",
+            reportsFromStore, 5, null, now);
+
+        Assert.Equal("Available", result.Status);
+        Assert.Equal(new[] { (1405, 2), (1405, 1), (1404, 4), (1404, 3), (1404, 2) },
+            result.PeriodsNewestFirst.Select(period => (period.FiscalYear, period.Quarter)));
+        Assert.Equal(new[]
+        {
+            JalaliDate(1405, 3, 31), JalaliDate(1404, 12, 29), JalaliDate(1404, 9, 30),
+            JalaliDate(1404, 6, 31), JalaliDate(1404, 3, 31)
+        }, result.PeriodsNewestFirst.Select(period => period.End));
+        var revenue = Assert.Single(result.Rows, row => row.SourceItemId == 15);
+        Assert.Equal(120m, revenue.Cells["1405 Q2"].Value);
+        Assert.Equal(80m, revenue.Cells["1405 Q1"].Value);
+        Assert.Equal(200m, revenue.Cells["1404 Q4"].Value);
+        Assert.Equal(150m, revenue.Cells["1404 Q3"].Value);
+        Assert.Equal(150m, revenue.Cells["1404 Q2"].Value);
+        Assert.Equal(12m, Assert.Single(result.Rows, row => row.SourceItemId == 160).Cells["1405 Q2"].Value);
+        Assert.Equal(250_000m, Assert.Single(result.Rows, row => row.SourceItemId == 153).Cells["1405 Q2"].Value);
+        Assert.Equal(50m / 120m * 100m,
+            Assert.Single(result.Rows, row => row.RowId == "gross_margin").Cells["1405 Q2"].Value);
+        Assert.Contains(result.SelectedReports!, report => report.ExternalReportId == "fy1405-q2-audited");
+        Assert.DoesNotContain(result.SelectedReports!, report => report.ExternalReportId == "fy1405-q2");
+    }
+
+    [SkippableFact]
+    public async Task DevelopmentDatabase_ReadOnly_DetolidInventoryAndExactQuarterlyRequest()
+    {
+        var configured = Environment.GetEnvironmentVariable("FINANCIAL_COPILOT_DEV_READONLY_CONNECTION_STRING");
+        Skip.If(string.IsNullOrWhiteSpace(configured),
+            "Set FINANCIAL_COPILOT_DEV_READONLY_CONNECTION_STRING to the local Development database connection.");
+        var connection = new NpgsqlConnectionStringBuilder(configured)
+        {
+            Pooling = false,
+            Options = "-c default_transaction_read_only=on"
+        };
+        Skip.If(connection.Host is not ("localhost" or "127.0.0.1" or "::1") ||
+                !string.Equals(connection.Database, "financial_copilot", StringComparison.OrdinalIgnoreCase),
+            "The Feature 144 smoke test only accepts the local financial_copilot Development database.");
+
+        var apiConfigPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/backend/FinancialCopilot.API"));
+        var configuration = new ConfigurationBuilder().SetBasePath(apiConfigPath)
+            .AddJsonFile("appsettings.json").AddJsonFile("appsettings.Development.json", optional: true)
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:FinancialCopilot"] = connection.ConnectionString
+            }).Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(TimeProvider.System);
+        services.AddFinancialCopilotInfrastructure(configuration);
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        const string request = "گزارشات فصلی دتولید";
+        var parsedQuery = FinancialStatementTableIntentRules.BuildQuarterlyQuery(request);
+        var useCase = scope.ServiceProvider.GetRequiredService<IFinancialStatementTableQueryUseCase>();
+        var table = await useCase.ExecuteAsync(parsedQuery);
+        var result = table?.QuarterlyResult;
+        var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        var inventory = result is null ? [] : await db.FinancialStatements.AsNoTracking()
+            .Where(report => report.ExternalCompanyId == result.ExternalCompanyId &&
+                             report.ProviderName == "NoavaranCurrentApi" &&
+                             report.StatementType == "IncomeStatement")
+            .OrderByDescending(report => report.PeriodEnd)
+            .Select(report => new
+            {
+                report.Id, report.ExternalStatementId, report.PeriodType, report.PeriodStart, report.PeriodEnd,
+                report.IsAudited, report.IsRepresented, report.IsComposing, report.WarningsJson
+            }).ToListAsync();
+        var outputDirectory = Path.Combine(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../")),
+            "specs/144-quarterly-financial-reports-table");
+        Directory.CreateDirectory(outputDirectory);
+        await File.WriteAllTextAsync(Path.Combine(outputDirectory, "detolid-development-evidence.json"),
+            JsonSerializer.Serialize(new { request, parsedQuery, inventory, result, renderedAnswer = table?.RenderedAnswer },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true }));
+        Assert.NotNull(result);
+        Assert.Equal("دتولید", result!.CompanySymbol);
     }
 
     [SkippableFact]
@@ -217,14 +367,17 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
 
     private static NormalizedFinancialStatementRow Report(
         string company, string id, string period, DateOnly start, DateOnly end, bool composing,
-        string revision, DateTimeOffset synchronizedAt) => new()
+        string revision, DateTimeOffset synchronizedAt, string? fiscalYearEnd = null) => new()
     {
         Id = Guid.NewGuid(), ProviderName = "NoavaranCurrentApi", ExternalCompanyId = company,
         ExternalStatementId = id, StatementType = "IncomeStatement", PeriodType = period,
         PeriodStart = start, PeriodEnd = end, SourcePayloadChecksum = $"checksum-{id}",
         LastSynchronizedAt = synchronizedAt, IsComposing = composing,
-        WarningsJson = $"[{{\"assumedScale\":\"MillionRials\",\"sourceAmountUnit\":\"million_rial\",\"currencyCode\":\"IRR\",\"accountingBasis\":\"Accrual\",\"reportRevisionLineage\":\"{revision}\"}}]"
+        WarningsJson = $"[{{\"assumedScale\":\"MillionRials\",\"sourceAmountUnit\":\"million_rial\",\"currencyCode\":\"IRR\",\"accountingBasis\":\"Accrual\",\"reportRevisionLineage\":\"{revision}\",\"jalaliFiscalYearEnd\":\"{fiscalYearEnd}\"}}]"
     };
+
+    private static DateOnly JalaliDate(int year, int month, int day) =>
+        DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(year, month, day, 0, 0, 0, 0));
 
     private static NormalizedFinancialStatementLineItemRow Line(Guid reportId, Guid catalogId, string? metricCode, decimal? value) => new()
     {

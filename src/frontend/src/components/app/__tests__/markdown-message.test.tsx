@@ -118,7 +118,7 @@ describe("MarkdownMessage", () => {
       "### جدول گزارش فصلی چخزر",
       "واحد مبالغ: میلیون ریال؛ EPS: ریال به‌ازای هر سهم؛ تعداد سهام: هزار سهم",
       "",
-      "| شرح | سال مالی 1405، فصل 2 | تغییر فصل‌به‌فصل |",
+      "| شرح | سال مالی 1405، فصل 2 | درصد تغییر به فصل قبل |",
       "|---|---:|---:|",
       ...rows,
     ].join("\n");
@@ -143,7 +143,7 @@ describe("MarkdownMessage", () => {
       "### گزارش مالی فصلی شرکت نمونه (Symbol)",
       "مبالغ: میلیون ریال؛ EPS: ریال به‌ازای هر سهم؛ تعداد سهام: هزار سهم",
       "",
-      "| شرح | سال مالی 1405، فصل 2 | سال مالی 1405، فصل 1 | سال مالی 1404، فصل 4 | سال مالی 1404، فصل 3 | سال مالی 1404، فصل 2 | تغییر فصل‌به‌فصل |",
+      "| شرح | سال مالی 1405، فصل 2 | سال مالی 1405، فصل 1 | سال مالی 1404، فصل 4 | سال مالی 1404، فصل 3 | سال مالی 1404، فصل 2 | درصد تغییر به فصل قبل |",
       "|---|---:|---:|---:|---:|---:|---:|",
       "| فروش | -42 | -38 | -30 | -20 | -10 | 99% |",
       "| حاشیه سود ناخالص | 25 | 22 | 20 | 18 | 15 | 0% |",
@@ -177,8 +177,9 @@ describe("MarkdownMessage", () => {
       "سال مالی 1404فصل 4",
       "سال مالی 1405فصل 1",
       "سال مالی 1405فصل 2",
-      "تغییرفصل‌به‌فصل",
+      "درصد تغییر به فصل قبل",
     ]);
+    expect(table?.querySelector("thead th:last-child")?.className).toContain("bg-[#c7e5e1]");
     expect(rows[0]?.cells[1]?.textContent).toBe("(\u06f1\u06f0)");
     expect(rows[0]?.cells[5]?.textContent).toBe("(\u06f4\u06f2)");
     expect(rows[0]?.cells[6]?.textContent).toBe("\u06f1\u06f0\u066b\u06f5\u066a");
@@ -262,10 +263,7 @@ describe("MarkdownMessage", () => {
   });
 
   it("XSS: strips javascript: links from anchor hrefs", () => {
-    const { container } = render(
-      // eslint-disable-next-line no-script-url
-      <MarkdownMessage content="[click me](javascript:alert('xss'))" />,
-    );
+    const { container } = render(<MarkdownMessage content="[click me](javascript:alert('xss'))" />);
     const link = container.querySelector("a");
     if (link) {
       // rehype-sanitize removes the attribute entirely (null) or rewrites it — neither case is a javascript: URI

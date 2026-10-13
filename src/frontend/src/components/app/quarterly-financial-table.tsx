@@ -1,9 +1,12 @@
 import { Download } from "lucide-react";
 import { useState } from "react";
+import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
+import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
 import { downloadQuarterlyFinancialTableImage } from "./quarterly-financial-table-image";
 
 export interface QuarterlyFinancialTableRow {
   label: string;
+  sourceItemId: number | null;
   values: string[];
   grossMargin: boolean;
 }
@@ -132,6 +135,12 @@ function isChangeHeader(value: string) {
   return /تغییر|درصد تغییر|فصل.?به.?فصل|qoq/i.test(value);
 }
 
+// Feature 144's typed result is rendered in this fixed 16-row order. Markdown does not carry
+// row metadata, so attach stable source IDs only when the complete contracted row set is present.
+const FEATURE_144_SOURCE_ITEM_IDS: ReadonlyArray<number | null> = [
+  15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 279, 278, 143, 160, 153,
+];
+
 export function parseQuarterlyFinancialTable(
   content: string,
 ): { before: string; after: string; model: QuarterlyFinancialTableModel } | null {
@@ -182,6 +191,7 @@ export function parseQuarterlyFinancialTable(
       const grossMargin = rowIsGrossMargin(label);
       rows.push({
         label,
+        sourceItemId: null,
         values: values.map((value, index) =>
           index === values.length - 1
             ? value
@@ -193,6 +203,12 @@ export function parseQuarterlyFinancialTable(
       });
     }
     endIndex++;
+  }
+
+  if (rows.length === FEATURE_144_SOURCE_ITEM_IDS.length) {
+    rows.forEach((row, index) => {
+      row.sourceItemId = FEATURE_144_SOURCE_ITEM_IDS[index];
+    });
   }
 
   const before = lines.slice(0, headerIndex).join("\n").trim();
@@ -219,13 +235,6 @@ export function parseQuarterlyFinancialTable(
       rows: rows.map((row) => ({ ...row, label: toPersianDigits(row.label) })),
     },
   };
-}
-
-function changeTone(value: string) {
-  if (!value || value === "-") return "bg-white text-slate-700";
-  const parsed = numericValue(value);
-  if (parsed == null || parsed === 0) return "bg-white text-slate-700";
-  return parsed > 0 ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900";
 }
 
 export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTableModel }) {
@@ -290,9 +299,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
               </th>
             ))}
             <th className="border border-[#b8d9d5] bg-[#c7e5e1] px-0.5 py-1.5 text-center font-bold">
-              تغییر
-              <br />
-              فصل‌به‌فصل
+              {QUARTERLY_CHANGE_COLUMN_HEADER}
             </th>
           </tr>
         </thead>
@@ -315,7 +322,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
                 </td>
               ))}
               <td
-                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${changeTone(row.values.at(-1) ?? "-")}`}
+                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).className}`}
               >
                 {row.values.at(-1)}
               </td>

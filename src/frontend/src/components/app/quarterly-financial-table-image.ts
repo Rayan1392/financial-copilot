@@ -1,4 +1,6 @@
 import type { QuarterlyFinancialTableModel } from "./quarterly-financial-table";
+import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
+import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
 
 const WIDTH = 1200;
 
@@ -7,7 +9,10 @@ function parseDisplayNumber(value: string): number {
     .replace(/[\u06f0-\u06f9\u0660-\u0669]/g, (digit) =>
       String(digit.charCodeAt(0) - (digit >= "\u06f0" ? 0x06f0 : 0x0660)),
     )
-    .replace(/[\u066c,()%\s]/g, "")
+    .replace(/[\u200e\u200f\u061c\s]/g, "")
+    .replace(/[\u066c,\u066a%]/g, "")
+    .replace(/[\u2212\u2013]/g, "-")
+    .replace(/[()]/g, "")
     .replace("\u066b", ".");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -27,15 +32,13 @@ const COLORS = {
   muted: "#fff7ed",
   header: "#164e63",
   headerLight: "#d9efed",
+  changeHeader: "#c7e5e1",
   label: "#ffedd5",
   border: "#e7d5bd",
   white: "#ffffff",
   negative: "#ffe4e6",
   positive: "#d1fae5",
   gross: "#fef08a",
-  change: "#ffffff",
-  green: "#065f46",
-  red: "#9f1239",
 };
 
 function rtlText(
@@ -107,21 +110,28 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       (q) =>
         `سال مالی ${toPersianDigits(String(q.year))}، فصل ${toPersianDigits(String(q.quarter))}`,
     ),
-    "تغییر فصل‌به‌فصل",
+    QUARTERLY_CHANGE_COLUMN_HEADER,
   ];
   let right = WIDTH - PAD;
   context.font = '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   headers.forEach((header, index) => {
     const cellWidth = widths[index];
     const left = right - cellWidth;
-    context.fillStyle = index === colCount - 1 ? COLORS.change : COLORS.headerLight;
+    context.fillStyle = index === colCount - 1 ? COLORS.changeHeader : COLORS.headerLight;
     context.fillRect(left, top, cellWidth, 64);
     context.strokeStyle = COLORS.border;
     context.strokeRect(left, top, cellWidth, 64);
     const lines = wrap(context, header, cellWidth - 12).slice(0, 2);
-    lines.forEach((line, lineIndex) =>
-      rtlText(context, line, right - 6, top + 27 + lineIndex * 24, cellWidth - 12),
-    );
+    lines.forEach((line, lineIndex) => {
+      const baseline = top + 27 + lineIndex * 24;
+      if (index === 0) {
+        rtlText(context, line, right - 6, baseline, cellWidth - 12);
+      } else {
+        context.direction = "rtl";
+        context.textAlign = "center";
+        context.fillText(line, left + cellWidth / 2, baseline, cellWidth - 12);
+      }
+    });
     right = left;
   });
 
@@ -134,17 +144,14 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       const left = right - cellWidth;
       const isChange = columnIndex === colCount - 1;
       const parsedChange = isChange ? parseDisplayNumber(value) : 0;
+      const changeColors = isChange
+        ? resolveQuarterlyChangeColors(row.sourceItemId, parsedChange)
+        : null;
       context.fillStyle =
         columnIndex === 0
           ? COLORS.label
           : isChange
-            ? !value || value === "-"
-              ? COLORS.white
-              : parsedChange > 0
-                ? COLORS.positive
-                : parsedChange < 0
-                  ? COLORS.negative
-                  : COLORS.white
+            ? changeColors!.backgroundColor
             : row.grossMargin
               ? COLORS.gross
               : value.startsWith("(")
@@ -153,14 +160,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       context.fillRect(left, y, cellWidth, rowHeight);
       context.strokeStyle = COLORS.border;
       context.strokeRect(left, y, cellWidth, rowHeight);
-      context.fillStyle =
-        isChange && value
-          ? parsedChange > 0
-            ? COLORS.green
-            : parsedChange < 0
-              ? COLORS.red
-              : COLORS.ink
-          : COLORS.ink;
+      context.fillStyle = changeColors?.textColor ?? COLORS.ink;
       context.font = `${row.grossMargin || columnIndex === 0 ? "600" : "400"} 17px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
       const displayValue =
         row.grossMargin && !isChange && value !== "-"

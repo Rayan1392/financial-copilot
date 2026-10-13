@@ -46,10 +46,10 @@ public static class QuarterlyFinancialReportsNormalizer
             .ToList();
         var requestedSlots = candidates
             .Where(report => report.PeriodMonths is 3 or 6 or 9 or 12)
-            .GroupBy(report => (report.PeriodStart, report.PeriodMonths))
+            .GroupBy(report => (FiscalStart: ResolveFiscalStart(report), report.PeriodMonths))
             .Select(group => new
             {
-                group.Key.PeriodStart,
+                group.Key.FiscalStart,
                 group.Key.PeriodMonths,
                 PeriodEnd = group.Max(report => report.PeriodEnd)
             })
@@ -57,11 +57,11 @@ public static class QuarterlyFinancialReportsNormalizer
             .Take(quarterCount)
             .ToList();
         var requiredSlots = requestedSlots
-            .Select(slot => (slot.PeriodStart, slot.PeriodMonths))
+            .Select(slot => (slot.FiscalStart, slot.PeriodMonths))
             .Concat(requestedSlots.Where(slot => slot.PeriodMonths > 3)
-                .Select(slot => (slot.PeriodStart, PeriodMonths: slot.PeriodMonths - 3)))
+                .Select(slot => (slot.FiscalStart, PeriodMonths: slot.PeriodMonths - 3)))
             .ToHashSet();
-        var compatible = candidates.Where(report => requiredSlots.Contains((report.PeriodStart, report.PeriodMonths)))
+        var compatible = candidates.Where(report => requiredSlots.Contains((ResolveFiscalStart(report), report.PeriodMonths)))
             .ToList();
         if (compatible.Count == 0)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
@@ -77,7 +77,7 @@ public static class QuarterlyFinancialReportsNormalizer
 
         var isComposing = scopeGroups[0].Key;
         var reportByYearAndDuration = new Dictionary<(DateOnly FiscalStart, int Months), QuarterlyReportObservation>();
-        foreach (var group in compatible.GroupBy(report => (report.PeriodStart, report.PeriodMonths)))
+        foreach (var group in compatible.GroupBy(report => (FiscalStart: ResolveFiscalStart(report), report.PeriodMonths)))
         {
             var ranked = group.OrderByDescending(report => report.IsAudited)
                 .ThenByDescending(report => report.IsRepresented)
@@ -108,14 +108,14 @@ public static class QuarterlyFinancialReportsNormalizer
                 reportByYearAndDuration.TryGetValue((year, duration - 3), out var previous);
                 if (quarter == 1) previous = null;
                 var isCompatiblePair = current is not null && (quarter == 1 ||
-                    previous is not null && previous.PeriodStart == current.PeriodStart &&
+                    previous is not null && ResolveFiscalStart(previous) == ResolveFiscalStart(current) &&
                     current.PeriodEnd > previous.PeriodEnd &&
                     MonthsBetween(previous.PeriodEnd, current.PeriodEnd) == 3);
                 var end = current?.PeriodEnd ?? previous?.PeriodEnd.AddMonths(3) ?? JalaliEndAfterMonths(year, quarter * 3);
                 var start = quarter == 1 ? year : (previous?.PeriodEnd.AddDays(1) ?? year);
-                if (current is not null && !IsExpectedYtdBoundary(year, current.PeriodEnd, duration))
+                if (current is not null && !IsExpectedYtdBoundary(ResolveFiscalStart(current), current.PeriodEnd, duration))
                     isCompatiblePair = false;
-                var fiscalYear = Jalali.GetYear(year.ToDateTime(TimeOnly.MinValue));
+                var fiscalYear = FiscalYearLabel(year, current?.FiscalYearEvidence ?? previous?.FiscalYearEvidence);
                 var period = new QuarterlyFiscalPeriod(fiscalYear, quarter, start, end);
                 allPeriods.Add((period, current,
                     quarter == 1 || isCompatiblePair ? previous : null));
@@ -144,7 +144,7 @@ public static class QuarterlyFinancialReportsNormalizer
                     ? (Present: false, Value: (decimal?)null, LineId: (Guid?)null, CatalogId: (Guid?)null, Unit: (string?)null)
                     : FindItem(item.Previous, row.Id);
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime &&
-                    !IsExpectedYtdBoundary(item.Current.PeriodStart, item.Current.PeriodEnd, item.Current.PeriodMonths))
+                    !IsExpectedYtdBoundary(ResolveFiscalStart(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
                 {
                     cellMap[key] = Missing(QuarterlyCellState.UnsupportedFiscalPeriod,
                         "The report period does not match its fiscal year-to-date boundary.", unit, item.Current, item.Previous, row.Id);
@@ -298,6 +298,47 @@ public static class QuarterlyFinancialReportsNormalizer
 
     private static DateOnly JalaliEndAfterMonths(DateOnly fiscalStart, int months) =>
         DateOnly.FromDateTime(Jalali.AddMonths(fiscalStart.ToDateTime(TimeOnly.MinValue), months).AddDays(-1));
+
+    private static DateOnly ResolveFiscalStart(QuarterlyReportObservation report)
+    {
+        if (TryParseJalaliDate(report.FiscalYearEvidence, out var fiscalYearEnd))
+        {
+            var endYear = Jalali.GetYear(fiscalYearEnd.ToDateTime(TimeOnly.MinValue));
+            var endMonth = Jalali.GetMonth(fiscalYearEnd.ToDateTime(TimeOnly.MinValue));
+            return endMonth == 12
+                ? DateOnly.FromDateTime(Jalali.ToDateTime(endYear, 1, 1, 0, 0, 0, 0))
+                : DateOnly.FromDateTime(Jalali.ToDateTime(endYear - 1, endMonth + 1, 1, 0, 0, 0, 0));
+        }
+
+        return report.PeriodStart;
+    }
+
+    private static int FiscalYearLabel(DateOnly fiscalStart, string? fiscalYearEvidence) =>
+        TryParseJalaliDate(fiscalYearEvidence, out var fiscalYearEnd)
+            ? Jalali.GetYear(fiscalYearEnd.ToDateTime(TimeOnly.MinValue))
+            : Jalali.GetYear(fiscalStart.ToDateTime(TimeOnly.MinValue));
+
+    private static bool TryParseJalaliDate(string? value, out DateOnly date)
+    {
+        date = default;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var parts = value.Split('/', StringSplitOptions.TrimEntries);
+        if (parts.Length != 3 ||
+            !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year) ||
+            !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month) ||
+            !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
+            return false;
+
+        try
+        {
+            date = DateOnly.FromDateTime(Jalali.ToDateTime(year, month, day, 0, 0, 0, 0));
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
 
     private static int MonthsBetween(DateOnly previousEnd, DateOnly currentEnd) =>
         (currentEnd.Year - previousEnd.Year) * 12 + currentEnd.Month - previousEnd.Month;

@@ -200,14 +200,15 @@ public sealed class QuarterlyFinancialReports144Tests
     [Fact]
     public void Normalize_UsesPersianFiscalCalendarForNonEsfandFiscalStart()
     {
-        var start = new DateOnly(2025, 5, 22);
+        var start = new DateOnly(2025, 12, 22); // 1404/10/01
         var result = QuarterlyFinancialReportsNormalizer.Normalize("نماد", null, "issuer-1",
-            [Report(start, 3, new Dictionary<int, decimal?> { [15] = 1m }),
-             Report(start, 6, new Dictionary<int, decimal?> { [15] = 4m })],
+            [Report(start, 3, new Dictionary<int, decimal?> { [15] = 1m }) with { FiscalYearEvidence = "1405/09/30" },
+             Report(start, 6, new Dictionary<int, decimal?> { [15] = 4m }) with { FiscalYearEvidence = "1405/09/30" }],
             2, null, DateTimeOffset.UtcNow);
 
         Assert.Equal(3m, Cell(result, 15, 2).Value);
-        Assert.Equal(1404, result.PeriodsNewestFirst[0].FiscalYear);
+        Assert.Equal(1405, result.PeriodsNewestFirst[0].FiscalYear);
+        Assert.Equal(start, result.PeriodsNewestFirst[1].Start);
     }
 
     [Fact]
@@ -374,18 +375,19 @@ public sealed class QuarterlyFinancialReports144Tests
     {
         var report = Report(new DateOnly(2025, 3, 21), 3,
             new Dictionary<int, decimal?> { [15] = 123.456789m, [160] = -2.5m, [153] = 200_000m });
-        report = report with { FiscalYearEvidence = "1404/01/01" };
+        report = report with { FiscalYearEvidence = "1404/12/29" };
         var result = QuarterlyFinancialReportsNormalizer.Normalize("Ù†Ù…Ø§Ø¯", null, "issuer-1", [report], 1,
             null, DateTimeOffset.UtcNow);
 
         var revenue = Cell(result, 15, 1);
+        Assert.Equal(QuarterlyCellState.Available, revenue.State);
         Assert.Equal(123.456789m, revenue.Value);
         Assert.Equal("IRR", revenue.CurrencyCode);
         Assert.Equal(6, revenue.ValueScale);
         Assert.Equal("million_rial", revenue.Unit);
         Assert.Equal("thousand_shares", Cell(result, 153, 1).Unit);
         Assert.Equal(3, Cell(result, 153, 1).ValueScale);
-        Assert.Equal("1404/01/01", Assert.Single(result.SelectedReports!).FiscalYearEvidence);
+        Assert.Equal("1404/12/29", Assert.Single(result.SelectedReports!).FiscalYearEvidence);
     }
 
     [Fact]

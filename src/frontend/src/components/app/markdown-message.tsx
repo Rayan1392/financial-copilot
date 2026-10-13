@@ -4,6 +4,7 @@ import rehypeSanitize from "rehype-sanitize";
 import type { Components } from "react-markdown";
 import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "./quarterly-financial-table";
 
 const MONTHLY_SALES_QUALITY_RANKING_HEADER =
   "| رتبه | نماد | شرکت | صنعت | امتیاز کیفیت | برچسب | دلیل اصلی | اطمینان |";
@@ -430,19 +431,34 @@ export function MarkdownMessage({ content, direction = "auto" }: Props) {
     ? parseMonthlySalesQualityTable(content)
     : null;
   const isFinancialStatement = isFinancialStatementMarkdown(content);
+  const quarterlyTable = parseQuarterlyFinancialTable(content);
   const isIndustryRelativeValuation = isIndustryRelativeValuationMarkdown(content);
   const industryTable = isIndustryRelativeValuation ? parseIndustryRelativeValuationTable(content) : null;
-  const isRtl = direction === "rtl" || (direction === "auto" && isFinancialStatement);
+  const isRtl = direction === "rtl" || (direction === "auto" && (isFinancialStatement || quarterlyTable !== null));
   const renderedContent = isFinancialStatement
     ? formatFinancialStatementMarkdown(content)
     : content;
 
   return (
     <div
-      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
+      className={`text-foreground/90 leading-relaxed text-[15px] space-y-2 ${isMonthlySalesQualityRankingTable || quarterlyTable ? "max-w-none" : "max-w-[64ch]"} ${isRtl ? "ml-auto text-right [&_p]:text-right [&_li]:text-right" : "text-left [&_p]:text-left [&_li]:text-left"}`}
       dir={isRtl ? "rtl" : direction}
     >
-      {industryTable ? (
+      {quarterlyTable ? (
+        <>
+          {quarterlyTable.before && (
+            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, true)}>
+              {quarterlyTable.before}
+            </Markdown>
+          )}
+          <QuarterlyFinancialTable model={quarterlyTable.model} />
+          {quarterlyTable.after && (
+            <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, true)}>
+              {quarterlyTable.after}
+            </Markdown>
+          )}
+        </>
+      ) : industryTable ? (
         <>
           {industryTable.before && (
             <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={createMarkdownComponents(false, isRtl)}>

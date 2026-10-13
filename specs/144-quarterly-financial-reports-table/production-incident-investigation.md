@@ -308,3 +308,44 @@ The rollback target is the previously deployed API digest `sha256:10e301150420da
 ### Readiness decision
 
 The existing Feature 144 and endpoint tests pass, and the local Compose configuration is correct. Image build, ICU runtime validation, isolated container startup, and containerized exact-query smoke remain unperformed because Docker Engine is unavailable. No new image identity is available. This work is **`BUILD_BLOCKED`**, not deployment-ready; the Production incident remains unresolved until the build, isolated image smoke, authorized deployment, and successful Production verification are completed.
+
+---
+
+## Follow-up: VPS deployment observed and runtime checked
+
+**Date:** 2026-10-13 (Asia/Tehran)
+**Result:** latest source was already deployed when this session connected; this session made no production service or data changes.
+
+### Version and service state
+
+The VPS checkout is clean on `develop` at `aaa052ef8fda76254684d0e82df24b478adf2d03`, matching `origin/develop`. This commit is the Feature 144 ICU fix. Its commit time is `2026-10-13T10:00:22+03:30`. The running API image was created at `2026-10-13T06:35:11.958969324Z` (UTC), after that commit, and contains the ICU-enabled runtime. The API container started at `2026-10-13T06:50:56.625877356Z` (UTC). The Worker remained on its earlier image and was not restarted.
+
+The running API still has the mutable deployment tag `financial-copilot-api:3963f94-tzdata`, but its current immutable image/config digest is:
+
+```text
+sha256:d1c77ff0c57ba49b0bbcbf438eb26f64793c5d9dda4e51849d1e357ca321d0f8
+```
+
+This is different from the previous API image digest `sha256:10e301150420da77b7306c930b6b6c71a5df16a246d31a5593c1de96818f9c1f`. The VPS Compose configuration resolves `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false` for API and has no such override for Worker.
+
+### Runtime checks on the deployed image
+
+- API container is running and logs `Application started` / `Now listening on http://[::]:8080`.
+- Internal `http://127.0.0.1:5074/health`: HTTP 200, `Healthy`.
+- Public `https://api.sapioai.ir/health`: `Healthy`.
+- Inside the API container: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false`; Alpine package `icu-libs` is installed; `/usr/lib/libicuuc.so.78` is present.
+- An isolated one-shot container from the same image, with `--network none` and a read-only root, ran a .NET culture probe successfully:
+
+```text
+Culture=fa-IR;Formatted=123٬456٬789٫5
+```
+
+The probe container was removed after completion and was not connected to Production services or storage.
+
+### API error and query verification limits
+
+The current API container logs contain no HTTP 5xx responses or `CultureNotFoundException` since that container started. The only recent request-log errors observed were `HEAD /` returning 404; health endpoints return 200. The API is currently healthy on the latest source image.
+
+The five exact/alias requests, including `گزارشات فصلی چخزر؟`, passed the V2 endpoint integration test in the isolated test host: **7 passed, 0 failed**. The current deployed version also has the Feature 144 focused unit test result **34 passed, 0 failed**. No Feature 144 query was sent to Production because its normal endpoint can create a billing record. Thus a real Production query response, its company resolution, persistence, and billing finalization remain unverified. This report does **not** claim the original incident resolved solely from image deployment and health checks.
+
+No push, image rebuild, container recreation, database operation, billing operation, or cleanup was performed in this follow-up; the VPS already contained the image above when inspected. Disk usage was 84%, below the previously specified 85% cleanup threshold.

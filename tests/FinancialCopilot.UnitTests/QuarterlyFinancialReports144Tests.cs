@@ -10,6 +10,8 @@ public sealed class QuarterlyFinancialReports144Tests
 {
     [Theory]
     [InlineData("جدول گزارشات فصلی چخزر", "چخزر")]
+    [InlineData("گزارشات فصلی چخزر؟", "چخزر")]
+    [InlineData("گزارشات فصلی چخزر", "چخزر")]
     [InlineData("جدول گزارشات فصلی کگل", "کگل")]
     [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر")]
     [InlineData("گزارش فصلی چخزر", "چخزر")]

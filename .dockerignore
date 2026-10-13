@@ -11,5 +11,9 @@
 coverage
 TestResults
 artifacts
+!specs/
+!specs/141-schema-aware-semantic-query-engine/
+!specs/141-schema-aware-semantic-query-engine/artifacts/
+!specs/141-schema-aware-semantic-query-engine/artifacts/navigation-hierarchy.yaml
 specs.zip
 

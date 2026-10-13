@@ -1995,6 +1995,8 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
 
     [Theory]
     [InlineData("جدول گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشات فصلی چخزر؟", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
     [InlineData("جدول گزارشات فصلی کگل", "کگل", "FS-KGL")]
     [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
     [InlineData("گزارش فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]

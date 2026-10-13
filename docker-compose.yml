@@ -446,6 +446,7 @@ services:
         TsetmcWebService__ProviderName: "${TsetmcWebService__ProviderName:-TsetmcWebService}"
 
       ConnectionStrings__Feature141ReadOnly: ${FEATURE141_READONLY_CONNECTION_STRING:?Feature 141 read-only connection is required}
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
     depends_on:
       postgres:
         condition: service_healthy

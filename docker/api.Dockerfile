@@ -10,6 +10,8 @@ RUN dotnet restore src/backend/FinancialCopilot.API/FinancialCopilot.API.csproj
 
 COPY src/backend/ src/backend/
 COPY docs/samim-font-v2.0.1/ docs/samim-font-v2.0.1/
+COPY specs/141-schema-aware-semantic-query-engine/SemanticCatalog/ specs/141-schema-aware-semantic-query-engine/SemanticCatalog/
+COPY specs/141-schema-aware-semantic-query-engine/artifacts/navigation-hierarchy.yaml specs/141-schema-aware-semantic-query-engine/artifacts/navigation-hierarchy.yaml
 RUN dotnet publish src/backend/FinancialCopilot.API/FinancialCopilot.API.csproj \
     --configuration Release \
     --no-restore \
@@ -19,10 +21,11 @@ RUN rm -f /app/publish/appsettings.json /app/publish/appsettings.Development.jso
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache krb5-libs chromium-headless-shell tzdata
+RUN apk add --no-cache krb5-libs chromium-headless-shell tzdata icu-libs
 COPY --from=build /app/publish ./
 COPY docker/appsettings.Production.json ./appsettings.Production.json
 USER app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 ENTRYPOINT ["dotnet", "FinancialCopilot.API.dll"]

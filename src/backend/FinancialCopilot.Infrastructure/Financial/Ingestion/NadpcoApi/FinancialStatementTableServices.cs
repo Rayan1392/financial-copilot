@@ -528,7 +528,13 @@ internal sealed class FinancialStatementTableQueryUseCase(
 
         var culture = CultureInfo.GetCultureInfo("fa-IR");
         var builder = new StringBuilder();
-        builder.AppendLine($"### جدول گزارش فصلی {result.CompanyName ?? result.CompanySymbol} ({result.CompanySymbol})");
+        var symbol = result.CompanySymbol.Trim();
+        var companyName = result.CompanyName?.Trim();
+        var title = string.IsNullOrWhiteSpace(companyName) ||
+                    string.Equals(companyName, symbol, StringComparison.OrdinalIgnoreCase)
+            ? symbol
+            : $"{companyName} ({symbol})";
+        builder.AppendLine($"### جدول گزارش فصلی {title}");
         if (result.Status == "Partial") builder.AppendLine($"پوشش ناقص: {result.Reason}");
         builder.AppendLine("واحد مبالغ: میلیون ریال؛ EPS: ریال به‌ازای هر سهم؛ تعداد سهام: هزار سهم");
         builder.AppendLine();

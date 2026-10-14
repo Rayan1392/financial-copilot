@@ -209,7 +209,7 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
                 query.EndingPeriod, query.IsComposing ?? false, query.IsAudited, query.IsRepresented), cancellationToken);
         return QuarterlyFinancialReportsNormalizer.Normalize(
             resolution.Company.CompanySymbol ?? resolution.Company.TseSymbol ?? resolution.Company.Ticker ?? query.CompanySymbol,
-            null, resolution.Company.ExternalCompanyId, reports, query.QuarterCount, query.EndingPeriod,
+            resolution.Company.Name, resolution.Company.ExternalCompanyId, reports, query.QuarterCount, query.EndingPeriod,
             timeProvider.GetUtcNow());
     }
 }

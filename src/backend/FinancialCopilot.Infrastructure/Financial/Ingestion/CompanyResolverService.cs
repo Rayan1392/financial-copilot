@@ -101,7 +101,7 @@ public sealed class CompanyResolverService(
     private static CompanyResolutionOutcome Resolved(NormalizedCompanyRow company) => new(
         CompanyResolutionStatus.Resolved,
         new ResolvedCompany(company.Id, company.ExternalCompanyId, company.Ticker, company.EnTicker,
-            company.InstrumentCode, company.SymbolIsin, company.CompanyIsin, company.TseSymbol, company.CompanySymbol));
+            company.InstrumentCode, company.SymbolIsin, company.CompanyIsin, company.TseSymbol, company.CompanySymbol, company.Name));
 
     public async Task<ResolvedCompany?> ResolveBySymbolAsync(string symbol, CancellationToken ct = default)
     {
@@ -163,7 +163,8 @@ public sealed class CompanyResolverService(
             match.SymbolIsin,
             match.CompanyIsin,
             match.TseSymbol,
-            match.CompanySymbol);
+            match.CompanySymbol,
+            match.Name);
     }
 
     private static NormalizedCompanyRow? ResolveByCompanyNameFragment(

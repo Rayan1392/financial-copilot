@@ -263,7 +263,13 @@ export function parseQuarterlyFinancialTable(
       ?.replace(/^#+\s*/, "")
       .trim() || "مبالغ: میلیون ریال";
   const summary = simplifiedSummary(summaryRaw);
-  const symbol = title.match(/[\uff08(]([^()\uff08\uff09]+)[\uff09)]\s*$/)?.[1]?.trim() ?? "";
+  const symbolSuffix = /[\uff08(]([^()\uff08\uff09]+)[\uff09)]\s*$/;
+  const parenthesizedSymbol = title.match(symbolSuffix)?.[1]?.trim() ?? "";
+  const titleName = title.replace(symbolSuffix, "").replace(/^جدول گزارش فصلی\s*/, "").trim();
+  const symbol = parenthesizedSymbol || (/^جدول گزارش فصلی\s/.test(title) ? titleName : "");
+  const displayTitle = parenthesizedSymbol && titleName === parenthesizedSymbol
+    ? title.replace(/\s*[\uff08(][^()\uff08\uff09]+[\uff09)]\s*$/, "")
+    : title;
   return {
     before: before
       .replace(/^#{1,6}\s*.+(?:\n|$)/m, "")
@@ -271,7 +277,7 @@ export function parseQuarterlyFinancialTable(
       .trim(),
     after: lines.slice(endIndex).join("\n").trim(),
     model: {
-      title: toPersianDigits(title),
+      title: toPersianDigits(displayTitle),
       symbol: toPersianDigits(symbol),
       summary,
       quarters: quarters.map((quarter) => ({ ...quarter, label: toPersianDigits(quarter.label) })),

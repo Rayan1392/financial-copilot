@@ -13,7 +13,8 @@ public sealed record ResolvedCompany(
     string? SymbolIsin,
     string? CompanyIsin,
     string? TseSymbol = null,
-    string? CompanySymbol = null);
+    string? CompanySymbol = null,
+    string? Name = null);
 
 /// <summary>
 /// Resolves a company from a ticker symbol using a normalized, multi-step lookup.

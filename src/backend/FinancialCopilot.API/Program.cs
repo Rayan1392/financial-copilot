@@ -102,6 +102,12 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services
+    .AddOptions<PublicAuthenticationRateLimitOptions>()
+    .BindConfiguration(PublicAuthenticationRateLimitOptions.SectionName)
+    .Validate(options => options.PermitLimit is > 0 and <= 1000 && options.WindowSeconds is > 0 and <= 3600,
+        "Public authentication rate limits must be positive and bounded.")
+    .ValidateOnStart();
+builder.Services
     .AddOptions<AuthenticatedActorRateLimitOptions>()
     .BindConfiguration(AuthenticatedActorRateLimitOptions.SectionName)
     .Validate(
@@ -116,6 +122,11 @@ builder.Services.AddRateLimiter(options =>
         context => RateLimitPolicies.Partition(
             context,
             context.RequestServices.GetRequiredService<IOptionsSnapshot<AuthenticatedActorRateLimitOptions>>().Value));
+    options.AddPolicy(
+        RateLimitPolicies.PublicAuthentication,
+        context => RateLimitPolicies.PublicIp(
+            context,
+            context.RequestServices.GetRequiredService<IOptionsSnapshot<PublicAuthenticationRateLimitOptions>>().Value));
 });
 
 var app = builder.Build();

@@ -3,6 +3,8 @@ using System.Text;
 using FinancialCopilot.Application.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
@@ -198,7 +200,7 @@ public static class ServiceCollectionExtensions
 
         options.Events = new JwtBearerEvents
         {
-            OnTokenValidated = context =>
+            OnTokenValidated = async context =>
             {
                 if (context.Principal?.Identity is ClaimsIdentity identity &&
                     !identity.HasClaim(claim =>
@@ -211,7 +213,25 @@ public static class ServiceCollectionExtensions
 
                 AddLegacyPermissionClaims(context.Principal);
 
-                return Task.CompletedTask;
+                var principal = context.Principal;
+                var sessionStamp = principal?.FindFirstValue("financial_copilot:security_stamp");
+                if (principal is not null && IsMode(principal, AuthenticationMode.WebAppUser) && sessionStamp is not null)
+                {
+                    var subject = principal?.FindFirstValue("sub");
+                    if (!Guid.TryParse(subject, out var userId))
+                    {
+                        context.Fail("The owned-user session is invalid.");
+                        return;
+                    }
+
+                    var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<FinancialCopilotUser>>();
+                    var currentUser = await userManager.FindByIdAsync(userId.ToString());
+                    if (currentUser is null || !string.Equals(currentUser.SecurityStamp, sessionStamp, StringComparison.Ordinal))
+                    {
+                        context.Fail("The owned-user session has been revoked.");
+                    }
+                }
+
             }
         };
     }

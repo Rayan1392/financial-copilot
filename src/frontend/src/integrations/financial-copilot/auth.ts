@@ -32,11 +32,27 @@ let accessToken: string | null = null;
 let refreshPromise: Promise<string | null> | null = null;
 
 export async function register(email: string, password: string) {
-  return applySession(await authRequest("/api/auth/v1/register", { email, password }));
+  return authJsonRequest<{ message: string }>("/api/auth/v1/register", { email, password });
 }
 
 export async function login(email: string, password: string) {
   return applySession(await authRequest("/api/auth/v1/login", { email, password }));
+}
+
+export async function verifyEmail(token: string) {
+  await authJsonRequest<void>("/api/auth/v1/email/verify", { token });
+}
+
+export async function resendVerification(email: string) {
+  return authJsonRequest<{ message: string }>("/api/auth/v1/email/resend", { email });
+}
+
+export async function requestPasswordReset(email: string) {
+  return authJsonRequest<{ message: string }>("/api/auth/v1/password/forgot", { email });
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  await authJsonRequest<void>("/api/auth/v1/password/reset", { token, newPassword });
 }
 
 export async function logout() {
@@ -94,6 +110,10 @@ async function refreshAccessToken() {
 }
 
 async function authRequest(path: string, body?: unknown): Promise<AuthSession> {
+  return authJsonRequest<AuthSession>(path, body);
+}
+
+async function authJsonRequest<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(apiUrl(path), {
     method: "POST",
     credentials: "include",
@@ -109,7 +129,8 @@ async function authRequest(path: string, body?: unknown): Promise<AuthSession> {
       problem?.correlationId,
     );
   }
-  return response.json();
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
 function applySession(session: AuthSession) {

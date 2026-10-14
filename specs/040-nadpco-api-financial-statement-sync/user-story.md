@@ -55,3 +55,47 @@ normalization.
 - Query-time vendor calls.
 - Unreviewed automatic registration of every vendor item as a governed semantic metric.
 - Replacing deterministic derived-metric calculations.
+
+## Period-Scoped Admin Synchronization (2026-10)
+
+The original `POST /api/v1/admin/data-sync/financial-statements` contract remains supported:
+`externalReference`, `idempotencyKey`, and `providerName` continue to have their existing
+meanings. A separate DataAdmin endpoint provides a Persian fiscal-year and reporting-period
+scope:
+
+```http
+POST /api/v1/admin/data-sync/financial-statements/by-period
+```
+
+```json
+{
+  "companyId": "00000000-0000-0000-0000-000000000000",
+  "fiscalYear": 1405,
+  "period": 6,
+  "idempotencyKey": null
+}
+```
+
+`companyId` is the internal `Companies.Id` (`Guid`), not the provider identifier. The endpoint
+resolves it through `NoavaranEligibleCompanies`, then uses that row's numeric
+`ExternalCompanyId` as the Noavaran `companyIds` request value. With a null company ID it reads all
+rows from the same view. Fiscal years are accepted from 1400 through 1500; period is null or one
+of 3, 6, 9, and 12 months. A null period queues one company request that fetches each supported
+period. The endpoint uses the existing DataAdmin authorization policy and RabbitMQ data-sync
+queue. Its response reports eligible, queued, and failed companies; each enqueue failure is
+isolated and identified by internal company ID.
+
+The Noavaran FS endpoints support `fromYear`, `toYear`, and `perTId`. Period-scoped queued
+requests set both year bounds to the requested Persian fiscal year and use the provider's
+`perTId` values 3, 6, 9, or 12. For all-period requests the provider makes bounded requests for
+each of those four values. This is provider-side filtering; the sync worker stores only the
+returned payload in the existing raw-payload store and sends it through the existing normalizer.
+The normalizer keeps the provider's Jalali fiscal-year-end evidence and Gregorian fiscal-period
+mapping. It does not infer fiscal year from publication date or assume an Esfand year end.
+Full-item persistence, corrections, variant identity, and idempotent upserts remain governed by
+spec `082` and the existing normalized persistence pipeline.
+
+The queued response is an enqueue summary, not a completion report. Runtime processing and
+failures remain visible through the existing data-sync run/activity monitoring surfaces. No
+database migration is needed because this change only extends the request envelope and query
+scope.

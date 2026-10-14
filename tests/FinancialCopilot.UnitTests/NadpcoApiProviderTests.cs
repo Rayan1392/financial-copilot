@@ -494,6 +494,45 @@ public sealed class NadpcoApiProviderTests
     }
 
     [Fact]
+    public async Task DataProvider_PeriodScopedStatements_UsesExactYearAndAllFourPeriodsWhenUnspecified()
+    {
+        await using var dbContext = CreateProviderDbContext();
+        var requests = new List<string>();
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.OriginalString);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            });
+        }))
+        {
+            BaseAddress = new Uri("https://data3.nadpco.com/")
+        };
+        var client = new NadpcoApiDataProviderClient(
+            httpClient,
+            new ProviderRawPayloadStore(dbContext),
+            CreateTokenCache(),
+            Options.Create(new NadpcoApiProviderOptions()),
+            TimeProvider.System,
+            NullLogger<NadpcoApiDataProviderClient>.Instance);
+
+        await client.FetchFinancialStatementsAsync("3", CancellationToken.None, 1405, null);
+
+        Assert.Equal(12, requests.Count);
+        Assert.All(requests, uri =>
+        {
+            Assert.Contains("fromYear=1405", uri);
+            Assert.Contains("toYear=1405", uri);
+            Assert.Matches("perTId=(3|6|9|12)", uri);
+        });
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=3", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=6", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=9", StringComparison.Ordinal)));
+        Assert.Equal(3, requests.Count(uri => uri.Contains("perTId=12", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public async Task ManualBackfillService_RepeatedIdenticalPayloadIsReportedAsAlreadyPersisted()
     {
         await using var dbContext = CreateProviderDbContext();

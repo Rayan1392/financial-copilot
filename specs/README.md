@@ -126,7 +126,7 @@ Noavaran monthly activity is raw product/service line-item data. Monetary monthl
 
 1. `038-nadpco-api-provider-foundation` — token authentication, secrets, resilience, health, raw payload capture, and provider routing.
 2. `039-nadpco-api-company-catalog-sync` — `/api/v3/BaseInfo/Companies` normalization and cross-provider canonical symbol linkage. Authoritative company catalog: clean-slate backfill via `CompanyCatalogCleanSlate` DataAdmin operation; non-destructive daily `CompanyCatalogRefresh` scheduled run. Every NADPCO company field persisted in `Companies` or related normalized tables; no field remains evidence-only.
-3. `040-nadpco-api-financial-statement-sync` — balance sheet, income statement, and cash flow API ingestion with curated item mappings and corrected `StatementType`.
+3. `040-nadpco-api-financial-statement-sync` — balance sheet, income statement, and cash flow API ingestion with curated item mappings, corrected `StatementType`, and DataAdmin fiscal-year/period-scoped queueing.
 4. `041-nadpco-api-fundamental-index-sync` — curated vendor-precomputed fundamental indexes persisted as source-marked scannable metrics.
 5. `042-nadpco-api-monthly-activity-sync` — product-sales and service-sales monthly activity normalization.
 6. `043-nadpco-api-sync-orchestration` — bounded full/incremental orchestration, per-dataset progress, overlap reconciliation, `CompanyCatalogCleanSlate`/`CompanyCatalogRefresh` run modes, DataAdmin operations, telemetry, and cache invalidation.

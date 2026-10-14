@@ -11,6 +11,7 @@ using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -121,13 +122,22 @@ public sealed class TelegramAssistant130IntegrationTests : IClassFixture<Telegra
         return client;
     }
 
-    private static async Task RegisterAsync(HttpClient client)
+    private async Task RegisterAsync(HttpClient client)
     {
+        var email = $"feature-130-{Guid.NewGuid():N}@example.test";
         using var register = await client.PostAsJsonAsync(
             "/api/auth/v1/register",
-            new { email = $"feature-130-{Guid.NewGuid():N}@example.test", password = "StrongPassword!123" });
-        using var session = await ReadJsonAsync(register);
+            new { email, password = "StrongPassword!123" });
         register.EnsureSuccessStatusCode();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var user = await db.Users.SingleAsync(row => row.Email == email);
+            user.EmailVerificationRequired = false;
+            await db.SaveChangesAsync();
+        }
+        using var login = await client.PostAsJsonAsync("/api/auth/v1/login", new { email, password = "StrongPassword!123" });
+        using var session = await ReadJsonAsync(login);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
             session.RootElement.GetProperty("accessToken").GetString());
@@ -172,6 +182,10 @@ public sealed class TelegramAssistant130ApiFactory : OwnedIdentityApiFactory
         });
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<AuthDbContext>();
+            services.RemoveAll<DbContextOptions<AuthDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();
+            services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase("telegram-assistant-auth"));
             services.RemoveAll<IAiQueryOrchestrationService>();
             services.AddSingleton<RecordingTelegramOrchestrationService>();
             services.AddSingleton<IAiQueryOrchestrationService>(provider =>

@@ -124,6 +124,23 @@ Protected AI routes accept either a configured JWT bearer token or an `X-Api-Key
 
 JWT signing keys and API key hashes must be supplied through secrets or environment configuration; the repository settings do not contain active credentials. Authenticated AI requests are rate limited by user id or API client id using `RateLimiting:AuthenticatedActor` settings.
 
+Feature 145 adds email verification and password recovery to owned web-app accounts. Apply the new Auth migration before deploying the matching API/frontend build. Existing users keep their stored `EmailConfirmed` value and remain eligible under the existing login policy; only new registrations require email verification. Registration no longer creates a session until the address is verified. The SMTP sender is disabled by default; configure these environment variables through the deployment secret manager:
+
+```powershell
+$env:Authentication__Email__Enabled = "true"
+$env:Authentication__Email__FrontendBaseUrl = "https://app.example.com"
+$env:Authentication__Email__TokenHashSecret = "<at-least-32-character-random-secret>"
+$env:Authentication__Smtp__Host = "smtp.example.com"
+$env:Authentication__Smtp__Port = "587"
+$env:Authentication__Smtp__Security = "StartTls"
+$env:Authentication__Smtp__UserName = "<smtp-user>"
+$env:Authentication__Smtp__Password = "<smtp-password>"
+$env:Authentication__Smtp__SenderAddress = "no-reply@example.com"
+$env:Authentication__Smtp__SenderName = "Financial Copilot"
+```
+
+The frontend origin must be an HTTPS origin with no path/query/fragment outside local development. Verification and recovery links use fixed frontend paths and fragments, so the token is removed from browser history before submission. Do not enable email delivery until valid SMTP and frontend-origin settings are present. The API uses a 10 requests/minute in-process public-auth IP limiter and shared-database per-email cooldowns (60 seconds, at most 5/hour); multi-instance deployments must also enforce IP limits at a shared gateway. Password reset revokes all refresh tokens and new owned-user JWTs through Identity security-stamp validation. Pre-feature JWTs without a stamp claim remain valid until their expiry; the checked-in `Authentication:OwnedIdentity:AccessTokenMinutes` value is 10,080 minutes (7 days).
+
 ## Scanner Cache Configuration
 
 Scanner plan and deterministic result caching is configured through `ScannerCache`. The default local configuration uses distributed in-memory storage so local development does not require Redis. For shared deployment, set `ScannerCache:UseRedis` to `true` and configure `ScannerCache:RedisConfiguration`; keys remain tenant/actor scoped and are version-invalidated after data synchronization or derived-metric persistence.

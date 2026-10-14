@@ -2,6 +2,8 @@ using System.Security.Claims;
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using FinancialCopilot.API.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinancialCopilot.API.Controllers;
@@ -13,20 +15,84 @@ public sealed class AuthController(
     IWebHostEnvironment environment) : ControllerBase
 {
     private const string RefreshCookieName = "financial_copilot_refresh";
+    private const string GenericEmailRequestMessage = "If the address is eligible, instructions will be sent by email.";
 
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
     [HttpPost("register")]
-    public Task<ActionResult<OwnedIdentitySessionResponse>> Register(
+    public async Task<ActionResult<RegistrationAcceptedResponse>> Register(
         RegisterRequest request,
-        CancellationToken cancellationToken) =>
-        ExecuteSessionAsync(
-            () => identityService.RegisterAsync(request.Email, request.Password, cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await identityService.RegisterAsync(request.Email, request.Password, cancellationToken);
+            return Accepted(new RegistrationAcceptedResponse("Check your email for next steps."));
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return Problem(type: $"https://financialcopilot/errors/{exception.ErrorCode}", title: exception.Message,
+                statusCode: exception.StatusCode,
+                extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+        }
+    }
 
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
     [HttpPost("login")]
     public Task<ActionResult<OwnedIdentitySessionResponse>> Login(
         LoginRequest request,
         CancellationToken cancellationToken) =>
         ExecuteSessionAsync(
             () => identityService.LoginAsync(request.Email, request.Password, cancellationToken));
+
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("email/verify")]
+    public async Task<IActionResult> VerifyEmail(EmailTokenRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await identityService.VerifyEmailAsync(request.Token, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return Problem(type: $"https://financialcopilot/errors/{exception.ErrorCode}", title: exception.Message,
+                statusCode: exception.StatusCode,
+                extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+        }
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("email/resend")]
+    public async Task<IActionResult> ResendVerification(EmailRequest request, CancellationToken cancellationToken)
+    {
+        await identityService.ResendVerificationAsync(request.Email, cancellationToken);
+        return Accepted(new RegistrationAcceptedResponse(GenericEmailRequestMessage));
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("password/forgot")]
+    public async Task<IActionResult> ForgotPassword(EmailRequest request, CancellationToken cancellationToken)
+    {
+        await identityService.RequestPasswordResetAsync(request.Email, cancellationToken);
+        return Accepted(new RegistrationAcceptedResponse(GenericEmailRequestMessage));
+    }
+
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("password/reset")]
+    public async Task<IActionResult> ResetPassword(PasswordResetRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await identityService.ResetPasswordAsync(request.Token, request.NewPassword, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return Problem(type: $"https://financialcopilot/errors/{exception.ErrorCode}", title: exception.Message,
+                statusCode: exception.StatusCode,
+                extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+        }
+    }
 
     [HttpPost("refresh")]
     public Task<ActionResult<OwnedIdentitySessionResponse>> Refresh(CancellationToken cancellationToken) =>

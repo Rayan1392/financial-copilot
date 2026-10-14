@@ -20,6 +20,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserTenantRow> UserTenants => Set<UserTenantRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
+    public DbSet<AuthEmailActionTokenRow> AuthEmailActionTokens => Set<AuthEmailActionTokenRow>();
     public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
     public DbSet<TelegramAccountLinkRow> TelegramAccountLinks => Set<TelegramAccountLinkRow>();
     public DbSet<TelegramLinkTokenRow> TelegramLinkTokens => Set<TelegramLinkTokenRow>();
@@ -77,6 +78,18 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.HasIndex(row => new { row.UserId, row.ExpiresAt });
             entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
             entity.Property(row => row.RevocationReason).HasMaxLength(250);
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
+        });
+        builder.Entity<AuthEmailActionTokenRow>(entity =>
+        {
+            entity.ToTable("auth_email_action_tokens");
+            entity.HasKey(row => row.Id);
+            entity.HasIndex(row => row.TokenHash).IsUnique();
+            entity.HasIndex(row => new { row.EmailKeyHash, row.Purpose, row.CreatedAtUtc });
+            entity.HasIndex(row => new { row.UserId, row.Purpose, row.CreatedAtUtc });
+            entity.Property(row => row.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.EmailKeyHash).HasMaxLength(64).IsRequired();
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
         });
         builder.Entity<SecurityAdminAuditRow>(entity =>

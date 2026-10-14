@@ -86,6 +86,64 @@ public sealed class NadpcoApiDataProviderClient(
             cancellationToken);
     }
 
+    public async Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken,
+        int? fiscalYear,
+        int? periodMonths)
+    {
+        if (fiscalYear is null)
+        {
+            return await FetchFinancialStatementsAsync(externalCompanyId, cancellationToken);
+        }
+
+        if (fiscalYear is < 1300 or > 1600)
+            throw new ArgumentOutOfRangeException(nameof(fiscalYear));
+        if (periodMonths is not null and not (3 or 6 or 9 or 12))
+            throw new ArgumentOutOfRangeException(nameof(periodMonths));
+
+        var companyId = RequireReference(externalCompanyId);
+        var companyIds = new[] { ParseCompanyId(companyId) };
+        var periods = periodMonths is { } requested ? [requested] : new[] { 3, 6, 9, 12 };
+        var balanceSheets = new List<string>();
+        var incomeStatements = new List<string>();
+        var cashFlows = new List<string>();
+
+        foreach (var months in periods)
+        {
+            var suffix = $"?fromYear={fiscalYear.Value}&toYear={fiscalYear.Value}&perTId={months}";
+            balanceSheets.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/BalanceSheet/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+            incomeStatements.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/IncomeStatement/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+            cashFlows.Add(await PostJsonForPayloadAsync(
+                $"api/v2/FS/CashFlow/Values{suffix}",
+                new NadpcoApiStatementRequest(companyIds, Array.Empty<int>()), cancellationToken));
+        }
+
+        var envelope = new NadpcoFinancialStatementEnvelope(
+            CombineStatementPayloads(balanceSheets),
+            CombineStatementPayloads(incomeStatements),
+            CombineStatementPayloads(cashFlows));
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+        var endpoint = $"api/v2/FS/*/Values?fromYear={fiscalYear.Value}&toYear={fiscalYear.Value}&perTId={(periodMonths?.ToString(CultureInfo.InvariantCulture) ?? "3,6,9,12")}";
+        return await StorePayloadAsync(ProviderDataset.FinancialStatements, endpoint, companyId, json, cancellationToken);
+    }
+
+    private static string CombineStatementPayloads(IEnumerable<string> payloads)
+    {
+        var rows = new List<JsonElement>();
+        foreach (var payload in payloads)
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+                rows.AddRange(document.RootElement.EnumerateArray().Select(item => item.Clone()));
+        }
+        return JsonSerializer.Serialize(rows, JsonOptions);
+    }
+
     public async Task<ProviderRawPayload> FetchMonthlyReportsAsync(
         string externalCompanyId,
         CancellationToken cancellationToken)

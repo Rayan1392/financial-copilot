@@ -116,6 +116,36 @@ public sealed class AdminDataOperationsEndpointTests : IClassFixture<AdminDataOp
     }
 
     [Fact]
+    public async Task FinancialStatementsByPeriod_WithNormalUser_ReturnsForbidden()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _factory.CreateWebAppToken(includeTenant: true));
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/data-sync/financial-statements/by-period",
+            new { fiscalYear = 1405, period = 6 },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_factory.PublishedRequests);
+    }
+
+    [Fact]
+    public async Task FinancialStatementsByPeriod_InvalidPeriodIsRejectedBeforeQueueing()
+    {
+        using var client = CreateDataAdminClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/admin/data-sync/financial-statements/by-period",
+            new { fiscalYear = 1405, period = 4 },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(_factory.PublishedRequests);
+    }
+
+    [Fact]
     public async Task DataAdmin_CanQueueEligibleFundamentalIndexesBulkSync()
     {
         _factory.EligibleCompanyReader.SetReferences(["4", "12"]);

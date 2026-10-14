@@ -308,7 +308,11 @@ public sealed class FinancialDataSyncProcessor(
             ProviderDataset.Symbols => ResolveSymbolProvider(request.ProviderName)
                 .FetchSymbolsAsync(cancellationToken),
             ProviderDataset.FinancialStatements => ResolveStatementProvider(request.ProviderName)
-                .FetchFinancialStatementsAsync(RequireExternalReference(request), cancellationToken),
+                .FetchFinancialStatementsAsync(
+                    RequireExternalReference(request),
+                    cancellationToken,
+                    request.StatementFiscalYear,
+                    request.StatementPeriodMonths),
             ProviderDataset.MonthlyProductionSales => ResolveMonthlyProvider(request.ProviderName)
                 .FetchMonthlyReportsAsync(RequireExternalReference(request), cancellationToken),
             ProviderDataset.FinancialRatios => ResolveRatioProvider(request.ProviderName)

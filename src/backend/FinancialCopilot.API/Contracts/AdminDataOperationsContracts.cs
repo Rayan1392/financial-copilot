@@ -5,6 +5,20 @@ public sealed record AdminDataSyncRequest(
     string? IdempotencyKey = null,
     string? ProviderName = null);
 
+public sealed record AdminFinancialStatementsByPeriodRequest(
+    Guid? CompanyId,
+    int FiscalYear,
+    int? Period,
+    string? IdempotencyKey = null);
+
+public sealed record AdminFinancialStatementsByPeriodResponse(
+    Guid RequestId,
+    string Status,
+    int EligibleCompanies,
+    int QueuedCompanies,
+    int FailedCompanies,
+    IReadOnlyCollection<string> FailedCompanyIds);
+
 public sealed record AdminDataSyncQueuedResponse(
     Guid RequestId,
     string Dataset,

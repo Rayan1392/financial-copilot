@@ -7,6 +7,18 @@ namespace FinancialCopilot.API.Security;
 public static class RateLimitPolicies
 {
     public const string AuthenticatedActor = "AuthenticatedActor";
+    public const string PublicAuthentication = "PublicAuthentication";
+
+    public static RateLimitPartition<string> PublicIp(HttpContext context, PublicAuthenticationRateLimitOptions options) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.MapToIPv6().ToString() ?? "unknown-ip",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = options.PermitLimit,
+                QueueLimit = 0,
+                Window = TimeSpan.FromSeconds(options.WindowSeconds)
+            });
 
     public static RateLimitPartition<string> Partition(
         HttpContext context,
@@ -29,4 +41,11 @@ public static class RateLimitPolicies
                 Window = TimeSpan.FromSeconds(options.WindowSeconds)
             });
     }
+}
+
+public sealed class PublicAuthenticationRateLimitOptions
+{
+    public const string SectionName = "RateLimiting:PublicAuthentication";
+    public int PermitLimit { get; init; } = 10;
+    public int WindowSeconds { get; init; } = 60;
 }

@@ -24,14 +24,20 @@ export function AuthScreen({ redirect }: { redirect: string }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await (mode === "signin" ? login(email, password) : register(email, password));
-      window.location.assign(redirect);
+      if (mode === "signin") {
+        await login(email, password);
+        window.location.assign(redirect);
+      } else {
+        await register(email, password);
+        setRegistered(true);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "خطا");
     } finally {
@@ -54,10 +60,10 @@ export function AuthScreen({ redirect }: { redirect: string }) {
             {mode === "signin" ? "ورود به حساب" : "ساخت حساب جدید"}
           </h2>
           <p className="text-xs text-muted-foreground mb-5">
-            برای دسترسی به تحلیل‌های هوشمند بازار
+            {registered ? "برای تایید حساب، پیوند ارسال‌شده به ایمیل خود را باز کنید." : "برای دسترسی به تحلیل‌های هوشمند بازار"}
           </p>
 
-          <form onSubmit={submit} className="space-y-3">
+          {!registered && <form onSubmit={submit} className="space-y-3">
             <div>
               <label className="block text-xs text-muted-foreground mb-1.5">ایمیل</label>
               <input
@@ -86,13 +92,18 @@ export function AuthScreen({ redirect }: { redirect: string }) {
             >
               {loading ? "..." : mode === "signin" ? "ورود" : "ساخت حساب"}
             </button>
-          </form>
+          </form>}
+
+          {mode === "signin" && <a href="/forgot-password" className="mt-4 block text-center text-xs text-emerald">گذرواژه را فراموش کرده‌اید؟</a>}
 
           <button
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            onClick={() => {
+              setRegistered(false);
+              setMode(mode === "signin" ? "signup" : "signin");
+            }}
             className="w-full text-xs text-muted-foreground hover:text-foreground mt-4"
           >
-            {mode === "signin" ? "حساب ندارم — ساخت حساب جدید" : "حساب دارم — ورود"}
+            {registered ? "بازگشت به ورود" : mode === "signin" ? "حساب ندارم — ساخت حساب جدید" : "حساب دارم — ورود"}
           </button>
         </div>
       </div>

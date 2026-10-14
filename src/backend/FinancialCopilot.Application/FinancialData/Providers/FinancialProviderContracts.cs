@@ -59,6 +59,13 @@ public interface IFinancialStatementProvider
     Task<ProviderRawPayload> FetchFinancialStatementsAsync(
         string externalCompanyId,
         CancellationToken cancellationToken);
+
+    Task<ProviderRawPayload> FetchFinancialStatementsAsync(
+        string externalCompanyId,
+        CancellationToken cancellationToken,
+        int? fiscalYear,
+        int? periodMonths) =>
+        FetchFinancialStatementsAsync(externalCompanyId, cancellationToken);
 }
 
 public interface IMonthlyProductionSalesProvider

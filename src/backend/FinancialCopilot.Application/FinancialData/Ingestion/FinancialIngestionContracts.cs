@@ -26,7 +26,9 @@ public sealed record DataSyncRequest(
     /// Restricts a NADPCO monthly-activity request to one ProductSales output type (0-4). Null
     /// means the provider may fetch the complete output-type envelope.
     /// </summary>
-    int? MonthlyActivityOutputType = null);
+    int? MonthlyActivityOutputType = null,
+    int? StatementFiscalYear = null,
+    int? StatementPeriodMonths = null);
 
 public enum DataSyncRunStatus
 {

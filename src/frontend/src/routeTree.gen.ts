@@ -9,6 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
@@ -29,6 +32,21 @@ import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archi
 import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -129,6 +147,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
@@ -149,6 +170,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
@@ -171,6 +195,9 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
@@ -193,6 +220,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/verify-email'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
@@ -213,6 +243,9 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/verify-email'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
@@ -234,6 +267,9 @@ export interface FileRouteTypes {
     | '/_app'
     | '/admin'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/verify-email'
     | '/_app/chat'
     | '/_app/disclosures'
     | '/_app/followed-symbols'
@@ -256,6 +292,9 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
   AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
@@ -269,6 +308,27 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -430,6 +490,9 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,
   AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,

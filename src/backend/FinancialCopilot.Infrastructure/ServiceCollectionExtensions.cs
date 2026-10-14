@@ -84,6 +84,7 @@ using FinancialCopilot.Infrastructure.AI.OrchestrationV2.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -258,6 +259,38 @@ public static class ServiceCollectionExtensions
                 "Owned Identity tenant and token lifetime settings must be valid.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
+        services
+            .AddOptions<AuthEmailOptions>()
+            .Bind(configuration.GetSection(AuthEmailOptions.SectionName))
+            .Validate<IHostEnvironment>((options, environment) =>
+                options.VerificationTokenHours is >= 1 and <= 48 &&
+                options.PasswordResetTokenMinutes is >= 5 and <= 60 &&
+                options.EmailCooldownSeconds is >= 30 and <= 3600 &&
+                options.EmailMaximumRequestsPerHour is >= 1 and <= 20 &&
+                (!options.Enabled ||
+                    Uri.TryCreate(options.FrontendBaseUrl, UriKind.Absolute, out var frontendUri) &&
+                    (frontendUri.Scheme == Uri.UriSchemeHttps ||
+                        environment.IsDevelopment() && frontendUri.IsLoopback && frontendUri.Scheme == Uri.UriSchemeHttp) &&
+                    string.IsNullOrEmpty(frontendUri.UserInfo) && string.IsNullOrEmpty(frontendUri.Query) &&
+                    string.IsNullOrEmpty(frontendUri.Fragment) && frontendUri.AbsolutePath == "/" &&
+                    options.TokenHashSecret.Length >= 32),
+                "Authentication email token settings and trusted frontend URL are invalid.")
+            .ValidateOnStart();
+        services
+            .AddOptions<SmtpEmailOptions>()
+            .Bind(configuration.GetSection(SmtpEmailOptions.SectionName))
+            .Validate(options =>
+                !configuration.GetValue<bool>($"{AuthEmailOptions.SectionName}:Enabled") ||
+                !string.IsNullOrWhiteSpace(options.Host) &&
+                options.Port is > 0 and <= 65535 &&
+                options.TimeoutSeconds is >= 1 and <= 60 &&
+                options.Security is "StartTls" or "SslOnConnect" &&
+                System.Net.Mail.MailAddress.TryCreate(options.SenderAddress, out _) &&
+                (string.IsNullOrWhiteSpace(options.UserName) == string.IsNullOrEmpty(options.Password)) &&
+                (string.IsNullOrWhiteSpace(options.UserName) || options.Security is "StartTls" or "SslOnConnect"),
+                "Authentication SMTP settings are invalid.")
+            .ValidateOnStart();
+        services.AddTransient<IEmailSender, SmtpEmailSender>();
         services
             .AddOptions<TelegramLinkOptions>()
             .Bind(configuration.GetSection(TelegramLinkOptions.SectionName))

@@ -5,6 +5,8 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence;
 public sealed class FinancialCopilotUser : IdentityUser<Guid>
 {
     public bool IsEnabled { get; set; } = true;
+    // False by default preserves the existing login policy for users created before email verification.
+    public bool EmailVerificationRequired { get; set; }
 }
 
 public sealed class FinancialCopilotRole : IdentityRole<Guid>
@@ -48,6 +50,18 @@ public sealed class RefreshTokenRow
     public DateTimeOffset? RevokedAt { get; set; }
     public Guid? ReplacedByTokenId { get; set; }
     public string? RevocationReason { get; set; }
+}
+
+public sealed class AuthEmailActionTokenRow
+{
+    public Guid Id { get; set; }
+    public Guid? UserId { get; set; }
+    public string Purpose { get; set; } = string.Empty;
+    public string TokenHash { get; set; } = string.Empty;
+    public string EmailKeyHash { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? ConsumedAtUtc { get; set; }
 }
 
 public sealed class SecurityAdminAuditRow

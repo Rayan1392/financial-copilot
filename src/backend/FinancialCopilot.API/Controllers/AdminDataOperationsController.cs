@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using System.Globalization;
 using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.Authentication;
@@ -8,10 +9,13 @@ using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
 using FinancialCopilot.Application.Scanner;
 using FinancialCopilot.Domain.Financial.MissingAnswer;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FinancialCopilot.API.Controllers;
 
@@ -20,7 +24,9 @@ namespace FinancialCopilot.API.Controllers;
 [Authorize(Policy = AuthorizationPolicies.DataAdmin)]
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class AdminDataOperationsController(
+    FinancialIngestionDbContext financialIngestionDbContext,
     IDataSyncRequestPublisher publisher,
+    ILogger<AdminDataOperationsController> logger,
     IDataSyncRunReader runReader,
     IFinancialDataProviderHealthService providerHealth,
     ISourceFreshnessReader sourceFreshnessReader,
@@ -68,6 +74,81 @@ public sealed class AdminDataOperationsController(
         [FromBody] AdminDataSyncRequest? request,
         CancellationToken cancellationToken) =>
         QueueAsync(ProviderDataset.FinancialStatements, request, requiresReference: true, cancellationToken);
+
+    [HttpPost("data-sync/financial-statements/by-period")]
+    public async Task<ActionResult<AdminFinancialStatementsByPeriodResponse>> QueueFinancialStatementsByPeriod(
+        [FromBody] AdminFinancialStatementsByPeriodRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+            ModelState.AddModelError("request", "Request body is required.");
+        else
+        {
+            if (request.FiscalYear is < 1400 or > 1500)
+                ModelState.AddModelError(nameof(request.FiscalYear), "FiscalYear must be a supported Persian year between 1400 and 1500.");
+            if (request.Period is not null and not (3 or 6 or 9 or 12))
+                ModelState.AddModelError(nameof(request.Period), "Period must be 3, 6, 9, or 12 months.");
+        }
+
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var selected = financialIngestionDbContext.NoavaranEligibleCompanies.AsNoTracking()
+            .Where(company => company.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                company.ExternalCompanyId != null);
+        if (request!.CompanyId is { } companyId)
+            selected = selected.Where(company => company.Id == companyId);
+
+        var companies = await selected
+            .Select(company => new { company.Id, company.ExternalCompanyId })
+            .Distinct()
+            .OrderBy(company => company.Id)
+            .ToArrayAsync(cancellationToken);
+
+        if (request.CompanyId is not null && companies.Length == 0)
+            return NotFound(new { message = "The company does not exist in the Noavaran eligible-company view." });
+
+        var batchKey = string.IsNullOrWhiteSpace(request.IdempotencyKey)
+            ? $"admin-financial-statements:{Guid.NewGuid():N}"
+            : request.IdempotencyKey.Trim();
+        var failed = new List<string>();
+        var queued = 0;
+        foreach (var company in companies)
+        {
+            if (!int.TryParse(company.ExternalCompanyId, out var providerId) || providerId <= 0)
+            {
+                failed.Add(company.Id.ToString("D"));
+                continue;
+            }
+
+            try
+            {
+                var externalReference = providerId.ToString(CultureInfo.InvariantCulture);
+                await publisher.PublishAsync(new DataSyncRequest(
+                    Guid.NewGuid(),
+                    ProviderDataset.FinancialStatements,
+                    externalReference,
+                    timeProvider.GetUtcNow(),
+                    $"{batchKey}:{company.Id:D}:{request.FiscalYear}:{request.Period?.ToString(CultureInfo.InvariantCulture) ?? "all"}",
+                    ProviderSources.NoavaranCurrentApiName,
+                    SourceMode.CurrentIncremental,
+                    StatementFiscalYear: request.FiscalYear,
+                    StatementPeriodMonths: request.Period),
+                    cancellationToken);
+                queued++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                failed.Add(company.Id.ToString("D"));
+                logger.LogWarning(exception, "Failed to enqueue financial-statement sync for company {CompanyId}.", company.Id);
+            }
+        }
+
+        var requestId = Guid.NewGuid();
+        var status = failed.Count == 0 ? "Queued" : queued == 0 ? "Failed" : "QueuedWithFailures";
+        return Accepted(new AdminFinancialStatementsByPeriodResponse(
+            requestId, status, companies.Length, queued, failed.Count, failed));
+    }
 
     [HttpPost("data-sync/monthly-reports")]
     public Task<ActionResult<AdminDataSyncQueuedResponse>> QueueMonthlyReportSync(

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
@@ -80,6 +81,120 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     }
 
     [Fact]
+    public async Task Thamid_nine_month_announcement_uses_prior_three_and_six_month_fiscal_evidence()
+    {
+        using var f = new Fixture(enabled: true, interim: true, seedEarlierStatements: true);
+        f.SetText("""
+            توسعه وعمران امید(#ثامید)
+            اطلاعات و صورت‌های مالی میاندوره‌ای دوره 9 ماهه منتهی به 1405/06/31 (حسابرسی نشده)
+
+            @NoavaranAmin
+
+            ✅ افزایش 18 درصدی درآمدهای عملیاتی 9 ماهه 1405 در مقایسه با دوره مشابه
+
+            تحلیل بیشتر در:
+            @NoavaranCodal
+            """, 9);
+
+        await f.Call();
+
+        Assert.Equal(4, f.Calls.Count);
+        Assert.All(f.Calls, call => Assert.Equal(("19", 1405, 9),
+            (call.ExternalCompanyId, call.FiscalYearEnding, call.PeriodMonths)));
+        var reportingEnd = Jalali(1405, 6, 31);
+        Assert.Equal(3, await f.Financial.FinancialStatements.CountAsync(x =>
+            x.ExternalCompanyId == "19" && x.PeriodEnd == reportingEnd && x.PeriodType == "NineMonths"));
+        Assert.Equal("Feature143:Completed", f.Auth.TelegramProcessedUpdates.Single().Status);
+
+        await f.Call();
+        Assert.Equal(4, f.Calls.Count);
+    }
+
+    [Fact]
+    public async Task Targeted_recovery_reprocesses_only_a_stored_unresolved_announcement()
+    {
+        using var f = new Fixture(enabled: true, interim: true);
+        await f.Call();
+        Assert.Equal("Feature143:Unresolved", f.Auth.TelegramProcessedUpdates.Single().Status);
+        Assert.Empty(f.Calls);
+        await f.Call();
+        Assert.Empty(f.Calls);
+
+        var skipped = f.Auth.TelegramProcessedUpdates.Single();
+        var checkpointJson = JsonNode.Parse(skipped.ResponseJson)!;
+        checkpointJson["BalanceSheet"] = JsonNode.Parse("""{"outcome":"Persisted","processedRecords":2,"attempts":1}""");
+        skipped.ResponseJson = checkpointJson.ToJsonString();
+        f.Auth.SaveChanges();
+
+        var end = Jalali(1405, 3, 31);
+        f.Financial.FinancialStatements.Add(new NormalizedFinancialStatementRow
+        {
+            Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName,
+            ExternalCompanyId = "19", ExternalStatementId = "recovery-evidence",
+            StatementType = "BalanceSheet", PeriodType = "SixMonths", PeriodStart = end.AddDays(-180), PeriodEnd = end,
+            WarningsJson = "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]", SourcePayloadChecksum = "recovery"
+        });
+        f.Financial.SaveChanges();
+
+        var recovery = await f.Handler.RecoverSkippedAsync(-100123, 20, default);
+
+        Assert.Equal("Recovered", recovery.Code);
+        Assert.Equal("Feature143:Completed", recovery.Status);
+        Assert.Equal(3, f.Calls.Count);
+        Assert.DoesNotContain(f.Calls, x => x.StatementType == ManualNoavaranFinancialStatementType.BalanceSheet);
+    }
+
+    [Fact]
+    public async Task Targeted_recovery_never_replays_completed_or_in_flight_checkpoints()
+    {
+        using var f = new Fixture(enabled: true);
+        await f.Call();
+        var completed = await f.Handler.RecoverSkippedAsync(-100123, 20, default);
+        Assert.Equal("CheckpointNotEligible", completed.Code);
+        Assert.Equal(4, f.Calls.Count);
+
+        f.Auth.TelegramProcessedUpdates.Single().Status = "Feature143:Processing";
+        f.Auth.SaveChanges();
+        var inFlight = await f.Handler.RecoverSkippedAsync(-100123, 20, default);
+        Assert.Equal("CheckpointNotEligible", inFlight.Code);
+        Assert.Equal(4, f.Calls.Count);
+    }
+
+    [Fact]
+    public void Fiscal_year_resolver_uses_only_candidates_applicable_to_the_target_period()
+    {
+        var result = NoavaranFiscalYearEvidenceResolver.Resolve(Jalali(1405, 6, 31), null,
+        [
+            "[{\"jalaliFiscalYearEnd\":\"1404/12/29\"}]",
+            "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]"
+        ]);
+        Assert.Equal("1405/12/29", result);
+    }
+
+    [Fact]
+    public void Fiscal_year_resolver_rejects_ambiguous_or_missing_evidence()
+    {
+        Assert.Null(NoavaranFiscalYearEvidenceResolver.Resolve(Jalali(1405, 6, 31), null,
+        [
+            "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]",
+            "[{\"jalaliFiscalYearEnd\":\"1405/09/30\"}]"
+        ]));
+        Assert.Null(NoavaranFiscalYearEvidenceResolver.Resolve(Jalali(1405, 6, 31), null, []));
+    }
+
+    [Fact]
+    public void Fiscal_year_resolver_supports_non_esfand_ends_and_persian_leap_years()
+    {
+        Assert.Equal("1405/06/31", NoavaranFiscalYearEvidenceResolver.Resolve(
+            Jalali(1405, 3, 31), null, ["[{\"jalaliFiscalYearEnd\":\"1405/06/31\"}] "]));
+        Assert.Equal("1403/12/30", NoavaranFiscalYearEvidenceResolver.Resolve(
+            Jalali(1403, 12, 30), null, ["[{\"jalaliFiscalYearEnd\":\"1403/12/30\"}] "]));
+    }
+
+    private static DateOnly Jalali(int year, int month, int day) =>
+        DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(year, month, day, 0, 0, 0, 0));
+
+    [Fact]
     public async Task Unauthorized_channel_is_rejected_before_durable_claim_or_company_lookup()
     {
         using var f = new Fixture(enabled: true);
@@ -123,6 +238,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         private readonly CurrentActor actor = new(ActorType.ApiClient, Guid.NewGuid(), Guid.NewGuid(), AuthenticationMode.ApiClient, ApiClientId: Guid.NewGuid());
         private TelegramAssistantUpdate update;
         private readonly bool interim;
+        private int interimPeriodMonths = 6;
         public int ResolveCalls;
         public TelegramChannelMonthlyReportOptions ChannelOptions { get; } = new()
         {
@@ -132,8 +248,10 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         public bool FailIncomeOnce;
         public List<ManualNoavaranFinancialStatementBackfillRequest> Calls { get; } = [];
         private readonly TelegramChannelFinancialStatementHandler handler;
+        public TelegramChannelFinancialStatementOptions StatementOptions { get; }
+        public TelegramChannelFinancialStatementHandler Handler => handler;
 
-        public Fixture(bool enabled, bool interim = false, bool resolveInterimFiscal = false)
+        public Fixture(bool enabled, bool interim = false, bool resolveInterimFiscal = false, bool seedEarlierStatements = false)
         {
             this.interim = interim;
             connection.Open();
@@ -142,16 +260,34 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
             Auth.Tenants.Add(new TenantRow { Id = actor.TenantId, Name = "test" });
             Auth.SaveChanges();
             financial.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
-                { Id = Guid.NewGuid(), ProviderName = "NadpcoApi", ExternalCompanyId = "19", Name = "sample" });
+                { Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName, ExternalCompanyId = "19", Name = "sample" });
             if (resolveInterimFiscal)
             {
                 var reportEnd = DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1405, 6, 31, 0, 0, 0, 0));
                 financial.FinancialStatements.Add(new NormalizedFinancialStatementRow
                 {
-                    Id = Guid.NewGuid(), ProviderName = "NadpcoApi", ExternalCompanyId = "19",
+                    Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName, ExternalCompanyId = "19",
                     ExternalStatementId = "existing", StatementType = "BalanceSheet", PeriodType = "SixMonths",
                     PeriodStart = reportEnd.AddDays(-180), PeriodEnd = reportEnd, WarningsJson = "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]"
                 });
+            }
+            if (seedEarlierStatements)
+            {
+                var calendar = new System.Globalization.PersianCalendar();
+                foreach (var (year, month, day, months) in new[] { (1404, 12, 29, 3), (1405, 3, 31, 6) })
+                {
+                    var end = DateOnly.FromDateTime(calendar.ToDateTime(year, month, day, 0, 0, 0, 0));
+                    financial.FinancialStatements.Add(new NormalizedFinancialStatementRow
+                    {
+                        Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName,
+                        ExternalCompanyId = "19", ExternalStatementId = $"thamid-{months}m",
+                        StatementType = "BalanceSheet", PeriodType = months == 3 ? "ThreeMonths" : "SixMonths",
+                        PeriodStart = end.AddDays(-90 * months), PeriodEnd = end,
+                        IsAudited = false, IsComposing = false,
+                        WarningsJson = "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]",
+                        SourcePayloadChecksum = $"thamid-{months}m-checksum", LastSynchronizedAt = DateTimeOffset.UtcNow
+                    });
+                }
             }
             financial.SaveChanges();
             update = new TelegramAssistantUpdate(10, TelegramAssistantUpdateKind.ChannelPost, 0, -100123, null, 20,
@@ -181,32 +317,47 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
                     financial.DerivedMetrics.Add(new DerivedMetricRow
                     {
                         Id = Guid.NewGuid(), ExternalCompanyId = "19", MetricCode = "EPS", MetricVersion = "v1",
-                        CalculationPolicyVersion = "test", PeriodType = "TwelveMonths", PeriodStart = periodEnd.AddDays(-365),
+                        CalculationPolicyVersion = "test", PeriodType = interim ? interimPeriodMonths switch { 3 => "ThreeMonths", 6 => "SixMonths", 9 => "NineMonths", _ => "TwelveMonths" } : "TwelveMonths", PeriodStart = periodEnd.AddDays(-365),
                         PeriodEnd = periodEnd, Unit = "Rial", ObservedAt = DateTimeOffset.UtcNow,
                         LastSynchronizedAt = DateTimeOffset.UtcNow, SourceEvidenceJson = $"[{{\"isAudited\":false,\"jalaliFiscalYearEnd\":\"{fiscalYearEndText}\"}}]"
                     });
                 else
                     financial.FinancialStatements.Add(new NormalizedFinancialStatementRow
                     {
-                        Id = Guid.NewGuid(), ProviderName = "NadpcoApi", ExternalCompanyId = "19",
+                        Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName, ExternalCompanyId = "19",
                         ExternalStatementId = Guid.NewGuid().ToString(), StatementType = request.StatementType.ToString(),
-                        PeriodType = interim ? "SixMonths" : "TwelveMonths", PeriodStart = periodEnd.AddDays(-365), PeriodEnd = periodEnd,
+                        PeriodType = interim ? interimPeriodMonths switch { 3 => "ThreeMonths", 6 => "SixMonths", 9 => "NineMonths", _ => "TwelveMonths" } : "TwelveMonths",
+                        PeriodStart = periodEnd.AddDays(-365), PeriodEnd = periodEnd,
                         IsAudited = false, IsComposing = false, WarningsJson = $"[{{\"jalaliFiscalYearEnd\":\"{fiscalYearEndText}\"}}]", SourcePayloadChecksum = "x",
                         LastSynchronizedAt = DateTimeOffset.UtcNow
                     });
+                var runId = Guid.NewGuid();
+                financial.SyncRuns.Add(new DataSyncRunRow
+                {
+                    Id = runId, IdempotencyKey = runId.ToString(),
+                    Dataset = request.StatementType == ManualNoavaranFinancialStatementType.FinancialRatios ? "FundamentalIndexes" : "FinancialStatements",
+                    ProviderName = ProviderSources.NoavaranCurrentApiName, ExternalReference = "19", Status = "Completed",
+                    ProcessedRecords = 2, SourcePayloadChecksum = "x", RequestedAt = DateTimeOffset.UtcNow
+                });
                 financial.SaveChanges();
-                return Task.FromResult(new ManualNoavaranFinancialStatementBackfillResult(Guid.NewGuid(), "Persisted", 2));
+                return Task.FromResult(new ManualNoavaranFinancialStatementBackfillResult(runId, "Persisted", 2));
             });
             var logs = new List<string>();
+            StatementOptions = new TelegramChannelFinancialStatementOptions { AutoBackfillEnabled = enabled };
             handler = new TelegramChannelFinancialStatementHandler(Auth, financial, companies, backfill,
                 new TelegramFinancialStatementRecognizer(),
                 Options.Create(ChannelOptions),
-                Options.Create(new TelegramChannelFinancialStatementOptions { AutoBackfillEnabled = enabled }),
+                Options.Create(StatementOptions),
                 TimeProvider.System, new RecordingLogger(logs));
         }
 
+        public FinancialIngestionDbContext Financial => financial;
         public Task<TelegramAssistantResult?> Call() => handler.HandleIfRecognizedAsync(update, actor, default);
-        public void SetText(string text) { update = update with { Text = text }; }
+        public void SetText(string text, int? periodMonths = null)
+        {
+            update = update with { Text = text };
+            if (periodMonths is not null) interimPeriodMonths = periodMonths.Value;
+        }
         public void Dispose() { Auth.Dispose(); financial.Dispose(); connection.Dispose(); }
     }
 

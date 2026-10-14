@@ -6,6 +6,27 @@ public sealed class TelegramFinancialStatementRecognizer143Tests
 {
     private readonly TelegramFinancialStatementRecognizer recognizer = new();
 
+    [Fact]
+    public void Actual_thamid_nine_month_announcement_is_recognized()
+    {
+        const string announcement = """
+            توسعه وعمران امید(#ثامید)
+            اطلاعات و صورت‌های مالی میاندوره‌ای دوره 9 ماهه منتهی به 1405/06/31 (حسابرسی نشده)
+
+            @NoavaranAmin
+
+            ✅ افزایش 18 درصدی درآمدهای عملیاتی 9 ماهه 1405 در مقایسه با دوره مشابه
+
+            تحلیل بیشتر در:
+            @NoavaranCodal
+            """;
+
+        var result = recognizer.Recognize(announcement);
+
+        Assert.Equal(new TelegramFinancialStatementRecognition(
+            "ثامید", "Interim", 1405, 6, 31, 9, false, false, false, null), result);
+    }
+
     [Theory]
     [InlineData("پردیس صنعت زنده رود(#زنده رود)\nصورت‌های مالی سال مالی منتهی به 1403/12/30 (حسابرسی نشده)", "زنده رود", 1403, 12, 30, 12, false, false)]
     [InlineData("قند لرستان(#قلرست)\nصورت های مالی سال مالی منتهی به 1405/04/31 (حسابرسی نشده)(اصلاحیه)", "قلرست", 1405, 4, 31, 12, false, true)]

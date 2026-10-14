@@ -35,20 +35,28 @@ public sealed class TelegramChannelFinancialStatementHandler(
 
     public async Task<TelegramAssistantResult?> HandleIfRecognizedAsync(
         TelegramAssistantUpdate update, CurrentActor actor, CancellationToken cancellationToken)
+        => await HandleRecognizedAsync(update, actor, null, allowRecoveryClaim: false, cancellationToken);
+
+    private async Task<TelegramAssistantResult?> HandleRecognizedAsync(
+        TelegramAssistantUpdate update,
+        CurrentActor actor,
+        TelegramFinancialStatementRecognition? suppliedAnnouncement,
+        bool allowRecoveryClaim,
+        CancellationToken cancellationToken)
     {
         if (update.Kind != TelegramAssistantUpdateKind.ChannelPost ||
             !string.Equals(update.ChatType, "channel", StringComparison.OrdinalIgnoreCase) ||
             update.TelegramChatId == 0 || update.TelegramMessageId is not > 0)
             return null;
 
-        var announcement = recognizer.Recognize(update.Text);
+        var announcement = suppliedAnnouncement ?? recognizer.Recognize(update.Text);
         var candidate = update.Text?.Contains("صورت‌های مالی", StringComparison.Ordinal) == true ||
             update.Text?.Contains("صورت های مالی", StringComparison.Ordinal) == true ||
             update.Text?.Contains("صورتهای مالی", StringComparison.Ordinal) == true;
-        if (!candidate) return null;
+        if (!candidate && suppliedAnnouncement is null) return null;
 
         var authOptions = channelAuthorization.Value;
-        if (actor.ActorType != ActorType.ApiClient || actor.AuthenticationMode != AuthenticationMode.ApiClient ||
+        if ((!allowRecoveryClaim && (actor.ActorType != ActorType.ApiClient || actor.AuthenticationMode != AuthenticationMode.ApiClient)) ||
             authOptions.AllowedChannelIds.Length == 0 || !authOptions.AllowedChannelIds.Contains(
                 update.TelegramChatId.ToString(CultureInfo.InvariantCulture), StringComparer.Ordinal) ||
             (Guid.TryParse(authOptions.AuthorizedApiClientId, out var apiClientId) && actor.ApiClientId != apiClientId) ||
@@ -72,7 +80,11 @@ public sealed class TelegramChannelFinancialStatementHandler(
         Dictionary<string, FinancialStatementCategoryOutcome> prior = new(StringComparer.Ordinal);
         if (existing is not null)
         {
-            if (existing.Status is "Feature143:Completed" or "Feature143:Disabled" or "Feature143:Unresolved")
+            if (existing.Status == "Feature143:RecoveryClaimed" && allowRecoveryClaim)
+            {
+                prior = ReadCategoryOutcomes(existing.ResponseJson);
+            }
+            else if (existing.Status is "Feature143:Completed" or "Feature143:Disabled" or "Feature143:Unresolved")
                 return Empty(TelegramAssistantResultStatus.Replayed, update);
             if (existing.Status == "Feature143:Partial")
             {
@@ -91,7 +103,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
                     return Empty(TelegramAssistantResultStatus.Replayed, update);
                 }
             }
-            else
+            else if (!(existing.Status == "Feature143:RecoveryClaimed" && allowRecoveryClaim))
             {
                 if (existing.Status == "Feature143:Claimed")
                     return Empty(TelegramAssistantResultStatus.Replayed, update);
@@ -159,17 +171,20 @@ public sealed class TelegramChannelFinancialStatementHandler(
         {
             3 => "ThreeMonths", 6 => "SixMonths", 9 => "NineMonths", 12 => "TwelveMonths", _ => string.Empty
         };
-        // The catalog has no fiscal-calendar field. Resolve only from exact persisted Noavaran
-        // report evidence for this company and exact period; never derive FY from the Jalali year.
+        // The company catalog currently has no fiscal-calendar field. Use an explicit annual
+        // header when present, otherwise reconcile provider-reported fiscal ends from any persisted
+        // Noavaran period whose fiscal-year interval contains the announced period. Never infer an
+        // exact fiscal-year end from the Jalali year or reporting-period end.
         var evidenceRows = await financial.FinancialStatements.AsNoTracking()
             .Where(x => x.ExternalCompanyId == resolved.ExternalCompanyId && x.ProviderName == ProviderSources.NoavaranCurrentApiName &&
-                x.PeriodEnd == periodEnd && x.PeriodType == periodType)
+                !string.IsNullOrWhiteSpace(x.WarningsJson))
             .Select(x => x.WarningsJson).ToListAsync(cancellationToken);
-        var fiscalYearEnds = announcement.IsAnnualFiscalYearHeader
-            ? [$"{announcement.PeriodYear:D4}/{announcement.PeriodMonth:D2}/{announcement.PeriodDay:D2}"]
-            : evidenceRows.Select(ReadFiscalYearEnd).Where(x => x is not null).Select(x => x!).Distinct(StringComparer.Ordinal).ToArray();
-        var fiscalYearEnd = fiscalYearEnds.FirstOrDefault();
-        if (fiscalYearEnds.Length != 1 || string.IsNullOrWhiteSpace(fiscalYearEnd))
+        var annualFiscalYearEnd = announcement.IsAnnualFiscalYearHeader
+            ? $"{announcement.PeriodYear:D4}/{announcement.PeriodMonth:D2}/{announcement.PeriodDay:D2}"
+            : null;
+        var fiscalYearEnd = NoavaranFiscalYearEvidenceResolver.Resolve(
+            periodEnd, annualFiscalYearEnd, evidenceRows);
+        if (string.IsNullOrWhiteSpace(fiscalYearEnd))
         {
             claim.Status = "Feature143:Unresolved";
             claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "FiscalYearUnresolved", Announcement = announcement }, JsonOptions);
@@ -232,25 +247,84 @@ public sealed class TelegramChannelFinancialStatementHandler(
         return Empty(TelegramAssistantResultStatus.Accepted, update);
     }
 
-    private static string? ReadFiscalYearEnd(string json)
+    public async Task<TelegramFinancialStatementRecoveryResult> RecoverSkippedAsync(
+        long telegramChatId, long telegramMessageId, CancellationToken cancellationToken)
     {
+        if (telegramChatId == 0 || telegramMessageId <= 0)
+            return new("InvalidTarget", "", "A non-zero chat ID and positive Telegram message ID are required.");
+        if (!configured.Value.AutoBackfillEnabled)
+            return new("FeatureDisabled", "", "Feature 143 automation is disabled; the checkpoint was not changed.");
+        if (channelAuthorization.Value.AllowedChannelIds.Length == 0 || !channelAuthorization.Value.AllowedChannelIds.Contains(
+                telegramChatId.ToString(CultureInfo.InvariantCulture), StringComparer.Ordinal))
+            return new("ChannelNotAllowed", "", "The target channel is not in the configured Feature 133 channel allowlist.");
+
+        var key = $"channel-financial-statement:{telegramChatId}:{telegramMessageId}";
+        var checkpoint = await auth.TelegramProcessedUpdates.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.IdempotencyKey == key, cancellationToken);
+        if (checkpoint is null)
+            return new("CheckpointNotFound", "", "No Feature 143 checkpoint exists for the supplied chat and message IDs.");
+        if (checkpoint.Status is not ("Feature143:Disabled" or "Feature143:Unresolved"))
+            return new("CheckpointNotEligible", checkpoint.Status,
+                "Only explicitly skipped Disabled or Unresolved Feature 143 checkpoints can be recovered. Claimed, in-flight, partial, review, and completed checkpoints are not reset.");
+
+        TelegramFinancialStatementRecognition? announcement;
+        string? outcome;
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            var nodes = doc.RootElement.ValueKind == JsonValueKind.Array
-                ? doc.RootElement.EnumerateArray().ToArray()
-                : new[] { doc.RootElement };
-            foreach (var node in nodes)
+            using var document = JsonDocument.Parse(checkpoint.ResponseJson);
+            var root = document.RootElement;
+            outcome = root.TryGetProperty("outcome", out var outcomeNode) && outcomeNode.ValueKind == JsonValueKind.String
+                ? outcomeNode.GetString() : null;
+            announcement = root.TryGetProperty("announcement", out var announcementNode)
+                ? announcementNode.Deserialize<TelegramFinancialStatementRecognition>(JsonOptions) : null;
+        }
+        catch (JsonException)
+        {
+            return new("StoredMetadataMissing", checkpoint.Status,
+                "The checkpoint does not contain valid structured announcement metadata; a Telegram redelivery or operator-supplied source post is required.");
+        }
+
+        if (announcement is null || outcome is not ("Disabled" or "FiscalYearUnresolved" or "CompanyUnresolved"))
+            return new("StoredMetadataMissing", checkpoint.Status,
+                "The checkpoint does not contain an eligible stored announcement. No checkpoint state was changed.");
+        if (checkpoint.TenantId is not Guid tenantId)
+            return new("StoredMetadataMissing", checkpoint.Status,
+                "The checkpoint has no tenant identity; no checkpoint state was changed.");
+
+        var acquired = await auth.TelegramProcessedUpdates
+            .Where(x => x.Id == checkpoint.Id && x.Status == checkpoint.Status && x.ResponseJson == checkpoint.ResponseJson)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "Feature143:RecoveryClaimed"), cancellationToken);
+        if (acquired != 1)
+            return new("ConcurrentChange", checkpoint.Status, "The checkpoint changed concurrently; no recovery was started.");
+
+        var update = new TelegramAssistantUpdate(
+            checkpoint.TelegramUpdateId, TelegramAssistantUpdateKind.ChannelPost, 0,
+            telegramChatId, null, telegramMessageId, null, null, null, "fa-IR",
+            clock.GetUtcNow(), $"feature143-recovery-{checkpoint.Id:N}", "channel");
+        var recoveryActor = new CurrentActor(ActorType.ApiClient, Guid.Empty, tenantId, AuthenticationMode.ApiClient);
+        await HandleRecognizedAsync(update, recoveryActor, announcement, allowRecoveryClaim: true, cancellationToken);
+
+        var final = await auth.TelegramProcessedUpdates.AsNoTracking()
+            .Where(x => x.Id == checkpoint.Id).Select(x => x.Status).SingleAsync(cancellationToken);
+        return new("Recovered", final, $"Targeted recovery finished with checkpoint status {final}.");
+    }
+
+    private static Dictionary<string, FinancialStatementCategoryOutcome> ReadCategoryOutcomes(string json)
+    {
+        var outcomes = new Dictionary<string, FinancialStatementCategoryOutcome>(StringComparer.Ordinal);
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object) return outcomes;
+            foreach (var category in Enum.GetNames<ManualNoavaranFinancialStatementType>())
             {
-                if (node.TryGetProperty("jalaliFiscalYearEnd", out var value) && value.ValueKind == JsonValueKind.String)
-                {
-                    var digits = new string(value.GetString()!.Where(char.IsDigit).ToArray());
-                    if (digits.Length == 8) return $"{digits[..4]}/{digits[4..6]}/{digits[6..8]}";
-                }
+                if (!document.RootElement.TryGetProperty(category, out var item)) continue;
+                var outcome = item.Deserialize<FinancialStatementCategoryOutcome>(JsonOptions);
+                if (outcome is not null) outcomes[category] = outcome;
             }
         }
         catch (JsonException) { }
-        return null;
+        return outcomes;
     }
 
     private async Task<(bool Matches, string? Reason)> ValidatePersistedPeriodAsync(
@@ -307,7 +381,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
             !string.IsNullOrWhiteSpace(x.ExternalStatementId) &&
             (announcement.IsAudited is null || x.IsAudited == announcement.IsAudited.Value) &&
             (announcement.IsConsolidated is null || x.IsComposing == announcement.IsConsolidated.Value) &&
-            ReadFiscalYearEnd(x.WarningsJson) == fiscalYearEnd);
+            NoavaranFiscalYearEvidenceResolver.ContainsFiscalYearEnd(x.WarningsJson, fiscalYearEnd));
         return rowMatches ? (true, null) : (false, "No persisted statement matches the exact company, period, and explicit variants.");
     }
 

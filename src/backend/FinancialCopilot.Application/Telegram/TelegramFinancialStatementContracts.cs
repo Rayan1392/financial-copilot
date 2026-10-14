@@ -6,4 +6,11 @@ public interface ITelegramChannelFinancialStatementHandler
         TelegramAssistantUpdate update,
         FinancialCopilot.Application.Authentication.CurrentActor actor,
         CancellationToken cancellationToken);
+
+    Task<TelegramFinancialStatementRecoveryResult> RecoverSkippedAsync(
+        long telegramChatId,
+        long telegramMessageId,
+        CancellationToken cancellationToken);
 }
+
+public sealed record TelegramFinancialStatementRecoveryResult(string Code, string Status, string Message);

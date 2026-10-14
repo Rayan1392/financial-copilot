@@ -121,3 +121,38 @@ Full evidence: [downloaded PNG](png-header-evidence/quarterly-sharak-period-end.
 - Frontend production build: passed for client and SSR bundles. Vite reported its existing large-chunk and unused external-import warnings.
 - Targeted ESLint: **0 errors**, with the existing React Fast Refresh warning on the table component's parser export.
 - The browser fixture uses realistic data and the real web/export components. It does not make a live production API request, and other browsers were not exercised.
+
+## Standalone fiscal-quarter column headers — 2026-10-14
+
+### Source metadata and mapping
+
+- `FinancialStatements.PeriodType` is persisted as a string containing the `FiscalPeriodType` enum name. The Feature 144 repository reads that stored string directly; `PeriodMonths` is a derived helper and is not used to determine the visible quarter.
+- The actual selected report's `PeriodType` now flows through `QuarterlyReportObservation` and `QuarterlySelectedReportReference` into the typed `QuarterlyFinancialReportTableResult`. `FinancialStatements.PeriodEnd` remains the source of the date.
+- The approved mapping is `ThreeMonths → فصل اول`, `SixMonths → فصل دوم`, `NineMonths → فصل سوم`, and `TwelveMonths → فصل چهارم`. It does not use the calendar month or fiscal year-end.
+- The renderer selects a current report reference by the quarter's current `PeriodEnd` and matching mapped `PeriodType`. It never reads the predecessor's metadata. It formats the persisted `DateOnly` using `PersianCalendar`, Persian month names, and Persian digits.
+- If a current report's type is unavailable, the established Feature 144 fiscal-quarter identity is the fallback. If current period-end metadata is missing or invalid, the existing fiscal-year/quarter fallback remains, now with Persian digits.
+
+### Contract and presentation
+
+- Backward-compatible internal Application contract change: nullable `PeriodType` was appended to the existing observation/provenance records. No public HTTP response shape, financial retrieval pipeline, calculations, or report selection policy changed.
+- The Markdown period cell now carries the three lines `فصل ...`, `منتهی به`, and the selected report's Jalali `PeriodEnd`. The shared frontend formatter presents the same lines in the web table and PNG.
+- The web header keeps the teal theme and fixed RTL table width. Quarter names use the strongest header weight; the subtitle and date use smaller type. The PNG exporter uses the same labels and explicitly sets visible teal text and per-line fonts.
+
+### Tests and browser evidence
+
+- Feature 144 backend header tests: **8 passed**, covering 3M/6M/9M/12M mappings, Persian dates/digits, a non-Esfand fiscal year, current Q2/Q3/Q4 reports versus predecessors, no month-duration header, and safe fallback.
+- Focused frontend table, image-export, and color tests: **22 passed**.
+- Frontend production build: **passed**.
+- Real Chrome export test: **passed**. It generated a 2400 × 2344 PNG, asserted all seven visible header cells, exact labels/order, no horizontal overflow at 390 px, readable unclipped text bounds, and unchanged body coverage/colors. I visually inspected both the downloaded PNG and the web screenshot.
+- Evidence: [downloaded PNG](png-header-evidence/quarterly-sharak-period-end.png), [PNG header crop](png-header-evidence/quarterly-sharak-header-period-end.png), and [web screenshot](png-header-evidence/quarterly-sharak-web-period-end.png).
+
+### Remaining limitations
+
+- Browser verification used the local realistic Feature 144 fixture, not a live API response. Other browser engines were not exercised.
+
+### Files changed for this header update
+
+- Backend: `src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsContracts.cs`, `src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsNormalizer.cs`, and `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/FinancialStatementTableServices.cs`.
+- Frontend: `src/frontend/src/components/app/quarterly-financial-table.tsx`, `quarterly-financial-table-header.ts`, `quarterly-financial-table-image.ts`, the quarterly table and image tests, the Chrome browser fixture, and `src/frontend/scripts/quarterly-financial-table-png.browser.test.mjs`.
+- Backend tests: `tests/FinancialCopilot.UnitTests/QuarterlyFinancialHeader144Tests.cs`.
+- Evidence updated: `png-header-evidence/quarterly-sharak-period-end.png`, `quarterly-sharak-header-period-end.png`, and `quarterly-sharak-web-period-end.png`.

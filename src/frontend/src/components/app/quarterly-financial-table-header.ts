@@ -1,5 +1,7 @@
 export interface QuarterlyFinancialPeriod {
   label: string;
+  quarterName?: string;
+  dateLabel?: string;
   year?: number;
   quarter?: number;
   sourceIndex: number;
@@ -11,6 +13,9 @@ function persianDigits(value: string): string {
 
 /** Use the selected report's formatted PeriodEnd label in both web and PNG. */
 export function quarterlyPeriodHeaderLines(period: QuarterlyFinancialPeriod): string[] {
+  if (period.quarterName && period.dateLabel) {
+    return [period.quarterName, "\u0645\u0646\u062a\u0647\u06cc \u0628\u0647", period.dateLabel];
+  }
   const label = persianDigits(period.label);
   const date = label.match(/^(دوره منتهی به)\s+(.+)$/);
   if (date) return [date[1], date[2]];

@@ -73,8 +73,9 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   const scale = Math.max(2, window.devicePixelRatio || 1);
   const rowHeight = 54;
   const headerHeight = 104;
+  const periodHeaderHeight = 78;
   const summaryHeight = 54;
-  const height = PAD * 2 + headerHeight + summaryHeight + 64 + rowHeight * model.rows.length;
+  const height = PAD * 2 + headerHeight + summaryHeight + periodHeaderHeight + rowHeight * model.rows.length;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH * scale;
   canvas.height = height * scale;
@@ -116,16 +117,25 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
     const cellWidth = widths[index];
     const left = right - cellWidth;
     context.fillStyle = index === colCount - 1 ? COLORS.changeHeader : COLORS.headerLight;
-    context.fillRect(left, top, cellWidth, 64);
+    context.fillRect(left, top, cellWidth, periodHeaderHeight);
     context.strokeStyle = COLORS.border;
-    context.strokeRect(left, top, cellWidth, 64);
+    context.strokeRect(left, top, cellWidth, periodHeaderHeight);
     context.fillStyle = COLORS.header;
     const lines =
       headerLines.length === 1
         ? wrap(context, headerLines[0], cellWidth - 12).slice(0, 2)
         : headerLines;
     lines.forEach((line, lineIndex) => {
-      const baseline = top + 27 + lineIndex * 24;
+      context.fillStyle = COLORS.header;
+      context.font =
+        headerLines.length >= 3 && lineIndex === 0
+          ? '700 19px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
+          : headerLines.length >= 3 && lineIndex === 1
+            ? '400 13px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
+            : headerLines.length >= 3
+              ? '600 15px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif'
+              : '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
+      const baseline = headerLines.length >= 3 ? top + 20 + lineIndex * 19 : top + 27 + lineIndex * 24;
       if (index === 0) {
         rtlText(context, line, right - 6, baseline, cellWidth - 12);
       } else {
@@ -138,7 +148,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   });
 
   model.rows.forEach((row, rowIndex) => {
-    const y = top + 64 + rowIndex * rowHeight;
+    const y = top + periodHeaderHeight + rowIndex * rowHeight;
     const cells = [row.label, ...row.values];
     right = WIDTH - PAD;
     cells.forEach((value, columnIndex) => {

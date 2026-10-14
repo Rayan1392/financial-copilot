@@ -129,7 +129,7 @@ services:
         CyclicalWaves__RetryCount: ${CYCLICAL_WAVES_RETRY_COUNT:-2}
         CyclicalWaves__CircuitBreakSeconds: ${CYCLICAL_WAVES_CIRCUIT_BREAK_SECONDS:-60}
         CyclicalWaves__CircuitFailureThreshold: ${CYCLICAL_WAVES_CIRCUIT_FAILURE_THRESHOLD:-5}
-        CyclicalWavesPsVisualization__Enabled: ${CYCLICAL_WAVES_PS_VISUALIZATION_ENABLED:-true}
+        CyclicalWavesPsVisualization__Enabled: "false"
         CyclicalWavesPsVisualization__EnableStandaloneGauge: ${CYCLICAL_WAVES_STANDALONE_GAUGE:-true}
         CyclicalWavesPsVisualization__IncludeGaugeInMonthlySalesTrendChart: ${CYCLICAL_WAVES_INCLUDE_GAUGE_IN_MONTHLY_TREND:-false}
         CyclicalWavesPsVisualization__IncludeHistoryInStandaloneGauge: ${CYCLICAL_WAVES_INCLUDE_HISTORY:-true}
@@ -138,8 +138,8 @@ services:
         CyclicalWavesPsVisualization__MaxObservationLagTradingDays: ${CYCLICAL_WAVES_MAX_LAG_TRADING_DAYS:-2}
         CyclicalWavesPsVisualization__MaxHistoryPoints: ${CYCLICAL_WAVES_MAX_HISTORY_POINTS:-5000}
         CyclicalWavesPsVisualization__DisplayPercentageDecimals: ${CYCLICAL_WAVES_PERCENTAGE_DECIMALS:-2}
-        Feature126__Enabled: ${FEATURE126_ENABLED:-false}
-        Feature126__RelativeValuationIngestion__Enabled: ${Feature126__RelativeValuationIngestion__Enabled:?Feature126__RelativeValuationIngestion__Enabled is required}
+        Feature126__Enabled: "false"
+        Feature126__RelativeValuationIngestion__Enabled: "false"
         Feature126__RelativeValuationIngestion__DailyCadenceMinutes: ${Feature126__RelativeValuationIngestion__DailyCadenceMinutes:?Feature126__RelativeValuationIngestion__DailyCadenceMinutes is required}
         Feature126__RelativeValuationIngestion__PageSize: ${Feature126__RelativeValuationIngestion__PageSize:?Feature126__RelativeValuationIngestion__PageSize is required}
         Feature126__RelativeValuationIngestion__MaximumConcurrency: ${Feature126__RelativeValuationIngestion__MaximumConcurrency:?Feature126__RelativeValuationIngestion__MaximumConcurrency is required}
@@ -251,9 +251,9 @@ services:
         ConditionalTrackerEvaluation__Enabled: "${ConditionalTrackerEvaluation__Enabled:-True}"
         ConditionalTrackerEvaluation__IntervalSeconds: "${ConditionalTrackerEvaluation__IntervalSeconds:-60}"
         CyclicalWaves__ProviderName: "${CyclicalWaves__ProviderName:-CyclicalWaves}"
-        CyclicalWavesPsSync__AllowManualSyncWhenWorkerDisabled: "${CyclicalWavesPsSync__AllowManualSyncWhenWorkerDisabled:-True}"
+        CyclicalWavesPsSync__AllowManualSyncWhenWorkerDisabled: "False"
         CyclicalWavesPsSync__CurrentHistoryTolerance: "${CyclicalWavesPsSync__CurrentHistoryTolerance:-0.0001}"
-        CyclicalWavesPsSync__Enabled: "${CyclicalWavesPsSync__Enabled:-False}"
+        CyclicalWavesPsSync__Enabled: "False"
         CyclicalWavesPsSync__HistoryCadenceHours: "${CyclicalWavesPsSync__HistoryCadenceHours:-168}"
         CyclicalWavesPsSync__LeaseDurationMinutes: "${CyclicalWavesPsSync__LeaseDurationMinutes:-120}"
         CyclicalWavesPsSync__LeaseRenewalMinutes: "${CyclicalWavesPsSync__LeaseRenewalMinutes:-10}"
@@ -490,10 +490,20 @@ services:
       - .env
     environment:
       <<: *application-environment
+      # Email delivery and token signing are API-only secrets/configuration.
+      AUTH_EMAIL_ENABLED: "false"
+      AUTH_EMAIL_TOKEN_HASH_SECRET: ""
+      AUTH_SMTP_USERNAME: ""
+      AUTH_SMTP_PASSWORD: ""
+      Authentication__Email__Enabled: "false"
+      Authentication__Email__TokenHashSecret: ""
+      Authentication__Smtp__UserName: ""
+      Authentication__Smtp__Password: ""
       FEATURE141_READONLY_CONNECTION_STRING: ''
       Feature141__Enabled: "false"
       DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}
-      CyclicalWavesDataAcquisition__Enabled: ${CYCLICAL_WAVES_DATA_ACQUISITION_ENABLED:-true}
+      ComprehensiveAnalysisDailySync__Enabled: "false"
+      CyclicalWavesDataAcquisition__Enabled: "false"
       CyclicalWavesDataAcquisition__Schedule: ${CYCLICAL_WAVES_DATA_ACQUISITION_SCHEDULE:-0 2 * * *}
       CyclicalWavesDataAcquisition__RequestDelayMilliseconds: ${CYCLICAL_WAVES_DATA_ACQUISITION_REQUEST_DELAY_MILLISECONDS:-1000}
       CyclicalWavesDataAcquisition__TimeoutSeconds: ${CYCLICAL_WAVES_DATA_ACQUISITION_TIMEOUT_SECONDS:-30}
@@ -519,6 +529,11 @@ services:
       - .env
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      # Never pass API email credentials through the shared .env file.
+      AUTH_EMAIL_ENABLED: "false"
+      AUTH_EMAIL_TOKEN_HASH_SECRET: ""
+      AUTH_SMTP_USERNAME: ""
+      AUTH_SMTP_PASSWORD: ""
       TelegramGateway__Enabled: ${TELEGRAM_GATEWAY_ENABLED:-false}
       TelegramGateway__BotToken: ${TELEGRAM_BOT_TOKEN:-}
       TelegramGateway__PrimaryApiBaseUrl: ${TELEGRAM_PRIMARY_API_BASE_URL:-}

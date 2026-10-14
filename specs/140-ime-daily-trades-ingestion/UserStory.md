@@ -1,328 +1,185 @@
-# Feature 140 — IME Daily Trades Ingestion and Company Mapping
+# Feature 140 — IME Daily Trades Ingestion and Producer Mapping
 
 ## Status
 
-Planned. Specification package revised to include deterministic mapping between IME producers and FinancialCopilot `Companies`.
-
-Repository-specific class names, routes, scheduler technology, EF conventions, and authorization policies must still be validated during implementation.
+**READY_FOR_IMPLEMENTATION** after T140-01 repository discovery and the approved manual-mapping decision recorded in `RevisionReport.md`.
 
 ## Product intent
 
-FinancialCopilot needs a durable daily history of Iran Mercantile Exchange (IME) transactions and a reliable identity bridge from IME producer identities to listed companies already stored in `Companies`.
+FinancialCopilot needs a durable daily history of Iran Mercantile Exchange (IME) trades and an operator-reviewed way to associate an IME producer with one existing company row in the repository's `Companies` table.
 
-The feature now has two bounded responsibilities:
+Feature 140 has two responsibilities:
 
-1. ingest and preserve daily IME trade observations;
-2. resolve each IME producer identity to a `Companies.Id` through an explicit mapping layer.
+1. ingest and preserve daily IME trade observations and raw response evidence;
+2. discover IME producers and let an authorized administrator manually map a producer to one specific existing `NormalizedCompanyRow` (`FinancialIngestionDbContext.Companies`) selected from search results.
 
-The strategic purpose is to make future company-level commodity-exchange analytics possible without query-time scraping or fuzzy identity guesses.
+The selected row is a provider-scoped company record. This association does not declare that `Companies.Id` is a cross-provider canonical or legal-company identity. Feature 140 does not create a canonical company model or merge provider rows.
 
-Future features may then aggregate IME sales by company and estimate monthly sales before Codal publication.
+## Company-row identity contract
 
-## Companies contract
+`FinancialIngestionDbContext.Companies` exposes `NormalizedCompanyRow`, persisted in PostgreSQL table `Companies`. Its `Id` is a `Guid`. A normalized row is provider-scoped and keyed for uniqueness by `(ProviderName, ExternalCompanyId)`; different provider rows for the same issuer may have different IDs.
 
-The existing `Companies` table is the canonical FinancialCopilot company identity source.
+An administrator must explicitly select one concrete row. Mapping data stores its `CompanyId` FK to `NormalizedCompanyRow.Id`. Candidate display and search use current values from that selected row, including `Name`, `CompanySymbol`, `ProviderName`, and `ExternalCompanyId`; do not copy `CompanySymbol` into mapping data as identity truth. `CompanySymbol`, `TseSymbol`, `Ticker`, and `InstrumentCode` are nullable, and `SymbolsIn` is not a `NormalizedCompanyRow` field.
 
-The mapping must reference:
+## IME source and producer identity
 
-```text
-Companies.Id
-```
+IME trade records include provider-owned fields such as `GoodsName`, `Symbol`, `ProducerName`, `Category`, `ArzehKonandeh`, prices, quantities, dates, warehouse, broker, settlement, and lot/report identifiers. Preserve the 34 fields in `source-fields.json` exactly as received. Derived metadata must be stored separately.
 
-and may expose/use existing descriptive columns such as:
+The complete IME `Symbol` identifies a product/instrument. It is never the producer mapping key. Extract the normalized segment before the first hyphen as `ProducerCode`:
 
 ```text
-Name
-CompanySymbol
-TseSymbol
-InstrumentCode
-SymbolsIn
-ProviderName
-ExternalCompanyId
+IALC-ALHYD-00       -> IALC
+SHPC-PBR1220WWP-00  -> SHPC
+SHPC-OAVAMB-00      -> SHPC
 ```
 
-`CompanySymbol` is the expected stock/company symbol for most user-facing company identity purposes, but Feature 140 must not duplicate it into the mapping as the canonical value. The mapping points to `Companies.Id`; symbol/name values are read from `Companies`.
-
-## Source contract
-
-IME rows contain, among other fields:
-
-```text
-Symbol
-ProducerName
-ArzehKonandeh
-```
-
-Observed examples:
-
-```text
-KRPT-AMMONIAB-00
-ProducerName = پتروشیمی کرمانشاه
-```
-
-```text
-SHPC-PBR1220WWP-00
-ProducerName = پتروشیمی شازند
-```
-
-```text
-SHPC-OAVAMB-00
-ProducerName = پتروشیمی شازند
-```
-
-The leading segment of `Symbol` is treated as an IME producer code candidate:
-
-```text
-KRPT-AMMONIAB-00 -> KRPT
-SHPC-PBR1220WWP-00 -> SHPC
-```
-
-This producer code is useful for deterministic lookup but is not assumed to be globally correct without an explicit mapping record.
+Producer identity is primarily the stable `ProducerCode` plus observed `ProducerName`. Preserve raw `ProducerName` as provider evidence. Normalize a separate comparison value for registry deduplication and conflict detection only.
 
 ## Scope
 
-Feature 140 includes:
+Feature 140 includes daily IME HTTP ingestion, full raw response evidence, two-stage `{ d }` parsing, requested-date integrity, deterministic observation fingerprint/idempotency, all 34 source fields, producer-code extraction, automatic producer discovery/upsert, manual producer-to-company-row mappings, unmapped/conflict visibility, Admin APIs and an Admin Base Info screen, historical re-resolution, scheduled ingestion, and tests.
 
-1. IME daily HTTP ingestion.
-2. Raw response retention.
-3. Parsed trade persistence.
-4. Deterministic observation fingerprint/idempotency.
-5. Worker schedule and Admin manual import.
-6. Extraction of `ImeProducerCode` from IME `Symbol`.
-7. Explicit IME producer → `Companies.Id` mapping persistence.
-8. Mapping resolution for ingested observations.
-9. Detection/reporting of unmapped or conflicting producers.
-10. Admin/service operations required to review/create/update producer mappings.
-11. Tests for mapping resolution and mapping safety.
+Feature 140 does not include:
 
-Feature 140 still does NOT include:
+- creation of a cross-provider canonical company identity or general company MDM;
+- cross-provider company merging or generic alias management;
+- monthly IME sales aggregation, forecasting, or Codal reconciliation;
+- price/volume alerts, AI tools, chat answers, or user-facing IME analytics;
+- commodity/product semantic normalization.
 
-- monthly aggregation;
-- sales prediction;
-- Codal comparison;
-- alerts;
-- AI/LLM tools;
-- chat answers;
-- automated investment conclusions.
+`GoodsName`, `Symbol`, and `Category` remain exact raw provider values. A raw IME product identity is not a canonical commodity concept; any commodity normalization belongs to a future separate feature/layer.
 
 ## Functional requirements
 
-### FR-01 — Shared importer
+### FR-01 — Shared importer and schedule
 
-Worker and Admin triggers must use the same import service.
+Worker and Admin historical-import triggers use the same importer. Scheduled execution is Saturday–Wednesday at 17:00 `Asia/Tehran`. Admin historical import supports a requested day, rejects future dates, and applies the same parsing, preservation, idempotency, and result behavior.
 
-### FR-02 — Raw preservation
+### FR-02 — Raw response and trade preservation
 
-All IME provider fields remain preserved exactly as provider facts. Company identity resolution is additive metadata and must not overwrite `ProducerName`, `Symbol`, or `ArzehKonandeh`.
+Retain the complete raw provider response evidence, including request date, endpoint/request facts, HTTP status, attempt count, completion time, and success/failure outcome. Parse the provider's two-stage `{ d }` response form. Preserve all 34 provider fields exactly; never overwrite them with normalized or mapping values.
 
 ### FR-03 — Producer-code extraction
 
-For each non-empty IME `Symbol`, derive `ImeProducerCode` from the segment before the first `-`.
+For each safe non-empty `Symbol`, trim surrounding whitespace, take the non-empty segment before its first `-`, normalize it invariantly for lookup, and keep the complete original symbol unchanged. Null, empty, or malformed symbols produce no invented code and do not fail an otherwise valid trade import.
 
-Examples:
+### FR-04 — Producer registry
+
+Persist an `ImeProducers` registry conceptually equivalent to:
 
 ```text
-KRPT-AMMONIAB-00 -> KRPT
-SHPC-OAVAMB-00   -> SHPC
+Id
+ProducerCode
+ProducerName
+NormalizedProducerName
+FirstSeenAtUtc
+LastSeenAtUtc
+LastObservedSymbol
+Status
+CreatedAtUtc
+UpdatedAtUtc
 ```
 
-The derivation must:
+The exact naming follows repository conventions. A normalized producer code identifies one registry entry. First observation creates the entry; later observations update last-seen metadata rather than creating duplicates. Multiple product symbols sharing a code refer to the same producer. Keep the latest display/raw name only as registry metadata; immutable trade observations remain the source evidence for every original `ProducerName` and `Symbol`.
 
-- trim surrounding whitespace;
-- use an invariant normalization suitable for lookup;
-- preserve the original `Symbol`;
-- fail safely when the symbol is null/empty/malformed;
-- not invent a code when no safe segment exists.
+### FR-05 — Name conflict detection
 
-### FR-04 — Mapping table
+Compare a separately normalized producer name within each producer code. Whitespace, Unicode normalization, Arabic/Persian character variants, and harmless punctuation may normalize to the same textual identity under a deterministic rule. If a code is observed with materially different normalized business names, set/surface `Conflict`; do not merge names by fuzzy similarity or map new trades through the conflicted producer automatically. Preserve each raw name on its trade observation so Admin can review the variants. Conflict resolution requires an explicit administrative decision; no automatic legal-identity judgment is made.
 
-Create a dedicated mapping model conceptually equivalent to:
+Registry status must support at least `Unmapped`, `Mapped`, and `Conflict` (or equivalent). A conflict takes precedence over mapping for new resolution until reviewed. Historical linkage already written is changed only through the explicit re-resolution operation.
+
+### FR-06 — Manual mapping persistence
+
+Persist a separate mapping conceptually equivalent to:
 
 ```text
 ImeProducerCompanyMappings
 --------------------------
 Id
-ImeProducerCode
-ImeProducerName
-NormalizedProducerName
-CompanyId              -> FK Companies.Id
+ImeProducerId
+CompanyId                  FK -> NormalizedCompanyRow.Id
 MappingStatus
-MappingSource
+MappingSource              Manual
 IsActive
-CreatedAtUtc
+MappedBy
+MappedAtUtc
+UpdatedBy
 UpdatedAtUtc
 ```
 
-Exact column naming must follow repository conventions.
+Mapping source for this workflow is `Manual`. `CompanyId` identifies the specific provider-scoped row selected by the administrator. Do not store a copied company symbol/name as authoritative mapping data. Retain mapping audit history according to repository conventions.
 
-`CompanyId` is canonical. Do not duplicate `CompanySymbol` as an authoritative mapping value.
+### FR-07 — Mapping uniqueness and resolution
 
-### FR-05 — Mapping identity and uniqueness
+An IME producer code may have at most one active manual mapping to one selected `Companies.Id`. Enforce this with a database uniqueness constraint consistent with repository EF/PostgreSQL patterns. Disabled mappings do not resolve trades. Conflicted producers do not resolve automatically even if an active mapping exists until the conflict receives explicit administrative review.
 
-An active IME producer code should resolve to at most one active company mapping.
+During ingestion, resolve only a non-conflicted producer with one active manual mapping. Do not auto-map by producer name, company name, symbol similarity, seed guess, or fuzzy matching. Unmapped or conflicted trades are still persisted with null company linkage.
 
-The database must prevent ambiguous active mappings for the same normalized producer code.
+### FR-08 — Company candidate search and explicit selection
 
-If repository patterns support filtered unique indexes, prefer an active-only unique constraint. Otherwise use an equivalent repository-approved design.
+Admin can search existing `Companies` rows by `CompanySymbol` and `Name`; where useful, also support `TseSymbol`, `Ticker`, and `InstrumentCode`. Each result must show at least `Name`, `CompanySymbol`, `ProviderName`, and `ExternalCompanyId`, plus `TseSymbol`, `InstrumentCode`, `Ticker`, or other available fields where they help distinguish provider-scoped rows. When several rows match, require the administrator to choose a concrete `Companies.Id`; never select one silently.
 
-### FR-06 — Mapping status/source
-
-At minimum distinguish:
+### FR-09 — Ingestion and registry upsert flow
 
 ```text
-Confirmed
-Unmapped
-Conflict
-Disabled
+receive IME response
+  -> retain raw response evidence
+  -> parse trade and preserve provider fields
+  -> validate requested date and compute source-only fingerprint
+  -> extract ProducerCode
+  -> upsert/discover ImeProducer and observation metadata
+  -> detect normalized-name conflict
+  -> resolve one active manual mapping only when producer is non-conflicted
+  -> persist trade with selected CompanyId or null
+  -> return mapped / unmapped / conflict counts
 ```
 
-and mapping provenance such as:
+Absence of a producer code, mapping, or company match must never block valid trade persistence. Registry and trade updates must be idempotent under repeated imports.
 
-```text
-Manual
-ExactProducerName
-Seeded
-ReviewedAutomatic
-```
+### FR-10 — Trade linkage and immutable observation identity
 
-Do not silently promote a fuzzy name match to a confirmed mapping.
+Trade storage may include `ImeProducerId`, `ProducerMappingId`, nullable `ResolvedCompanyId`, and `MappingResolvedAtUtc`, or an equivalent deterministic join. These are derived mutable linkage fields. The source fingerprint covers provider-owned observation facts and its documented natural-key scope only; it excludes all producer registry status, mapping data, and resolution timestamps.
 
-### FR-07 — Resolution order
+### FR-11 — Historical re-resolution
 
-For an ingested row:
+After mapping creation/change or explicit conflict resolution, support bounded, resumable re-resolution of affected historical observations. Re-resolution may update only derived/linkage metadata. It must not modify any of the 34 source fields, original `Symbol`, original `ProducerName`, raw response evidence, or source fingerprint. Use established Admin/background execution patterns; do not add a new queue solely for Feature 140.
 
-1. extract `ImeProducerCode`;
-2. resolve an active confirmed mapping by producer code;
-3. if no code mapping exists, optionally produce a name-based candidate using normalized `ProducerName`;
-4. name-based candidates are suggestions unless repository/business rules explicitly mark an exact deterministic rule as safe;
-5. unresolved rows remain ingested successfully as raw observations.
+### FR-12 — Admin API and Base Info screen
 
-Unmapped identity must never cause loss of valid IME trade data.
+Backend routes follow `/api/v1/admin/...` and `AuthorizationPolicies.DataAdmin`. Required capabilities: list/search producers, list unmapped producers, list conflicts and name variants, search company candidates, create/change/disable a mapping, perform explicit conflict review, and request re-resolution.
 
-### FR-08 — Mapping target
+Provide an Admin Base Info screen named `IME Producer Mapping` or a product-consistent Persian equivalent (for example `نگاشت تولیدکنندگان بورس کالا`). It lists discovered producers with producer code/name, last symbol/seen time, status, and mapped company name/symbol/provider. The operator can filter unmapped records, search/open a producer, search and explicitly select a company row, create/change/disable the mapping, review conflicts, and request historical re-resolution. No automatic mapping is required.
 
-The mapping target is `Companies.Id`.
+### FR-13 — Source contract and retry behavior
 
-Once resolved, future company-level queries obtain:
-
-```text
-Companies.CompanySymbol
-Companies.Name
-...
-```
-
-through the company relation.
-
-Do not map directly to a copied stock symbol string.
-
-### FR-09 — Trade linkage
-
-Do not mutate provider fields.
-
-Preferred model:
-
-```text
-ImeDailyTrade
-  Raw provider fields
-  ImeProducerCode
-  ResolvedCompanyId?   (nullable FK Companies.Id)
-  MappingId?           (nullable FK)
-```
-
-If existing architecture strongly prefers resolution through joins rather than denormalized nullable FKs, repository discovery may choose that implementation, but the semantics must remain equivalent.
-
-### FR-10 — Historical remapping
-
-Changing a producer mapping must not rewrite or destroy the raw provider observation.
-
-The implementation must support future re-resolution of historical rows.
-
-Preferred behavior:
-
-- raw observation remains immutable;
-- mapping metadata may be recomputed;
-- mapping changes are auditable;
-- no raw source field is modified.
-
-### FR-11 — Conflict detection
-
-If one producer code appears with materially different producer names suggesting multiple identities, record/report a conflict rather than auto-binding to multiple companies.
-
-Examples of differences caused only by whitespace/Unicode normalization may be normalized; business-distinct names must not be collapsed without review.
-
-### FR-12 — Admin mapping operations
-
-Provide backend operations, following existing Admin API patterns, for at least:
-
-```text
-list unmapped producer identities
-list mapping conflicts
-create/update/disable a mapping
-resolve mapping to Companies.Id
-```
-
-No Admin UI is required in Feature 140.
-
-### FR-13 — Mapping seed/bootstrap
-
-Repository implementation may seed obvious mappings only when evidence is explicit and reviewable.
-
-Examples may include:
-
-```text
-KRPT -> company whose CompanySymbol is کرماشا
-SHPC -> company whose CompanySymbol is شاراک
-```
-
-but implementation must verify the actual `Companies` records before inserting seed mappings.
-
-Do not hardcode `Companies.Id`.
-
-### FR-14 — Existing ingestion requirements
-
-All previously approved ingestion requirements remain:
-
-- two-stage `{ d }` parsing;
-- raw response evidence retention;
-- requested-date integrity;
-- idempotent observation persistence;
-- Saturday-Wednesday 17:00 `Asia/Tehran`;
-- Admin historical import;
-- future-date rejection;
-- bounded retries for transient provider failures only;
-- database-level uniqueness.
+Retain all 34 fields specified in `source-fields.json`; use provider fixtures for request/response and parser contracts. Apply bounded retries only to transient provider failures, preserve requested-date integrity, and enforce database-level observation idempotency.
 
 ## Acceptance criteria
 
-1. **AC-01:** IME daily ingestion behavior remains compatible with the previously approved Feature 140 contract.
-2. **AC-02:** Every parsed row preserves original `Symbol`, `ProducerName`, and all other provider fields.
-3. **AC-03:** `ImeProducerCode` is deterministically extracted from valid IME symbols such as `KRPT-AMMONIAB-00 -> KRPT`.
-4. **AC-04:** Null/empty/malformed symbols do not cause import failure and do not produce invented producer codes.
-5. **AC-05:** A dedicated mapping persistence model links IME producer identity to `Companies.Id`.
-6. **AC-06:** `CompanyId` is the canonical mapping target; `CompanySymbol` is read from `Companies`, not duplicated as mapping truth.
-7. **AC-07:** One active producer code cannot resolve to multiple active companies.
-8. **AC-08:** A confirmed code mapping resolves ingested rows to the expected `Companies.Id`.
-9. **AC-09:** An unmapped producer does not block ingestion and remains queryable as unmapped.
-10. **AC-10:** A conflicting producer identity is surfaced as conflict and is not silently auto-mapped.
-11. **AC-11:** Fuzzy/name similarity alone cannot create a confirmed mapping without explicit review or an approved deterministic rule.
-12. **AC-12:** Mapping changes do not modify raw IME provider fields.
-13. **AC-13:** Historical rows can be re-resolved after a mapping is created/changed.
-14. **AC-14:** Backend Admin operations can list unmapped/conflicting producers.
-15. **AC-15:** Backend Admin operations can create/update/disable a mapping to `Companies.Id`.
-16. **AC-16:** Mapping operations follow existing authorization and API conventions.
-17. **AC-17:** Mapping seed data, if used, resolves by existing company records and never hardcodes `Companies.Id`.
-18. **AC-18:** Tests cover `KRPT` and `SHPC` style producer-code extraction and multi-product reuse of the same producer code.
-19. **AC-19:** Tests prove two different IME product symbols with the same producer prefix resolve to the same company mapping.
-20. **AC-20:** Tests cover producer-name normalization without collapsing materially different business identities.
-21. **AC-21:** Existing raw-response, date-integrity, retry, scheduling, and idempotency ACs continue to pass.
-22. **AC-22:** No monthly aggregation, forecasting, alerts, AI tools, or user-facing IME analytics are introduced.
+1. **AC-01:** Scheduled and Admin imports use the same importer; existing date validation, raw evidence, two-stage parsing, bounded transient retry, and requested-date rules remain satisfied.
+2. **AC-02:** All 34 IME source fields, including `GoodsName`, `Symbol`, `Category`, and `ProducerName`, are preserved unchanged.
+3. **AC-03:** A valid symbol yields the normalized segment before the first hyphen, e.g. `IALC-ALHYD-00 -> IALC` and both `SHPC` product symbols yield `SHPC`.
+4. **AC-04:** Multiple product symbols sharing a producer code and equivalent normalized producer name refer to one `ImeProducers` registry identity.
+5. **AC-05:** The first observation automatically discovers/upserts a producer; repeat observations update last-seen metadata without creating duplicate producers.
+6. **AC-06:** Newly discovered producers appear `Unmapped` until manually mapped; unmapped trades still persist successfully with null company linkage.
+7. **AC-07:** Null/empty/malformed symbols neither fail valid trade ingestion nor produce an invented code.
+8. **AC-08:** Same-code producer-name variants that normalize equivalently remain one identity; materially different names surface `Conflict` with reviewable raw variants and are not guessed together.
+9. **AC-09:** Admin can search company rows by `CompanySymbol` and `Name` (and supported additional fields); results show at least name, symbol, provider, and external company ID.
+10. **AC-10:** Ambiguous company search results require explicit administrator selection; no matching row is silently selected.
+11. **AC-11:** A manual mapping stores one concrete `CompanyId` FK to a selected provider-scoped `NormalizedCompanyRow.Id`; its provider and external ID remain visible to the operator. No claim of cross-provider canonical identity is made.
+12. **AC-12:** A non-conflicted producer with an active manual mapping deterministically links trades to the selected row; disabled/unmapped/conflicted producers do not auto-resolve.
+13. **AC-13:** One producer code cannot have multiple active mappings; mapping create/change/disable and conflict-review actions require `DataAdmin`.
+14. **AC-14:** The Admin Base Info screen lists/searches producers and supports unmapped filtering, company selection, mapping lifecycle, conflict visibility, and re-resolution.
+15. **AC-15:** Creating/changing a mapping and requesting re-resolution can link affected historical trades; processing is bounded/resumable and reports progress/outcomes.
+16. **AC-16:** Re-resolution changes only derived linkage; raw provider fields, raw response evidence, and source fingerprint are unchanged.
+17. **AC-17:** Producer/company name or symbol similarity never creates a confirmed mapping automatically.
+18. **AC-18:** Observation fingerprint and database uniqueness are deterministic and exclude producer registry/mapping/linkage metadata.
+19. **AC-19:** Tests cover producer normalization, shared-code products, producer upsert, equivalent and conflicting names, manual mapping, explicit company selection, authorization, disabled mapping, and historical re-resolution immutability.
+20. **AC-20:** No cross-provider company identity, MDM, company merge, monthly aggregation, forecasting, Codal reconciliation, alerts, AI tools, user-facing IME analytics, or commodity/product normalization is added.
 
-## Out of scope
+## Explicit non-goals
 
-- Monthly/company sales aggregation.
-- Sales prediction.
-- Codal reconciliation.
-- Price/volume alerts.
-- LLM tools.
-- User-facing analytical responses.
-- Automated fuzzy entity resolution that confirms mappings without review.
+- Cross-provider canonical company identity, legal-company master data, company merging, or general MDM.
+- Generic alias management or automatic legal-entity reconciliation.
+- Commodity/product semantic normalization or fuzzy `GoodsName` processing.
+- Monthly aggregation, forecasting, Codal reconciliation, alerts, AI tools, or user-facing analytics.

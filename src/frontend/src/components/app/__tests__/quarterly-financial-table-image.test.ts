@@ -97,7 +97,12 @@ describe("quarterly financial table image export", () => {
       title: "Quarterly report",
       symbol: "چخزر",
       summary: "Unit summary",
-      quarters: [{ label: "دوره منتهی به ۳۱ شهریور ۱۴۰۵", sourceIndex: 0 }],
+      quarters: [{
+        label: "فصل سوم<br>منتهی به<br>۳۱ شهریور ۱۴۰۵",
+        quarterName: "فصل سوم",
+        dateLabel: "۳۱ شهریور ۱۴۰۵",
+        sourceIndex: 0,
+      }],
       rows: [
         {
           label: "Gross margin",
@@ -116,7 +121,8 @@ describe("quarterly financial table image export", () => {
 
     await downloadQuarterlyFinancialTableImage(model);
 
-    expect(drawnText).toContainEqual({ text: "دوره منتهی به", color: "#164e63" });
+    expect(drawnText).toContainEqual({ text: "فصل سوم", color: "#164e63" });
+    expect(drawnText).toContainEqual({ text: "منتهی به", color: "#164e63" });
     expect(drawnText).toContainEqual({ text: "۳۱ شهریور ۱۴۰۵", color: "#164e63" });
     expect(context.fillText).toHaveBeenCalledWith(
       "\u06f1\u06f7\u066b\u06f7\u066a",

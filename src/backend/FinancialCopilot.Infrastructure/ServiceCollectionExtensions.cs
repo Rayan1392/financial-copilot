@@ -805,106 +805,111 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAiModelExecutionService, AiModelExecutionService>();
 
         // Feature 141 uses the packaged, integrity-checked catalog for both navigation and SQL compilation.
-        services.AddSingleton(_ =>
+        // Some hosts (such as the background Worker) share this infrastructure registration but do
+        // not activate Feature 141. Only require its packaged catalog paths when it is enabled.
+        if (configuration.GetValue<bool>("Feature141:Enabled"))
         {
-            var defaults = new SchemaNavigatorBudgets();
-            int ReadInt(string key, int fallback) => int.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
-            TimeSpan? ReadDuration(string key, TimeSpan? fallback) =>
-                TimeSpan.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
-            decimal? ReadCost() => decimal.TryParse(configuration["Feature141:SchemaNavigator:Budgets:MaximumProviderCost"], out var value) ? value : null;
-            return defaults with
+            services.AddSingleton(_ =>
             {
-                MaximumModelCalls = ReadInt(nameof(defaults.MaximumModelCalls), defaults.MaximumModelCalls),
-                MaximumNavigationCalls = ReadInt(nameof(defaults.MaximumNavigationCalls), defaults.MaximumNavigationCalls),
-                MaximumExpansionDepth = ReadInt(nameof(defaults.MaximumExpansionDepth), defaults.MaximumExpansionDepth),
-                MaximumCatalogContextTokens = ReadInt(nameof(defaults.MaximumCatalogContextTokens), defaults.MaximumCatalogContextTokens),
-                MaximumInputTokens = ReadInt(nameof(defaults.MaximumInputTokens), defaults.MaximumInputTokens),
-                MaximumHierarchyContextCharacters = ReadInt(nameof(defaults.MaximumHierarchyContextCharacters), defaults.MaximumHierarchyContextCharacters),
-                MaximumInputCharacters = ReadInt(nameof(defaults.MaximumInputCharacters), defaults.MaximumInputCharacters),
-                InitialOutputTokens = ReadInt(nameof(defaults.InitialOutputTokens), defaults.InitialOutputTokens),
-                MaximumOutputTokens = ReadInt(nameof(defaults.MaximumOutputTokens), defaults.MaximumOutputTokens),
-                MaximumTotalOutputTokens = ReadInt(nameof(defaults.MaximumTotalOutputTokens), defaults.MaximumTotalOutputTokens),
-                MaximumRetryAttempts = ReadInt(nameof(defaults.MaximumRetryAttempts), defaults.MaximumRetryAttempts),
-                PerCallTimeout = ReadDuration(nameof(defaults.PerCallTimeout), defaults.PerCallTimeout),
-                TotalTimeout = ReadDuration(nameof(defaults.TotalTimeout), defaults.TotalTimeout),
-                MaximumProviderCost = ReadCost(),
-                MaximumFanOut = ReadInt(nameof(defaults.MaximumFanOut), defaults.MaximumFanOut)
-            };
-        });
-        string ResolveFeature141Path(string key)
-        {
-            var configured = configuration[key];
-            if (string.IsNullOrWhiteSpace(configured))
-                throw new InvalidOperationException($"{key} must be configured before activating Feature 141.");
-            if (Path.IsPathFullyQualified(configured)) return configured;
-            var packaged = Path.GetFullPath(configured, AppContext.BaseDirectory);
-            if (File.Exists(packaged) || Directory.Exists(packaged)) return packaged;
-            return Path.GetFullPath(configured);
-        }
+                var defaults = new SchemaNavigatorBudgets();
+                int ReadInt(string key, int fallback) => int.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+                TimeSpan? ReadDuration(string key, TimeSpan? fallback) =>
+                    TimeSpan.TryParse(configuration[$"Feature141:SchemaNavigator:Budgets:{key}"], out var value) ? value : fallback;
+                decimal? ReadCost() => decimal.TryParse(configuration["Feature141:SchemaNavigator:Budgets:MaximumProviderCost"], out var value) ? value : null;
+                return defaults with
+                {
+                    MaximumModelCalls = ReadInt(nameof(defaults.MaximumModelCalls), defaults.MaximumModelCalls),
+                    MaximumNavigationCalls = ReadInt(nameof(defaults.MaximumNavigationCalls), defaults.MaximumNavigationCalls),
+                    MaximumExpansionDepth = ReadInt(nameof(defaults.MaximumExpansionDepth), defaults.MaximumExpansionDepth),
+                    MaximumCatalogContextTokens = ReadInt(nameof(defaults.MaximumCatalogContextTokens), defaults.MaximumCatalogContextTokens),
+                    MaximumInputTokens = ReadInt(nameof(defaults.MaximumInputTokens), defaults.MaximumInputTokens),
+                    MaximumHierarchyContextCharacters = ReadInt(nameof(defaults.MaximumHierarchyContextCharacters), defaults.MaximumHierarchyContextCharacters),
+                    MaximumInputCharacters = ReadInt(nameof(defaults.MaximumInputCharacters), defaults.MaximumInputCharacters),
+                    InitialOutputTokens = ReadInt(nameof(defaults.InitialOutputTokens), defaults.InitialOutputTokens),
+                    MaximumOutputTokens = ReadInt(nameof(defaults.MaximumOutputTokens), defaults.MaximumOutputTokens),
+                    MaximumTotalOutputTokens = ReadInt(nameof(defaults.MaximumTotalOutputTokens), defaults.MaximumTotalOutputTokens),
+                    MaximumRetryAttempts = ReadInt(nameof(defaults.MaximumRetryAttempts), defaults.MaximumRetryAttempts),
+                    PerCallTimeout = ReadDuration(nameof(defaults.PerCallTimeout), defaults.PerCallTimeout),
+                    TotalTimeout = ReadDuration(nameof(defaults.TotalTimeout), defaults.TotalTimeout),
+                    MaximumProviderCost = ReadCost(),
+                    MaximumFanOut = ReadInt(nameof(defaults.MaximumFanOut), defaults.MaximumFanOut)
+                };
+            });
+            string ResolveFeature141Path(string key)
+            {
+                var configured = configuration[key];
+                if (string.IsNullOrWhiteSpace(configured))
+                    throw new InvalidOperationException($"{key} must be configured before activating Feature 141.");
+                if (Path.IsPathFullyQualified(configured)) return configured;
+                var packaged = Path.GetFullPath(configured, AppContext.BaseDirectory);
+                if (File.Exists(packaged) || Directory.Exists(packaged)) return packaged;
+                return Path.GetFullPath(configured);
+            }
 
-        var feature141HierarchyPath = ResolveFeature141Path("Feature141:SchemaNavigator:HierarchyPath");
-        var feature141CatalogPath = ResolveFeature141Path("Feature141:SchemaNavigator:CatalogPath");
-        services.AddSingleton(_ => new JsonCatalogNavigationHierarchyProvider(
-            feature141HierarchyPath, feature141CatalogPath));
-        services.AddSingleton(_ => new StructuredQueryCatalogSnapshotBuilder().Build(
-            feature141CatalogPath, feature141HierarchyPath));
-        services.AddSingleton<ICatalogNavigationHierarchyProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
-        services.AddSingleton<ICatalogNavigationOutlineProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
-        services.AddSingleton<ISchemaContextExpander>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
-        services.AddSingleton<ISchemaContextCompletenessValidator, SchemaContextCompletenessValidator>();
-        services.AddSingleton<LlmVectorlessSchemaNavigator>();
-        services.AddSingleton<IVectorlessSchemaNavigator>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
-        services.AddSingleton<IQuestionSchemaRequirementsExtractor>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
-        services.AddSingleton<IStructuredQueryPlanBuilder, StructuredQueryPlanBuilder>();
-        services.AddSingleton<IStructuredQueryPlanValidator>(_ => new StructuredQueryPlanValidator(executionEnabled: true));
-        services.AddSingleton<IStructuredQueryCompiler, StructuredQueryCompiler>();
-        services.AddSingleton<IPersianStructuredQueryResponseGenerator, PersianStructuredQueryResponseGenerator>();
-        services.AddSingleton<IReviewedCompanyPopulationResolver>(_ => new ReviewedCompanyPopulationResolver(
-            configuration.GetSection("Feature141:ReviewedCompanyPopulations").Get<List<ReviewedCompanyPopulation>>() ?? []));
-        services.AddSingleton<IReviewedProductEquivalenceResolver>(_ => new ReviewedProductEquivalenceResolver(
-            configuration.GetSection("Feature141:ReviewedProductEquivalenceGroups").Get<List<ReviewedProductEquivalenceGroup>>() ?? []));
-        services.AddSingleton<IReviewedProductConceptResolver>(_ => new ReviewedProductConceptResolver(
-            configuration.GetSection("Feature141:ProductCatalog:Concepts").Get<List<ReviewedProductConcept>>() ?? []));
-        services.AddSingleton<IAuthorizedCompanyDiscoveryScopeResolver>(_ => new AuthorizedCompanyDiscoveryScopeResolver(
-            configuration.GetSection("Feature141:CompanyDiscoveryScopes").Get<List<AuthorizedCompanyDiscoveryScope>>() ?? []));
-        services.AddScoped<IStructuredQueryCompanyBinder, StructuredQueryCompanyBinder>();
-        services.AddScoped<IStructuredQueryProductBinder, StructuredQueryProductBinder>();
-        services.AddOptions<StructuredQueryExecutionOptions>()
-            .BindConfiguration(StructuredQueryExecutionOptions.SectionName)
-            .PostConfigure(options =>
-            {
-                options.Enabled = configuration.GetValue<bool>("Feature141:Enabled");
-                options.ConnectionString = configuration.GetConnectionString("Feature141ReadOnly") ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(options.ConnectionString)) return;
-                NpgsqlConnectionStringBuilder builder;
-                try
+            var feature141HierarchyPath = ResolveFeature141Path("Feature141:SchemaNavigator:HierarchyPath");
+            var feature141CatalogPath = ResolveFeature141Path("Feature141:SchemaNavigator:CatalogPath");
+            services.AddSingleton(_ => new JsonCatalogNavigationHierarchyProvider(
+                feature141HierarchyPath, feature141CatalogPath));
+            services.AddSingleton(_ => new StructuredQueryCatalogSnapshotBuilder().Build(
+                feature141CatalogPath, feature141HierarchyPath));
+            services.AddSingleton<ICatalogNavigationHierarchyProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ICatalogNavigationOutlineProvider>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ISchemaContextExpander>(provider => provider.GetRequiredService<JsonCatalogNavigationHierarchyProvider>());
+            services.AddSingleton<ISchemaContextCompletenessValidator, SchemaContextCompletenessValidator>();
+            services.AddSingleton<LlmVectorlessSchemaNavigator>();
+            services.AddSingleton<IVectorlessSchemaNavigator>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+            services.AddSingleton<IQuestionSchemaRequirementsExtractor>(provider => provider.GetRequiredService<LlmVectorlessSchemaNavigator>());
+            services.AddSingleton<IStructuredQueryPlanBuilder, StructuredQueryPlanBuilder>();
+            services.AddSingleton<IStructuredQueryPlanValidator>(_ => new StructuredQueryPlanValidator(executionEnabled: true));
+            services.AddSingleton<IStructuredQueryCompiler, StructuredQueryCompiler>();
+            services.AddSingleton<IPersianStructuredQueryResponseGenerator, PersianStructuredQueryResponseGenerator>();
+            services.AddSingleton<IReviewedCompanyPopulationResolver>(_ => new ReviewedCompanyPopulationResolver(
+                configuration.GetSection("Feature141:ReviewedCompanyPopulations").Get<List<ReviewedCompanyPopulation>>() ?? []));
+            services.AddSingleton<IReviewedProductEquivalenceResolver>(_ => new ReviewedProductEquivalenceResolver(
+                configuration.GetSection("Feature141:ReviewedProductEquivalenceGroups").Get<List<ReviewedProductEquivalenceGroup>>() ?? []));
+            services.AddSingleton<IReviewedProductConceptResolver>(_ => new ReviewedProductConceptResolver(
+                configuration.GetSection("Feature141:ProductCatalog:Concepts").Get<List<ReviewedProductConcept>>() ?? []));
+            services.AddSingleton<IAuthorizedCompanyDiscoveryScopeResolver>(_ => new AuthorizedCompanyDiscoveryScopeResolver(
+                configuration.GetSection("Feature141:CompanyDiscoveryScopes").Get<List<AuthorizedCompanyDiscoveryScope>>() ?? []));
+            services.AddScoped<IStructuredQueryCompanyBinder, StructuredQueryCompanyBinder>();
+            services.AddScoped<IStructuredQueryProductBinder, StructuredQueryProductBinder>();
+            services.AddOptions<StructuredQueryExecutionOptions>()
+                .BindConfiguration(StructuredQueryExecutionOptions.SectionName)
+                .PostConfigure(options =>
                 {
-                    builder = new NpgsqlConnectionStringBuilder(options.ConnectionString);
-                }
-                catch (ArgumentException)
-                {
-                    // Never allow parser exceptions to echo a connection string into startup logs.
-                    throw new InvalidOperationException(
-                        "Feature141:QueryExecution requires a valid ConnectionStrings:Feature141ReadOnly value.");
-                }
-                if (string.IsNullOrWhiteSpace(options.DesignatedDatabase))
-                    options.DesignatedDatabase = builder.Database ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(options.ReadOnlyRole))
-                    options.ReadOnlyRole = builder.Username ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(options.AuthorizationProvenance))
-                    options.AuthorizationProvenance = "feature141:catalog-backed-runtime-v1";
-            })
-            .ValidateOnStart();
-        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StructuredQueryExecutionOptions>,
-            StructuredQueryExecutionOptionsValidator>();
-        services.AddSingleton<CatalogStructuredQueryAuthorizer>();
-        services.AddSingleton<IStructuredQueryAuthorizer>(provider =>
-            provider.GetRequiredService<CatalogStructuredQueryAuthorizer>());
-        services.AddSingleton<IDevelopmentStructuredQueryAuthorizer, DevelopmentStructuredQueryAuthorizer>();
-        services.AddScoped<IReadOnlyStructuredQueryExecutor, NpgsqlReadOnlyStructuredQueryExecutor>();
-        services.AddScoped<IOfflineStructuredQueryPlanningService, OfflineStructuredQueryPlanningService>();
-        services.AddScoped<Feature141ChatQueryService>();
-        services.AddScoped<IConversationalCapabilityExecutor, RegisteredFinancialSourceCapabilityExecutor>();
+                    options.Enabled = configuration.GetValue<bool>("Feature141:Enabled");
+                    options.ConnectionString = configuration.GetConnectionString("Feature141ReadOnly") ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.ConnectionString)) return;
+                    NpgsqlConnectionStringBuilder builder;
+                    try
+                    {
+                        builder = new NpgsqlConnectionStringBuilder(options.ConnectionString);
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Never allow parser exceptions to echo a connection string into startup logs.
+                        throw new InvalidOperationException(
+                            "Feature141:QueryExecution requires a valid ConnectionStrings:Feature141ReadOnly value.");
+                    }
+                    if (string.IsNullOrWhiteSpace(options.DesignatedDatabase))
+                        options.DesignatedDatabase = builder.Database ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.ReadOnlyRole))
+                        options.ReadOnlyRole = builder.Username ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(options.AuthorizationProvenance))
+                        options.AuthorizationProvenance = "feature141:catalog-backed-runtime-v1";
+                })
+                .ValidateOnStart();
+            services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StructuredQueryExecutionOptions>,
+                StructuredQueryExecutionOptionsValidator>();
+            services.AddSingleton<CatalogStructuredQueryAuthorizer>();
+            services.AddSingleton<IStructuredQueryAuthorizer>(provider =>
+                provider.GetRequiredService<CatalogStructuredQueryAuthorizer>());
+            services.AddSingleton<IDevelopmentStructuredQueryAuthorizer, DevelopmentStructuredQueryAuthorizer>();
+            services.AddScoped<IReadOnlyStructuredQueryExecutor, NpgsqlReadOnlyStructuredQueryExecutor>();
+            services.AddScoped<IOfflineStructuredQueryPlanningService, OfflineStructuredQueryPlanningService>();
+            services.AddScoped<Feature141ChatQueryService>();
+            services.AddScoped<IConversationalCapabilityExecutor, RegisteredFinancialSourceCapabilityExecutor>();
+        }
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();

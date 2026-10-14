@@ -268,7 +268,8 @@ public static class QuarterlyFinancialReportsNormalizer
                     report.ProviderName, report.StatementType, report.PeriodStart, report.PeriodEnd, report.PeriodMonths,
                     report.IsAudited, report.IsRepresented, report.IsComposing, report.SourcePayloadChecksum,
                     report.LastSynchronizedAt, report.AssumedScale, report.SourceAmountUnit, report.CurrencyCode,
-                    report.AccountingBasis, report.ReportRevisionLineage, report.FiscalYearEvidence)).ToArray(),
+                    report.AccountingBasis, report.ReportRevisionLineage, report.FiscalYearEvidence,
+                    report.PeriodType)).ToArray(),
             Outcome: tableOutcome);
     }
 

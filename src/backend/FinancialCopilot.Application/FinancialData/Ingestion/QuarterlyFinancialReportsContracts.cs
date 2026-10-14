@@ -46,7 +46,8 @@ public sealed record QuarterlyReportObservation(
     string? SourceAmountUnit = null,
     string? CurrencyCode = null,
     string? AccountingBasis = null,
-    string? ReportRevisionLineage = null);
+    string? ReportRevisionLineage = null,
+    string? PeriodType = null);
 
 public sealed record QuarterlySourceObservation(
     Guid LineItemId,
@@ -112,7 +113,8 @@ public sealed record QuarterlySelectedReportReference(
     string? CurrencyCode = null,
     string? AccountingBasis = null,
     string? ReportRevisionLineage = null,
-    string? FiscalYearEvidence = null);
+    string? FiscalYearEvidence = null,
+    string? PeriodType = null);
 
 public sealed record QuarterlyFinancialReportTableResult(
     string CompanySymbol,

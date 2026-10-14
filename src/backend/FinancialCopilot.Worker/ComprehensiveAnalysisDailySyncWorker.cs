@@ -4,10 +4,17 @@ namespace FinancialCopilot.Worker;
 
 public sealed class ComprehensiveAnalysisDailySyncWorker(
     IServiceScopeFactory scopeFactory,
+    IConfiguration configuration,
     ILogger<ComprehensiveAnalysisDailySyncWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!configuration.GetValue<bool>("ComprehensiveAnalysisDailySync:Enabled"))
+        {
+            logger.LogInformation("ComprehensiveAnalysis daily sync is disabled by configuration.");
+            return;
+        }
+
         // Wait for the first scheduled execution window before entering the loop.
         // The worker delays one full cadence on startup so it does not run at every
         // process restart; the admin endpoint covers on-demand triggering.

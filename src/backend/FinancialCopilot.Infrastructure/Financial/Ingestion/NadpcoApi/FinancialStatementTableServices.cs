@@ -75,7 +75,8 @@ internal sealed class EfCoreFinancialStatementTableRepository(
                 statement.SourcePayloadChecksum, statement.LastSynchronizedAt,
                 metadata.JalaliAnnouncementDate ?? metadata.AnnouncementDate?.ToString("O", CultureInfo.InvariantCulture),
                 metadata.JalaliFiscalYearEnd, observations, metadata.AssumedScale, metadata.SourceAmountUnit,
-                metadata.CurrencyCode, metadata.AccountingBasis, metadata.ReportRevisionLineage);
+                metadata.CurrencyCode, metadata.AccountingBasis, metadata.ReportRevisionLineage,
+                statement.PeriodType);
         }).ToArray();
     }
 
@@ -559,21 +560,49 @@ internal sealed class FinancialStatementTableQueryUseCase(
     {
         // Match the current cumulative report (3M/6M/9M/12M), never the predecessor
         // used to derive the quarter's financial values.
-        var selected = result.SelectedReports?.FirstOrDefault(report =>
-            report.PeriodMonths == period.Quarter * 3 && report.PeriodEnd == period.End);
+        var selectedReports = result.SelectedReports ?? [];
+        var selected = selectedReports.FirstOrDefault(report =>
+                report.PeriodEnd == period.End && QuarterForPeriodType(report.PeriodType) == period.Quarter)
+            ?? selectedReports.FirstOrDefault(report =>
+                report.PeriodEnd == period.End && QuarterForPeriodType(report.PeriodType) is null);
         if (selected is null || selected.PeriodEnd == default)
-            return $"سال مالی {period.FiscalYear}، فصل {period.Quarter}";
+            return FiscalQuarterFallback(period.FiscalYear, period.Quarter);
 
         var date = selected.PeriodEnd.ToDateTime(TimeOnly.MinValue);
         var calendar = new PersianCalendar();
         if (date < calendar.MinSupportedDateTime || date > calendar.MaxSupportedDateTime)
-            return $"سال مالی {period.FiscalYear}، فصل {period.Quarter}";
+            return FiscalQuarterFallback(period.FiscalYear, period.Quarter);
         string[] months = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
             "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
         var day = ToPersianDigits(calendar.GetDayOfMonth(date).ToString(CultureInfo.InvariantCulture));
         var year = ToPersianDigits(calendar.GetYear(date).ToString(CultureInfo.InvariantCulture));
-        return $"دوره منتهی به {day} {months[calendar.GetMonth(date) - 1]} {year}";
+        var fiscalQuarter = QuarterForPeriodType(selected.PeriodType) ?? period.Quarter;
+        var quarterName = QuarterName(fiscalQuarter);
+        return quarterName is null
+            ? $"سال مالی {ToPersianDigits(period.FiscalYear.ToString(CultureInfo.InvariantCulture))}، فصل {ToPersianDigits(fiscalQuarter.ToString(CultureInfo.InvariantCulture))}"
+            : $"{quarterName}<br>منتهی به<br>{day} {months[calendar.GetMonth(date) - 1]} {year}";
     }
+
+    private static int? QuarterForPeriodType(string? periodType) => periodType switch
+    {
+        "ThreeMonths" => 1,
+        "SixMonths" => 2,
+        "NineMonths" => 3,
+        "TwelveMonths" => 4,
+        _ => null
+    };
+
+    private static string? QuarterName(int quarter) => quarter switch
+    {
+        1 => "فصل اول",
+        2 => "فصل دوم",
+        3 => "فصل سوم",
+        4 => "فصل چهارم",
+        _ => null
+    };
+
+    private static string FiscalQuarterFallback(int fiscalYear, int quarter) =>
+        $"سال مالی {ToPersianDigits(fiscalYear.ToString(CultureInfo.InvariantCulture))}، فصل {ToPersianDigits(quarter.ToString(CultureInfo.InvariantCulture))}";
 
     private static string ToPersianDigits(string value) =>
         string.Concat(value.Select(character => character is >= '0' and <= '9'

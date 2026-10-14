@@ -49,6 +49,15 @@ function splitRow(line: string): string[] {
 }
 
 function quarterInfo(label: string, sourceIndex: number) {
+  const headerParts = label.split(/<br\s*\/?>/i).map((part) => part.trim());
+  if (headerParts.length >= 3 && /^فصل\s+(?:اول|دوم|سوم|چهارم)$/.test(headerParts[0])) {
+    return {
+      label,
+      quarterName: headerParts[0],
+      dateLabel: headerParts[2],
+      sourceIndex,
+    };
+  }
   const normalized = normalizeDigits(label);
   if (
     /^دوره\s+منتهی\s+به\s+\d{1,2}\s+(?:فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s+1[34]\d{2}$/.test(
@@ -337,12 +346,17 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
             {model.quarters.map((quarter) => (
               <th
                 key={quarter.sourceIndex}
-                aria-label={quarter.label}
-                className="border border-[#b8d9d5] px-0.5 py-1.5 text-center font-semibold"
+                aria-label={quarterlyPeriodHeaderLines(quarter).join(" ")}
+                className="border border-[#b8d9d5] px-0.5 py-1.5 text-center font-semibold leading-tight"
               >
-                {quarterlyPeriodHeaderLines(quarter)[0]}
-                <br />
-                {quarterlyPeriodHeaderLines(quarter)[1]}
+                {quarterlyPeriodHeaderLines(quarter).map((line, lineIndex) => (
+                  <span
+                    key={`${quarter.sourceIndex}-${lineIndex}`}
+                    className={`block whitespace-normal break-words ${lineIndex === 0 ? "text-[9px] font-bold sm:text-[11px]" : lineIndex === 1 ? "text-[7px] font-medium sm:text-[9px]" : "text-[8px] font-semibold sm:text-[10px]"}`}
+                  >
+                    {line}
+                  </span>
+                ))}
               </th>
             ))}
             <th className="border border-[#b8d9d5] bg-[#c7e5e1] px-0.5 py-1.5 text-center font-bold">

@@ -2,69 +2,46 @@
 
 ## Verdict
 
-**READY_FOR_IMPLEMENTATION_AFTER_REPOSITORY_DISCOVERY_AND_REVIEW_GATE**
+**READY_FOR_IMPLEMENTATION**. T140-01 repository discovery is complete, and the former mapping-target blocker has an approved product decision documented in `RevisionReport.md`.
 
-## Major revised decision
+## Approved company-row semantics
 
-Feature 140 now includes IME producer → FinancialCopilot company mapping.
+Feature 140 manually associates an IME producer with one administrator-selected existing `NormalizedCompanyRow` in `FinancialIngestionDbContext.Companies`. The selected `Companies.Id` is provider-scoped row identity. It is not cross-provider canonical identity or legal-company master identity. Feature 140 does not create or imply a canonical company model, merge provider rows, or implement general MDM.
 
-This is justified because the stated product purpose is company-level commodity-exchange analysis and later monthly-sales estimation. Without identity resolution, raw ingestion alone cannot support deterministic company aggregation.
+Admin company search must expose `Name`, `CompanySymbol`, `ProviderName`, and `ExternalCompanyId` at minimum. An administrator explicitly selects one concrete row; no ambiguous first-match behavior or automatic matching is permitted.
 
-## Key architecture decision
+## Producer identity and registry decision
 
-Do NOT put mapping semantics into the provider-owned fields.
+The normalized segment before the first hyphen in IME `Symbol` is a producer lookup key. The complete `Symbol` remains product/instrument identity and raw provider evidence. A single `ImeProducers` row per normalized producer code is discovered/upserted by ingestion. Raw trade `ProducerName`/`Symbol` values remain immutable; normalization exists only in separate registry/conflict metadata.
 
-Use:
+Equivalent textual name variants may share a producer identity after deterministic normalization. Materially different names for one code set `Conflict`, remain visible from preserved raw observations, block new automatic linkage, and require an audited explicit Admin review. Fuzzy identity resolution is prohibited.
 
-```text
-IME Symbol / ProducerName
-        ->
-ImeProducerCode
-        ->
-ImeProducerCompanyMappings
-        ->
-Companies.Id
-```
+## Mapping and ingestion safety
 
-The `Companies` table remains canonical for company identity.
+`ImeProducerCompanyMappings` stores a separate manual association (`MappingSource=Manual`) from `ImeProducerId` to the selected `Companies.Id`. There is at most one active mapping per producer. Unmapped/conflicted producers do not block trade ingestion. Linkage values and registry state are derived metadata and excluded from observation fingerprint inputs.
 
-## Why mapping targets Companies.Id
+Historical re-resolution updates linkage only. It must not change any of the 34 IME provider fields, raw response evidence, or source fingerprint. The daily Worker and Admin historical import share the importer and existing repository execution patterns.
 
-Mapping directly to a copied symbol string is fragile.
+## Admin product scope
 
-`Companies.Id` provides stable relational identity while `CompanySymbol`, `TseSymbol`, `Name`, and instrument-related columns remain attributes of the company record.
+Feature 140 includes a focused Admin Base Info screen for IME producer mapping, plus DataAdmin-protected `/api/v1/admin/...` operations for producer lists/search, unmapped/conflict review, company candidate search, manual mapping lifecycle, conflict review, and historical re-resolution. This is not general company MDM or a commodity/product normalization feature.
 
-## Risks and mitigations
+## Risks and controls
 
-| Risk | Severity | Mitigation |
-|---|---:|---|
-| Same IME prefix mapped to two companies | High | active mapping uniqueness + conflict state |
-| Producer name spelling differences | Medium | normalized alias/candidate handling, no blind fuzzy confirmation |
-| Raw IME data contaminated by mapping | High | preserve provider fields; mapping is additive metadata |
-| Company row duplicates/provider variants | High | repository discovery + explicit Companies.Id selection |
-| Mapping changes break idempotency | High | exclude mapping metadata from SourceFingerprint |
-| Historical rows remain unmapped | Medium | re-resolution operation |
-| Prefix assumption is wrong for some symbols | Medium | explicit mapping required; malformed/unknown stays unresolved |
-| Auto-mapping wrong company | High | confirmed mapping required; candidates are not truth |
-| Company symbol changes | Medium | FK to Companies.Id, not copied symbol truth |
+| Risk | Control |
+|---|---|
+| Same code appears with distinct business names | Registry status `Conflict`, preserve raw variants, block new automatic linkage pending review |
+| Multiple provider rows match company name/symbol | Show provider and external ID, require explicit `Companies.Id` selection |
+| Mapping changes mutate observation identity | Exclude all mapping/registry data from source fingerprint |
+| Historical observations remain unlinked | Authorized bounded/resumable re-resolution |
+| Product symbol prefix is malformed | Safe null extraction; ingest observation without mapping |
+| Product normalization is conflated with producer mapping | Preserve `GoodsName`, `Symbol`, and `Category`; commodity semantics remain out of scope |
 
-## Scope check
+## Remaining implementation checks
 
-Still excluded:
+1. T140-02 must verify a real IME response fixture for types, optionality, and casing of all 34 fields.
+2. Implementation must use the repository's `FinancialIngestionDbContext` migration and filtered unique-index conventions.
+3. Confirm Worker deployment topology and use existing shared coordination/idempotency if more than one instance can run the schedule.
+4. Build and test the manual mapping, Admin Base Info, DataAdmin authorization, conflict, and re-resolution flows.
 
-- monthly aggregation;
-- sales forecasting;
-- Codal comparison;
-- alerts;
-- AI/LLM tools;
-- user-facing analytical answers.
-
-## Review gate
-
-Implementation should proceed only after repository discovery confirms:
-
-1. actual `Companies` entity and PK type;
-2. existing company uniqueness/provider semantics;
-3. whether `CompanySymbol` can have duplicates;
-4. existing Admin mapping patterns;
-5. migration/index conventions.
+No cross-provider canonical company identity work is required for Feature 140. No production implementation has begun.

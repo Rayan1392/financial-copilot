@@ -26,7 +26,7 @@ if (!executablePath) throw new Error("A local Chrome or Chromium executable is r
 const WIDTH = 1200;
 const PAD = 36;
 const HEADER_TOP = PAD + 104 + 54;
-const HEADER_HEIGHT = 64;
+const HEADER_HEIGHT = 78;
 const ROW_HEIGHT = 54;
 const ROW_COUNT = 16;
 const SCALE = 2;
@@ -98,16 +98,16 @@ async function main() {
     const webHeaders = await page.locator("thead th").allTextContents();
     assert.equal(webHeaders[0].trim(), "شرح");
     assert.equal(webHeaders[6].trim(), "درصد تغییر به فصل قبل");
-    const expectedDates = [
-      "۳۱ شهریور ۱۴۰۴", "۳۰ آذر ۱۴۰۴", "۲۹ اسفند ۱۴۰۴",
-      "۳۱ خرداد ۱۴۰۵", "۳۱ شهریور ۱۴۰۵",
+    const expectedHeaders = [
+      "فصل دوم منتهی به ۳۱ شهریور ۱۴۰۴",
+      "فصل سوم منتهی به ۳۰ آذر ۱۴۰۴",
+      "فصل اول منتهی به ۲۹ اسفند ۱۴۰۴",
+      "فصل دوم منتهی به ۳۱ خرداد ۱۴۰۵",
+      "فصل سوم منتهی به ۳۱ شهریور ۱۴۰۵",
     ];
-    for (const [index, date] of expectedDates.entries()) {
-      assert.ok(webHeaders[index + 1].includes("دوره منتهی به"));
-      assert.ok(webHeaders[index + 1].includes(date));
-      assert.doesNotMatch(webHeaders[index + 1], /سال مالی|فصل|[0-9]/);
-      assert.equal(await page.locator("thead th").nth(index + 1).getAttribute("aria-label"),
-        `دوره منتهی به ${date}`);
+    for (const [index, header] of expectedHeaders.entries()) {
+      assert.equal(webHeaders[index + 1].trim(), header.replace(" منتهی به ", "منتهی به"));
+      assert.equal(await page.locator("thead th").nth(index + 1).getAttribute("aria-label"), header);
     }
     const grossWeb = await page.locator("tbody tr").nth(3).locator("th, td").evaluateAll((cells) =>
       cells.map((cell) => ({
@@ -202,8 +202,8 @@ async function main() {
     if (!captureOnly) {
       assert.match(canvasHeaders[0], /شرح/);
       assert.match(canvasHeaders[6], /درصد تغییر به فصل قبل/);
-      for (const [index, date] of expectedDates.entries()) {
-        assert.equal(canvasHeaders[index + 1], `دوره منتهی به ${date}`);
+      for (const [index, header] of expectedHeaders.entries()) {
+        assert.equal(canvasHeaders[index + 1], header);
       }
       assert.ok(grossBackgrounds.every(([r, g, b]) => r === 254 && g === 240 && b === 138),
         "Gross Margin is not yellow across the full PNG row.");

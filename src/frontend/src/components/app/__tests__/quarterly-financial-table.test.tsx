@@ -41,6 +41,35 @@ function markdownTable(overrides: Record<number, [latest: string, previous: stri
 }
 
 describe("quarterly financial table QoQ rendering", () => {
+  it("renders shared three-line fiscal-quarter labels from the selected report", () => {
+    const fiscalHeaders = [
+      "فصل اول<br>منتهی به<br>۲۹ اسفند ۱۴۰۴",
+      "فصل دوم<br>منتهی به<br>۳۱ خرداد ۱۴۰۵",
+      "فصل سوم<br>منتهی به<br>۳۱ شهریور ۱۴۰۵",
+      "فصل چهارم<br>منتهی به<br>۳۰ آذر ۱۴۰۵",
+      "فصل اول<br>منتهی به<br>۲۹ اسفند ۱۴۰۵",
+    ];
+    const content = markdownTable().split("\n");
+    content[2] = `| شرح | ${fiscalHeaders.toReversed().join(" | ")} | درصد تغییر به فصل قبل |`;
+    const parsed = parseQuarterlyFinancialTable(content.join("\n"));
+    expect(parsed).not.toBeNull();
+
+    const { container } = render(<QuarterlyFinancialTable model={parsed!.model} />);
+    const headers = Array.from(container.querySelectorAll("thead th"));
+    expect(headers.map((cell) => cell.textContent)).toEqual([
+      "شرح",
+      "فصل اولمنتهی به۲۹ اسفند ۱۴۰۴",
+      "فصل دوممنتهی به۳۱ خرداد ۱۴۰۵",
+      "فصل سوممنتهی به۳۱ شهریور ۱۴۰۵",
+      "فصل چهارممنتهی به۳۰ آذر ۱۴۰۵",
+      "فصل اولمنتهی به۲۹ اسفند ۱۴۰۵",
+      "درصد تغییر به فصل قبل",
+    ]);
+    expect(headers[3]?.querySelectorAll("span")).toHaveLength(3);
+    expect(headers[3]?.querySelector("span")?.className).toContain("font-bold");
+    expect(headers[3]?.getAttribute("aria-label")).toBe("فصل سوم منتهی به ۳۱ شهریور ۱۴۰۵");
+  });
+
   it("renders selected PeriodEnd headers in RTL order and keeps the fiscal fallback", () => {
     const dateHeaders = [
       "دوره منتهی به ۳۱ شهریور ۱۴۰۵",

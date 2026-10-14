@@ -54,6 +54,8 @@ public static class CapabilityRoutingPrecedence
                           text.Contains("تحلیل", StringComparison.Ordinal) ||
                           text.Contains("بررسی", StringComparison.Ordinal);
         var hasStatement = candidates.Any(candidate => candidate.CapabilityCode is "financial_statement_table" or "financial_statement_period_analysis");
+        var isQuarterlyReportRequest = FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(text) &&
+                                       candidates.Any(candidate => candidate.CapabilityCode == "financial_statement_table");
         var hasProduct = candidates.Any(candidate => candidate.CapabilityCode == "product_revenue_mix");
         var hasProductScope = interpretation.EntityMentions.Any(entity =>
             string.Equals(entity.EntityType, "product", StringComparison.OrdinalIgnoreCase) ||
@@ -73,6 +75,7 @@ public static class CapabilityRoutingPrecedence
 
         var preferred = hasThreshold && candidates.Any(candidate => candidate.CapabilityCode == "stock_screening") ? "stock_screening"
             : hasGauge && hasPs ? "ps_gauge_visualization"
+            : isQuarterlyReportRequest ? "financial_statement_table"
             : hasStatement && hasAnalysis ? "financial_statement_period_analysis"
             : hasStatement ? "financial_statement_table"
             : hasProductScope && hasProductSalesTrend ? "product_sales_trend"
@@ -328,6 +331,18 @@ public sealed class HybridCapabilityInterpreter(
         CancellationToken cancellationToken)
     {
         var totalStart = Stopwatch.GetTimestamp();
+        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(message))
+        {
+            var tableInterpretation = deterministicInterpreter.Interpret(message);
+            latencySink?.Record(new SemanticRoutingLatencySample(
+                correlationId,
+                LegacyInterpretationMs: Stopwatch.GetElapsedTime(totalStart).TotalMilliseconds,
+                RoutingMs: Stopwatch.GetElapsedTime(totalStart).TotalMilliseconds));
+            return new HybridInterpretationResult(
+                tableInterpretation, null, false, "Completed",
+                tableInterpretation.CapabilityCandidates.FirstOrDefault()?.CapabilityCode,
+                tableInterpretation.CapabilityCandidates.FirstOrDefault()?.Confidence);
+        }
         double? deterministicMs = null;
         double? semanticModelMs = null;
         double? arbitrationMs = null;

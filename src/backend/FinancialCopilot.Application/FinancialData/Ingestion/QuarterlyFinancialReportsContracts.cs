@@ -206,7 +206,7 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
 
         var reports = await repository.GetIncomeStatementReportsAsync(
             new QuarterlyFinancialReportSelection(resolution.Company.ExternalCompanyId, query.QuarterCount,
-                query.EndingPeriod, query.IsComposing, query.IsAudited, query.IsRepresented), cancellationToken);
+                query.EndingPeriod, query.IsComposing ?? false, query.IsAudited, query.IsRepresented), cancellationToken);
         return QuarterlyFinancialReportsNormalizer.Normalize(
             resolution.Company.CompanySymbol ?? resolution.Company.TseSymbol ?? resolution.Company.Ticker ?? query.CompanySymbol,
             null, resolution.Company.ExternalCompanyId, reports, query.QuarterCount, query.EndingPeriod,

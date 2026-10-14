@@ -31,6 +31,7 @@ function NewChatPage() {
     { text: "رتبه بندی گزارش ماهانه؟", icon: FileText },
     { text: "آخرین قیمت اخابر چقدر بوده؟", icon: Activity },
     { text: "کگهر را با صنعت خودش مقایسه کن", icon: BarChart3 },
+    { text: "گزارش‌های فصلی فولاد؟", icon: FileText },
   ];
 
   const startChat = useMutation({

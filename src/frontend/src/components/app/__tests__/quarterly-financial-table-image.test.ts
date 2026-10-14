@@ -34,7 +34,12 @@ describe("quarterly financial table image export", () => {
       quarters: [],
       rows: [
         { label: "Cost increase", sourceItemId: 1, values: ["۳۰٫۱٪"], grossMargin: false },
-        { label: "Finance cost decrease", sourceItemId: 12, values: ["−۱۵٫۰٪"], grossMargin: false },
+        {
+          label: "Finance cost decrease",
+          sourceItemId: 12,
+          values: ["−۱۵٫۰٪"],
+          grossMargin: false,
+        },
         { label: "Revenue increase", sourceItemId: 15, values: ["۲۷٫۵٪"], grossMargin: false },
         { label: "Profit decrease", sourceItemId: 143, values: ["−۱۰٫۰٪"], grossMargin: false },
       ],
@@ -58,15 +63,23 @@ describe("quarterly financial table image export", () => {
   it("includes the ticker in a safe Persian PNG filename", async () => {
     const fillColors: string[] = [];
     const drawnText: Array<{ text: string; color: string }> = [];
+    const drawnFonts: Array<{ text: string; font: string }> = [];
     let currentFillColor = "";
+    let currentFont = "";
     const context = {
       set fillStyle(value: string) {
         currentFillColor = value;
       },
+      set font(value: string) {
+        currentFont = value;
+      },
       scale: vi.fn(),
       fillRect: vi.fn(() => fillColors.push(currentFillColor)),
       strokeRect: vi.fn(),
-      fillText: vi.fn((text: string) => drawnText.push({ text, color: currentFillColor })),
+      fillText: vi.fn((text: string) => {
+        drawnText.push({ text, color: currentFillColor });
+        drawnFonts.push({ text, font: currentFont });
+      }),
       measureText: vi.fn(() => ({ width: 10 })),
     } as unknown as CanvasRenderingContext2D;
     let downloadedFilename = "";
@@ -84,7 +97,7 @@ describe("quarterly financial table image export", () => {
       title: "Quarterly report",
       symbol: "چخزر",
       summary: "Unit summary",
-      quarters: [{ label: "1405 Q2", year: 1405, quarter: 2, sourceIndex: 0 }],
+      quarters: [{ label: "دوره منتهی به ۳۱ شهریور ۱۴۰۵", sourceIndex: 0 }],
       rows: [
         {
           label: "Gross margin",
@@ -103,12 +116,8 @@ describe("quarterly financial table image export", () => {
 
     await downloadQuarterlyFinancialTableImage(model);
 
-    expect(context.fillText).toHaveBeenCalledWith(
-      "\u0633\u0627\u0644 \u0645\u0627\u0644\u06cc \u06f1\u06f4\u06f0\u06f5\u060c \u0641\u0635\u0644 \u06f2",
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-    );
+    expect(drawnText).toContainEqual({ text: "دوره منتهی به", color: "#164e63" });
+    expect(drawnText).toContainEqual({ text: "۳۱ شهریور ۱۴۰۵", color: "#164e63" });
     expect(context.fillText).toHaveBeenCalledWith(
       "\u06f1\u06f7\u066b\u06f7\u066a",
       expect.any(Number),
@@ -117,15 +126,21 @@ describe("quarterly financial table image export", () => {
     );
     expect(drawnText.map(({ text }) => text)).toContain("شرح");
     expect(drawnText.map(({ text }) => text)).toContain("درصد تغییر به فصل قبل");
+    expect(drawnText).toContainEqual({ text: "شرح", color: "#164e63" });
+    expect(drawnText).toContainEqual({ text: "درصد تغییر به فصل قبل", color: "#164e63" });
     expect(fillColors).toContain("#c7e5e1");
     expect(fillColors.slice(-6)).toEqual([
-      "#ffedd5",
       "#fef08a",
-      "#d1fae5",
+      "#fef08a",
+      "#fef08a",
       "#ffedd5",
       "#ffe4e6",
       "#ffe4e6",
     ]);
+    expect(drawnFonts).toContainEqual({
+      text: "\u06f1\u06f7\u066b\u06f7\u066a",
+      font: '700 20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif',
+    });
     expect(drawnText).toContainEqual({
       text: "\u200e\u2212\u06f1\u0660\u066b\u0660\u066a",
       color: "#881337",

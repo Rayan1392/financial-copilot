@@ -2,6 +2,10 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
+import {
+  quarterlyPeriodHeaderLines,
+  type QuarterlyFinancialPeriod,
+} from "./quarterly-financial-table-header";
 import { downloadQuarterlyFinancialTableImage } from "./quarterly-financial-table-image";
 
 export interface QuarterlyFinancialTableRow {
@@ -15,7 +19,7 @@ export interface QuarterlyFinancialTableModel {
   title: string;
   symbol: string;
   summary: string;
-  quarters: Array<{ label: string; year: number; quarter: number; sourceIndex: number }>;
+  quarters: QuarterlyFinancialPeriod[];
   rows: QuarterlyFinancialTableRow[];
 }
 
@@ -46,6 +50,13 @@ function splitRow(line: string): string[] {
 
 function quarterInfo(label: string, sourceIndex: number) {
   const normalized = normalizeDigits(label);
+  if (
+    /^دوره\s+منتهی\s+به\s+\d{1,2}\s+(?:فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s+1[34]\d{2}$/.test(
+      normalized,
+    )
+  ) {
+    return { label, sourceIndex };
+  }
   const year = normalized.match(/(?:سال\s*مالی\s*)?(13\d{2}|14\d{2})/);
   const quarter = normalized.match(/(?:فصل|ربع)\s*([1-4])/);
   return year && quarter
@@ -97,7 +108,7 @@ function isShareCountRow(label: string) {
 }
 
 function rowIsGrossMargin(label: string) {
-  return /\u062d\u0627\u0634\u06cc\u0647\s*\u0633\u0648\u062f\s*\u0646\u0627\u062e\u0627\u0644\u0635|\u0645\u0627\u0631\u0698\u06cc\u0646\s*\u0646\u0627\u062e\u0627\u0644\u0635/.test(
+  return /\u062d\u0627\u0634\u06cc\u0647\s*\u0633\u0648\u062f\s*\u0646\u0627\u062e\u0627\u0644\u0635|\u0645\u0627\u0631[\u062c\u0698]\u06cc\u0646\s*\u0646\u0627\u062e\u0627\u0644\u0635/.test(
     label,
   );
 }
@@ -109,6 +120,18 @@ function formatPercent(value: number, fractionDigits: number): string {
     useGrouping: false,
   }).format(value);
   return `${formatted}${String.fromCharCode(0x066a)}`;
+}
+
+function grossMarginChangeClass(
+  tone: ReturnType<typeof resolveQuarterlyChangeColors>["tone"],
+): string {
+  const text =
+    tone === "positive"
+      ? "text-emerald-900"
+      : tone === "negative"
+        ? "text-rose-900"
+        : "text-slate-700";
+  return `bg-yellow-200 ${text}`;
 }
 
 function formatGrossMargin(value: string): string {
@@ -138,7 +161,22 @@ function isChangeHeader(value: string) {
 // Feature 144's typed result is rendered in this fixed 16-row order. Markdown does not carry
 // row metadata, so attach stable source IDs only when the complete contracted row set is present.
 const FEATURE_144_SOURCE_ITEM_IDS: ReadonlyArray<number | null> = [
-  15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 279, 278, 143, 160, 153,
+  15,
+  1,
+  139,
+  null,
+  5,
+  39,
+  140,
+  12,
+  40,
+  142,
+  334,
+  279,
+  278,
+  143,
+  160,
+  153,
 ];
 
 export function parseQuarterlyFinancialTable(
@@ -160,8 +198,13 @@ export function parseQuarterlyFinancialTable(
   const header = splitRow(lines[headerIndex]);
   const quarters = header
     .map((label, sourceIndex) => quarterInfo(label, sourceIndex))
-    .filter((period): period is NonNullable<typeof period> => period !== null)
-    .sort((a, b) => a.year - b.year || a.quarter - b.quarter);
+    .filter((period): period is NonNullable<typeof period> => period !== null);
+  if (quarters.some((period) => period.year == null)) {
+    // New backend tables are emitted newest first, including any fallback fiscal labels.
+    quarters.sort((a, b) => b.sourceIndex - a.sourceIndex);
+  } else {
+    quarters.sort((a, b) => a.year! - b.year! || a.quarter! - b.quarter!);
+  }
   if (quarters.length < 5) return null;
   const changeIndex = header.findIndex(isChangeHeader);
   const rows: QuarterlyFinancialTableRow[] = [];
@@ -278,10 +321,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
         <colgroup>
           <col style={{ width: "22%" }} />
           {model.quarters.map((quarter) => (
-            <col
-              key={`${toPersianDigits(String(quarter.year))}-${toPersianDigits(String(quarter.quarter))}`}
-              style={{ width: `${62 / model.quarters.length}%` }}
-            />
+            <col key={quarter.sourceIndex} style={{ width: `${62 / model.quarters.length}%` }} />
           ))}
           <col style={{ width: "16%" }} />
         </colgroup>
@@ -290,12 +330,13 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
             <th className="border border-[#b8d9d5] px-1 py-2 text-right font-bold">شرح</th>
             {model.quarters.map((quarter) => (
               <th
-                key={`${toPersianDigits(String(quarter.year))}-${toPersianDigits(String(quarter.quarter))}`}
+                key={quarter.sourceIndex}
+                aria-label={quarter.label}
                 className="border border-[#b8d9d5] px-0.5 py-1.5 text-center font-semibold"
               >
-                سال مالی {toPersianDigits(String(quarter.year))}
+                {quarterlyPeriodHeaderLines(quarter)[0]}
                 <br />
-                فصل {toPersianDigits(String(quarter.quarter))}
+                {quarterlyPeriodHeaderLines(quarter)[1]}
               </th>
             ))}
             <th className="border border-[#b8d9d5] bg-[#c7e5e1] px-0.5 py-1.5 text-center font-bold">
@@ -305,16 +346,19 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
         </thead>
         <tbody>
           {model.rows.map((row, rowIndex) => (
-            <tr key={`${row.label}-${rowIndex}`} className={row.grossMargin ? "font-bold" : ""}>
+            <tr
+              key={`${row.label}-${rowIndex}`}
+              className={row.grossMargin ? "text-[11px] font-bold sm:text-[13px]" : ""}
+            >
               <th
-                className={`border border-amber-200 px-1 py-1.5 text-right font-semibold ${row.grossMargin ? "bg-yellow-200 text-amber-950" : "bg-[#ffedd5] text-slate-800"}`}
+                className={`border border-amber-200 px-1 py-1.5 text-right ${row.grossMargin ? "bg-yellow-200 font-extrabold text-amber-950" : "bg-[#ffedd5] font-semibold text-slate-800"}`}
               >
                 {row.label}
               </th>
               {row.values.slice(0, model.quarters.length).map((value, index) => (
                 <td
                   key={index}
-                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums ${row.grossMargin ? "bg-yellow-100 text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
+                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums ${row.grossMargin ? "bg-yellow-200 font-bold text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
                 >
                   {row.grossMargin && value !== "-"
                     ? `${value}${String.fromCharCode(0x066a)}`
@@ -322,7 +366,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
                 </td>
               ))}
               <td
-                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).className}`}
+                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).tone) : resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).className}`}
               >
                 {row.values.at(-1)}
               </td>

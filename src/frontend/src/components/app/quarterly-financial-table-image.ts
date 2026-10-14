@@ -1,4 +1,5 @@
 import type { QuarterlyFinancialTableModel } from "./quarterly-financial-table";
+import { quarterlyPeriodHeaderLines } from "./quarterly-financial-table-header";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
 
@@ -105,23 +106,24 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
     usableWidth * 0.16,
   ];
   const headers = [
-    "شرح",
-    ...model.quarters.map(
-      (q) =>
-        `سال مالی ${toPersianDigits(String(q.year))}، فصل ${toPersianDigits(String(q.quarter))}`,
-    ),
-    QUARTERLY_CHANGE_COLUMN_HEADER,
+    ["شرح"],
+    ...model.quarters.map(quarterlyPeriodHeaderLines),
+    [QUARTERLY_CHANGE_COLUMN_HEADER],
   ];
   let right = WIDTH - PAD;
   context.font = '600 18px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  headers.forEach((header, index) => {
+  headers.forEach((headerLines, index) => {
     const cellWidth = widths[index];
     const left = right - cellWidth;
     context.fillStyle = index === colCount - 1 ? COLORS.changeHeader : COLORS.headerLight;
     context.fillRect(left, top, cellWidth, 64);
     context.strokeStyle = COLORS.border;
     context.strokeRect(left, top, cellWidth, 64);
-    const lines = wrap(context, header, cellWidth - 12).slice(0, 2);
+    context.fillStyle = COLORS.header;
+    const lines =
+      headerLines.length === 1
+        ? wrap(context, headerLines[0], cellWidth - 12).slice(0, 2)
+        : headerLines;
     lines.forEach((line, lineIndex) => {
       const baseline = top + 27 + lineIndex * 24;
       if (index === 0) {
@@ -147,8 +149,9 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       const changeColors = isChange
         ? resolveQuarterlyChangeColors(row.sourceItemId, parsedChange)
         : null;
-      context.fillStyle =
-        columnIndex === 0
+      context.fillStyle = row.grossMargin
+        ? COLORS.gross
+        : columnIndex === 0
           ? COLORS.label
           : isChange
             ? changeColors!.backgroundColor
@@ -160,10 +163,10 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       context.fillRect(left, y, cellWidth, rowHeight);
       context.strokeStyle = COLORS.border;
       context.strokeRect(left, y, cellWidth, rowHeight);
-      context.fillStyle = changeColors?.textColor ?? COLORS.ink;
-      context.font = `${row.grossMargin || columnIndex === 0 ? "600" : "400"} 17px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
+      context.fillStyle = changeColors?.textColor ?? (row.grossMargin ? "#78350f" : COLORS.ink);
+      context.font = `${row.grossMargin ? "700 20" : columnIndex === 0 ? "600 17" : "400 17"}px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
       const displayValue =
-        row.grossMargin && !isChange && value !== "-"
+        row.grossMargin && columnIndex > 0 && !isChange && value !== "-"
           ? `${value}${String.fromCharCode(0x066a)}`
           : value;
       const textLines = wrap(context, displayValue, cellWidth - 12).slice(0, 2);

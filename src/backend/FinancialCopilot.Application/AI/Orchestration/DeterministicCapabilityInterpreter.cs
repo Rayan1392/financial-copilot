@@ -53,6 +53,7 @@ public sealed class DeterministicCapabilityInterpreter(
             , "\u062e\u0648\u062f", "\u062f\u0631", "\u0628\u0627"
         ]);
         NonEntityWords.UnionWith(["ارزنده", "undervalued", "overvalued"]);
+        NonEntityWords.UnionWith(["گزارش", "گزارشات", "گزارشهای", "گزارش‌های", "های", "ها", "فصلی"]);
         NonEntityWords.UnionWith(["industry", "group", "صنعت", "گروه", "با", "در", "داخل", "compare", "rank", "ranking", "pair", "دو", "نمادها", "symbol", "symbols", "its", "relative", "valuation"]);
     }
 
@@ -83,6 +84,15 @@ public sealed class DeterministicCapabilityInterpreter(
         AddScore("product_revenue_mix", ProductWords, 0.9m, normalized, scores, evidence, "product-keyword");
         AddScore("financial_statement_table", StatementWords, 0.8m, normalized, scores, evidence, "statement-keyword");
         AddScore("financial_statement_period_analysis", StatementAnalysisWords, 0.98m, normalized, scores, evidence, "statement-analysis-keyword");
+        if (FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(original))
+        {
+            scores["financial_statement_table"] = Math.Max(
+                scores.GetValueOrDefault("financial_statement_table"), 0.99m);
+            evidence.Add(new InterpretationEvidence(
+                "financial_statement_table",
+                "quarterly-financial-table",
+                QueryValueProvenance.UserExplicit));
+        }
         AddScore("disclosure_listing", DisclosureWords, 0.9m, normalized, scores, evidence, "disclosure-keyword");
         AddScore("monthly_sales_quality_ranking", RankingWords, 0.9m, normalized, scores, evidence, "ranking-keyword");
         var entities = ExtractEntities(original, normalized).ToList();

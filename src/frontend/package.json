@@ -12,6 +12,7 @@
     "test:api-url": "node --experimental-strip-types scripts/test-api-url.ts",
     "test:admin-permissions": "node --experimental-strip-types scripts/test-admin-permissions.ts",
     "test": "vitest run",
+    "test:quarterly-png": "node scripts/quarterly-financial-table-png.browser.test.mjs",
     "test:watch": "vitest",
     "format": "prettier --write ."
   },
@@ -90,7 +91,9 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "jsdom": "^29.1.1",
+    "playwright-core": "^1.64.0",
     "prettier": "^3.7.3",
+    "sharp": "0.34.5",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",

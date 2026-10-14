@@ -24,25 +24,93 @@ const rows = [
   ["تعداد سهام شرکت (هزار سهم)", "200", "200"],
 ];
 
-function markdownTable(
-  overrides: Record<number, [latest: string, previous: string]> = {},
-): string {
+function markdownTable(overrides: Record<number, [latest: string, previous: string]> = {}): string {
   const header =
     "| شرح | سال مالی 1405، فصل 2 | سال مالی 1405، فصل 1 | سال مالی 1404، فصل 4 | سال مالی 1404، فصل 3 | سال مالی 1404، فصل 2 | درصد تغییر به فصل قبل |";
   const body = rows.map(([label, latest, previous], index) => {
     const [latestValue, previousValue] = overrides[index] ?? [latest, previous];
     return `| ${label} | ${latestValue} | ${previousValue} | 100 | 100 | 100 | ignored |`;
   });
-  return ["### جدول گزارش فصلی چخزر", "", header, "|---|---:|---:|---:|---:|---:|---:|", ...body].join("\n");
+  return [
+    "### جدول گزارش فصلی چخزر",
+    "",
+    header,
+    "|---|---:|---:|---:|---:|---:|---:|",
+    ...body,
+  ].join("\n");
 }
 
 describe("quarterly financial table QoQ rendering", () => {
+  it("renders selected PeriodEnd headers in RTL order and keeps the fiscal fallback", () => {
+    const dateHeaders = [
+      "دوره منتهی به ۳۱ شهریور ۱۴۰۵",
+      "دوره منتهی به ۳۱ خرداد ۱۴۰۵",
+      "دوره منتهی به ۲۹ اسفند ۱۴۰۴",
+      "دوره منتهی به ۳۰ آذر ۱۴۰۴",
+      "سال مالی ۱۴۰۴، فصل ۲",
+    ];
+    const markdown = markdownTable().replace(
+      /^\| شرح \|.*$/m,
+      `| شرح | ${dateHeaders.join(" | ")} | درصد تغییر به فصل قبل |`,
+    );
+    const parsed = parseQuarterlyFinancialTable(markdown);
+    expect(parsed).not.toBeNull();
+    const { container } = render(<QuarterlyFinancialTable model={parsed!.model} />);
+    const headers = Array.from(container.querySelectorAll("thead th"), (cell) => cell.textContent);
+    expect(headers).toEqual([
+      "شرح",
+      "سال مالی ۱۴۰۴فصل ۲",
+      "دوره منتهی به۳۰ آذر ۱۴۰۴",
+      "دوره منتهی به۲۹ اسفند ۱۴۰۴",
+      "دوره منتهی به۳۱ خرداد ۱۴۰۵",
+      "دوره منتهی به۳۱ شهریور ۱۴۰۵",
+      "درصد تغییر به فصل قبل",
+    ]);
+    expect(parsed!.model.rows[0].values.slice(0, 5)).toEqual([
+      "۱۰۰",
+      "۱۰۰",
+      "۱۰۰",
+      "۱٬۰۰۰",
+      "۱٬۲۷۵",
+    ]);
+  });
+
+  it("highlights every gross-margin cell without changing percentage values", () => {
+    const parsed = parseQuarterlyFinancialTable(markdownTable({ 3: ["17.7", "26"] }))!;
+    const { container } = render(<QuarterlyFinancialTable model={parsed.model} />);
+    const gross = container.querySelectorAll("tbody tr")[3] as HTMLTableRowElement;
+    expect(gross.className).toContain("text-[11px]");
+    expect(gross.className).toContain("font-bold");
+    expect(Array.from(gross.cells).every((cell) => cell.className.includes("bg-yellow-200"))).toBe(
+      true,
+    );
+    expect(gross.cells[4].textContent).toBe("۲۶٫۰٪");
+    expect(gross.cells[5].textContent).toBe("۱۷٫۷٪");
+    expect(gross.cells[6].textContent).toBe("\u200e−۳۱٫۹٪");
+    expect(gross.cells[6].className).toContain("text-rose-900");
+  });
+
   it("uses SourceItemIds for the agreed expense rows and preserves computed percentages", () => {
     const parsed = parseQuarterlyFinancialTable(markdownTable());
     expect(parsed).not.toBeNull();
     const model = parsed!.model;
     expect(model.rows.map((row) => row.sourceItemId)).toEqual([
-      15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 279, 278, 143, 160, 153,
+      15,
+      1,
+      139,
+      null,
+      5,
+      39,
+      140,
+      12,
+      40,
+      142,
+      334,
+      279,
+      278,
+      143,
+      160,
+      153,
     ]);
 
     const { container } = render(<QuarterlyFinancialTable model={model} />);

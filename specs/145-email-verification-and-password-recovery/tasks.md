@@ -33,3 +33,14 @@
 - [x] Add focused Identity/service/API/email frontend tests using fake sender and database test conventions.
 - [x] Run relevant tests and full solution suite; report environmental blockers distinctly.
 - [x] Perform implementation review against acceptance criteria and write `ImplementationReport.md`.
+
+## SMTP local and production configuration follow-up
+
+- [x] Keep shared email defaults and non-secret SMTP defaults in `appsettings.json`; leave the SMTP password out.
+- [x] Preserve tracked `appsettings.Development.json` and load an ignored Development-local overlay without changing ASP.NET Core environment/CLI precedence.
+- [x] Add all local SMTP and frontend settings to the overlay template; keep it out of Git and API publish output.
+- [x] Add production SMTP placeholders to `.env.example` for manual VPS transfer; leave the populated local `.env` and production server untouched.
+- [x] Map production email/SMTP environment variables to `Authentication:Email` and `Authentication:Smtp` for the API service in Docker Compose.
+- [x] Validate Development loading, environment-variable precedence, options binding, production Compose mappings, backend build, and focused auth tests.
+- [x] Populate the ignored Development-local overlay with the operator-approved Gmail SMTP values, enable Development delivery, detect the Vite URL (`http://localhost:5173`), and confirm configuration values without exposing the app password. No message was sent.
+- [ ] Populate production `.env` with approved production credentials during the manual VPS configuration process.

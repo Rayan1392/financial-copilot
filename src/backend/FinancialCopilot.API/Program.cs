@@ -53,6 +53,27 @@ Console.InputEncoding = Encoding.UTF8;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    // Preserve the tracked appsettings.Development.json while allowing local secrets.
+    // Insert before environment variables and command line so standard ASP.NET Core
+    // precedence remains: local JSON < environment variables < command line.
+    var environmentVariablesIndex = builder.Configuration.Sources
+        .ToList()
+        .FindIndex(source =>
+            source is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource environmentSource &&
+            string.IsNullOrEmpty(environmentSource.Prefix));
+    builder.Configuration.Sources.Insert(
+        environmentVariablesIndex >= 0 ? environmentVariablesIndex : builder.Configuration.Sources.Count,
+        new Microsoft.Extensions.Configuration.Json.JsonConfigurationSource
+        {
+            FileProvider = builder.Environment.ContentRootFileProvider,
+            Path = "appsettings.Development.Local.json",
+            Optional = true,
+            ReloadOnChange = true
+        });
+}
+
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
 builder.Services.AddControllers();

@@ -126,9 +126,9 @@ public sealed class SubscriptionPlanRowConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(row => row.SubscriptionPlanCode)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasData(
-            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10000m, PricingPolicyVersion = "v1" },
-            new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 100m, PricingPolicyVersion = "v1" },
-            new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 300m, PricingPolicyVersion = "v1" });
+            new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600m, PricingPolicyVersion = "v1" },
+            new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 260m, PricingPolicyVersion = "v1" });
     }
 }
 

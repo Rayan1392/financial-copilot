@@ -41,14 +41,14 @@ TahlilApp login redesign, OAuth/OIDC, shared cookies/SSO, payments or pricing ch
 | Session | Stateless JWT access token (claims `sub`, `email`, `financial_copilot:tenant_id`, `financial_copilot:authentication_mode=WebAppUser`, roles, permissions) + opaque refresh token (SHA-256 hashed in `auth_refresh_tokens`, rotation, replay detection). Refresh token lives in HttpOnly, `SameSite=Strict`, `Path=/api/auth/v1`, `Secure` cookie `financial_copilot_refresh`. The frontend keeps the access token in memory/`sessionStorage` and calls `/refresh` on load. | `AuthController.cs`, `OwnedIdentityService.CreateSessionAsync`, `frontend/.../auth.ts` |
 | Native accounts exist | `POST /api/auth/v1/register` is open self-registration (email + password). So state **D (native user)** already exists in production data. | `AuthController.Register` |
 | JWT email assumption | `CreateAccessToken` and `CreateSessionAsync` use `user.Email!`. A TahlilApp-provisioned user without an email would break token creation. Must be addressed in S-6. | `OwnedIdentityService.cs:222,200` |
-| Access-token lifetime | `appsettings.json` sets `AccessTokenMinutes = 10080` (7 days). JWT is stateless and not checked against `IsEnabled` or refresh-token revocation per request. | `appsettings.json` |
+| Access-token lifetime | `appsettings.json` sets `AccessTokenMinutes = 15`; startup validation permits only 1–60 minutes. JWTs remain stateless, while owned-user security-stamp validation handles reset invalidation. Logout revokes refresh sessions but cannot immediately revoke an already-issued stateless JWT. | `appsettings.json`, `ServiceCollectionExtensions.cs` |
 | Service auth (inbound) | `X-Api-Key` scheme: SHA-256 comparison with `FixedTimeEquals`, key from env var or hash, `AllowedPathPrefixes`, `AuthenticationMode.ApiClient`. Used by the Telegram gateway. | `ApiKeyAuthenticationHandler.cs`, `ApiKeyAuthenticationOptions.cs` |
 | Service auth (outbound) | Telegram gateway / provider clients call out with API keys/tokens held in configuration/env; provider calls use `FinancialProviderResilienceHandler`. | `TelegramGatewayClient.cs`, `ServiceCollectionExtensions.cs:1005` |
 | One-time token precedent | `TelegramLinkService` + `auth_telegram_link_tokens`: random token, only hash stored, `ExpiresAtUtc`, `Status`, `ConsumedAtUtc`, revoke-pending, audit row, correlation id. | `TelegramLinkService.cs` |
 | Billing | `CustomerAccountRow` has `SubscriptionPlanCode`, `SubscriptionEffectiveFrom/To`, `SubscriptionRevision`. Plans `Free`/`Pro`/`Plus` (`billing_subscription_plans`) with `PlanCapabilities`. `OwnedIdentityBillingProvisioner` provisions a Free prepaid account idempotently. Admin `SetSubscriptionAsync` changes plan with revision check + audit. **No read path was found that honors `SubscriptionEffectiveTo`** (only the admin service writes it). | `BillingPersistenceModels.cs`, `EfCoreAdminManagementService.cs:338` |
 | Entitlement model rule | Feature 035: JWT must not carry mutable plan limits, balances or subscription state; controllers must not branch on plan names. | `specs/035-.../user-story.md` |
 | Periodic revalidation precedent | `TelegramMembershipRevalidationProcessor` / `auth_telegram_membership_revalidations` (lease owner, next-due, attempts, dead-letter). | `Authentication/Telegram*` |
-| Rate limiting | Only the `AuthenticatedActor` fixed-window policy exists; no anonymous/IP policy, no `UseForwardedHeaders`. | `Program.cs`, `RateLimitPolicies.cs` |
+| Rate limiting | Public-auth and authenticated fixed-window policies exist. Forwarded headers are opt-in and require explicit trusted proxies/networks before they affect the client IP used by rate limiting. | `Program.cs`, `RateLimitPolicies.cs`, `ForwardedHeadersSecurityOptions.cs` |
 | Infra for short-lived state | Postgres (EF, per-context), optional Redis via `IDistributedCache`. | `ServiceCollectionExtensions.cs:346` |
 | Email delivery | **None found** (`IEmailSender`/SMTP absent). Email verification and password reset need a new outbound port. | repo grep |
 | Frontend | `/auth` login/register, `_app` guard redirects to `/auth` when `isAuthenticated()` fails, post-login target is `/chat`; `redirect` param is validated as same-origin path. No `/launch` or profile credential UI. | `routes/auth.tsx`, `routes/_app.tsx` |
@@ -354,7 +354,7 @@ TahlilApp is the source of truth for plan and expiry **for users with an Active 
 | Session fixation | New refresh token per launch, old cookie revoked, no pre-auth session identifier accepted. |
 | Open redirect | No `redirect`/`returnUrl` parameter on the launch path; target `/chat` is a constant; TahlilApp builds `launchUrl` from a configured Sapino origin. Existing `/auth?redirect=` validation unchanged. |
 | CSRF / login CSRF | Launch endpoint is credentialed only by the secret code; CORS limited to the `Frontend` origins. Login-CSRF (attacker feeds victim *their own* fresh code) is bounded by TTL + single use + the "switch account" confirmation when a session exists; residual risk accepted for a read-oriented product (Q9 option C removes it). Cookie remains `SameSite=Strict`. |
-| Exchange endpoint abuse (Sapino API) | Anonymous endpoint with IP fixed-window limiter, request-size cap, no outbound call when the local attempt row is a duplicate, bounded concurrency to TahlilApp (bulkhead) so a flood cannot exhaust API threads. Requires `UseForwardedHeaders` so the limiter sees client IPs behind the proxy (finding: not configured today). |
+| Exchange endpoint abuse (Sapino API) | Anonymous endpoint with IP fixed-window limiter, request-size cap, no outbound call when the local attempt row is a duplicate, bounded concurrency to TahlilApp (bulkhead) so a flood cannot exhaust API threads. When deployed behind a proxy, `UseForwardedHeaders` is enabled only with an explicit trusted-proxy/network allow-list. |
 | Exchange endpoint abuse (TahlilApp) | Authenticated service identity, rate limit, IP allow-list (external requirement). |
 | TahlilApp unavailable | §14; circuit breaker on the typed client; direct login keeps working. |
 | Sapino unavailable | User sees the browser error; TahlilApp should not consume the code until Sapino calls exchange (consumption happens on exchange only), so a retry within TTL is possible but TahlilApp may also simply reissue. |
@@ -606,11 +606,11 @@ Total: **81 ACs** (AC-01 … AC-81; AC-01…AC-04 and the TahlilApp half of AC-0
 | Q5 | Billing: behavior on plan change for included credits; does `SubscriptionEffectiveTo` need a read-side guard (finding) and a `SubscriptionSource` marker? | Billing owner |
 | Q6 | Explicit account-linking policy for existing native users (state D) and the email-collision recovery path; who handles support cases. | Product / Security |
 | Q7 | Are TahlilApp Free users admitted to Sapino? Are suspended TahlilApp users blocked from direct login too (proposed: yes within TTL)? | Product |
-| Q8 | Access-token lifetime (7 days) vs. "logout/disable takes effect"; shorten or add revocation check? | Security |
+| Q8 | Access-token lifetime and "logout/disable takes effect" semantics; the implementation uses 15-minute access tokens, refresh revocation, and security-stamp invalidation for reset flows. | Security |
 | Q9 | Edge routing/proxy ownership for `ai.tahlilapp.com/launch`; acceptance of option B or C; same-site relationship between frontend and API domains. | Ops |
 | Q10 | Should open `/register` stay enabled? | Product |
 | Q11 | Email delivery provider/port for verification and reset mails (none exists); Persian templates; sender domain/SPF/DKIM. | Product / Ops |
-| Q12 | Production proxy topology to enable `UseForwardedHeaders` for accurate IP rate limiting. | Ops |
+| Q12 | Production proxy topology and the explicit trusted-proxy/network values required to enable `UseForwardedHeaders` for accurate IP rate limiting. | Ops |
 | Q13 | Legal/privacy (compliance, not technical design): lawful basis and privacy notice for storing national id/mobile/names, retention periods, erasure-request obligations, backup retention, and which roles may hold `admin.users.pii.read`. | Legal / Security / Product |
 
 Resolved and removed from this list (now design decisions): Data Protection key ring is required, persistent and backed up (§17.1); absent/`null` never deletes and explicit clearing is out of v1 (§10.2); no HMAC lookup columns in v1 (§10.2). Q2's "HMAC signing" refers only to optional service-to-service request signing with TahlilApp (§13.1), unrelated to profile data.
@@ -644,7 +644,7 @@ Total: **14 slices** (S-2/S-3 are TahlilApp-side).
 
 | Claim | Evidence (verified in this repository) |
 | --- | --- |
-| No `AddDefaultTokenProviders`, `AddDataProtection`, or `UseForwardedHeaders` is registered | grep over `src/backend` (only `PublicAuthentication` rate-limit hits) |
+| Feature 145 email tokens, Data Protection, and secure forwarded-header handling are registered | `AddTahlilAppIdentity`, `ForwardedHeadersSecurityOptions`, `Program.cs`, and `ServiceCollectionExtensions.cs`; forwarded headers remain disabled unless an explicit allow-list is configured |
 | Public anonymous rate-limit policy exists | `FinancialCopilot.API/Security/RateLimitPolicies.cs:10-12`, `Program.cs:126-150`, applied on `AuthController` public endpoints |
 | Email action tokens, SMTP sender, cooldowns and verification-required state exist | Feature 145: `AuthEmailActionTokenRow`, `OwnedIdentityService.IssueEmailTokenAndSendAsync`, `AuthEmailOptions`, `SmtpEmailSender`, `FinancialCopilotUser.EmailVerificationRequired` |
 | Plan catalog is `Free`, `Plus`, `Pro` after the latest migration | Billing report: `RestrictCanonicalSubscriptionPlans` (20261007071507) remaps `Premium`→`Pro` |
@@ -689,7 +689,7 @@ Total: **14 slices** (S-2/S-3 are TahlilApp-side).
 | TahlilApp LaunchCode issuance (S-2) and exchange/status endpoints (S-3) | **External, not implemented here.** |
 | TahlilApp service credential (Q2) | Sapino side reads it from an environment variable. Value never in repository. |
 | Email delivery (Q11) | Feature 145 SMTP sender; staging delivery not verified. |
-| Proxy topology for client IP (Q12) | `UseForwardedHeaders` is absent. The public limiter sees the proxy address behind a load balancer. **Operational prerequisite before enabling the flag.** |
+| Proxy topology for client IP (Q12) | `UseForwardedHeaders` is configured securely but disabled by default. The public limiter sees the proxy address until Operations supplies the explicit trusted proxy/network allow-list and enables it. **Operational prerequisite before enabling the feature.** |
 | Data Protection key ring backup/restore drill (§17.1) | Operational; scripts and runbook are S-5 deliverables; the drill is not performed here. |
 | Legal basis for PII (Q13) | **Genuine blocking decision for enabling the feature in production.** Not a code blocker. |
 
@@ -700,8 +700,8 @@ Total: **14 slices** (S-2/S-3 are TahlilApp-side).
 **Deferred with explicit reason:**
 - S-8 background revalidation worker — needs TahlilApp batch status (Q4); the launch and direct-login refresh paths already reconcile subscription state.
 - S-9 admin masked views and admin reveal — no admin UI exists; the audited reveal design needs its own review. The permission constant is added and seeded, but no endpoint uses it.
-- S-11 native enrollment/password — designed in D1; implemented only if the increment reaches it, otherwise listed as remaining work.
-- S-12 direct-login parity — designed; implemented only if the increment reaches it.
+- S-11 native enrollment/password — implemented through the Feature 145 email-action-token and Identity flow; verified by native enrollment integration tests.
+- S-12 direct-login parity — implemented for the same local user, including `/me`, refresh, reset, and account-state behavior; broader stale-grace refresh remains deferred with T-22.
 - Switch-account confirmation UI (D13) — deferred; backend revocation is in scope.
 - S-13 explicit account linking — post-release (Q6).
 
@@ -905,5 +905,5 @@ Total after Revision 4: **87 ACs**; AC-01…AC-04 and the TahlilApp halves of AC
 - Switch-account confirmation UI (D13, T-17): deferred.
 - Frontend "return to TahlilApp" button (§14): not rendered. The return URL is a server-side configuration value and no frontend config key exists for it. A decision is required before it can be shown.
 - Background entitlement revalidation worker and batch status (T-21), direct-login TTL refresh (T-22): deferred.
-- Admin PII views and reveal (T-24), native enrollment (T-26), direct-login parity (T-27), account linking (T-28): deferred.
+- Admin PII views and reveal (T-24), account linking (T-28): deferred. Native enrollment and direct-login parity (T-26/T-27) are implemented and covered by the native-auth integration suite.
 - Key-ring backup, restore scripts, `/health` self-check and runbook (T-06): Operations.

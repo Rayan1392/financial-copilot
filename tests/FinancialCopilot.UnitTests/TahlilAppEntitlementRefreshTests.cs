@@ -295,7 +295,7 @@ public sealed class TahlilAppEntitlementRefreshTests
             Billing = new BillingDbContext(new DbContextOptionsBuilder<BillingDbContext>()
                 .UseInMemoryDatabase($"tahlilapp-refresh-{Guid.NewGuid():N}")
                 .Options);
-            Billing.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10000, PricingPolicyVersion = "v1" });
+            Billing.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
             Billing.SaveChanges();
 
             var synchronizer = new ExternalSubscriptionSynchronizer(
@@ -321,6 +321,11 @@ public sealed class TahlilAppEntitlementRefreshTests
         public TahlilAppEntitlementRefresher Refresher { get; }
         public Guid TenantId { get; } = Guid.NewGuid();
         public Guid UserId { get; } = Guid.NewGuid();
+        public TahlilAppIdentitySyncState? Identity
+        {
+            get => Store.Identity;
+            set => Store.Identity = value;
+        }
 
         public string Status
         {

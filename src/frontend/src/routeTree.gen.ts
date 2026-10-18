@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEnrollmentRouteImport } from './routes/verify-enrollment'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LaunchFailedRouteImport } from './routes/launch-failed'
@@ -20,6 +21,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminGetCompanyIdRouteImport } from './routes/admin_.getCompanyId'
 import { Route as AppTelegramLinkRouteImport } from './routes/_app.telegram-link'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppGetCompanyIdRouteImport } from './routes/_app.getCompanyId'
 import { Route as AppFollowedSymbolsRouteImport } from './routes/_app.followed-symbols'
 import { Route as AppDisclosuresRouteImport } from './routes/_app.disclosures'
@@ -34,6 +36,11 @@ import { Route as AdminDataArchiveRouteImport } from './routes/admin_.data.archi
 import { Route as AdminDataManagementFundReportsRouteImport } from './routes/admin_.data-management.fund-reports'
 import { Route as AppCThreadIdRouteImport } from './routes/_app.c.$threadId'
 
+const VerifyEnrollmentRoute = VerifyEnrollmentRouteImport.update({
+  id: '/verify-enrollment',
+  path: '/verify-enrollment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
@@ -86,6 +93,11 @@ const AdminGetCompanyIdRoute = AdminGetCompanyIdRouteImport.update({
 const AppTelegramLinkRoute = AppTelegramLinkRouteImport.update({
   id: '/telegram-link',
   path: '/telegram-link',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGetCompanyIdRoute = AppGetCompanyIdRouteImport.update({
@@ -164,10 +176,12 @@ export interface FileRoutesByFullPath {
   '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -189,10 +203,12 @@ export interface FileRoutesByTo {
   '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/chat': typeof AppChatRoute
   '/disclosures': typeof AppDisclosuresRoute
   '/followed-symbols': typeof AppFollowedSymbolsRoute
   '/getCompanyId': typeof AppGetCompanyIdRoute
+  '/profile': typeof AppProfileRoute
   '/telegram-link': typeof AppTelegramLinkRoute
   '/admin/getCompanyId': typeof AdminGetCompanyIdRoute
   '/c/$threadId': typeof AppCThreadIdRoute
@@ -216,10 +232,12 @@ export interface FileRoutesById {
   '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/verify-enrollment': typeof VerifyEnrollmentRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/disclosures': typeof AppDisclosuresRoute
   '/_app/followed-symbols': typeof AppFollowedSymbolsRoute
   '/_app/getCompanyId': typeof AppGetCompanyIdRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/telegram-link': typeof AppTelegramLinkRoute
   '/admin_/getCompanyId': typeof AdminGetCompanyIdRoute
   '/_app/c/$threadId': typeof AppCThreadIdRoute
@@ -243,10 +261,12 @@ export interface FileRouteTypes {
     | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
+    | '/verify-enrollment'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
     | '/getCompanyId'
+    | '/profile'
     | '/telegram-link'
     | '/admin/getCompanyId'
     | '/c/$threadId'
@@ -268,10 +288,12 @@ export interface FileRouteTypes {
     | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
+    | '/verify-enrollment'
     | '/chat'
     | '/disclosures'
     | '/followed-symbols'
     | '/getCompanyId'
+    | '/profile'
     | '/telegram-link'
     | '/admin/getCompanyId'
     | '/c/$threadId'
@@ -294,10 +316,12 @@ export interface FileRouteTypes {
     | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
+    | '/verify-enrollment'
     | '/_app/chat'
     | '/_app/disclosures'
     | '/_app/followed-symbols'
     | '/_app/getCompanyId'
+    | '/_app/profile'
     | '/_app/telegram-link'
     | '/admin_/getCompanyId'
     | '/_app/c/$threadId'
@@ -321,6 +345,7 @@ export interface RootRouteChildren {
   LaunchFailedRoute: typeof LaunchFailedRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  VerifyEnrollmentRoute: typeof VerifyEnrollmentRoute
   AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
   AdminDataManagementFundReportsRoute: typeof AdminDataManagementFundReportsRoute
   AdminDataArchiveRoute: typeof AdminDataArchiveRoute
@@ -334,6 +359,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-enrollment': {
+      id: '/verify-enrollment'
+      path: '/verify-enrollment'
+      fullPath: '/verify-enrollment'
+      preLoaderRoute: typeof VerifyEnrollmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify-email': {
       id: '/verify-email'
       path: '/verify-email'
@@ -409,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/telegram-link'
       fullPath: '/telegram-link'
       preLoaderRoute: typeof AppTelegramLinkRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/getCompanyId': {
@@ -510,6 +549,7 @@ interface AppRouteChildren {
   AppDisclosuresRoute: typeof AppDisclosuresRoute
   AppFollowedSymbolsRoute: typeof AppFollowedSymbolsRoute
   AppGetCompanyIdRoute: typeof AppGetCompanyIdRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppTelegramLinkRoute: typeof AppTelegramLinkRoute
   AppCThreadIdRoute: typeof AppCThreadIdRoute
 }
@@ -519,6 +559,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDisclosuresRoute: AppDisclosuresRoute,
   AppFollowedSymbolsRoute: AppFollowedSymbolsRoute,
   AppGetCompanyIdRoute: AppGetCompanyIdRoute,
+  AppProfileRoute: AppProfileRoute,
   AppTelegramLinkRoute: AppTelegramLinkRoute,
   AppCThreadIdRoute: AppCThreadIdRoute,
 }
@@ -535,6 +576,7 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchFailedRoute: LaunchFailedRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  VerifyEnrollmentRoute: VerifyEnrollmentRoute,
   AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,
   AdminDataManagementFundReportsRoute: AdminDataManagementFundReportsRoute,
   AdminDataArchiveRoute: AdminDataArchiveRoute,

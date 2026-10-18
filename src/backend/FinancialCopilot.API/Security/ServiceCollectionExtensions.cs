@@ -18,6 +18,11 @@ public static class ServiceCollectionExtensions
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentActorContext, HttpCurrentActorContext>();
+        services
+            .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Validate(_ => HasValidSigningConfiguration(configuration),
+                "Authentication:JwtBearer must provide a 32-character signing key when Authority is not configured.")
+            .ValidateOnStart();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, AdminAuthorizationResultHandler>();
         services.Configure<ApiKeyAuthenticationOptions>(
@@ -192,11 +197,8 @@ public static class ServiceCollectionExtensions
             options.TokenValidationParameters.IssuerSigningKey =
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         }
-        else if (string.IsNullOrWhiteSpace(authority))
-        {
-            options.TokenValidationParameters.IssuerSigningKey =
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes("unconfigured-jwt-signing-key-rejects-tokens"));
-        }
+        // No fallback signing key is ever installed. Without an authority, startup
+        // validation fails before the API can serve requests.
 
         options.Events = new JwtBearerEvents
         {
@@ -234,6 +236,15 @@ public static class ServiceCollectionExtensions
 
             }
         };
+    }
+
+    internal static bool HasValidSigningConfiguration(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("Authentication:JwtBearer");
+        var authority = section["Authority"];
+        var signingKey = section["SigningKey"];
+        return !string.IsNullOrWhiteSpace(authority) ||
+               !string.IsNullOrWhiteSpace(signingKey) && signingKey.Length >= 32;
     }
 
     private static void AddLegacyPermissionClaims(ClaimsPrincipal? principal)

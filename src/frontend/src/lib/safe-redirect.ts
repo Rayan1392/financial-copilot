@@ -27,11 +27,17 @@ function isInternalPath(candidate: string): boolean {
  */
 export function safeInternalPath(value: unknown, fallback = DEFAULT_FALLBACK): string {
   if (typeof value !== "string" || !isInternalPath(value)) return fallback;
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(value);
-  } catch {
-    return fallback;
+  let decoded = value;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let next: string;
+    try {
+      next = decodeURIComponent(decoded);
+    } catch {
+      return fallback;
+    }
+    if (next === decoded) break;
+    if (!isInternalPath(next)) return fallback;
+    decoded = next;
   }
-  return isInternalPath(decoded) ? value : fallback;
+  return value;
 }

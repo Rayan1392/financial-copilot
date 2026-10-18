@@ -254,9 +254,9 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(OwnedIdentityOptions.SectionName))
             .Validate(options =>
                 Guid.TryParse(options.DefaultTenantId, out _) &&
-                options.AccessTokenMinutes > 0 &&
+                options.AccessTokenMinutes is > 0 and <= 60 &&
                 options.RefreshTokenDays > 0,
-                "Owned Identity tenant and token lifetime settings must be valid.")
+                "Owned Identity tenant and token lifetime settings must be valid; access tokens must be 1-60 minutes.")
             .ValidateOnStart();
         services.AddScoped<IOwnedIdentityService, OwnedIdentityService>();
         services

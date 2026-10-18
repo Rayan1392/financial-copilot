@@ -64,7 +64,7 @@ public sealed class TahlilAppBillingSyncTests
     {
         await using var dbContext = CreateBillingDbContext();
         var (tenantId, userId) = (Guid.NewGuid(), Guid.NewGuid());
-        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10000, PricingPolicyVersion = "v1" });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
         await dbContext.SaveChangesAsync();
         var synchronizer = new ExternalSubscriptionSynchronizer(dbContext, new OwnedIdentityBillingProvisioner(dbContext, TimeProvider.System), TimeProvider.System);
         var expiry = Now.AddDays(30);
@@ -92,7 +92,7 @@ public sealed class TahlilAppBillingSyncTests
     {
         await using var dbContext = CreateBillingDbContext();
         var (tenantId, userId) = (Guid.NewGuid(), Guid.NewGuid());
-        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 10000, PricingPolicyVersion = "v1" });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
         await dbContext.SaveChangesAsync();
         var synchronizer = new ExternalSubscriptionSynchronizer(dbContext, new OwnedIdentityBillingProvisioner(dbContext, TimeProvider.System), TimeProvider.System);
 

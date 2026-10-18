@@ -11,7 +11,7 @@ Checks: dependency ordering, missing tasks, duplicate responsibilities, test cov
 | TR-05 | MINOR | T-17 (switch-account confirmation) and T-22 (direct-login TTL) are both frontend-or-login work deferred to a follow-up. | Both kept as explicit deferrals with reasons; not duplicated. |
 | TR-06 | MAJOR | Billing guard (T-19) changes behaviour for admin-set windows that have lapsed, across all accounts, not only TahlilApp users. | Intended by D3 and AC-87; the behaviour change is listed in the implementation report and in a test. **Recorded.** |
 | TR-07 | MINOR | T-06 (backup and restore) is Operations-owned and cannot be verified here. | Explicitly `Operations` and not claimed. |
-| TR-08 | MINOR | AC-54 (native login honours lockout and rate limit) has no task in this increment because native enrollment is deferred. | Recorded as not verified; not claimed. |
+| TR-08 | MINOR | AC-54 (native login honours lockout and rate limit) was originally deferred with native enrollment. | Native enrollment/direct login is now implemented and exercised by `NativeEnrollmentIntegrationTests`; broader production email delivery remains an operational verification item. |
 
 ## Ownership and external blockers
 
@@ -21,6 +21,6 @@ Checks: dependency ordering, missing tasks, duplicate responsibilities, test cov
 
 ## Traceability
 
-Every implemented task names its ACs. ACs not covered by an implemented task in this increment: AC-01–AC-04 (external), AC-05/06 TahlilApp half (external), AC-19–AC-23 partially (AC-22/AC-23 verified by code inspection; AC-19 verified by log test), AC-44–AC-53 (native credentials, deferred T-26/T-27), AC-54, AC-55 (logout re-launch: verified by T-29 scenario), AC-66 (verified by absence of index/unique in migration review), AC-70–AC-71 (deferred T-24), AC-76–AC-77 (T-12/T-14 partially), AC-78–AC-81 (T-05 for AC-78/AC-80; AC-79/AC-81 operational T-06).
+Every implemented task names its ACs. ACs not covered by an implemented task in this increment: AC-01–AC-04 (external), AC-05/06 TahlilApp half (external), AC-19–AC-23 partially (AC-22/AC-23 verified by code inspection; AC-19 verified by log test), AC-70–AC-71 (deferred T-24), AC-76–AC-77 (T-12/T-14 partially), AC-78–AC-81 (T-05 for AC-78/AC-80; AC-79/AC-81 operational T-06). Native credential/parity criteria are covered by T-26/T-27 tests.
 
 **Verdict: PASS.** No open MAJOR or BLOCKER remains in the task plan. TR-01–TR-02 are fixed by ordering and test placement; TR-06 is recorded as an intended behaviour change.

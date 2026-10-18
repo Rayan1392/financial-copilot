@@ -2,8 +2,6 @@ using FinancialCopilot.Application.Authentication.Profile;
 using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Profile;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
-using FinancialCopilot.Application.Authentication.Profile;
-using FinancialCopilot.Infrastructure.Authentication.Profile;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

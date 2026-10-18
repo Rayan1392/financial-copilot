@@ -6,7 +6,9 @@ Written for: engineers and operators who will review, test, and decide on rollou
 
 **`PARTIAL`**
 
-The Sapino-side launch path is implemented, tested, and gated behind `Authentication:TahlilApp:Enabled` (default **false**). It is not production-ready: the TahlilApp side is external and unverified, several Sapino-owned slices are deferred (native email/password login, background revalidation, admin PII views), and launch-critical operational prerequisites remain open. Status `COMPLETE` is not claimed.
+The Sapino-side launch path and native email/password journey are implemented and tested. The TahlilApp side is external and unverified, and launch-critical operational prerequisites remain open. Status `COMPLETE` is not claimed because production credential rotation, proxy topology, persistent key-ring operations, migration rollout, and the external round trip remain operator/integration work.
+
+The integration handoff is documented in [`TahlilAppIntegrationContract.md`](TahlilAppIntegrationContract.md) and [`StagingReadinessChecklist.md`](StagingReadinessChecklist.md). The contract deliberately separates fields consumed today from permission/status extensions that require coordinated changes. The checklist is evidence-driven and remains open until staging owners execute it.
 
 ## 2. Completed and incomplete tasks
 
@@ -14,10 +16,10 @@ Full list with evidence is in `tasks.md`.
 
 | Status | Tasks |
 | --- | --- |
-| Implemented and verified by tests | T-01, T-02, T-03, T-04, T-05 (with a restart-simulation gap), T-07, T-08, T-09, T-10, T-11, T-12, T-13, T-15, T-16, T-18, T-19, T-20, T-23, T-29, T-30 |
+| Implemented and verified by tests | T-01, T-02, T-03, T-04, T-05 (with a restart-simulation gap), T-07, T-08, T-09, T-10, T-11, T-12, T-13, T-15, T-16, T-18, T-19, T-20, T-22, T-23, T-26, T-27, T-29, T-30 |
 | Implemented, verification gap stated | T-25 (log-sink test not written), T-15 (JWT `amr` value not asserted) |
 | Not implemented in this increment | T-14 (profile deletion on revoke) |
-| Deferred with reason | T-17, T-21, T-22, T-24, T-26, T-27, T-28 |
+| Deferred with reason | T-17, T-24, T-28 |
 | Operations (not done here) | T-06 (backup, restore drill, runbook, health self-check) |
 
 ## 3. Verified and unverified acceptance criteria
@@ -28,7 +30,7 @@ Counts are against the 87 ACs in `Design.md` §19 and §22.8.
 
 **Verified by code review only (15):** AC-07, AC-09, AC-14, AC-15, AC-19, AC-23, AC-24, AC-40, AC-41, AC-43 (limiter configured; 429 path untested), AC-65, AC-66, AC-67, AC-72 (no log-sink test), AC-74, AC-85.
 
-**Not implemented in this increment (deferred or not done):** AC-21, AC-22 (verified by inspection only; no code path shares a cookie), AC-44–AC-55 (native credentials, parity), AC-70, AC-71 (admin PII), AC-75 (no status endpoint exists), AC-76, AC-77 (profile deletion on revoke), AC-79, AC-81 (key-ring restore drill, operations), AC-54.
+**Not implemented in this increment (deferred or not done):** AC-21, AC-22 (verified by inspection only; no code path shares a cookie), AC-70, AC-71 (admin PII), AC-75 (external status endpoint is not available in this repository), AC-76, AC-77 (profile deletion on revoke), AC-79, AC-81 (key-ring restore drill, operations). Native credential and parity criteria are now covered by the recovery integration suite; Sapino-side stale-grace and background revalidation code exists, but its real TahlilApp dependency remains unverified.
 
 **External, not verifiable here:** AC-01–AC-04; the TahlilApp halves of AC-05, AC-06, AC-08. These are verified only against an in-test double. A real TahlilApp round trip has not been run.
 
@@ -121,7 +123,7 @@ Not verified: the real TahlilApp service, the TahlilApp launch-code issuance, an
 - Plan changes do not grant credits. A downgrade to Free clears the window and bumps the revision once (tested).
 - Upgrades to a paid plan grant nothing extra. Whether paid activation should include credits is a Billing and product decision (Design Q5) and is not decided here.
 
-**Catalog anomaly (not changed):** Free includes 10,000 credits while Pro includes 100 (billing review). Product must confirm these figures before paid credit behaviour is relied on.
+**Approved catalog correction:** the canonical monthly AI-credit grants are Free `25`, Plus `260`, and Pro `2600`. The values are seeded in the billing model and migration `20261018092758_UpdateApprovedMonthlyAiCredits`. Existing wallets and usage ledgers are not reset; external subscription synchronization remains idempotent and grants no credits on sync or plan change. The migration has not been applied to any live database.
 
 ## 11. Security test results
 
@@ -131,31 +133,33 @@ Not verified: the real TahlilApp service, the TahlilApp launch-code issuance, an
 - Key ring: startup fails when the feature is enabled and the ring is missing or not writable (tested); a fresh provider over the same ring decrypts (simulated restart, tested).
 - Session fixation: presented refresh tokens are revoked on launch (tested).
 
-**Pre-existing security findings, not fixed here (escalated):**
-- **F-10 (production blocker):** a non-empty JWT `SigningKey` is committed in `FinancialCopilot.API/appsettings.json` and `appsettings.Development.json`, and Development also contains database and SMTP credentials. Any reader of the repository can forge sessions for any user. Rotate every committed credential and move them to the secret store before any environment is trusted. Values were not reproduced here.
-- **F-11 (pre-existing open redirect):** `src/frontend/src/routes/auth.tsx` accepts `/\host`, which browsers treat as a protocol-relative URL. Replace the check with a same-origin parse.
+**Security recovery findings and status:**
+- **F-09 fixed in repository code:** forwarded headers are disabled by default, require explicit trusted proxies or non-global networks when enabled, bound the forwarding limit, and run before logging/authentication/rate limiting. Focused tests cover trusted, untrusted, forged, and multi-hop inputs. Deployment must still supply the correct proxy allow-list.
+- **F-10 fixed in repository contents, operational rotation remains required:** committed JWT, database, SMTP, provider, worker, and Telegram credential values were removed from tracked runtime configuration and documentation; JWT startup validation now fails unless an issuer or a sufficiently long signing key is supplied externally. Operators must rotate any credentials that may have been used from earlier repository revisions and verify the deployed secret store.
+- **F-11 fixed:** same-origin redirect validation rejects backslashes, protocol-relative paths, control/whitespace characters, and multi-layer encoded bypasses. Frontend regression tests cover the encoded cases.
 
 ## 12. Focused test results
 
 | Suite | Filter | Result |
 | --- | --- | --- |
-| Unit | `TahlilApp` | 78 passed, 0 failed |
-| Integration | `TahlilAppLaunch` or `OwnProfile` | 20 passed, 0 failed |
-| Frontend | `launch.test.ts` and `auth.test.ts` with `--pool=threads` | 10 passed |
+| Backend unit | Feature 139/native/billing/security-focused filters | 161 passed, 0 failed |
+| Backend integration | Feature 139/native/forwarded-header/owned-identity-focused filters | 52 passed, 0 failed |
+| Frontend | auth, launch, and safe-redirect focused files with `--pool=threads` | 29 passed, 0 failed |
 
 Frontend note: the default `forks` pool times out starting workers in this environment, and the pre-existing `auth.test.ts` fails the same way. The threads pool is used for this report.
 
 ## 13. Regression and build results
 
-Full suites, run sequentially after the final change:
+Latest full suites run sequentially before the final configuration-only secret scrub; the scrub and design-time connection-string change were followed by a clean Release build and did not alter test code paths:
 
 | Suite | Result | Classification |
 | --- | --- | --- |
-| Unit (`FinancialCopilot.UnitTests`) | 2,239 passed, 18 failed, 2,257 total | All 18 failures appear on the Feature 145 pre-existing list (`backend-regression-audit.md`). |
-| Integration (`FinancialCopilot.IntegrationTests`) | 505 passed, 54 failed, 48 skipped, 607 total | 53 on the Feature 145 list. One extra: `FinancialStatementsByPeriod_InvalidPeriodIsRejectedBeforeQueueing` returned `TooManyRequests` instead of `BadRequest`, the same intermittent 429 that Feature 145 recorded as inconclusive. Three billing-named failures match the pre-existing signatures in the audit (`400`, "Sequence contains no elements", `TooManyRequests`). |
-| Architecture (`FinancialCopilot.ArchitectureTests`) | 11 passed, 1 failed | The failure (`MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction`) is on the Feature 145 baseline and concerns semantic executors. |
+| Unit (`FinancialCopilot.UnitTests`) | 2,297 passed, 19 failed, 2,316 total | Failures are in existing Feature 128/141/143 and semantic-routing/recognizer tests; none are in the recovery-focused filters. |
+| Integration (`FinancialCopilot.IntegrationTests`) | 528 passed, 54 failed, 48 skipped, 630 total | Failures are concentrated in existing Feature 087/128/129/141 and data/admin scenarios; Docker/Testcontainers PostgreSQL cases were skipped because Docker is unavailable. Recovery-focused filters remained green. |
+| Architecture (`FinancialCopilot.ArchitectureTests`) | 11 passed, 1 failed | `MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction`; unrelated to this recovery and unchanged by its files. |
 | Frontend build (`npm run build`) | Exit 0 | Regenerated the route tree with `/launch` and `/launch-failed`. |
-| Frontend typecheck (`tsc --noEmit`) | 27 errors in unrelated files | None in the files this change touches. The same `/auth` search error exists in the existing `verify-email` and `reset-password` routes; those are unrelated and were not changed. |
+| Frontend focused tests | 29 passed, 0 failed | `safe-redirect`, `auth`, and `launch` tests pass with the threads pool. |
+| Frontend full tests | 149 passed, 2 failed, 21 files | Two unrelated assertion failures (`disclosures`, `monthly-product-trend-chart`) plus one environment-only browser-script suite failure; no recovery-focused failure. |
 | Backend Release build (`src/backend/FinancialCopilot.sln`) | Passed | 0 errors, 0 warnings |
 
 Verification practice: two test runs in parallel collided on shared build outputs and produced truncated output. The reported runs are sequential.
@@ -167,7 +171,7 @@ These are not claims of a green suite. The pre-existing classification rests on 
 - **Q1 contract confirmation:** paths, field names, the `permissions` shape, and error codes are a proposal. The gateway implements the proposal only.
 - **Q2 service credential:** Sapino reads the key from an environment variable. TahlilApp must issue and restrict it.
 - **Launch-code issuance (S-2) and exchange endpoint (S-3):** external and untested against the real service.
-- **Batch status and webhook (Q4):** not requested by this increment (T-21 deferred).
+- **Batch status and webhook (Q4):** not required by the current Sapino worker, which performs bounded per-user status GETs. A batch endpoint remains an optional scale extension, not an implemented dependency.
 - **Launch-code single use and atomic consumption:** TahlilApp's responsibility. Sapino's local replay guard adds a second barrier but cannot replace it.
 
 ## 15. Operational deployment prerequisites
@@ -175,7 +179,7 @@ These are not claims of a green suite. The pre-existing classification rests on 
 Before enabling `Authentication:TahlilApp:Enabled` in any environment:
 1. **Rotate and relocate committed credentials (F-10).**
 2. **Persistent key ring (T-06):** configure `DataProtection:KeyRingPath` on a durable volume; run a backup and a restore drill; write the key-loss runbook. Keys must not be stored in the database.
-3. **Forwarded headers (F-09, Q12):** `UseForwardedHeaders` is not configured. Behind a reverse proxy the public limiter would count all users together, which weakens brute-force protection and can block everyone. Configure trusted proxies first.
+3. **Forwarded headers (F-09, Q12):** the middleware is configured securely but disabled by default. Before enabling it, provide the exact trusted proxy/network allow-list and verify the reverse-proxy topology so the public limiter uses the real client IP.
 4. **Same-site topology (Q9):** the refresh cookie is `SameSite=Strict`. The frontend and the API must be same-site.
 5. **Legal basis and retention for PII (Q13):** a decision for Legal and Product before storing national id and mobile.
 6. **Migration staging:** apply the migration to staging first, after a backup, following Feature 145's checklist.
@@ -184,15 +188,16 @@ Before enabling `Authentication:TahlilApp:Enabled` in any environment:
 
 ## 16. Remaining blockers and follow-ups
 
-Blockers for enabling the feature in production: items 1–5 in section 15 and the external contract (section 14).
+Blockers for enabling the feature in production: credential rotation, key-ring operations, migration staging, same-site/proxy configuration, legal review, the external launch/exchange/status contract, and the real staging round trip (sections 14–15 and the staging checklist).
 
 Deferred Sapino work (documented in `Design.md` §22.5 and `tasks.md`):
-- Native email enrollment and password setup, password login parity, `/me` account state (T-26, T-27). Without these, TahlilApp-only users cannot sign in except through TahlilApp.
-- Background entitlement revalidation and direct-login TTL refresh (T-21, T-22).
 - Switch-account confirmation in the frontend (T-17).
 - Admin masked profile and audited reveal (T-24).
 - Profile deletion on revoke (T-14). There is no revoke path yet.
 - Explicit account linking (T-28).
+
+Implemented Sapino-side refresh work still requiring staging evidence:
+- Per-user status refresh, direct-login TTL and stale-grace downgrade (T-21, T-22); TahlilApp endpoint availability, contract confirmation and real round trip are open.
 
 Verification gaps to close:
 - Log-sink capture test for AC-72.
@@ -204,7 +209,7 @@ Verification gaps to close:
 
 Behaviour to decide and communicate:
 - Admin-set lapsed windows now read as Free (section 9).
-- Catalog anomaly: Free credits exceed Pro credits (section 10).
+- Approved catalog: Free `25`, Plus `260`, Pro `2600`; the migration is not applied to live databases (section 10).
 - Admin `SetSubscriptionAsync` accepts a null plan code, which leaves an account unassigned and skips capability gating (billing review F-14). Not changed here.
 
 Error-handling deviation: a provisioning or billing-sync exception surfaces as HTTP 500 through the global handler, not as `launch-unavailable` (503). No session is created in that case, so the failure is fail-closed, but the status code differs from Design §14.

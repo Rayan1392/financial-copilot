@@ -59,7 +59,12 @@ services:
     environment:
       <<: &application-environment
         ASPNETCORE_ENVIRONMENT: Production
-        ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-false}
+        ForwardedHeaders__Enabled: ${FORWARDED_HEADERS_ENABLED:-false}
+        ForwardedHeaders__ForwardLimit: ${FORWARDED_HEADERS_FORWARD_LIMIT:-1}
+        ForwardedHeaders__KnownProxies__0: ${FORWARDED_HEADERS_KNOWN_PROXY_0:-}
+        ForwardedHeaders__KnownProxies__1: ${FORWARDED_HEADERS_KNOWN_PROXY_1:-}
+        ForwardedHeaders__KnownNetworks__0: ${FORWARDED_HEADERS_KNOWN_NETWORK_0:-}
+        ForwardedHeaders__KnownNetworks__1: ${FORWARDED_HEADERS_KNOWN_NETWORK_1:-}
         ConnectionStrings__FinancialCopilot: Host=postgres;Port=5432;Database=${POSTGRES_DB:-financial_copilot};Username=${POSTGRES_USER:-financial_copilot};Password=${POSTGRES_PASSWORD}
         ConnectionStrings__Redis: redis:6379
         Database__ApplyMigrationsOnStartup: "true"

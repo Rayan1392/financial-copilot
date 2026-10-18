@@ -59,13 +59,13 @@ ACs: AC-37. Status: implemented and tested (unknown → Free; inactive → Free;
 **US-139-17 — As a product owner, TahlilApp permission names never grant features in v1.**
 ACs: AC-85. Status: implemented (`permissions[]` is counted and logged only).
 
-## Email and native login (not in this increment)
+## Email and native login
 
 **US-139-18 — As a TahlilApp user, I can add an email address and password to sign in directly.**
-ACs: AC-44–AC-53. Status: **not implemented** (`T-26`, `T-27`). Designed in `Design.md` §22.6 Diagram 3, reusing the Feature 145 token mechanism. Until this is delivered, TahlilApp-only users cannot sign in without TahlilApp.
+ACs: AC-44–AC-53. Status: implemented and tested (`T-26`, `T-27`) through the existing Identity email-token flow. A TahlilApp-provisioned user can enroll and verify an email, set a password, and later sign in directly; the same local user, conversations and Billing account are retained.
 
 **US-139-19 — As a user, an email address already used by another account never merges accounts.**
-ACs: AC-51, AC-67. Status: prohibited by design; enforced by the absence of any merge code. Not yet exercised by an enrollment test because enrollment is deferred.
+ACs: AC-51, AC-67. Status: prohibited by design and exercised by native enrollment tests; an existing email collision does not merge accounts.
 
 ## Operations and rollout
 

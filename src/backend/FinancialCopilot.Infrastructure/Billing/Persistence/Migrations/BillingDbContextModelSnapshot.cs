@@ -939,21 +939,21 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         new
                         {
                             Code = "Free",
-                            IncludedCredits = 10000m,
+                            IncludedCredits = 25m,
                             Name = "Free",
                             PricingPolicyVersion = "v1"
                         },
                         new
                         {
                             Code = "Pro",
-                            IncludedCredits = 100m,
+                            IncludedCredits = 2600m,
                             Name = "Pro",
                             PricingPolicyVersion = "v1"
                         },
                         new
                         {
                             Code = "Plus",
-                            IncludedCredits = 300m,
+                            IncludedCredits = 260m,
                             Name = "Plus",
                             PricingPolicyVersion = "v1"
                         });

@@ -5,6 +5,7 @@ using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
@@ -126,6 +127,19 @@ builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<TelegramFinancialStatementReconciliationWorker>();
 builder.Services.AddTahlilAppIdentity(builder.Configuration);
 builder.Services
+    .AddOptions<ForwardedHeadersSecurityOptions>()
+    .BindConfiguration(ForwardedHeadersSecurityOptions.SectionName)
+    .Validate(options => options.IsValid(out _), "Forwarded header trust configuration is invalid.")
+    .ValidateOnStart();
+var forwardedHeadersSecurity = builder.Configuration
+    .GetSection(ForwardedHeadersSecurityOptions.SectionName)
+    .Get<ForwardedHeadersSecurityOptions>() ?? new ForwardedHeadersSecurityOptions();
+if (!forwardedHeadersSecurity.IsValid(out var forwardedHeadersError))
+{
+    throw new InvalidOperationException(forwardedHeadersError);
+}
+builder.Services.Configure<ForwardedHeadersOptions>(forwardedHeadersSecurity.ApplyTo);
+builder.Services
     .AddOptions<PublicAuthenticationRateLimitOptions>()
     .BindConfiguration(PublicAuthenticationRateLimitOptions.SectionName)
     .Validate(options => options.PermitLimit is > 0 and <= 1000 && options.WindowSeconds is > 0 and <= 3600,
@@ -170,6 +184,10 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
     await app.ApplyPendingDatabaseMigrationsAsync();
 }
 
+if (forwardedHeadersSecurity.Enabled)
+{
+    app.UseForwardedHeaders();
+}
 app.UseSerilogRequestLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();

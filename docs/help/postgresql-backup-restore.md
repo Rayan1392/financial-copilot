@@ -18,7 +18,7 @@ Change `$backupDir` to any path you prefer. The folder is created automatically 
 Set the password once per session to avoid prompts:
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 ```
 
 ---
@@ -28,7 +28,7 @@ $env:PGPASSWORD = "Rayan1392!"
 ### Recommended — custom format (smallest, supports partial restore)
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
@@ -45,7 +45,7 @@ Example output path: `C:\Backups\financial_copilot\financial_copilot_20260604_14
 ### Plain SQL (human-readable, easy to inspect)
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
@@ -59,7 +59,7 @@ New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 ### Directory format (parallel dump, fastest for large databases)
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
@@ -75,7 +75,7 @@ The output is a **folder**, not a single file (e.g. `C:\Backups\financial_copilo
 ### Schema only (no data — useful before migrations)
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 
@@ -93,7 +93,7 @@ New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 ### From custom format
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 & "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
     --host localhost --port 5432 --username maahfit `
     --dbname financial_copilot `
@@ -107,7 +107,7 @@ Omit `--clean` to restore into a fresh empty database.
 ### From plain SQL
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 & "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
     --host localhost --port 5432 --username maahfit `
     --dbname financial_copilot `
@@ -117,7 +117,7 @@ $env:PGPASSWORD = "Rayan1392!"
 ### Restore a single table (custom format only)
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 & "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
     --host localhost --port 5432 --username maahfit `
     --dbname financial_copilot `
@@ -132,7 +132,7 @@ $env:PGPASSWORD = "Rayan1392!"
 If you need a clean target database first:
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 & "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
     --host localhost --port 5432 --username maahfit `
     --dbname postgres `
@@ -154,7 +154,7 @@ Save the script below as `C:\Backups\backup-financial-copilot.ps1`, then registe
 
 ```powershell
 # backup-financial-copilot.ps1
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 $file      = "$backupDir\financial_copilot_$(Get-Date -Format 'yyyyMMdd_HHmmss').dump"
 
@@ -197,7 +197,7 @@ migrations that contain `TRUNCATE` statements (e.g. `AddStatementTypeAndFixUniqu
 in `FinancialIngestionDbContext`).
 
 ```powershell
-$env:PGPASSWORD = "Rayan1392!"
+$env:PGPASSWORD = "<postgres-password>"
 $backupDir = "C:\Backups\financial_copilot"
 New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
 

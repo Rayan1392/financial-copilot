@@ -24,9 +24,9 @@ public sealed class TahlilAppEntitlementStatusTests
         try
         {
             var expiry = Now.AddDays(30).ToString("O");
-            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, $$"""
-                {"user":{"externalUserId":"{{ExternalId}}","status":"Active","firstName":"Ali"},
-                 "subscription":{"plan":"Pro","isActive":true,"expiresAt":"{{expiry}}","revision":42}}
+            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, $$$"""
+                {"user":{"externalUserId":"{{{ExternalId}}}","status":"Active","firstName":"Ali"},
+                 "subscription":{"plan":"Pro","isActive":true,"expiresAt":"{{{expiry}}}","revision":42}}
                 """));
 
             var result = await CreateGateway(handler, variable).GetStatusAsync(ExternalId, "corr-7", CancellationToken.None);
@@ -77,7 +77,7 @@ public sealed class TahlilAppEntitlementStatusTests
         Environment.SetEnvironmentVariable(variable, "test-credential");
         try
         {
-            var body = $$"""{"user":{"externalUserId":"{{ExternalId}}","status":"Active"},"subscription":{"plan":"Pro","isActive":"yes","expiresAt":"{{Now.AddDays(3):O}}","revision":1}}""";
+            var body = $$$"""{"user":{"externalUserId":"{{{ExternalId}}}","status":"Active"},"subscription":{"plan":"Pro","isActive":"yes","expiresAt":"{{{Now.AddDays(3):O}}}","revision":1}}""";
             var result = await CreateGateway(new StubHandler(_ => Json(HttpStatusCode.OK, body)), variable)
                 .GetStatusAsync(ExternalId, "c", CancellationToken.None);
 
@@ -317,7 +317,7 @@ public sealed class TahlilAppEntitlementStatusTests
     private static string Body(string status = "Active", string? extraUserField = null)
     {
         var extra = extraUserField is null ? string.Empty : "," + extraUserField;
-        return $$"""{"user":{"externalUserId":"{{ExternalId}}","status":"{{status}}"{{extra}}},"subscription":{"plan":"Free","isActive":false}}""";
+        return $$$"""{"user":{"externalUserId":"{{{ExternalId}}}","status":"{{{status}}}"{{{extra}}}},"subscription":{"plan":"Free","isActive":false}}""";
     }
 
     private static TahlilAppIdentityGateway CreateGateway(StubHandler handler, string variable)

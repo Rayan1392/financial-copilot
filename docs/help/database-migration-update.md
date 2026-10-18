@@ -186,7 +186,7 @@ Stop the API and Worker, verify no ingestion or scheduler job is running, then r
   --output-dir Financial/Ingestion/Persistence/Migrations
 
 
-$env:FINANCIAL_COPILOT_CONNECTION_STRING = "Server=localhost;Port=5432;Database=financial_copilot;User Id=maahfit;Password=Rayan1392!"
+$env:FINANCIAL_COPILOT_CONNECTION_STRING = "Server=<postgres-host>;Port=5432;Database=<database>;User Id=<postgres-user>;Password=<postgres-password>"
 & "$env:USERPROFILE\.dotnet\tools\dotnet-ef.exe" database update `
   --project src/backend/FinancialCopilot.Infrastructure `
   --startup-project src/backend/FinancialCopilot.API `

@@ -14,6 +14,8 @@ describe("safeInternalPath", () => {
     "//evil.example",
     "/%5Cevil.example",
     "/%2F%2Fevil.example",
+    "/%255C%255Cevil.example",
+    "/%2500chat",
     "https://evil.example",
     "javascript:alert(1)",
     "/\\t/evil",

@@ -8,7 +8,9 @@ Status legend (updated at the end of this increment, from test results):
 - `[ ]` not implemented in this increment.
 - `[D]` deferred with a reason (see `ImplementationReport.md`).
 
-Test commands used for verification: `dotnet test` on `FinancialCopilot.UnitTests` (filter `TahlilApp`: 78 passed), `FinancialCopilot.IntegrationTests` (filter `TahlilAppLaunch|OwnProfile`: 20 passed), `npx vitest run --pool=threads` on the two frontend files (10 passed), and `npm run build` (exit 0).
+Focused verification for this recovery includes the Feature 139 slices, native email/password journeys, forwarded-header security, approved billing catalog, and the frontend redirect regression. Exact final counts are recorded in `ImplementationReport.md` after the full regression runs.
+
+Integration handoff artifacts: [`TahlilAppIntegrationContract.md`](TahlilAppIntegrationContract.md) and [`StagingReadinessChecklist.md`](StagingReadinessChecklist.md). They describe the implemented Sapino behavior, the unverified TahlilApp contract, and the remaining staging/operations gates. No checklist item is considered complete without evidence.
 
 ## S-1 Foundation and contracts
 
@@ -47,8 +49,8 @@ Test commands used for verification: `dotnet test` on `FinancialCopilot.UnitTest
 - [x] **T-18** `ExternalSubscriptionSynchronizer`: idempotent (identical plan and window is a no-op: no revision bump, no audit), revision-checked (one retry on concurrency), audit `billing.subscription.synced`, **grants no credits**. ACs: AC-12, AC-36, AC-38. Tests: `TahlilAppBillingSyncTests.Sync_IsIdempotent_AndGrantsNoCredits`, `Sync_DowngradeToFree_ClearsWindowAndBumpsRevisionOnce`; `ExpiredPaidSubscription_IsSyncedToFree`. Owner: Sapino.
 - [x] **T-19** Read-side expiry guard: `SubscriptionEffectiveness.ResolveEffectivePlanCode` (lapsed window reads as Free) applied in `PlanCapabilityService` (both reads) and `SubscriptionPlanRepository`. ACs: AC-35, AC-87. Tests: `TahlilAppBillingSyncTests.ExpiryRule_*`, `CapabilityCheck_LapsedPaidAccount_LosesPaidCapability`. Gap: the repository guard is not tested directly. **Behaviour change for all accounts:** an admin-set window that has already lapsed now reads as Free; this is intended and listed in the implementation report. Owner: Sapino.
 - [x] **T-20** Launch-time subscription sync: exchange → policy → synchroniser, with unknown plan, inactive, expired and missing-expiry all becoming Free. ACs: AC-12, AC-36, AC-37, AC-86. Tests: `TahlilAppDomainTests.Subscription_*` (fail-closed matrix); `SubscriptionSync_IsIdempotent_AndGrantsNoCredits`; `ExpiredPaidSubscription_IsSyncedToFree`. Owner: Sapino.
-- [D] **T-21** Background revalidation worker and batch status. Deferred: requires the TahlilApp batch endpoint (Q4). Owner: TahlilApp contract and Sapino.
-- [D] **T-22** Direct-login TTL refresh and stale-grace downgrade on login. Deferred. The stale-grace rule (Design §11) is **not implemented** in this increment. Owner: Sapino.
+- [~] **T-21** Background entitlement revalidation worker and per-user status refresh. Sapino claims due identities under a lease and performs one bounded `GET /api/financial-copilot/users/{externalUserId}/status` per identity; a TahlilApp batch endpoint is not a current dependency. Verification gap: the external endpoint, SLA and real staging round trip are unverified. Owner: Sapino/TahlilApp/Operations.
+- [x] **T-22** Direct-login TTL refresh and stale-grace downgrade on login. Implemented through the shared entitlement refresher: successful status is due again after the configured 15-minute TTL; unavailable status preserves the last-known paid state through the configured six-hour stale grace, then synchronizes Free. Verification gap: real TahlilApp status behavior and staging evidence remain open. Owner: Sapino.
 
 ## S-9 Profile views
 
@@ -61,14 +63,14 @@ Test commands used for verification: `dotnet test` on `FinancialCopilot.UnitTest
 
 ## S-11 / S-12 / S-13 Native credentials, parity, linking
 
-- [D] **T-26** Native email enrollment (`email_enrollment` purpose, `PendingEmail` column, `POST credentials/email`, confirm, password set). Deferred. Designed in Design §22.6 Diagram 3 and D1, reusing the Feature 145 token mechanism. The increment does **not** provide native login for TahlilApp users.
-- [D] **T-27** Direct-login parity and `/me` extension. Deferred with T-22.
+- [x] **T-26** Native email enrollment (`email_enrollment` purpose, `PendingEmail` column, `POST credentials/email`, confirm, password set). Implemented through the existing Identity email-token flow; new accounts require verified email, and enrollment does not merge accounts. Verified by `NativeEnrollmentIntegrationTests` for enrollment, confirmation, cooldown, generic duplicate handling, races, token replay/expiry, and password setup.
+- [x] **T-27** Direct-login parity and `/me` extension. Native login resolves the same local user created by TahlilApp launch; `/me`, refresh, password reset, and account-state behavior are covered by `NativeEnrollmentIntegrationTests` and the launch/auth integration scenarios. Access tokens are short-lived and entitlement state remains server-side.
 - [D] **T-28** Explicit account linking and admin unlink. Deferred post-release (Q6).
 
 ## S-14 Integration and regression
 
 - [x] **T-29** Integration scenarios for the implemented paths (`TahlilAppLaunchIntegrationTests`, 13 cases): disabled → 404, invalid, replay, malformed (no exchange), unavailable (one exchange across two attempts), suspended (no cookie), first launch (one user, no email, encrypted PII), second launch (same user), returning launch merge, refresh revocation, email-less `/me`, subscription idempotency, expiry to Free, concurrent identical launches. The TahlilApp test double lives only in the test project; the production gateway is never replaced except in tests. Owner: Sapino.
-- [x] **T-30** Regression against the Feature 145 baseline (see `ImplementationReport.md` §13): unit 2,236 passed / 18 failed (all 18 on the pre-existing list); integration 504 passed / 54 failed / 48 skipped (53 pre-existing, 1 documented intermittent 429). The existing auth, billing and admin integration tests are among the passing set.
+- [x] **T-30** Sequential regression recorded in `ImplementationReport.md` §13: unit 2,297 passed / 19 failed; integration 528 passed / 54 failed / 48 skipped; architecture 11 passed / 1 failed. The failures are existing Feature 128/141/143, Telegram/data/admin, and semantic-routing scenarios; the recovery-focused filters pass. Docker-backed PostgreSQL tests were skipped because Docker is unavailable.
 
 ## Documentation
 

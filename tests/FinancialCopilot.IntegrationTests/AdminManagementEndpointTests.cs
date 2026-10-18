@@ -165,6 +165,11 @@ public sealed class AdminManagementEndpointTests : IClassFixture<AdminManagement
 
         Assert.Equal(HttpStatusCode.OK, plans.StatusCode);
         Assert.Equal(["Free", "Plus", "Pro"], plansJson.RootElement.EnumerateArray().Select(item => item.GetProperty("code").GetString()).Order());
+        var catalog = plansJson.RootElement.EnumerateArray()
+            .ToDictionary(item => item.GetProperty("code").GetString()!, item => item.GetProperty("includedCredits").GetDecimal());
+        Assert.Equal(25m, catalog["Free"]);
+        Assert.Equal(260m, catalog["Plus"]);
+        Assert.Equal(2600m, catalog["Pro"]);
         Assert.Equal(HttpStatusCode.BadRequest, unsupportedPlan.StatusCode);
         Assert.Equal(HttpStatusCode.OK, updateCredits.StatusCode);
         Assert.Equal(250m, updateJson.RootElement.GetProperty("includedCredits").GetDecimal());

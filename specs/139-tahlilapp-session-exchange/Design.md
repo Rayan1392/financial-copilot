@@ -1,6 +1,8 @@
 # Feature 139 — TahlilApp Session Exchange and Dual Authentication — Design
 
-Status: **Design only. No production code is changed by this document.**
+Status: **Revision 4 — design reconciled against the repository (§22) and an implementation baseline. Production code for the Sapino-owned slices is tracked in `tasks.md`, `design-review.md`, `tasks-review.md` and `ImplementationReport.md`. TahlilApp-side behaviour is external and unverified (§22.4).**
+
+Revisions 1–3 were design-only (see sections 1–21 below). Where Revision 4 (§22) conflicts with an earlier section, §22 wins.
 
 Naming: *TahlilApp* is the external parent platform. *Sapino* (ساپیو) is the user-facing name of this repository's product (Financial Copilot). In code, `FinancialCopilot.*` is used.
 
@@ -633,3 +635,275 @@ Resolved and removed from this list (now design decisions): Data Protection key 
 | **S-14** Integration & security tests | End-to-end with fake TahlilApp, concurrency (same code ×N, first-launch ×N), replay/expiry, null-email session, stale-grace downgrade, collision scenarios (shared NationalId/Mobile never merged), profile refresh matrix (changed/identical/absent/null/invalid), own-vs-admin authorization matrix, PII log-sink test, JWT/AI-context/status-contract PII absence, key-ring restart + restore decrypt tests, rate-limit tests. | all |
 
 Total: **14 slices** (S-2/S-3 are TahlilApp-side).
+
+---
+
+## 22. Revision 4 — Reconciliation with the Repository (authoritative where it conflicts with §1–21)
+
+### 22.1 Evidence used
+
+| Claim | Evidence (verified in this repository) |
+| --- | --- |
+| No `AddDefaultTokenProviders`, `AddDataProtection`, or `UseForwardedHeaders` is registered | grep over `src/backend` (only `PublicAuthentication` rate-limit hits) |
+| Public anonymous rate-limit policy exists | `FinancialCopilot.API/Security/RateLimitPolicies.cs:10-12`, `Program.cs:126-150`, applied on `AuthController` public endpoints |
+| Email action tokens, SMTP sender, cooldowns and verification-required state exist | Feature 145: `AuthEmailActionTokenRow`, `OwnedIdentityService.IssueEmailTokenAndSendAsync`, `AuthEmailOptions`, `SmtpEmailSender`, `FinancialCopilotUser.EmailVerificationRequired` |
+| Plan catalog is `Free`, `Plus`, `Pro` after the latest migration | Billing report: `RestrictCanonicalSubscriptionPlans` (20261007071507) remaps `Premium`→`Pro` |
+| Included credits are seeded once per wallet and never granted on a plan change | `OwnedIdentityBillingProvisioner.cs:60-70`; `EfCoreAdminManagementService.SetSubscriptionAsync` (`:338-356`) touches neither wallet nor ledger |
+| `SubscriptionEffectiveTo` is written but never read for access decisions | Billing report §2: `PlanCapabilityService.cs:9-55`, `SubscriptionPlanRepository` (`BillingRepositories.cs:385-404`), `SubscriptionService` (`BillingQueryServices.cs:88-92`), `WalletEntitlementService.cs:28-53` read only `SubscriptionPlanCode` |
+| Admin plan change has a revision check but no idempotency key | `EfCoreAdminManagementService.cs:346` (409 on stale revision), `:348-351`, audit `billing.subscription.changed` at `:352`/`:354` |
+| Credit grants are idempotent by key and positive-only | `CreditAdjustmentService.cs:15-104`, unique ledger `IdempotencyKey` index |
+| Auth and Billing use different `DbContext`s on one PostgreSQL database with no shared transaction | `ServiceCollectionExtensions.cs:100-104`; billing report §6 |
+| `user.Email!` is dereferenced when issuing a JWT | `OwnedIdentityService.cs:483` (`CreateAccessToken`), `:461` (`OwnedIdentityProfile`) |
+
+### 22.2 Decisions that replace earlier design text
+
+| # | Earlier text | Decision (Revision 4) | Rationale |
+| --- | --- | --- | --- |
+| D1 | §8 reuse "ASP.NET Core Identity email token providers" (`AddDefaultTokenProviders`, `UserManager.ChangeEmailAsync`) | **Reuse the Feature 145 email-action-token mechanism** (`auth_email_action_tokens`, purpose-bound, SHA-256 digest only, `IEmailSender`, `AuthEmailOptions`, public limiter). Do **not** register `AddDefaultTokenProviders`. A new purpose `email_enrollment` is added in S-11 with a `PendingEmail` column. | Feature 145 already shipped a second token mechanism; two mechanisms would be a parallel auth system (prompt §22). |
+| D2 | §5/§18 "no rate limiter" | Reuse `RateLimitPolicies.PublicAuthentication` for `POST /api/auth/v1/tahlilapp/launch`. | Verified present (D2 evidence above). |
+| D3 | §11 status refresh and expiry "`EffectiveTo` read-side guard in S-8" | **Required and in scope for S-8.** Effective plan = `Free` when `SubscriptionEffectiveTo <= now`, applied in every Billing read path the billing report lists. Behaviour change: this also applies to admin-set windows that have lapsed (intended; flagged in the implementation report). | Without it a stopped worker extends paid access (AC-35). |
+| D4 | §14 "Retry exchange: none" and §13.2 "retry within TTL possible" | **No retry of the exchange after an attempt row is recorded.** The attempt row is written before the call and its outcome is updated after. A failed attempt is final for that code; the user relaunches from TahlilApp to obtain a new code. | The exchange is non-idempotent; a second call with the same code can only return `invalid`. §13.2 wording is superseded. |
+| D5 | §10.1 `Email = null` provisioning under `UserManager.CreateAsync` | **Verify before relying on it.** `RequireUniqueEmail = true` is configured (`ServiceCollectionExtensions.cs:241`). ASP.NET Core's default user validator can reject a null email when that option is set. Provisioning must be proven with an integration test. If rejected, provisioning writes the user row through `AuthDbContext` with `NormalizedUserName`, `SecurityStamp` and `ConcurrencyStamp` set explicitly, and this exception is documented and covered by the test. No placeholder email is ever written. | Prevents silently fabricating an email; tracked as review finding F-03. |
+| D6 | §9.1 `entitlements[]` / §11 Q3 external permissions | **v1 accepts no external permission as a grant.** `permissions[]`, if present, is parsed, counted and logged only. Plan from Billing remains the single entitlement source. | Product permission names are unverified (prompt §12); accepting them would create a second authorization system (Feature 035). |
+| D7 | §11 `active paid, no expiresAt` (unspecified) | Treated as **fail-closed**: `Free` with a warning. | Unbounded paid access without an expiry cannot be validated. |
+| D8 | §9.1 `displayName` dropped, names from first+last | Unchanged. | — |
+| D9 | §13.1 HMAC request signing | Not implemented in v1; API key only (repository convention, Q2). | Q2 open with TahlilApp. |
+| D10 | §12 `amr` on refresh | `amr` is stored on `auth_refresh_tokens` (nullable, legacy = `pwd`) and copied on refresh. | Keeps `amr` truthful across refresh rotation. |
+| D11 | §10.2 `auth_user_profiles` PII | Unchanged. Encryption uses `IDataProtectionProvider` with purposes `FinancialCopilot.Profile.NationalId.v1` / `.Mobile.v1`. | — |
+| D12 | §17.1 key ring | `AddDataProtection().SetApplicationName("FinancialCopilot").PersistKeysToFileSystem(KeyRingPath)`; startup fails when `Authentication:TahlilApp:Enabled` and the path is missing/unwritable. | Verified: no `AddDataProtection` exists today. |
+| D13 | §7 / §12 session fixation | Launch revokes a presented `financial_copilot_refresh` cookie (reason `Replaced by TahlilApp launch.`) and issues a new refresh token. The switch-account confirmation UI is **deferred** (see §22.5); the backend revocation is in scope. | Backend mitigation first; UX confirmation is a frontend follow-up. |
+
+### 22.3 Layering decisions
+
+- Application layer (`FinancialCopilot.Application/Authentication/TahlilApp/`) owns the launch use case, the gateway port, the store/provisioner ports, the session-issuer port and the request/response records. No HTTP, EF or ASP.NET types.
+- Domain (`FinancialCopilot.Domain/Identity/TahlilApp/`) owns validated value objects (external user id, Iranian national id, E.164 mobile, plan mapping, profile merge policy).
+- Infrastructure (`FinancialCopilot.Infrastructure/Authentication/TahlilApp/`) owns the typed `HttpClient` gateway, EF persistence, profile encryption, and the adapters that implement the ports.
+- API (`FinancialCopilot.API/Controllers/AuthController.cs` plus contracts) maps DTO ↔ use case only.
+- Pre-existing debt kept, not expanded: `IOwnedIdentityService` and `OwnedIdentityService` live in Infrastructure, and `Application/Authentication` contains only contracts. New code keeps its policy in Application.
+
+### 22.4 External dependency status
+
+| Item | Status |
+| --- | --- |
+| TahlilApp exchange/status contract (Q1) | **Proposed, unverified.** The gateway implements the §9.1 contract. Production enablement requires TahlilApp confirmation and a real staging round trip. |
+| TahlilApp LaunchCode issuance (S-2) and exchange/status endpoints (S-3) | **External, not implemented here.** |
+| TahlilApp service credential (Q2) | Sapino side reads it from an environment variable. Value never in repository. |
+| Email delivery (Q11) | Feature 145 SMTP sender; staging delivery not verified. |
+| Proxy topology for client IP (Q12) | `UseForwardedHeaders` is absent. The public limiter sees the proxy address behind a load balancer. **Operational prerequisite before enabling the flag.** |
+| Data Protection key ring backup/restore drill (§17.1) | Operational; scripts and runbook are S-5 deliverables; the drill is not performed here. |
+| Legal basis for PII (Q13) | **Genuine blocking decision for enabling the feature in production.** Not a code blocker. |
+
+### 22.5 Scope of this implementation increment
+
+**In scope:** S-1, S-4, S-5 (code path and startup validation; runbook text), S-6, S-7 (backend session path; `/launch` and `/launch-failed` frontend routes), S-8 (Billing sync use case, read-side expiry guard, launch-time sync), S-9 (self-service profile GET/reveal), S-10 (log redaction and events for the implemented paths), S-14 tests for the implemented paths.
+
+**Deferred with explicit reason:**
+- S-8 background revalidation worker — needs TahlilApp batch status (Q4); the launch and direct-login refresh paths already reconcile subscription state.
+- S-9 admin masked views and admin reveal — no admin UI exists; the audited reveal design needs its own review. The permission constant is added and seeded, but no endpoint uses it.
+- S-11 native enrollment/password — designed in D1; implemented only if the increment reaches it, otherwise listed as remaining work.
+- S-12 direct-login parity — designed; implemented only if the increment reaches it.
+- Switch-account confirmation UI (D13) — deferred; backend revocation is in scope.
+- S-13 explicit account linking — post-release (Q6).
+
+### 22.6 Diagrams
+
+**Diagram 1 — System architecture and trust boundaries**
+
+```mermaid
+flowchart LR
+    subgraph Browser_Zone[Browser - untrusted]
+        B[Browser]
+    end
+    subgraph TahlilApp_Zone[TahlilApp - external trust domain]
+        TF[TahlilApp Frontend]
+        TB[TahlilApp Backend]
+        TDB[(TahlilApp DB)]
+    end
+    subgraph Sapino_Zone[Sapino - this repository]
+        SF[Sapino Frontend /launch /chat]
+        SA[Sapino API]
+        IDB[(Identity DB auth_*)]
+        BDB[(Billing DB billing_*)]
+        KR[(Data Protection key ring - separate volume)]
+    end
+    MAIL[Email provider SMTP]
+
+    B --> TF
+    TF -->|launch request| TB
+    TB --> TDB
+    B -->|redirect with one-time code| SF
+    SF -->|POST code| SA
+    SA -->|service credential over TLS, no redirects| TB
+    SA --> IDB
+    SA --> BDB
+    SA --> KR
+    SA --> MAIL
+    TB -.->|trust boundary: server-to-server| SA
+```
+
+**Diagram 2 — First login (TahlilApp launch)**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant TF as TahlilApp Frontend
+    participant TB as TahlilApp Backend (external)
+    participant SF as Sapino Frontend
+    participant SA as Sapino API
+    participant IDB as Identity DB
+    participant BDB as Billing DB
+
+    U->>TF: click دستیار هوشمند بازار سرمایه
+    TF->>TB: launch request (TahlilApp session)
+    TB-->>TF: launchUrl with one-time code (TTL 60 s)
+    TF->>U: navigate to /launch?code=...
+    U->>SF: GET /launch?code=...
+    SF->>SF: history.replaceState removes code
+    SF->>SA: POST /api/auth/v1/tahlilapp/launch {code}
+    SA->>IDB: insert launch attempt (SHA-256 code, unique)
+    alt duplicate attempt
+        SA-->>SF: 401 launch-invalid
+    else first attempt
+        SA->>TB: POST session-exchange {code} with X-Api-Key
+        TB-->>SA: user + subscription (validated, or failure)
+        SA->>IDB: tx: find or create external identity, user, tenant, profile
+        SA->>BDB: provision Free wallet once, sync subscription (idempotent)
+        SA->>IDB: revoke presented refresh cookie, new refresh token, JWT with amr=tahlilapp
+        SA-->>SF: 200 session + refresh cookie
+        SF->>U: location.replace('/chat')
+    end
+```
+
+**Diagram 3 — Email enrollment (S-11, designed)**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Authenticated Sapino user
+    participant SF as Sapino Profile
+    participant SA as Sapino API
+    participant IDB as Identity DB
+    participant M as Email provider
+
+    U->>SF: enter email address
+    SF->>SA: POST credentials/email {email}
+    SA->>IDB: is address already owned by another account?
+    alt address free
+        SA->>IDB: store purpose-bound token row with PendingEmail (digest only)
+        SA->>M: verification message (token in fragment)
+    else address owned elsewhere
+        Note over SA,M: no token, no message, no merge
+    end
+    SA-->>SF: 202 generic response (identical in both branches)
+    U->>SF: open verification link
+    SF->>SA: POST credentials/email/confirm {token}
+    SA->>IDB: atomic consume; set Email, EmailConfirmed=true
+    U->>SF: set password
+    SF->>SA: POST credentials/password {newPassword}
+    SA->>IDB: password hash via Identity, native login enabled
+```
+
+**Diagram 4 — Returning login (two routes, one local user)**
+
+```mermaid
+flowchart TD
+    A[TahlilApp launch with new code] --> R{Resolve external identity<br/>Provider=TahlilApp, ExternalUserId}
+    B[Sapino email + password] --> C{Resolve local account by verified email}
+    R -->|found| U1[Same FinancialCopilotUser]
+    R -->|not found| N1[Create one local user]
+    N1 --> U1
+    C -->|found, password ok| U2[Same FinancialCopilotUser]
+    U1 --> S1[Refresh profile on launch, sync subscription]
+    U2 --> S2[Sync subscription if identity TTL expired; never refresh PII]
+    S1 --> SESS[Session: same user id, tenant, roles, permissions]
+    S2 --> SESS
+```
+
+**Diagram 5 — Subscription and permission synchronization**
+
+```mermaid
+flowchart LR
+    TA[TahlilApp subscription<br/>plan, isActive, expiresAt] --> MAP{Sapino mapping<br/>allow-list Free/Plus/Pro}
+    MAP -->|unknown or inactive or expired or no expiry| FREE[Free, EffectiveTo = null]
+    MAP -->|active paid with expiry| PAID[Plan, EffectiveTo = expiresAt]
+    PERM[TahlilApp permissions] -->|v1: parsed, logged, never granted| X[(no grant)]
+    FREE --> SYNC[Billing SyncExternalSubscription<br/>idempotent, revision-checked]
+    PAID --> SYNC
+    SYNC --> BILL[(CustomerAccount plan + EffectiveTo)]
+    BILL --> GUARD{Read-side guard<br/>EffectiveTo <= now?}
+    GUARD -->|yes| EFF1[Effective plan = Free]
+    GUARD -->|no| EFF2[Effective plan = stored plan]
+    EFF1 --> CAP[PlanCapabilityService<br/>quotas and feature gates]
+    EFF2 --> CAP
+    CAP --> AI[AI and feature enforcement]
+```
+
+**Diagram 6 — Account collision (never a silent merge)**
+
+```mermaid
+flowchart TD
+    L[TahlilApp launch] --> Q{ExternalUserId<br/>already linked?}
+    Q -->|yes| SAME[Same local user; refresh profile fields]
+    Q -->|no| NEW[Create new local user and link identity]
+    NEW --> DUP{Same NationalId or Mobile<br/>held by another user?}
+    DUP -->|yes| ALLOW[Allowed: values are not indexed, not unique, never used for matching]
+    DUP -->|no| ALLOW2[Allowed]
+    E[Email enrollment for an address] --> OWN{Address already owned<br/>by another account?}
+    OWN -->|yes| REF[No token, no merge, generic 202]
+    OWN -->|no| TOK[Verification token issued]
+    M[Explicit account linking] -->|deferred S-13| LINK[Requires dual proof]
+    MERGE[Automatic merge by email, phone or national id] -.->|prohibited| X2[Never implemented]
+```
+
+### 22.7 Open questions — classification (Q1–Q13)
+
+| # | Classification | Resolution for this increment |
+| --- | --- | --- |
+| Q1 TahlilApp contract | External integration dependency | Implement §9.1 as proposed; unverified in production. |
+| Q2 Service credential | External integration dependency | API key from environment (repository convention). HMAC is post-release. |
+| Q3 Per-user entitlements beyond plan | Product decision | **Safe default:** plan-only; external permissions never grant access (D6). |
+| Q4 Webhook and batch status | External integration dependency | Batch status and worker deferred (§22.5). |
+| Q5 Billing: credits on plan change; `EffectiveTo` guard | **Resolved by repository evidence** (no credits on change; guard required and in scope) plus Billing-owner confirmation for paid-activation credits | Safe default: **no included-credit grant on activation or sync**. |
+| Q6 Linking for native users | Product/Security decision | v1: no merge, no link (explicit prompt requirement). Linking deferred (S-13). |
+| Q7 Free admission; suspended direct login | Product decision | Safe default: Free admitted; `Suspended` denies launch and, within TTL, direct login. |
+| Q8 Access-token lifetime vs. logout | Post-release security follow-up | Not blocking: no plan or balance in JWT, and Billing gates are evaluated at use time. Logout does not end an already-issued access token (documented). |
+| Q9 Edge routing for `/launch` | Operational prerequisite | Option A (frontend route) chosen; same-site deployment to be confirmed by Ops before enabling. |
+| Q10 Open `/register` | Product decision | Post-release. |
+| Q11 Email provider | Operational prerequisite | Feature 145 SMTP; staging delivery to be verified. |
+| Q12 Forwarded headers / proxy topology | **Operational prerequisite — blocks enabling the flag in production** | Not a code blocker for a flag-off release; the implementation report lists it as a rollout gate. |
+| Q13 Legal basis for PII | **Genuine blocking decision for enabling PII storage in production** | Not a code blocker; storage code is gated by the same feature flag. |
+
+### 22.8 Acceptance-criteria changes (only where required)
+
+- **AC-30 / AC-13 / AC-14** refined: the email claim is **omitted** (not null) for email-less sessions; `/me` returns an empty `email`.
+- **AC-38** refined: idempotency is a no-op on identical `(planCode, effectiveTo)`; no credit grant occurs on any sync.
+- **AC-35** refined: the Billing read-side guard enforces `min(expiry, lastSync + StaleGraceHours)` for paid access.
+- **AC-51** refined: a colliding email receives a generic response with no token and no message to the other account.
+- **New AC-82** — Launch requests are rejected with `launch-invalid` and make no exchange call when an attempt row with the same code hash already exists.
+- **New AC-83** — A failed exchange records an attempt outcome and never retries the exchange.
+- **New AC-84** — Launch revokes a presented refresh token and issues a new one.
+- **New AC-85** — `permissions[]` from TahlilApp never adds or removes Sapino capabilities in v1.
+- **New AC-86** — A paid TahlilApp plan without an expiry is mapped to `Free`.
+- **New AC-87** — The Billing read path treats a lapsed `SubscriptionEffectiveTo` as `Free` for capability and quota checks.
+
+Total after Revision 4: **87 ACs**; AC-01…AC-04 and the TahlilApp halves of AC-05/06/08 remain external.
+
+### 22.9 Implementation findings recorded against the design
+
+| # | Finding (proven by test) | Design effect |
+| --- | --- | --- |
+| I-1 | ASP.NET Core Identity rejects a user with a null email when `RequireUniqueEmail = true` (`InvalidEmail`), so D5's fallback is required. Proof: `TahlilAppLaunchIntegrationTests.FirstLaunch_CreatesOneUserWithoutEmail_EncryptsPii_AndReturnsSession`. | The TahlilApp-provisioned row is written directly with explicit normalised name and stamps, and the role link is written through `UserRoles`. No placeholder email exists anywhere. |
+| I-2 | `IsRowVersion()` on `auth_external_identities` and `auth_user_profiles` produces a NOT NULL `xmin` column that SQLite cannot populate. | The optimistic-concurrency token (Design §10, §10.2 `Version`) is **removed** from these two tables. Link uniqueness is guaranteed by the unique index `(Provider, ExternalUserId)`; profile values are overwritten by the next authoritative launch. This is a deliberate deviation, recorded here. |
+| I-3 | The EF SQLite provider cannot translate `DateTimeOffset` ordering in the replay-guard purge, so the attempt table uses UTC `DateTime` (matching `auth_email_action_tokens`). | `CreatedAtUtc` and `CompletedAtUtc` on `auth_tahlilapp_launch_attempts` are UTC `DateTime`. |
+| I-4 | ASP.NET Core URL-encodes the refresh cookie value (base64 `+`, `/`, `=`). The server stores a hash of the decoded token. | Clients send the cookie back encoded and the server decodes it. Tests hash the decoded value. No production change was needed. |
+| I-5 | A record's default `ToString()` prints PII (`IncomingProfileField`, the exchange snapshot). | Both types override `ToString()` to print only non-identifying summaries (AC-72). |
+| I-6 | Two concurrent runs of the test projects collided on shared build outputs and produced truncated output. | Test runs are sequential. Documented as a verification practice, not a product change. |
+
+### 22.10 Remaining work and deviations at the end of this increment
+
+- Switch-account confirmation UI (D13, T-17): deferred.
+- Frontend "return to TahlilApp" button (§14): not rendered. The return URL is a server-side configuration value and no frontend config key exists for it. A decision is required before it can be shown.
+- Background entitlement revalidation worker and batch status (T-21), direct-login TTL refresh (T-22): deferred.
+- Admin PII views and reveal (T-24), native enrollment (T-26), direct-login parity (T-27), account linking (T-28): deferred.
+- Key-ring backup, restore scripts, `/health` self-check and runbook (T-06): Operations.

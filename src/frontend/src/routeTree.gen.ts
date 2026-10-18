@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as LaunchFailedRouteImport } from './routes/launch-failed'
+import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -40,6 +42,16 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchFailedRoute = LaunchFailedRouteImport.update({
+  id: '/launch-failed',
+  path: '/launch-failed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchRoute = LaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -148,6 +160,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/chat': typeof AppChatRoute
@@ -171,6 +185,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/chat': typeof AppChatRoute
@@ -196,6 +212,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/launch': typeof LaunchRoute
+  '/launch-failed': typeof LaunchFailedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/chat': typeof AppChatRoute
@@ -221,6 +239,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
     | '/chat'
@@ -244,6 +264,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
     | '/chat'
@@ -268,6 +290,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/launch'
+    | '/launch-failed'
     | '/reset-password'
     | '/verify-email'
     | '/_app/chat'
@@ -293,6 +317,8 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LaunchRoute: typeof LaunchRoute
+  LaunchFailedRoute: typeof LaunchFailedRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   AdminGetCompanyIdRoute: typeof AdminGetCompanyIdRoute
@@ -320,6 +346,20 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch-failed': {
+      id: '/launch-failed'
+      path: '/launch-failed'
+      fullPath: '/launch-failed'
+      preLoaderRoute: typeof LaunchFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch': {
+      id: '/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof LaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -491,6 +531,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  LaunchRoute: LaunchRoute,
+  LaunchFailedRoute: LaunchFailedRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   AdminGetCompanyIdRoute: AdminGetCompanyIdRoute,

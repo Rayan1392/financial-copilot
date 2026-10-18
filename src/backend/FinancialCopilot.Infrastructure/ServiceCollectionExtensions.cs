@@ -337,7 +337,9 @@ public static class ServiceCollectionExtensions
         services.AddOptions<TelegramChannelFinancialStatementOptions>()
             .BindConfiguration(TelegramChannelFinancialStatementOptions.SectionName);
         services.AddSingleton<ITelegramFinancialStatementRecognizer, TelegramFinancialStatementRecognizer>();
-        services.AddScoped<ITelegramChannelFinancialStatementHandler, TelegramChannelFinancialStatementHandler>();
+        services.AddScoped<TelegramChannelFinancialStatementHandler>();
+        services.AddScoped<ITelegramChannelFinancialStatementHandler>(provider =>
+            provider.GetRequiredService<TelegramChannelFinancialStatementHandler>());
         services.AddOptions<TelegramChannelMonthlyReportOptions>()
             .BindConfiguration(TelegramChannelMonthlyReportOptions.SectionName)
             .Validate(options => options.MaximumTextLength is > 0 and <= 4096 && options.ProcessingTimeoutSeconds is > 0 and <= 120 &&

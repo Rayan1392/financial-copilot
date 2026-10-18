@@ -16,6 +16,7 @@ public sealed class AuthController(
 {
     private const string RefreshCookieName = "financial_copilot_refresh";
     private const string GenericEmailRequestMessage = "If the address is eligible, instructions will be sent by email.";
+    private const string GenericEnrollmentMessage = "If the address can be used, a verification message will be sent to it.";
 
     [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
     [HttpPost("register")]
@@ -167,6 +168,103 @@ public sealed class AuthController(
             User.FindAll("financial_copilot:permission").Select(claim => claim.Value).Distinct().Order().ToArray()));
     }
 
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.PublicAuthentication)]
+    [HttpPost("credentials/email")]
+    public async Task<IActionResult> EnrollEmail(EnrollEmailRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            await identityService.EnrollEmailAsync(userId, request.Email!, cancellationToken);
+            return Accepted(new RegistrationAcceptedResponse(GenericEnrollmentMessage));
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [Authorize]
+    [HttpPost("credentials/email/confirm")]
+    public async Task<IActionResult> ConfirmEmailEnrollment(
+        EmailEnrollmentConfirmRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            await identityService.ConfirmEmailEnrollmentAsync(userId, request.Token!, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [Authorize]
+    [HttpPost("credentials/password")]
+    public async Task<IActionResult> AddPassword(AddPasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            await identityService.AddPasswordAsync(userId, request.NewPassword!, cancellationToken);
+            return NoContent();
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    [Authorize]
+    [HttpGet("account")]
+    public async Task<ActionResult<AccountResponse>> GetAccount(CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var account = await identityService.GetAccountAsync(userId, cancellationToken);
+            return Ok(new AccountResponse(
+                account.Email,
+                account.EmailConfirmed,
+                account.HasPassword,
+                account.HasTahlilAppIdentity,
+                account.AccountAuthState));
+        }
+        catch (OwnedIdentityException exception)
+        {
+            return ProblemFor(exception);
+        }
+    }
+
+    private bool TryGetUserId(out Guid userId) => Guid.TryParse(User.FindFirstValue("sub"), out userId);
+
+    private ObjectResult ProblemFor(OwnedIdentityException exception) =>
+        Problem(
+            type: $"https://financialcopilot/errors/{exception.ErrorCode}",
+            title: exception.Message,
+            statusCode: exception.StatusCode,
+            extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+
     private async Task<ActionResult<OwnedIdentitySessionResponse>> ExecuteSessionAsync(
         Func<Task<OwnedIdentitySession>> action)
     {
@@ -226,7 +324,7 @@ public sealed class AuthController(
             session.AccessTokenExpiresAt,
             new OwnedIdentityProfileResponse(
                 session.Profile.UserId,
-                session.Profile.Email,
+                session.Profile.Email ?? string.Empty,
                 session.Profile.TenantId,
                 session.Profile.Roles,
                 session.Profile.Permissions));

@@ -130,15 +130,24 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             await EnsureKnownMappingAsync(catalogRow, cancellationToken);
             var metricCode = await ResolveMetricCodeAsync(catalogRow.Id, cancellationToken);
 
-            var row = !string.IsNullOrWhiteSpace(metricCode)
-                ? await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(
-                    candidate => candidate.FinancialStatementId == statementRow.Id &&
-                        candidate.MetricCode == metricCode,
-                    cancellationToken)
-                : await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(
-                    candidate => candidate.FinancialStatementId == statementRow.Id &&
-                        candidate.SourceItemCatalogId == catalogRow.Id,
-                    cancellationToken);
+            var row = dbContext.FinancialStatementLineItems.Local.FirstOrDefault(candidate =>
+                          candidate.FinancialStatementId == statementRow.Id &&
+                          candidate.SourceItemCatalogId == catalogRow.Id)
+                      ?? await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(candidate =>
+                              candidate.FinancialStatementId == statementRow.Id &&
+                              candidate.SourceItemCatalogId == catalogRow.Id,
+                          cancellationToken);
+
+            if (row is null && !string.IsNullOrWhiteSpace(metricCode))
+            {
+                row = dbContext.FinancialStatementLineItems.Local.FirstOrDefault(candidate =>
+                          candidate.FinancialStatementId == statementRow.Id &&
+                          candidate.SourceItemCatalogId == null && candidate.MetricCode == metricCode)
+                      ?? await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(candidate =>
+                              candidate.FinancialStatementId == statementRow.Id &&
+                              candidate.SourceItemCatalogId == null && candidate.MetricCode == metricCode,
+                          cancellationToken);
+            }
 
             if (row is null)
             {

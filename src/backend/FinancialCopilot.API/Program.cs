@@ -3,6 +3,7 @@ using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Infrastructure;
+using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -122,6 +123,8 @@ builder.Services.AddOpenApi(options =>
 });
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<TelegramFinancialStatementReconciliationWorker>();
+builder.Services.AddTahlilAppIdentity(builder.Configuration);
 builder.Services
     .AddOptions<PublicAuthenticationRateLimitOptions>()
     .BindConfiguration(PublicAuthenticationRateLimitOptions.SectionName)

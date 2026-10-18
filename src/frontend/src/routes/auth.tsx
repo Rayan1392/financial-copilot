@@ -1,13 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { login, register } from "@/integrations/financial-copilot/auth";
+import { safeInternalPath } from "@/lib/safe-redirect";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect:
-      typeof search.redirect === "string" && search.redirect.startsWith("/") && !search.redirect.startsWith("//")
-        ? search.redirect
-        : "/chat",
+    redirect: safeInternalPath(search.redirect),
   }),
   head: () => ({ meta: [{ title: "ورود — ساپیو - دستیار هوشمند بازار" }] }),
   component: AuthPage,

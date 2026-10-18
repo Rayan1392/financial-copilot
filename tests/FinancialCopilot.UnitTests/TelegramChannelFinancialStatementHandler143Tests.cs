@@ -62,6 +62,63 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     }
 
     [Fact]
+    public async Task Six_month_income_with_fewer_approved_items_than_matching_three_month_report_is_not_completed()
+    {
+        using var f = new Fixture(enabled: true, interim: true, resolveInterimFiscal: true);
+        f.SeedComparableThreeMonthIncome();
+        f.PartialIncomeFirst = true;
+
+        await f.Call();
+
+        Assert.Equal("Feature143:Partial", f.Auth.TelegramProcessedUpdates.Single().Status);
+        Assert.Equal(1, f.Calls.Count(x => x.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement));
+    }
+
+    [Fact]
+    public async Task Reconciliation_refetches_fuller_income_once_and_completes_same_checkpoint()
+    {
+        using var f = new Fixture(enabled: true, interim: true, resolveInterimFiscal: true);
+        f.SeedComparableThreeMonthIncome();
+        f.PartialIncomeFirst = true;
+        await f.Call();
+        var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
+
+        Assert.False(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+        f.Clock.Advance(TimeSpan.FromMinutes(31));
+        Assert.True(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+
+        Assert.Equal("Feature143:Completed", f.Auth.TelegramProcessedUpdates.Single().Status);
+        Assert.Equal(2, f.Calls.Count(x => x.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement));
+        var income = f.Financial.FinancialStatements.Single(x => x.ExternalStatementId == "partial-income");
+        var lines = f.Financial.FinancialStatementLineItems.Where(x => x.FinancialStatementId == income.Id).ToArray();
+        Assert.Equal(15, lines.Length);
+        Assert.Contains(lines, x => x.Value == 0);
+        Assert.False(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+    }
+
+    [Fact]
+    public async Task Reconciliation_stops_for_review_after_two_still_sparse_refetches()
+    {
+        using var f = new Fixture(enabled: true, interim: true, resolveInterimFiscal: true);
+        f.SeedComparableThreeMonthIncome();
+        f.PartialIncomeFirst = true;
+        f.KeepPartialIncome = true;
+        await f.Call();
+        var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
+
+        f.Clock.Advance(TimeSpan.FromMinutes(31));
+        Assert.True(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+        Assert.Equal("Feature143:Partial", f.Auth.TelegramProcessedUpdates.Single().Status);
+        Assert.False(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+        f.Clock.Advance(TimeSpan.FromMinutes(61));
+        Assert.True(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+
+        Assert.Equal("Feature143:ReviewRequired", f.Auth.TelegramProcessedUpdates.Single().Status);
+        Assert.Equal(3, f.Calls.Count(x => x.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement));
+        Assert.False(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
+    }
+
+    [Fact]
     public async Task Interim_announcement_without_exact_fiscal_evidence_is_skipped()
     {
         using var f = new Fixture(enabled: true, interim: true);
@@ -246,6 +303,9 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
             AllowedChannelIds = ["-100123"]
         };
         public bool FailIncomeOnce;
+        public bool PartialIncomeFirst;
+        public bool KeepPartialIncome;
+        public AdjustableTimeProvider Clock { get; } = new();
         public List<ManualNoavaranFinancialStatementBackfillRequest> Calls { get; } = [];
         private readonly TelegramChannelFinancialStatementHandler handler;
         public TelegramChannelFinancialStatementOptions StatementOptions { get; }
@@ -309,6 +369,49 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
                     FailIncomeOnce = false;
                     return Task.FromException<ManualNoavaranFinancialStatementBackfillResult>(new InvalidOperationException("temporary provider failure"));
                 }
+                if (PartialIncomeFirst && request.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement)
+                {
+                    var end = Jalali(1405, 6, 31);
+                    var firstResponse = KeepPartialIncome ||
+                        Calls.Count(x => x.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement) == 1;
+                    var statement = financial.FinancialStatements.SingleOrDefault(x => x.ExternalStatementId == "partial-income");
+                    if (statement is null)
+                    {
+                        statement = new NormalizedFinancialStatementRow
+                        {
+                            Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName,
+                            ExternalCompanyId = "19", ExternalStatementId = "partial-income",
+                            StatementType = "IncomeStatement", PeriodType = "SixMonths",
+                            PeriodStart = Jalali(1405, 1, 1), PeriodEnd = end,
+                            IsAudited = false, IsComposing = false,
+                            WarningsJson = "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]",
+                            SourcePayloadChecksum = "partial-income", LastSynchronizedAt = DateTimeOffset.UtcNow
+                        };
+                        financial.FinancialStatements.Add(statement);
+                    }
+                    statement.SourcePayloadChecksum = firstResponse ? "partial-income" : "full-income";
+                    foreach (var mapping in QuarterlyFinancialReportsNormalizer.ApprovedMappings.Where(x =>
+                                 !firstResponse || x.SourceItemId is 15 or 1 or 5 or 39 or 12 or 40 or 334 or 278 or 153))
+                    {
+                        var catalogId = Guid.Parse(mapping.CatalogId);
+                        if (financial.FinancialStatementLineItems.Any(x => x.FinancialStatementId == statement.Id && x.SourceItemCatalogId == catalogId)) continue;
+                        financial.FinancialStatementLineItems.Add(new NormalizedFinancialStatementLineItemRow
+                        {
+                            Id = Guid.NewGuid(), FinancialStatementId = statement.Id,
+                            SourceItemCatalogId = catalogId, Value = mapping.SourceItemId == 153 ? 0 : 1
+                        });
+                    }
+                    var partialRun = Guid.NewGuid();
+                    financial.SyncRuns.Add(new DataSyncRunRow
+                    {
+                        Id = partialRun, IdempotencyKey = partialRun.ToString(), Dataset = "FinancialStatements",
+                        ProviderName = ProviderSources.NoavaranCurrentApiName, ExternalReference = "19",
+                        Status = "Completed", ProcessedRecords = 1, SourcePayloadChecksum = statement.SourcePayloadChecksum,
+                        RequestedAt = DateTimeOffset.UtcNow
+                    });
+                    financial.SaveChanges();
+                    return Task.FromResult(new ManualNoavaranFinancialStatementBackfillResult(partialRun, "Persisted", 1));
+                }
                 var periodEnd = interim
                     ? DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1405, 6, 31, 0, 0, 0, 0))
                     : DateOnly.FromDateTime(new System.Globalization.PersianCalendar().ToDateTime(1403, 12, 30, 0, 0, 0, 0));
@@ -348,10 +451,39 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
                 new TelegramFinancialStatementRecognizer(),
                 Options.Create(ChannelOptions),
                 Options.Create(StatementOptions),
-                TimeProvider.System, new RecordingLogger(logs));
+                Clock, new RecordingLogger(logs));
         }
 
         public FinancialIngestionDbContext Financial => financial;
+        public void SeedComparableThreeMonthIncome()
+        {
+            var prior = new NormalizedFinancialStatementRow
+            {
+                Id = Guid.NewGuid(), ProviderName = ProviderSources.NoavaranCurrentApiName,
+                ExternalCompanyId = "19", ExternalStatementId = "prior-income",
+                StatementType = "IncomeStatement", PeriodType = "ThreeMonths",
+                PeriodStart = Jalali(1405, 1, 1), PeriodEnd = Jalali(1405, 3, 31),
+                IsAudited = false, IsComposing = false,
+                WarningsJson = "[{\"jalaliFiscalYearEnd\":\"1405/12/29\"}]",
+                SourcePayloadChecksum = "prior-income", LastSynchronizedAt = DateTimeOffset.UtcNow
+            };
+            financial.FinancialStatements.Add(prior);
+            foreach (var mapping in QuarterlyFinancialReportsNormalizer.ApprovedMappings)
+            {
+                var catalogId = Guid.Parse(mapping.CatalogId);
+                financial.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
+                {
+                    Id = catalogId, ProviderName = ProviderSources.NoavaranCurrentApiName,
+                    StatementType = "IncomeStatement", SourceItemId = mapping.SourceItemId
+                });
+                financial.FinancialStatementLineItems.Add(new NormalizedFinancialStatementLineItemRow
+                {
+                    Id = Guid.NewGuid(), FinancialStatementId = prior.Id,
+                    SourceItemCatalogId = catalogId, Value = mapping.SourceItemId == 153 ? 0 : 1
+                });
+            }
+            financial.SaveChanges();
+        }
         public Task<TelegramAssistantResult?> Call() => handler.HandleIfRecognizedAsync(update, actor, default);
         public void SetText(string text, int? periodMonths = null)
         {
@@ -379,5 +511,12 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => logs.Add(formatter(state, exception));
+    }
+
+    public sealed class AdjustableTimeProvider : TimeProvider
+    {
+        private DateTimeOffset now = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => now;
+        public void Advance(TimeSpan duration) => now += duration;
     }
 }

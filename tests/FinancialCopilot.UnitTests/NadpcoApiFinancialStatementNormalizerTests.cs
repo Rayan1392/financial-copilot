@@ -356,7 +356,40 @@ public sealed class NadpcoApiFinancialStatementNormalizerTests
     }
 
     [Fact]
-    public async Task Normalize_UpsertsMappedLineItemsByMetricCodePerStatement()
+    public async Task Normalize_UsesSourceCatalogIdentityWhenLegacyMetricOnlyLineExists()
+    {
+        await using var db = CreateDb();
+        var normalizer = CreateNormalizer(db);
+        var payload = MakePayload();
+        await normalizer.NormalizeAsync(payload, CancellationToken.None);
+
+        var statement = await db.FinancialStatements.SingleAsync(row =>
+            row.ProviderName == ProviderName && row.ExternalStatementId == "474147");
+        var sourceCatalog = await db.FinancialStatementSourceItems.SingleAsync(row =>
+            row.ProviderName == ProviderName && row.StatementType == "IncomeStatement" && row.SourceItemId == 143);
+        var sourceLine = await db.FinancialStatementLineItems.SingleAsync(row =>
+            row.FinancialStatementId == statement.Id && row.SourceItemCatalogId == sourceCatalog.Id);
+        var legacyLine = new NormalizedFinancialStatementLineItemRow
+        {
+            Id = Guid.NewGuid(),
+            FinancialStatementId = statement.Id,
+            MetricCode = "NET_PROFIT",
+            Value = 999m
+        };
+        db.FinancialStatementLineItems.Add(legacyLine);
+        await db.SaveChangesAsync();
+
+        await normalizer.NormalizeAsync(payload, CancellationToken.None);
+
+        Assert.Equal(100m, sourceLine.Value);
+        Assert.Equal(999m, legacyLine.Value);
+        Assert.Equal(sourceCatalog.Id, sourceLine.SourceItemCatalogId);
+        Assert.Equal(2, await db.FinancialStatementLineItems.CountAsync(row =>
+            row.FinancialStatementId == statement.Id && row.MetricCode == "NET_PROFIT"));
+    }
+
+    [Fact]
+    public async Task Normalize_UpsertsMappedLineItemsBySourceCatalogPerStatement()
     {
         await using var db = CreateDb();
         var normalizer = CreateNormalizer(db);

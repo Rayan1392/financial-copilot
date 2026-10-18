@@ -50,6 +50,9 @@ public sealed class RefreshTokenRow
     public DateTimeOffset? RevokedAt { get; set; }
     public Guid? ReplacedByTokenId { get; set; }
     public string? RevocationReason { get; set; }
+
+    /// <summary>Authentication method (<c>amr</c>) of the originating session; null for legacy rows (treated as password).</summary>
+    public string? AuthenticationMethod { get; set; }
 }
 
 public sealed class AuthEmailActionTokenRow
@@ -62,6 +65,9 @@ public sealed class AuthEmailActionTokenRow
     public DateTime CreatedAtUtc { get; set; }
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? ConsumedAtUtc { get; set; }
+
+    /// <summary>Normalised target address of an <c>email_enrollment</c> token; null for every other purpose.</summary>
+    public string? PendingEmail { get; set; }
 }
 
 public sealed class SecurityAdminAuditRow

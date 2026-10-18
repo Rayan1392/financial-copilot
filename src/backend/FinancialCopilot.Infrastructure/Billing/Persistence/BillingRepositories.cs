@@ -386,13 +386,29 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
         Guid customerAccountId,
         CancellationToken cancellationToken)
     {
-        var query =
-            from account in dbContext.CustomerAccounts.AsNoTracking()
-            join plan in dbContext.SubscriptionPlans.AsNoTracking()
-                on account.SubscriptionPlanCode equals plan.Code
-            where account.Id == customerAccountId
-            select plan;
-        var row = await query.SingleOrDefaultAsync(cancellationToken);
+        var subscription = await dbContext.CustomerAccounts
+            .AsNoTracking()
+            .Where(account => account.Id == customerAccountId)
+            .Select(account => new { account.SubscriptionPlanCode, account.SubscriptionEffectiveTo })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (subscription is null)
+        {
+            return null;
+        }
+
+        // Expiry guard (Design §11, AC-35): a lapsed paid window reads as the Free plan.
+        var planCode = FinancialCopilot.Billing.Accounts.SubscriptionEffectiveness.ResolveEffectivePlanCode(
+            subscription.SubscriptionPlanCode,
+            subscription.SubscriptionEffectiveTo,
+            DateTimeOffset.UtcNow);
+        if (string.IsNullOrWhiteSpace(planCode))
+        {
+            return null;
+        }
+
+        var row = await dbContext.SubscriptionPlans
+            .AsNoTracking()
+            .SingleOrDefaultAsync(plan => plan.Code == planCode, cancellationToken);
 
         return row is null
             ? null

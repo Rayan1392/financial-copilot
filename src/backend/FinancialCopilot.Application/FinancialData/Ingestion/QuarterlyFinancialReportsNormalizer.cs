@@ -45,16 +45,22 @@ public static class QuarterlyFinancialReportsNormalizer
                 report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId)
             .ToList();
         // A fiscal year-end change can leave a transitional statement whose provider period claims a
-        // full year that overlaps the preceding fiscal year (for example the one-month 1404/09 statement
-        // reported as twelve months ending 1404/09/30 after a fiscal year ending 1404/08/30). Its
-        // year-to-date duration cannot be trusted, so it never forms fiscal quarters.
-        var fiscalStarts = candidates.Select(ResolveFiscalStart).Distinct().ToArray();
+        // full year that overlaps reports of the preceding fiscal year (for example the one-month 1404/09
+        // statement reported as twelve months ending 1404/09/30 after a fiscal year ending 1404/08/30).
+        // Its year-to-date duration cannot be trusted, so it never forms fiscal quarters. A preceding
+        // fiscal year that was cut short (Esfand 1404 ending at 1404/09/30) has no report reaching into
+        // the new fiscal year, so the new year is kept. An overlapping fiscal year really starts the day
+        // after the preceding accepted fiscal year ends (a shortened transitional year), and only its
+        // reports that land on year-to-date boundaries from that start can form quarters.
+        var effectiveFiscalStarts = ResolveEffectiveFiscalStarts(candidates);
+        DateOnly FiscalStartOf(QuarterlyReportObservation report) => effectiveFiscalStarts[ResolveFiscalStart(report)];
         var eligible = candidates
-            .Where(report => !OverlapsEarlierFiscalYear(ResolveFiscalStart(report), fiscalStarts))
+            .Where(report => ResolveFiscalStart(report) == FiscalStartOf(report) ||
+                             IsExpectedYtdBoundary(FiscalStartOf(report), report.PeriodEnd, report.PeriodMonths))
             .ToList();
         var requestedSlots = eligible
             .Where(report => report.PeriodMonths is 3 or 6 or 9 or 12)
-            .GroupBy(report => (FiscalStart: ResolveFiscalStart(report), report.PeriodMonths))
+            .GroupBy(report => (FiscalStart: FiscalStartOf(report), report.PeriodMonths))
             .Select(group => new
             {
                 group.Key.FiscalStart,
@@ -69,7 +75,7 @@ public static class QuarterlyFinancialReportsNormalizer
             .Concat(requestedSlots.Where(slot => slot.PeriodMonths > 3)
                 .Select(slot => (slot.FiscalStart, PeriodMonths: slot.PeriodMonths - 3)))
             .ToHashSet();
-        var compatible = eligible.Where(report => requiredSlots.Contains((ResolveFiscalStart(report), report.PeriodMonths)))
+        var compatible = eligible.Where(report => requiredSlots.Contains((FiscalStartOf(report), report.PeriodMonths)))
             .ToList();
         if (compatible.Count == 0)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
@@ -85,7 +91,7 @@ public static class QuarterlyFinancialReportsNormalizer
 
         var isComposing = scopeGroups[0].Key;
         var reportByYearAndDuration = new Dictionary<(DateOnly FiscalStart, int Months), QuarterlyReportObservation>();
-        foreach (var group in compatible.GroupBy(report => (FiscalStart: ResolveFiscalStart(report), report.PeriodMonths)))
+        foreach (var group in compatible.GroupBy(report => (FiscalStart: FiscalStartOf(report), report.PeriodMonths)))
         {
             var ranked = group.OrderByDescending(report => report.IsAudited)
                 .ThenByDescending(report => report.IsRepresented)
@@ -117,12 +123,12 @@ public static class QuarterlyFinancialReportsNormalizer
                 reportByYearAndDuration.TryGetValue((year, duration - 3), out var previous);
                 if (quarter == 1) previous = null;
                 var isCompatiblePair = current is not null && (quarter == 1 ||
-                    previous is not null && ResolveFiscalStart(previous) == ResolveFiscalStart(current) &&
+                    previous is not null && FiscalStartOf(previous) == FiscalStartOf(current) &&
                     current.PeriodEnd > previous.PeriodEnd &&
                     MonthsBetween(previous.PeriodEnd, current.PeriodEnd) == 3);
                 var end = current?.PeriodEnd ?? previous?.PeriodEnd.AddMonths(3) ?? JalaliEndAfterMonths(year, quarter * 3);
                 var start = quarter == 1 ? year : (previous?.PeriodEnd.AddDays(1) ?? year);
-                if (current is not null && !IsExpectedYtdBoundary(ResolveFiscalStart(current), current.PeriodEnd, duration))
+                if (current is not null && !IsExpectedYtdBoundary(FiscalStartOf(current), current.PeriodEnd, duration))
                     isCompatiblePair = false;
                 var period = new QuarterlyFiscalPeriod(fiscalYear, quarter, start, end);
                 allPeriods.Add((period, current,
@@ -130,7 +136,16 @@ public static class QuarterlyFinancialReportsNormalizer
             }
         }
 
-        allPeriods = allPeriods.OrderByDescending(item => item.Period.End).ToList();
+        // Inconsistent provider fiscal-year evidence can still give two fiscal years the same name.
+        // Keep one column per label: the one backed by a report on its fiscal boundary, then the newest.
+        allPeriods = allPeriods
+            .GroupBy(item => item.Period.Label)
+            .Select(group => group
+                .OrderByDescending(item => item.Current is not null &&
+                    IsExpectedYtdBoundary(FiscalStartOf(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
+                .ThenByDescending(item => item.Period.End)
+                .First())
+            .OrderByDescending(item => item.Period.End).ToList();
         if (endingPeriod.HasValue)
             allPeriods = allPeriods.Where(item => item.Period.End <= endingPeriod.Value).ToList();
         var selected = allPeriods.Take(quarterCount).ToList();
@@ -152,7 +167,7 @@ public static class QuarterlyFinancialReportsNormalizer
                     ? (Present: false, Value: (decimal?)null, LineId: (Guid?)null, CatalogId: (Guid?)null, Unit: (string?)null)
                     : FindItem(item.Previous, row.Id);
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime &&
-                    !IsExpectedYtdBoundary(ResolveFiscalStart(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
+                    !IsExpectedYtdBoundary(FiscalStartOf(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
                 {
                     cellMap[key] = Missing(QuarterlyCellState.UnsupportedFiscalPeriod,
                         "The report period does not match its fiscal year-to-date boundary.", unit, item.Current, item.Previous, row.Id);
@@ -327,8 +342,29 @@ public static class QuarterlyFinancialReportsNormalizer
     private static int FiscalYearLabel(DateOnly fiscalStart) =>
         Jalali.GetYear(JalaliEndAfterMonths(fiscalStart, 12).ToDateTime(TimeOnly.MinValue));
 
-    private static bool OverlapsEarlierFiscalYear(DateOnly fiscalStart, IReadOnlyCollection<DateOnly> fiscalStarts) =>
-        fiscalStarts.Any(other => other < fiscalStart && JalaliEndAfterMonths(other, 12) >= fiscalStart);
+    // Maps each provider-derived fiscal start to the start its quarters are measured from. Fiscal years
+    // are visited oldest first; one that begins on or before the last report of an accepted fiscal year
+    // is a transitional year and is rebased to the day after that report. Rebased years never push the
+    // accepted boundary, so a regular fiscal year sharing the rebased start is still accepted.
+    private static Dictionary<DateOnly, DateOnly> ResolveEffectiveFiscalStarts(IEnumerable<QuarterlyReportObservation> reports)
+    {
+        var effective = new Dictionary<DateOnly, DateOnly>();
+        var latestAcceptedEnd = DateOnly.MinValue;
+        foreach (var fiscalYear in reports.GroupBy(ResolveFiscalStart).OrderBy(group => group.Key))
+        {
+            if (latestAcceptedEnd >= fiscalYear.Key)
+            {
+                effective[fiscalYear.Key] = latestAcceptedEnd.AddDays(1);
+                continue;
+            }
+
+            effective[fiscalYear.Key] = fiscalYear.Key;
+            var fiscalYearEnd = fiscalYear.Max(report => report.PeriodEnd);
+            if (fiscalYearEnd > latestAcceptedEnd) latestAcceptedEnd = fiscalYearEnd;
+        }
+
+        return effective;
+    }
 
     private static bool TryParseJalaliDate(string? value, out DateOnly date)
     {

@@ -244,6 +244,68 @@ public sealed class QuarterlyFinancialReports144Tests
     }
 
     [Fact]
+    public void Normalize_KeepsNewFiscalYearAfterShortenedPrecedingFiscalYear()
+    {
+        // Mirrors دکوثر: the Esfand fiscal year 1404 was cut short at 1404/09/30 and the new fiscal
+        // year ends 1405/09/30. Its nominal span overlaps 1404/01/01-1404/12/29, but no persisted
+        // report of the shortened year reaches into it.
+        var fy1404 = Jalali(1404, 1, 1);
+        var fy1405 = Jalali(1404, 10, 1);
+        var reports = new[]
+        {
+            Report(fy1404, 3, Revenue(10m)) with { FiscalYearEvidence = "1404/12/29" },
+            Report(fy1404, 6, Revenue(25m)) with { FiscalYearEvidence = "1404/12/29" },
+            Report(fy1404, 9, Revenue(45m)) with { FiscalYearEvidence = "1404/12/29" },
+            Report(fy1405, 3, Revenue(30m)) with { FiscalYearEvidence = "1405/09/30" },
+            Report(fy1405, 6, Revenue(70m)) with { FiscalYearEvidence = "1405/09/30" },
+            Report(fy1405, 9, Revenue(120m)) with { FiscalYearEvidence = "1405/09/30" }
+        };
+
+        var result = QuarterlyFinancialReportsNormalizer.Normalize("دکوثر", null, "issuer-1", reports, 5, null,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(new[] { (1405, 3), (1405, 2), (1405, 1), (1404, 3), (1404, 2) },
+            result.PeriodsNewestFirst.Select(period => (period.FiscalYear, period.Quarter)));
+        Assert.Equal(Jalali(1405, 6, 31), result.PeriodsNewestFirst[0].End);
+        var revenue = result.Rows.Single(row => row.SourceItemId == 15);
+        Assert.Equal(50m, revenue.Cells["1405 Q3"].Value);
+        Assert.Equal(20m, revenue.Cells["1404 Q3"].Value);
+    }
+
+    [Fact]
+    public void Normalize_MeasuresTransitionalYearFromTheDayAfterThePrecedingFiscalYear()
+    {
+        // The Esfand fiscal year 1403 is followed by a nine-month transitional year 1404/01/01-1404/09/30
+        // whose provider evidence implies a nominal start of 1403/10/01.
+        var fy1403 = Jalali(1403, 1, 1);
+        var reports = new[]
+        {
+            Report(fy1403, 9, Revenue(30m)) with { FiscalYearEvidence = "1403/12/30" },
+            Report(fy1403, 12, Revenue(40m)) with { FiscalYearEvidence = "1403/12/30" },
+            Report(Jalali(1404, 1, 1), 3, Revenue(12m)) with { FiscalYearEvidence = "1404/12/29" },
+            Report(Jalali(1403, 10, 1), 6, Revenue(25m)) with
+            {
+                PeriodEnd = Jalali(1404, 6, 31), FiscalYearEvidence = "1404/09/30"
+            },
+            Report(Jalali(1403, 10, 1), 9, Revenue(45m)) with
+            {
+                PeriodEnd = Jalali(1404, 9, 30), FiscalYearEvidence = "1404/09/30"
+            }
+        };
+
+        var result = QuarterlyFinancialReportsNormalizer.Normalize("نماد", null, "issuer-1", reports, 4, null,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(new[] { (1404, 3), (1404, 2), (1404, 1), (1403, 4) },
+            result.PeriodsNewestFirst.Select(period => (period.FiscalYear, period.Quarter)));
+        Assert.Equal(Jalali(1404, 9, 30), result.PeriodsNewestFirst[0].End);
+        var revenue = result.Rows.Single(row => row.SourceItemId == 15);
+        Assert.Equal(20m, revenue.Cells["1404 Q3"].Value);
+        Assert.Equal(13m, revenue.Cells["1404 Q2"].Value);
+        Assert.Equal(12m, revenue.Cells["1404 Q1"].Value);
+    }
+
+    [Fact]
     public void Normalize_NamesFiscalYearByItsEndYearWhenFiscalEvidenceIsMissing()
     {
         var fy1404 = Jalali(1403, 9, 1);

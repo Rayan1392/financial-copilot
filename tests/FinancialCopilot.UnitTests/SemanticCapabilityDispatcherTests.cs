@@ -24,6 +24,25 @@ public sealed class SemanticCapabilityDispatcherTests
     }
 
     [Fact]
+    public async Task FaultedExecutor_ReturnsTypedFailureAndReportsTheCause()
+    {
+        var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
+        var fault = new ArgumentException("An item with the same key has already been added. Key: 1404 Q4");
+        var observer = new RecordingFailureObserver();
+        var dispatcher = new SemanticCapabilityDispatcher(registry, [new ThrowingExecutor("monthly_activity_trend", fault)], observer);
+        var context = Context();
+
+        var result = await dispatcher.DispatchAsync(Frame("monthly_activity_trend"), context, default);
+
+        Assert.Equal(CapabilityExecutionStatus.Failed, result.Status);
+        Assert.Equal(DialogueOutcomeReasonCodes.ProviderOrToolFailure, result.ReasonCode);
+        var reported = Assert.Single(observer.Faults);
+        Assert.Equal("monthly_activity_trend", reported.CapabilityCode);
+        Assert.Same(context, reported.Context);
+        Assert.Same(fault, reported.Exception);
+    }
+
+    [Fact]
     public void UndeclaredOrDuplicateSlots_CannotReachExecutor()
     {
         var registry = new ConversationalCapabilityRegistry(InitialConversationalCapabilityCatalog.Create());
@@ -218,6 +237,18 @@ public sealed class SemanticCapabilityDispatcherTests
             Calls++;
             return Task.FromResult(new CapabilityExecutionResult(code, 1, status, "none"));
         }
+    }
+    private sealed class ThrowingExecutor(string code, Exception exception) : IConversationalCapabilityExecutor
+    {
+        public string CapabilityCode => code;
+        public Task<CapabilityExecutionResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, CancellationToken cancellationToken) =>
+            throw exception;
+    }
+    private sealed class RecordingFailureObserver : ISemanticCapabilityFailureObserver
+    {
+        public List<(string CapabilityCode, QueryExecutionContext Context, Exception Exception)> Faults { get; } = [];
+        public void ExecutionFaulted(string capabilityCode, QueryExecutionContext context, Exception exception) =>
+            Faults.Add((capabilityCode, context, exception));
     }
     private sealed class RecordingTelemetry : ISemanticRoutingTelemetrySink
     {

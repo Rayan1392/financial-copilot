@@ -746,6 +746,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISemanticRoutingOperationalTelemetryQuery, SemanticRoutingOperationalTelemetryQuery>();
         services.AddScoped<ISemanticRoutingRolloutCoordinator, SemanticRoutingRolloutCoordinator>();
         services.AddScoped<ISemanticCapabilityDispatcher, SemanticCapabilityDispatcher>();
+        services.AddSingleton<ISemanticCapabilityFailureObserver, LoggingSemanticCapabilityFailureObserver>();
         services.AddScoped<ISemanticExecutionCoordinator, SemanticExecutionCoordinator>();
         services.AddSingleton<ISemanticCapabilityExecutionObserver, NullSemanticCapabilityExecutionObserver>();
         services.AddScoped<ISemanticOutcomeFeedbackCollector, SemanticOutcomeFeedbackCollector>();

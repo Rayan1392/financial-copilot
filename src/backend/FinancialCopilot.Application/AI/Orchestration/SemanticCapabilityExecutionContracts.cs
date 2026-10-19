@@ -59,6 +59,15 @@ public sealed class NullSemanticCapabilityExecutionObserver : ISemanticCapabilit
     public void BeforeExecute(string capabilityCode, ValidatedQueryFrame frame, QueryExecutionContext context) { }
 }
 
+/// <summary>
+/// Receives executor faults that the dispatcher converts into typed failure outcomes, so their cause
+/// stays diagnosable. This is diagnostic-only and never changes the returned outcome.
+/// </summary>
+public interface ISemanticCapabilityFailureObserver
+{
+    void ExecutionFaulted(string capabilityCode, QueryExecutionContext context, Exception exception);
+}
+
 public interface IConversationalCapabilityExecutor
 {
     string CapabilityCode { get; }
@@ -73,7 +82,8 @@ public interface ISemanticCapabilityDispatcher
 
 public sealed class SemanticCapabilityDispatcher(
     IConversationalCapabilityRegistry registry,
-    IEnumerable<IConversationalCapabilityExecutor> executors) : ISemanticCapabilityDispatcher
+    IEnumerable<IConversationalCapabilityExecutor> executors,
+    ISemanticCapabilityFailureObserver? failureObserver = null) : ISemanticCapabilityDispatcher
 {
     private readonly IReadOnlyDictionary<string, IConversationalCapabilityExecutor> executors = executors.ToDictionary(item => item.CapabilityCode, StringComparer.Ordinal);
 
@@ -126,9 +136,16 @@ public sealed class SemanticCapabilityDispatcher(
         {
             return await executor.ExecuteAsync(frame, context, cancellationToken);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        { return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable, DialogueOutcomeReasonCodes.ProviderOrToolTimeout); }
-        catch { return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed, DialogueOutcomeReasonCodes.ProviderOrToolFailure); }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            failureObserver?.ExecutionFaulted(frame.CapabilityCode, context, exception);
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.TemporarilyUnavailable, DialogueOutcomeReasonCodes.ProviderOrToolTimeout);
+        }
+        catch (Exception exception)
+        {
+            failureObserver?.ExecutionFaulted(frame.CapabilityCode, context, exception);
+            return new(frame.CapabilityCode, frame.RegistryVersion, CapabilityExecutionStatus.Failed, DialogueOutcomeReasonCodes.ProviderOrToolFailure);
+        }
     }
 
 }

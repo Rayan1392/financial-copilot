@@ -44,7 +44,15 @@ public static class QuarterlyFinancialReportsNormalizer
         var candidates = reports.Where(report => report.ProviderName == "NoavaranCurrentApi" &&
                 report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId)
             .ToList();
-        var requestedSlots = candidates
+        // A fiscal year-end change can leave a transitional statement whose provider period claims a
+        // full year that overlaps the preceding fiscal year (for example the one-month 1404/09 statement
+        // reported as twelve months ending 1404/09/30 after a fiscal year ending 1404/08/30). Its
+        // year-to-date duration cannot be trusted, so it never forms fiscal quarters.
+        var fiscalStarts = candidates.Select(ResolveFiscalStart).Distinct().ToArray();
+        var eligible = candidates
+            .Where(report => !OverlapsEarlierFiscalYear(ResolveFiscalStart(report), fiscalStarts))
+            .ToList();
+        var requestedSlots = eligible
             .Where(report => report.PeriodMonths is 3 or 6 or 9 or 12)
             .GroupBy(report => (FiscalStart: ResolveFiscalStart(report), report.PeriodMonths))
             .Select(group => new
@@ -61,7 +69,7 @@ public static class QuarterlyFinancialReportsNormalizer
             .Concat(requestedSlots.Where(slot => slot.PeriodMonths > 3)
                 .Select(slot => (slot.FiscalStart, PeriodMonths: slot.PeriodMonths - 3)))
             .ToHashSet();
-        var compatible = candidates.Where(report => requiredSlots.Contains((ResolveFiscalStart(report), report.PeriodMonths)))
+        var compatible = eligible.Where(report => requiredSlots.Contains((ResolveFiscalStart(report), report.PeriodMonths)))
             .ToList();
         if (compatible.Count == 0)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
@@ -100,6 +108,7 @@ public static class QuarterlyFinancialReportsNormalizer
         foreach (var yearGroup in reportByYearAndDuration.Keys.GroupBy(key => key.FiscalStart))
         {
             var year = yearGroup.Key;
+            var fiscalYear = FiscalYearLabel(year);
             var lastReportedQuarter = yearGroup.Max(key => key.Months) / 3;
             for (var quarter = 1; quarter <= lastReportedQuarter; quarter++)
             {
@@ -115,7 +124,6 @@ public static class QuarterlyFinancialReportsNormalizer
                 var start = quarter == 1 ? year : (previous?.PeriodEnd.AddDays(1) ?? year);
                 if (current is not null && !IsExpectedYtdBoundary(ResolveFiscalStart(current), current.PeriodEnd, duration))
                     isCompatiblePair = false;
-                var fiscalYear = FiscalYearLabel(year, current?.FiscalYearEvidence ?? previous?.FiscalYearEvidence);
                 var period = new QuarterlyFiscalPeriod(fiscalYear, quarter, start, end);
                 allPeriods.Add((period, current,
                     quarter == 1 || isCompatiblePair ? previous : null));
@@ -281,7 +289,7 @@ public static class QuarterlyFinancialReportsNormalizer
             ("source_15", DirectRows.Single(row => row.Id == 15).Label, 15, DirectRows.Single(row => row.Id == 15).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(15)),
             ("source_1", DirectRows.Single(row => row.Id == 1).Label, 1, DirectRows.Single(row => row.Id == 1).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(1)),
             ("source_139", DirectRows.Single(row => row.Id == 139).Label, 139, DirectRows.Single(row => row.Id == 139).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(139)),
-            ("gross_margin", "Ù…Ø§Ø±Ø¬ÛŒÙ† Ù†Ø§Ø®Ø§Ù„Øµ", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent")
+            ("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent")
         };
         orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
             ($"source_{row.Id}", row.Label, (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
@@ -314,10 +322,13 @@ public static class QuarterlyFinancialReportsNormalizer
         return report.PeriodStart;
     }
 
-    private static int FiscalYearLabel(DateOnly fiscalStart, string? fiscalYearEvidence) =>
-        TryParseJalaliDate(fiscalYearEvidence, out var fiscalYearEnd)
-            ? Jalali.GetYear(fiscalYearEnd.ToDateTime(TimeOnly.MinValue))
-            : Jalali.GetYear(fiscalStart.ToDateTime(TimeOnly.MinValue));
+    // A fiscal year is named by the Jalali year in which it ends, with or without fiscal evidence,
+    // so disjoint fiscal years never share a period label.
+    private static int FiscalYearLabel(DateOnly fiscalStart) =>
+        Jalali.GetYear(JalaliEndAfterMonths(fiscalStart, 12).ToDateTime(TimeOnly.MinValue));
+
+    private static bool OverlapsEarlierFiscalYear(DateOnly fiscalStart, IReadOnlyCollection<DateOnly> fiscalStarts) =>
+        fiscalStarts.Any(other => other < fiscalStart && JalaliEndAfterMonths(other, 12) >= fiscalStart);
 
     private static bool TryParseJalaliDate(string? value, out DateOnly date)
     {

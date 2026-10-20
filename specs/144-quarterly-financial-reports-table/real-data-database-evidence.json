@@ -109,8 +109,8 @@
       "isComposing": false,
       "isAudited": false,
       "isRepresented": false,
-      "sourcePayloadChecksum": "56E72AA79276827EFCC5E8D545565A990454D200258A1FFADADC8C834D378D6F",
-      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:524153,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/03/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/04/07\u0022,\u0022anouncementDate\u0022:\u00222025-06-28T15:51:27\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022}]"
+      "sourcePayloadChecksum": "A9AA29CF636AB3508C4300E55F2DBACDEA0E2516002E98BE5E8CAD56F7E6C9E7",
+      "warningsJson": "[{\u0022code\u0022:\u0022NadpcoApiStatementSelection\u0022,\u0022statementID\u0022:524153,\u0022sourceStatementType\u0022:\u0022IncomeStatement\u0022,\u0022bourseSymbol\u0022:\u0022\\u0686\\u062E\\u0632\\u0631\u0022,\u0022fullTitle\u0022:\u0022\\u0635\\u0646\\u0627\\u06CC\\u0639 \\u0686\\u0648\\u0628 \\u062E\\u0632\\u0631 \\u06A9\\u0627\\u0633\\u067E\\u06CC\\u0646\u0022,\u0022isAudited\u0022:false,\u0022isRepresented\u0022:false,\u0022isComposing\u0022:false,\u0022jalaliFiscalYearEnd\u0022:\u00221404/12/29\u0022,\u0022jalaliPeriodEnd\u0022:\u00221404/03/31\u0022,\u0022jalaliAnouncementDate\u0022:\u00221404/04/07\u0022,\u0022anouncementDate\u0022:\u00222025-06-28T15:51:27\u002B03:30\u0022,\u0022assumedScale\u0022:\u0022MillionRials\u0022,\u0022sourceAmountUnit\u0022:\u0022N/A\u0022,\u0022invalidObservations\u0022:[]}]"
     },
     {
       "id": "3437b7cf-fb04-4815-899b-78c9e17a9468",

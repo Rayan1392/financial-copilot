@@ -1,6 +1,6 @@
 {
   "companySymbol": "\u0686\u062E\u0632\u0631",
-  "companyName": null,
+  "companyName": "\u0635\u0646\u0627\u06CC\u0639 \u0686\u0648\u0628 \u062E\u0632\u0631 \u06A9\u0627\u0633\u067E\u06CC\u0646",
   "externalCompanyId": "12783",
   "providerName": "NoavaranCurrentApi",
   "statementType": "IncomeStatement",
@@ -73,7 +73,8 @@
             7365921
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 7365921,
@@ -92,7 +93,8 @@
             7365921
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 4775136,
@@ -114,7 +116,8 @@
             9198189
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 3867805,
@@ -136,7 +139,8 @@
             5330384
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 2708930,
@@ -158,7 +162,8 @@
             2621454
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0641\u0631\u0648\u0634 \u062E\u0627\u0644\u0635 \u0648 \u062F\u0631\u0622\u0645\u062F \u0627\u0631\u0627\u06CC\u0647 \u062E\u062F\u0645\u0627\u062A"
@@ -192,7 +197,8 @@
             -4751954
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": -4751954,
@@ -211,7 +217,8 @@
             -4751954
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": -3738403,
@@ -233,7 +240,8 @@
             -7086132
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": -2862945,
@@ -255,7 +263,8 @@
             -4223187
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": -2228553,
@@ -277,7 +286,8 @@
             -1994634
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0628\u0647\u0627\u06CC \u062A\u0645\u0627\u0645 \u0634\u062F\u0647 \u06A9\u0627\u0644\u0627\u06CC \u0641\u0631\u0648\u0634 \u0631\u0641\u062A\u0647 \u0648 \u062E\u062F\u0645\u0627\u062A \u0627\u0631\u0627\u0626\u0647 \u0634\u062F\u0647"
@@ -311,7 +321,8 @@
             2613967
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 2613967,
@@ -330,7 +341,8 @@
             2613967
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 1036733,
@@ -352,7 +364,8 @@
             2112057
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 1004860,
@@ -374,7 +387,8 @@
             1107197
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 480377,
@@ -396,7 +410,8 @@
             626820
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F \u0646\u0627\u062E\u0627\u0644\u0635"
@@ -432,7 +447,8 @@
             9388580
           ],
           "currencyCode": null,
-          "valueScale": null
+          "valueScale": null,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 35.487307018361994379250062550,
@@ -453,7 +469,8 @@
             7365921
           ],
           "currencyCode": null,
-          "valueScale": null
+          "valueScale": null,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 21.711067496297487652707692510,
@@ -477,7 +494,8 @@
             4775136
           ],
           "currencyCode": null,
-          "valueScale": null
+          "valueScale": null,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 25.980110165843417649028324850,
@@ -501,7 +519,8 @@
             3867805
           ],
           "currencyCode": null,
-          "valueScale": null
+          "valueScale": null,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 17.733090186900362873902241840,
@@ -525,7 +544,8 @@
             2708930
           ],
           "currencyCode": null,
-          "valueScale": null
+          "valueScale": null,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": null
@@ -559,7 +579,8 @@
             -38377
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": -38377,
@@ -578,7 +599,8 @@
             -38377
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": -38422,
@@ -600,7 +622,8 @@
             -55333
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": -18580,
@@ -622,7 +645,8 @@
             -36753
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": -22812,
@@ -644,7 +668,8 @@
             -13941
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0647\u0632\u06CC\u0646\u0647 \u0647\u0627\u06CC \u0641\u0631\u0648\u0634\u060C \u0627\u062F\u0627\u0631\u06CC \u0648 \u0639\u0645\u0648\u0645\u06CC"
@@ -678,7 +703,8 @@
             -16415
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": -16415,
@@ -697,7 +723,8 @@
             -16415
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 8332,
@@ -719,7 +746,8 @@
             -2383
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": -15354,
@@ -741,7 +769,8 @@
             12971
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 10454,
@@ -763,7 +792,8 @@
             2517
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u062E\u0627\u0644\u0635 \u0633\u0627\u06CC\u0631 \u062F\u0631\u0622\u0645\u062F\u0647\u0627 \u0648 \u0647\u0632\u06CC\u0646\u0647 \u0647\u0627\u06CC \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC"
@@ -797,7 +827,8 @@
             2559175
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 2559175,
@@ -816,7 +847,8 @@
             2559175
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 1006643,
@@ -838,7 +870,8 @@
             2054341
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 970926,
@@ -860,7 +893,8 @@
             1083415
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 468019,
@@ -882,7 +916,8 @@
             615396
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC"
@@ -916,7 +951,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 0,
@@ -935,7 +971,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 0,
@@ -957,7 +994,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 0,
@@ -979,7 +1017,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 0,
@@ -1001,7 +1040,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0647\u0632\u06CC\u0646\u0647\u200C\u0647\u0627\u06CC \u0645\u0627\u0644\u06CC"
@@ -1035,7 +1075,8 @@
             61495
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 61495,
@@ -1054,7 +1095,8 @@
             61495
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 71776,
@@ -1076,7 +1118,8 @@
             35441
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 17439,
@@ -1098,7 +1141,8 @@
             18002
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 17259,
@@ -1120,7 +1164,8 @@
             743
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u062E\u0627\u0644\u0635 \u0633\u0627\u06CC\u0631 \u062F\u0631\u0622\u0645\u062F\u0647\u0627 \u0648 \u0647\u0632\u06CC\u0646\u0647\u200C\u0647\u0627\u06CC \u063A\u06CC\u0631 \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC"
@@ -1154,7 +1199,8 @@
             2620670
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 2620670,
@@ -1173,7 +1219,8 @@
             2620670
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 1078419,
@@ -1195,7 +1242,8 @@
             2089782
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 988365,
@@ -1217,7 +1265,8 @@
             1101417
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 485278,
@@ -1239,7 +1288,8 @@
             616139
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F \u0646\u0627\u0634\u06CC \u0627\u0632 \u0641\u0639\u0627\u0644\u06CC\u062A \u0647\u0627\u06CC \u0639\u0627\u062F\u06CC \u0642\u0628\u0644 \u0627\u0632 \u0645\u0627\u0644\u06CC\u0627\u062A"
@@ -1273,7 +1323,8 @@
             -589651
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": -589651,
@@ -1292,7 +1343,8 @@
             -589651
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": -264173,
@@ -1314,7 +1366,8 @@
             -292569
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": -138426,
@@ -1336,7 +1389,8 @@
             -154143
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": -46319,
@@ -1358,7 +1412,8 @@
             -107824
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0645\u0627\u0644\u06CC\u0627\u062A \u0633\u0627\u0644 \u062C\u0627\u0631\u06CC"
@@ -1392,7 +1447,8 @@
             2031019
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 2031019,
@@ -1411,7 +1467,8 @@
             2031019
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 814246,
@@ -1433,7 +1490,8 @@
             1797213
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 849939,
@@ -1455,7 +1513,8 @@
             947274
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 438959,
@@ -1477,7 +1536,8 @@
             508315
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F (\u0632\u06CC\u0627\u0646) \u0639\u0645\u0644\u06CC\u0627\u062A \u062F\u0631 \u062D\u0627\u0644 \u062A\u062F\u0627\u0648\u0645"
@@ -1511,7 +1571,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 0,
@@ -1530,7 +1591,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 0,
@@ -1552,7 +1614,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 0,
@@ -1574,7 +1637,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 0,
@@ -1596,7 +1660,8 @@
             0
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F (\u0632\u06CC\u0627\u0646) \u0639\u0645\u0644\u06CC\u0627\u062A \u0645\u062A\u0648\u0642\u0641 \u0634\u062F\u0647"
@@ -1630,7 +1695,8 @@
             2031019
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1405 Q1": {
           "value": 2031019,
@@ -1649,7 +1715,8 @@
             2031019
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q4": {
           "value": 814246,
@@ -1671,7 +1738,8 @@
             1797213
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q3": {
           "value": 849939,
@@ -1693,7 +1761,8 @@
             947274
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         },
         "1404 Q2": {
           "value": 438959,
@@ -1715,7 +1784,8 @@
             508315
           ],
           "currencyCode": "IRR",
-          "valueScale": 6
+          "valueScale": 6,
+          "comparableEvidence": null
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F \u062E\u0627\u0644\u0635"
@@ -1723,16 +1793,16 @@
     {
       "rowId": "source_160",
       "order": 15,
-      "labelFa": "\u0633\u0648\u062F \u0647\u0631 \u0633\u0647\u0645 \u067E\u0633 \u0627\u0632 \u06A9\u0633\u0631 \u0645\u0627\u0644\u06CC\u0627\u062A",
+      "labelFa": "\u0633\u0648\u062F \u0647\u0631 \u0633\u0647\u0645 \u0645\u0642\u0627\u06CC\u0633\u0647\u200C\u0627\u06CC",
       "sourceItemId": 160,
       "sourceCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
-      "policy": 1,
+      "policy": 4,
       "unit": "rial_per_share",
       "cells": {
         "1405 Q2": {
-          "value": 14812,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "source_144_missing_or_unverified",
           "unit": "rial_per_share",
           "renderZeroAsDash": false,
           "sourceReportIds": [
@@ -1741,39 +1811,107 @@
           ],
           "sourceLineItemIds": [
             "d233915a-00ee-4a44-885c-467307dd8f3a",
-            "c367f850-2404-4f4d-afe3-6ae0ae24feef"
+            "c367f850-2404-4f4d-afe3-6ae0ae24feef",
+            "74723dd1-5d19-49e0-9fcd-eafd759c98d5",
+            "4efae0ea-2ab4-4eb3-89a3-72cfc3bbe33a",
+            "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e",
+            "95542632-12d0-4774-ad7a-762b218be993"
           ],
-          "normalizationPolicy": "CumulativeEps",
+          "normalizationPolicy": "ComparableStandaloneAttributableProfitPerReportedShareBasis",
           "operandValues": [
-            24967,
-            10155
+            4993546,
+            2031019,
+            null
           ],
           "currencyCode": "IRR",
-          "valueScale": 0
+          "valueScale": 0,
+          "comparableEvidence": {
+            "rawCurrentValue": 24967,
+            "rawPreviousValue": 10155,
+            "rawCodalCurrentValue": 24968,
+            "rawCodalPreviousValue": 10155,
+            "rawCurrentReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "rawPreviousReportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+            "rawCurrentLineItemId": "d233915a-00ee-4a44-885c-467307dd8f3a",
+            "rawPreviousLineItemId": "c367f850-2404-4f4d-afe3-6ae0ae24feef",
+            "rawCodalCurrentLineItemId": "95542632-12d0-4774-ad7a-762b218be993",
+            "rawCodalPreviousLineItemId": "0ba930ba-ec24-4a0d-8067-2820c7fb1248",
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 2,
+            "referenceReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "referenceExternalReportId": "553383",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "source_144_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": 4993546,
+            "rawPreviousAttributableProfitMillionRials": 2031019,
+            "rawReferenceAttributableProfitMillionRials": 4993546,
+            "rawReferenceEpsYtd": 24967,
+            "rawReferenceCodalEpsYtd": 24968
+          }
         },
         "1405 Q1": {
-          "value": 10155,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "source_144_missing_or_unverified",
           "unit": "rial_per_share",
           "renderZeroAsDash": false,
           "sourceReportIds": [
             "0ac092de-89c9-470d-b7d8-294dd5770c41"
           ],
           "sourceLineItemIds": [
-            "c367f850-2404-4f4d-afe3-6ae0ae24feef"
+            "c367f850-2404-4f4d-afe3-6ae0ae24feef",
+            "4efae0ea-2ab4-4eb3-89a3-72cfc3bbe33a",
+            "5dd8f04f-b4e0-4e77-a0b5-f174727082b3",
+            "0ba930ba-ec24-4a0d-8067-2820c7fb1248"
           ],
-          "normalizationPolicy": "CumulativeEps",
+          "normalizationPolicy": "ComparableStandaloneAttributableProfitPerReportedShareBasis",
           "operandValues": [
-            10155
+            2031019,
+            null,
+            null
           ],
           "currencyCode": "IRR",
-          "valueScale": 0
+          "valueScale": 0,
+          "comparableEvidence": {
+            "rawCurrentValue": 10155,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 10155,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "c367f850-2404-4f4d-afe3-6ae0ae24feef",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "0ba930ba-ec24-4a0d-8067-2820c7fb1248",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 1,
+            "referenceReportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+            "referenceExternalReportId": "546627",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "source_144_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": 2031019,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": 2031019,
+            "rawReferenceEpsYtd": 10155,
+            "rawReferenceCodalEpsYtd": 10155
+          }
         },
         "1404 Q4": {
-          "value": 4071,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "source_144_missing_or_unverified",
           "unit": "rial_per_share",
           "renderZeroAsDash": false,
           "sourceReportIds": [
@@ -1782,20 +1920,54 @@
           ],
           "sourceLineItemIds": [
             "2c1bdd26-9f8b-4be2-ba82-0460ca841ed8",
-            "b6563454-8ba7-40f9-8ce0-d1e720542dd7"
+            "b6563454-8ba7-40f9-8ce0-d1e720542dd7",
+            "719f5e62-7eee-495a-8f91-68e12e08521a",
+            "bff37fde-e324-4a67-98f3-41f964aac859",
+            "b0c25a46-5c9a-4b11-be0a-851a74871e2d",
+            "3293a096-b7ab-4883-ab9a-8dd727783053"
           ],
-          "normalizationPolicy": "CumulativeEps",
+          "normalizationPolicy": "ComparableStandaloneAttributableProfitPerReportedShareBasis",
           "operandValues": [
-            13057,
-            8986
+            2611459,
+            1797213,
+            null
           ],
           "currencyCode": "IRR",
-          "valueScale": 0
+          "valueScale": 0,
+          "comparableEvidence": {
+            "rawCurrentValue": 13057,
+            "rawPreviousValue": 8986,
+            "rawCodalCurrentValue": 13057,
+            "rawCodalPreviousValue": 8986,
+            "rawCurrentReportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+            "rawPreviousReportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+            "rawCurrentLineItemId": "2c1bdd26-9f8b-4be2-ba82-0460ca841ed8",
+            "rawPreviousLineItemId": "b6563454-8ba7-40f9-8ce0-d1e720542dd7",
+            "rawCodalCurrentLineItemId": "3293a096-b7ab-4883-ab9a-8dd727783053",
+            "rawCodalPreviousLineItemId": "f0a09dbc-ee74-4085-9ed8-cc081071ce41",
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1404,
+            "referenceQuarter": 4,
+            "referenceReportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+            "referenceExternalReportId": "538950",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "source_144_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": 2611459,
+            "rawPreviousAttributableProfitMillionRials": 1797213,
+            "rawReferenceAttributableProfitMillionRials": 2611459,
+            "rawReferenceEpsYtd": 13057,
+            "rawReferenceCodalEpsYtd": 13057
+          }
         },
         "1404 Q3": {
-          "value": 4250,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "source_144_missing_or_unverified",
           "unit": "rial_per_share",
           "renderZeroAsDash": false,
           "sourceReportIds": [
@@ -1804,37 +1976,108 @@
           ],
           "sourceLineItemIds": [
             "b6563454-8ba7-40f9-8ce0-d1e720542dd7",
-            "9498005c-8c74-4ff5-a38b-487ee2b50305"
+            "9498005c-8c74-4ff5-a38b-487ee2b50305",
+            "bff37fde-e324-4a67-98f3-41f964aac859",
+            "58ae1166-c090-4854-87ef-3e02665ef8f9",
+            "b70145fc-cc55-4635-85ec-dc8f2273b47c",
+            "f0a09dbc-ee74-4085-9ed8-cc081071ce41"
           ],
-          "normalizationPolicy": "CumulativeEps",
+          "normalizationPolicy": "ComparableStandaloneAttributableProfitPerReportedShareBasis",
           "operandValues": [
-            8986,
-            4736
+            1797213,
+            947274,
+            null
           ],
           "currencyCode": "IRR",
-          "valueScale": 0
+          "valueScale": 0,
+          "comparableEvidence": {
+            "rawCurrentValue": 8986,
+            "rawPreviousValue": 4736,
+            "rawCodalCurrentValue": 8986,
+            "rawCodalPreviousValue": 4736,
+            "rawCurrentReportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+            "rawPreviousReportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+            "rawCurrentLineItemId": "b6563454-8ba7-40f9-8ce0-d1e720542dd7",
+            "rawPreviousLineItemId": "9498005c-8c74-4ff5-a38b-487ee2b50305",
+            "rawCodalCurrentLineItemId": "f0a09dbc-ee74-4085-9ed8-cc081071ce41",
+            "rawCodalPreviousLineItemId": "edd66565-ad2d-472d-8d4d-1d41ed446595",
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1404,
+            "referenceQuarter": 3,
+            "referenceReportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+            "referenceExternalReportId": "532579",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "source_144_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": 1797213,
+            "rawPreviousAttributableProfitMillionRials": 947274,
+            "rawReferenceAttributableProfitMillionRials": 1797213,
+            "rawReferenceEpsYtd": 8986,
+            "rawReferenceCodalEpsYtd": 8986
+          }
         },
         "1404 Q2": {
-          "value": 2195,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "source_144_missing_or_unverified",
           "unit": "rial_per_share",
           "renderZeroAsDash": false,
           "sourceReportIds": [
             "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
-            "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2"
+            "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+            "12b8207f-de6b-46eb-b1c1-739d5e15d8f7"
           ],
           "sourceLineItemIds": [
             "9498005c-8c74-4ff5-a38b-487ee2b50305",
-            "e0d36bf6-cba0-492b-82d6-b3b4c4b691ad"
+            "e0d36bf6-cba0-492b-82d6-b3b4c4b691ad",
+            "58ae1166-c090-4854-87ef-3e02665ef8f9",
+            "05d54798-b6ca-4646-ac3a-45b42f15c025",
+            "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e",
+            "74723dd1-5d19-49e0-9fcd-eafd759c98d5",
+            "d233915a-00ee-4a44-885c-467307dd8f3a",
+            "95542632-12d0-4774-ad7a-762b218be993"
           ],
-          "normalizationPolicy": "CumulativeEps",
+          "normalizationPolicy": "ComparableStandaloneAttributableProfitPerReportedShareBasis",
           "operandValues": [
-            4736,
-            2541
+            947274,
+            508315,
+            null
           ],
           "currencyCode": "IRR",
-          "valueScale": 0
+          "valueScale": 0,
+          "comparableEvidence": {
+            "rawCurrentValue": 4736,
+            "rawPreviousValue": 2541,
+            "rawCodalCurrentValue": 4736,
+            "rawCodalPreviousValue": 2542,
+            "rawCurrentReportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+            "rawPreviousReportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
+            "rawCurrentLineItemId": "9498005c-8c74-4ff5-a38b-487ee2b50305",
+            "rawPreviousLineItemId": "e0d36bf6-cba0-492b-82d6-b3b4c4b691ad",
+            "rawCodalCurrentLineItemId": "edd66565-ad2d-472d-8d4d-1d41ed446595",
+            "rawCodalPreviousLineItemId": "ed0a7c8a-0e4e-413e-8da9-da4951d27323",
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 2,
+            "referenceReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "referenceExternalReportId": "553383",
+            "method": "following_year_same_quarter",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "source_144_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": 947274,
+            "rawPreviousAttributableProfitMillionRials": 508315,
+            "rawReferenceAttributableProfitMillionRials": 4993546,
+            "rawReferenceEpsYtd": 24967,
+            "rawReferenceCodalEpsYtd": 24968
+          }
         }
       },
       "sourceCatalogTitleFa": "\u0633\u0648\u062F \u062E\u0627\u0644\u0635 \u0647\u0631 \u0633\u0647\u0645 "
@@ -1842,37 +2085,65 @@
     {
       "rowId": "source_153",
       "order": 16,
-      "labelFa": "\u062A\u0639\u062F\u0627\u062F \u0633\u0647\u0627\u0645 \u0634\u0631\u06A9\u062A (\u0647\u0632\u0627\u0631 \u0633\u0647\u0645)",
+      "labelFa": "\u062A\u0639\u062F\u0627\u062F \u0633\u0647\u0627\u0645 (\u0645\u0628\u0646\u0627\u06CC \u0645\u0642\u0627\u06CC\u0633\u0647\u060C \u0647\u0632\u0627\u0631 \u0633\u0647\u0645)",
       "sourceItemId": 153,
       "sourceCatalogId": "e98e6c00-7204-44b1-a279-bbbb68781d3c",
-      "policy": 2,
+      "policy": 5,
       "unit": "thousand_shares",
       "cells": {
         "1405 Q2": {
-          "value": 200000,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "share_basis_missing_or_unverified",
           "unit": "thousand_shares",
           "renderZeroAsDash": false,
           "sourceReportIds": [
-            "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
-            "0ac092de-89c9-470d-b7d8-294dd5770c41"
+            "12b8207f-de6b-46eb-b1c1-739d5e15d8f7"
           ],
           "sourceLineItemIds": [
-            "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e",
-            "5dd8f04f-b4e0-4e77-a0b5-f174727082b3"
+            "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e"
           ],
-          "normalizationPolicy": "ReportedPointInTime",
+          "normalizationPolicy": "OwnPeriodShareBasisFallback",
           "operandValues": [
+            200000,
             200000
           ],
           "currencyCode": null,
-          "valueScale": 3
+          "valueScale": 3,
+          "comparableEvidence": {
+            "rawCurrentValue": 200000,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 24968,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "95542632-12d0-4774-ad7a-762b218be993",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 2,
+            "referenceReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "referenceExternalReportId": "553383",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "share_basis_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": null,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": null,
+            "rawReferenceEpsYtd": null,
+            "rawReferenceCodalEpsYtd": null
+          }
         },
         "1405 Q1": {
-          "value": 200000,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "share_basis_missing_or_unverified",
           "unit": "thousand_shares",
           "renderZeroAsDash": false,
           "sourceReportIds": [
@@ -1881,75 +2152,191 @@
           "sourceLineItemIds": [
             "5dd8f04f-b4e0-4e77-a0b5-f174727082b3"
           ],
-          "normalizationPolicy": "ReportedPointInTime",
+          "normalizationPolicy": "OwnPeriodShareBasisFallback",
           "operandValues": [
+            200000,
             200000
           ],
           "currencyCode": null,
-          "valueScale": 3
+          "valueScale": 3,
+          "comparableEvidence": {
+            "rawCurrentValue": 200000,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 10155,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "5dd8f04f-b4e0-4e77-a0b5-f174727082b3",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "0ba930ba-ec24-4a0d-8067-2820c7fb1248",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 1,
+            "referenceReportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
+            "referenceExternalReportId": "546627",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "share_basis_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": null,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": null,
+            "rawReferenceEpsYtd": null,
+            "rawReferenceCodalEpsYtd": null
+          }
         },
         "1404 Q4": {
-          "value": 200000,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "share_basis_missing_or_unverified",
           "unit": "thousand_shares",
           "renderZeroAsDash": false,
           "sourceReportIds": [
-            "03bce28c-20fd-4004-afbe-74750d11e3a6",
+            "03bce28c-20fd-4004-afbe-74750d11e3a6"
+          ],
+          "sourceLineItemIds": [
+            "b0c25a46-5c9a-4b11-be0a-851a74871e2d"
+          ],
+          "normalizationPolicy": "OwnPeriodShareBasisFallback",
+          "operandValues": [
+            200000,
+            200000
+          ],
+          "currencyCode": null,
+          "valueScale": 3,
+          "comparableEvidence": {
+            "rawCurrentValue": 200000,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 13057,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "b0c25a46-5c9a-4b11-be0a-851a74871e2d",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "3293a096-b7ab-4883-ab9a-8dd727783053",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1404,
+            "referenceQuarter": 4,
+            "referenceReportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
+            "referenceExternalReportId": "538950",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "share_basis_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": null,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": null,
+            "rawReferenceEpsYtd": null,
+            "rawReferenceCodalEpsYtd": null
+          }
+        },
+        "1404 Q3": {
+          "value": null,
+          "state": 6,
+          "reason": "share_basis_missing_or_unverified",
+          "unit": "thousand_shares",
+          "renderZeroAsDash": false,
+          "sourceReportIds": [
             "782c277c-d2eb-4455-b8f9-dbd663405d3f"
           ],
           "sourceLineItemIds": [
-            "b0c25a46-5c9a-4b11-be0a-851a74871e2d",
             "b70145fc-cc55-4635-85ec-dc8f2273b47c"
           ],
-          "normalizationPolicy": "ReportedPointInTime",
+          "normalizationPolicy": "OwnPeriodShareBasisFallback",
           "operandValues": [
+            200000,
             200000
           ],
           "currencyCode": null,
-          "valueScale": 3
-        },
-        "1404 Q3": {
-          "value": 200000,
-          "state": 0,
-          "reason": null,
-          "unit": "thousand_shares",
-          "renderZeroAsDash": false,
-          "sourceReportIds": [
-            "782c277c-d2eb-4455-b8f9-dbd663405d3f",
-            "37a7231f-e36d-4f86-ad77-49cecd83b1ef"
-          ],
-          "sourceLineItemIds": [
-            "b70145fc-cc55-4635-85ec-dc8f2273b47c",
-            "b5420fb9-d7db-4230-a3c6-92c1c3d2a43d"
-          ],
-          "normalizationPolicy": "ReportedPointInTime",
-          "operandValues": [
-            200000
-          ],
-          "currencyCode": null,
-          "valueScale": 3
+          "valueScale": 3,
+          "comparableEvidence": {
+            "rawCurrentValue": 200000,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 8986,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "b70145fc-cc55-4635-85ec-dc8f2273b47c",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "f0a09dbc-ee74-4085-9ed8-cc081071ce41",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1404,
+            "referenceQuarter": 3,
+            "referenceReportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
+            "referenceExternalReportId": "532579",
+            "method": "own_period_fallback",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "share_basis_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": null,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": null,
+            "rawReferenceEpsYtd": null,
+            "rawReferenceCodalEpsYtd": null
+          }
         },
         "1404 Q2": {
-          "value": 200000,
-          "state": 0,
-          "reason": null,
+          "value": null,
+          "state": 6,
+          "reason": "share_basis_missing_or_unverified",
           "unit": "thousand_shares",
           "renderZeroAsDash": false,
           "sourceReportIds": [
             "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
-            "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2"
+            "12b8207f-de6b-46eb-b1c1-739d5e15d8f7"
           ],
           "sourceLineItemIds": [
             "b5420fb9-d7db-4230-a3c6-92c1c3d2a43d",
-            "b0267f1b-4d0e-4443-9f24-2613050b59ad"
+            "cd0ccdfa-531d-48e9-8a90-b1bbf6cd494e"
           ],
-          "normalizationPolicy": "ReportedPointInTime",
+          "normalizationPolicy": "FollowingYearSameQuarterShareBasis",
           "operandValues": [
+            200000,
             200000
           ],
           "currencyCode": null,
-          "valueScale": 3
+          "valueScale": 3,
+          "comparableEvidence": {
+            "rawCurrentValue": 200000,
+            "rawPreviousValue": null,
+            "rawCodalCurrentValue": 4736,
+            "rawCodalPreviousValue": null,
+            "rawCurrentReportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
+            "rawPreviousReportId": null,
+            "rawCurrentLineItemId": "b5420fb9-d7db-4230-a3c6-92c1c3d2a43d",
+            "rawPreviousLineItemId": null,
+            "rawCodalCurrentLineItemId": "edd66565-ad2d-472d-8d4d-1d41ed446595",
+            "rawCodalPreviousLineItemId": null,
+            "standaloneAttributableProfitMillionRials": null,
+            "shareBasisThousand": null,
+            "shareBasisType": "reported_period_end_shares_for_comparison",
+            "referenceFiscalYear": 1405,
+            "referenceQuarter": 2,
+            "referenceReportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
+            "referenceExternalReportId": "553383",
+            "method": "following_year_same_quarter",
+            "rounding": "nearest_whole_rial_away_from_zero",
+            "reconciliation": "share_basis_missing_or_unverified",
+            "rawCurrentShareCountThousand": 200000,
+            "rawReferenceShareCountThousand": 200000,
+            "rawCurrentAttributableProfitMillionRials": null,
+            "rawPreviousAttributableProfitMillionRials": null,
+            "rawReferenceAttributableProfitMillionRials": null,
+            "rawReferenceEpsYtd": null,
+            "rawReferenceCodalEpsYtd": null
+          }
         }
       },
       "sourceCatalogTitleFa": "\u062A\u0639\u062F\u0627\u062F \u0633\u0647\u0627\u0645 \u0634\u0631\u06A9\u062A - \u0628\u0647 \u0647\u0632\u0627\u0631 \u0633\u0647\u0645 "
@@ -2266,10 +2653,10 @@
         "end": "2026-06-21",
         "label": "1405 Q1"
       },
-      "absoluteChange": 4657,
-      "relativeChangePercent": 45.859182668636139832594780900,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_153",
@@ -2287,10 +2674,10 @@
         "end": "2026-06-21",
         "label": "1405 Q1"
       },
-      "absoluteChange": 0,
-      "relativeChangePercent": 0,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_15",
@@ -2602,10 +2989,10 @@
         "end": "2026-03-20",
         "label": "1404 Q4"
       },
-      "absoluteChange": 6084,
-      "relativeChangePercent": 149.44731024318349299926308032,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_153",
@@ -2623,10 +3010,10 @@
         "end": "2026-03-20",
         "label": "1404 Q4"
       },
-      "absoluteChange": 0,
-      "relativeChangePercent": 0,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_15",
@@ -2938,10 +3325,10 @@
         "end": "2025-12-21",
         "label": "1404 Q3"
       },
-      "absoluteChange": -179,
-      "relativeChangePercent": -4.2117647058823529411764705900,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_153",
@@ -2959,10 +3346,10 @@
         "end": "2025-12-21",
         "label": "1404 Q3"
       },
-      "absoluteChange": 0,
-      "relativeChangePercent": 0,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_15",
@@ -3274,10 +3661,10 @@
         "end": "2025-09-22",
         "label": "1404 Q2"
       },
-      "absoluteChange": 2055,
-      "relativeChangePercent": 93.62186788154897494305239180,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     },
     {
       "rowId": "source_153",
@@ -3295,16 +3682,16 @@
         "end": "2025-09-22",
         "label": "1404 Q2"
       },
-      "absoluteChange": 0,
-      "relativeChangePercent": 0,
+      "absoluteChange": null,
+      "relativeChangePercent": null,
       "percentagePointChange": null,
-      "state": 0
+      "state": 5
     }
   ],
-  "freshestSourceAt": "2026-10-12T04:18:42.086108+00:00",
+  "freshestSourceAt": "2026-10-14T10:46:24.22322+00:00",
   "status": "Available",
   "reason": null,
-  "generatedAtUtc": "2026-10-12T12:24:02.2684854+00:00",
+  "generatedAtUtc": "2026-10-20T12:23:46.8418009+00:00",
   "selectedReports": [
     {
       "reportId": "12b8207f-de6b-46eb-b1c1-739d5e15d8f7",
@@ -3324,7 +3711,8 @@
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1405/12/29"
+      "fiscalYearEvidence": "1405/12/29",
+      "periodType": "SixMonths"
     },
     {
       "reportId": "0ac092de-89c9-470d-b7d8-294dd5770c41",
@@ -3344,7 +3732,8 @@
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1405/12/29"
+      "fiscalYearEvidence": "1405/12/29",
+      "periodType": "ThreeMonths"
     },
     {
       "reportId": "03bce28c-20fd-4004-afbe-74750d11e3a6",
@@ -3364,7 +3753,8 @@
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1404/12/29"
+      "fiscalYearEvidence": "1404/12/29",
+      "periodType": "TwelveMonths"
     },
     {
       "reportId": "782c277c-d2eb-4455-b8f9-dbd663405d3f",
@@ -3384,7 +3774,8 @@
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1404/12/29"
+      "fiscalYearEvidence": "1404/12/29",
+      "periodType": "NineMonths"
     },
     {
       "reportId": "37a7231f-e36d-4f86-ad77-49cecd83b1ef",
@@ -3404,7 +3795,8 @@
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1404/12/29"
+      "fiscalYearEvidence": "1404/12/29",
+      "periodType": "SixMonths"
     },
     {
       "reportId": "a3b75e41-85ee-4a20-bed7-4f0e84c77fb2",
@@ -3417,15 +3809,17 @@
       "isAudited": false,
       "isRepresented": false,
       "isComposing": false,
-      "sourcePayloadChecksum": "56E72AA79276827EFCC5E8D545565A990454D200258A1FFADADC8C834D378D6F",
-      "lastSynchronizedAt": "2026-10-03T11:25:25.863403+00:00",
+      "sourcePayloadChecksum": "A9AA29CF636AB3508C4300E55F2DBACDEA0E2516002E98BE5E8CAD56F7E6C9E7",
+      "lastSynchronizedAt": "2026-10-14T10:46:24.22322+00:00",
       "assumedScale": "MillionRials",
       "sourceAmountUnit": "N/A",
       "currencyCode": null,
       "accountingBasis": null,
       "reportRevisionLineage": null,
-      "fiscalYearEvidence": "1404/12/29"
+      "fiscalYearEvidence": "1404/12/29",
+      "periodType": "ThreeMonths"
     }
   ],
-  "companyResolutionStatus": 0
+  "companyResolutionStatus": 0,
+  "outcome": 0
 }

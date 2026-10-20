@@ -19,14 +19,18 @@ public static class QuarterlyFinancialReportsNormalizer
         (279, "سود (زیان) خالص عملیات در حال تداوم", "abdbd529-7e27-43cc-a955-10ae19aea4cb", QuarterlyRowPolicy.CumulativeFlow),
         (278, "سود (زیان) عملیات متوقف‌شده پس از اثر مالیاتی", "cb6c92c3-cff6-40c1-a85a-db9fde4ba791", QuarterlyRowPolicy.CumulativeFlow),
         (143, "سود (زیان) خالص", "bd36909d-abf8-44c2-b7db-5e53dd678b53", QuarterlyRowPolicy.CumulativeFlow),
-        (160, "سود هر سهم پس از کسر مالیات", "2146da26-b28e-4d04-b50c-f49fc9b70e61", QuarterlyRowPolicy.CumulativeEps),
-        (153, "تعداد سهام شرکت (هزار سهم)", "e98e6c00-7204-44b1-a279-bbbb68781d3c", QuarterlyRowPolicy.ReportedPointInTime)
+        (160, "سود هر سهم پس از کسر مالیات", "2146da26-b28e-4d04-b50c-f49fc9b70e61", QuarterlyRowPolicy.ComparableEps),
+        (153, "تعداد سهام شرکت (هزار سهم)", "e98e6c00-7204-44b1-a279-bbbb68781d3c", QuarterlyRowPolicy.ComparableShareBasis)
     ];
 
     private static readonly PersianCalendar Jalali = new();
 
     public static IReadOnlyList<(int SourceItemId, string CatalogId)> ApprovedMappings =>
         DirectRows.Select(row => (row.Id, row.CatalogId)).ToArray();
+
+    public static IReadOnlyList<(int SourceItemId, string CatalogId)> RequiredMappings =>
+        ApprovedMappings.Concat([(144, "52a19de6-4a0a-4be9-8dbc-3b487a05c08d"),
+            (317, "1d244aae-7e5d-44e6-9ec4-c1659828856d")]).ToArray();
 
     public static QuarterlyFinancialReportTableResult Normalize(
         string companySymbol,
@@ -42,7 +46,8 @@ public static class QuarterlyFinancialReportsNormalizer
                 "invalid_quarter_count", "Quarter count must be from 1 to 12.", QuarterlyFinancialReportOutcome.InvalidQuery);
 
         var candidates = reports.Where(report => report.ProviderName == "NoavaranCurrentApi" &&
-                report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId)
+                report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId &&
+                !report.IsComposing)
             .ToList();
         // A fiscal year-end change can leave a transitional statement whose provider period claims a
         // full year that overlaps reports of the preceding fiscal year (for example the one-month 1404/09
@@ -68,7 +73,6 @@ public static class QuarterlyFinancialReportsNormalizer
                 PeriodEnd = group.Max(report => report.PeriodEnd)
             })
             .OrderByDescending(slot => slot.PeriodEnd)
-            .Take(quarterCount)
             .ToList();
         var requiredSlots = requestedSlots
             .Select(slot => (slot.FiscalStart, slot.PeriodMonths))
@@ -146,14 +150,14 @@ public static class QuarterlyFinancialReportsNormalizer
                 .ThenByDescending(item => item.Period.End)
                 .First())
             .OrderByDescending(item => item.Period.End).ToList();
-        if (endingPeriod.HasValue)
-            allPeriods = allPeriods.Where(item => item.Period.End <= endingPeriod.Value).ToList();
-        var selected = allPeriods.Take(quarterCount).ToList();
+        var selected = allPeriods.Where(item => !endingPeriod.HasValue || item.Period.End <= endingPeriod.Value)
+            .Take(quarterCount).ToList();
         var cellMap = new Dictionary<(string RowId, string Period), QuarterlyFinancialCell>();
         foreach (var item in selected)
         {
             foreach (var row in DirectRows)
             {
+                if (row.Id is 160 or 153) continue; // EPS and displayed comparison shares have independent derivation.
                 var key = ($"source_{row.Id}", item.Period.Label);
                 var unit = Unit(row.Id);
                 if (item.Current is null)
@@ -232,6 +236,94 @@ public static class QuarterlyFinancialReportsNormalizer
 
         foreach (var item in selected)
         {
+            var reference = allPeriods.FirstOrDefault(candidate =>
+                candidate.Period.FiscalYear == item.Period.FiscalYear + 1 &&
+                candidate.Period.Quarter == item.Period.Quarter && candidate.Current is not null);
+            var hasNextYearReference = reference.Period is not null;
+            var basisReport = hasNextYearReference ? reference.Current : item.Current;
+            var shareKey = ("source_153", item.Period.Label);
+            var epsKey = ("source_160", item.Period.Label);
+            var rawShares = item.Current is null ? default : FindItem(item.Current, 153);
+            var rawEps = item.Current is null ? default : FindItem(item.Current, 160);
+            var previousEps = item.Previous is null ? default : FindItem(item.Previous, 160);
+            var rawCodalEps = item.Current is null ? default : FindItem(item.Current, 317);
+            var previousCodalEps = item.Previous is null ? default : FindItem(item.Previous, 317);
+            var comparableEvidence = new QuarterlyComparableEvidence(rawShares.Value, null,
+                rawCodalEps.Value, null, item.Current?.ReportId, null, rawShares.LineId, null,
+                rawCodalEps.LineId, null, null, null,
+                "reported_period_end_shares_for_comparison", hasNextYearReference ? reference.Period?.FiscalYear : item.Period.FiscalYear,
+                item.Period.Quarter, basisReport?.ReportId, basisReport?.ExternalReportId,
+                hasNextYearReference ? "following_year_same_quarter" : "own_period_fallback",
+                "nearest_whole_rial_away_from_zero", null,
+                RawCurrentShareCountThousand: rawShares.Value);
+
+            var ownValidation = ValidateEpsBasis(item.Current);
+            var predecessorValidation = item.Period.Quarter == 1 ? null : ValidateEpsBasis(item.Previous);
+            var epsFailure = ownValidation ?? predecessorValidation;
+            var basisShares = basisReport is null ? default : FindItem(basisReport, 153);
+            var shareFailure = hasNextYearReference && basisReport is null
+                ? "share_basis_reference_report_missing"
+                : ValidateShareObservation(basisReport);
+            var basis = shareFailure is null ? basisShares.Value : null;
+            var basisEvidence = comparableEvidence with
+            {
+                ShareBasisThousand = basis,
+                RawReferenceShareCountThousand = basisShares.Value,
+                Reconciliation = shareFailure ?? "reported_share_observation_verified"
+            };
+            var shareReports = new[] { item.Current?.ReportId, basisReport?.ReportId }
+                .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+            var shareLines = new[] { rawShares.LineId, basisShares.LineId }
+                .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+            cellMap[shareKey] = new QuarterlyFinancialCell(basis, shareFailure is null ? QuarterlyCellState.Available : QuarterlyCellState.CalculationUnavailable,
+                shareFailure, Unit(153), basis == 0, shareReports, shareLines,
+                hasNextYearReference ? "FollowingYearSameQuarterShareBasis" : "OwnPeriodShareBasisFallback",
+                [rawShares.Value, basisShares.Value], ValueScale: ValueScale("source_153"), ComparableEvidence: basisEvidence);
+
+            var currentProfit = item.Current is null ? default : FindItem(item.Current, 144);
+            var previousProfit = item.Previous is null ? default : FindItem(item.Previous, 144);
+            var referenceProfit = basisReport is null ? default : FindItem(basisReport, 144);
+            var referenceEps = basisReport is null ? default : FindItem(basisReport, 160);
+            var referenceCodalEps = basisReport is null ? default : FindItem(basisReport, 317);
+            var failure = epsFailure ?? shareFailure;
+            var profit = failure is null && currentProfit.Value.HasValue
+                ? currentProfit.Value - (item.Period.Quarter == 1 ? 0m : previousProfit.Value)
+                : null;
+            if (failure is null && !profit.HasValue) failure = "standalone_attributable_profit_missing";
+            var eps = failure is null && basis > 0 && profit.HasValue
+                ? decimal.Round(profit.Value * 1000m / basis.Value, 0, MidpointRounding.AwayFromZero)
+                : (decimal?)null;
+            var epsEvidence = basisEvidence with
+            {
+                RawCurrentValue = rawEps.Value, RawPreviousValue = previousEps.Value,
+                RawCodalCurrentValue = rawCodalEps.Value, RawCodalPreviousValue = previousCodalEps.Value,
+                RawCurrentLineItemId = rawEps.LineId, RawPreviousLineItemId = previousEps.LineId,
+                RawCodalCurrentLineItemId = rawCodalEps.LineId, RawCodalPreviousLineItemId = previousCodalEps.LineId,
+                RawPreviousReportId = item.Previous?.ReportId,
+                StandaloneAttributableProfitMillionRials = profit,
+                Reconciliation = failure ?? basisEvidence.Reconciliation,
+                RawCurrentAttributableProfitMillionRials = currentProfit.Value,
+                RawPreviousAttributableProfitMillionRials = previousProfit.Value,
+                RawReferenceAttributableProfitMillionRials = referenceProfit.Value,
+                RawReferenceEpsYtd = referenceEps.Value,
+                RawReferenceCodalEpsYtd = referenceCodalEps.Value
+            };
+            var epsReports = new[] { item.Current?.ReportId, item.Previous?.ReportId, basisReport?.ReportId }
+                .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+            var epsLines = new[] { rawEps.LineId, previousEps.LineId, currentProfit.LineId,
+                    previousProfit.LineId, basisShares.LineId, referenceProfit.LineId,
+                    referenceEps.LineId, referenceCodalEps.LineId }
+                .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+            cellMap[epsKey] = new QuarterlyFinancialCell(eps,
+                failure is null ? QuarterlyCellState.Available : QuarterlyCellState.CalculationUnavailable,
+                failure, Unit(160), eps == 0, epsReports, epsLines,
+                "ComparableStandaloneAttributableProfitPerReportedShareBasis",
+                [currentProfit.Value, previousProfit.Value, basis], CurrencyCode("source_160"),
+                ValueScale("source_160"), epsEvidence);
+        }
+
+        foreach (var item in selected)
+        {
             var key = ("gross_margin", item.Period.Label);
             cellMap[key] = GrossMargin(cellMap.GetValueOrDefault(("source_139", item.Period.Label)),
                 cellMap.GetValueOrDefault(("source_15", item.Period.Label)), item.Period);
@@ -244,7 +336,9 @@ public static class QuarterlyFinancialReportsNormalizer
         display.Add(("source_139", "سود (زیان) ناخالص", 139, DirectRows.Single(row => row.Id == 139).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(139)));
         display.Add(("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent"));
         display.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
-            ($"source_{row.Id}", row.Label, (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            ($"source_{row.Id}", row.Id == 160 ? "سود هر سهم مقایسه‌ای" :
+                row.Id == 153 ? "تعداد سهام (مبنای مقایسه، هزار سهم)" : row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
 
         for (var index = 0; index < display.Count; index++)
         {
@@ -307,7 +401,9 @@ public static class QuarterlyFinancialReportsNormalizer
             ("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent")
         };
         orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
-            ($"source_{row.Id}", row.Label, (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            ($"source_{row.Id}", row.Id == 160 ? "سود هر سهم مقایسه‌ای" :
+                row.Id == 153 ? "تعداد سهام (مبنای مقایسه، هزار سهم)" : row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
         var rows = orderedRows.Select((row, index) => new QuarterlyFinancialRow(row.Id, index + 1, row.Label,
             row.SourceId, row.Catalog is null ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
             new Dictionary<string, QuarterlyFinancialCell>())).ToArray();
@@ -402,6 +498,58 @@ public static class QuarterlyFinancialReportsNormalizer
 
     private static bool StorageScaleIsSupported(QuarterlyReportObservation report) =>
         report.AssumedScale == "MillionRials" && !string.IsNullOrWhiteSpace(report.SourceAmountUnit);
+
+    private static string? ValidateEpsBasis(QuarterlyReportObservation? report)
+    {
+        if (report is null) return "required_report_missing";
+        if (report.IsComposing) return "separate_statement_scope_required";
+        if (!StorageScaleIsSupported(report)) return "unsupported_report_scale";
+        foreach (var id in new[] { 144, 153, 160 })
+        {
+            var item = FindItem(report, id);
+            var expected = RequiredMappings.Single(mapping => mapping.SourceItemId == id);
+            if (!item.Present || item.CatalogId != Guid.Parse(expected.CatalogId) ||
+                !string.Equals(item.Unit, ExpectedEvidenceUnit(id), StringComparison.Ordinal))
+                return $"source_{id}_missing_or_unverified";
+        }
+        var profit = FindItem(report, 144).Value!.Value;
+        var shares = FindItem(report, 153).Value!.Value;
+        var sourceEps = FindItem(report, 160).Value!.Value;
+        if (shares <= 0) return "share_basis_nonpositive";
+        var implied = profit * 1000m / shares;
+        if (decimal.Abs(implied - sourceEps) > 1m) return "source_eps_share_basis_reconciliation_failed";
+        var codalLines = report.Items.Where(item => item.SourceItemId == 317).ToArray();
+        if (codalLines.Length > 1) return "source_317_ambiguous";
+        if (codalLines.Length == 1 && codalLines[0].Value is decimal codalValue)
+        {
+            var expectedCodal = RequiredMappings.Single(mapping => mapping.SourceItemId == 317);
+            if (codalLines[0].CatalogId != Guid.Parse(expectedCodal.CatalogId) ||
+                !string.Equals(codalLines[0].Unit, ExpectedEvidenceUnit(317), StringComparison.Ordinal) ||
+                decimal.Abs(implied - codalValue) > 1m)
+                return "codal_eps_share_basis_reconciliation_failed";
+        }
+        return null;
+    }
+
+    private static string? ValidateShareObservation(QuarterlyReportObservation? report)
+    {
+        if (report is null) return "share_basis_report_missing";
+        if (report.IsComposing) return "separate_statement_scope_required";
+        var item = FindItem(report, 153);
+        var expected = RequiredMappings.Single(mapping => mapping.SourceItemId == 153);
+        if (!item.Present || item.CatalogId != Guid.Parse(expected.CatalogId) ||
+            !string.Equals(item.Unit, ExpectedEvidenceUnit(153), StringComparison.Ordinal))
+            return "share_basis_missing_or_unverified";
+        return item.Value <= 0 ? "share_basis_nonpositive" : null;
+    }
+
+    private static string ExpectedEvidenceUnit(int sourceItemId) => sourceItemId switch
+    {
+        144 => "million_rial",
+        153 => "thousand_shares",
+        160 or 317 => "rial_per_share",
+        _ => throw new ArgumentOutOfRangeException(nameof(sourceItemId))
+    };
 
     private static string? CurrencyCode(string rowId) => rowId is "gross_margin" or "source_153" ? null : "IRR";
 

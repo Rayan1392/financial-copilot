@@ -21,6 +21,7 @@ export interface QuarterlyFinancialTableModel {
   summary: string;
   quarters: QuarterlyFinancialPeriod[];
   rows: QuarterlyFinancialTableRow[];
+  provenanceNotes?: string[];
 }
 
 const DIGITS = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
@@ -264,6 +265,11 @@ export function parseQuarterlyFinancialTable(
   }
 
   const before = lines.slice(0, headerIndex).join("\n").trim();
+  const afterLines = lines.slice(endIndex);
+  const provenanceNotes = afterLines
+    .filter((line) => line.startsWith("مبنای EPS مقایسه‌ای:"))
+    .map((line) => line.trim());
+  const after = afterLines.filter((line) => !line.startsWith("مبنای EPS مقایسه‌ای:")).join("\n").trim();
   const title = before.match(/^#{1,6}\s*(.+)$/m)?.[1]?.trim() || "گزارش مالی فصلی";
   const summaryRaw =
     before
@@ -284,13 +290,14 @@ export function parseQuarterlyFinancialTable(
       .replace(/^#{1,6}\s*.+(?:\n|$)/m, "")
       .replace(summaryRaw, "")
       .trim(),
-    after: lines.slice(endIndex).join("\n").trim(),
+    after,
     model: {
       title: toPersianDigits(displayTitle),
       symbol: toPersianDigits(symbol),
       summary,
       quarters: quarters.map((quarter) => ({ ...quarter, label: toPersianDigits(quarter.label) })),
       rows: rows.map((row) => ({ ...row, label: toPersianDigits(row.label) })),
+      provenanceNotes: provenanceNotes.map(toPersianDigits),
     },
   };
 }
@@ -394,6 +401,14 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
           ))}
         </tbody>
       </table>
+      {model.provenanceNotes?.length ? (
+        <details className="border-t border-amber-200 px-2 py-2 text-[10px] leading-5 text-slate-700 sm:text-xs">
+          <summary className="cursor-pointer font-semibold text-teal-900">روش و مبنای EPS مقایسه‌ای</summary>
+          <ul className="mt-1 list-disc space-y-1 pr-5">
+            {model.provenanceNotes.map((note, index) => <li key={index}>{note}</li>)}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }

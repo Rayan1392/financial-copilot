@@ -1,0 +1,45 @@
+# Bug: Qasem quarterly EPS becomes a false loss and comparison quarters use the wrong share basis
+
+**Status:** Fixed in Feature 144 V2 table path  
+**Severity:** High — the table can report a per-share loss for a profitable quarter.  
+**Affected feature:** Feature 144 quarterly financial reports table, V2.
+
+## User-visible reproduction
+
+Request the five-quarter income-statement table for `قاسم` / Qasem Iran. Compare the generated table in the first user screenshot with the Bourse View data in the second screenshot (the supplied reference).
+
+| Fiscal quarter | Generated quarterly net profit | Generated EPS | Generated shares (thousand) | Bourse View comparison / implication |
+| --- | ---: | ---: | ---: | --- |
+| FY1404 Q2 (summer) | **2,097,274 million rials** (verified selected source) | **250 rials/share** | **8,400,000** | Bourse View uses the share basis of **FY1405 Q2**, 47,616,343 thousand shares, in the FY1404 Q2 comparison column; EPS is about **44 rials/share**. |
+| FY1404 Q4 (winter), ending 1404/12/29 | **4,736,365 million rials** (positive; verified selected source) | **(518) rials/share** | 41,345,696 | Before FY1405 Q4 exists, Bourse View shows positive quarterly EPS, about **115 rials/share**. Profit divided by the displayed share count is also about 115 rials/share as a sanity check. |
+| FY1405 Q2 (summer), ending 1405/06/31 | 9,045,719 million rials | **171 rials/share** | **47,616,343** | Profit ÷ displayed shares × 1,000 is about **190 rials/share**, matching the reference EPS. |
+
+**Critical comparison rule supplied by the user:** Bourse View presents an older quarter on the share/capital basis of the *same quarter in the following fiscal year* when that following-year quarter is available. FY1404 Q2 is compared with FY1405 Q2, so its displayed share count and EPS are normalized to the FY1405 Q2 capital basis. When FY1405 Q4 becomes available, the displayed FY1404 Q4 comparison column must be re-normalized to the FY1405 Q4 share/capital basis. This is a rolling, same-season comparison rule, not a one-time correction to Qasem or a global replacement of every historical column with the latest share count. **Quarterly total/net-profit amounts remain as reported; do not scale them by the share-count ratio.** The underlying report observations must remain unchanged and traceable.
+
+For the provided example, a useful arithmetic check is `FY1404 Q2 profit (million IRR) × 1,000 / FY1405 Q2 shares (thousand) ≈ 44 IRR/share`; FY1405 Q2 uses its own share count and yields about 190 IRR/share. The production formula must use the verified EPS numerator and share basis from the selected statements, with unit conversion and rounding documented. It must not change the quarterly monetary profit row.
+
+The first screenshot shows raw point-in-time share values of 8,400,000, 41,345,696, and 47,616,343 **thousand shares** across periods. Their differences may reflect capital changes; confirm the underlying corporate-action history before attributing an exact cause. The generated table currently displays the raw value for each quarter, whereas the reference deliberately rebases a prior-year comparison column once its same-quarter counterpart is available.
+
+## Root cause
+
+`QuarterlyFinancialReportsNormalizer.DirectRows` assigns Noavaran SourceItemId `160` (EPS) the `CumulativeEps` policy and SourceItemId `153` (share count) `ReportedPointInTime` ([normalizer](../../src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsNormalizer.cs)). In the cell loop, every row except `ReportedPointInTime` uses `currentValue - previousValue` for Q2–Q4. Thus `CumulativeEps` has the same execution path as additive monetary flows. No check compares current and previous share counts or the EPS share basis, and the EPS row is not reconciled with the standalone net-profit row. The share-count row always displays the selected source report's point-in-time value; there is no same-quarter, following-fiscal-year comparison adjustment in the table model or renderer.
+
+EPS is a ratio. Cumulative EPS values from reports with different share denominators, restatements, or capital bases cannot safely be subtracted to obtain standalone-quarter EPS. The FY1404 Q4 negative value and FY1405 Q2 understatement are symptoms of this calculation rule. Separately, FY1404 Q2 remains on its raw 8,400,000-thousand-share basis instead of the FY1405 Q2 comparison basis. These are deterministic normalization/presentation-policy defects, not an image-export color problem: [the quarterly renderer](../../src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/FinancialStatementTableServices.cs) formats the already-computed cell values.
+
+The previous EPS subtraction and raw-share display had also been explicitly prescribed in the Feature 144 contract. The Product Owner approved a distinct comparable-EPS metric and rolling share-basis policy on 2026-10-20. The prior `24,967 - 10,155 = 14,812` arithmetic test has been replaced with ratio-safe and changing-denominator coverage.
+
+The selected persisted Qasem FY1404 reports and a live Noavaran FY1405 6M response have now been inspected. Exact report IDs, raw YTD operands, attributable profit, units, and limitations are in [the source investigation](eps-share-basis-investigation.md). In particular, selected FY1404 9M EPS `793` and 12M EPS `275` produce the false `−518`; selected net profit rises by **4,736,365** million IRR. The earlier `4,734,365` figure in this report was a screenshot transcription error. A specific capital-action event and weighted-average share methodology remain unverified.
+
+## Expected behavior / fix scope
+
+1. Revise the Feature 144 EPS **and share-display policies** in spec/design and implementation together. Obtain standalone-quarter EPS from an authoritative quarterly source value or calculate it from the compatible standalone profit attributable to ordinary shareholders and the correct weighted-average/adjusted share denominator. Do not subtract EPS across incompatible share bases.
+2. Add a **display/comparison share basis** distinct from SourceItemId `153`'s raw point-in-time observation. For each older quarter with a verified same-quarter report in the following fiscal year, display that following-year quarter's capital/share basis in the older comparison column and normalize EPS to it. Do not use the newest share count indiscriminately for every historical quarter. Keep both raw and normalized share values and the reference-period report identity in typed provenance.
+3. Recompute the older comparison column when its following-year same-quarter report first arrives or is restated. Specifically, FY1404 Q2 must use the FY1405 Q2 basis (47,616,343 thousand shares) now; FY1404 Q4 must switch to the FY1405 Q4 basis when FY1405 Q4 is ingested. Define behavior for a missing, ambiguous, or zero reference share count; never silently display an unqualified mixed-basis comparison.
+4. When the denominator or EPS adjustment basis cannot be established from source evidence, mark the comparable EPS cell unavailable with an explicit reason instead of returning a plausible but misleading signed value. Keep source EPS, profit, raw and comparable share count, report IDs, and calculation operands traceable.
+5. **Keep standalone quarterly total/net profit unchanged** when rebasing the comparison share count and EPS. Do not multiply monetary profit by a capital ratio or overwrite persisted financial-statement values. The user explicitly confirmed this distinction.
+6. Add regression fixtures with the Qasem pattern: FY1404 Q2 displayed share basis 47,616,343 and EPS about 44 when FY1405 Q2 exists; positive FY1404 Q4 profit must not yield a `-518` EPS loss; FY1405 Q2 must not yield `171` when validated quarter EPS is about `190`; arrival of FY1405 Q4 rebases FY1404 Q4's displayed shares and EPS **without changing either quarter's net-profit amount or raw source observations**. Cover typed result, rendered table/image, and V2 response/replay. Retain stable-share and missing-following-year cases.
+7. Check the persisted Noavaran items `160` and `153`, selected report variants, and profit basis for Qasem against the Bourse View reference before approving exact replacement values.
+
+## Verification performed
+
+Implemented a typed comparable-EPS calculation and rolling share basis with immutable raw evidence. Qasem fixture results are FY1404 Q2 EPS 44 using FY1405 Q2 shares, FY1404 Q4 EPS 115 on its own shares before FY1405 Q4 arrives (79 after its 60,000,000-thousand-share Q4 reference fixture arrives), and FY1405 Q2 EPS 190. Standalone profits remain 2,097,274, 4,736,365, and 9,045,719 million IRR. V2 typed response/replay, web table details, and PNG use the same backend values. All 39 unit tests, 4 PostgreSQL integration tests, the V2 replay test, and 9 frontend tests pass; browser PNG and production build checks also pass. See [the source investigation and verification](eps-share-basis-investigation.md). No production FinancialCopilot records were queried or modified.

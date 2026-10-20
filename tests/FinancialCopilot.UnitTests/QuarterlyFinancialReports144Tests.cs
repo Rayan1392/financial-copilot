@@ -55,10 +55,14 @@ public sealed class QuarterlyFinancialReports144Tests
         Assert.Equal(new[] { 2, 1 }, result.PeriodsNewestFirst.Select(period => period.Quarter));
         Assert.Equal(9_388_580m, Cell(result, 15, 2).Value);
         Assert.Equal(-5_248_046m, Cell(result, 1, 2).Value);
-        Assert.Equal(14_812m, Cell(result, 160, 2).Value);
+        Assert.Null(Cell(result, 160, 2).Value);
+        Assert.Equal(QuarterlyCellState.CalculationUnavailable, Cell(result, 160, 2).State);
+        Assert.Equal(24_967m, Cell(result, 160, 2).ComparableEvidence?.RawCurrentValue);
+        Assert.Equal(10_155m, Cell(result, 160, 2).ComparableEvidence?.RawPreviousValue);
         Assert.Equal("rial_per_share", Cell(result, 160, 2).Unit);
         Assert.Equal(0, Cell(result, 160, 2).ValueScale);
         Assert.Equal(200_000m, Cell(result, 153, 2).Value);
+        Assert.Equal(200_000m, Cell(result, 153, 2).ComparableEvidence?.RawCurrentValue);
         Assert.Equal("thousand_shares", Cell(result, 153, 2).Unit);
         Assert.Equal(0m, Cell(result, 12, 2).Value);
         Assert.Equal(QuarterlyCellState.Available, Cell(result, 12, 2).State);
@@ -72,6 +76,86 @@ public sealed class QuarterlyFinancialReports144Tests
     }
 
     [Fact]
+    public void Normalize_DerivesComparableEpsOnRollingSameQuarterBasisAndKeepsRawProfit()
+    {
+        var fy1404 = Jalali(1404, 1, 1);
+        var fy1405 = Jalali(1405, 1, 1);
+        var reports = new[]
+        {
+            Report(fy1404, 3, new Dictionary<int, decimal?> { [143] = 1_019_350m, [144] = 1_019_350m, [153] = 8_400_000m, [160] = 121m, [317] = 121m }),
+            Report(fy1404, 6, new Dictionary<int, decimal?> { [143] = 3_116_624m, [144] = 3_116_624m, [153] = 8_400_000m, [160] = 371m, [317] = 371m }),
+            Report(fy1404, 9, new Dictionary<int, decimal?> { [143] = 6_668_740m, [144] = 6_668_740m, [153] = 8_400_000m, [160] = 793m, [317] = 794m }),
+            Report(fy1404, 12, new Dictionary<int, decimal?> { [143] = 11_405_105m, [144] = 11_405_105m, [153] = 41_345_696m, [160] = 275m, [317] = 276m }),
+            Report(fy1405, 3, new Dictionary<int, decimal?> { [143] = 6_048_613m, [144] = 6_048_613m, [153] = 41_345_696m, [160] = 146m, [317] = 146m }),
+            Report(fy1405, 6, new Dictionary<int, decimal?> { [143] = 15_094_332m, [144] = 15_094_332m, [153] = 47_616_343m, [160] = 317m, [317] = 317m })
+        };
+
+        var result = QuarterlyFinancialReportsNormalizer.Normalize("قاسم", "قاسم ایران", "issuer-1", reports, 5, null,
+            DateTimeOffset.UtcNow);
+        QuarterlyFinancialCell CellFor(int id, int year, int quarter) =>
+            result.Rows.Single(row => row.SourceItemId == id).Cells[$"{year} Q{quarter}"];
+
+        Assert.Equal(47_616_343m, CellFor(153, 1404, 2).Value); // FY1404 Q2 uses FY1405 Q2 basis.
+        Assert.Equal(44m, CellFor(160, 1404, 2).Value);
+        Assert.Equal(8_400_000m, CellFor(153, 1404, 2).ComparableEvidence?.RawCurrentValue);
+        Assert.Equal(47_616_343m, CellFor(160, 1404, 2).ComparableEvidence?.ShareBasisThousand);
+        Assert.Equal(4_736_365m, CellFor(143, 1404, 4).Value); // FY1404 Q4 profit remains source-derived.
+        Assert.Equal(115m, CellFor(160, 1404, 4).Value);
+        Assert.Equal(9_045_719m, CellFor(143, 1405, 2).Value); // FY1405 Q2 profit is unchanged.
+        Assert.Equal(190m, CellFor(160, 1405, 2).Value);
+        Assert.Contains(result.SelectedReports!, report => report.ExternalReportId ==
+            CellFor(160, 1404, 2).ComparableEvidence?.ReferenceExternalReportId);
+
+        var samePeriodOnly = QuarterlyFinancialReportsNormalizer.Normalize("قاسم", "قاسم ایران", "issuer-1", reports,
+            3, Jalali(1404, 12, 29), DateTimeOffset.UtcNow);
+        Assert.Equal(44m, samePeriodOnly.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
+
+        var missingReferenceShares = reports.Select(report => report.PeriodStart == fy1405 && report.PeriodMonths == 6
+            ? report with { Items = report.Items.Select(line => line.SourceItemId == 153 ? line with { Value = null } : line).ToArray() }
+            : report).ToArray();
+        var unavailableReference = QuarterlyFinancialReportsNormalizer.Normalize("قاسم", "قاسم ایران", "issuer-1",
+            missingReferenceShares, 5, null, DateTimeOffset.UtcNow);
+        Assert.Null(unavailableReference.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q2"].Value);
+        Assert.Null(unavailableReference.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
+        Assert.Equal(2_097_274m, unavailableReference.Rows.Single(row => row.SourceItemId == 143).Cells["1404 Q2"].Value);
+
+        var futureQ3Profit = 30_000_000m;
+        var futureQ4Profit = 50_000_000m;
+        var withNextYearQ4 = reports.Concat([
+            Report(fy1405, 9, new Dictionary<int, decimal?> { [143] = futureQ3Profit, [144] = futureQ3Profit, [153] = 50_000_000m, [160] = 600m, [317] = 600m }),
+            Report(fy1405, 12, new Dictionary<int, decimal?> { [143] = futureQ4Profit, [144] = futureQ4Profit, [153] = 60_000_000m, [160] = 833m, [317] = 833m })
+        ]).ToArray();
+        var rebased = QuarterlyFinancialReportsNormalizer.Normalize("قاسم", "قاسم ایران", "issuer-1", withNextYearQ4,
+            5, null, DateTimeOffset.UtcNow);
+        var oldQ4Eps = rebased.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q4"];
+        Assert.Equal(60_000_000m, rebased.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q4"].Value);
+        Assert.Equal(79m, oldQ4Eps.Value);
+        Assert.Equal(4_736_365m, oldQ4Eps.ComparableEvidence?.StandaloneAttributableProfitMillionRials);
+        Assert.Equal(60_000_000m, oldQ4Eps.ComparableEvidence?.ShareBasisThousand);
+        Assert.Equal(4_736_365m, rebased.Rows.Single(row => row.SourceItemId == 143).Cells["1404 Q4"].Value);
+
+        var invalidCodalCrossCheck = reports.Select(report => report.PeriodStart == fy1404 && report.PeriodMonths == 6
+            ? report with { Items = report.Items.Select(line => line.SourceItemId == 317
+                ? line with { CatalogId = Guid.Empty }
+                : line).ToArray() }
+            : report).ToArray();
+        var invalidCodal = QuarterlyFinancialReportsNormalizer.Normalize("Ù‚Ø§Ø³Ù…", "Ù‚Ø§Ø³Ù… Ø§ÛŒØ±Ø§Ù†", "issuer-1",
+            invalidCodalCrossCheck, 5, null, DateTimeOffset.UtcNow);
+        Assert.Null(invalidCodal.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
+        Assert.Equal(2_097_274m, invalidCodal.Rows.Single(row => row.SourceItemId == 143).Cells["1404 Q2"].Value);
+
+        var missingSameQuarterReference = reports.Where(report => !(report.PeriodStart == fy1405 && report.PeriodMonths == 6))
+            .Concat([Report(fy1405, 9, new Dictionary<int, decimal?>
+            {
+                [143] = 20_000_000m, [144] = 20_000_000m, [153] = 50_000_000m, [160] = 400m, [317] = 400m
+            })]).ToArray();
+        var fallback = QuarterlyFinancialReportsNormalizer.Normalize("Ù‚Ø§Ø³Ù…", "Ù‚Ø§Ø³Ù… Ø§ÛŒØ±Ø§Ù†", "issuer-1",
+            missingSameQuarterReference, 6, null, DateTimeOffset.UtcNow);
+        Assert.Equal(8_400_000m, fallback.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q2"].Value);
+        Assert.Equal(250m, fallback.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
+    }
+
+    [Fact]
     public void Normalize_DoesNotBridgeMissingPredecessorAndPreservesNegativeZeroDifference()
     {
         var start = new DateOnly(2025, 3, 21);
@@ -82,8 +166,9 @@ public sealed class QuarterlyFinancialReports144Tests
         Assert.Equal(QuarterlyCellState.MissingPredecessor, Cell(result, 15, 2).State);
         Assert.Null(Cell(result, 15, 2).Value);
         Assert.Equal(QuarterlyCellState.MissingPredecessor, Cell(result, 12, 2).State);
-        Assert.Equal(0m, Cell(result, 153, 2).Value);
-        Assert.Equal(QuarterlyCellState.Available, Cell(result, 153, 2).State);
+        Assert.Null(Cell(result, 153, 2).Value);
+        Assert.Equal(QuarterlyCellState.CalculationUnavailable, Cell(result, 153, 2).State);
+        Assert.Equal(0m, Cell(result, 153, 2).ComparableEvidence?.RawCurrentValue);
     }
 
     [Fact]
@@ -166,7 +251,7 @@ public sealed class QuarterlyFinancialReports144Tests
         Assert.Equal("Available", result.Status);
         var consolidatedOnly = QuarterlyFinancialReportsNormalizer.Normalize("Ù†Ù…Ø§Ø¯", null, "issuer-1",
             [valid with { IsComposing = true }], 1, null, DateTimeOffset.UtcNow);
-        Assert.True(consolidatedOnly.IsComposing);
+        Assert.Equal("Unavailable", consolidatedOnly.Status);
         var nextPeriodConsolidated = valid with
         {
             ReportId = Guid.NewGuid(), ExternalReportId = "consolidated-q2", PeriodMonths = 6,
@@ -175,8 +260,8 @@ public sealed class QuarterlyFinancialReports144Tests
         };
         var scopeConflict = QuarterlyFinancialReportsNormalizer.Normalize("Ù†Ù…Ø§Ø¯", null, "issuer-1",
             [valid, nextPeriodConsolidated], 2, null, DateTimeOffset.UtcNow);
-        Assert.Equal("Unavailable", scopeConflict.Status);
-        Assert.Contains("conflicting_report_scope", scopeConflict.Reason);
+        Assert.Equal(10m, Cell(scopeConflict, 15, 1).Value);
+        Assert.False(scopeConflict.IsComposing);
     }
 
     [Fact]
@@ -585,10 +670,15 @@ public sealed class QuarterlyFinancialReports144Tests
         var reportId = Guid.NewGuid();
         var end = DateOnly.FromDateTime(new PersianCalendar().AddMonths(start.ToDateTime(TimeOnly.MinValue), months).AddDays(-1));
         var items = values.Select(pair => new QuarterlySourceObservation(Guid.NewGuid(),
-            QuarterlyFinancialReportsNormalizer.ApprovedMappings.Single(item => item.SourceItemId == pair.Key).CatalogId is { } id
+            QuarterlyFinancialReportsNormalizer.RequiredMappings.Single(item => item.SourceItemId == pair.Key).CatalogId is { } id
                 ? Guid.Parse(id) : Guid.Empty,
             pair.Key, pair.Key == 12 ? "هزینه‌های مالی" : pair.Key == 278 ? "سود عملیات متوقف‌شده" : null,
-            pair.Key == 153 ? "thousand_shares" : "million_rial", pair.Value)).ToArray();
+            pair.Key switch
+            {
+                153 => "thousand_shares",
+                160 or 317 => "rial_per_share",
+                _ => "million_rial"
+            }, pair.Value)).ToArray();
         return new QuarterlyReportObservation(reportId, $"report-{reportId}", "NoavaranCurrentApi", "issuer-1",
             "IncomeStatement", months, start, end, false, false, false, $"checksum-{reportId}",
             DateTimeOffset.UtcNow, null, null, items, "MillionRials", "N/A", "IRR", "Accrual", "fixture-lineage");

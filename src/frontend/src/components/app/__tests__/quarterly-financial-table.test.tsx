@@ -186,4 +186,14 @@ describe("quarterly financial table QoQ rendering", () => {
     );
     expect(partial?.model.rows.every((row) => row.sourceItemId === null)).toBe(true);
   });
+
+  it("keeps compact comparable EPS provenance available to the table details", () => {
+    const note = "مبنای EPS مقایسه‌ای: FY1404 Q2: سود قابل انتساب 2,097,274 میلیون ریال ÷ 47,616,343 هزار سهم؛ FY1405 Q2، گزارش 553578؛ مقدار 44 ریال.";
+    const parsed = parseQuarterlyFinancialTable(`${markdownTable()}\n${note}`)!;
+    expect(parsed.after).toBe("");
+    expect(parsed.model.provenanceNotes?.[0]).toContain("۵۵۳۵۷۸");
+    const { container } = render(<QuarterlyFinancialTable model={parsed.model} />);
+    expect(container.textContent).toContain("روش و مبنای EPS مقایسه‌ای");
+    expect(container.textContent).toContain("۵۵۳۵۷۸");
+  });
 });

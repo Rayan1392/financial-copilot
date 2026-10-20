@@ -20,7 +20,7 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         QuarterlyFinancialReportSelection selection,
         CancellationToken ct = default)
     {
-        var approved = QuarterlyFinancialReportsNormalizer.ApprovedMappings;
+        var approved = QuarterlyFinancialReportsNormalizer.RequiredMappings;
         var ids = approved.Select(item => item.SourceItemId).ToArray();
         var catalog = await dbContext.FinancialStatementSourceItems.AsNoTracking()
             .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
@@ -38,15 +38,26 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         if (selection.IsComposing.HasValue) statementsQuery = statementsQuery.Where(item => item.IsComposing == selection.IsComposing.Value);
         if (selection.IsAudited.HasValue) statementsQuery = statementsQuery.Where(item => item.IsAudited == selection.IsAudited.Value);
         if (selection.IsRepresented.HasValue) statementsQuery = statementsQuery.Where(item => item.IsRepresented == selection.IsRepresented.Value);
-        if (selection.EndingPeriod.HasValue) statementsQuery = statementsQuery.Where(item => item.PeriodEnd <= selection.EndingPeriod.Value);
-
         // Legacy rows can have a separate-statement flag while their source evidence
         // identifies a consolidated statement. Exclude them before limiting periods.
-        var statements = (await statementsQuery.OrderByDescending(item => item.PeriodEnd)
-                .ThenByDescending(item => item.LastSynchronizedAt).ToListAsync(ct))
+        var orderedQuery = statementsQuery.OrderByDescending(item => item.PeriodEnd)
+            .ThenByDescending(item => item.LastSynchronizedAt);
+        List<NormalizedFinancialStatementRow> statements;
+        if (selection.EndingPeriod is { } endingPeriod)
+        {
+            var comparisonWindowEnd = endingPeriod.AddMonths(12);
+            var visible = await orderedQuery.Where(item => item.PeriodEnd <= endingPeriod).Take(48).ToListAsync(ct);
+            var references = await orderedQuery.Where(item => item.PeriodEnd > endingPeriod &&
+                    item.PeriodEnd <= comparisonWindowEnd).Take(48).ToListAsync(ct);
+            statements = visible.Concat(references).DistinctBy(item => item.Id).ToList();
+        }
+        else
+        {
+            statements = await orderedQuery.Take(48).ToListAsync(ct);
+        }
+        statements = statements
             .Where(item => StatementMetadata.Parse(item.WarningsJson).SourceIsComposing is not { } sourceScope ||
                            sourceScope == item.IsComposing)
-            .Take(48)
             .ToList();
         if (statements.Count == 0) return [];
         var statementIds = statements.Select(item => item.Id).ToArray();
@@ -537,7 +548,7 @@ internal sealed class FinancialStatementTableQueryUseCase(
             : $"{companyName} ({symbol})";
         builder.AppendLine($"### جدول گزارش فصلی {title}");
         if (result.Status == "Partial") builder.AppendLine($"پوشش ناقص: {result.Reason}");
-        builder.AppendLine("واحد مبالغ: میلیون ریال؛ EPS: ریال به‌ازای هر سهم؛ تعداد سهام: هزار سهم");
+        builder.AppendLine("واحد مبالغ: میلیون ریال؛ EPS مقایسه‌ای: ریال به‌ازای هر سهم؛ مبنای سهام: هزار سهم");
         builder.AppendLine();
         builder.Append("| شرح | ");
         builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(period => FormatQuarterHeader(result, period))));
@@ -552,6 +563,27 @@ internal sealed class FinancialStatementTableQueryUseCase(
             var latest = result.PeriodsNewestFirst.FirstOrDefault();
             var comparison = latest is null ? null : result.Comparisons.FirstOrDefault(item => item.RowId == row.RowId && item.TargetPeriod == latest);
             builder.AppendLine($" | {(comparison?.RelativeChangePercent is decimal change ? change.ToString("#,##0.##", culture) + "%" : comparison?.AbsoluteChange?.ToString("#,##0.##", culture) ?? "-")} | ");
+        }
+        foreach (var period in result.PeriodsNewestFirst)
+        {
+            var eps = result.Rows.FirstOrDefault(row => row.RowId == "source_160")?.Cells.GetValueOrDefault(period.Label);
+            var evidence = eps?.ComparableEvidence;
+            if (evidence is null) continue;
+            var reference = evidence.ReferenceExternalReportId is null
+                ? "گزارش مرجع نامشخص"
+                : $"FY{evidence.ReferenceFiscalYear} Q{evidence.ReferenceQuarter}، گزارش {evidence.ReferenceExternalReportId}";
+            var profit = evidence.StandaloneAttributableProfitMillionRials is decimal numerator
+                ? numerator.ToString("#,##0.##", culture)
+                : "ناموجود";
+            var shares = evidence.ShareBasisThousand is decimal denominator
+                ? denominator.ToString("#,##0.##", culture)
+                : "ناموجود";
+            var value = eps?.Value is decimal epsValue ? epsValue.ToString("#,##0.##", culture) : "ناموجود";
+            var raw = evidence.RawCurrentValue is decimal rawCurrent
+                ? $"؛ EPS تجمعی منبع {rawCurrent.ToString("#,##0.##", culture)}" +
+                  (evidence.RawPreviousValue is decimal rawPrevious ? $" منهای {rawPrevious.ToString("#,##0.##", culture)}" : "")
+                : "";
+            builder.AppendLine($"مبنای EPS مقایسه‌ای: {period.Label}: سود قابل انتساب {profit} میلیون ریال ÷ {shares} هزار سهم؛ {reference}؛ مقدار {value} ریال؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود{raw}.");
         }
         return builder.ToString().TrimEnd();
     }

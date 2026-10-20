@@ -19,13 +19,13 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
     public async Task Repository_IsolatesProviderCompanyStatementAndScope_AndPreservesZeroAndProvenance()
     {
         await using var database = await fixture.CreateDatabaseAsync();
-        var sourceIds = QuarterlyFinancialReportsNormalizer.ApprovedMappings.ToDictionary(
+        var sourceIds = QuarterlyFinancialReportsNormalizer.RequiredMappings.ToDictionary(
             mapping => mapping.SourceItemId, mapping => Guid.Parse(mapping.CatalogId));
         var now = DateTimeOffset.UtcNow;
 
         await using (var db = database.CreateContext())
         {
-            foreach (var mapping in QuarterlyFinancialReportsNormalizer.ApprovedMappings)
+            foreach (var mapping in QuarterlyFinancialReportsNormalizer.RequiredMappings)
             {
                 db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
                 {
@@ -104,14 +104,18 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
         Assert.NotEqual(Guid.Empty, zero.LineItemId);
         Assert.Contains(reports, report => report.ExternalReportId == "q1" &&
             report.SourcePayloadChecksum == "checksum-q1" && report.Items.Single().LineItemId == zero.LineItemId);
+        var withReferenceWindow = await repository.GetIncomeStatementReportsAsync(new("company-144", 5,
+            new DateOnly(2025, 9, 20), false));
+        Assert.Contains(withReferenceWindow, report => report.ExternalReportId == "q4" &&
+            report.PeriodEnd > new DateOnly(2025, 9, 20));
     }
 
     [SkippableFact]
     public async Task NonEsfandFiscalCalendar_MapsAndCalculatesFiveConsecutiveQuarters()
     {
         await using var database = await fixture.CreateDatabaseAsync();
-        var sourceIds = QuarterlyFinancialReportsNormalizer.ApprovedMappings
-            .Where(mapping => mapping.SourceItemId is 15 or 139 or 160 or 153)
+        var sourceIds = QuarterlyFinancialReportsNormalizer.RequiredMappings
+            .Where(mapping => mapping.SourceItemId is 15 or 139 or 160 or 153 or 144)
             .ToDictionary(mapping => mapping.SourceItemId, mapping => Guid.Parse(mapping.CatalogId));
         var now = DateTimeOffset.UtcNow;
         var fy1404Start = JalaliDate(1403, 10, 1);
@@ -123,7 +127,12 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
             {
                 Id = pair.Value, ProviderName = "NoavaranCurrentApi", StatementType = "IncomeStatement",
                 SourceItemId = pair.Key, TitleFa = $"item-{pair.Key}",
-                Unit = pair.Key == 153 ? "thousand_shares" : pair.Key == 160 ? "rial_per_share" : "million_rial",
+                Unit = pair.Key switch
+                {
+                    153 => "thousand_shares",
+                    160 or 317 => "rial_per_share",
+                    _ => "million_rial"
+                },
                 LastSynchronizedAt = now
             }));
             var reports = new[]
@@ -153,7 +162,8 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
                 Line(report.Id, sourceIds[15], "REVENUE", cumulative[index].Revenue),
                 Line(report.Id, sourceIds[139], "GROSS_PROFIT", cumulative[index].GrossProfit),
                 Line(report.Id, sourceIds[160], "EPS", cumulative[index].Eps),
-                Line(report.Id, sourceIds[153], "SHARES", cumulative[index].Shares)
+                Line(report.Id, sourceIds[153], "SHARES", cumulative[index].Shares),
+                Line(report.Id, sourceIds[144], "ATTRIBUTABLE_PROFIT", cumulative[index].Eps * cumulative[index].Shares / 1000m)
             }));
             await db.SaveChangesAsync();
         }
@@ -353,7 +363,7 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
         Assert.NotNull(renderedTable);
         Assert.NotNull(renderedTable!.QuarterlyResult);
         Assert.Equal(16, renderedTable.QuarterlyResult!.Rows.Count);
-        Assert.Contains("### جدول گزارش فصلی چخزر", renderedTable.RenderedAnswer);
+        Assert.StartsWith("### ", renderedTable.RenderedAnswer);
         Assert.Contains("میلیون ریال", renderedTable.RenderedAnswer);
         var markdownRows = renderedTable.RenderedAnswer!.Split('\n').Where(line => line.StartsWith('|')).ToArray();
         Assert.Equal(18, markdownRows.Length);

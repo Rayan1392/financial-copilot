@@ -2,7 +2,7 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 public enum QuarterlyCellState { Available, MissingObservation, IncompatibleObservation, ConflictingObservation, UnsupportedFiscalPeriod, MissingPredecessor, CalculationUnavailable }
 public enum QuarterlyComparisonState { Available, MissingCurrent, MissingPrevious, NonPositiveBase, SignChanged, Unavailable }
-public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin }
+public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin, ComparableEps, ComparableShareBasis }
 public enum QuarterlyFinancialReportOutcome
 {
     SuccessfulTable,
@@ -73,7 +73,38 @@ public sealed record QuarterlyFinancialCell(
     string NormalizationPolicy,
     IReadOnlyList<decimal?> OperandValues,
     string? CurrencyCode = null,
-    int? ValueScale = null);
+    int? ValueScale = null,
+    QuarterlyComparableEvidence? ComparableEvidence = null);
+
+// Raw statement values remain separate from the derived comparison displayed in Value.
+public sealed record QuarterlyComparableEvidence(
+    decimal? RawCurrentValue,
+    decimal? RawPreviousValue,
+    decimal? RawCodalCurrentValue,
+    decimal? RawCodalPreviousValue,
+    Guid? RawCurrentReportId,
+    Guid? RawPreviousReportId,
+    Guid? RawCurrentLineItemId,
+    Guid? RawPreviousLineItemId,
+    Guid? RawCodalCurrentLineItemId,
+    Guid? RawCodalPreviousLineItemId,
+    decimal? StandaloneAttributableProfitMillionRials,
+    decimal? ShareBasisThousand,
+    string? ShareBasisType,
+    int? ReferenceFiscalYear,
+    int? ReferenceQuarter,
+    Guid? ReferenceReportId,
+    string? ReferenceExternalReportId,
+    string? Method,
+    string? Rounding,
+    string? Reconciliation,
+    decimal? RawCurrentShareCountThousand = null,
+    decimal? RawReferenceShareCountThousand = null,
+    decimal? RawCurrentAttributableProfitMillionRials = null,
+    decimal? RawPreviousAttributableProfitMillionRials = null,
+    decimal? RawReferenceAttributableProfitMillionRials = null,
+    decimal? RawReferenceEpsYtd = null,
+    decimal? RawReferenceCodalEpsYtd = null);
 
 public sealed record QuarterlyQoQComparison(
     string RowId,
@@ -172,6 +203,14 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
                 query.ExternalCompanyId, [], query.QuarterCount, query.EndingPeriod, timeProvider.GetUtcNow());
         }
 
+        if (query.IsComposing == true)
+        {
+            var unavailable = QuarterlyFinancialReportsNormalizer.Normalize(query.CompanySymbol, null,
+                query.ExternalCompanyId, [], query.QuarterCount, query.EndingPeriod, timeProvider.GetUtcNow());
+            return unavailable with { Status = "Unavailable", Reason = "separate_statement_scope_required",
+                Outcome = QuarterlyFinancialReportOutcome.InvalidQuery };
+        }
+
         var resolution = await companyResolution.ResolveAsync(query.CompanySymbol, query.ProviderName, cancellationToken);
         if (resolution.Status != CompanyResolutionStatus.Resolved || resolution.Company is null)
         {
@@ -208,7 +247,7 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
 
         var reports = await repository.GetIncomeStatementReportsAsync(
             new QuarterlyFinancialReportSelection(resolution.Company.ExternalCompanyId, query.QuarterCount,
-                query.EndingPeriod, query.IsComposing ?? false, query.IsAudited, query.IsRepresented), cancellationToken);
+                query.EndingPeriod, false, query.IsAudited, query.IsRepresented), cancellationToken);
         return QuarterlyFinancialReportsNormalizer.Normalize(
             resolution.Company.CompanySymbol ?? resolution.Company.TseSymbol ?? resolution.Company.Ticker ?? query.CompanySymbol,
             resolution.Company.Name, resolution.Company.ExternalCompanyId, reports, query.QuarterCount, query.EndingPeriod,

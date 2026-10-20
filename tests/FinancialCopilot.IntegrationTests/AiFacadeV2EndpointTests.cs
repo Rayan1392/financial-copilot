@@ -1975,6 +1975,14 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             .GetProperty("cells").GetProperty(period);
         Assert.Equal(JsonValueKind.Null, missingCell.GetProperty("value").ValueKind);
         Assert.Equal((int)QuarterlyCellState.MissingObservation, missingCell.GetProperty("state").GetInt32());
+        var comparableEps = rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number &&
+                row.GetProperty("sourceItemId").GetInt32() == 160)
+            .GetProperty("cells").GetProperty(period);
+        Assert.Equal(100m, comparableEps.GetProperty("value").GetDecimal());
+        Assert.Equal("own_period_fallback", comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("method").GetString());
+        Assert.Equal(200_000m, comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("shareBasisThousand").GetDecimal());
         Assert.Contains("-", root.GetProperty("textAnswer").GetString());
         Assert.Contains("(", root.GetProperty("textAnswer").GetString());
 
@@ -2119,18 +2127,21 @@ internal sealed class QuarterlyFinancialReports144RepositoryFake : IQuarterlyFin
         var start = new DateOnly(2025, 3, 21);
         var end = DateOnly.FromDateTime(new System.Globalization.PersianCalendar()
             .AddMonths(start.ToDateTime(TimeOnly.MinValue), 3).AddDays(-1));
-        var items = QuarterlyFinancialReportsNormalizer.ApprovedMappings.Select(mapping =>
+        var items = QuarterlyFinancialReportsNormalizer.RequiredMappings.Select(mapping =>
         {
             var unit = mapping.SourceItemId switch
             {
                 153 => "thousand_shares",
-                160 => "rial_per_share",
+                160 or 317 => "rial_per_share",
                 _ => "million_rial"
             };
             decimal? value = mapping.SourceItemId switch
             {
                 15 => 0m,
                 1 => -123.456789m,
+                144 => 20_000m,
+                153 => 200_000m,
+                160 or 317 => 100m,
                 _ => null
             };
             return new QuarterlySourceObservation(Guid.NewGuid(), Guid.Parse(mapping.CatalogId),

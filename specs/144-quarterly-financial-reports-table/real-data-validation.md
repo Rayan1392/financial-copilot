@@ -35,7 +35,7 @@ There are no remaining incompatible cells, missing-predecessor cells, missing ob
 
 Selected report IDs, checksums, source-line IDs, and all persisted metadata are included in the JSON evidence. Audit/restatement class can differ across periods; each report remains individually traceable.
 
-## Arithmetic and units
+## Original arithmetic and units (EPS policy superseded)
 
 - 1405 Q2 revenue: `16,754,501 − 7,365,921 = 9,388,580` million Iranian rials.
 - 1405 Q2 EPS: `24,967 − 10,155 = 14,812` Iranian rials per share.
@@ -48,3 +48,8 @@ Selected report IDs, checksums, source-line IDs, and all persisted metadata are 
 - The actual Development smoke test passed 1/1 after the update.
 - The isolated PostgreSQL repository test was skipped in this rerun because `FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING` was not configured. Existing prior isolated-PostgreSQL evidence is retained in the implementation report; no isolated DB was created in this run.
 - Full browser pixel layout was not captured; backend Markdown output was generated and contains the complete table.
+
+
+## EPS policy correction
+
+The EPS and share-basis rows above document the original policy and are superseded by the Feature 144 correction. Refreshed Development smoke artifacts label row 160 as comparable EPS and row 153 as the comparison share basis. For Chakhzar, required attributable-profit/share evidence is absent, so these cells correctly return typed unavailable rather than carrying forward cumulative-EPS subtraction or assuming an unsupported share count. Monetary profit rows remain source-derived and unchanged. Current Qasem arithmetic and verification results are recorded in [the EPS/share-basis investigation](eps-share-basis-investigation.md).

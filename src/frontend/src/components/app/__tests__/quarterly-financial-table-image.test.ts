@@ -97,6 +97,7 @@ describe("quarterly financial table image export", () => {
       title: "Quarterly report",
       symbol: "چخزر",
       summary: "Unit summary",
+      provenanceNotes: ["مبنای EPS مقایسه‌ای: FY1405 Q2، گزارش 553578؛ سهام پایان دوره."],
       quarters: [{
         label: "فصل سوم<br>منتهی به<br>۳۱ شهریور ۱۴۰۵",
         quarterName: "فصل سوم",
@@ -132,6 +133,8 @@ describe("quarterly financial table image export", () => {
     );
     expect(drawnText.map(({ text }) => text)).toContain("شرح");
     expect(drawnText.map(({ text }) => text)).toContain("درصد تغییر به فصل قبل");
+    expect(drawnText.map(({ text }) => text)).toContain("روش و مبنای EPS مقایسه‌ای");
+    expect(drawnText.map(({ text }) => text)).toContain("مبنای EPS مقایسه‌ای: FY1405 Q2، گزارش 553578؛ سهام پایان دوره.");
     expect(drawnText).toContainEqual({ text: "شرح", color: "#164e63" });
     expect(drawnText).toContainEqual({ text: "درصد تغییر به فصل قبل", color: "#164e63" });
     expect(fillColors).toContain("#c7e5e1");

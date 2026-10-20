@@ -1,5 +1,8 @@
 # Feature 144 Implementation Report
 
+> Historical report: this documents the original Feature 144 compatibility-policy implementation before the 2026-10-20 EPS/share-basis correction. Its cumulative-EPS subtraction arithmetic and test outcomes are superseded by [the corrected EPS/share-basis investigation](eps-share-basis-investigation.md) and [the regression bug record](BUG-quarterly-eps-share-basis-qasem-2026-10-20.md).
+
+
 **Outcome: `FEATURE_144_FINANCIAL_COMPATIBILITY_POLICY_UPDATED`**
 
 ## Delivery status

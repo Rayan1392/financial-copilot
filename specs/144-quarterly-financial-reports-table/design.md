@@ -9,9 +9,9 @@ Build on the persisted financial-statement query and structured-response infrast
 - Canonical provider key: `NoavaranCurrentApi`; display name: Noavaran Amin.
 - Statement type: `IncomeStatement`.
 - Approved mapping matrix, row order, direct source catalog UUIDs, labels, and policies are recorded in `spec.md`; that table is authoritative.
-- Exactly 15 rows are directly sourced. Gross Margin is the one and only derived financial metric.
+- Exactly 16 display rows remain. Source observations are immutable; Gross Margin is derived, and EPS/share display cells may carry separate comparative values under the revised contract.
 - SourceItemId is provider and statement-type scoped. `MetricCode` is optional and must not gate retrieval.
-- Noavaran 3M/6M/9M/12M income-statement amounts are cumulative YTD. All approved additive rows, including EPS per its explicit policy, normalize by adjacent differences. SourceItemId 153 share count is reported unchanged.
+- Noavaran 3M/6M/9M/12M **monetary flow** amounts are cumulative YTD and normalize by adjacent differences. Source EPS item 160 is a ratio and must not take that subtraction path without verified equal bases. Source share item 153 is immutable; its display comparison basis is separately derived. See [the source investigation](eps-share-basis-investigation.md).
 
 ## Existing architecture reuse
 
@@ -32,13 +32,13 @@ Relevant repository boundaries are the Feature 083 financial statement table con
 ## Source selection and data retrieval
 
 1. Resolve the company using the canonical company resolver. Require a unique canonical company identity.
-2. Select provider `NoavaranCurrentApi`, statement type `IncomeStatement`, and one statement scope. Within each scope, rank reports by audited+restated, audited+not-restated, unaudited+restated, unaudited+not-restated. Use the existing announcement-date and statement-ID tie breakers; retain conflicts when same-rank tied values disagree.
-3. Read enough reports for the requested 1–12 consecutive quarters plus any prior cumulative observation needed for Q4 or a comparison. Bound the query; retain full report and line-item IDs.
-4. Fetch the 15 approved source IDs through the existing provider-scoped source catalog. SourceItemId alone is not a cross-provider key. A null MetricCode does not make an approved source unavailable.
+2. Select provider `NoavaranCurrentApi`, statement type `IncomeStatement`, and **separate/non-consolidated scope only**. Within that scope, rank reports by audited+restated, audited+not-restated, unaudited+restated, unaudited+not-restated. Use the existing announcement-date and statement-ID tie breakers; retain conflicts when same-rank tied values disagree. Never substitute a consolidated report.
+3. Read enough reports for the requested 1–12 consecutive quarters, any adjacent YTD predecessor, and matching same-quarter following-year reference needed for comparison. Bound the query; retain full report and line-item IDs. A reference report can fall outside the displayed five columns.
+4. Fetch the 15 display-source IDs plus supporting attributable-profit item 144 and, when present, Codal EPS item 317 through the existing provider-scoped catalog. These supporting items do not add display rows. SourceItemId alone is not a cross-provider key. A null MetricCode does not make an approved source unavailable.
 5. Retain source title/catalog metadata for the two items whose original title was not provided (12 and 278); do not invent titles.
 6. Exclude or mark unavailable any cell with a missing/conflicting/incompatible report, source, period, scope, unit/storage scale, or fiscal year. Missing Currency metadata and differences in audit/restatement class or revision lineage across adjacent periods do not independently block calculation. Never collapse separate and consolidated statements.
 
-Report version precedence, exact fiscal-period boundaries, and provider catalog seeding must use existing persisted evidence and established repository policy. If there is no unique compatible result, return a typed conflict/unavailable reason; do not guess. No production observations or database contents are asserted as inspected by this design update.
+Report version precedence, exact fiscal-period boundaries, and provider catalog seeding must use existing persisted evidence and established repository policy. If there is no unique compatible result, return a typed conflict/unavailable reason; do not guess. Qasem Development and live source observations for the correction are documented separately in [the investigation](eps-share-basis-investigation.md); no Production FinancialCopilot records were inspected.
 
 ## Normalization algorithm
 
@@ -57,15 +57,15 @@ Use signed decimal subtraction without intermediate rounding. Missing observatio
 
 ### EPS policy
 
-Treat SourceItemId 160 as a directly sourced statement row with Product Owner-approved cumulative normalization. Apply the same Q1 and adjacent Q2–Q4 formulas; do not treat EPS as a ratio/stock exception for this feature. Preserve exact source operands and derived standalone EPS. Fixture: `24,967 - 10,155 = 14,812`. Do not investigate or mention the excluded one-unit screenshot discrepancy.
+Keep SourceItemId 160 and optional 317 as immutable cumulative ratio observations. Never subtract them. Derive comparable EPS as standalone item 144 / approved share basis, converting `million IRR × 1,000 / thousand shares`, then round to the nearest whole rial, midpoint away from zero. Validate each relevant YTD report with the exact 144/153/160 catalog identities and units, separate scope, supported scale, positive shares, and source EPS within one rial; if item 317 is present it must also reconcile within one rial. The one-rial tolerance accepts the observed source integer representation and does not define output rounding. Use item 153 from the same quarter in FY `Y+1` when present; otherwise use the own-period reported shares as a clearly identified fallback. The denominator is a reported period-end count, not weighted-average shares. If a matching reference report exists but its share evidence is invalid, or any numerator/reconciliation evidence fails, return typed unavailable. The Product Owner approved the comparable-EPS label and this evidence gate on 2026-10-20. See [investigation](eps-share-basis-investigation.md).
 
 ### Share-count policy
 
-Treat SourceItemId 153 as a point-in-time reported value. Select the value associated with the fiscal reporting period under the compatible report policy and preserve it unchanged. Unit is thousand shares. Do not subtract cumulative observations, multiply by nominal share value, convert to monetary capital, or derive from net income/EPS.
+Keep SourceItemId 153 as a point-in-time **raw** observation in thousand shares. The typed result holds a distinct displayed/comparable share basis, reference fiscal quarter and report ID, derivation policy, and availability state/reason. When a verified FY `Y+1` same-quarter report exists, use its approved basis for FY `Y` quarter `Q`; recompute after arrival/restatement. Never apply a single latest share count to all old periods. If no matching next-year report exists, verified own-period reported shares are the explicit fallback. If a matching report exists but its share observation is missing, zero, duplicate, or incompatible, return unavailable. Do not overwrite the original item 153 line.
 
 ### Gross Margin
 
-Normalize direct revenue (15) and gross profit (139) first. When both values are available and revenue is nonzero, compute `grossProfitQuarter / revenueQuarter * 100` at full decimal precision. Otherwise return unavailable and an explicit reason. Gross Margin is the only derived metric; every other financial row is the approved reported source item, with EPS's normalization remaining a source-row normalization rather than a new metric.
+Normalize direct revenue (15) and gross profit (139) first. When both values are available and revenue is nonzero, compute grossProfitQuarter / revenueQuarter * 100 at full decimal precision. Otherwise return unavailable and an explicit reason. Comparable EPS is a separately labeled derived presentation value under the approved evidence policy; no other monetary row is reconstructed or rebased.
 
 ## Zero, missing, sign, and unit semantics
 
@@ -85,7 +85,7 @@ Compare adjacent standalone-quarter values, never cumulative source observations
 
 ## Typed response and rendering
 
-Extend existing structured financial-statement response infrastructure with `QuarterlyFinancialReportTableResult` (or the existing equivalent if one is introduced during implementation). Metadata includes canonical company/ticker, provider, statement type/scope, fiscal calendar evidence, requested quarter count, source freshness, units/currency, and selected report revisions. Columns carry fiscal year/quarter, dates, order, and coverage. Rows carry stable ID, approved Persian label/order, nullable SourceItemId (null only for Gross Margin), catalog identity, direct/derived classification, normalization policy, unit/precision, and cells. Cells carry decimal-or-null, state/reason, source report/line-item IDs, normalization operands, calculation provenance, and presentation hint. Comparisons carry quarter pair, absolute delta, valid relative/percentage-point values, and typed state.
+Extend existing structured financial-statement response infrastructure with `QuarterlyFinancialReportTableResult`. Metadata includes canonical company/ticker, provider, separate scope, fiscal calendar evidence, requested quarter count, source freshness, units/currency, and selected report revisions. Columns carry fiscal year/quarter, dates, order, and coverage. Rows carry stable ID, approved Persian label/order, nullable SourceItemId (null only for Gross Margin), catalog identity, source/derived-presentation classification, normalization policy, unit/precision, and cells. Cells carry decimal-or-null, state/reason, source report/line-item IDs, normalization operands, calculation provenance, and presentation hint. EPS/share cells additionally require distinct raw observation and displayed comparison value, numerator/denominator evidence, reference fiscal quarter/report ID or explicit own-period fallback, rebase method, and availability reason. Comparisons carry quarter pair, absolute delta, valid relative/percentage-point values, and typed state.
 
 Do not store formatted values in place of numbers. Conversation persistence and replay must preserve `0` vs `null`, state, reason, units, and provenance without recomputing values from prose. The renderer owns RTL layout, Persian number formatting, dash rendering, and accounting negatives. Existing authorization applies; tool execution does not reserve or charge independently of the outer AI operation.
 
@@ -99,4 +99,4 @@ No schema change is currently justified. Existing statement/report and source-ro
 
 ## Implementation test design
 
-Implement deterministic fixture coverage specified in `spec.md` and `tasks.md`: revenue and EPS arithmetic, share preservation, normalized Gross Margin, full mapping/order, zeros (including IDs 12/278), missing vs zero, negatives, fiscal boundaries, period/scope/revision conflicts, units/provenance, V2 structured response/replay, authorization and one Billing charge. Tests are future implementation tasks; no tests are run as part of this design-only update.
+Evidence-backed regression cases cover Qasem changing shares and same-quarter next-year rebasing; positive FY1404 Q4 profit with no false `−518` EPS; FY1405 Q2 with no false `171` EPS; later FY1405 Q4 arrival; stable shares; missing/zero/conflicting denominator; absent future counterpart; restatement; non-Esfand fiscal year; separate-only scope; units/rounding; raw-vs-comparable provenance; typed V2 response/replay; web and PNG rendering. Retain monetary-flow, Gross Margin, zero/missing, authorization, and one-charge regressions. Older implementation reports describe the superseded EPS subtraction behavior.

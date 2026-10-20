@@ -94,6 +94,25 @@ public sealed class QuarterlyFinancialReports144Tests
             DateTimeOffset.UtcNow);
         QuarterlyFinancialCell CellFor(int id, int year, int quarter) =>
             result.Rows.Single(row => row.SourceItemId == id).Cells[$"{year} Q{quarter}"];
+        // Runtime catalog UUIDs are database-generated; their raw units can be N/A even
+        // when the provider's official source-item title declares thousand shares.
+        var runtimeCatalogReports = reports.Select(report => report with
+        {
+            Items = report.Items.Select(item => item.SourceItemId is 144 or 153 or 160 or 317
+                ? item with
+                {
+                    CatalogId = Guid.NewGuid(),
+                    Unit = "N/A",
+                    CatalogTitleFa = item.SourceItemId == 153
+                        ? "\u062a\u0639\u062f\u0627\u062f \u0633\u0647\u0627\u0645 \u0634\u0631\u06a9\u062a - \u0628\u0647 \u0647\u0632\u0627\u0631 \u0633\u0647\u0645"
+                        : item.CatalogTitleFa
+                }
+                : item).ToArray()
+        }).ToArray();
+        var dynamicCatalogResult = QuarterlyFinancialReportsNormalizer.Normalize("issuer", null, "issuer-1",
+            runtimeCatalogReports, 5, null, DateTimeOffset.UtcNow);
+        Assert.Equal(47_616_343m, dynamicCatalogResult.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q2"].Value);
+        Assert.Equal(44m, dynamicCatalogResult.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
 
         Assert.Equal(47_616_343m, CellFor(153, 1404, 2).Value); // FY1404 Q2 uses FY1405 Q2 basis.
         Assert.Equal(44m, CellFor(160, 1404, 2).Value);
@@ -686,16 +705,24 @@ public sealed class QuarterlyFinancialReports144Tests
     {
         var reportId = Guid.NewGuid();
         var end = DateOnly.FromDateTime(new PersianCalendar().AddMonths(start.ToDateTime(TimeOnly.MinValue), months).AddDays(-1));
-        var items = values.Select(pair => new QuarterlySourceObservation(Guid.NewGuid(),
-            QuarterlyFinancialReportsNormalizer.RequiredMappings.Single(item => item.SourceItemId == pair.Key).CatalogId is { } id
-                ? Guid.Parse(id) : Guid.Empty,
-            pair.Key, pair.Key == 12 ? "هزینه‌های مالی" : pair.Key == 278 ? "سود عملیات متوقف‌شده" : null,
-            pair.Key switch
-            {
-                153 => "thousand_shares",
-                160 or 317 => "rial_per_share",
-                _ => "million_rial"
-            }, pair.Value)).ToArray();
+        var items = values.Select(pair =>
+        {
+            var item = new QuarterlySourceObservation(Guid.NewGuid(),
+                QuarterlyFinancialReportsNormalizer.RequiredMappings.Single(mapping => mapping.SourceItemId == pair.Key).CatalogId is { } id
+                    ? Guid.Parse(id) : Guid.Empty,
+                pair.Key,
+                pair.Key == 12 ? "\u0647\u0632\u06cc\u0646\u0647\u200c\u0647\u0627\u06cc \u0645\u0627\u0644\u06cc" :
+                    pair.Key == 278 ? "\u0633\u0648\u062f \u0639\u0645\u0644\u06cc\u0627\u062a \u0645\u062a\u0648\u0642\u0641\u200c\u0634\u062f\u0647" : null,
+                pair.Key switch
+                {
+                    153 => "thousand_shares",
+                    160 or 317 => "rial_per_share",
+                    _ => "million_rial"
+                }, pair.Value);
+            return pair.Key == 153
+                ? item with { CatalogTitleFa = "\u062a\u0639\u062f\u0627\u062f \u0633\u0647\u0627\u0645 \u0634\u0631\u06a9\u062a - \u0628\u0647 \u0647\u0632\u0627\u0631 \u0633\u0647\u0645" }
+                : item;
+        }).ToArray();
         return new QuarterlyReportObservation(reportId, $"report-{reportId}", "NoavaranCurrentApi", "issuer-1",
             "IncomeStatement", months, start, end, false, false, false, $"checksum-{reportId}",
             DateTimeOffset.UtcNow, null, null, items, "MillionRials", "N/A", "IRR", "Accrual", "fixture-lineage");

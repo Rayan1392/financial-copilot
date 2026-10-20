@@ -22,6 +22,14 @@ The first screenshot shows raw point-in-time share values of 8,400,000, 41,345,6
 
 ## Root cause
 
+### Follow-up root cause for the still-blank share and EPS rows (Shگل and Qasem)
+
+The first implementation fixed the EPS math but left the live source-observation path gated on fixture catalog IDs. `GetQuarterlyIncomeStatementReportsAsync` looked up items by `(NoavaranCurrentApi, IncomeStatement, SourceItemId)` and then discarded them unless the database-generated `FinancialStatementSourceItems.Id` exactly matched a UUID hard-coded in `QuarterlyFinancialReportsNormalizer`. The catalog primary key is a surrogate and is generated on first ingestion; newer or previously unmapped source items such as 144 and 153 can therefore have valid source identities and line-item values while carrying different UUIDs. The repository returned neither the attributable-profit nor share observations, so both rows rendered as dashes for every affected issuer.
+
+The EPS validator repeated the same hard-coded UUID assumption and additionally required internal unit strings such as `thousand_shares`. Noavaran's persisted unit is a provider value and may be `N/A`, while the official source-item title for item 153 explicitly declares “به هزار سهم”. That combination caused valid share evidence to be rejected even after it was loaded.
+
+The repository now resolves catalog rows by the provider/source identity tuple and preserves each actual catalog UUID in provenance. EPS validation accepts that persisted identity, uses the report's verified amount scale for profit, and checks the provider title for the explicit thousand-share basis. It still requires one non-null value per item, a non-empty persisted catalog ID and unit, separate-statement scope, a positive share count, and reconciliation of reported EPS against profit and shares. The monetary profit rows remain unchanged.
+
 `QuarterlyFinancialReportsNormalizer.DirectRows` assigns Noavaran SourceItemId `160` (EPS) the `CumulativeEps` policy and SourceItemId `153` (share count) `ReportedPointInTime` ([normalizer](../../src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsNormalizer.cs)). In the cell loop, every row except `ReportedPointInTime` uses `currentValue - previousValue` for Q2–Q4. Thus `CumulativeEps` has the same execution path as additive monetary flows. No check compares current and previous share counts or the EPS share basis, and the EPS row is not reconciled with the standalone net-profit row. The share-count row always displays the selected source report's point-in-time value; there is no same-quarter, following-fiscal-year comparison adjustment in the table model or renderer.
 
 EPS is a ratio. Cumulative EPS values from reports with different share denominators, restatements, or capital bases cannot safely be subtracted to obtain standalone-quarter EPS. The FY1404 Q4 negative value and FY1405 Q2 understatement are symptoms of this calculation rule. Separately, FY1404 Q2 remains on its raw 8,400,000-thousand-share basis instead of the FY1405 Q2 comparison basis. These are deterministic normalization/presentation-policy defects, not an image-export color problem: [the quarterly renderer](../../src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/FinancialStatementTableServices.cs) formats the already-computed cell values.
@@ -41,6 +49,8 @@ The selected persisted Qasem FY1404 reports and a live Noavaran FY1405 6M respon
 7. Check the persisted Noavaran items `160` and `153`, selected report variants, and profit basis for Qasem against the Bourse View reference before approving exact replacement values.
 
 ## Verification performed
+
+The follow-up regression covers repository rows whose catalog UUIDs are generated at runtime, provider units reported as `N/A`, and a source title that explicitly declares shares in thousands. The focused quarterly-normalization and statement-repository test set passes (48 tests).
 
 Implemented a typed comparable-EPS calculation and rolling share basis with immutable raw evidence. Qasem fixture results are FY1404 Q2 EPS 44 using FY1405 Q2 shares, FY1404 Q4 EPS 115 on its own shares before FY1405 Q4 arrives (79 after its 60,000,000-thousand-share Q4 reference fixture arrives), and FY1405 Q2 EPS 190. Standalone profits remain 2,097,274, 4,736,365, and 9,045,719 million IRR. V2 typed response/replay, web table details, and PNG use the same backend values. All 39 unit tests, 4 PostgreSQL integration tests, the V2 replay test, and 9 frontend tests pass; browser PNG and production build checks also pass. See [the source investigation and verification](eps-share-basis-investigation.md). No production FinancialCopilot records were queried or modified.
 

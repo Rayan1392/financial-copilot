@@ -168,7 +168,8 @@ public static class QuarterlyFinancialReportsNormalizer
 
                 var currentValue = FindItem(item.Current, row.Id);
                 var previousValue = item.Previous is null
-                    ? (Present: false, Value: (decimal?)null, LineId: (Guid?)null, CatalogId: (Guid?)null, Unit: (string?)null)
+                    ? (Present: false, Value: (decimal?)null, LineId: (Guid?)null, CatalogId: (Guid?)null,
+                        Unit: (string?)null, CatalogTitleFa: (string?)null)
                     : FindItem(item.Previous, row.Id);
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime &&
                     !IsExpectedYtdBoundary(FiscalStartOf(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
@@ -512,11 +513,16 @@ public static class QuarterlyFinancialReportsNormalizer
         foreach (var id in new[] { numerator.SourceItemId.Value, 153, 160 })
         {
             var item = FindItem(report, id);
-            var expected = RequiredMappings.Single(mapping => mapping.SourceItemId == id);
-            if (!item.Present || item.CatalogId != Guid.Parse(expected.CatalogId) ||
-                !string.Equals(item.Unit, ExpectedEvidenceUnit(id), StringComparison.Ordinal))
+            if (!HasVerifiedCatalogObservation(item))
                 return $"source_{id}_missing_or_unverified";
         }
+        // Source item 153 explicitly names the provider's unit in its official catalog title
+        // ("... به هزار سهم"). Its raw Unit field is commonly N/A, so treating that field as
+        // the semantic unit made valid share observations disappear for issuers whose catalog
+        // entry was created dynamically.
+        var shareObservation = FindItem(report, 153);
+        if (!TitleDeclaresThousandShares(shareObservation.CatalogTitleFa))
+            return "source_153_missing_or_unverified";
         var profit = numerator.Value!.Value;
         var shares = FindItem(report, 153).Value!.Value;
         var sourceEps = FindItem(report, 160).Value!.Value;
@@ -527,9 +533,7 @@ public static class QuarterlyFinancialReportsNormalizer
         if (codalLines.Length > 1) return "source_317_ambiguous";
         if (codalLines.Length == 1 && codalLines[0].Value is decimal codalValue)
         {
-            var expectedCodal = RequiredMappings.Single(mapping => mapping.SourceItemId == 317);
-            if (codalLines[0].CatalogId != Guid.Parse(expectedCodal.CatalogId) ||
-                !string.Equals(codalLines[0].Unit, ExpectedEvidenceUnit(317), StringComparison.Ordinal) ||
+            if (codalLines[0].CatalogId == Guid.Empty || string.IsNullOrWhiteSpace(codalLines[0].Unit) ||
                 decimal.Abs(implied - codalValue) > 1m)
                 return "codal_eps_share_basis_reconciliation_failed";
         }
@@ -560,20 +564,27 @@ public static class QuarterlyFinancialReportsNormalizer
         if (report is null) return "share_basis_report_missing";
         if (report.IsComposing) return "separate_statement_scope_required";
         var item = FindItem(report, 153);
-        var expected = RequiredMappings.Single(mapping => mapping.SourceItemId == 153);
-        if (!item.Present || item.CatalogId != Guid.Parse(expected.CatalogId) ||
-            !string.Equals(item.Unit, ExpectedEvidenceUnit(153), StringComparison.Ordinal))
+        if (!HasVerifiedCatalogObservation(item) || !TitleDeclaresThousandShares(item.CatalogTitleFa))
             return "share_basis_missing_or_unverified";
         return item.Value <= 0 ? "share_basis_nonpositive" : null;
     }
 
-    private static string ExpectedEvidenceUnit(int sourceItemId) => sourceItemId switch
+    private static bool HasVerifiedCatalogObservation(
+        (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, string? CatalogTitleFa) item) =>
+        item.Present && item.CatalogId is { } catalogId && catalogId != Guid.Empty &&
+        !string.IsNullOrWhiteSpace(item.Unit);
+
+    private static bool TitleDeclaresThousandShares(string? title)
     {
-        143 or 144 => "million_rial",
-        153 => "thousand_shares",
-        160 or 317 => "rial_per_share",
-        _ => throw new ArgumentOutOfRangeException(nameof(sourceItemId))
-    };
+        if (string.IsNullOrWhiteSpace(title)) return false;
+        var normalized = new string(title.Select(character => character switch
+        {
+            '\u064a' => '\u06cc',
+            '\u0643' => '\u06a9',
+            _ => character
+        }).Where(character => !char.IsWhiteSpace(character) && character != '-').ToArray());
+        return normalized.Contains("\u0647\u0632\u0627\u0631\u0633\u0647\u0645", StringComparison.Ordinal);
+    }
 
     private static string? CurrencyCode(string rowId) => rowId is "gross_margin" or "source_153" ? null : "IRR";
 
@@ -585,11 +596,12 @@ public static class QuarterlyFinancialReportsNormalizer
         _ => 6
     };
 
-    private static (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit) FindItem(QuarterlyReportObservation report, int id)
+    private static (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, string? CatalogTitleFa) FindItem(QuarterlyReportObservation report, int id)
     {
         var items = report.Items.Where(item => item.SourceItemId == id).ToList();
-        if (items.Count != 1) return (false, null, null, null, null);
-        return (items[0].Value.HasValue, items[0].Value, items[0].LineItemId, items[0].CatalogId, items[0].Unit);
+        if (items.Count != 1) return (false, null, null, null, null, null);
+        return (items[0].Value.HasValue, items[0].Value, items[0].LineItemId, items[0].CatalogId, items[0].Unit,
+            items[0].CatalogTitleFa);
     }
 
     private static QuarterlyFinancialCell Missing(QuarterlyCellState state, string reason, string unit,

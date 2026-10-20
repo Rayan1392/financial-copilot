@@ -26,9 +26,11 @@ internal sealed class EfCoreFinancialStatementTableRepository(
             .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
                            item.StatementType == "IncomeStatement" && ids.Contains(item.SourceItemId))
             .ToListAsync(ct);
-        var expectedCatalogIds = approved.ToDictionary(item => item.SourceItemId, item => Guid.Parse(item.CatalogId));
-        var catalogIds = catalog.Where(item => expectedCatalogIds.GetValueOrDefault(item.SourceItemId) == item.Id)
-            .ToDictionary(item => item.Id);
+        // The source catalog's primary key is a database surrogate. It is generated when a
+        // provider item is first ingested, so it can differ across environments and for items
+        // introduced after the original catalog. Resolve identity by the provider tuple above
+        // (provider, statement type, source item id), then carry the actual catalog id through.
+        var catalogIds = catalog.ToDictionary(item => item.Id);
         var statementsQuery = dbContext.FinancialStatements.AsNoTracking()
             .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
                            item.ExternalCompanyId == selection.ExternalCompanyId &&

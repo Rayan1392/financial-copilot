@@ -227,7 +227,7 @@ services:
         Authentication__JwtBearer__Authority: "${Authentication__JwtBearer__Authority:-}"
         Authentication__JwtBearer__Issuer: "${Authentication__JwtBearer__Issuer:-FinancialCopilot}"
         Authentication__JwtBearer__RequireHttpsMetadata: "${Authentication__JwtBearer__RequireHttpsMetadata:-True}"
-        Authentication__OwnedIdentity__AccessTokenMinutes: "${Authentication__OwnedIdentity__AccessTokenMinutes:-10080}"
+        Authentication__OwnedIdentity__AccessTokenMinutes: "${Authentication__OwnedIdentity__AccessTokenMinutes:-15}"
         Authentication__OwnedIdentity__DefaultTenantId: "${Authentication__OwnedIdentity__DefaultTenantId:-11111111-1111-1111-1111-111111111111}"
         Authentication__OwnedIdentity__DefaultTenantName: "${Authentication__OwnedIdentity__DefaultTenantName:-FinancialCopilot}"
         Authentication__OwnedIdentity__RefreshTokenDays: "${Authentication__OwnedIdentity__RefreshTokenDays:-30}"

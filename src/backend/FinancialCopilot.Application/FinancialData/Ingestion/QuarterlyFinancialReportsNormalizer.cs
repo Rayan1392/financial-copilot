@@ -257,9 +257,6 @@ public static class QuarterlyFinancialReportsNormalizer
                 "nearest_whole_rial_away_from_zero", null,
                 RawCurrentShareCountThousand: rawShares.Value);
 
-            var ownValidation = ValidateEpsBasis(item.Current);
-            var predecessorValidation = item.Period.Quarter == 1 ? null : ValidateEpsBasis(item.Previous);
-            var epsFailure = ownValidation ?? predecessorValidation;
             var basisShares = basisReport is null ? default : FindItem(basisReport, 153);
             var shareFailure = hasNextYearReference && basisReport is null
                 ? "share_basis_reference_report_missing"
@@ -280,11 +277,17 @@ public static class QuarterlyFinancialReportsNormalizer
                 hasNextYearReference ? "FollowingYearSameQuarterShareBasis" : "OwnPeriodShareBasisFallback",
                 [rawShares.Value, basisShares.Value], ValueScale: ValueScale("source_153"), ComparableEvidence: basisEvidence);
 
-            var currentProfit = item.Current is null ? default : FindItem(item.Current, 144);
-            var previousProfit = item.Previous is null ? default : FindItem(item.Previous, 144);
+            var currentProfit = item.Current is null ? default : FindAttributableProfit(item.Current);
+            var previousProfit = item.Previous is null ? default : FindAttributableProfit(item.Previous);
             var referenceProfit = basisReport is null ? default : FindItem(basisReport, 144);
             var referenceEps = basisReport is null ? default : FindItem(basisReport, 160);
             var referenceCodalEps = basisReport is null ? default : FindItem(basisReport, 317);
+            var ownValidation = ValidateEpsBasis(item.Current);
+            var predecessorValidation = item.Period.Quarter == 1 ? null : ValidateEpsBasis(item.Previous);
+            var numeratorBasisFailure = item.Period.Quarter > 1 && currentProfit.SourceItemId != previousProfit.SourceItemId
+                ? "attributable_profit_source_changed_between_cumulative_reports"
+                : null;
+            var epsFailure = ownValidation ?? predecessorValidation ?? numeratorBasisFailure;
             var failure = epsFailure ?? shareFailure;
             var profit = failure is null && currentProfit.Value.HasValue
                 ? currentProfit.Value - (item.Period.Quarter == 1 ? 0m : previousProfit.Value)
@@ -306,7 +309,9 @@ public static class QuarterlyFinancialReportsNormalizer
                 RawPreviousAttributableProfitMillionRials = previousProfit.Value,
                 RawReferenceAttributableProfitMillionRials = referenceProfit.Value,
                 RawReferenceEpsYtd = referenceEps.Value,
-                RawReferenceCodalEpsYtd = referenceCodalEps.Value
+                RawReferenceCodalEpsYtd = referenceCodalEps.Value,
+                AttributableProfitSourceItemId = currentProfit.SourceItemId,
+                PreviousAttributableProfitSourceItemId = previousProfit.SourceItemId
             };
             var epsReports = new[] { item.Current?.ReportId, item.Previous?.ReportId, basisReport?.ReportId }
                 .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
@@ -336,8 +341,7 @@ public static class QuarterlyFinancialReportsNormalizer
         display.Add(("source_139", "سود (زیان) ناخالص", 139, DirectRows.Single(row => row.Id == 139).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(139)));
         display.Add(("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent"));
         display.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
-            ($"source_{row.Id}", row.Id == 160 ? "سود هر سهم مقایسه‌ای" :
-                row.Id == 153 ? "تعداد سهام (مبنای مقایسه، هزار سهم)" : row.Label,
+            ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
 
         for (var index = 0; index < display.Count; index++)
@@ -401,8 +405,7 @@ public static class QuarterlyFinancialReportsNormalizer
             ("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent")
         };
         orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
-            ($"source_{row.Id}", row.Id == 160 ? "سود هر سهم مقایسه‌ای" :
-                row.Id == 153 ? "تعداد سهام (مبنای مقایسه، هزار سهم)" : row.Label,
+            ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
         var rows = orderedRows.Select((row, index) => new QuarterlyFinancialRow(row.Id, index + 1, row.Label,
             row.SourceId, row.Catalog is null ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
@@ -504,7 +507,9 @@ public static class QuarterlyFinancialReportsNormalizer
         if (report is null) return "required_report_missing";
         if (report.IsComposing) return "separate_statement_scope_required";
         if (!StorageScaleIsSupported(report)) return "unsupported_report_scale";
-        foreach (var id in new[] { 144, 153, 160 })
+        var numerator = FindAttributableProfit(report);
+        if (numerator.SourceItemId is null) return "source_144_or_143_missing_or_unverified";
+        foreach (var id in new[] { numerator.SourceItemId.Value, 153, 160 })
         {
             var item = FindItem(report, id);
             var expected = RequiredMappings.Single(mapping => mapping.SourceItemId == id);
@@ -512,7 +517,7 @@ public static class QuarterlyFinancialReportsNormalizer
                 !string.Equals(item.Unit, ExpectedEvidenceUnit(id), StringComparison.Ordinal))
                 return $"source_{id}_missing_or_unverified";
         }
-        var profit = FindItem(report, 144).Value!.Value;
+        var profit = numerator.Value!.Value;
         var shares = FindItem(report, 153).Value!.Value;
         var sourceEps = FindItem(report, 160).Value!.Value;
         if (shares <= 0) return "share_basis_nonpositive";
@@ -531,6 +536,25 @@ public static class QuarterlyFinancialReportsNormalizer
         return null;
     }
 
+    // Item 144 is the explicit attributable-profit observation. Some Noavaran separate statements
+    // omit that duplicate line while still reporting net profit as item 143. In a separate statement
+    // those amounts have the same ordinary-shareholder scope; accept item 143 only when item 144 is
+    // absent, and retain the chosen source identity in the cell provenance.
+    private static (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, int? SourceItemId)
+        FindAttributableProfit(QuarterlyReportObservation report)
+    {
+        var attributable = FindItem(report, 144);
+        if (report.Items.Count(item => item.SourceItemId == 144) == 1)
+            return (attributable.Present, attributable.Value, attributable.LineId, attributable.CatalogId,
+                attributable.Unit, 144);
+
+        if (report.Items.Any(item => item.SourceItemId == 144))
+            return (false, null, null, null, null, 144);
+
+        var netProfit = FindItem(report, 143);
+        return (netProfit.Present, netProfit.Value, netProfit.LineId, netProfit.CatalogId, netProfit.Unit, 143);
+    }
+
     private static string? ValidateShareObservation(QuarterlyReportObservation? report)
     {
         if (report is null) return "share_basis_report_missing";
@@ -545,7 +569,7 @@ public static class QuarterlyFinancialReportsNormalizer
 
     private static string ExpectedEvidenceUnit(int sourceItemId) => sourceItemId switch
     {
-        144 => "million_rial",
+        143 or 144 => "million_rial",
         153 => "thousand_shares",
         160 or 317 => "rial_per_share",
         _ => throw new ArgumentOutOfRangeException(nameof(sourceItemId))

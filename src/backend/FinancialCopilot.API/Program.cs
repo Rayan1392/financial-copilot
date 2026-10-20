@@ -82,10 +82,21 @@ builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? ["http://localhost:5173"];
+    if (builder.Environment.IsDevelopment())
+    {
+        // Vite moves the app to 5174 when another project already occupies 5173.
+        allowedOrigins = allowedOrigins
+            .Append("http://localhost:5174")
+            .Append("http://127.0.0.1:5174")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     options.AddPolicy("Frontend", policy =>
         policy
-            .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:5173"])
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());

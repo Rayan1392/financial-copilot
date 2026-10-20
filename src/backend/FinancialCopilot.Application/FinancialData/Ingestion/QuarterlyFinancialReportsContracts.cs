@@ -104,7 +104,9 @@ public sealed record QuarterlyComparableEvidence(
     decimal? RawPreviousAttributableProfitMillionRials = null,
     decimal? RawReferenceAttributableProfitMillionRials = null,
     decimal? RawReferenceEpsYtd = null,
-    decimal? RawReferenceCodalEpsYtd = null);
+    decimal? RawReferenceCodalEpsYtd = null,
+    int? AttributableProfitSourceItemId = null,
+    int? PreviousAttributableProfitSourceItemId = null);
 
 public sealed record QuarterlyQoQComparison(
     string RowId,

@@ -97,6 +97,8 @@ public sealed class QuarterlyFinancialReports144Tests
 
         Assert.Equal(47_616_343m, CellFor(153, 1404, 2).Value); // FY1404 Q2 uses FY1405 Q2 basis.
         Assert.Equal(44m, CellFor(160, 1404, 2).Value);
+        Assert.Equal("سود هر سهم پس از کسر مالیات", result.Rows.Single(row => row.SourceItemId == 160).LabelFa);
+        Assert.Equal("تعداد سهام شرکت (هزار سهم)", result.Rows.Single(row => row.SourceItemId == 153).LabelFa);
         Assert.Equal(8_400_000m, CellFor(153, 1404, 2).ComparableEvidence?.RawCurrentValue);
         Assert.Equal(47_616_343m, CellFor(160, 1404, 2).ComparableEvidence?.ShareBasisThousand);
         Assert.Equal(4_736_365m, CellFor(143, 1404, 4).Value); // FY1404 Q4 profit remains source-derived.
@@ -153,6 +155,21 @@ public sealed class QuarterlyFinancialReports144Tests
             missingSameQuarterReference, 6, null, DateTimeOffset.UtcNow);
         Assert.Equal(8_400_000m, fallback.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q2"].Value);
         Assert.Equal(250m, fallback.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"].Value);
+
+        // Some Noavaran separate reports carry net profit (143) but omit the duplicate attributable
+        // profit line (144). Use 143 only as the separately verified numerator fallback.
+        var withoutDuplicateAttributableLine = reports.Select(report => report with
+        {
+            Items = report.Items.Where(line => line.SourceItemId != 144).ToArray()
+        }).ToArray();
+        var netProfitFallback = QuarterlyFinancialReportsNormalizer.Normalize("قاسم", "قاسم ایران", "issuer-1",
+            withoutDuplicateAttributableLine, 5, null, DateTimeOffset.UtcNow);
+        var fallbackEps = netProfitFallback.Rows.Single(row => row.SourceItemId == 160).Cells["1404 Q2"];
+        Assert.Equal(44m, fallbackEps.Value);
+        Assert.Equal(47_616_343m, netProfitFallback.Rows.Single(row => row.SourceItemId == 153).Cells["1404 Q2"].Value);
+        Assert.Equal(143, fallbackEps.ComparableEvidence?.AttributableProfitSourceItemId);
+        Assert.Equal(143, fallbackEps.ComparableEvidence?.PreviousAttributableProfitSourceItemId);
+        Assert.Equal(2_097_274m, fallbackEps.ComparableEvidence?.StandaloneAttributableProfitMillionRials);
     }
 
     [Fact]

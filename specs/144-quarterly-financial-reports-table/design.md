@@ -57,7 +57,7 @@ Use signed decimal subtraction without intermediate rounding. Missing observatio
 
 ### EPS policy
 
-Keep SourceItemId 160 and optional 317 as immutable cumulative ratio observations. Never subtract them. Derive comparable EPS as standalone item 144 / approved share basis, converting `million IRR × 1,000 / thousand shares`, then round to the nearest whole rial, midpoint away from zero. Validate each relevant YTD report with the exact 144/153/160 catalog identities and units, separate scope, supported scale, positive shares, and source EPS within one rial; if item 317 is present it must also reconcile within one rial. The one-rial tolerance accepts the observed source integer representation and does not define output rounding. Use item 153 from the same quarter in FY `Y+1` when present; otherwise use the own-period reported shares as a clearly identified fallback. The denominator is a reported period-end count, not weighted-average shares. If a matching reference report exists but its share evidence is invalid, or any numerator/reconciliation evidence fails, return typed unavailable. The Product Owner approved the comparable-EPS label and this evidence gate on 2026-10-20. See [investigation](eps-share-basis-investigation.md).
+Keep SourceItemId 160 and optional 317 as immutable cumulative ratio observations. Never subtract them. Derive comparable EPS from standalone item 144 divided by the approved share basis; when item 144 is absent, use item 143 only for a verified separate statement whose source EPS reconciles to item 143 and its reported shares. Record the numerator source ID. Convert `million IRR × 1,000 / thousand shares`, then round to the nearest whole rial, midpoint away from zero. Validate catalog identities and units, separate scope, supported scale, positive shares, and source EPS within one rial; if item 317 is present it must also reconcile within one rial. Use item 153 from the same quarter in FY `Y+1` when present; otherwise use the own-period reported shares as a clearly identified fallback. The denominator is a reported period-end count, not weighted-average shares. If the reference share evidence or numerator evidence fails, return typed unavailable. Keep the database's original row labels; identify the derived calculation in provenance and the EPS methodology note. See [investigation](eps-share-basis-investigation.md).
 
 ### Share-count policy
 
@@ -65,7 +65,7 @@ Keep SourceItemId 153 as a point-in-time **raw** observation in thousand shares.
 
 ### Gross Margin
 
-Normalize direct revenue (15) and gross profit (139) first. When both values are available and revenue is nonzero, compute grossProfitQuarter / revenueQuarter * 100 at full decimal precision. Otherwise return unavailable and an explicit reason. Comparable EPS is a separately labeled derived presentation value under the approved evidence policy; no other monetary row is reconstructed or rebased.
+Normalize direct revenue (15) and gross profit (139) first. When both values are available and revenue is nonzero, compute grossProfitQuarter / revenueQuarter * 100 at full decimal precision. Otherwise return unavailable and an explicit reason. Comparable EPS is a derived presentation value under the approved evidence policy; the row retains its database title and provenance distinguishes the derived value from source EPS. No other monetary row is reconstructed or rebased.
 
 ## Zero, missing, sign, and unit semantics
 

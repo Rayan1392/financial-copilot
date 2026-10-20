@@ -1979,8 +1979,14 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
                 row.GetProperty("sourceItemId").GetInt32() == 160)
             .GetProperty("cells").GetProperty(period);
         Assert.Equal(100m, comparableEps.GetProperty("value").GetDecimal());
+        Assert.Equal("سود هر سهم پس از کسر مالیات", rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number && row.GetProperty("sourceItemId").GetInt32() == 160)
+            .GetProperty("labelFa").GetString());
+        Assert.Equal("تعداد سهام شرکت (هزار سهم)", rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number && row.GetProperty("sourceItemId").GetInt32() == 153)
+            .GetProperty("labelFa").GetString());
         Assert.Equal("own_period_fallback", comparableEps.GetProperty("comparableEvidence")
             .GetProperty("method").GetString());
+        Assert.Equal(144, comparableEps.GetProperty("comparableEvidence")
+            .GetProperty("attributableProfitSourceItemId").GetInt32());
         Assert.Equal(200_000m, comparableEps.GetProperty("comparableEvidence")
             .GetProperty("shareBasisThousand").GetDecimal());
         Assert.Contains("-", root.GetProperty("textAnswer").GetString());

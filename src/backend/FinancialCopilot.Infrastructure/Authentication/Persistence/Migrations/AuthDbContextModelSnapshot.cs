@@ -42,6 +42,10 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("PendingEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
                     b.Property<string>("Purpose")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -330,14 +334,41 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<DateTimeOffset?>("LastEntitlementSyncAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("LastExternalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("LastKnownSubscriptionExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("LastLaunchAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastSyncFailureCategory")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("LastSyncedPlanCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTimeOffset>("LinkedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("LocalUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("NextEntitlementSyncDueAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -349,12 +380,19 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<int>("SyncAttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("LocalUserId");
+
+                    b.HasIndex("NextEntitlementSyncDueAtUtc");
 
                     b.HasIndex("TenantId");
 

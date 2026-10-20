@@ -585,10 +585,7 @@ internal sealed class FinancialStatementTableQueryUseCase(
                 ? $"؛ EPS تجمعی منبع {rawCurrent.ToString("#,##0.##", culture)}" +
                   (evidence.RawPreviousValue is decimal rawPrevious ? $" منهای {rawPrevious.ToString("#,##0.##", culture)}" : "")
                 : "";
-            var numeratorSource = evidence.AttributableProfitSourceItemId is int sourceId
-                ? $" (قلم منبع {sourceId})"
-                : "";
-            builder.AppendLine($"مبنای EPS مقایسه‌ای: {period.Label}: سود قابل انتساب{numeratorSource} {profit} میلیون ریال ÷ {shares} هزار سهم؛ {reference}؛ مقدار مشتق‌شده {value} ریال با گردکردن به نزدیک‌ترین ریال و نیم‌به‌بالا؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود{raw}.");
+            builder.AppendLine($"مبنای EPS مقایسه‌ای: {period.Label}: سود قابل انتساب {profit} میلیون ریال ÷ {shares} هزار سهم؛ {reference}؛ مقدار مشتق‌شده {value} ریال با گردکردن به نزدیک‌ترین ریال و نیم‌به‌بالا؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود{raw}.");
         }
         return builder.ToString().TrimEnd();
     }

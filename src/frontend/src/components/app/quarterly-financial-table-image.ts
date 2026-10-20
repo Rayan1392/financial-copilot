@@ -75,9 +75,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   const headerHeight = 104;
   const periodHeaderHeight = 78;
   const summaryHeight = 54;
-  const provenanceNotes = model.provenanceNotes ?? [];
-  const provenanceHeight = provenanceNotes.length ? 24 + provenanceNotes.length * 48 : 0;
-  const height = PAD * 2 + headerHeight + summaryHeight + periodHeaderHeight + rowHeight * model.rows.length + provenanceHeight;
+  const height = PAD * 2 + headerHeight + summaryHeight + periodHeaderHeight + rowHeight * model.rows.length;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH * scale;
   canvas.height = height * scale;
@@ -188,23 +186,6 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       right = left;
     });
   });
-
-  if (provenanceNotes.length) {
-    let y = top + periodHeaderHeight + rowHeight * model.rows.length + 22;
-    context.fillStyle = COLORS.header;
-    context.font = '600 15px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-    rtlText(context, "روش و مبنای EPS مقایسه‌ای", WIDTH - PAD, y);
-    y += 19;
-    context.fillStyle = COLORS.ink;
-    context.font = '400 13px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-    provenanceNotes.forEach((note) => {
-      wrap(context, note, usableWidth).slice(0, 2).forEach((line) => {
-        rtlText(context, line, WIDTH - PAD, y);
-        y += 17;
-      });
-      y += 4;
-    });
-  }
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("Image generation failed.");

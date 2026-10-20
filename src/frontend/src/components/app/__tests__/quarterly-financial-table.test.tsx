@@ -188,12 +188,13 @@ describe("quarterly financial table QoQ rendering", () => {
   });
 
   it("keeps compact comparable EPS provenance available to the table details", () => {
-    const note = "مبنای EPS مقایسه‌ای: 1404 Q2: سود قابل انتساب (قلم منبع 144) 2,097,274 میلیون ریال ÷ 47,616,343 هزار سهم؛ FY1405 Q2، گزارش 553578؛ مقدار مشتق‌شده 44 ریال با گردکردن به نزدیک‌ترین ریال و نیم‌به‌بالا؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود؛ EPS تجمعی منبع 371 منهای 121.";
+    const note = "مبنای EPS مقایسه‌ای: 1404 Q2: سود قابل انتساب 2,097,274 میلیون ریال ÷ 47,616,343 هزار سهم؛ FY1405 Q2، گزارش 553578؛ مقدار مشتق‌شده 44 ریال با گردکردن به نزدیک‌ترین ریال و نیم‌به‌بالا؛ سهام گزارش‌شده پایان دوره است و میانگین وزنی محسوب نمی‌شود؛ EPS تجمعی منبع 371 منهای 121.";
     const parsed = parseQuarterlyFinancialTable(`${markdownTable()}\n${note}`)!;
     expect(parsed.after).toBe("");
     expect(parsed.model.provenanceNotes?.[0]).toContain("۵۵۳۵۷۸");
     const { container } = render(<QuarterlyFinancialTable model={parsed.model} />);
     expect(container.textContent).toContain("روش و مبنای EPS مقایسه‌ای");
     expect(container.textContent).toContain("۵۵۳۵۷۸");
+    expect(container.textContent).not.toContain("قلم منبع");
   });
 });

@@ -74,9 +74,11 @@ function wrap(context: CanvasRenderingContext2D, text: string, maxWidth: number)
 }
 
 function exportDate(): string {
-  return toPersianDigits(new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
     timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date()).replaceAll("/", "-"));
+  }).formatToParts(new Date());
+  const part = (type: "year" | "month" | "day") => parts.find((item) => item.type === type)?.value ?? "";
+  return toPersianDigits(`${part("year")}/${part("month")}/${part("day")}`);
 }
 
 function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialTableModel, top: number) {
@@ -91,7 +93,11 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   const margins = points.map((point) => point.grossMargin)
     .filter((value): value is number => value !== null);
   const amountMin = Math.min(0, ...values);
-  const amountMax = Math.max(1, ...values);
+  const rawAmountMax = Math.max(1, ...values);
+  const rawAmountStep = rawAmountMax / 4;
+  const amountMagnitude = 10 ** Math.floor(Math.log10(rawAmountStep));
+  const amountStep = Math.ceil(rawAmountStep / amountMagnitude) * amountMagnitude;
+  const amountMax = amountStep * 4;
   const marginMin = Math.min(0, ...margins);
   const marginMax = Math.max(1, ...margins);
   const amountY = (value: number) => plotBottom - (value - amountMin) / (amountMax - amountMin) * plotHeight;
@@ -99,7 +105,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   const baseline = amountY(0);
   const groupWidth = (right - left) / Math.max(points.length, 1);
   const barWidth = Math.min(25, groupWidth / 5);
-  const formatter = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 1 });
+  const formatter = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 });
 
   context.fillStyle = "#ffffff";
   context.fillRect(PAD, top, WIDTH - PAD * 2, CHART_HEIGHT - 14);
@@ -217,7 +223,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
   context.fillStyle = "#475569";
   context.font = '400 16px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
   rtlText(context, "دستیار هوشمند بازار سرمایه", WIDTH - PAD, PAD + 57);
-  rtlText(context, `تاریخ دریافت: ${date}`, WIDTH - PAD, PAD + 81);
+  rtlText(context, `تاریخ دریافت: \u2066${date}\u2069`, WIDTH - PAD, PAD + 81);
 
   const headerTop = PAD + BRAND_HEIGHT;
   context.fillStyle = COLORS.header;
@@ -346,7 +352,7 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
     .replaceAll("/", "")
     .trim()
     .replace(/[-\s]+/g, "-");
-  link.download = `\u062c\u062f\u0648\u0644-\u0645\u0627\u0644\u06cc-\u0641\u0635\u0644\u06cc${safeSymbol ? `-${safeSymbol}` : ""}-${date}.png`;
+  link.download = `\u062c\u062f\u0648\u0644-\u0645\u0627\u0644\u06cc-\u0641\u0635\u0644\u06cc${safeSymbol ? `-${safeSymbol}` : ""}-${date.replaceAll("/", "-")}.png`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

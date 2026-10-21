@@ -21,7 +21,7 @@ internal sealed class EfCoreFinancialStatementTableRepository(
         CancellationToken ct = default)
     {
         var approved = QuarterlyFinancialReportsNormalizer.RequiredMappings;
-        var ids = approved.Select(item => item.SourceItemId).ToArray();
+        var ids = approved.Select(item => item.SourceItemId).Concat([310, 311, 312, 313, 317]).Distinct().ToArray();
         var catalog = await dbContext.FinancialStatementSourceItems.AsNoTracking()
             .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
                            item.StatementType == "IncomeStatement" && ids.Contains(item.SourceItemId))

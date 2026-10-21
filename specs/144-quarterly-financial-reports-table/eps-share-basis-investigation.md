@@ -68,3 +68,7 @@ The Product Owner approved comparable EPS and these rules on 2026-10-20.
 - Browser PNG export: passed; generated the shared renderer export.
 - Frontend production build: passed. Vite emitted its large-chunk advisory.
 - Local Development Qasem records were queried read-only; the live FY1405 6M Noavaran response is used as an evidence fixture because it is not persisted locally. Chakhzar Development smoke output confirms unavailable EPS/share cells when required evidence is missing. Production records were not queried or modified.
+
+## Calculation policy clarification (2026-10-21)
+
+The earlier implementation and verification above required source EPS reconciliation and could prefer item 144. The current Feature 144 contract supersedes that gate: displayed comparable EPS is calculated from the row-143 net-profit numerator, using item 313 only when item 143 is absent/null, and the approved item-153 share basis. Raw items 160 and 317 are optional provenance only; they do not supply or gate the calculated value. See the current rules in [spec.md](spec.md).

@@ -18,11 +18,22 @@ The capability is read-only at query time. Reuse the existing provider-scoped So
 
 - Database migrations unless a concrete missing datum is proven, Features 141–143 changes, and all V1 changes.
 - Balance-sheet/cash-flow templates, arbitrary formulas, LLM arithmetic or SQL, query-time ingestion, forecasting, valuation, and investment advice.
-- Alternative source mappings, duplicate catalogs, mandatory `MetricCode`, or replacement of reported line items with accounting reconstructions.
+- Unapproved alternate source mappings, mandatory `MetricCode`, or replacement of reported line items with accounting reconstructions. The approved Noavaran supplemental item pairs are permitted only as fallbacks when the matching primary item has no value in that report; the primary item always wins when it has a value.
 
 ## Approved table and source mapping
 
 Every direct mapping is scoped to provider key `NoavaranCurrentApi` (display name Noavaran Amin) and `StatementType = IncomeStatement`. Reuse the catalog identities below; SourceItemId is not globally unique. `MetricCode` may be null and is not a query prerequisite.
+
+Retrieval includes the following supplemental Noavaran source IDs and fallback identities:
+
+| Table row SourceItemId | Supplemental fallback SourceItemId | Table row |
+|---:|---:|---|
+| 139 | 310 | Gross profit |
+| 140 | 311 | Operating profit |
+| 142 | 312 | Continuing operations profit before tax |
+| 143 | 313 | Net profit |
+
+For rows 139, 140, 142, and 143, use the supplemental item only when the primary item is missing or has a null amount. Normalize it as the same cumulative-flow row for adjacent-period subtraction. Item 317 is not a fallback for the displayed EPS row. If the primary item has multiple observations, treat it as ambiguous and do not silently use a fallback. If both primary and supplemental items have values, the primary wins. Preserve the actual source item ID, catalog ID, and line-item ID selected in provenance.
 
 | Order | Display label | SourceItemId | Existing source catalog identity | Row policy |
 |---:|---|---:|---|---|
@@ -62,7 +73,7 @@ For each company/provider/statement type/fiscal year/duration/scope, select repo
 
 ### EPS
 
-SourceItemId 160 is an **immutable cumulative source EPS observation**, not an additive flow. Never subtract adjacent cumulative EPS. The displayed row keeps the database label `سود هر سهم پس از کسر مالیات`; its derived value is comparable EPS, not officially reported accounting EPS, and provenance identifies it as derived. Use item 144 (profit attributable to ordinary shareholders) as the preferred numerator. If item 144 is absent from a separate statement, item 143 (net profit) may be used only when its approved catalog identity and unit are present and it reconciles with the same report's source EPS and reported shares; record the selected numerator source item for both the current and predecessor report. Do not substitute item 143 when item 144 is present but ambiguous or invalid, or mix different numerator sources across adjacent YTD reports. Derive the numerator using standalone adjacent YTD differences. For historical FY `Y`, quarter `Q`, use the verified item 153 share count from FY `Y+1`, quarter `Q`, when available; otherwise use the verified own-period count as an explicit fallback. These are reported ending shares, **not weighted-average shares**. Require exact provider catalog IDs, expected item units, separate statement scope, supported amount scale, positive shares, and source item 160 reconciliation within one rial; item 317, when present with a value, must also use its approved catalog/unit and reconcile within one rial. Convert million IRR × 1,000 / thousand shares to IRR/share and round to the nearest whole rial, midpoint away from zero. Missing, duplicate, mismatched numerator or share evidence, or failed reconciliation yields typed unavailable EPS. Preserve raw items 143/144/153/160/317 and their report/line IDs in provenance.
+The displayed row keeps the database label `سود هر سهم پس از کسر مالیات`; its value is **derived comparable EPS**, not a copied source EPS value. For its numerator, use the same net-profit source as row 143: prefer item 143 and use approved fallback item 313 only when 143 is missing or has a null amount. Preserve the actual selected source ID and treat 143/313 as the same numerator basis across adjacent YTD reports. Derive standalone quarterly net profit by subtracting the immediately preceding YTD amount, then calculate `standalone net profit (million IRR) × 1,000 / reported shares (thousand)` and round to the nearest whole rial, midpoint away from zero. Use the verified item 153 share count from FY `Y+1`, quarter `Q`, when available; otherwise use the verified own-period count as an explicit fallback. These are reported ending shares, **not weighted-average shares**. Require one unambiguous net-profit observation with approved catalog identity and unit in each required YTD report, separate statement scope, supported amount scale, and a positive verified share count. Items 160 and 317 are optional raw source observations only; neither is required to calculate the displayed row, and neither is subtracted or used as its fallback. Preserve raw items 143/153/160/313/317 and their report/line IDs in provenance.
 
 ### Shares
 
@@ -99,14 +110,14 @@ Each row carries stable row ID, Persian label, nullable SourceItemId (null only 
 7. Q1 flow values pass through from compatible 3M cumulative observations; Q2/Q3/Q4 use only the adjacent differences specified above.
 8. Non-adjacent periods, fiscal-year crossings, incompatible scope/provider/company/source/unit observations, unresolved conflicting top-priority reports, or missing operands never produce a fabricated quarter; state and reason are explicit. Different audit/restatement classes and report revision lineages across adjacent periods are allowed.
 9. Signed decimal arithmetic preserves negatives and precision, including revenue fixture Q2 `9,388,580` from `16,754,501 - 7,365,921`.
-10. Source EPS item 160 and optional Codal EPS item 317 remain immutable and cannot be blindly differenced. Comparable EPS uses standalone attributable profit and the verified following-year same-quarter share basis, or explicit own-period fallback, with the one-rial source reconciliation gate and nearest-whole-rial midpoint-away-from-zero output rounding. The displayed row retains the original database label and typed provenance distinguishes the derived value from reported EPS; invalid evidence yields unavailable.
+10. Source EPS items 160 and 317 are optional immutable observations and are not calculation inputs. Comparable EPS uses standalone row-143 net profit (item 143 or fallback 313) and the verified following-year same-quarter share basis, or explicit own-period fallback, with nearest-whole-rial midpoint-away-from-zero output rounding. The displayed row retains the original database label and typed provenance distinguishes the derived value from reported EPS; invalid numerator or share evidence yields unavailable.
 11. Raw share count item 153 is immutable in thousand shares. The displayed share basis is separately typed and, when verified, references the same quarter of the following fiscal year; absence or invalidity has an explicit state/reason.
 12. Gross Margin is derived from normalized quarterly gross profit and revenue; missing inputs or zero revenue yield unavailable. Comparable EPS is a separate derived value under the approved evidence policy and does not rename the source row.
 13. Valid zero remains numeric zero with `Available` state and renders as `-`, including zero values for SourceItemIds 12 and 278.
 14. Missing/unavailable remains null with typed state/reason and is distinguishable from valid zero through serialization, persistence, replay, and accessible rendering; missing is never defaulted to zero.
 15. Negative values remain signed through calculations and rendering; units and precision are explicit and display rounding does not alter stored numeric values.
 16. QoQ uses standalone quarter values, provides exact absolute change when meaningful, only provides relative change for a valid positive base, and distinguishes relative margin change from percentage-point change.
-17. Source report, source line-item, provider, period, scope, unit, revision, and normalization/calculation provenance are present for each applicable cell. EPS/share cells additionally preserve raw 143/144/153/160/317 values where present, standalone numerator, share denominator and its period-end type, units, output rounding, source reconciliation, reference quarter/report or explicit own-period fallback.
+17. Source report, source line-item, provider, period, scope, unit, revision, and normalization/calculation provenance are present for each applicable cell. EPS/share cells additionally preserve raw 143/153/160/313/317 values where present, selected numerator source, standalone numerator, share denominator and its period-end type, units, output rounding, and reference quarter/report or explicit own-period fallback.
 18. Persian labels, 16-row order, newest-first quarter columns, RTL layout, accounting negatives, and zero-as-dash rendering are stable.
 19. Structured V2 output serializes and replays without loss of numeric zero, null state, source identity, or calculation provenance.
 20. Existing authorization is enforced and the internal tool does not create a second Billing reservation/charge.

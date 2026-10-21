@@ -83,8 +83,8 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             row.IsComposing = statement.IsComposing;
             row.WarningsJson = BuildEvidenceJson(statement, item.StatementType);
 
-            await dbContext.SaveChangesAsync(cancellationToken);
             await UpsertLineItemsAsync(row, statement.Items, payload.ReceivedAt, cancellationToken);
+            // Persist the statement and all of its line items in one SaveChanges transaction.
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -119,34 +119,109 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         DateTimeOffset synchronizedAt,
         CancellationToken cancellationToken)
     {
+        if (sourceItems.Count == 0)
+        {
+            return;
+        }
+
+        var statementType = statementRow.StatementType;
+        var sourceItemIds = sourceItems.Select(source => source.ItemID).Distinct().ToArray();
+        var existingCatalogRows = await dbContext.FinancialStatementSourceItems
+            .Where(candidate => candidate.ProviderName == statementRow.ProviderName &&
+                candidate.StatementType == statementType && sourceItemIds.Contains(candidate.SourceItemId))
+            .ToListAsync(cancellationToken);
+        var catalogRows = dbContext.FinancialStatementSourceItems.Local
+            .Where(candidate => candidate.ProviderName == statementRow.ProviderName &&
+                candidate.StatementType == statementType && sourceItemIds.Contains(candidate.SourceItemId))
+            .Concat(existingCatalogRows)
+            .DistinctBy(candidate => candidate.SourceItemId)
+            .ToDictionary(candidate => candidate.SourceItemId);
+
         foreach (var source in sourceItems)
         {
-            var catalogRow = await UpsertSourceItemCatalogAsync(
-                statementRow.ProviderName,
-                statementRow.StatementType,
-                source,
-                synchronizedAt,
-                cancellationToken);
-            await EnsureKnownMappingAsync(catalogRow, cancellationToken);
-            var metricCode = await ResolveMetricCodeAsync(catalogRow.Id, cancellationToken);
+            if (!catalogRows.TryGetValue(source.ItemID, out var catalogRow))
+            {
+                catalogRow = new FinancialStatementSourceItemCatalogRow
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderName = statementRow.ProviderName,
+                    StatementType = statementType,
+                    SourceItemId = source.ItemID
+                };
+                dbContext.FinancialStatementSourceItems.Add(catalogRow);
+                catalogRows.Add(source.ItemID, catalogRow);
+            }
 
-            var row = dbContext.FinancialStatementLineItems.Local.FirstOrDefault(candidate =>
-                          candidate.FinancialStatementId == statementRow.Id &&
-                          candidate.SourceItemCatalogId == catalogRow.Id)
-                      ?? await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(candidate =>
-                              candidate.FinancialStatementId == statementRow.Id &&
-                              candidate.SourceItemCatalogId == catalogRow.Id,
-                          cancellationToken);
+            catalogRow.TitleFa = source.ItemTitle;
+            catalogRow.Unit = source.AmountUnit;
+            catalogRow.LastSynchronizedAt = synchronizedAt;
+        }
+
+        var catalogIds = catalogRows.Values.Select(row => row.Id).ToArray();
+        var existingMappings = await dbContext.FinancialStatementSourceItemMetricMappings
+            .Where(candidate => catalogIds.Contains(candidate.SourceItemCatalogId))
+            .ToListAsync(cancellationToken);
+        var mappings = dbContext.FinancialStatementSourceItemMetricMappings.Local
+            .Where(candidate => catalogIds.Contains(candidate.SourceItemCatalogId))
+            .Concat(existingMappings)
+            .DistinctBy(candidate => candidate.SourceItemCatalogId)
+            .ToDictionary(candidate => candidate.SourceItemCatalogId);
+        var financialStatementType = Enum.Parse<FinancialStatementType>(statementType);
+
+        foreach (var catalogRow in catalogRows.Values)
+        {
+            var knownMetricCode = NadpcoApiStatementItemMaps.TryGetMetricCode(
+                financialStatementType, catalogRow.SourceItemId);
+            if (knownMetricCode is null)
+            {
+                continue;
+            }
+
+            if (!mappings.TryGetValue(catalogRow.Id, out var mapping))
+            {
+                mapping = new FinancialStatementSourceItemMetricMappingRow
+                {
+                    Id = Guid.NewGuid(),
+                    SourceItemCatalogId = catalogRow.Id
+                };
+                dbContext.FinancialStatementSourceItemMetricMappings.Add(mapping);
+                mappings.Add(catalogRow.Id, mapping);
+            }
+
+            mapping.MetricCode = knownMetricCode;
+        }
+
+        var existingLineItems = await dbContext.FinancialStatementLineItems
+            .Where(candidate => candidate.FinancialStatementId == statementRow.Id)
+            .ToListAsync(cancellationToken);
+        var lineItemsByCatalogId = dbContext.FinancialStatementLineItems.Local
+            .Where(candidate => candidate.FinancialStatementId == statementRow.Id &&
+                candidate.SourceItemCatalogId.HasValue)
+            .Concat(existingLineItems.Where(candidate => candidate.SourceItemCatalogId.HasValue))
+            .DistinctBy(candidate => candidate.SourceItemCatalogId!.Value)
+            .ToDictionary(candidate => candidate.SourceItemCatalogId!.Value);
+        var legacyLineItemsByMetricCode = dbContext.FinancialStatementLineItems.Local
+            .Where(candidate => candidate.FinancialStatementId == statementRow.Id &&
+                candidate.SourceItemCatalogId == null && !string.IsNullOrWhiteSpace(candidate.MetricCode))
+            .Concat(existingLineItems.Where(candidate => candidate.SourceItemCatalogId == null &&
+                !string.IsNullOrWhiteSpace(candidate.MetricCode)))
+            .DistinctBy(candidate => candidate.MetricCode!, StringComparer.Ordinal)
+            .ToDictionary(candidate => candidate.MetricCode!, StringComparer.Ordinal);
+
+        foreach (var source in sourceItems)
+        {
+            var catalogRow = catalogRows[source.ItemID];
+            mappings.TryGetValue(catalogRow.Id, out var mapping);
+            var metricCode = mapping?.MetricCode;
+            lineItemsByCatalogId.TryGetValue(catalogRow.Id, out var row);
 
             if (row is null && !string.IsNullOrWhiteSpace(metricCode))
             {
-                row = dbContext.FinancialStatementLineItems.Local.FirstOrDefault(candidate =>
-                          candidate.FinancialStatementId == statementRow.Id &&
-                          candidate.SourceItemCatalogId == null && candidate.MetricCode == metricCode)
-                      ?? await dbContext.FinancialStatementLineItems.SingleOrDefaultAsync(candidate =>
-                              candidate.FinancialStatementId == statementRow.Id &&
-                              candidate.SourceItemCatalogId == null && candidate.MetricCode == metricCode,
-                          cancellationToken);
+                legacyLineItemsByMetricCode.TryGetValue(metricCode, out row);
+                if (row is not null)
+                {
+                    legacyLineItemsByMetricCode.Remove(metricCode);
+                }
             }
 
             if (row is null)
@@ -163,6 +238,7 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
             row.SourceItemCatalogId = catalogRow.Id;
             row.MetricCode = metricCode;
             row.Value = source.Amount;
+            lineItemsByCatalogId[catalogRow.Id] = row;
         }
     }
 
@@ -215,83 +291,6 @@ public sealed class NadpcoApiFinancialStatementNormalizer(
         };
         return JsonSerializer.Serialize(new[] { evidence }, JsonOptions);
     }
-
-    private async Task<FinancialStatementSourceItemCatalogRow> UpsertSourceItemCatalogAsync(
-        string providerName,
-        string statementType,
-        NadpcoApiStatementLineItem sourceItem,
-        DateTimeOffset synchronizedAt,
-        CancellationToken cancellationToken)
-    {
-        var row = dbContext.FinancialStatementSourceItems.Local.FirstOrDefault(
-                      candidate => candidate.ProviderName == providerName &&
-                          candidate.StatementType == statementType &&
-                          candidate.SourceItemId == sourceItem.ItemID)
-                  ?? await dbContext.FinancialStatementSourceItems.SingleOrDefaultAsync(
-            candidate => candidate.ProviderName == providerName &&
-                candidate.StatementType == statementType &&
-                candidate.SourceItemId == sourceItem.ItemID,
-            cancellationToken);
-
-        if (row is null)
-        {
-            row = new FinancialStatementSourceItemCatalogRow
-            {
-                Id = Guid.NewGuid(),
-                ProviderName = providerName,
-                StatementType = statementType,
-                SourceItemId = sourceItem.ItemID
-            };
-            dbContext.FinancialStatementSourceItems.Add(row);
-        }
-
-        row.TitleFa = sourceItem.ItemTitle;
-        row.Unit = sourceItem.AmountUnit;
-        row.LastSynchronizedAt = synchronizedAt;
-        return row;
-    }
-
-    private async Task EnsureKnownMappingAsync(
-        FinancialStatementSourceItemCatalogRow catalogRow,
-        CancellationToken cancellationToken)
-    {
-        var statementType = Enum.Parse<FinancialStatementType>(catalogRow.StatementType);
-        var metricCode = NadpcoApiStatementItemMaps.TryGetMetricCode(statementType, catalogRow.SourceItemId);
-        if (metricCode is null)
-        {
-            return;
-        }
-
-        var existing = dbContext.FinancialStatementSourceItemMetricMappings.Local.FirstOrDefault(
-                           candidate => candidate.SourceItemCatalogId == catalogRow.Id)
-                       ?? await dbContext.FinancialStatementSourceItemMetricMappings.SingleOrDefaultAsync(
-            candidate => candidate.SourceItemCatalogId == catalogRow.Id,
-            cancellationToken);
-
-        if (existing is null)
-        {
-            dbContext.FinancialStatementSourceItemMetricMappings.Add(
-                new FinancialStatementSourceItemMetricMappingRow
-                {
-                    Id = Guid.NewGuid(),
-                    SourceItemCatalogId = catalogRow.Id,
-                    MetricCode = metricCode
-                });
-            return;
-        }
-
-        existing.MetricCode = metricCode;
-    }
-
-    private async Task<string?> ResolveMetricCodeAsync(Guid sourceItemCatalogId, CancellationToken cancellationToken) =>
-        dbContext.FinancialStatementSourceItemMetricMappings.Local
-            .Where(row => row.SourceItemCatalogId == sourceItemCatalogId)
-            .Select(row => row.MetricCode)
-            .SingleOrDefault()
-        ?? await dbContext.FinancialStatementSourceItemMetricMappings
-            .Where(row => row.SourceItemCatalogId == sourceItemCatalogId)
-            .Select(row => row.MetricCode)
-            .SingleOrDefaultAsync(cancellationToken);
 
     private sealed record NadpcoApiMappedPeriod(
         FiscalPeriodType FiscalPeriodType,

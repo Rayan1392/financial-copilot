@@ -27,7 +27,10 @@ public sealed class ManualNoavaranFinancialStatementBackfillService(
                 payload.Dataset,
                 payload.ExternalReference,
                 timeProvider.GetUtcNow(),
-                $"manual-noavaran-statement-{request.ExternalCompanyId}-{request.StatementType}-{request.FiscalYearEnding}-{request.PeriodMonths}-{payload.Checksum}",
+                // A manual backfill is also the repair path for incomplete or stale persisted
+                // reports. Do not let a matching payload checksum short-circuit normalization:
+                // the normalizer safely upserts the report and every source line item.
+                $"manual-noavaran-statement-{request.ExternalCompanyId}-{request.StatementType}-{request.FiscalYearEnding}-{request.PeriodMonths}-{requestId:N}",
                 payload.ProviderName,
                 SourceMode.CurrentIncremental,
                 $"{request.FiscalYearEnding:D4}",

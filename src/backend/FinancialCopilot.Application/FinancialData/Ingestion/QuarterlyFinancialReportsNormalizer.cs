@@ -166,11 +166,11 @@ public static class QuarterlyFinancialReportsNormalizer
                     continue;
                 }
 
-                var currentValue = FindItem(item.Current, row.Id);
+                var currentValue = FindQuarterlyRowItem(item.Current, row.Id);
                 var previousValue = item.Previous is null
                     ? (Present: false, Value: (decimal?)null, LineId: (Guid?)null, CatalogId: (Guid?)null,
                         Unit: (string?)null, CatalogTitleFa: (string?)null)
-                    : FindItem(item.Previous, row.Id);
+                    : FindQuarterlyRowItem(item.Previous, row.Id);
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime &&
                     !IsExpectedYtdBoundary(FiscalStartOf(item.Current), item.Current.PeriodEnd, item.Current.PeriodMonths))
                 {
@@ -191,10 +191,10 @@ public static class QuarterlyFinancialReportsNormalizer
                         item.Current, item.Previous, row.Id);
                     continue;
                 }
-                if (currentValue.CatalogId != Guid.Parse(row.CatalogId) || string.IsNullOrWhiteSpace(currentValue.Unit))
+                if (!HasApprovedQuarterlyRowIdentity(item.Current, currentValue, row) || string.IsNullOrWhiteSpace(currentValue.Unit))
                 {
                     cellMap[key] = Missing(QuarterlyCellState.IncompatibleObservation,
-                        "The source row does not carry its approved catalog identity and declared unit.", unit,
+                        "The source row does not carry an approved catalog identity and declared unit.", unit,
                         item.Current, item.Previous, row.Id);
                     continue;
                 }
@@ -206,11 +206,11 @@ public static class QuarterlyFinancialReportsNormalizer
                     continue;
                 }
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime && item.Period.Quarter > 1 &&
-                    (currentValue.CatalogId != previousValue.CatalogId || string.IsNullOrWhiteSpace(previousValue.Unit) ||
+                    (!HasApprovedQuarterlyRowIdentity(item.Previous!, previousValue, row) || string.IsNullOrWhiteSpace(previousValue.Unit) ||
                      !string.Equals(currentValue.Unit, previousValue.Unit, StringComparison.Ordinal)))
                 {
                     cellMap[key] = Missing(QuarterlyCellState.IncompatibleObservation,
-                        "Cumulative operands use different source catalog identities or units.", unit,
+                        "Cumulative operands use incompatible source identities or units.", unit,
                         item.Current, item.Previous, row.Id);
                     continue;
                 }
@@ -278,14 +278,16 @@ public static class QuarterlyFinancialReportsNormalizer
                 hasNextYearReference ? "FollowingYearSameQuarterShareBasis" : "OwnPeriodShareBasisFallback",
                 [rawShares.Value, basisShares.Value], ValueScale: ValueScale("source_153"), ComparableEvidence: basisEvidence);
 
-            var currentProfit = item.Current is null ? default : FindAttributableProfit(item.Current);
-            var previousProfit = item.Previous is null ? default : FindAttributableProfit(item.Previous);
-            var referenceProfit = basisReport is null ? default : FindItem(basisReport, 144);
+            var currentProfit = item.Current is null ? default : FindNetProfitNumerator(item.Current);
+            var previousProfit = item.Previous is null ? default : FindNetProfitNumerator(item.Previous);
+            var referenceProfit = basisReport is null ? default : FindQuarterlyRowItem(basisReport, 143);
             var referenceEps = basisReport is null ? default : FindItem(basisReport, 160);
             var referenceCodalEps = basisReport is null ? default : FindItem(basisReport, 317);
             var ownValidation = ValidateEpsBasis(item.Current);
             var predecessorValidation = item.Period.Quarter == 1 ? null : ValidateEpsBasis(item.Previous);
-            var numeratorBasisFailure = item.Period.Quarter > 1 && currentProfit.SourceItemId != previousProfit.SourceItemId
+            var numeratorBasisFailure = item.Period.Quarter > 1 &&
+                                        CanonicalAttributableProfitSourceId(currentProfit.SourceItemId) !=
+                                        CanonicalAttributableProfitSourceId(previousProfit.SourceItemId)
                 ? "attributable_profit_source_changed_between_cumulative_reports"
                 : null;
             var epsFailure = ownValidation ?? predecessorValidation ?? numeratorBasisFailure;
@@ -508,9 +510,9 @@ public static class QuarterlyFinancialReportsNormalizer
         if (report is null) return "required_report_missing";
         if (report.IsComposing) return "separate_statement_scope_required";
         if (!StorageScaleIsSupported(report)) return "unsupported_report_scale";
-        var numerator = FindAttributableProfit(report);
-        if (numerator.SourceItemId is null) return "source_144_or_143_missing_or_unverified";
-        foreach (var id in new[] { numerator.SourceItemId.Value, 153, 160 })
+        var numerator = FindNetProfitNumerator(report);
+        if (numerator.SourceItemId is null) return "source_143_or_313_missing_or_unverified";
+        foreach (var id in new[] { numerator.SourceItemId.Value, 153 })
         {
             var item = FindItem(report, id);
             if (!HasVerifiedCatalogObservation(item))
@@ -523,41 +525,26 @@ public static class QuarterlyFinancialReportsNormalizer
         var shareObservation = FindItem(report, 153);
         if (!TitleDeclaresThousandShares(shareObservation.CatalogTitleFa))
             return "source_153_missing_or_unverified";
-        var profit = numerator.Value!.Value;
         var shares = FindItem(report, 153).Value!.Value;
-        var sourceEps = FindItem(report, 160).Value!.Value;
         if (shares <= 0) return "share_basis_nonpositive";
-        var implied = profit * 1000m / shares;
-        if (decimal.Abs(implied - sourceEps) > 1m) return "source_eps_share_basis_reconciliation_failed";
-        var codalLines = report.Items.Where(item => item.SourceItemId == 317).ToArray();
-        if (codalLines.Length > 1) return "source_317_ambiguous";
-        if (codalLines.Length == 1 && codalLines[0].Value is decimal codalValue)
-        {
-            if (codalLines[0].CatalogId == Guid.Empty || string.IsNullOrWhiteSpace(codalLines[0].Unit) ||
-                decimal.Abs(implied - codalValue) > 1m)
-                return "codal_eps_share_basis_reconciliation_failed";
-        }
         return null;
     }
 
-    // Item 144 is the explicit attributable-profit observation. Some Noavaran separate statements
-    // omit that duplicate line while still reporting net profit as item 143. In a separate statement
-    // those amounts have the same ordinary-shareholder scope; accept item 143 only when item 144 is
-    // absent, and retain the chosen source identity in the cell provenance.
+    // Comparable EPS uses the same net-profit row as the table numerator: prefer item 143 and
+    // substitute approved item 313 only when 143 is missing or has no amount. Item 317 is not an
+    // EPS calculation fallback; EPS is derived from standalone net profit and reported shares.
     private static (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, int? SourceItemId)
-        FindAttributableProfit(QuarterlyReportObservation report)
+        FindNetProfitNumerator(QuarterlyReportObservation report)
     {
-        var attributable = FindItem(report, 144);
-        if (report.Items.Count(item => item.SourceItemId == 144) == 1)
-            return (attributable.Present, attributable.Value, attributable.LineId, attributable.CatalogId,
-                attributable.Unit, 144);
-
-        if (report.Items.Any(item => item.SourceItemId == 144))
-            return (false, null, null, null, null, 144);
-
-        var netProfit = FindItem(report, 143);
-        return (netProfit.Present, netProfit.Value, netProfit.LineId, netProfit.CatalogId, netProfit.Unit, 143);
+        var netProfit = FindQuarterlyRowItem(report, 143);
+        var sourceItemId = netProfit.LineId is { } lineId
+            ? report.Items.Single(item => item.LineItemId == lineId).SourceItemId
+            : 143;
+        return (netProfit.Present, netProfit.Value, netProfit.LineId, netProfit.CatalogId, netProfit.Unit, sourceItemId);
     }
+
+    private static int? CanonicalAttributableProfitSourceId(int? sourceItemId) =>
+        sourceItemId == 313 ? 143 : sourceItemId;
 
     private static string? ValidateShareObservation(QuarterlyReportObservation? report)
     {
@@ -604,12 +591,58 @@ public static class QuarterlyFinancialReportsNormalizer
             items[0].CatalogTitleFa);
     }
 
+    private static (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, string? CatalogTitleFa)
+        FindQuarterlyRowItem(QuarterlyReportObservation report, int rowId)
+    {
+        var direct = FindItem(report, rowId);
+        var directCount = report.Items.Count(item => item.SourceItemId == rowId);
+        if (direct.Present || directCount > 1)
+            return direct;
+
+        // When an approved primary row has no value, use its supplemental observation.
+        // A duplicate primary remains ambiguous and must not silently fall back.
+        var fallbackId = rowId switch
+        {
+            139 => 310,
+            140 => 311,
+            142 => 312,
+            143 => 313,
+            _ => (int?)null
+        };
+        return fallbackId.HasValue ? FindItem(report, fallbackId.Value) : direct;
+    }
+
+    private static bool HasApprovedQuarterlyRowIdentity(
+        QuarterlyReportObservation report,
+        (bool Present, decimal? Value, Guid? LineId, Guid? CatalogId, string? Unit, string? CatalogTitleFa) value,
+        (int Id, string Label, string CatalogId, QuarterlyRowPolicy Policy) row)
+    {
+        if (!value.Present || value.LineId is not { } lineId || value.CatalogId is not { } catalogId || catalogId == Guid.Empty)
+            return false;
+
+        var observation = report.Items.SingleOrDefault(item => item.LineItemId == lineId);
+        if (observation is null || observation.CatalogId != catalogId)
+            return false;
+
+        if (observation.SourceItemId == row.Id)
+            return catalogId == Guid.Parse(row.CatalogId);
+
+        return row.Id switch
+        {
+            139 => observation.SourceItemId == 310,
+            140 => observation.SourceItemId == 311,
+            142 => observation.SourceItemId == 312,
+            143 => observation.SourceItemId == 313,
+            _ => false
+        };
+    }
+
     private static QuarterlyFinancialCell Missing(QuarterlyCellState state, string reason, string unit,
         QuarterlyReportObservation? current, QuarterlyReportObservation? previous, int? sourceId) =>
         new(null, state, reason, unit, false,
             new[] { current?.ReportId, previous?.ReportId }.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray(),
-            new[] { current is null || sourceId is null ? null : FindItem(current, sourceId.Value).LineId,
-                previous is null || sourceId is null ? null : FindItem(previous, sourceId.Value).LineId }
+            new[] { current is null || sourceId is null ? null : FindQuarterlyRowItem(current, sourceId.Value).LineId,
+                previous is null || sourceId is null ? null : FindQuarterlyRowItem(previous, sourceId.Value).LineId }
                 .Where(id => id.HasValue).Select(id => id!.Value).ToArray(),
             "AdjacentCumulativeDifference", [],
             sourceId is null ? null : CurrencyCode($"source_{sourceId}"),
@@ -675,7 +708,7 @@ public static class QuarterlyFinancialReportsNormalizer
         new[] { item.Current?.ReportId, item.Previous?.ReportId }.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
 
     private static Guid[] SourceLineIds(this (QuarterlyFiscalPeriod Period, QuarterlyReportObservation? Current, QuarterlyReportObservation? Previous) item, int rowId) =>
-        new[] { item.Current is null ? null : FindItem(item.Current, rowId).LineId,
-            item.Previous is null ? null : FindItem(item.Previous, rowId).LineId }
+        new[] { item.Current is null ? null : FindQuarterlyRowItem(item.Current, rowId).LineId,
+            item.Previous is null ? null : FindQuarterlyRowItem(item.Previous, rowId).LineId }
             .Where(id => id.HasValue).Select(id => id!.Value).ToArray();
 }

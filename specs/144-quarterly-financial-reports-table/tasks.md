@@ -62,6 +62,12 @@ This is a design package. Every unchecked task below is future implementation wo
 - Product Owner mapping discovery/approval tasks are intentionally absent because those decisions are resolved.
 - The Feature 144 report records backend/frontend verification boundaries and does not claim clean full-suite results or full acceptance completion.
 
+## Supplemental Noavaran source-item fallbacks (2026-10-21)
+
+- [x] **F1** Document approved table-row fallbacks `139 ← 310`, `140 ← 311`, `142 ← 312`, and `143 ← 313`; prefer the primary when it has a value and retain the selected source identity in provenance.
+- [x] **F2** Include supplemental IDs `310`, `311`, `312`, `313`, and `317` in statement retrieval; apply profit-row fallbacks only when the primary is absent or has a null amount, while duplicate primary observations remain ambiguous.
+- [x] **F3** Derive comparable EPS from standalone row-143 net profit (using 313 when 143 is absent/null) and verified shares; raw items 160/317 are optional provenance and do not gate or supply the displayed value.
+
 ## EPS and comparative share-basis correction (2026-10-20)
 
 The 41 completed tasks above describe the **original** implementation. T28's EPS subtraction expectation and T29's displayed-raw-share expectation are superseded for the correction; retain and revise their tests rather than deleting them. [Source investigation and approved methodology](eps-share-basis-investigation.md).
@@ -73,3 +79,10 @@ The 41 completed tasks above describe the **original** implementation. T28's EPS
 - [x] **E5** Updated backend renderer, web table, and PNG to use the same typed values and expose compact per-quarter provenance without adding a row.
 - [x] **E6** Replaced invalid EPS-subtraction expectations and added Qasem rebasing, future-quarter arrival, missing-reference, ending-period lookup, source-provenance, V2 replay, frontend, and PNG regressions.
 - [x] **E7** Ran focused unit (39/39), V2 persistence/replay (1/1), PostgreSQL integration (4/4), frontend (9/9), read-only Development smoke checks, browser PNG export, and production build checks.
+
+## Production missing profit rows (2026-10-21)
+
+- [x] **B1** Inspect production read-only: confirm the 1405/06/31 separate income statement exists and contains gross profit as SourceItemId 310 and net profit as SourceItemId 313, while primary IDs 139 and 143 are absent from that report.
+- [x] **B2** Add bounded retrieval and primary-first fallback mapping `310 → 139` and `313 → 143`; preserve the approved table row IDs and use the supplemental catalog item only when the primary item is absent.
+- [x] **B3** Keep the EPS row derived from standalone net profit and shares; accept approved fallback 313 when item 143 is absent, without requiring item 160 or 317. Update the feature contract and record the production incident in this folder.
+- [ ] **B4** Run focused Feature 144 unit and PostgreSQL integration coverage for primary-preferred selection, fallback selection, and quarter subtraction.

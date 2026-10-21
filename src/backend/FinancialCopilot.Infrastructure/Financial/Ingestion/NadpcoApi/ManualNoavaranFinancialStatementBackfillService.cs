@@ -1,12 +1,15 @@
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.FinancialData.Providers;
+using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.NadpcoApi;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi;
 
 public sealed class ManualNoavaranFinancialStatementBackfillService(
     NadpcoApiDataProviderClient provider,
     IFinancialDataSyncProcessor processor,
+    FinancialIngestionDbContext dbContext,
     TimeProvider timeProvider) : IManualNoavaranFinancialStatementBackfillService
 {
     public async Task<ManualNoavaranFinancialStatementBackfillResult> ExecuteAsync(
@@ -39,19 +42,45 @@ public sealed class ManualNoavaranFinancialStatementBackfillService(
             cancellationToken);
 
         var run = result.Run;
+        var persistedItems = request.StatementType == ManualNoavaranFinancialStatementType.FinancialRatios
+            ? run.ProcessedRecords
+            : await CountPersistedItemsAsync(request, payload.Checksum, cancellationToken);
         if (result.AlreadyProcessed && run.ProcessedRecords > 0)
             return new ManualNoavaranFinancialStatementBackfillResult(
-                run.Id, "AlreadyExists", run.ProcessedRecords, "This provider response was already persisted.");
+                run.Id, "AlreadyExists", run.ProcessedRecords, "This provider response was already persisted.", persistedItems);
 
         if (run.Status == DataSyncRunStatus.Failed)
             return new ManualNoavaranFinancialStatementBackfillResult(
-                run.Id, "PersistenceFailed", run.ProcessedRecords, run.ErrorMessage ?? "Data persistence failed.");
+                run.Id, "PersistenceFailed", run.ProcessedRecords, run.ErrorMessage ?? "Data persistence failed.", persistedItems);
 
         if (run.ProcessedRecords == 0)
             return new ManualNoavaranFinancialStatementBackfillResult(
-                run.Id, "Empty", 0, "The provider returned no persistable data for the selected report.");
+                run.Id, "Empty", 0, "The provider returned no persistable data for the selected report.", persistedItems);
 
         return new ManualNoavaranFinancialStatementBackfillResult(
-            run.Id, "Persisted", run.ProcessedRecords, "The report was retrieved and persisted.");
+            run.Id, "Persisted", run.ProcessedRecords, "The report was retrieved and persisted.", persistedItems);
+    }
+
+    private async Task<int> CountPersistedItemsAsync(
+        ManualNoavaranFinancialStatementBackfillRequest request,
+        string payloadChecksum,
+        CancellationToken cancellationToken)
+    {
+        var statementType = request.StatementType switch
+        {
+            ManualNoavaranFinancialStatementType.BalanceSheet => "BalanceSheet",
+            ManualNoavaranFinancialStatementType.IncomeStatement => "IncomeStatement",
+            ManualNoavaranFinancialStatementType.CashFlow => "CashFlow",
+            _ => throw new ArgumentOutOfRangeException(nameof(request.StatementType))
+        };
+        var statementIds = dbContext.FinancialStatements.AsNoTracking()
+            .Where(statement => statement.ProviderName == ProviderSources.NoavaranCurrentApiName &&
+                statement.ExternalCompanyId == request.ExternalCompanyId &&
+                statement.StatementType == statementType &&
+                statement.SourcePayloadChecksum == payloadChecksum)
+            .Select(statement => statement.Id);
+
+        return await dbContext.FinancialStatementLineItems.AsNoTracking()
+            .CountAsync(item => statementIds.Contains(item.FinancialStatementId), cancellationToken);
     }
 }

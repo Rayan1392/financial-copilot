@@ -519,4 +519,5 @@ public sealed record AdminManualNoavaranFinancialStatementBackfillResponse(
     Guid? RunId,
     string Outcome,
     int ProcessedRecords,
-    string? Message);
+    string? Message,
+    int PersistedItems = 0);

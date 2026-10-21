@@ -205,7 +205,7 @@ public sealed class NoavaranFinancialStatementBackfillController(
                     type),
                 cancellationToken);
             var response = new AdminManualNoavaranFinancialStatementBackfillResponse(
-                result.RunId, result.Outcome, result.ProcessedRecords, result.Message);
+                result.RunId, result.Outcome, result.ProcessedRecords, result.Message, result.PersistedItems);
             return result.Outcome switch
             {
                 "Persisted" => Ok(response),
@@ -218,7 +218,7 @@ public sealed class NoavaranFinancialStatementBackfillController(
         catch (FinancialProviderException exception)
         {
             return StatusCode(StatusCodes.Status502BadGateway,
-                new AdminManualNoavaranFinancialStatementBackfillResponse(null, "UpstreamFailed", 0, exception.Message));
+                new AdminManualNoavaranFinancialStatementBackfillResponse(null, "UpstreamFailed", 0, exception.Message, 0));
         }
 
     }

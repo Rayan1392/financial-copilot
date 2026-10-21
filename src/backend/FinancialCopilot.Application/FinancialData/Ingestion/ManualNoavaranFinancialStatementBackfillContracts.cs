@@ -18,7 +18,8 @@ public sealed record ManualNoavaranFinancialStatementBackfillResult(
     Guid? RunId,
     string Outcome,
     int ProcessedRecords,
-    string? Message = null);
+    string? Message = null,
+    int PersistedItems = 0);
 
 public interface IManualNoavaranFinancialStatementBackfillService
 {

@@ -554,6 +554,7 @@ export function GetCompanyIdPage() {
                 <ResultItem label="وضعیت" value={financialResult.outcome} />
                 <ResultItem label="شناسه اجرا" value={financialResult.runId ?? "—"} />
                 <ResultItem label="رکوردهای ذخیره‌شده" value={financialResult.processedRecords} />
+                <ResultItem label="اقلام ذخیره‌شده" value={financialResult.persistedItems} />
                 {financialResult.message && <ResultItem label="جزئیات" value={financialResult.message} />}
               </dl>
             </div>
@@ -568,6 +569,7 @@ type ManualFinancialStatementResponse = {
   runId: string | null;
   outcome: string;
   processedRecords: number;
+  persistedItems: number;
   message: string | null;
 };
 

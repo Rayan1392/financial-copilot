@@ -436,10 +436,17 @@ public sealed class TelegramChannelFinancialStatementHandler(
         if (matchingRows.Length == 0)
             return (false, "No persisted statement matches the exact company, period, and explicit variants.", false);
 
-        // This is a conservative reconciliation signal, not a financial validity rule. A
-        // six-month response that omits approved items present in this company's matching
-        // three-month report remains persisted, then gets at most two delayed re-fetches.
-        if (category == ManualNoavaranFinancialStatementType.IncomeStatement && periodType == "SixMonths")
+        // This is a conservative reconciliation signal, not a financial validity rule. An
+        // interim response that omits approved items present in the immediately preceding
+        // cumulative report remains persisted, then gets at most two delayed re-fetches.
+        // CodalMirror posts can arrive before Noavaran has finished publishing every item.
+        var precedingPeriodType = periodType switch
+        {
+            "SixMonths" => "ThreeMonths",
+            "NineMonths" => "SixMonths",
+            _ => null
+        };
+        if (category == ManualNoavaranFinancialStatementType.IncomeStatement && precedingPeriodType is not null)
         {
             var approved = QuarterlyFinancialReportsNormalizer.ApprovedMappings;
             var approvedCatalogIds = approved.Select(x => Guid.Parse(x.CatalogId)).ToArray();
@@ -451,7 +458,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
             var priorIds = await financial.FinancialStatements.AsNoTracking()
                 .Where(x => x.ProviderName == ProviderSources.NoavaranCurrentApiName &&
                     x.ExternalCompanyId == externalCompanyId && x.StatementType == statementType &&
-                    x.PeriodType == "ThreeMonths" && x.PeriodEnd < periodEnd &&
+                    x.PeriodType == precedingPeriodType && x.PeriodEnd < periodEnd &&
                     starts.Contains(x.PeriodStart) && scopes.Contains(x.IsComposing) &&
                     auditFlags.Contains(x.IsAudited) && restatementFlags.Contains(x.IsRepresented))
                 .Select(x => x.Id).ToArrayAsync(cancellationToken);
@@ -470,7 +477,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
                 {
                     var missingSourceIds = approved.Where(x => missing.Contains(Guid.Parse(x.CatalogId)))
                         .Select(x => x.SourceItemId).OrderBy(x => x).ToArray();
-                    return (true, $"Six-month source response lacks previously observed approved item IDs: {string.Join(",", missingSourceIds)}.", true);
+                    return (true, $"{periodType} source response lacks previously observed approved item IDs from {precedingPeriodType}: {string.Join(",", missingSourceIds)}.", true);
                 }
             }
         }

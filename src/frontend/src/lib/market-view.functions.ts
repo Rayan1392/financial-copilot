@@ -3,11 +3,6 @@ import {
   financialCopilotServerApi,
   requireFinancialCopilotAuth,
 } from "@/integrations/financial-copilot/api-client.server";
-import {
-  apiUrl,
-  FinancialCopilotAuthError,
-  getAccessToken,
-} from "@/integrations/financial-copilot/auth";
 
 export interface UsageSummary {
   balance: number;
@@ -67,35 +62,14 @@ export const getUsage = createServerFn({ method: "GET" })
     financialCopilotServerApi<UsageSummary>(context, "/api/v1/usage/me"),
   );
 
-export const getWatchlist = () => authorizedMarketRequest<WatchlistView>("/api/v1/watchlists/me");
+export const getWatchlist = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<WatchlistView>(context, "/api/v1/watchlists/me"),
+  );
 
-export const getMarketSummary = () =>
-  authorizedMarketRequest<MarketSummary>("/api/v1/market/summary");
-
-async function authorizedMarketRequest<T>(path: string): Promise<T> {
-  const token = await getAccessToken();
-  if (!token) throw new FinancialCopilotAuthError("Sign-in required.", 401);
-
-  const response = await fetch(apiUrl(path), {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-      "X-Correlation-Id": crypto.randomUUID(),
-    },
-  });
-
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null);
-    throw new FinancialCopilotAuthError(
-      problem?.detail ?? problem?.title ?? `Market data request failed (${response.status}).`,
-      response.status,
-      problem?.type,
-      problem?.correlationId,
-    );
-  }
-
-  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
-}
+export const getMarketSummary = createServerFn({ method: "GET" })
+  .middleware([requireFinancialCopilotAuth])
+  .handler(async ({ context }) =>
+    financialCopilotServerApi<MarketSummary>(context, "/api/v1/market/summary"),
+  );

@@ -1,14 +1,50 @@
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { getMarketSummary, getWatchlist } from "@/lib/market-view.functions";
+import type { MarketMover } from "@/lib/market-view.functions";
 import { formatNumber, formatPercent, relativeTime } from "@/lib/format/persian";
 
+function MarketMoverList({
+  title,
+  movers,
+  positive,
+}: {
+  title: string;
+  movers: MarketMover[];
+  positive: boolean;
+}) {
+  if (movers.length === 0) return null;
+
+  return (
+    <section className="min-w-0">
+      <h4 className={`mb-2 text-[11px] font-medium ${positive ? "text-emerald" : "text-rose"}`}>
+        {title}
+      </h4>
+      <div className="space-y-2">
+        {movers.slice(0, 3).map((mover) => (
+          <div key={mover.symbol} className="flex items-center justify-between gap-2 text-xs">
+            <div className="min-w-0">
+              <div className="truncate text-foreground" title={mover.name}>
+                {mover.name || mover.symbol}
+                {mover.isStale ? " *" : ""}
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                {formatNumber(mover.latestPrice)}
+              </div>
+            </div>
+            <span className={positive ? "shrink-0 text-emerald" : "shrink-0 text-rose"}>
+              {formatPercent(mover.changePercent)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function ContextPanel() {
-  const fetchSummary = useServerFn(getMarketSummary);
-  const fetchWatchlist = useServerFn(getWatchlist);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["market-summary"],
-    queryFn: () => fetchSummary(),
+    queryFn: getMarketSummary,
     retry: false,
     throwOnError: false,
     refetchOnWindowFocus: false,
@@ -19,7 +55,7 @@ export function ContextPanel() {
     isError: watchlistError,
   } = useQuery({
     queryKey: ["watchlist"],
-    queryFn: () => fetchWatchlist(),
+    queryFn: getWatchlist,
     retry: false,
     throwOnError: false,
     refetchOnWindowFocus: false,
@@ -56,6 +92,12 @@ export function ContextPanel() {
               </div>
             ))}
           </div>
+          {data && (data.topGainers.length > 0 || data.topLosers.length > 0) && (
+            <div className="mt-5 grid grid-cols-2 gap-3 border-t border-hairline pt-4">
+              <MarketMoverList title="بیشترین رشد" movers={data.topGainers} positive />
+              <MarketMoverList title="بیشترین افت" movers={data.topLosers} positive={false} />
+            </div>
+          )}
           {data?.asOf && (
             <p className="mt-3 text-[10px] text-muted-foreground">
               بروزرسانی {relativeTime(data.asOf)}
@@ -69,9 +111,7 @@ export function ContextPanel() {
           {watchlistLoading && (
             <p className="text-xs text-muted-foreground">در حال بارگذاری دیده‌بان...</p>
           )}
-          {watchlistError && (
-            <p className="text-xs text-rose">داده دیده‌بان در دسترس نیست.</p>
-          )}
+          {watchlistError && <p className="text-xs text-rose">داده دیده‌بان در دسترس نیست.</p>}
           {!watchlistLoading && !watchlistError && watchlist?.symbols.length === 0 && (
             <p className="text-xs text-muted-foreground">دیده‌بان خالی است.</p>
           )}

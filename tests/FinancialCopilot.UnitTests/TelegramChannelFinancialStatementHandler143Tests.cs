@@ -17,6 +17,28 @@ namespace FinancialCopilot.UnitTests;
 public sealed class TelegramChannelFinancialStatementHandler143Tests
 {
     [Fact]
+    public async Task Telegram_delivery_schedules_fetch_until_configured_delay_and_suppresses_duplicates()
+    {
+        using var f = new Fixture(enabled: true);
+        f.StatementOptions.InitialDelayMinutes = 7;
+
+        Assert.Equal(TelegramAssistantResultStatus.Accepted, (await f.Call())?.Status);
+        var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
+        Assert.Equal("Feature143:Scheduled", checkpoint.Status);
+        Assert.Equal(0, f.ResolveCalls);
+        Assert.Empty(f.Calls);
+        Assert.Equal(TelegramAssistantResultStatus.Replayed, (await f.Call())?.Status);
+        Assert.False(await f.Handler.ProcessScheduledAsync(checkpoint.Id, default));
+
+        f.Clock.Advance(TimeSpan.FromMinutes(6));
+        Assert.False(await f.Handler.ProcessScheduledAsync(checkpoint.Id, default));
+        f.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.True(await f.Handler.ProcessScheduledAsync(checkpoint.Id, default));
+        Assert.Equal(4, f.Calls.Count);
+        Assert.False(await f.Handler.ProcessScheduledAsync(checkpoint.Id, default));
+    }
+
+    [Fact]
     public async Task Disabled_feature_records_skip_without_resolving_company_or_calling_provider()
     {
         using var f = new Fixture(enabled: false);
@@ -31,7 +53,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     public async Task Annual_announcement_calls_each_existing_category_service_and_replays_completed_post()
     {
         using var f = new Fixture(enabled: true);
-        var result = await f.Call();
+        var result = await f.CallAndFetch();
         var replay = await f.Call();
         Assert.Equal(TelegramAssistantResultStatus.Accepted, result?.Status);
         Assert.Equal(TelegramAssistantResultStatus.Replayed, replay?.Status);
@@ -52,7 +74,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     {
         using var f = new Fixture(enabled: true);
         f.FailIncomeOnce = true;
-        await f.Call();
+        await f.CallAndFetch();
         Assert.Equal("Feature143:Partial", f.Auth.TelegramProcessedUpdates.Single().Status);
         await f.Call();
         Assert.Equal(5, f.Calls.Count);
@@ -68,7 +90,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         f.SeedComparableThreeMonthIncome();
         f.PartialIncomeFirst = true;
 
-        await f.Call();
+        await f.CallAndFetch();
 
         Assert.Equal("Feature143:Partial", f.Auth.TelegramProcessedUpdates.Single().Status);
         Assert.Equal(1, f.Calls.Count(x => x.StatementType == ManualNoavaranFinancialStatementType.IncomeStatement));
@@ -80,7 +102,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         using var f = new Fixture(enabled: true, interim: true, resolveInterimFiscal: true);
         f.SeedComparableThreeMonthIncome();
         f.PartialIncomeFirst = true;
-        await f.Call();
+        await f.CallAndFetch();
         var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
 
         Assert.False(await f.Handler.ReconcilePendingAsync(checkpoint.Id, default));
@@ -103,7 +125,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
         f.SeedComparableThreeMonthIncome();
         f.PartialIncomeFirst = true;
         f.KeepPartialIncome = true;
-        await f.Call();
+        await f.CallAndFetch();
         var checkpoint = f.Auth.TelegramProcessedUpdates.Single();
 
         f.Clock.Advance(TimeSpan.FromMinutes(31));
@@ -122,7 +144,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     public async Task Interim_announcement_without_exact_fiscal_evidence_is_skipped()
     {
         using var f = new Fixture(enabled: true, interim: true);
-        var result = await f.Call();
+        var result = await f.CallAndFetch();
         Assert.Equal(TelegramAssistantResultStatus.Accepted, result?.Status);
         Assert.Equal("Feature143:Unresolved", f.Auth.TelegramProcessedUpdates.Single().Status);
         Assert.Empty(f.Calls);
@@ -132,7 +154,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     public async Task Interim_announcement_uses_persisted_fiscal_year_end_evidence()
     {
         using var f = new Fixture(enabled: true, interim: true, resolveInterimFiscal: true);
-        await f.Call();
+        await f.CallAndFetch();
         Assert.Equal(4, f.Calls.Count);
         Assert.All(f.Calls, x => Assert.Equal((1405, 6), (x.FiscalYearEnding, x.PeriodMonths)));
     }
@@ -153,7 +175,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
             @NoavaranCodal
             """, 9);
 
-        await f.Call();
+        await f.CallAndFetch();
 
         Assert.Equal(4, f.Calls.Count);
         Assert.All(f.Calls, call => Assert.Equal(("19", 1405, 9),
@@ -171,7 +193,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     public async Task Targeted_recovery_reprocesses_only_a_stored_unresolved_announcement()
     {
         using var f = new Fixture(enabled: true, interim: true);
-        await f.Call();
+        await f.CallAndFetch();
         Assert.Equal("Feature143:Unresolved", f.Auth.TelegramProcessedUpdates.Single().Status);
         Assert.Empty(f.Calls);
         await f.Call();
@@ -205,7 +227,7 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
     public async Task Targeted_recovery_never_replays_completed_or_in_flight_checkpoints()
     {
         using var f = new Fixture(enabled: true);
-        await f.Call();
+        await f.CallAndFetch();
         var completed = await f.Handler.RecoverSkippedAsync(-100123, 20, default);
         Assert.Equal("CheckpointNotEligible", completed.Code);
         Assert.Equal(4, f.Calls.Count);
@@ -485,6 +507,16 @@ public sealed class TelegramChannelFinancialStatementHandler143Tests
             financial.SaveChanges();
         }
         public Task<TelegramAssistantResult?> Call() => handler.HandleIfRecognizedAsync(update, actor, default);
+        public async Task<TelegramAssistantResult?> CallAndFetch()
+        {
+            var result = await Call();
+            if (Auth.TelegramProcessedUpdates.SingleOrDefault()?.Status == "Feature143:Scheduled")
+            {
+                Clock.Advance(TimeSpan.FromMinutes(StatementOptions.InitialDelayMinutes));
+                Assert.True(await handler.ProcessScheduledAsync(Auth.TelegramProcessedUpdates.Single().Id, default));
+            }
+            return result;
+        }
         public void SetText(string text, int? periodMonths = null)
         {
             update = update with { Text = text };

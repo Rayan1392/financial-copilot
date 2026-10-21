@@ -552,8 +552,11 @@ public sealed class NadpcoApiProviderTests
             TimeProvider.System,
             NullLogger<NadpcoApiDataProviderClient>.Instance);
         var processor = new CapturingFinancialDataSyncProcessor();
+        using var ingestionDb = new FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FinancialIngestionDbContext(
+            new DbContextOptionsBuilder<FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence.FinancialIngestionDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var service = new FinancialCopilot.Infrastructure.Financial.Ingestion.NadpcoApi.ManualNoavaranFinancialStatementBackfillService(
-            provider, processor, TimeProvider.System);
+            provider, processor, ingestionDb, TimeProvider.System);
         var request = new ManualNoavaranFinancialStatementBackfillRequest(
             "3", 1404, 12, ManualNoavaranFinancialStatementType.IncomeStatement);
 

@@ -80,7 +80,7 @@ public sealed class TelegramChannelFinancialStatementHandler(
         Dictionary<string, FinancialStatementCategoryOutcome> prior = new(StringComparer.Ordinal);
         if (existing is not null)
         {
-            if (existing.Status == "Feature143:RecoveryClaimed" && allowRecoveryClaim)
+            if ((existing.Status is "Feature143:RecoveryClaimed" or "Feature143:ScheduledClaimed") && allowRecoveryClaim)
             {
                 prior = ReadCategoryOutcomes(existing.ResponseJson);
             }
@@ -93,9 +93,9 @@ public sealed class TelegramChannelFinancialStatementHandler(
                 if (acquired != 1) return Empty(TelegramAssistantResultStatus.Replayed, update);
                 prior = ReadCategoryOutcomes(existing.ResponseJson);
             }
-            else if (!(existing.Status == "Feature143:RecoveryClaimed" && allowRecoveryClaim))
+            else if (!((existing.Status is "Feature143:RecoveryClaimed" or "Feature143:ScheduledClaimed") && allowRecoveryClaim))
             {
-                if (existing.Status == "Feature143:Claimed")
+                if (existing.Status is "Feature143:Claimed" or "Feature143:Scheduled")
                     return Empty(TelegramAssistantResultStatus.Replayed, update);
             // A prior invocation stopped after its durable claim. Its provider-side completion
             // cannot be proven; fail closed for operator review rather than replaying blindly.
@@ -105,11 +105,14 @@ public sealed class TelegramChannelFinancialStatementHandler(
             }
         }
 
+        var options = configured.Value;
         var claim = existing is null ? new TelegramProcessedUpdateRow
         {
             Id = Guid.NewGuid(), IdempotencyKey = key, TelegramUpdateId = update.TelegramUpdateId,
             TelegramUserId = 0, TelegramChatId = update.TelegramChatId, TenantId = actor.TenantId,
-            Status = "Feature143:Claimed", ResponseJson = "{}", ProcessedAtUtc = clock.GetUtcNow(),
+            Status = options.AutoBackfillEnabled ? "Feature143:Scheduled" : "Feature143:Claimed",
+            ResponseJson = JsonSerializer.Serialize(new { Announcement = announcement }, JsonOptions),
+            ProcessedAtUtc = clock.GetUtcNow(),
             ExpiresAtUtc = clock.GetUtcNow().AddDays(3650), CorrelationId = update.CorrelationId
         } : await auth.TelegramProcessedUpdates.SingleAsync(x => x.Id == existing.Id, cancellationToken);
         if (existing is null) auth.TelegramProcessedUpdates.Add(claim);
@@ -124,13 +127,18 @@ public sealed class TelegramChannelFinancialStatementHandler(
             return Empty(TelegramAssistantResultStatus.Replayed, update);
         }
 
-        var options = configured.Value;
         if (!options.AutoBackfillEnabled)
         {
             claim.Status = "Feature143:Disabled";
             claim.ResponseJson = JsonSerializer.Serialize(new { Outcome = "Disabled", Announcement = announcement }, JsonOptions);
             await auth.SaveChangesAsync(cancellationToken);
             Log(update, announcement, null, null, "Disabled", "Automation is disabled.");
+            return Empty(TelegramAssistantResultStatus.Accepted, update);
+        }
+
+        if (existing is null)
+        {
+            Log(update, announcement, null, null, "Scheduled", $"Initial fetch delayed by {options.InitialDelayMinutes} minutes.");
             return Empty(TelegramAssistantResultStatus.Accepted, update);
         }
 
@@ -268,6 +276,32 @@ public sealed class TelegramChannelFinancialStatementHandler(
             checkpoint.TelegramChatId, null, messageId,
             null, null, null, "fa-IR", clock.GetUtcNow(),
             $"feature143-reconciliation-{checkpoint.Id:N}", "channel");
+        var actor = new CurrentActor(ActorType.ApiClient, Guid.Empty, tenantId, AuthenticationMode.ApiClient);
+        await HandleRecognizedAsync(update, actor, announcement, allowRecoveryClaim: true, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ProcessScheduledAsync(Guid checkpointId, CancellationToken cancellationToken)
+    {
+        var checkpoint = await auth.TelegramProcessedUpdates.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == checkpointId, cancellationToken);
+        if (checkpoint?.Status != "Feature143:Scheduled" || checkpoint.TenantId is not Guid tenantId ||
+            !configured.Value.AutoBackfillEnabled ||
+            checkpoint.ProcessedAtUtc.AddMinutes(configured.Value.InitialDelayMinutes) > clock.GetUtcNow())
+            return false;
+        var announcement = ReadAnnouncement(checkpoint.ResponseJson);
+        var messageId = ParseMessageId(checkpoint.IdempotencyKey);
+        if (announcement is null || messageId is null) return false;
+
+        var acquired = await auth.TelegramProcessedUpdates
+            .Where(x => x.Id == checkpointId && x.Status == "Feature143:Scheduled")
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "Feature143:ScheduledClaimed"), cancellationToken);
+        if (acquired != 1) return false;
+
+        var update = new TelegramAssistantUpdate(
+            checkpoint.TelegramUpdateId, TelegramAssistantUpdateKind.ChannelPost, 0,
+            checkpoint.TelegramChatId, null, messageId, null, null, null, "fa-IR",
+            clock.GetUtcNow(), $"feature143-scheduled-{checkpoint.Id:N}", "channel");
         var actor = new CurrentActor(ActorType.ApiClient, Guid.Empty, tenantId, AuthenticationMode.ApiClient);
         await HandleRecognizedAsync(update, actor, announcement, allowRecoveryClaim: true, cancellationToken);
         return true;

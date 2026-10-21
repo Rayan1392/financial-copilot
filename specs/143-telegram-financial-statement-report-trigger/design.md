@@ -18,6 +18,8 @@ The announcement parser returns the reporting end date independently. The existi
 
 `ChannelFinancialStatements:AutoBackfillEnabled` is a separate boolean, false by default. Existing `ChannelMonthlyReports` settings continue to govern actor authorization; the configured channel allowlist must explicitly contain the CodalMirror signed chat ID (an empty list keeps Feature 143 closed). Production must explicitly enable the new flag after deployment review.
 
+`ChannelFinancialStatements:InitialDelayMinutes` defaults to 5 and accepts 1–1440. The authorized Telegram delivery stores the recognized announcement as a durable `Feature143:Scheduled` checkpoint without calling Noavaran. The API worker scans every 30 seconds and atomically claims due checkpoints, then runs the existing four-category backfill and validation flow. The delay starts when the API accepts the channel post; worker scheduling can add up to about 30 seconds. The environment example exposes `CHANNEL_FINANCIAL_STATEMENTS_INITIAL_DELAY_MINUTES`, which Docker Compose maps to the application setting. Duplicate deliveries while scheduled use the existing message key and cannot trigger an early fetch. The manual admin backfill endpoint is unaffected.
+
 ## Operational visibility
 
 Structured application logs include chat/message, ticker, external company id, announcement category, reported period end, resolved fiscal-year ending, months, explicit variant flags, per-category result/count, failure reason, and correlation id. Credentials and tokens are never logged.

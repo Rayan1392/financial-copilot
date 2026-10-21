@@ -335,7 +335,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITelegramDisclosurePaginationStateStore, TelegramDisclosurePaginationStateStore>();
         services.AddScoped<ITelegramAiAssistantAdapter, TelegramAiAssistantAdapter>();
         services.AddOptions<TelegramChannelFinancialStatementOptions>()
-            .BindConfiguration(TelegramChannelFinancialStatementOptions.SectionName);
+            .BindConfiguration(TelegramChannelFinancialStatementOptions.SectionName)
+            .Validate(options => options.InitialDelayMinutes is > 0 and <= 1440,
+                "ChannelFinancialStatements:InitialDelayMinutes must be between 1 and 1440.")
+            .ValidateOnStart();
         services.AddSingleton<ITelegramFinancialStatementRecognizer, TelegramFinancialStatementRecognizer>();
         services.AddScoped<TelegramChannelFinancialStatementHandler>();
         services.AddScoped<ITelegramChannelFinancialStatementHandler>(provider =>

@@ -46,8 +46,8 @@ public sealed class QuarterlyFinancialReports144Tests
             DateTimeOffset.Parse("2026-10-12T00:00:00Z"));
 
         Assert.Equal("Available", result.Status);
-        Assert.Equal(16, result.Rows.Count);
-        Assert.Equal(new int?[] { 15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 279, 278, 143, 160, 153 },
+        Assert.Equal(15, result.Rows.Count);
+        Assert.Equal(new int?[] { 15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 278, 143, 160, 153 },
             result.Rows.Select(row => row.SourceItemId));
         Assert.Equal("فروش", result.Rows[0].LabelFa);
         Assert.Equal("مارجین ناخالص", result.Rows[3].LabelFa);
@@ -301,9 +301,9 @@ public sealed class QuarterlyFinancialReports144Tests
     }
 
     [Fact]
-    public void ApprovedMappings_ContainExactlyTheFifteenApprovedSourceIdentities()
+    public void ApprovedMappings_ContainExactlyTheFourteenApprovedSourceIdentities()
     {
-        Assert.Equal(new[] { 15, 1, 139, 5, 39, 140, 12, 40, 142, 334, 279, 278, 143, 160, 153 },
+        Assert.Equal(new[] { 15, 1, 139, 5, 39, 140, 12, 40, 142, 334, 278, 143, 160, 153 },
             QuarterlyFinancialReportsNormalizer.ApprovedMappings.Select(item => item.SourceItemId));
         Assert.Equal(new[]
         {
@@ -312,7 +312,7 @@ public sealed class QuarterlyFinancialReports144Tests
             "17f91e30-ba52-4789-89d0-3ffd3ac61c17", "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
             "b8342891-ad45-4c4b-a4dd-361bb5f37adb", "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f",
             "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3", "31f4454a-78d2-41fb-8caa-b86564423cd6",
-            "abdbd529-7e27-43cc-a955-10ae19aea4cb", "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
+            "cb6c92c3-cff6-40c1-a85a-db9fde4ba791",
             "bd36909d-abf8-44c2-b7db-5e53dd678b53", "2146da26-b28e-4d04-b50c-f49fc9b70e61",
             "e98e6c00-7204-44b1-a279-bbbb68781d3c"
         }, QuarterlyFinancialReportsNormalizer.ApprovedMappings.Select(item => item.CatalogId));

@@ -14,6 +14,10 @@ describe("quarterly financial table image export", () => {
         currentFillColor = value;
       },
       scale: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
       fillRect: vi.fn(() => fillColors.push(currentFillColor)),
       strokeRect: vi.fn(),
       fillText: vi.fn((text: string) => drawnText.push({ text, color: currentFillColor })),
@@ -74,6 +78,10 @@ describe("quarterly financial table image export", () => {
         currentFont = value;
       },
       scale: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
       fillRect: vi.fn(() => fillColors.push(currentFillColor)),
       strokeRect: vi.fn(),
       fillText: vi.fn((text: string) => {
@@ -158,5 +166,42 @@ describe("quarterly financial table image export", () => {
       /^\u062c\u062f\u0648\u0644-\u0645\u0627\u0644\u06cc-\u0641\u0635\u0644\u06cc-\u0686\u062e\u0632\u0631-\u06f1\u06f4[\u06f0-\u06f9]{2}-[\u06f0-\u06f9]{2}-[\u06f0-\u06f9]{2}\.png$/,
     );
     expect(downloadedFilename).not.toMatch(/--|[<>:"/\\|?*]/);
+  });
+
+  it("adds the Sapio masthead/footer in both modes and plots the optional chart", async () => {
+    const text: string[] = [];
+    const context = {
+      scale: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(),
+      beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn(),
+      arc: vi.fn(), fill: vi.fn(),
+      fillText: vi.fn((value: string) => text.push(value)),
+      measureText: vi.fn(() => ({ width: 30 })),
+    } as unknown as CanvasRenderingContext2D;
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
+    const toBlob = vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => callback(new Blob()));
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:quarterly-chart");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const model: QuarterlyFinancialTableModel = {
+      title: "گزارش شغدیر", symbol: "شغدیر", summary: "میلیون ریال",
+      quarters: [{ label: "سال مالی ۱۴۰۵، فصل ۱", year: 1405, quarter: 1, sourceIndex: 1 }],
+      rows: [
+        { label: "فروش", sourceItemId: 15, values: ["۱۰۰", "-"], chartValues: [100], grossMargin: false },
+        { label: "سود ناخالص", sourceItemId: 139, values: ["۲۰", "-"], chartValues: [20], grossMargin: false },
+        { label: "مارجین ناخالص", sourceItemId: null, values: ["۲۰", "-"], chartValues: [20], grossMargin: true },
+        { label: "سود خالص", sourceItemId: 143, values: ["(۱۰)", "-"], chartValues: [-10], grossMargin: false },
+      ],
+    };
+    await downloadQuarterlyFinancialTableImage(model, false);
+    expect(text).toContain("ساپیو");
+    expect(text).toContain("دستیار هوشمند بازار سرمایه");
+    expect(text).toContain("گزارش مالی فصلی | ساپیو - دستیار هوشمند بازار");
+    expect(text).not.toContain("روند فروش و سود فصلی");
+    const withoutChart = toBlob.mock.instances[0] as HTMLCanvasElement;
+    text.length = 0;
+    await downloadQuarterlyFinancialTableImage(model, true);
+    expect(text).toContain("روند فروش و سود فصلی");
+    expect(context.arc).toHaveBeenCalled();
+    const withChart = toBlob.mock.instances[1] as HTMLCanvasElement;
+    expect(withChart.height).toBeGreaterThan(withoutChart.height);
   });
 });

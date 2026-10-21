@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { buildFinancialCopilotApiUrl } from "../../integrations/financial-copilot/api-url";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
 import {
@@ -7,12 +8,14 @@ import {
   type QuarterlyFinancialPeriod,
 } from "./quarterly-financial-table-header";
 import { downloadQuarterlyFinancialTableImage } from "./quarterly-financial-table-image";
+import { QuarterlyFinancialChart } from "./quarterly-financial-chart";
 
 export interface QuarterlyFinancialTableRow {
   label: string;
   sourceItemId: number | null;
   values: string[];
   grossMargin: boolean;
+  chartValues?: Array<number | null>;
 }
 
 export interface QuarterlyFinancialTableModel {
@@ -83,6 +86,11 @@ function numericValue(value: string): number | null {
   const paren = normalized.match(/^\(([+-]?[\d.]+)\)$/);
   const parsed = Number(paren ? `-${paren[1]}` : normalized.replace(/[^\d.+-]/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function chartNumericValue(value: string): number | null {
+  // The backend uses a short dash for an available zero and an em dash for unavailable.
+  return value.trim() === "-" ? 0 : numericValue(value);
 }
 
 function displayFinancialValue(value: string): string {
@@ -168,7 +176,7 @@ function isChangeHeader(value: string) {
   return /تغییر|درصد تغییر|فصل.?به.?فصل|qoq/i.test(value);
 }
 
-// Feature 144's typed result is rendered in this fixed 16-row order. Markdown does not carry
+// Feature 144's typed result is rendered in this fixed 15-row order. Markdown does not carry
 // row metadata, so attach stable source IDs only when the complete contracted row set is present.
 const FEATURE_144_SOURCE_ITEM_IDS: ReadonlyArray<number | null> = [
   15,
@@ -182,7 +190,6 @@ const FEATURE_144_SOURCE_ITEM_IDS: ReadonlyArray<number | null> = [
   40,
   142,
   334,
-  279,
   278,
   143,
   160,
@@ -197,10 +204,10 @@ export function parseQuarterlyFinancialTable(
     if (!line.trim().startsWith("|")) return false;
     const cells = splitRow(line);
     return (
-      cells.length >= 7 &&
+      cells.length >= 3 &&
       /شرح/.test(cells[0]) &&
       cells.some(isChangeHeader) &&
-      cells.filter((cell) => quarterInfo(cell, -1)).length >= 5
+      cells.filter((cell) => quarterInfo(cell, -1)).length >= 1
     );
   });
   if (headerIndex < 0 || !lines[headerIndex + 1]?.trim().startsWith("|")) return null;
@@ -215,7 +222,7 @@ export function parseQuarterlyFinancialTable(
   } else {
     quarters.sort((a, b) => a.year! - b.year! || a.quarter! - b.quarter!);
   }
-  if (quarters.length < 5) return null;
+  if (quarters.length < 1 || quarters.length > 12) return null;
   const changeIndex = header.findIndex(isChangeHeader);
   const rows: QuarterlyFinancialTableRow[] = [];
   let endIndex = headerIndex + 2;
@@ -245,6 +252,7 @@ export function parseQuarterlyFinancialTable(
       rows.push({
         label,
         sourceItemId: null,
+        chartValues: values.slice(0, quarters.length).map(chartNumericValue),
         values: values.map((value, index) =>
           index === values.length - 1
             ? value
@@ -304,10 +312,24 @@ export function parseQuarterlyFinancialTable(
 
 export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTableModel }) {
   const [exporting, setExporting] = useState(false);
+  const [showChart, setShowChart] = useState<boolean | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(buildFinancialCopilotApiUrl("/api/ui/v1/config", import.meta.env.VITE_FINANCIAL_COPILOT_API_BASE_URL), {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("UI configuration unavailable");
+        const config = await response.json() as { quarterlyFinancialTable?: { showChart?: boolean } };
+        if (!controller.signal.aborted) setShowChart(config.quarterlyFinancialTable?.showChart === true);
+      })
+      .catch(() => { if (!controller.signal.aborted) setShowChart(false); });
+    return () => controller.abort();
+  }, []);
   const download = async () => {
     setExporting(true);
     try {
-      await downloadQuarterlyFinancialTableImage(model);
+      await downloadQuarterlyFinancialTableImage(model, showChart === true);
     } finally {
       setExporting(false);
     }
@@ -315,7 +337,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
 
   return (
     <section
-      className="my-3 w-full overflow-hidden rounded-xl border border-amber-200 bg-[#fffdf8] shadow-sm"
+      className="my-3 w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-amber-200 bg-[#fffdf8] shadow-sm"
       dir="rtl"
     >
       <header className="bg-gradient-to-l from-[#164e63] via-[#155e75] to-[#0f766e] px-3 py-3 text-white sm:px-4">
@@ -327,15 +349,16 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
           <button
             type="button"
             onClick={download}
-            disabled={exporting}
+            disabled={exporting || showChart === null}
             className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2 py-1.5 text-[10px] font-semibold transition hover:bg-white/25 disabled:opacity-60 sm:text-xs"
             aria-label="دانلود تصویر جدول"
           >
             <Download className="size-3.5" />
-            {exporting ? "در حال ساخت" : "دانلود تصویر"}
+            {exporting ? "در حال ساخت" : showChart === null ? "آماده‌سازی" : "دانلود تصویر"}
           </button>
         </div>
       </header>
+      {showChart === true && <QuarterlyFinancialChart model={model} />}
       <table
         className="w-full table-fixed border-collapse text-[9px] leading-4 sm:text-[11px] sm:leading-5"
         dir="rtl"

@@ -215,6 +215,14 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
+app.MapGet("/api/ui/v1/config", (IConfiguration configuration) =>
+    Results.Ok(new
+    {
+        quarterlyFinancialTable = new
+        {
+            showChart = configuration.GetValue("QuarterlyFinancialTable:ShowChart", true)
+        }
+    }));
 app.MapControllers();
 
 app.Run();

@@ -358,11 +358,11 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
         Assert.Equal("IncomeStatement", result.StatementType);
         Assert.Equal("Available", result.Status);
         Assert.False(result.IsComposing);
-        Assert.Equal(16, result.Rows.Count);
+        Assert.Equal(15, result.Rows.Count);
         Assert.Equal(5, result.PeriodsNewestFirst.Count);
         Assert.NotNull(renderedTable);
         Assert.NotNull(renderedTable!.QuarterlyResult);
-        Assert.Equal(16, renderedTable.QuarterlyResult!.Rows.Count);
+        Assert.Equal(15, renderedTable.QuarterlyResult!.Rows.Count);
         Assert.StartsWith("### ", renderedTable.RenderedAnswer);
         Assert.Contains("میلیون ریال", renderedTable.RenderedAnswer);
         var markdownRows = renderedTable.RenderedAnswer!.Split('\n').Where(line => line.StartsWith('|')).ToArray();

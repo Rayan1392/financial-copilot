@@ -1961,7 +1961,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         Assert.Equal("FinancialStatementTableLookup", root.GetProperty("intent").GetString());
         var conversationId = root.GetProperty("conversationId").GetGuid();
         var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
-        Assert.Equal(16, quarterly.GetProperty("rows").GetArrayLength());
+        Assert.Equal(15, quarterly.GetProperty("rows").GetArrayLength());
         Assert.Equal("IncomeStatement", quarterly.GetProperty("statementType").GetString());
         var period = quarterly.GetProperty("periodsNewestFirst")[0].GetProperty("label").GetString()!;
         var rows = quarterly.GetProperty("rows").EnumerateArray().ToArray();
@@ -2041,7 +2041,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         Assert.Equal("Partial", quarterly.GetProperty("status").GetString());
         Assert.Equal((int)QuarterlyFinancialReportOutcome.PartialTable,
             quarterly.GetProperty("outcome").GetInt32());
-        Assert.Equal(16, quarterly.GetProperty("rows").GetArrayLength());
+        Assert.Equal(15, quarterly.GetProperty("rows").GetArrayLength());
     }
 
     [Fact]

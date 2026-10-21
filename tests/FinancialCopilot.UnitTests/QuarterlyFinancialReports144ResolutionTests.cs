@@ -94,7 +94,7 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
         Assert.Equal(QuarterlyFinancialReportOutcome.SuccessfulTable, result.Outcome);
         Assert.Equal("12783", result.ExternalCompanyId);
         Assert.Equal("چخزر", result.CompanySymbol);
-        Assert.Equal(16, result.Rows.Count);
+        Assert.Equal(15, result.Rows.Count);
         Assert.Equal("12783", repository.LastSelection?.ExternalCompanyId);
         var revenue = result.Rows.Single(row => row.SourceItemId == 15);
         var cell = Assert.Single(revenue.Cells).Value;
@@ -115,7 +115,7 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
         Assert.Equal(CompanyResolutionStatus.NotFound, result.CompanyResolutionStatus);
         Assert.Equal("Unavailable", result.Status);
         Assert.Equal(QuarterlyFinancialReportOutcome.CompanyNotFound, result.Outcome);
-        Assert.Equal(16, result.Rows.Count);
+        Assert.Equal(15, result.Rows.Count);
         Assert.Null(repository.LastSelection);
     }
 

@@ -25,10 +25,13 @@ if (!executablePath) throw new Error("A local Chrome or Chromium executable is r
 
 const WIDTH = 1200;
 const PAD = 36;
-const HEADER_TOP = PAD + 104 + 54;
+const BRAND_HEIGHT = 100;
+const CHART_HEIGHT = 350;
+const FOOTER_HEIGHT = 80;
+const HEADER_TOP = PAD + BRAND_HEIGHT + 104 + 54 + CHART_HEIGHT;
 const HEADER_HEIGHT = 78;
 const ROW_HEIGHT = 54;
-const ROW_COUNT = 16;
+const ROW_COUNT = 15;
 const SCALE = 2;
 const widths = [0.22, ...Array(5).fill(0.62 / 5), 0.16].map((fraction) => (WIDTH - PAD * 2) * fraction);
 
@@ -88,14 +91,20 @@ async function main() {
         return original.call(this, text, x, y, ...rest);
       };
     });
+    await page.route("**/api/ui/v1/config", (route) => route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ quarterlyFinancialTable: { showChart: true } }),
+    }));
     await page.goto(`http://127.0.0.1:${address.port}/src/components/app/__tests__/quarterly-financial-table-browser-fixture.html`, {
       waitUntil: "domcontentloaded", timeout: 120000,
     });
     const button = page.getByRole("button", { name: "دانلود تصویر جدول" });
     await button.waitFor({ timeout: 120000 });
-    assert.equal(await page.locator("thead th").count(), 7);
-    assert.equal(await page.locator("tbody tr").count(), ROW_COUNT);
-    const webHeaders = await page.locator("thead th").allTextContents();
+    await page.getByRole("img", { name: /نمودار فروش/ }).waitFor();
+    const table = page.locator("section > table").first();
+    assert.equal(await table.locator("thead th").count(), 7);
+    assert.equal(await table.locator("tbody tr").count(), ROW_COUNT);
+    const webHeaders = await table.locator("thead th").allTextContents();
     assert.equal(webHeaders[0].trim(), "شرح");
     assert.equal(webHeaders[6].trim(), "درصد تغییر به فصل قبل");
     const expectedHeaders = [
@@ -107,9 +116,9 @@ async function main() {
     ];
     for (const [index, header] of expectedHeaders.entries()) {
       assert.equal(webHeaders[index + 1].trim(), header.replace(" منتهی به ", "منتهی به"));
-      assert.equal(await page.locator("thead th").nth(index + 1).getAttribute("aria-label"), header);
+      assert.equal(await table.locator("thead th").nth(index + 1).getAttribute("aria-label"), header);
     }
-    const grossWeb = await page.locator("tbody tr").nth(3).locator("th, td").evaluateAll((cells) =>
+    const grossWeb = await table.locator("tbody tr").nth(3).locator("th, td").evaluateAll((cells) =>
       cells.map((cell) => ({
         background: getComputedStyle(cell).backgroundColor,
         yellowClass: cell.classList.contains("bg-yellow-200"),
@@ -117,7 +126,7 @@ async function main() {
         text: cell.textContent,
       })),
     );
-    const normalSize = await page.locator("tbody tr").first().locator("td").first().evaluate((cell) =>
+    const normalSize = await table.locator("tbody tr").first().locator("td").first().evaluate((cell) =>
       Number.parseFloat(getComputedStyle(cell).fontSize));
     assert.equal(grossWeb.length, 7);
     assert.ok(grossWeb.every((cell) => cell.yellowClass && cell.background === grossWeb[0].background));
@@ -130,7 +139,7 @@ async function main() {
     assert.ok(horizontalOverflow <= 1, `The web table adds ${horizontalOverflow}px of horizontal scroll.`);
     await page.setViewportSize({ width: 1300, height: 1100 });
 
-    const label = captureOnly ? "period-end-capture" : "period-end";
+    const label = captureOnly ? "chart-enabled-capture" : "chart-enabled";
     const downloadPromise = page.waitForEvent("download");
     await button.click();
     const download = await downloadPromise;
@@ -157,7 +166,7 @@ async function main() {
 
     const image = await sharp(pngPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     assert.equal(image.info.width, WIDTH * SCALE);
-    assert.equal(image.info.height, (PAD * 2 + 104 + 54 + HEADER_HEIGHT + ROW_HEIGHT * ROW_COUNT) * SCALE);
+    assert.equal(image.info.height, (PAD * 2 + BRAND_HEIGHT + 104 + 54 + CHART_HEIGHT + HEADER_HEIGHT + ROW_HEIGHT * ROW_COUNT + FOOTER_HEIGHT) * SCALE);
     let right = WIDTH - PAD;
     const headerRegions = widths.map((width, index) => {
       const left = right - width;
@@ -182,7 +191,7 @@ async function main() {
         .map((draw) => draw.text).join(" ");
     });
     const titleInk = sampleRegion(image, {
-      left: PAD + 15, right: WIDTH - PAD - 15, top: PAD + 8, bottom: PAD + 58,
+      left: PAD + 15, right: WIDTH - PAD - 15, top: PAD + BRAND_HEIGHT + 8, bottom: PAD + BRAND_HEIGHT + 58,
     }, lightInk).count;
     const firstBodyInk = sampleRegion(image, {
       left: WIDTH - PAD - widths[0] + 5, right: WIDTH - PAD - 5,
@@ -218,7 +227,30 @@ async function main() {
       assert.ok(titleInk > 100, "The PNG title is missing.");
       assert.ok(firstBodyInk > 30, "The PNG first financial row is missing.");
       assert.ok(lastBodyInk > 30, "The PNG does not cover the final financial row.");
+      assert.ok(canvasText.some((draw) => draw.text === "ساپیو"));
+      assert.ok(canvasText.some((draw) => draw.text === "روند فروش و سود فصلی"));
+      assert.ok(canvasText.some((draw) => draw.text === "گزارش مالی فصلی | ساپیو - دستیار هوشمند بازار"));
     }
+
+    await page.unroute("**/api/ui/v1/config");
+    await page.route("**/api/ui/v1/config", (route) => route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ quarterlyFinancialTable: { showChart: false } }),
+    }));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await button.waitFor();
+    assert.equal(await page.getByRole("img", { name: /نمودار فروش/ }).count(), 0);
+    const disabledDownloadPromise = page.waitForEvent("download");
+    await button.click();
+    const disabledDownload = await disabledDownloadPromise;
+    const disabledPath = path.join(evidenceDir, "quarterly-sharak-chart-disabled.png");
+    await disabledDownload.saveAs(disabledPath);
+    const disabledImage = await sharp(disabledPath).metadata();
+    assert.equal(disabledImage.height, image.info.height - CHART_HEIGHT * SCALE);
+    const disabledText = await page.evaluate(() => window.__quarterlyCanvasText);
+    assert.ok(disabledText.some((draw) => draw.text === "ساپیو"));
+    assert.ok(disabledText.some((draw) => draw.text === "گزارش مالی فصلی | ساپیو - دستیار هوشمند بازار"));
+    assert.ok(!disabledText.some((draw) => draw.text === "روند فروش و سود فصلی"));
   } finally {
     await browser?.close();
     await server.close();

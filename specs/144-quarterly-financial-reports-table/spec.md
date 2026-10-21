@@ -4,6 +4,24 @@
 
 The original Feature 144 table is implemented. The approved EPS and comparative-share correction is implemented in the V2 table path; see [the Qasem source investigation](eps-share-basis-investigation.md) and regression evidence. The previous cumulative-EPS subtraction policy is superseded.
 
+The comparison chart and downloaded-image branding extensions below are implemented in the web/API path. See the C1–C6 task evidence in `tasks.md`.
+
+## Comparison chart extension (implemented 2026-10-21)
+
+The supplied first image communicates the chart idea, not a pixel-exact design target. In the web response, place a compact comparison chart between the existing table header/summary and the 16-row table. This lets readers see the trend before inspecting the detailed figures, while preserving the table's existing rows, order, units, and change column. The exported PNG uses the same order: header/summary, chart, table.
+
+Plot exactly the quarters displayed by the table, in the same visual order and with the same Persian period labels. Use grouped bars for standalone quarterly sales (SourceItemId 15), gross profit (row 139 with its approved 310 fallback), and net profit (row 143 with its approved 313 fallback). Plot derived Gross Margin as a line with points on a separate percentage axis; never draw it as a bar or combine percentage and monetary values on one scale. Label the monetary axis with the table's million-rial unit. Preserve negative profit below zero and zero at the baseline. Missing or unavailable values produce no bar/point, and the margin line breaks across missing periods. The chart must not infer zero from a displayed dash or recompute financial metrics from another row. The table remains the authoritative detailed presentation, and the chart uses its underlying quarter values before display formatting.
+
+Use four distinct, accessible series colors, a Persian legend, readable axis labels, and exact values available through keyboard-accessible chart details or the adjacent table. On narrow screens, keep period labels legible with horizontal chart scrolling rather than compressing them beyond readability. Do not copy the first image's branding, KPI cards, watermark, or unrelated layout.
+
+`QuarterlyFinancialTable:ShowChart` in API `appsettings.json` controls both the web chart and its inclusion in exported PNGs. Default is `true`; an environment variable `QuarterlyFinancialTable__ShowChart` in `.env` overrides the JSON setting using normal .NET configuration precedence. The frontend reads the effective non-secret value from a minimal API configuration response, including when displaying a persisted/replayed table. Disabling the setting leaves the existing table and table-only PNG. A configuration change takes effect after the API process reloads/restarts; the UI must use the current effective value consistently for screen and download.
+
+Chart acceptance: enabled and disabled modes agree between web and PNG; bars/line reflect the exact available table quarters and values; units and independent scales are explicit; negative, zero, missing, and 1–12-quarter cases are handled without fabricated points; RTL labels and responsive/accessibility behavior are verified. No provider call, new financial calculation, database migration, or V1 change is required.
+
+### Downloaded-image branding (2026-10-21)
+
+The second supplied crop is a layout reference only. Add a compact Sapio brand area to the top of the Feature 144 downloaded PNG and a slim attribution footer below the table. Use the application's established name `ساپیو - دستیار هوشمند بازار`; do not reproduce StockArk wording, styling, logo, or watermark. Proposed original copy: top line `ساپیو`, supporting line `دستیار هوشمند بازار سرمایه`, and an export date in the Persian calendar (Asia/Tehran); footer line `گزارش مالی فصلی | ساپیو - دستیار هوشمند بازار` with the short context `بر پایه داده‌های گزارش‌شده`. Keep the existing company/report title and units prominent, make the brand text readable at PNG resolution, and avoid implying that Sapio authored the source financial statements. The brand area and footer appear whether the optional chart is enabled or disabled; neither is an extra table row.
+
 ## User story
 
 As a Financial Copilot user, I want a company's quarterly income-statement table to show standalone fiscal-quarter performance, source context, and deterministic comparisons so I can inspect reported results without confusing cumulative year-to-date figures with a single quarter.

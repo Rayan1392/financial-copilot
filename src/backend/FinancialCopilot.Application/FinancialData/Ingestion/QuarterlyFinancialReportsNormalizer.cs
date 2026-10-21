@@ -16,7 +16,6 @@ public static class QuarterlyFinancialReportsNormalizer
         (40, "خالص سایر درآمدها و هزینه‌های غیرعملیاتی", "e08f0ce7-ab6a-4a24-8fab-efc3f93c140f", QuarterlyRowPolicy.CumulativeFlow),
         (142, "سود (زیان) عملیات در حال تداوم قبل از مالیات", "1cbc0ee5-21bb-4b9d-b5ba-72c3b84731b3", QuarterlyRowPolicy.CumulativeFlow),
         (334, "مالیات", "31f4454a-78d2-41fb-8caa-b86564423cd6", QuarterlyRowPolicy.CumulativeFlow),
-        (279, "سود (زیان) خالص عملیات در حال تداوم", "abdbd529-7e27-43cc-a955-10ae19aea4cb", QuarterlyRowPolicy.CumulativeFlow),
         (278, "سود (زیان) عملیات متوقف‌شده پس از اثر مالیاتی", "cb6c92c3-cff6-40c1-a85a-db9fde4ba791", QuarterlyRowPolicy.CumulativeFlow),
         (143, "سود (زیان) خالص", "bd36909d-abf8-44c2-b7db-5e53dd678b53", QuarterlyRowPolicy.CumulativeFlow),
         (160, "سود هر سهم پس از کسر مالیات", "2146da26-b28e-4d04-b50c-f49fc9b70e61", QuarterlyRowPolicy.ComparableEps),

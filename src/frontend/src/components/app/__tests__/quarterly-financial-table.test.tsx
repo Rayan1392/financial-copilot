@@ -17,7 +17,6 @@ const rows = [
   ["خالص سایر درآمدها و هزینه‌های غیرعملیاتی", "100", "100"],
   ["سود (زیان) عملیات در حال تداوم قبل از مالیات", "100", "100"],
   ["مالیات", "100", "100"],
-  ["سود (زیان) خالص عملیات در حال تداوم", "100", "100"],
   ["سود (زیان) عملیات متوقف‌شده پس از اثر مالیاتی", "100", "100"],
   ["سود (زیان) خالص", "1459", "1000"],
   ["سود هر سهم پس از کسر مالیات", "100", "100"],
@@ -135,7 +134,6 @@ describe("quarterly financial table QoQ rendering", () => {
       40,
       142,
       334,
-      279,
       278,
       143,
       160,
@@ -154,8 +152,8 @@ describe("quarterly financial table QoQ rendering", () => {
     expect(qoq(4).className).toContain("bg-rose-100");
     expect(qoq(7).textContent).toBe("\u200e−۱۵٫۰٪");
     expect(qoq(7).className).toContain("bg-emerald-100");
-    expect(qoq(13).textContent).toBe("۴۵٫۹٪");
-    expect(qoq(13).className).toContain("bg-emerald-100");
+    expect(qoq(12).textContent).toBe("۴۵٫۹٪");
+    expect(qoq(12).className).toContain("bg-emerald-100");
   });
 
   it("keeps zero, opposite-sign, unavailable, and share-count special cases neutral", () => {
@@ -163,7 +161,7 @@ describe("quarterly financial table QoQ rendering", () => {
       1: ["100", "100"],
       4: ["100", "-100"],
       5: ["100", "—"],
-      15: ["200", "200"],
+      14: ["200", "200"],
     });
     const parsed = parseQuarterlyFinancialTable(content)!;
     const { container } = render(<QuarterlyFinancialTable model={parsed.model} />);
@@ -176,8 +174,8 @@ describe("quarterly financial table QoQ rendering", () => {
     expect(qoq(4).className).toContain("bg-white");
     expect(qoq(5).textContent).toBe("-");
     expect(qoq(5).className).toContain("bg-white");
-    expect(qoq(15).textContent).toBe("");
-    expect(qoq(15).className).toContain("bg-white");
+    expect(qoq(14).textContent).toBe("");
+    expect(qoq(14).className).toContain("bg-white");
   });
 
   it("leaves row IDs unset when the complete Feature 144 row contract is absent", () => {

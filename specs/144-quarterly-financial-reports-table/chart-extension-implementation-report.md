@@ -1,6 +1,10 @@
 # Feature 144 chart and PNG branding — implementation evidence (2026-10-21)
 
-The Feature 144 web table now includes an optional comparison chart between its summary and financial rows. Sales, gross profit, and net profit use grouped monetary bars; Gross Margin uses a separate percentage line. The chart reads the same parsed quarter values as the table and preserves the backend's available-zero (`-`) versus unavailable (`—`) distinction. Its period order follows the displayed table, and the parser supports 1–12 periods.
+The Feature 144 web table includes an optional comparison chart between its summary and financial rows. Sales, gross profit, and net profit use grouped monetary bars; Gross Margin uses a separate percentage line. The chart reads the same parsed quarter values as the table and preserves the backend's available-zero (`-`) versus unavailable (`—`) distinction. The parser supports 1–12 periods.
+
+## Chart orientation update (2026-10-23)
+
+The table model supplies periods newest first. Both web and PNG chart renderers now explicitly reverse that order and plot chronologically from left to right: oldest on the left, newest on the right. The table and page keep their RTL layout.
 
 The API exposes the effective non-secret `QuarterlyFinancialTable:ShowChart` setting at `GET /api/ui/v1/config`. `appsettings.json` defaults it to `true`; `.env` can override it with `QuarterlyFinancialTable__ShowChart=false`. The frontend waits for this value before enabling image download, so the web and PNG use the same setting. Configuration is read again when a table mounts, including conversation replay.
 

@@ -2,7 +2,7 @@ import type { QuarterlyFinancialTableModel } from "./quarterly-financial-table";
 import { quarterlyPeriodHeaderLines } from "./quarterly-financial-table-header";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
-import { QUARTERLY_CHART_SERIES, quarterlyChartPoints } from "./quarterly-financial-chart-data";
+import { QUARTERLY_CHART_SERIES, quarterlyChartPointsChronologically } from "./quarterly-financial-chart-data";
 
 const WIDTH = 1200;
 const BRAND_HEIGHT = 100;
@@ -82,7 +82,7 @@ function exportDate(): string {
 }
 
 function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialTableModel, top: number) {
-  const points = quarterlyChartPoints(model);
+  const points = quarterlyChartPointsChronologically(model);
   const left = PAD + 52;
   const right = WIDTH - PAD - 56;
   const plotTop = top + 98;
@@ -143,7 +143,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
     context.fillText(`${formatter.format(marginMin + tick / 4 * (marginMax - marginMin))}٪`, right + 8, y + 4);
   }
   points.forEach((point, index) => {
-    const center = right - groupWidth * (index + 0.5);
+    const center = left + groupWidth * (index + 0.5);
     (["sales", "grossProfit", "netProfit"] as const).forEach((key, seriesIndex) => {
       const value = point[key];
       if (value === null) return;
@@ -163,7 +163,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   const runs: { x: number; y: number }[][] = [[]];
   points.forEach((point, index) => {
     if (point.grossMargin === null) { runs.push([]); return; }
-    runs[runs.length - 1].push({ x: right - groupWidth * (index + 0.5), y: marginY(point.grossMargin) });
+    runs[runs.length - 1].push({ x: left + groupWidth * (index + 0.5), y: marginY(point.grossMargin) });
   });
   runs.filter((run) => run.length >= 2).forEach((run) => strokeMonotoneCurve(context, run));
   runs.flat().forEach((current) => {

@@ -2,12 +2,12 @@ import {
   Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import type { QuarterlyFinancialTableModel } from "./quarterly-financial-table";
-import { QUARTERLY_CHART_SERIES, quarterlyChartPoints } from "./quarterly-financial-chart-data";
+import { QUARTERLY_CHART_SERIES, quarterlyChartPointsChronologically } from "./quarterly-financial-chart-data";
 
 const number = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 });
 
 export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTableModel }) {
-  const points = quarterlyChartPoints(model);
+  const points = quarterlyChartPointsChronologically(model);
   if (!points.length) return null;
 
   return (
@@ -22,10 +22,10 @@ export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTa
           </span>
         ))}
       </div>
-      <div className="w-0 min-w-full max-w-full overflow-x-auto" dir="rtl">
+      <div className="w-0 min-w-full max-w-full overflow-x-auto" dir="ltr">
         <div style={{ width: `max(100%, ${Math.max(640, points.length * 120)}px)` }} className="h-64" role="img" aria-label="نمودار فروش، سود ناخالص، سود خالص و مارجین ناخالص بر اساس فصل">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={[...points].reverse()} margin={{ top: 12, right: 12, left: 12, bottom: 0 }} barGap={2}>
+            <ComposedChart data={points} margin={{ top: 12, right: 12, left: 12, bottom: 0 }} barGap={2}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
               <XAxis dataKey="shortLabel" interval={0} height={32} tick={{ fontSize: 10 }} />
               <YAxis yAxisId="amount" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(value: number) => number.format(value)} width={62} />

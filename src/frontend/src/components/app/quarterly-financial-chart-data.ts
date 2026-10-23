@@ -45,3 +45,8 @@ export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): Quart
     };
   });
 }
+
+/** Convert the model's newest-first quarters to oldest-left, newest-right chart order. */
+export function quarterlyChartPointsChronologically(model: QuarterlyFinancialTableModel): QuarterlyChartPoint[] {
+  return quarterlyChartPoints(model).reverse();
+}

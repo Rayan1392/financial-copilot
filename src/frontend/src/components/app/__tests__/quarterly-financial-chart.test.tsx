@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "../quarterly-financial-table";
-import { quarterlyChartPoints } from "../quarterly-financial-chart-data";
+import { quarterlyChartPoints, quarterlyChartPointsChronologically } from "../quarterly-financial-chart-data";
 
 const body = [
   "فروش", "بهای تمام‌شده کالای فروش‌رفته", "سود (زیان) ناخالص", "مارجین ناخالص",
@@ -59,6 +59,11 @@ describe("Feature 144 comparison chart", () => {
     expect(points.map((point) => point.grossProfit)).toEqual([100, 80, 0, 40, 20]);
     expect(points.map((point) => point.grossMargin)).toEqual([20, 20, null, 20, 20]);
     expect(points.map((point) => point.netProfit)).toEqual([40, 30, 0, null, -10]);
+  });
+
+  it("feeds the web chart from oldest on the left to newest on the right", () => {
+    const points = quarterlyChartPointsChronologically(model());
+    expect(points.map((point) => point.sales)).toEqual([500, 400, 300, 200, 100]);
   });
 
   it("shows the chart only when the API effective setting is true", async () => {

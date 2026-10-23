@@ -46,7 +46,7 @@ export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): Quart
   });
 }
 
-/** Convert the model's newest-first quarters to oldest-left, newest-right chart order. */
+/** The parser normalizes periods chronologically; preserve that order for the chart axis. */
 export function quarterlyChartPointsChronologically(model: QuarterlyFinancialTableModel): QuarterlyChartPoint[] {
-  return quarterlyChartPoints(model).reverse();
+  return quarterlyChartPoints(model);
 }

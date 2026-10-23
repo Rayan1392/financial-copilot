@@ -4,7 +4,9 @@ The Feature 144 web table includes an optional comparison chart between its summ
 
 ## Chart orientation update (2026-10-23)
 
-The table model supplies periods newest first. Both web and PNG chart renderers now explicitly reverse that order and plot chronologically from left to right: oldest on the left, newest on the right. The table and page keep their RTL layout.
+The Feature 144 parser normalizes periods chronologically from oldest to newest. Both web and PNG chart renderers preserve that sequence on an explicitly left-to-right chart axis: oldest on the left, newest on the right. The table and page keep their RTL layout.
+
+Focused regressions assert that the web chart receives the oldest-to-newest sequence and that the PNG canvas draws the oldest sales bar at a smaller X coordinate than the newest sales bar.
 
 The API exposes the effective non-secret `QuarterlyFinancialTable:ShowChart` setting at `GET /api/ui/v1/config`. `appsettings.json` defaults it to `true`; `.env` can override it with `QuarterlyFinancialTable__ShowChart=false`. The frontend waits for this value before enabling image download, so the web and PNG use the same setting. Configuration is read again when a table mounts, including conversation replay.
 

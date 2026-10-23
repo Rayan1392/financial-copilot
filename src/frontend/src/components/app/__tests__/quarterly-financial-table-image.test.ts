@@ -204,4 +204,39 @@ describe("quarterly financial table image export", () => {
     const withChart = toBlob.mock.instances[1] as HTMLCanvasElement;
     expect(withChart.height).toBeGreaterThan(withoutChart.height);
   });
+
+  it("draws PNG chart periods from the oldest left position to the newest right position", async () => {
+    let fillStyle = "";
+    const blueBars: number[] = [];
+    const context = {
+      set fillStyle(value: string) { fillStyle = value; },
+      scale: vi.fn(), strokeRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(),
+      lineTo: vi.fn(), bezierCurveTo: vi.fn(), stroke: vi.fn(), arc: vi.fn(), fill: vi.fn(),
+      fillRect: vi.fn((x: number) => { if (fillStyle === "#3b82f6") blueBars.push(x); }),
+      fillText: vi.fn(), measureText: vi.fn(() => ({ width: 30 })),
+    } as unknown as CanvasRenderingContext2D;
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => callback(new Blob()));
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:quarterly-chart-order");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const model: QuarterlyFinancialTableModel = {
+      title: "Quarterly report", symbol: "فولاد", summary: "میلیون ریال",
+      quarters: [
+        { label: "سال مالی ۱۴۰۳، فصل ۴", year: 1403, quarter: 4, sourceIndex: 2 },
+        { label: "سال مالی ۱۴۰۵، فصل ۱", year: 1405, quarter: 1, sourceIndex: 1 },
+      ],
+      rows: [
+        { label: "فروش", sourceItemId: 15, values: ["۱۰۰", "۲۰۰", "-"], chartValues: [100, 200], grossMargin: false },
+        { label: "سود ناخالص", sourceItemId: 139, values: ["۲۰", "۴۰", "-"], chartValues: [20, 40], grossMargin: false },
+        { label: "مارجین ناخالص", sourceItemId: null, values: ["۲۰", "۲۰", "-"], chartValues: [20, 20], grossMargin: true },
+        { label: "سود خالص", sourceItemId: 143, values: ["۱۰", "۳۰", "-"], chartValues: [10, 30], grossMargin: false },
+      ],
+    };
+
+    await downloadQuarterlyFinancialTableImage(model, true);
+
+    const salesBars = blueBars.slice(1); // Ignore the blue legend swatch drawn first.
+    expect(salesBars).toHaveLength(2);
+    expect(salesBars[0]).toBeLessThan(salesBars[1]);
+  });
 });

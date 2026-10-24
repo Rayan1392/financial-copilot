@@ -8,6 +8,7 @@ import type {
 import { formatNumber, formatPercent, toPersianDigits } from "@/lib/format/persian";
 import { replaceProviderDisplayNames } from "@/lib/format/provider-display";
 import { MarkdownMessage } from "@/components/app/markdown-message";
+import { QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "@/components/app/quarterly-financial-table";
 import { OrchestrationDiagnosticsPanel } from "@/components/app/orchestration-diagnostics-panel";
 import { MonthlyActivityTrendChart } from "@/components/app/monthly-activity-trend-chart";
 import { MonthlyProductTrendChart } from "@/components/app/monthly-product-trend-chart";
@@ -116,6 +117,10 @@ function AssistantBlock({
       : tableMetadataLabel && isTechnicalMonthlySalesUnitNote(block.message)
         ? ""
         : replaceProviderDisplayNames(block.message);
+  const typedQuarterly = block.financialStatementTableResult?.quarterlyResult;
+  const typedBankingTable = typedQuarterly?.templateId === "BankingIncomeStatement"
+    ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
+    : null;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
   const sourceMatch = message.match(/\s*(منبع: آمار معاملات روزانه)[.。]?\s*$/u);
   const hasDailyTradesSource = sourceMatch !== null;
@@ -156,9 +161,10 @@ function AssistantBlock({
       >
         {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource) && (
           <div className="space-y-1">
-            {displayMessage.length > 0 && (
+            {displayMessage.length > 0 && !typedBankingTable && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
             )}
+            {typedBankingTable && <QuarterlyFinancialTable model={typedBankingTable} />}
             {tradingDate && (
               <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>
             )}

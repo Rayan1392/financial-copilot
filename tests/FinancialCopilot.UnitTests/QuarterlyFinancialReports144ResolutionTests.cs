@@ -8,6 +8,8 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class QuarterlyFinancialReports144ResolutionTests
 {
+    private static readonly Guid BankingIndustryGroupId = Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2");
+
     private static FinancialIngestionDbContext CreateDbContext() => new(
         new DbContextOptionsBuilder<FinancialIngestionDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -85,13 +87,15 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
         db.Companies.Add(Company("12783", "چخزر", "NoavaranCurrentApi"));
         await db.SaveChangesAsync();
         var repository = new QuarterlyRepositoryFake();
-        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System);
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(BankingIndustryGroupId));
 
         var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
             string.Empty, "چخزر", QuarterCount: 1));
 
         Assert.Equal(CompanyResolutionStatus.Resolved, result.CompanyResolutionStatus);
         Assert.Equal(QuarterlyFinancialReportOutcome.SuccessfulTable, result.Outcome);
+        Assert.Equal("GeneralIncomeStatement", result.TemplateId);
         Assert.Equal("12783", result.ExternalCompanyId);
         Assert.Equal("چخزر", result.CompanySymbol);
         Assert.Equal(15, result.Rows.Count);
@@ -103,11 +107,56 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
     }
 
     [Fact]
+    public async Task QuarterlyUseCase_UsesOnlyAuthoritativeBankGroupForTwentyRowTemplate()
+    {
+        var configuredBankingGroupId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        await using var db = CreateDbContext();
+        db.Companies.Add(Company("12783", "وبملت", "NoavaranCurrentApi"));
+        await db.SaveChangesAsync();
+        var repository = new QuarterlyRepositoryFake
+        {
+            Groups = [configuredBankingGroupId]
+        };
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(configuredBankingGroupId));
+
+        var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(string.Empty, "وبملت", 1));
+
+        Assert.Equal("BankingIncomeStatement", result.TemplateId);
+        Assert.Equal(configuredBankingGroupId, result.ClassificationGroupId);
+        Assert.Equal(20, result.Rows.Count);
+        Assert.Equal("وبملت", result.CompanySymbol);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task QuarterlyUseCase_DoesNotGuessWhenClassificationIsMissingOrDuplicated(int matchCount)
+    {
+        await using var db = CreateDbContext();
+        db.Companies.Add(Company("12783", "نماد", "NoavaranCurrentApi"));
+        await db.SaveChangesAsync();
+        var repository = new QuarterlyRepositoryFake
+        {
+            Groups = Enumerable.Repeat<Guid?>(BankingIndustryGroupId, matchCount).ToArray()
+        };
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(BankingIndustryGroupId));
+
+        var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(string.Empty, "نماد", 1));
+
+        Assert.Equal("ClassificationUnavailable", result.TemplateId);
+        Assert.Equal("company_classification_unavailable", result.Reason);
+        Assert.Null(repository.LastSelection);
+    }
+
+    [Fact]
     public async Task QuarterlyUseCase_ReturnsTypedNotFoundTableWithoutReadingReports()
     {
         await using var db = CreateDbContext();
         var repository = new QuarterlyRepositoryFake();
-        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System);
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(BankingIndustryGroupId));
 
         var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
             string.Empty, "نماد-ناموجود", QuarterCount: 1));
@@ -126,7 +175,8 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
         db.Companies.Add(Company("12783", "چخزر", "NoavaranCurrentApi"));
         await db.SaveChangesAsync();
         var useCase = new QuarterlyFinancialReportsQueryUseCase(
-            new EmptyQuarterlyRepository(), Resolver(db), TimeProvider.System);
+            new EmptyQuarterlyRepository(), Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(BankingIndustryGroupId));
 
         var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
             string.Empty, "چخزر", QuarterCount: 1));
@@ -145,7 +195,8 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
             Company("second", "نماد", "NoavaranCurrentApi"));
         await db.SaveChangesAsync();
         var repository = new QuarterlyRepositoryFake();
-        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System);
+        var useCase = new QuarterlyFinancialReportsQueryUseCase(repository, Resolver(db), TimeProvider.System,
+            new BankingFinancialReportsConfiguration(BankingIndustryGroupId));
 
         var result = await useCase.ExecuteAsync(new QuarterlyFinancialReportTableQuery(
             string.Empty, "نماد", QuarterCount: 1));
@@ -173,6 +224,11 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
     private sealed class QuarterlyRepositoryFake : IQuarterlyFinancialReportsRepository
     {
         public QuarterlyFinancialReportSelection? LastSelection { get; private set; }
+        public IReadOnlyList<Guid?> Groups { get; init; } = [Guid.Parse("11111111-1111-1111-1111-111111111111")];
+
+        public Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+            string providerName, string externalCompanyId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Groups);
 
         public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
             QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default)
@@ -194,6 +250,10 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
 
     private sealed class EmptyQuarterlyRepository : IQuarterlyFinancialReportsRepository
     {
+        public Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+            string providerName, string externalCompanyId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Guid?>>([Guid.Parse("11111111-1111-1111-1111-111111111111")]);
+
         public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
             QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<QuarterlyReportObservation>>([]);

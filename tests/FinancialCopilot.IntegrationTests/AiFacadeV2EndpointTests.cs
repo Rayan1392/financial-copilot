@@ -1983,7 +1983,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             .GetProperty("labelFa").GetString());
         Assert.Equal("تعداد سهام شرکت (هزار سهم)", rows.Single(row => row.GetProperty("sourceItemId").ValueKind == JsonValueKind.Number && row.GetProperty("sourceItemId").GetInt32() == 153)
             .GetProperty("labelFa").GetString());
-        Assert.Equal("own_period_fallback", comparableEps.GetProperty("comparableEvidence")
+        Assert.Equal("latest_selected_quarter", comparableEps.GetProperty("comparableEvidence")
             .GetProperty("method").GetString());
         Assert.Equal(144, comparableEps.GetProperty("comparableEvidence")
             .GetProperty("attributableProfitSourceItemId").GetInt32());

@@ -2,7 +2,7 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 public enum QuarterlyCellState { Available, MissingObservation, IncompatibleObservation, ConflictingObservation, UnsupportedFiscalPeriod, MissingPredecessor, CalculationUnavailable }
 public enum QuarterlyComparisonState { Available, MissingCurrent, MissingPrevious, NonPositiveBase, SignChanged, Unavailable }
-public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin, ComparableEps, ComparableShareBasis }
+public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin, DerivedBankingMargin, ComparableEps, ComparableShareBasis }
 public enum QuarterlyFinancialReportOutcome
 {
     SuccessfulTable,
@@ -166,7 +166,9 @@ public sealed record QuarterlyFinancialReportTableResult(
     DateTimeOffset GeneratedAtUtc,
     IReadOnlyList<QuarterlySelectedReportReference>? SelectedReports = null,
     CompanyResolutionStatus CompanyResolutionStatus = CompanyResolutionStatus.Resolved,
-    QuarterlyFinancialReportOutcome Outcome = QuarterlyFinancialReportOutcome.SuccessfulTable);
+    QuarterlyFinancialReportOutcome Outcome = QuarterlyFinancialReportOutcome.SuccessfulTable,
+    string TemplateId = "GeneralIncomeStatement",
+    Guid? ClassificationGroupId = null);
 
 public sealed record QuarterlyFinancialReportSelection(
     string ExternalCompanyId,
@@ -181,6 +183,9 @@ public interface IQuarterlyFinancialReportsRepository
     Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
         QuarterlyFinancialReportSelection selection,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId, string providerName, string externalCompanyId,
+        CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid?>>([]);
 }
 
 public interface IQuarterlyFinancialReportsQueryUseCase
@@ -190,10 +195,16 @@ public interface IQuarterlyFinancialReportsQueryUseCase
         CancellationToken cancellationToken = default);
 }
 
+public sealed record BankingFinancialReportsConfiguration(Guid IndustryGroupId)
+{
+    public const string ConfigurationKey = "QuarterlyFinancialReports:BankingIndustryGroupId";
+}
+
 public sealed class QuarterlyFinancialReportsQueryUseCase(
     IQuarterlyFinancialReportsRepository repository,
     ICompanyResolutionOutcomeService companyResolution,
-    TimeProvider timeProvider) : IQuarterlyFinancialReportsQueryUseCase
+    TimeProvider timeProvider,
+    BankingFinancialReportsConfiguration bankingConfiguration) : IQuarterlyFinancialReportsQueryUseCase
 {
     public async Task<QuarterlyFinancialReportTableResult> ExecuteAsync(
         QuarterlyFinancialReportTableQuery query,
@@ -247,12 +258,24 @@ public sealed class QuarterlyFinancialReportsQueryUseCase(
             };
         }
 
+        var classifications = await repository.GetEligibleCompanyGroupsAsync(resolution.Company.Id,
+            query.ProviderName, resolution.Company.ExternalCompanyId, cancellationToken);
+        if (classifications.Count != 1 || classifications[0] is null)
+        {
+            var unavailable = QuarterlyFinancialReportsNormalizer.Normalize(query.CompanySymbol, resolution.Company.Name,
+                resolution.Company.ExternalCompanyId, [], query.QuarterCount, query.EndingPeriod, timeProvider.GetUtcNow());
+            return unavailable with { Status = "Unavailable", Reason = "company_classification_unavailable",
+                Outcome = QuarterlyFinancialReportOutcome.SourceObservationsUnavailable, TemplateId = "ClassificationUnavailable" };
+        }
+        var groupId = classifications[0]!.Value;
+        var isBanking = groupId == bankingConfiguration.IndustryGroupId;
+
         var reports = await repository.GetIncomeStatementReportsAsync(
             new QuarterlyFinancialReportSelection(resolution.Company.ExternalCompanyId, query.QuarterCount,
                 query.EndingPeriod, false, query.IsAudited, query.IsRepresented), cancellationToken);
         return QuarterlyFinancialReportsNormalizer.Normalize(
             resolution.Company.CompanySymbol ?? resolution.Company.TseSymbol ?? resolution.Company.Ticker ?? query.CompanySymbol,
             resolution.Company.Name, resolution.Company.ExternalCompanyId, reports, query.QuarterCount, query.EndingPeriod,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(), isBanking, groupId);
     }
 }

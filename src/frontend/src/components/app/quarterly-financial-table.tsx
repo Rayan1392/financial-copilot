@@ -9,22 +9,124 @@ import {
 } from "./quarterly-financial-table-header";
 import { downloadQuarterlyFinancialTableImage } from "./quarterly-financial-table-image";
 import { QuarterlyFinancialChart } from "./quarterly-financial-chart";
+import type { QuarterlyFinancialReportTableResult } from "@/lib/chat.functions";
 
 export interface QuarterlyFinancialTableRow {
+  rowId?: string;
   label: string;
   sourceItemId: number | null;
   values: string[];
   grossMargin: boolean;
+  bankingMargin?: boolean;
+  qoqChange?: number | null;
   chartValues?: Array<number | null>;
+  cellEvidence?: Array<{ state: string; reason?: string | null; unit?: string; sourceReportIds?: string[]; sourceLineItemIds?: string[]; normalizationPolicy?: string; operandValues?: Array<number | null> }>;
 }
 
 export interface QuarterlyFinancialTableModel {
+  templateId?: string;
   title: string;
   symbol: string;
   summary: string;
   quarters: QuarterlyFinancialPeriod[];
   rows: QuarterlyFinancialTableRow[];
   provenanceNotes?: string[];
+}
+
+const QUARTERLY_CELL_STATE_NAMES = [
+  "Available",
+  "MissingObservation",
+  "IncompatibleObservation",
+  "ConflictingObservation",
+  "UnsupportedFiscalPeriod",
+  "MissingPredecessor",
+  "CalculationUnavailable",
+] as const;
+
+function quarterlyCellStateName(state: string | number | undefined): string {
+  if (typeof state === "number") return QUARTERLY_CELL_STATE_NAMES[state] ?? `Unknown(${state})`;
+  return state ?? "MissingObservation";
+}
+
+function isQuarterlyCellAvailable(state: string | number | undefined): boolean {
+  return state === "Available" || state === 0;
+}
+
+export function quarterlyFinancialTableModelFromTypedResult(
+  result: QuarterlyFinancialReportTableResult,
+): QuarterlyFinancialTableModel {
+  const periodsNewestFirst = result.periodsNewestFirst ?? [];
+  const periods = [...periodsNewestFirst].reverse();
+  const quarters = periods.map((period, sourceIndex) => {
+    const report = result.selectedReports?.find((item) => item.periodEnd === period.end);
+    const date = report?.periodEnd
+      ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Tehran" }).format(new Date(`${report.periodEnd}T12:00:00`))
+      : `سال مالی ${period.fiscalYear}`;
+    const names = ["", "اول", "دوم", "سوم", "چهارم"];
+    const quarterName = `فصل ${names[period.quarter]}`;
+    return { label: `${quarterName}<br>منتهی به<br>${date}`, quarterName, dateLabel: date,
+      year: period.fiscalYear, quarter: period.quarter, sourceIndex };
+  });
+  const latestLabel = periodsNewestFirst[0]?.label;
+  const amountFormatter = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 });
+  const percentFormatter = new Intl.NumberFormat("fa-IR-u-nu-arabext", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const rows = [...result.rows].sort((a, b) => a.order - b.order).map((row) => {
+    const bankingMargin = row.rowId === "banking_gross_margin" || row.rowId === "banking_fee_margin" ||
+      row.policy === "DerivedBankingMargin";
+    const cells = periods.map((period) => row.cells[period.label]);
+    const comparison = latestLabel
+      ? result.comparisons.find((item) => item.rowId === row.rowId && item.targetPeriod.label === latestLabel)
+      : undefined;
+    const qoqChange = bankingMargin
+      ? comparison?.percentagePointChange ?? null
+      : comparison?.relativeChangePercent ?? null;
+    const omitUnchangedShareCountChange = row.sourceItemId === 153 && qoqChange === 0;
+    const values = cells.map((cell) => {
+      if (!cell || !isQuarterlyCellAvailable(cell.state) || cell.value == null) return "—";
+      if (cell.value === 0 && cell.renderZeroAsDash) return "-";
+      const formatted = bankingMargin ? percentFormatter.format(cell.value) : amountFormatter.format(Math.abs(cell.value));
+      return cell.value < 0 && !bankingMargin ? `(${formatted})` : formatted;
+    });
+    const changeDisplay = qoqChange == null || omitUnchangedShareCountChange
+      ? "-"
+      : `${new Intl.NumberFormat("fa-IR-u-nu-arabext", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(qoqChange)}٪`;
+    values.push(changeDisplay);
+    return {
+      rowId: row.rowId,
+      label: row.labelFa,
+      sourceItemId: row.sourceItemId ?? null,
+      values,
+      chartValues: cells.map((cell) => isQuarterlyCellAvailable(cell?.state) ? cell?.value ?? null : null),
+      grossMargin: bankingMargin || row.rowId === "gross_margin" || row.policy === "DerivedGrossMargin",
+      bankingMargin,
+      qoqChange,
+      cellEvidence: cells.map((cell) => ({ state: quarterlyCellStateName(cell?.state), reason: cell?.reason,
+        unit: cell?.unit, sourceReportIds: cell?.sourceReportIds, sourceLineItemIds: cell?.sourceLineItemIds,
+        normalizationPolicy: cell?.normalizationPolicy, operandValues: cell?.operandValues,
+        comparableEvidence: cell?.comparableEvidence })),
+    };
+  });
+  const investmentSourceTitle = result.rows.find((row) => row.rowId === "source_61")?.sourceCatalogTitleFa;
+  const epsRow = result.rows.find((row) => row.rowId === "source_160");
+  const epsNotes = result.templateId === "BankingIncomeStatement" ? periodsNewestFirst.flatMap((period) => {
+    const evidence = epsRow?.cells[period.label]?.comparableEvidence;
+    if (!evidence) return [];
+    const amount = (value: number | null | undefined) => value == null ? "ناموجود" : amountFormatter.format(value);
+    const quarterName = ["", "اول", "دوم", "سوم", "چهارم"][period.quarter] ?? "";
+    const periodName = `سال مالی ${amount(period.fiscalYear)}، فصل ${quarterName}`;
+    return [`سود هر سهم بر اساس آخرین سرمایه، ${periodName}: سود مستقل ${amount(evidence.standaloneAttributableProfitMillionRials)} میلیون ریال و تعداد سهام ${amount(evidence.shareBasisThousand)} هزار سهم.`];
+  }) : [];
+  return {
+    templateId: result.templateId,
+    title: `گزارش فصلی ${result.companyName ? `${result.companyName} (${result.companySymbol})` : result.companySymbol}`,
+    symbol: result.companySymbol,
+    summary: "مبالغ: میلیون ریال · درصدها از مقادیر مستقل فصلی محاسبه شده‌اند",
+    quarters,
+    rows,
+    provenanceNotes: result.templateId === "BankingIncomeStatement"
+      ? [...(investmentSourceTitle ? [`عنوان منبع سرمایه‌گذاری: ${investmentSourceTitle}`] : []), ...epsNotes]
+      : undefined,
+  };
 }
 
 const DIGITS = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
@@ -329,7 +431,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
   const download = async () => {
     setExporting(true);
     try {
-      await downloadQuarterlyFinancialTableImage(model, showChart === true);
+      await downloadQuarterlyFinancialTableImage(model, showChart === true || model.templateId === "BankingIncomeStatement");
     } finally {
       setExporting(false);
     }
@@ -358,7 +460,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
           </button>
         </div>
       </header>
-      {showChart === true && <QuarterlyFinancialChart model={model} />}
+      {(showChart === true || model.templateId === "BankingIncomeStatement") && <QuarterlyFinancialChart model={model} />}
       <table
         className="w-full table-fixed border-collapse text-[9px] leading-4 sm:text-[11px] sm:leading-5"
         dir="rtl"
@@ -398,25 +500,25 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
           {model.rows.map((row, rowIndex) => (
             <tr
               key={`${row.label}-${rowIndex}`}
-              className={row.grossMargin ? "text-[11px] font-bold sm:text-[13px]" : ""}
+              className={row.grossMargin || row.bankingMargin ? "text-[11px] font-bold sm:text-[13px]" : ""}
             >
               <th
-                className={`border border-amber-200 px-1 py-1.5 text-right ${row.grossMargin ? "bg-yellow-200 font-extrabold text-amber-950" : "bg-[#ffedd5] font-semibold text-slate-800"}`}
+                className={`border border-amber-200 px-1 py-1.5 text-right ${row.grossMargin || row.bankingMargin ? "bg-yellow-200 font-extrabold text-amber-950" : "bg-[#ffedd5] font-semibold text-slate-800"}`}
               >
                 {row.label}
               </th>
               {row.values.slice(0, model.quarters.length).map((value, index) => (
                 <td
                   key={index}
-                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums ${row.grossMargin ? "bg-yellow-200 font-bold text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
+                  className={`border border-slate-200 px-0.5 py-1.5 text-center tabular-nums ${row.grossMargin || row.bankingMargin ? "bg-yellow-200 font-bold text-amber-950" : value.startsWith("(") ? "bg-rose-100 text-rose-900" : "bg-white text-slate-800"}`}
                 >
-                  {row.grossMargin && value !== "-"
+                  {(row.grossMargin || row.bankingMargin) && value !== "-" && value !== "—"
                     ? `${value}${String.fromCharCode(0x066a)}`
                     : value}
                 </td>
               ))}
               <td
-                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).tone) : resolveQuarterlyChangeColors(row.sourceItemId, numericValue(row.values.at(-1) ?? "-")).className}`}
+                className={`border border-amber-200 px-0.5 py-1.5 text-center font-bold tabular-nums ${row.grossMargin || row.bankingMargin ? grossMarginChangeClass(resolveQuarterlyChangeColors(row.sourceItemId, row.qoqChange ?? numericValue(row.values.at(-1) ?? "-")).tone) : resolveQuarterlyChangeColors(row.sourceItemId, row.qoqChange ?? numericValue(row.values.at(-1) ?? "-")).className}`}
               >
                 {row.values.at(-1)}
               </td>
@@ -426,7 +528,7 @@ export function QuarterlyFinancialTable({ model }: { model: QuarterlyFinancialTa
       </table>
       {model.provenanceNotes?.length ? (
         <details className="border-t border-amber-200 px-2 py-2 text-[10px] leading-5 text-slate-700 sm:text-xs">
-          <summary className="cursor-pointer font-semibold text-teal-900">روش و مبنای EPS مقایسه‌ای</summary>
+          <summary className="cursor-pointer font-semibold text-teal-900">{model.templateId === "BankingIncomeStatement" ? "توضیحات گزارش و محاسبه" : "روش و مبنای EPS مقایسه‌ای"}</summary>
           <ul className="mt-1 list-disc space-y-1 pr-5">
             {model.provenanceNotes.map((note, index) => <li key={index}>{note}</li>)}
           </ul>

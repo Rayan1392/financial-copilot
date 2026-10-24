@@ -1,9 +1,12 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   parseQuarterlyFinancialTable,
   QuarterlyFinancialTable,
+  quarterlyFinancialTableModelFromTypedResult,
 } from "../quarterly-financial-table";
+
+vi.mock("../quarterly-financial-chart", () => ({ QuarterlyFinancialChart: () => null }));
 
 const rows = [
   ["فروش", "1275", "1000"],
@@ -40,6 +43,54 @@ function markdownTable(overrides: Record<number, [latest: string, previous: stri
 }
 
 describe("quarterly financial table QoQ rendering", () => {
+  it("adapts the typed banking result by stable row ID and excludes unsupported rows", () => {
+    const ids = [304, 305, 306, null, 26, 7, 307, null, 61, 27, 40, 5, 6, 12, 142, 13, 278, 143, 160, 153];
+    const labels = ["درآمد تسهیلات", "هزینه سود سپرده", "خالص درآمد تسهیلات", "مارجین ناخالص عملیات بانکی", "درآمد کارمزد", "هزینه کارمزد", "خالص درآمد کارمزد", "حاشیه سود کارمزد", "سود سرمایه‌گذاری", "معاملات ارزی", "غیرعملیاتی", "اداری", "مطالبات", "مالی", "قبل مالیات", "مالیات", "متوقف‌شده", "سود خالص", "سود هر سهم بر اساس آخرین سرمایه", "تعداد سهام"];
+    const rowIds = ids.map((id, i) => id == null ? i === 3 ? "banking_gross_margin" : "banking_fee_margin" : `source_${id}`);
+    const makeCell = (value: number | null, unit = "million_rial") => ({ value, unit, state: value == null ? 1 : 0, renderZeroAsDash: value === 0 });
+    const result = {
+      templateId: "BankingIncomeStatement", companySymbol: "وبملت", companyName: "بانک ملت", status: "Available",
+      periodsNewestFirst: [
+        { fiscalYear: 1405, quarter: 2, start: "2026-06-22", end: "2026-09-22", label: "1405 Q2" },
+        { fiscalYear: 1405, quarter: 1, start: "2026-03-21", end: "2026-06-21", label: "1405 Q1" },
+      ],
+      selectedReports: [{ periodEnd: "2026-09-22", periodType: "SixMonths" }, { periodEnd: "2026-06-21", periodType: "ThreeMonths" }],
+      rows: rowIds.map((rowId, order) => ({ rowId, order: order + 1, labelFa: labels[order], sourceItemId: ids[order], policy: ids[order] == null ? 4 : 0, unit: order === 3 || order === 7 ? "percent" : "million_rial", cells: { "1405 Q1": makeCell(order === 0 ? 100 : 0, order === 3 || order === 7 ? "percent" : "million_rial"), "1405 Q2": makeCell(order === 0 ? 120 : 0, order === 3 || order === 7 ? "percent" : "million_rial") } })),
+      comparisons: [
+        { rowId: "source_153", targetPeriod: { label: "1405 Q2" }, relativeChangePercent: 0, percentagePointChange: null, absoluteChange: 0, state: "Available" },
+        { rowId: "source_304", targetPeriod: { label: "1405 Q2" }, relativeChangePercent: 0, percentagePointChange: null, absoluteChange: 0, state: "Available" },
+        { rowId: "banking_gross_margin", targetPeriod: { label: "1405 Q2" }, relativeChangePercent: null, percentagePointChange: 14.7, absoluteChange: 14.7, state: "Available" },
+        { rowId: "banking_fee_margin", targetPeriod: { label: "1405 Q2" }, relativeChangePercent: null, percentagePointChange: 14.7, absoluteChange: 14.7, state: "Available" },
+      ],
+    };
+    const model = quarterlyFinancialTableModelFromTypedResult(result);
+    expect(model.templateId).toBe("BankingIncomeStatement");
+    expect(model.title).toBe(`گزارش فصلی ${result.companyName} (${result.companySymbol})`);
+    expect(model.rows).toHaveLength(20);
+    expect(model.rows.map((row) => row.rowId)).toEqual(rowIds);
+    expect(model.rows.filter((row) => row.bankingMargin)).toHaveLength(2);
+    expect(model.rows.map((row) => row.label)).not.toContain("سود عملیاتی خالص");
+    expect(model.quarters.map((period) => period.quarter)).toEqual([1, 2]);
+    expect(model.rows[0]?.values.slice(0, 2)).toEqual([
+      new Intl.NumberFormat("fa-IR-u-nu-arabext").format(100),
+      new Intl.NumberFormat("fa-IR-u-nu-arabext").format(120),
+    ]);
+    expect(model.rows[0]?.chartValues).toEqual([100, 120]);
+    expect(model.rows[0]?.cellEvidence?.map((cell) => cell.state)).toEqual(["Available", "Available"]);
+    expect(model.rows.find((row) => row.sourceItemId === 153)?.values.at(-1)).toBe("-");
+    expect(model.rows.find((row) => row.sourceItemId === 304)?.values.at(-1)).toBe(
+      `${new Intl.NumberFormat("fa-IR-u-nu-arabext", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(0)}٪`,
+    );
+    const marginChange = `${new Intl.NumberFormat("fa-IR-u-nu-arabext", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(14.7)}٪`;
+    expect(model.rows.find((row) => row.rowId === "banking_gross_margin")?.values.at(-1)).toBe(marginChange);
+    expect(model.rows.find((row) => row.rowId === "banking_fee_margin")?.values.at(-1)).toBe(marginChange);
+    const { container } = render(<QuarterlyFinancialTable model={model} />);
+    const tableRows = Array.from(container.querySelectorAll<HTMLTableRowElement>("tbody tr"));
+    for (const index of [3, 7]) {
+      expect(Array.from(tableRows[index]!.cells).every((cell) => cell.className.includes("bg-yellow-200"))).toBe(true);
+    }
+  });
+
   it("renders shared three-line fiscal-quarter labels from the selected report", () => {
     const fiscalHeaders = [
       "فصل اول<br>منتهی به<br>۲۹ اسفند ۱۴۰۴",

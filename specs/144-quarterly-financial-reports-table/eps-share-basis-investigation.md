@@ -72,3 +72,9 @@ The Product Owner approved comparable EPS and these rules on 2026-10-20.
 ## Calculation policy clarification (2026-10-21)
 
 The earlier implementation and verification above required source EPS reconciliation and could prefer item 144. The current Feature 144 contract supersedes that gate: displayed comparable EPS is calculated from the row-143 net-profit numerator, using item 313 only when item 143 is absent/null, and the approved item-153 share basis. Raw items 160 and 317 are optional provenance only; they do not supply or gate the calculated value. See the current rules in [spec.md](spec.md).
+
+## Product Owner decision: latest selected quarter share basis (2026-10-24)
+
+The prior rolling same-quarter/own-period fallback policy recorded above is superseded. For each normalized Feature 144 table, take item 153 from the newest quarter in that table's selected window and use it as the displayed share count for every quarter. Derive each quarter's comparable EPS from that quarter's standalone row-143 net profit (item 313 remains the approved fallback) divided by this same share basis. The ending-period filter and requested quarter count determine the window; later reports outside the window cannot change an as-of table. If the newest selected quarter has no verified positive item 153 observation, the share row and comparable EPS are unavailable instead of silently reverting to an older quarter's capital. Preserve each quarter's original item-153 observation in provenance.
+
+This changes only Feature 144 normalization and its presentation contract. Report acquisition, synchronization, persistence, report selection, standalone YTD normalization, comparable-EPS numerator selection, and existing rendering paths remain unchanged. The current implementation and tests are specified in [spec.md](spec.md).

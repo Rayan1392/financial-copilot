@@ -5,6 +5,8 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class QuarterlyFinancialHeader144Tests
 {
+    private static readonly Guid BankingIndustryGroupId = Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2");
+
     [Theory]
     [InlineData("2026-09-22", 3, "\u0641\u0635\u0644 \u0627\u0648\u0644", "\u06f3\u06f1 \u0634\u0647\u0631\u06cc\u0648\u0631 \u06f1\u06f4\u06f0\u06f5")]
     [InlineData("2026-06-21", 6, "\u0641\u0635\u0644 \u062f\u0648\u0645", "\u06f3\u06f1 \u062e\u0631\u062f\u0627\u062f \u06f1\u06f4\u06f0\u06f5")]
@@ -19,6 +21,25 @@ public sealed class QuarterlyFinancialHeader144Tests
         Assert.Equal($"{quarterName}<br>\u0645\u0646\u062a\u0647\u06cc \u0628\u0647<br>{date}",
             FinancialStatementTableQueryUseCase.FormatQuarterHeader(result, period));
         Assert.DoesNotContain("\u0645\u0627\u0647\u0647", FinancialStatementTableQueryUseCase.FormatQuarterHeader(result, period));
+    }
+
+    [Fact]
+    public void BankingRendererFormatsPreScaledPercentOnceAtOneDecimal()
+    {
+        var period = new QuarterlyFiscalPeriod(1405, 2, new DateOnly(2026, 6, 22), new DateOnly(2026, 9, 22));
+        var cell = new QuarterlyFinancialCell(50.1605m, QuarterlyCellState.Available, null, "percent", false,
+            [Guid.NewGuid()], [Guid.NewGuid()], "306 / 304 * 100", [572_369_843m, 1_141_077_146m]);
+        var row = new QuarterlyFinancialRow("banking_gross_margin", 4, "مارجین ناخالص عملیات بانکی", null,
+            null, QuarterlyRowPolicy.DerivedBankingMargin, "percent", new Dictionary<string, QuarterlyFinancialCell>
+            { [period.Label] = cell });
+        var result = new QuarterlyFinancialReportTableResult("وبملت", "بانک ملت", "452", "NoavaranCurrentApi",
+            "IncomeStatement", false, 1, [period], [row], [], null, "Available", null, DateTimeOffset.UtcNow,
+            TemplateId: "BankingIncomeStatement", ClassificationGroupId: BankingIndustryGroupId);
+
+        var rendered = FinancialStatementTableQueryUseCase.RenderQuarterly(result);
+
+        Assert.Contains("۵۰٫۲٪", rendered);
+        Assert.DoesNotContain("٪٪", rendered);
     }
 
     [Fact]

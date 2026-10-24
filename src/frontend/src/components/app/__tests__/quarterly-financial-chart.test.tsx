@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "../quarterly-financial-table";
-import { quarterlyChartPoints, quarterlyChartPointsChronologically } from "../quarterly-financial-chart-data";
+import { BANKING_CHART_SERIES, quarterlyChartPoints, quarterlyChartPointsChronologically } from "../quarterly-financial-chart-data";
 
 const body = [
   "فروش", "بهای تمام‌شده کالای فروش‌رفته", "سود (زیان) ناخالص", "مارجین ناخالص",
@@ -64,6 +64,25 @@ describe("Feature 144 comparison chart", () => {
   it("feeds the web chart from oldest on the left to newest on the right", () => {
     const points = quarterlyChartPointsChronologically(model());
     expect(points.map((point) => point.sales)).toEqual([500, 400, 300, 200, 100]);
+  });
+
+  it("defines three banking amount bars and two percentage lines, omitting deposit interest expense", () => {
+    expect(BANKING_CHART_SERIES.filter((item) => item.type === "bar")).toHaveLength(3);
+    expect(BANKING_CHART_SERIES.filter((item) => item.type === "line")).toHaveLength(2);
+    const bankModel = {
+      ...model(), templateId: "BankingIncomeStatement",
+      rows: [
+        { rowId: "source_304", chartValues: [10, 20, 30, 40, 50] },
+        { rowId: "source_305", chartValues: [-2, -3, -4, -5, -6] },
+        { rowId: "source_306", chartValues: [8, 17, 26, 35, 44] },
+        { rowId: "banking_gross_margin", chartValues: [80, null, 86, 87.5, 88] },
+        { rowId: "banking_fee_margin", chartValues: [60, 61, 62, 63, 64] },
+      ],
+    };
+    const points = quarterlyChartPointsChronologically(bankModel as ReturnType<typeof model>);
+    expect(points.map((point) => point.interestIncome)).toEqual([10, 20, 30, 40, 50]);
+    expect(points[0]).not.toHaveProperty("depositCost");
+    expect(points.map((point) => point.bankingGrossMargin)).toEqual([80, null, 86, 87.5, 88]);
   });
 
   it("shows the chart only when the API effective setting is true", async () => {

@@ -16,12 +16,20 @@ internal sealed class EfCoreFinancialStatementTableRepository(
 {
     private readonly string _providerName = providerOptions.Value.ProviderName;
 
+    public async Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+        string providerName, string externalCompanyId, CancellationToken ct = default) =>
+        await dbContext.NoavaranEligibleCompanies.AsNoTracking()
+            .Where(row => row.Id == canonicalCompanyId && row.ProviderName == providerName &&
+                          row.ExternalCompanyId == externalCompanyId)
+            .Select(row => row.GroupId)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<QuarterlyReportObservation>> GetQuarterlyIncomeStatementReportsAsync(
         QuarterlyFinancialReportSelection selection,
         CancellationToken ct = default)
     {
-        var approved = QuarterlyFinancialReportsNormalizer.RequiredMappings;
-        var ids = approved.Select(item => item.SourceItemId).Concat([310, 311, 312, 313, 317]).Distinct().ToArray();
+        var ids = QuarterlyFinancialReportsNormalizer.RequiredSourceItemIds
+            .Concat([310, 311, 312, 313, 317]).Distinct().ToArray();
         var catalog = await dbContext.FinancialStatementSourceItems.AsNoTracking()
             .Where(item => item.ProviderName == "NoavaranCurrentApi" &&
                            item.StatementType == "IncomeStatement" && ids.Contains(item.SourceItemId))
@@ -561,10 +569,18 @@ internal sealed class FinancialStatementTableQueryUseCase(
         foreach (var row in result.Rows)
         {
             builder.Append($"| {row.LabelFa} | ");
-            builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(period => FormatCell(row.Cells[period.Label], culture))));
+            builder.Append(string.Join(" | ", result.PeriodsNewestFirst.Select(period => FormatQuarterlyCell(row, row.Cells[period.Label], culture))));
             var latest = result.PeriodsNewestFirst.FirstOrDefault();
             var comparison = latest is null ? null : result.Comparisons.FirstOrDefault(item => item.RowId == row.RowId && item.TargetPeriod == latest);
-            builder.AppendLine($" | {(comparison?.RelativeChangePercent is decimal change ? change.ToString("#,##0.##", culture) + "%" : comparison?.AbsoluteChange?.ToString("#,##0.##", culture) ?? "-")} | ");
+            if (row.Policy == QuarterlyRowPolicy.DerivedBankingMargin)
+            {
+                var pointChange = comparison?.PercentagePointChange;
+                builder.AppendLine($" | {(pointChange is decimal change ? ToPersianDigits(change.ToString("#,##0.0", culture)) + " واحد درصد" : "-")} | ");
+            }
+            else
+            {
+                builder.AppendLine($" | {(comparison?.RelativeChangePercent is decimal change ? change.ToString("#,##0.##", culture) + "%" : comparison?.AbsoluteChange?.ToString("#,##0.##", culture) ?? "-")} | ");
+            }
         }
         foreach (var period in result.PeriodsNewestFirst)
         {
@@ -649,6 +665,15 @@ internal sealed class FinancialStatementTableQueryUseCase(
         if (cell.Value.Value == 0 && cell.RenderZeroAsDash) return "-";
         var formatted = cell.Value.Value.ToString("#,##0.##", culture);
         return cell.Value.Value < 0 ? $"({formatted.TrimStart('-')})" : formatted;
+    }
+
+    private static string FormatQuarterlyCell(QuarterlyFinancialRow row, QuarterlyFinancialCell cell, CultureInfo culture)
+    {
+        if (row.Policy != QuarterlyRowPolicy.DerivedBankingMargin) return FormatCell(cell, culture);
+        if (cell.State != QuarterlyCellState.Available || !cell.Value.HasValue) return "—";
+        if (cell.Value.Value == 0m) return "۰٫۰٪";
+        var formatted = ToPersianDigits(cell.Value.Value.ToString("#,##0.0", culture));
+        return $"{formatted}٪";
     }
 }
 

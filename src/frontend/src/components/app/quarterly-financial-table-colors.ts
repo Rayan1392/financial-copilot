@@ -7,7 +7,7 @@ export interface QuarterlyChangeColors {
   textColor: string;
 }
 
-const EXPENSE_SOURCE_ITEM_IDS = new Set([1, 5, 12, 334]);
+const EXPENSE_SOURCE_ITEM_IDS = new Set([1, 5, 6, 7, 12, 13, 305, 334]);
 
 const TONES: Record<QuarterlyChangeTone, Omit<QuarterlyChangeColors, "tone">> = {
   positive: {

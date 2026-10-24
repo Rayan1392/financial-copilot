@@ -4,6 +4,28 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 public static class QuarterlyFinancialReportsNormalizer
 {
+    private static readonly (int Id, string Label, string CatalogId, QuarterlyRowPolicy Policy)[] BankingRows =
+    [
+        (304, "درآمد تسهیلات اعطایی و سپرده‌گذاری", "", QuarterlyRowPolicy.CumulativeFlow),
+        (305, "هزینه سود سپرده‌ها", "", QuarterlyRowPolicy.CumulativeFlow),
+        (306, "خالص درآمد تسهیلات و سپرده‌گذاری", "", QuarterlyRowPolicy.CumulativeFlow),
+        (26, "درآمد کارمزد", "", QuarterlyRowPolicy.CumulativeFlow),
+        (7, "هزینه کارمزد", "", QuarterlyRowPolicy.CumulativeFlow),
+        (307, "خالص درآمد کارمزد", "", QuarterlyRowPolicy.CumulativeFlow),
+        (61, "خالص سود (زیان) سرمایه‌گذاری‌ها", "", QuarterlyRowPolicy.CumulativeFlow),
+        (27, "نتیجه معاملات ارزی", "", QuarterlyRowPolicy.CumulativeFlow),
+        (40, "سایر درآمدها و هزینه‌های غیرعملیاتی", "", QuarterlyRowPolicy.CumulativeFlow),
+        (5, "هزینه‌های عمومی و اداری", "", QuarterlyRowPolicy.CumulativeFlow),
+        (6, "هزینه مطالبات مشکوک‌الوصول", "", QuarterlyRowPolicy.CumulativeFlow),
+        (12, "هزینه‌های مالی", "", QuarterlyRowPolicy.CumulativeFlow),
+        (142, "سود (زیان) قبل از کسر مالیات", "", QuarterlyRowPolicy.CumulativeFlow),
+        (13, "مالیات", "", QuarterlyRowPolicy.CumulativeFlow),
+        (278, "سود (زیان) خالص عملیات متوقف‌شده", "", QuarterlyRowPolicy.CumulativeFlow),
+        (143, "سود (زیان) خالص", "", QuarterlyRowPolicy.CumulativeFlow),
+        (160, "سود هر سهم بر اساس آخرین سرمایه", "2146da26-b28e-4d04-b50c-f49fc9b70e61", QuarterlyRowPolicy.ComparableEps),
+        (153, "تعداد سهام شرکت (هزار سهم)", "e98e6c00-7204-44b1-a279-bbbb68781d3c", QuarterlyRowPolicy.ComparableShareBasis)
+    ];
+
     private static readonly (int Id, string Label, string CatalogId, QuarterlyRowPolicy Policy)[] DirectRows =
     [
         (15, "فروش", "07c03a70-a1fa-4b9b-861c-937748e2a1dc", QuarterlyRowPolicy.CumulativeFlow),
@@ -31,6 +53,9 @@ public static class QuarterlyFinancialReportsNormalizer
         ApprovedMappings.Concat([(144, "52a19de6-4a0a-4be9-8dbc-3b487a05c08d"),
             (317, "1d244aae-7e5d-44e6-9ec4-c1659828856d")]).ToArray();
 
+    public static IReadOnlyList<int> RequiredSourceItemIds => RequiredMappings.Select(row => row.SourceItemId)
+        .Concat(BankingRows.Select(row => row.Id)).Distinct().ToArray();
+
     public static QuarterlyFinancialReportTableResult Normalize(
         string companySymbol,
         string? companyName,
@@ -38,11 +63,14 @@ public static class QuarterlyFinancialReportsNormalizer
         IReadOnlyList<QuarterlyReportObservation> reports,
         int quarterCount,
         DateOnly? endingPeriod,
-        DateTimeOffset generatedAtUtc)
+        DateTimeOffset generatedAtUtc,
+        bool isBanking = false,
+        Guid? classificationGroupId = null)
     {
+        var directRows = isBanking ? BankingRows : DirectRows;
         if (quarterCount is < 1 or > 12)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
-                "invalid_quarter_count", "Quarter count must be from 1 to 12.", QuarterlyFinancialReportOutcome.InvalidQuery);
+                "invalid_quarter_count", "Quarter count must be from 1 to 12.", QuarterlyFinancialReportOutcome.InvalidQuery, isBanking, classificationGroupId);
 
         var candidates = reports.Where(report => report.ProviderName == "NoavaranCurrentApi" &&
                 report.StatementType == "IncomeStatement" && report.ExternalCompanyId == externalCompanyId &&
@@ -85,12 +113,12 @@ public static class QuarterlyFinancialReportsNormalizer
                 "no_compatible_reports", "No persisted Noavaran income-statement periods match the requested fiscal range.",
                 candidates.Count == 0
                     ? QuarterlyFinancialReportOutcome.CompanyFoundNoPersistedReports
-                    : QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
+                    : QuarterlyFinancialReportOutcome.SourceObservationsUnavailable, isBanking, classificationGroupId);
         var scopeGroups = compatible.GroupBy(report => report.IsComposing).ToList();
         if (scopeGroups.Count != 1)
             return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
                 "conflicting_report_scope", "Separate and consolidated reports cannot be combined; specify one statement scope.",
-                QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
+                QuarterlyFinancialReportOutcome.SourceObservationsUnavailable, isBanking, classificationGroupId);
 
         var isComposing = scopeGroups[0].Key;
         var reportByYearAndDuration = new Dictionary<(DateOnly FiscalStart, int Months), QuarterlyReportObservation>();
@@ -109,7 +137,7 @@ public static class QuarterlyFinancialReportsNormalizer
             if (unresolved.Length > 1 && unresolved.Skip(1).Any(report => !SourceValuesEqual(winner, report)))
                 return Unavailable(companySymbol, companyName, externalCompanyId, quarterCount, generatedAtUtc,
                     "conflicting_report_revision", "Top-priority reports have conflicting source values and no deterministic version winner.",
-                    QuarterlyFinancialReportOutcome.SourceObservationsUnavailable);
+                    QuarterlyFinancialReportOutcome.SourceObservationsUnavailable, isBanking, classificationGroupId);
             reportByYearAndDuration[group.Key] = unresolved.OrderByDescending(report => report.ReportId).First();
         }
 
@@ -154,7 +182,7 @@ public static class QuarterlyFinancialReportsNormalizer
         var cellMap = new Dictionary<(string RowId, string Period), QuarterlyFinancialCell>();
         foreach (var item in selected)
         {
-            foreach (var row in DirectRows)
+            foreach (var row in directRows)
             {
                 if (row.Id is 160 or 153) continue; // EPS and displayed comparison shares have independent derivation.
                 var key = ($"source_{row.Id}", item.Period.Label);
@@ -234,13 +262,13 @@ public static class QuarterlyFinancialReportsNormalizer
             }
         }
 
+        // All displayed quarters use the share count reported for the newest selected quarter.
+        // The basis is intentionally scoped to the selected table window (including endingPeriod),
+        // so a hidden newer report cannot change values in a historical/as-of result.
+        var shareBasisPeriod = selected.FirstOrDefault();
+        var shareBasisReport = shareBasisPeriod.Current;
         foreach (var item in selected)
         {
-            var reference = allPeriods.FirstOrDefault(candidate =>
-                candidate.Period.FiscalYear == item.Period.FiscalYear + 1 &&
-                candidate.Period.Quarter == item.Period.Quarter && candidate.Current is not null);
-            var hasNextYearReference = reference.Period is not null;
-            var basisReport = hasNextYearReference ? reference.Current : item.Current;
             var shareKey = ("source_153", item.Period.Label);
             var epsKey = ("source_160", item.Period.Label);
             var rawShares = item.Current is null ? default : FindItem(item.Current, 153);
@@ -251,16 +279,14 @@ public static class QuarterlyFinancialReportsNormalizer
             var comparableEvidence = new QuarterlyComparableEvidence(rawShares.Value, null,
                 rawCodalEps.Value, null, item.Current?.ReportId, null, rawShares.LineId, null,
                 rawCodalEps.LineId, null, null, null,
-                "reported_period_end_shares_for_comparison", hasNextYearReference ? reference.Period?.FiscalYear : item.Period.FiscalYear,
-                item.Period.Quarter, basisReport?.ReportId, basisReport?.ExternalReportId,
-                hasNextYearReference ? "following_year_same_quarter" : "own_period_fallback",
+                "reported_period_end_shares_for_comparison", shareBasisPeriod.Period.FiscalYear,
+                shareBasisPeriod.Period.Quarter, shareBasisReport?.ReportId, shareBasisReport?.ExternalReportId,
+                "latest_selected_quarter",
                 "nearest_whole_rial_away_from_zero", null,
                 RawCurrentShareCountThousand: rawShares.Value);
 
-            var basisShares = basisReport is null ? default : FindItem(basisReport, 153);
-            var shareFailure = hasNextYearReference && basisReport is null
-                ? "share_basis_reference_report_missing"
-                : ValidateShareObservation(basisReport);
+            var basisShares = shareBasisReport is null ? default : FindItem(shareBasisReport, 153);
+            var shareFailure = ValidateShareObservation(shareBasisReport);
             var basis = shareFailure is null ? basisShares.Value : null;
             var basisEvidence = comparableEvidence with
             {
@@ -268,28 +294,31 @@ public static class QuarterlyFinancialReportsNormalizer
                 RawReferenceShareCountThousand = basisShares.Value,
                 Reconciliation = shareFailure ?? "reported_share_observation_verified"
             };
-            var shareReports = new[] { item.Current?.ReportId, basisReport?.ReportId }
+            var shareReports = new[] { item.Current?.ReportId, shareBasisReport?.ReportId }
                 .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
             var shareLines = new[] { rawShares.LineId, basisShares.LineId }
                 .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
             cellMap[shareKey] = new QuarterlyFinancialCell(basis, shareFailure is null ? QuarterlyCellState.Available : QuarterlyCellState.CalculationUnavailable,
                 shareFailure, Unit(153), basis == 0, shareReports, shareLines,
-                hasNextYearReference ? "FollowingYearSameQuarterShareBasis" : "OwnPeriodShareBasisFallback",
+                "LatestSelectedQuarterShareBasis",
                 [rawShares.Value, basisShares.Value], ValueScale: ValueScale("source_153"), ComparableEvidence: basisEvidence);
 
             var currentProfit = item.Current is null ? default : FindNetProfitNumerator(item.Current);
             var previousProfit = item.Previous is null ? default : FindNetProfitNumerator(item.Previous);
-            var referenceProfit = basisReport is null ? default : FindQuarterlyRowItem(basisReport, 143);
-            var referenceEps = basisReport is null ? default : FindItem(basisReport, 160);
-            var referenceCodalEps = basisReport is null ? default : FindItem(basisReport, 317);
+            var referenceProfit = shareBasisReport is null ? default : FindQuarterlyRowItem(shareBasisReport, 143);
+            var referenceEps = shareBasisReport is null ? default : FindItem(shareBasisReport, 160);
+            var referenceCodalEps = shareBasisReport is null ? default : FindItem(shareBasisReport, 317);
             var ownValidation = ValidateEpsBasis(item.Current);
             var predecessorValidation = item.Period.Quarter == 1 ? null : ValidateEpsBasis(item.Previous);
+            var codalCrossCheckValidation = rawCodalEps.Present && !HasVerifiedCatalogObservation(rawCodalEps)
+                ? "codal_eps_cross_check_unverified"
+                : null;
             var numeratorBasisFailure = item.Period.Quarter > 1 &&
                                         CanonicalAttributableProfitSourceId(currentProfit.SourceItemId) !=
                                         CanonicalAttributableProfitSourceId(previousProfit.SourceItemId)
                 ? "attributable_profit_source_changed_between_cumulative_reports"
                 : null;
-            var epsFailure = ownValidation ?? predecessorValidation ?? numeratorBasisFailure;
+            var epsFailure = ownValidation ?? predecessorValidation ?? codalCrossCheckValidation ?? numeratorBasisFailure;
             var failure = epsFailure ?? shareFailure;
             var profit = failure is null && currentProfit.Value.HasValue
                 ? currentProfit.Value - (item.Period.Quarter == 1 ? 0m : previousProfit.Value)
@@ -315,7 +344,7 @@ public static class QuarterlyFinancialReportsNormalizer
                 AttributableProfitSourceItemId = currentProfit.SourceItemId,
                 PreviousAttributableProfitSourceItemId = previousProfit.SourceItemId
             };
-            var epsReports = new[] { item.Current?.ReportId, item.Previous?.ReportId, basisReport?.ReportId }
+            var epsReports = new[] { item.Current?.ReportId, item.Previous?.ReportId, shareBasisReport?.ReportId }
                 .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
             var epsLines = new[] { rawEps.LineId, previousEps.LineId, currentProfit.LineId,
                     previousProfit.LineId, basisShares.LineId, referenceProfit.LineId,
@@ -331,13 +360,38 @@ public static class QuarterlyFinancialReportsNormalizer
 
         foreach (var item in selected)
         {
-            var key = ("gross_margin", item.Period.Label);
-            cellMap[key] = GrossMargin(cellMap.GetValueOrDefault(("source_139", item.Period.Label)),
-                cellMap.GetValueOrDefault(("source_15", item.Period.Label)), item.Period);
+            if (isBanking)
+            {
+                cellMap[("banking_gross_margin", item.Period.Label)] = DerivedMargin(
+                    cellMap.GetValueOrDefault(("source_306", item.Period.Label)),
+                    cellMap.GetValueOrDefault(("source_304", item.Period.Label)), "BankingNetInterest / InterestIncome * 100");
+                cellMap[("banking_fee_margin", item.Period.Label)] = DerivedMargin(
+                    cellMap.GetValueOrDefault(("source_307", item.Period.Label)),
+                    cellMap.GetValueOrDefault(("source_26", item.Period.Label)), "NetFeeIncome / FeeIncome * 100");
+            }
+            else
+            {
+                cellMap[("gross_margin", item.Period.Label)] = GrossMargin(
+                    cellMap.GetValueOrDefault(("source_139", item.Period.Label)),
+                    cellMap.GetValueOrDefault(("source_15", item.Period.Label)), item.Period);
+            }
         }
 
         var rows = new List<QuarterlyFinancialRow>();
         var display = new List<(string Id, string Label, int? SourceId, string? Catalog, QuarterlyRowPolicy Policy, string Unit)>();
+        if (isBanking)
+        {
+            display.AddRange(directRows.Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            display.Add(("banking_gross_margin", "مارجین ناخالص عملیات بانکی", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
+            display.AddRange(directRows.Skip(3).Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            display.Add(("banking_fee_margin", "حاشیه سود کارمزد", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
+            display.AddRange(directRows.Skip(6).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+        }
+        else
+        {
         display.Add(("source_15", "فروش", 15, DirectRows.Single(row => row.Id == 15).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(15)));
         display.Add(("source_1", "بهای تمام‌شده کالای فروش‌رفته", 1, DirectRows.Single(row => row.Id == 1).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(1)));
         display.Add(("source_139", "سود (زیان) ناخالص", 139, DirectRows.Single(row => row.Id == 139).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(139)));
@@ -345,6 +399,7 @@ public static class QuarterlyFinancialReportsNormalizer
         display.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
             ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+        }
 
         for (var index = 0; index < display.Count; index++)
         {
@@ -352,8 +407,12 @@ public static class QuarterlyFinancialReportsNormalizer
             var cells = selected.ToDictionary(item => item.Period.Label,
                 item => cellMap.GetValueOrDefault((row.Id, item.Period.Label)) ?? Missing(
                     QuarterlyCellState.MissingObservation, "No source observation was available.", row.Unit, null, null, row.SourceId));
+            var resolvedCatalog = row.Catalog is null || row.Catalog.Length == 0
+                ? row.SourceId is null ? null : selected.SelectMany(item => item.Current?.Items ?? [])
+                    .FirstOrDefault(source => source.SourceItemId == row.SourceId.Value)?.CatalogId
+                : Guid.Parse(row.Catalog);
             rows.Add(new QuarterlyFinancialRow(row.Id, index + 1, row.Label, row.SourceId,
-                row.Catalog is null ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit, cells,
+                resolvedCatalog, row.Policy, row.Unit, cells,
                 row.SourceId is null ? null : selected.SelectMany(item => item.Current?.Items ?? [])
                     .FirstOrDefault(source => source.SourceItemId == row.SourceId.Value)?.CatalogTitleFa));
         }
@@ -367,7 +426,7 @@ public static class QuarterlyFinancialReportsNormalizer
             {
                 var currentCell = row.Cells[current.Period.Label];
                 var previousCell = row.Cells[previous.Period.Label];
-                comparisons.Add(Compare(row.RowId, current.Period, previous.Period, currentCell, previousCell));
+                comparisons.Add(Compare(row.RowId, current.Period, previous.Period, currentCell, previousCell, isBanking));
             }
         }
 
@@ -393,11 +452,13 @@ public static class QuarterlyFinancialReportsNormalizer
                     report.LastSynchronizedAt, report.AssumedScale, report.SourceAmountUnit, report.CurrencyCode,
                     report.AccountingBasis, report.ReportRevisionLineage, report.FiscalYearEvidence,
                     report.PeriodType)).ToArray(),
-            Outcome: tableOutcome);
+            Outcome: tableOutcome, TemplateId: isBanking ? "BankingIncomeStatement" : "GeneralIncomeStatement",
+            ClassificationGroupId: classificationGroupId);
     }
 
     private static QuarterlyFinancialReportTableResult Unavailable(string symbol, string? name, string id,
-        int count, DateTimeOffset now, string reason, string detail, QuarterlyFinancialReportOutcome outcome)
+        int count, DateTimeOffset now, string reason, string detail, QuarterlyFinancialReportOutcome outcome,
+        bool isBanking = false, Guid? classificationGroupId = null)
     {
         var orderedRows = new List<(string Id, string Label, int? SourceId, string? Catalog, QuarterlyRowPolicy Policy, string Unit)>
         {
@@ -406,14 +467,27 @@ public static class QuarterlyFinancialReportsNormalizer
             ("source_139", DirectRows.Single(row => row.Id == 139).Label, 139, DirectRows.Single(row => row.Id == 139).CatalogId, QuarterlyRowPolicy.CumulativeFlow, Unit(139)),
             ("gross_margin", "مارجین ناخالص", null, null, QuarterlyRowPolicy.DerivedGrossMargin, "percent")
         };
+        if (isBanking)
+        {
+            orderedRows = [];
+            orderedRows.AddRange(BankingRows.Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            orderedRows.Add(("banking_gross_margin", "مارجین ناخالص عملیات بانکی", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
+            orderedRows.AddRange(BankingRows.Skip(3).Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            orderedRows.Add(("banking_fee_margin", "حاشیه سود کارمزد", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
+            orderedRows.AddRange(BankingRows.Skip(6).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+        }
         orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
             ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
         var rows = orderedRows.Select((row, index) => new QuarterlyFinancialRow(row.Id, index + 1, row.Label,
-            row.SourceId, row.Catalog is null ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
+            row.SourceId, row.Catalog is null || row.Catalog.Length == 0 ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
             new Dictionary<string, QuarterlyFinancialCell>())).ToArray();
         return new(symbol, name, id, "NoavaranCurrentApi", "IncomeStatement", null, count,
-            [], rows, [], null, "Unavailable", $"{reason}: {detail}", now, [], Outcome: outcome);
+            [], rows, [], null, "Unavailable", $"{reason}: {detail}", now, [], Outcome: outcome,
+            TemplateId: isBanking ? "BankingIncomeStatement" : "GeneralIncomeStatement", ClassificationGroupId: classificationGroupId);
     }
 
     private static bool IsExpectedYtdBoundary(DateOnly fiscalStart, DateOnly end, int months)
@@ -511,21 +585,9 @@ public static class QuarterlyFinancialReportsNormalizer
         if (!StorageScaleIsSupported(report)) return "unsupported_report_scale";
         var numerator = FindNetProfitNumerator(report);
         if (numerator.SourceItemId is null) return "source_143_or_313_missing_or_unverified";
-        foreach (var id in new[] { numerator.SourceItemId.Value, 153 })
-        {
-            var item = FindItem(report, id);
-            if (!HasVerifiedCatalogObservation(item))
-                return $"source_{id}_missing_or_unverified";
-        }
-        // Source item 153 explicitly names the provider's unit in its official catalog title
-        // ("... به هزار سهم"). Its raw Unit field is commonly N/A, so treating that field as
-        // the semantic unit made valid share observations disappear for issuers whose catalog
-        // entry was created dynamically.
-        var shareObservation = FindItem(report, 153);
-        if (!TitleDeclaresThousandShares(shareObservation.CatalogTitleFa))
-            return "source_153_missing_or_unverified";
-        var shares = FindItem(report, 153).Value!.Value;
-        if (shares <= 0) return "share_basis_nonpositive";
+        var profitObservation = FindItem(report, numerator.SourceItemId.Value);
+        if (!HasVerifiedCatalogObservation(profitObservation))
+            return $"source_{numerator.SourceItemId.Value}_missing_or_unverified";
         return null;
     }
 
@@ -623,6 +685,9 @@ public static class QuarterlyFinancialReportsNormalizer
         if (observation is null || observation.CatalogId != catalogId)
             return false;
 
+        if (observation.SourceItemId == row.Id && row.CatalogId.Length == 0)
+            return true;
+
         if (observation.SourceItemId == row.Id)
             return catalogId == Guid.Parse(row.CatalogId);
 
@@ -661,8 +726,26 @@ public static class QuarterlyFinancialReportsNormalizer
             "GrossProfit / Revenue * 100", [grossProfit.Value, revenue.Value]);
     }
 
+    private static QuarterlyFinancialCell DerivedMargin(QuarterlyFinancialCell? numerator,
+        QuarterlyFinancialCell? denominator, string policy)
+    {
+        var reportIds = (numerator?.SourceReportIds ?? []).Concat(denominator?.SourceReportIds ?? []).Distinct().ToArray();
+        var lineIds = (numerator?.SourceLineItemIds ?? []).Concat(denominator?.SourceLineItemIds ?? []).Distinct().ToArray();
+        if (numerator is null || denominator is null || numerator.State != QuarterlyCellState.Available ||
+            denominator.State != QuarterlyCellState.Available || !numerator.Value.HasValue ||
+            !denominator.Value.HasValue || denominator.Value == 0m)
+            return new(null, QuarterlyCellState.CalculationUnavailable,
+                "Required standalone banking operands are missing or the denominator is zero.", "percent", false, reportIds, lineIds,
+                policy, [numerator?.Value, denominator?.Value]);
+        var value = numerator.Value.Value / denominator.Value.Value * 100m;
+        return new(value, QuarterlyCellState.Available, null, "percent", value == 0m,
+            reportIds, lineIds,
+            policy, [numerator.Value, denominator.Value]);
+    }
+
     private static QuarterlyQoQComparison Compare(string rowId, QuarterlyFiscalPeriod currentPeriod,
-        QuarterlyFiscalPeriod previousPeriod, QuarterlyFinancialCell current, QuarterlyFinancialCell previous)
+        QuarterlyFiscalPeriod previousPeriod, QuarterlyFinancialCell current, QuarterlyFinancialCell previous,
+        bool isBanking = false)
     {
         if (current.State != QuarterlyCellState.Available || !current.Value.HasValue)
             return new(rowId, currentPeriod, previousPeriod, null, null, null,
@@ -675,7 +758,7 @@ public static class QuarterlyFinancialReportsNormalizer
                     ? QuarterlyComparisonState.Unavailable
                     : QuarterlyComparisonState.MissingPrevious);
         var absolute = current.Value.Value - previous.Value.Value;
-        if (rowId == "gross_margin")
+        if (rowId is "gross_margin" or "banking_gross_margin" or "banking_fee_margin")
         {
             decimal? relative = previous.Value.Value > 0m
                 ? (current.Value.Value / previous.Value.Value - 1m) * 100m
@@ -686,6 +769,10 @@ public static class QuarterlyFinancialReportsNormalizer
         if (current.Value.Value < 0m && previous.Value.Value > 0m ||
             current.Value.Value > 0m && previous.Value.Value < 0m)
             return new(rowId, currentPeriod, previousPeriod, absolute, null, null, QuarterlyComparisonState.SignChanged);
+        if (isBanking && IsBankingExpenseRow(rowId) && current.Value.Value <= 0m && previous.Value.Value < 0m)
+            return new(rowId, currentPeriod, previousPeriod, absolute,
+                (Math.Abs(current.Value.Value) / Math.Abs(previous.Value.Value) - 1m) * 100m,
+                null, QuarterlyComparisonState.Available);
         if (previous.Value <= 0)
             return new(rowId, currentPeriod, previousPeriod, absolute, null, null, QuarterlyComparisonState.NonPositiveBase);
         return new(rowId, currentPeriod, previousPeriod, absolute,
@@ -695,6 +782,9 @@ public static class QuarterlyFinancialReportsNormalizer
     private static bool IsUnavailable(QuarterlyCellState state) => state is
         QuarterlyCellState.CalculationUnavailable or QuarterlyCellState.UnsupportedFiscalPeriod or
         QuarterlyCellState.IncompatibleObservation or QuarterlyCellState.ConflictingObservation;
+
+    private static bool IsBankingExpenseRow(string rowId) => rowId is
+        "source_305" or "source_7" or "source_5" or "source_6" or "source_12" or "source_13";
 
     private static string Unit(int sourceId) => sourceId switch
     {

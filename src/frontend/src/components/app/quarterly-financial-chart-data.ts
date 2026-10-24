@@ -8,6 +8,14 @@ export const QUARTERLY_CHART_SERIES = [
   { key: "grossMargin", label: "مارجین ناخالص", color: "#f59e0b", unit: "٪" },
 ] as const;
 
+export const BANKING_CHART_SERIES = [
+  { key: "interestIncome", label: "درآمد تسهیلات و سپرده‌گذاری", color: "#2563eb", unit: "میلیون ریال", type: "bar" },
+  { key: "netInterestIncome", label: "خالص درآمد تسهیلات و سپرده‌گذاری", color: "#0891b2", unit: "میلیون ریال", type: "bar" },
+  { key: "netProfit", label: "سود خالص", color: "#059669", unit: "میلیون ریال", type: "bar" },
+  { key: "bankingGrossMargin", label: "مارجین ناخالص عملیات بانکی", color: "#d97706", unit: "٪", type: "line" },
+  { key: "feeProfitMargin", label: "حاشیه سود کارمزد", color: "#7c3aed", unit: "٪", type: "line" },
+] as const;
+
 export interface QuarterlyChartPoint {
   label: string;
   shortLabel: string;
@@ -15,6 +23,10 @@ export interface QuarterlyChartPoint {
   grossProfit: number | null;
   netProfit: number | null;
   grossMargin: number | null;
+  interestIncome: number | null;
+  netInterestIncome: number | null;
+  bankingGrossMargin: number | null;
+  feeProfitMargin: number | null;
 }
 
 function rowValues(rows: QuarterlyFinancialTableRow[], sourceItemId: number | null, grossMargin = false) {
@@ -27,6 +39,11 @@ export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): Quart
   const grossProfit = rowValues(model.rows, 139);
   const netProfit = rowValues(model.rows, 143);
   const grossMargin = rowValues(model.rows, null, true);
+  const bankValue = (rowId: string) => model.rows.find((row) => row.rowId === rowId)?.chartValues ?? [];
+  const interestIncome = bankValue("source_304");
+  const netInterestIncome = bankValue("source_306");
+  const bankingGrossMargin = bankValue("banking_gross_margin");
+  const feeProfitMargin = bankValue("banking_fee_margin");
   return model.quarters.map((quarter, index) => {
     const labels = quarterlyPeriodHeaderLines(quarter);
     const year = labels.join(" ").match(/[۰-۹٠-٩0-9]{4}/)?.[0] ?? "";
@@ -42,6 +59,10 @@ export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): Quart
       grossProfit: grossProfit[index] ?? null,
       netProfit: netProfit[index] ?? null,
       grossMargin: grossMargin[index] ?? null,
+      interestIncome: interestIncome[index] ?? null,
+      netInterestIncome: netInterestIncome[index] ?? null,
+      bankingGrossMargin: bankingGrossMargin[index] ?? null,
+      feeProfitMargin: feeProfitMargin[index] ?? null,
     };
   });
 }

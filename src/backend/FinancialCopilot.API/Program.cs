@@ -2,6 +2,7 @@ using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.API;
 using FinancialCopilot.Application.AI.ModelProviders;
+using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Infrastructure;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Options;
@@ -134,6 +135,12 @@ builder.Services.AddOpenApi(options =>
     });
 });
 builder.Services.AddFinancialCopilotSecurity(builder.Configuration);
+var bankingIndustryGroupId = builder.Configuration.GetValue<Guid>(BankingFinancialReportsConfiguration.ConfigurationKey);
+if (bankingIndustryGroupId == Guid.Empty)
+{
+    throw new InvalidOperationException($"{BankingFinancialReportsConfiguration.ConfigurationKey} must be configured with a non-empty GUID.");
+}
+builder.Services.AddSingleton(new BankingFinancialReportsConfiguration(bankingIndustryGroupId));
 builder.Services.AddFinancialCopilotInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<TelegramFinancialStatementReconciliationWorker>();
 builder.Services.AddTahlilAppIdentity(builder.Configuration);

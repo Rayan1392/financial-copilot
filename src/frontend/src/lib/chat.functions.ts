@@ -38,6 +38,7 @@ export interface AssistantChatBlock {
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   citations: Array<{
     symbolCode: string;
     metricCode: string;
@@ -301,6 +302,7 @@ interface AssistantContentResponse {
   monthlyProductTrendResult?: MonthlyProductTrendResult;
   disclosureListingResult?: DisclosureListingResult;
   psVisualizationResult?: PsVisualizationResult;
+  financialStatementTableResult?: { quarterlyResult?: QuarterlyFinancialReportTableResult };
   confidenceScore?: { score: number };
   explainableAnswer?: {
     filterChips: Array<{
@@ -320,6 +322,33 @@ interface AssistantContentResponse {
   providerFallbackOccurred?: boolean;
   workflowCorrelationId?: string;
   suggestedActions?: SuggestedAction[];
+}
+
+export interface QuarterlyFinancialReportTableResult {
+  templateId: string;
+  companySymbol: string;
+  companyName?: string;
+  status: string;
+  periodsNewestFirst: Array<{ fiscalYear: number; quarter: number; start: string; end: string; label: string }>;
+  rows: Array<{
+    rowId: string;
+    order: number;
+    labelFa: string;
+    sourceItemId?: number | null;
+    sourceCatalogTitleFa?: string | null;
+    policy: string | number;
+    unit: string;
+    cells: Record<string, { value: number | null; state: string | number; reason?: string | null; unit: string; renderZeroAsDash: boolean; sourceReportIds?: string[]; sourceLineItemIds?: string[]; normalizationPolicy?: string; operandValues?: Array<number | null>; comparableEvidence?: { standaloneAttributableProfitMillionRials?: number | null; shareBasisThousand?: number | null; referenceFiscalYear?: number | null; referenceQuarter?: number | null; referenceExternalReportId?: string | null; method?: string | null } }>;
+  }>;
+  comparisons: Array<{
+    rowId: string;
+    targetPeriod: { label: string };
+    relativeChangePercent: number | null;
+    percentagePointChange: number | null;
+    absoluteChange: number | null;
+    state: string;
+  }>;
+  selectedReports?: Array<{ periodEnd: string; periodType?: string | null }>;
 }
 
 export const listThreads = createServerFn({ method: "GET" })
@@ -479,6 +508,7 @@ function mapAssistantBlock(
     monthlyProductTrendResult: content?.monthlyProductTrendResult,
     disclosureListingResult: content?.disclosureListingResult,
     psVisualizationResult: content?.psVisualizationResult,
+    financialStatementTableResult: content?.financialStatementTableResult,
     citations: explanation?.dataCitations ?? [],
     orchestration: (content?.aiOrchestrationMode || content?.workflowCorrelationId)
       ? {

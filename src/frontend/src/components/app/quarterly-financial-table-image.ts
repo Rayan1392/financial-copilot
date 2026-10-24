@@ -2,7 +2,7 @@ import type { QuarterlyFinancialTableModel } from "./quarterly-financial-table";
 import { quarterlyPeriodHeaderLines } from "./quarterly-financial-table-header";
 import { QUARTERLY_CHANGE_COLUMN_HEADER } from "./quarterly-financial-table-constants";
 import { resolveQuarterlyChangeColors } from "./quarterly-financial-table-colors";
-import { QUARTERLY_CHART_SERIES, quarterlyChartPointsChronologically } from "./quarterly-financial-chart-data";
+import { BANKING_CHART_SERIES, QUARTERLY_CHART_SERIES, quarterlyChartPointsChronologically } from "./quarterly-financial-chart-data";
 
 const WIDTH = 1200;
 const BRAND_HEIGHT = 100;
@@ -83,14 +83,20 @@ function exportDate(): string {
 
 function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialTableModel, top: number) {
   const points = quarterlyChartPointsChronologically(model);
+  const banking = model.templateId === "BankingIncomeStatement";
+  const series = banking ? BANKING_CHART_SERIES : QUARTERLY_CHART_SERIES;
+  const barKeys: Array<"sales" | "grossProfit" | "netProfit" | "interestIncome" | "netInterestIncome"> = banking
+    ? ["interestIncome", "netInterestIncome", "netProfit"] : ["sales", "grossProfit", "netProfit"];
+  const lineKeys: Array<"grossMargin" | "bankingGrossMargin" | "feeProfitMargin"> = banking
+    ? ["bankingGrossMargin", "feeProfitMargin"] : ["grossMargin"];
   const left = PAD + 52;
   const right = WIDTH - PAD - 56;
   const plotTop = top + 98;
   const plotBottom = top + CHART_HEIGHT - 56;
   const plotHeight = plotBottom - plotTop;
-  const values = points.flatMap((point) => [point.sales, point.grossProfit, point.netProfit])
+  const values = points.flatMap((point) => barKeys.map((key) => point[key]))
     .filter((value): value is number => value !== null);
-  const margins = points.map((point) => point.grossMargin)
+  const margins = points.flatMap((point) => lineKeys.map((key) => point[key]))
     .filter((value): value is number => value !== null);
   const amountMin = Math.min(0, ...values);
   const rawAmountMax = Math.max(1, ...values);
@@ -104,7 +110,7 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   const marginY = (value: number) => plotBottom - (value - marginMin) / (marginMax - marginMin) * plotHeight;
   const baseline = amountY(0);
   const groupWidth = (right - left) / Math.max(points.length, 1);
-  const barWidth = Math.min(25, groupWidth / 5);
+  const barWidth = Math.min(25, groupWidth / (barKeys.length + 2));
   const formatter = new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 });
 
   context.fillStyle = "#ffffff";
@@ -113,18 +119,18 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   context.strokeRect(PAD, top, WIDTH - PAD * 2, CHART_HEIGHT - 14);
   context.fillStyle = COLORS.ink;
   context.font = '700 20px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "روند فروش و سود فصلی", WIDTH - PAD - 18, top + 30);
+  rtlText(context, banking ? "روند درآمد و سود فصلی بانک" : "روند فروش و سود فصلی", WIDTH - PAD - 18, top + 30);
   context.fillStyle = "#64748b";
   context.font = '400 14px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-  rtlText(context, "مبالغ: میلیون ریال | مارجین ناخالص: درصد", WIDTH - PAD - 18, top + 54);
+  rtlText(context, banking ? "مبالغ: میلیون ریال | حاشیه‌ها: درصد" : "مبالغ: میلیون ریال | مارجین ناخالص: درصد", WIDTH - PAD - 18, top + 54);
   let legendX = WIDTH - PAD - 22;
-  QUARTERLY_CHART_SERIES.forEach((series) => {
-    context.fillStyle = series.color;
+  series.forEach((item) => {
+    context.fillStyle = item.color;
     context.fillRect(legendX - 11, top + 68, 11, 11);
     context.fillStyle = COLORS.ink;
     context.font = '400 13px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
-    rtlText(context, series.label, legendX - 17, top + 78);
-    legendX -= context.measureText(series.label).width + 46;
+    rtlText(context, item.label, legendX - 17, top + 78);
+    legendX -= context.measureText(item.label).width + 46;
   });
 
   context.strokeStyle = "#cbd5e1";
@@ -144,12 +150,12 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
   }
   points.forEach((point, index) => {
     const center = left + groupWidth * (index + 0.5);
-    (["sales", "grossProfit", "netProfit"] as const).forEach((key, seriesIndex) => {
+    barKeys.forEach((key, seriesIndex) => {
       const value = point[key];
-      if (value === null) return;
+      if (typeof value !== "number") return;
       const y = amountY(value);
-      context.fillStyle = QUARTERLY_CHART_SERIES[seriesIndex].color;
-      context.fillRect(center + (seriesIndex - 1.5) * barWidth, Math.min(y, baseline), barWidth - 2, Math.max(1, Math.abs(baseline - y)));
+      context.fillStyle = series[seriesIndex].color;
+      context.fillRect(center + (seriesIndex - (barKeys.length - 1) / 2) * barWidth, Math.min(y, baseline), barWidth - 2, Math.max(1, Math.abs(baseline - y)));
     });
     context.fillStyle = COLORS.ink;
     context.font = '400 11px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif';
@@ -157,19 +163,22 @@ function drawChart(context: CanvasRenderingContext2D, model: QuarterlyFinancialT
     context.textAlign = "center";
     context.fillText(point.shortLabel, center, plotBottom + 22, groupWidth - 4);
   });
-  context.strokeStyle = QUARTERLY_CHART_SERIES[3].color;
-  context.fillStyle = QUARTERLY_CHART_SERIES[3].color;
-  context.lineWidth = 3;
-  const runs: { x: number; y: number }[][] = [[]];
-  points.forEach((point, index) => {
-    if (point.grossMargin === null) { runs.push([]); return; }
-    runs[runs.length - 1].push({ x: left + groupWidth * (index + 0.5), y: marginY(point.grossMargin) });
-  });
-  runs.filter((run) => run.length >= 2).forEach((run) => strokeMonotoneCurve(context, run));
-  runs.flat().forEach((current) => {
-    context.beginPath();
-    context.arc(current.x, current.y, 4, 0, Math.PI * 2);
-    context.fill();
+  lineKeys.forEach((key, index) => {
+    context.strokeStyle = series[barKeys.length + index].color;
+    context.fillStyle = series[barKeys.length + index].color;
+    context.lineWidth = 3;
+    const runs: { x: number; y: number }[][] = [[]];
+    points.forEach((point, pointIndex) => {
+      const value = point[key];
+      if (value === null) { runs.push([]); return; }
+      runs[runs.length - 1].push({ x: left + groupWidth * (pointIndex + 0.5), y: marginY(value) });
+    });
+    runs.filter((run) => run.length >= 2).forEach((run) => strokeMonotoneCurve(context, run));
+    runs.flat().forEach((current) => {
+      context.beginPath();
+      context.arc(current.x, current.y, 4, 0, Math.PI * 2);
+      context.fill();
+    });
   });
   context.lineWidth = 1;
 }
@@ -297,17 +306,17 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       const cellWidth = widths[columnIndex];
       const left = right - cellWidth;
       const isChange = columnIndex === colCount - 1;
-      const parsedChange = isChange ? parseDisplayNumber(value) : 0;
+      const parsedChange = isChange ? row.qoqChange ?? parseDisplayNumber(value) : 0;
       const changeColors = isChange
         ? resolveQuarterlyChangeColors(row.sourceItemId, parsedChange)
         : null;
-      context.fillStyle = row.grossMargin
+      context.fillStyle = row.grossMargin || row.bankingMargin
         ? COLORS.gross
         : columnIndex === 0
           ? COLORS.label
           : isChange
             ? changeColors!.backgroundColor
-            : row.grossMargin
+            : row.grossMargin || row.bankingMargin
               ? COLORS.gross
               : value.startsWith("(")
                 ? COLORS.negative
@@ -315,10 +324,10 @@ export async function downloadQuarterlyFinancialTableImage(model: QuarterlyFinan
       context.fillRect(left, y, cellWidth, rowHeight);
       context.strokeStyle = COLORS.border;
       context.strokeRect(left, y, cellWidth, rowHeight);
-      context.fillStyle = changeColors?.textColor ?? (row.grossMargin ? "#78350f" : COLORS.ink);
-      context.font = `${row.grossMargin ? "700 20" : columnIndex === 0 ? "600 17" : "400 17"}px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
+      context.fillStyle = changeColors?.textColor ?? (row.grossMargin || row.bankingMargin ? "#78350f" : COLORS.ink);
+      context.font = `${row.grossMargin || row.bankingMargin ? "700 20" : columnIndex === 0 ? "600 17" : "400 17"}px Vazirmatn, "Noto Sans Arabic", Tahoma, sans-serif`;
       const displayValue =
-        row.grossMargin && columnIndex > 0 && !isChange && value !== "-"
+        (row.grossMargin || row.bankingMargin) && columnIndex > 0 && !isChange && value !== "-" && value !== "—"
           ? `${value}${String.fromCharCode(0x066a)}`
           : value;
       const textLines = wrap(context, displayValue, cellWidth - 12).slice(0, 2);

@@ -68,6 +68,7 @@ services:
         ConnectionStrings__FinancialCopilot: Host=postgres;Port=5432;Database=${POSTGRES_DB:-financial_copilot};Username=${POSTGRES_USER:-financial_copilot};Password=${POSTGRES_PASSWORD}
         ConnectionStrings__Redis: redis:6379
         Database__ApplyMigrationsOnStartup: "true"
+        QuarterlyFinancialReports__BankingIndustryGroupId: ${QuarterlyFinancialReports__BankingIndustryGroupId:-c96520f9-1d2e-444a-ab46-5bdffd3797d2}
         DataSyncMessaging__Enabled: "true"
         DataSyncMessaging__HostName: rabbitmq
         DataSyncMessaging__UserName: ${RABBITMQ_USER:-financial_copilot}

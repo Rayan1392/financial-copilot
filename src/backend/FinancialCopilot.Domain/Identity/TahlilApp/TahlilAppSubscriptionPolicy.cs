@@ -7,7 +7,8 @@ namespace FinancialCopilot.Domain.Identity.TahlilApp;
 public sealed record TahlilAppSubscriptionDecision(
     string PlanCode,
     DateTimeOffset? EffectiveTo,
-    string Reason);
+    string Reason,
+    DateTimeOffset? EffectiveFrom = null);
 
 /// <summary>
 /// Maps a TahlilApp subscription to a Sapino plan. Fails closed: anything that cannot be proven
@@ -20,6 +21,15 @@ public static class TahlilAppSubscriptionPolicy
     public static TahlilAppSubscriptionDecision Decide(
         string? externalPlan,
         bool isActive,
+        DateTimeOffset? expiresAt,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, string> planMap) =>
+        Decide(externalPlan, isActive, null, expiresAt, now, planMap);
+
+    public static TahlilAppSubscriptionDecision Decide(
+        string? externalPlan,
+        bool isActive,
+        DateTimeOffset? effectiveFrom,
         DateTimeOffset? expiresAt,
         DateTimeOffset now,
         IReadOnlyDictionary<string, string> planMap)
@@ -51,6 +61,18 @@ public static class TahlilAppSubscriptionPolicy
             return new TahlilAppSubscriptionDecision(FreePlanCode, null, "expired");
         }
 
-        return new TahlilAppSubscriptionDecision(planCode, expiresAt, "active-paid");
+        // Old contract payloads remain readable for eligibility, but never become a credit anchor.
+        if (effectiveFrom is null)
+        {
+            return new TahlilAppSubscriptionDecision(planCode, expiresAt, "active-paid-missing-effective-from");
+        }
+
+        var normalizedEffectiveFrom = effectiveFrom.Value.ToUniversalTime();
+        if (normalizedEffectiveFrom > now || normalizedEffectiveFrom >= expiresAt.Value)
+        {
+            return new TahlilAppSubscriptionDecision(FreePlanCode, null, "invalid-effective-from");
+        }
+
+        return new TahlilAppSubscriptionDecision(planCode, expiresAt, "active-paid", normalizedEffectiveFrom);
     }
 }

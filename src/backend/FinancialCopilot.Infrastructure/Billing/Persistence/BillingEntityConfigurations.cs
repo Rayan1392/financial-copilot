@@ -69,6 +69,29 @@ public sealed class UsageLedgerEntryRowConfiguration : IEntityTypeConfiguration<
         builder.Property(row => row.EstimatedCost).HasPrecision(18, 8);
         builder.Property(row => row.AllocationSource).HasMaxLength(80);
         builder.Property(row => row.AllowanceDateKey).HasMaxLength(32);
+        builder.Property(row => row.SubscriptionCreditsApplied).HasPrecision(18, 4);
+    }
+}
+
+public sealed class SubscriptionCreditPeriodRowConfiguration : IEntityTypeConfiguration<SubscriptionCreditPeriodRow>
+{
+    public void Configure(EntityTypeBuilder<SubscriptionCreditPeriodRow> builder)
+    {
+        builder.ToTable("billing_subscription_credit_periods");
+        builder.HasKey(row => row.Id);
+        builder.HasIndex(row => row.IdempotencyKey).IsUnique();
+        builder.HasIndex(row => new { row.CustomerAccountId, row.ActivationRevision, row.PeriodNumber }).IsUnique();
+        builder.HasIndex(row => new { row.Status, row.ExpiresAtUtc });
+        builder.Property(row => row.PlanCode).HasMaxLength(64).IsRequired();
+        builder.Property(row => row.IdempotencyKey).HasMaxLength(160).IsRequired();
+        builder.Property(row => row.GrantedCredits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.RemainingCredits).HasPrecision(18, 4).IsRequired();
+        builder.Property(row => row.Status).HasMaxLength(32).IsRequired();
+        builder.Property(row => row.Revision).IsConcurrencyToken().IsRequired();
+        builder.HasOne<CustomerAccountRow>()
+            .WithMany()
+            .HasForeignKey(row => row.CustomerAccountId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 

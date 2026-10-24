@@ -427,6 +427,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IBillableAccountResolver, BillableAccountResolver>();
         services.AddScoped<ICreditLinePolicyService, CreditLinePolicyService>();
+        services.AddScoped<SubscriptionCreditLifecycleService>();
         services.AddScoped<ICreditReservationService, UsageReservationAuthorizationService>();
         services.AddScoped<IUsageChargeCalculator, OperationUsageChargeCalculator>();
         services.AddScoped<IUsageAccountingService, UsageAccountingService>();
@@ -454,6 +455,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApiUsageReportService, ApiUsageReportService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IBillingPurchaseUseCases, BillingPurchaseUseCases>();
+        services.AddHostedService<SubscriptionCreditAllocationWorker>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(new PricingPolicy(

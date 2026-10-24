@@ -39,7 +39,9 @@ public sealed class TahlilAppSyncStateStore(AuthDbContext dbContext) : ITahlilAp
         row.NextEntitlementSyncDueAtUtc = success.NextDueAtUtc;
         row.LastKnownSubscriptionExpiresAtUtc = success.EffectiveTo;
         row.LastSyncedPlanCode = success.PlanCode;
-        row.LastExternalRevision = success.ExternalRevision;
+        row.LastExternalRevision = success.ExternalRevision is { } incomingRevision && row.LastExternalRevision is { } storedRevision
+            ? Math.Max(storedRevision, incomingRevision)
+            : success.ExternalRevision ?? row.LastExternalRevision;
         row.SyncAttemptCount = 0;
         row.LastSyncFailureCategory = null;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -87,6 +89,19 @@ public sealed class TahlilAppSyncStateStore(AuthDbContext dbContext) : ITahlilAp
         row.NextEntitlementSyncDueAtUtc = null;
         row.SyncAttemptCount = 0;
         row.LastSyncFailureCategory = null;
+        if (string.Equals(status, TahlilAppIdentityStatus.Revoked, StringComparison.Ordinal))
+        {
+            // Revocation ends the upstream purpose for retaining this profile. Keep the identity tombstone
+            // for deterministic denial, but remove encrypted PII in the same Auth transaction.
+            var profile = await dbContext.UserProfiles.SingleOrDefaultAsync(
+                row => row.UserId == localUserId,
+                cancellationToken);
+            if (profile is not null)
+            {
+                dbContext.UserProfiles.Remove(profile);
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

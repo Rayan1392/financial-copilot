@@ -86,11 +86,33 @@ public sealed class TahlilAppDomainTests
     public void Subscription_ActivePaidWithFutureExpiry_MapsToPlanWithWindowEnd()
     {
         var expiry = Now.AddDays(30);
-        var decision = TahlilAppSubscriptionPolicy.Decide("Plus", true, expiry, Now, PlanMap);
+        var activation = Now.AddDays(-5);
+        var decision = TahlilAppSubscriptionPolicy.Decide("Plus", true, activation, expiry, Now, PlanMap);
 
         Assert.Equal("Plus", decision.PlanCode);
         Assert.Equal(expiry, decision.EffectiveTo);
         Assert.Equal("active-paid", decision.Reason);
+        Assert.Equal(activation, decision.EffectiveFrom);
+    }
+
+    [Fact]
+    public void Subscription_MissingActivationTimestampKeepsLegacyEligibilityButDoesNotCreateCreditAnchor()
+    {
+        var decision = TahlilAppSubscriptionPolicy.Decide("Plus", true, null, Now.AddDays(30), Now, PlanMap);
+        Assert.Equal("Plus", decision.PlanCode);
+        Assert.Null(decision.EffectiveFrom);
+        Assert.Equal("active-paid-missing-effective-from", decision.Reason);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(31)]
+    public void Subscription_RejectsFutureOrAfterExpiryActivation(int activationDays)
+    {
+        var decision = TahlilAppSubscriptionPolicy.Decide(
+            "Pro", true, Now.AddDays(activationDays), Now.AddDays(30), Now, PlanMap);
+        Assert.Equal("Free", decision.PlanCode);
+        Assert.Equal("invalid-effective-from", decision.Reason);
     }
 
     [Theory]

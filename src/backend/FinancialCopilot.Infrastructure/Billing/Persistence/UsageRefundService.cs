@@ -9,6 +9,8 @@ public sealed class UsageRefundService(
     BillingDbContext dbContext,
     TimeProvider timeProvider) : IUsageRefundService
 {
+    private readonly SubscriptionCreditLifecycleService creditLifecycle = new(dbContext);
+
     public async Task<UsageRefundResult> RefundAsync(
         UsageRefundCommand command,
         CancellationToken cancellationToken)
@@ -55,6 +57,11 @@ public sealed class UsageRefundService(
         }
 
         var now = timeProvider.GetUtcNow();
+        var subscriptionCreditsRestored = await creditLifecycle.ApplyRefundAsync(
+            originalCharge,
+            command.Credits,
+            now,
+            cancellationToken);
         var entry = new UsageLedgerEntry(
             Guid.NewGuid(),
             command.CustomerAccountId,
@@ -68,7 +75,9 @@ public sealed class UsageRefundService(
             idempotencyKey,
             now,
             AuditDescription: reason,
-            RelatedEntryId: originalCharge.Id);
+            RelatedEntryId: originalCharge.Id,
+            AllocationSource: originalCharge.AllocationSource,
+            AllowanceDateKey: originalCharge.AllowanceDateKey);
         var updatedWallet = MapWallet(walletRow).AddCredits(command.Credits, now);
 
         dbContext.UsageLedgerEntries.Add(new UsageLedgerEntryRow
@@ -84,7 +93,10 @@ public sealed class UsageRefundService(
             IdempotencyKey = entry.IdempotencyKey,
             OccurredAt = entry.OccurredAt,
             AuditDescription = entry.AuditDescription,
-            RelatedEntryId = entry.RelatedEntryId
+            RelatedEntryId = entry.RelatedEntryId,
+            AllocationSource = entry.AllocationSource,
+            AllowanceDateKey = entry.AllowanceDateKey,
+            SubscriptionCreditsApplied = subscriptionCreditsRestored
         });
         walletRow.Balance = updatedWallet.Balance;
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
@@ -101,6 +113,7 @@ public sealed class UsageRefundService(
                 entry.CustomerAccountId,
                 entry.RelatedEntryId,
                 Credits = entry.CreditsCharged,
+                SubscriptionCreditsRestored = subscriptionCreditsRestored,
                 entry.AuditDescription
             },
             now);

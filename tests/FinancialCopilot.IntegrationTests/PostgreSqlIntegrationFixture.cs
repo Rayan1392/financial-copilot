@@ -1,5 +1,6 @@
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
@@ -23,8 +24,7 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
     {
         try
         {
-            container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
+            container = new PostgreSqlBuilder("postgres:17-alpine")
                 .WithDatabase("postgres")
                 .WithUsername("feature125_tests")
                 .WithPassword("feature125_tests")
@@ -73,6 +73,32 @@ public sealed class PostgreSqlIntegrationFixture : IAsyncLifetime
         await context.Database.MigrateAsync();
         return database;
     }
+
+    public async Task<PostgreSqlTestDatabase> CreateBillingDatabaseAsync()
+    {
+        if (UnavailableReason is not null)
+            Skip.If(true, UnavailableReason);
+
+        var databaseName = $"feature139_billing_{Guid.NewGuid():N}";
+        var adminConnectionString = container!.GetConnectionString();
+        await using (var connection = new NpgsqlConnection(adminConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"CREATE DATABASE \"{databaseName}\"";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(adminConnectionString)
+        {
+            Database = databaseName,
+            Pooling = false
+        };
+        var database = new PostgreSqlTestDatabase(adminConnectionString, databaseName, builder.ConnectionString);
+        await using (var billing = database.CreateBillingContext())
+            await billing.Database.MigrateAsync();
+        return database;
+    }
 }
 
 public sealed class PostgreSqlTestDatabase(
@@ -92,6 +118,12 @@ public sealed class PostgreSqlTestDatabase(
         new(new DbContextOptionsBuilder<FinancialProviderDbContext>()
             .UseNpgsql(ConnectionString)
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
+            .EnableDetailedErrors()
+            .Options);
+
+    public BillingDbContext CreateBillingContext() =>
+        new(new DbContextOptionsBuilder<BillingDbContext>()
+            .UseNpgsql(ConnectionString)
             .EnableDetailedErrors()
             .Options);
 

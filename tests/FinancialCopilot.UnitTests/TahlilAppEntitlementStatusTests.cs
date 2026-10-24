@@ -24,9 +24,10 @@ public sealed class TahlilAppEntitlementStatusTests
         try
         {
             var expiry = Now.AddDays(30).ToString("O");
+            var effectiveFrom = Now.AddDays(-1).ToString("O");
             var handler = new StubHandler(_ => Json(HttpStatusCode.OK, $$$"""
                 {"user":{"externalUserId":"{{{ExternalId}}}","status":"Active","firstName":"Ali"},
-                 "subscription":{"plan":"Pro","isActive":true,"expiresAt":"{{{expiry}}}","revision":42}}
+                 "subscription":{"plan":"Pro","isActive":true,"effectiveFrom":"{{{effectiveFrom}}}","expiresAt":"{{{expiry}}}","revision":42}}
                 """));
 
             var result = await CreateGateway(handler, variable).GetStatusAsync(ExternalId, "corr-7", CancellationToken.None);
@@ -38,10 +39,12 @@ public sealed class TahlilAppEntitlementStatusTests
             Assert.True(result.Snapshot.IsSubscriptionActive);
             Assert.Equal(42, result.Snapshot.ExternalRevision);
             Assert.NotNull(result.Snapshot.SubscriptionExpiresAt);
+            Assert.Equal(Now.AddDays(-1), result.Snapshot.SubscriptionEffectiveFrom);
             Assert.Equal(HttpMethod.Get, handler.LastMethod);
             Assert.Equal("https://tahlilapp.example.test/api/financial-copilot/users/tahlil-user-1/status", handler.LastUri);
             Assert.Equal("test-credential", handler.LastRequestHeaders!["X-Api-Key"]);
             Assert.Equal("corr-7", handler.LastRequestHeaders["X-Correlation-Id"]);
+            Assert.Equal("2", handler.LastRequestHeaders["X-SapioAI-Contract-Version"]);
             Assert.Equal(1, handler.Requests);
         }
         finally
@@ -270,6 +273,17 @@ public sealed class TahlilAppEntitlementStatusTests
 
         Assert.Null(snapshot);
         Assert.Equal("json", rejectedField);
+    }
+
+    [Theory]
+    [InlineData("not-a-timestamp")]
+    [InlineData("2026-10-10T00:00:00+03:30")]
+    public void Parser_DropsMalformedOrNonUtcActivationTimestamp(string effectiveFrom)
+    {
+        var json = $$$"""{"user":{"externalUserId":"{{{ExternalId}}}","status":"Active"},"subscription":{"plan":"Pro","isActive":true,"effectiveFrom":"{{{effectiveFrom}}}","expiresAt":"2026-12-01T00:00:00Z"}}""";
+        var snapshot = TahlilAppStatusParser.TryParse(Encoding.UTF8.GetBytes(json), ExternalId, Now, out _);
+        Assert.NotNull(snapshot);
+        Assert.Null(snapshot!.SubscriptionEffectiveFrom);
     }
 
     [Fact]

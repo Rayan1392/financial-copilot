@@ -9,6 +9,7 @@ public sealed class OwnedIdentityBillingProvisioner(
     TimeProvider timeProvider)
 {
     private const string DefaultPlanCode = "Free";
+    private readonly SubscriptionCreditLifecycleService creditLifecycle = new(dbContext);
 
     public async Task EnsureProvisionedAsync(
         Guid tenantId,
@@ -57,16 +58,20 @@ public sealed class OwnedIdentityBillingProvisioner(
             }
         }
 
-        if (!await dbContext.WalletProjections
-                .AnyAsync(row => row.CustomerAccountId == account.Id, cancellationToken))
+        var wallet = await dbContext.WalletProjections
+            .SingleOrDefaultAsync(row => row.CustomerAccountId == account.Id, cancellationToken);
+        var walletCreated = wallet is null;
+        if (wallet is null)
         {
-            dbContext.WalletProjections.Add(new WalletProjectionRow
+            wallet = new WalletProjectionRow
             {
                 CustomerAccountId = account.Id,
-                Balance = plan.IncludedCredits,
+                Balance = 0,
                 ReservedAmount = 0,
                 UpdatedAt = now
-            });
+            };
+            dbContext.WalletProjections.Add(wallet);
+            await creditLifecycle.InitializeNewWalletAsync(account, wallet, now, cancellationToken);
         }
 
         try
@@ -76,7 +81,7 @@ public sealed class OwnedIdentityBillingProvisioner(
         catch (DbUpdateException)
         {
             dbContext.ChangeTracker.Clear();
-            if (!await IsFullyProvisionedAsync(tenantId, userId, cancellationToken))
+            if (!await IsFullyProvisionedAsync(tenantId, userId, walletCreated, cancellationToken))
             {
                 throw;
             }
@@ -86,6 +91,7 @@ public sealed class OwnedIdentityBillingProvisioner(
     private async Task<bool> IsFullyProvisionedAsync(
         Guid tenantId,
         Guid userId,
+        bool requireCreditPeriod,
         CancellationToken cancellationToken)
     {
         var account = await dbContext.CustomerAccounts
@@ -99,6 +105,9 @@ public sealed class OwnedIdentityBillingProvisioner(
             !string.IsNullOrWhiteSpace(account.SubscriptionPlanCode) &&
             await dbContext.WalletProjections
                 .AsNoTracking()
-                .AnyAsync(row => row.CustomerAccountId == account.Id, cancellationToken);
+                .AnyAsync(row => row.CustomerAccountId == account.Id, cancellationToken) &&
+            (!requireCreditPeriod || await dbContext.SubscriptionCreditPeriods
+                .AsNoTracking()
+                .AnyAsync(row => row.CustomerAccountId == account.Id, cancellationToken));
     }
 }

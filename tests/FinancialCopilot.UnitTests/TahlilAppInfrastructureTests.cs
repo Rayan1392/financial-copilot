@@ -18,7 +18,7 @@ public sealed class TahlilAppExchangeParserTests
     {
         var snapshot = Parse("""
             {"user":{"externalUserId":"u-1","firstName":" Ali ","lastName":"Ahmadi","nationalId":"۰۰۱۲۳۴۵۶۷۸","mobile":"09121234567","status":"Active"},
-             "subscription":{"plan":"Plus","isActive":true,"expiresAt":"2026-12-01T00:00:00Z","revision":17},
+             "subscription":{"plan":"Plus","isActive":true,"effectiveFrom":"2026-10-10T00:00:00Z","expiresAt":"2026-12-01T00:00:00Z","revision":17},
              "permissions":["a","b"],"unknownField":{"x":1}}
             """);
 
@@ -31,6 +31,7 @@ public sealed class TahlilAppExchangeParserTests
         Assert.Equal("+989121234567", snapshot.Mobile.NormalizedValue);
         Assert.Equal("Plus", snapshot.ExternalPlan);
         Assert.True(snapshot.IsSubscriptionActive);
+        Assert.Equal(new DateTimeOffset(2026, 10, 10, 0, 0, 0, TimeSpan.Zero), snapshot.SubscriptionEffectiveFrom);
         Assert.Equal(17, snapshot.ExternalRevision);
         Assert.Equal(2, snapshot.ExternalPermissionCount);
     }
@@ -81,6 +82,19 @@ public sealed class TahlilAppExchangeParserTests
         Assert.Null(snapshot!.SubscriptionExpiresAt);
     }
 
+    [Theory]
+    [InlineData("not-a-timestamp")]
+    [InlineData("2026-10-10T00:00:00+03:30")]
+    [InlineData("2099-01-01T00:00:00Z")]
+    public void InvalidActivationTimestamp_IsNotAcceptedAsCreditAnchor(string effectiveFrom)
+    {
+        var json = "{\"user\":{\"externalUserId\":\"u-9\",\"status\":\"Active\"},\"subscription\":{\"plan\":\"Plus\",\"isActive\":true,\"effectiveFrom\":\"" +
+            effectiveFrom + "\",\"expiresAt\":\"2026-12-01T00:00:00Z\"}}";
+        var snapshot = Parse(json);
+        Assert.NotNull(snapshot);
+        Assert.Null(snapshot!.SubscriptionEffectiveFrom);
+    }
+
     private static TahlilAppExchangeSnapshot? Parse(string json) =>
         TahlilAppExchangeParser.TryParse(Encoding.UTF8.GetBytes(json), Now);
 }
@@ -106,6 +120,7 @@ public sealed class TahlilAppIdentityGatewayTests
             Assert.Equal(1, handler.Requests);
             Assert.Equal("test-credential", handler.LastRequestHeaders!["X-Api-Key"]);
             Assert.Equal("corr-9", handler.LastRequestHeaders["X-Correlation-Id"]);
+            Assert.Equal("2", handler.LastRequestHeaders["X-SapioAI-Contract-Version"]);
             Assert.Contains(Code, handler.LastRequestBody);
         }
         finally

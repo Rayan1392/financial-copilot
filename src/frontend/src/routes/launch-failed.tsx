@@ -11,10 +11,10 @@ type LaunchFailedSearch = {
 };
 
 const FAILURE_COPY: Record<LaunchFailureReason, string> = {
-  invalid: "ورود به دستیار هوشمند بازار سرمایه انجام نشد. لطفاً از تحلیل‌اپ دوباره وارد شوید.",
+  invalid: "ورود به SapioAI انجام نشد. لطفاً از تحلیل‌اپ دوباره وارد شوید.",
   unavailable: "سرویس تحلیل‌اپ در دسترس نیست؛ چند دقیقه دیگر دوباره تلاش کنید.",
   disabled: "حساب شما غیرفعال است.",
-  unknown: "ورود به دستیار هوشمند بازار سرمایه انجام نشد. لطفاً از تحلیل‌اپ دوباره وارد شوید.",
+  unknown: "ورود به SapioAI انجام نشد. لطفاً از تحلیل‌اپ دوباره وارد شوید.",
 };
 
 export const Route = createFileRoute("/launch-failed")({

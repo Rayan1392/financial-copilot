@@ -14,6 +14,7 @@ public sealed class UsageReservationAuthorizationService(
 {
     private static readonly TimeSpan DefaultReservationDuration = TimeSpan.FromMinutes(5);
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ReservationLocks = new();
+    private readonly SubscriptionCreditLifecycleService creditLifecycle = new(dbContext);
 
     public async Task<UsageReservation> ReserveAsync(
         CustomerAccount account,
@@ -42,11 +43,11 @@ public sealed class UsageReservationAuthorizationService(
                 return existing;
             }
 
-            var accountExists = await dbContext.CustomerAccounts.AnyAsync(
+            var accountRow = await dbContext.CustomerAccounts.SingleOrDefaultAsync(
                 row => row.Id == account.Id && row.TenantId == account.TenantId,
                 cancellationToken);
 
-            if (!accountExists)
+            if (accountRow is null)
             {
                 throw new KeyNotFoundException("Billing account is not configured in this tenant.");
             }
@@ -63,12 +64,15 @@ public sealed class UsageReservationAuthorizationService(
                 throw new InvalidOperationException("Reservation request used a stale wallet snapshot.");
             }
 
+            var now = timeProvider.GetUtcNow();
+            await creditLifecycle.EnsureCurrentPeriodTrackedAsync(accountRow, walletRow, now, cancellationToken);
+            currentWallet = MapWallet(walletRow);
+
             if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
             {
                 throw new InsufficientCreditException();
             }
 
-            var now = timeProvider.GetUtcNow();
             var reservation = new UsageReservation(
                 Guid.NewGuid(),
                 account.Id,

@@ -40,6 +40,7 @@ public sealed class TahlilAppIdentityGateway(
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(new Uri(settings.BaseUrl), settings.ExchangePath));
         request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
         request.Headers.TryAddWithoutValidation("X-Correlation-Id", correlationId);
+        request.Headers.TryAddWithoutValidation("X-SapioAI-Contract-Version", "2");
         request.Content = new StringContent(JsonSerializer.Serialize(new { code }), Encoding.UTF8, "application/json");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -127,6 +128,7 @@ public sealed class TahlilAppIdentityGateway(
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(settings.BaseUrl), path));
         request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
         request.Headers.TryAddWithoutValidation("X-Correlation-Id", correlationId);
+        request.Headers.TryAddWithoutValidation("X-SapioAI-Contract-Version", "2");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

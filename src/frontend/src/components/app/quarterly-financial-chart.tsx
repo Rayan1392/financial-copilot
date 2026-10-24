@@ -12,6 +12,13 @@ export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTa
   if (!points.length) return null;
   const banking = model.templateId === "BankingIncomeStatement";
   const series = banking ? BANKING_CHART_SERIES : QUARTERLY_CHART_SERIES;
+  const chartSeries = banking
+    ? BANKING_CHART_SERIES.map((item) => item.type === "bar"
+      ? <Bar key={item.key} yAxisId="amount" dataKey={item.key} name={item.label} fill={item.color} maxBarSize={25} isAnimationActive={false} />
+      : <Line key={item.key} type="monotone" yAxisId="percent" dataKey={item.key} name={item.label} stroke={item.color} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />)
+    : QUARTERLY_CHART_SERIES.map((item) => item.key === "grossMargin"
+      ? <Line key={item.key} type="monotone" yAxisId="percent" dataKey={item.key} name={item.label} stroke={item.color} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+      : <Bar key={item.key} yAxisId="amount" dataKey={item.key} name={item.label} fill={item.color} maxBarSize={25} isAnimationActive={false} />);
 
   return (
     <div className="border-b border-amber-200 bg-white px-2 py-4 sm:px-4" dir="rtl">
@@ -37,15 +44,7 @@ export function QuarterlyFinancialChart({ model }: { model: QuarterlyFinancialTa
                 const unit = series.find((item) => item.label === name)?.unit ?? "میلیون ریال";
                 return [`${unit === "٪" && banking ? percent.format(value) : number.format(value)} ${unit}`, name];
               }} />
-              {banking ? BANKING_CHART_SERIES.map((item) => item.type === "bar"
-                ? <Bar key={item.key} yAxisId="amount" dataKey={item.key} name={item.label} fill={item.color} maxBarSize={25} isAnimationActive={false} />
-                : <Line key={item.key} type="monotone" yAxisId="percent" dataKey={item.key} name={item.label} stroke={item.color} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />)
-                : <>
-                    <Bar yAxisId="amount" dataKey="sales" name="فروش" fill="#3b82f6" maxBarSize={25} />
-                    <Bar yAxisId="amount" dataKey="grossProfit" name="سود ناخالص" fill="#06b6d4" maxBarSize={25} />
-                    <Bar yAxisId="amount" dataKey="netProfit" name="سود خالص" fill="#10b981" maxBarSize={25} />
-                    <Line type="monotone" yAxisId="percent" dataKey="grossMargin" name="مارجین ناخالص" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} connectNulls={false} />
-                  </>}
+              {chartSeries}
             </ComposedChart>
           </ResponsiveContainer>
         </div>

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:quarterly-png": "node scripts/quarterly-financial-table-png.browser.test.mjs",
     "test:quarterly-banking-png": "node scripts/quarterly-financial-banking-png.browser.test.mjs",
+    "test:quarterly-general-chart": "node scripts/quarterly-financial-general-chart.browser.test.mjs",
     "test:watch": "vitest",
     "format": "prettier --write ."
   },

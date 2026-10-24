@@ -88,20 +88,40 @@ const bankResult = {
 };
 const generalTyped = new URLSearchParams(location.search).has("general-typed");
 const generalRowIds = [15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 278, 143, 160, 153];
+const natrinPeriods = [
+  { fiscalYear: 1405, quarter: 1, start: "2026-03-21", end: "2026-06-21", label: "1405 Q1" },
+  { fiscalYear: 1404, quarter: 4, start: "2025-12-22", end: "2026-03-20", label: "1404 Q4" },
+  { fiscalYear: 1404, quarter: 3, start: "2025-09-23", end: "2025-12-21", label: "1404 Q3" },
+  { fiscalYear: 1404, quarter: 2, start: "2025-06-22", end: "2025-09-22", label: "1404 Q2" },
+  { fiscalYear: 1404, quarter: 1, start: "2025-03-21", end: "2025-06-21", label: "1404 Q1" },
+];
+// Read-only persisted Noavaran statement values for Natrin, expressed as standalone quarterly values.
+const natrinValuesBySourceId: Record<number, Array<number | null>> = {
+  15: [4166493, 4801738, 3953806, 2386543, 2627673],
+  139: [1325755, 1269855, 784162, 551368, 610729],
+  143: [406843, 433252, 260705, 164827, 178470],
+};
+const natrinGrossMargin = [31.82, 26.45, 19.83, 23.10, 23.24];
 const generalResult = {
-  templateId: "GeneralIncomeStatement", companySymbol: "TEST", companyName: "General fixture", status: "Available",
-  periodsNewestFirst: bankPeriods, selectedReports: bankPeriods.map((period) => ({ periodEnd: period.end })),
+  templateId: "GeneralIncomeStatement", companySymbol: "نطرین", companyName: "عطرین نخ قم", status: "Available",
+  periodsNewestFirst: natrinPeriods, selectedReports: natrinPeriods.map((period) => ({ periodEnd: period.end })),
   rows: parsed.model.rows.map((row, index) => ({
     rowId: generalRowIds[index] == null ? "gross_margin" : `source_${generalRowIds[index]}`,
     sourceItemId: generalRowIds[index], order: index + 1, labelFa: row.label,
     policy: generalRowIds[index] == null ? "DerivedGrossMargin" : "CumulativeFlow",
     unit: generalRowIds[index] == null ? "percent" : "million_rial",
-    cells: Object.fromEntries(bankPeriods.map((period, i) => [period.label, {
-      value: row.chartValues?.[4 - i] ?? null,
-      state: row.chartValues?.[4 - i] == null ? "MissingObservation" : "Available",
+    cells: Object.fromEntries(natrinPeriods.map((period, i) => {
+      const values = generalRowIds[index] === null
+        ? natrinGrossMargin
+        : natrinValuesBySourceId[generalRowIds[index] ?? -1] ?? row.chartValues ?? [];
+      const value = values[i] ?? null;
+      return [period.label, {
+      value,
+      state: value == null ? "MissingObservation" : "Available",
       unit: generalRowIds[index] == null ? "percent" : "million_rial",
-      renderZeroAsDash: row.chartValues?.[4 - i] === 0,
-    }])),
+      renderZeroAsDash: value === 0,
+    }];
+    })),
   })),
   comparisons: [],
 };

@@ -1,6 +1,6 @@
 # Feature 144 banking extension — implementation tasks
 
-Design approval: [APPROVED](design-review.md). Implementation status and verification are recorded below and in [ImplementationReport.md](ImplementationReport.md). Follow the current [banking specification](spec.md) and [technical design](design.md), including the Product Owner's **20-row** decision. Each task uses existing persisted statements and the V2 path. No JSON ingestion, direct Noavaran API call, new worker, new schema, V1 change, or modification to Feature 143 is authorized.
+Design approval: [APPROVED](design-review.md). The Product Owner later approved the two operating-income rows in this bounded implementation update. Follow the current [banking specification](spec.md) and [technical design](design.md): 22 banking rows, while the four earlier omitted rows remain excluded. Each task uses existing persisted statements and the V2 path. No JSON ingestion, direct Noavaran API call, new worker, new schema, V1 change, or modification to Feature 143 is authorized.
 
 ## T1 — Authoritative banking classification and template routing
 
@@ -11,13 +11,13 @@ Design approval: [APPROVED](design-review.md). Implementation status and verific
 - **Focused tests:** Bank GroupId, other non-null group, null/missing/duplicate/mismatched view row, changed group on a fresh request, consolidated request rejection, and stable old replay.
 - **Complete when:** Classification uses the view, only the approved GUID selects banking, and non-bank selection is unchanged.
 
-## T2 — Twenty-row bank template and persisted source retrieval
+## T2 — Twenty-two-row bank template and persisted source retrieval
 
-- **Deliverable:** Define the approved bank row IDs, labels, order, policies, units and source IDs in one testable immutable definition. Keep original positions 11, 12, 17 and 20 absent; no placeholders or substitutions. Extend the existing repository's bounded catalog/line-item ID selection for bank rows and existing EPS supplements. Keep provider/statement/scope/source-title and selected report provenance. Item 13 is tax; 336 may be a parity check only. Item 61 retains the non-operating source qualifier.
+- **Deliverable:** Define the approved bank row IDs, labels, order, policies, units and source IDs in a testable immutable definition. Preserve the four previously omitted rows as excluded. Include source item 194 in the existing repository's bounded catalog/line-item selection; add the operating-income formula row with no source-item identity. Keep provider/statement/scope/source-title and selected report provenance. Item 13 is tax; 336 may be a parity check only. Item 61 retains its non-operating source qualifier.
 - **Likely code:** `src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsNormalizer.cs` or adjacent bank definition; `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/FinancialStatementTableServices.cs`.
 - **Dependency:** T1.
 - **Acceptance criteria:** AC 4–6, 8, 21–22.
-- **Focused tests:** Exact 20 IDs/order/labels; no item 140/199/309 substitute or `143−278` row; provider-scoped catalog identity; separate report selection; missing/conflicting line states for included rows; general definition unchanged.
+- **Focused tests:** Exact 22 IDs/order/labels; standalone FY1405 Q2 ItemId 194 and five-input operating-income reconciliation; missing/null/incompatible/zero/signed values and provenance; no item 140/199/309 substitute or `143−278` row; repository selection; general definition unchanged.
 - **Complete when:** The same persisted repository returns all required approved bank observations and emits no excluded row.
 
 ## T3 — Shared quarter normalization and two bank percentages
@@ -35,21 +35,21 @@ Design approval: [APPROVED](design-review.md). Implementation status and verific
 - **Likely code:** `src/backend/FinancialCopilot.Application/FinancialData/Ingestion/QuarterlyFinancialReportsContracts.cs`; `src/backend/FinancialCopilot.Infrastructure/Financial/Ingestion/NadpcoApi/FinancialStatementTableServices.cs`; `src/backend/FinancialCopilot.Infrastructure/AI/OrchestrationV2/Workflow/FinancialCopilotWorkflowDefinition.cs`; `src/backend/FinancialCopilot.API/Contracts/AiFacadeContracts.cs`; `src/backend/FinancialCopilot.API/Controllers/AiFacadeController.cs`; conversation payload mappings.
 - **Dependency:** T3.
 - **Acceptance criteria:** AC 6, 11, 19–20, 22.
-- **Focused tests:** Typed V2 response and JSON round-trip/replay for bank 20-row output, omitted-row absence in every form, numeric precision/state/provenance retention, old general replay and one-charge behavior.
+- **Focused tests:** Typed V2 response and JSON round-trip/replay for current 22-row banking output, omitted-row absence in every form, numeric precision/state/provenance retention, historical 20-row snapshot compatibility, old general replay and one-charge behavior.
 - **Complete when:** A bank query and replay produce the same typed snapshot without prose-based recalculation.
 
 ## T5 — Typed banking table in the web client
 
-- **Deliverable:** Adapt the API/replayed typed quarterly result into a stable row-ID based `QuarterlyFinancialTableModel`, avoiding Markdown/rounded-number parsing for banking. Render exactly 20 RTL rows, actual Jalali period ends and five quarter columns, oldest next to `شرح`, latest near the left, with the QoQ column leftmost. Apply full-row yellow emphasis to both margin rows and bank-specific QoQ expense colors. Keep legacy general Markdown parsing and non-bank presentation intact.
+- **Deliverable:** Adapt the API/replayed typed quarterly result into a stable row-ID based `QuarterlyFinancialTableModel`, avoiding Markdown/rounded-number parsing for banking. Render the typed rows in RTL with actual Jalali period ends and five quarter columns; continue to accept older saved 20-row results. Keep the two new operating-income rows table-only with normal styling, preserve full-row yellow emphasis only on both margin rows, and preserve bank-specific QoQ expense colors. Keep legacy general Markdown parsing and non-bank presentation intact.
 - **Likely code:** `src/frontend/src/components/app/markdown-message.tsx`, `quarterly-financial-table.tsx`, `quarterly-financial-table-colors.ts`, `quarterly-financial-table-header.ts`, and the frontend AI response/replay adapter.
 - **Dependency:** T4.
 - **Acceptance criteria:** AC 6, 11, 16–19, 22.
-- **Focused tests:** Typed bank model/replay, 20-row order and omitted-row absence, zero/dash versus unavailable, negatives, Persian labels/dates, yellow rows, bank expense-color rules, mobile width, and unchanged general table.
+- **Focused tests:** Typed bank model/replay, 22-row order and omitted-row absence, old 20-row saved-result compatibility, zero/dash versus unavailable, negatives, Persian labels/dates, yellow margin rows only, bank expense-color rules, mobile width, and unchanged general table.
 - **Complete when:** Both fresh and replayed banking results render from typed values and the table has no page-width overflow.
 
 ## T6 — Five-series banking web chart
 
-- **Deliverable:** Extend the existing Recharts `ComposedChart` path with a bank series definition: signed bars 304/306/143 on million-IRR axis; leave item 305 in the table only; lines for the two typed margins on the percent axis. Use the table's five selected periods oldest to newest, Persian fiscal labels/tooltips, a five-item legend, negative bars below zero, and null gaps. Show the bank chart above its table regardless of the optional non-bank chart setting.
+- **Deliverable:** Extend the existing Recharts `ComposedChart` path with the final approved bank configuration, exactly 3 BAR + 2 LINE = 5 SERIES: signed bars 304/306/143 on the million-IRR axis; leave ItemId 305 in the table only; lines for the two unchanged typed margins on the percent axis. Use the table's five selected periods oldest to newest, Persian fiscal labels/tooltips, a five-item legend, negative bars below zero, and null gaps. Show the bank chart above its table regardless of the optional non-bank chart setting.
 - **Likely code:** `src/frontend/src/components/app/quarterly-financial-chart-data.ts`, `quarterly-financial-chart.tsx`, `quarterly-financial-table.tsx`.
 - **Dependency:** T5.
 - **Acceptance criteria:** AC 9–11, 13–15, 19.
@@ -58,11 +58,11 @@ Design approval: [APPROVED](design-review.md). Implementation status and verific
 
 ## T7 — Banking PNG export parity
 
-- **Deliverable:** Extend the existing canvas exporter to render the 20-row bank table and mandatory five-series chart from the same typed model. Draw three signed bars, two gapped curves, separate monetary/percentage axes, Persian labels and legend, and two full-row yellow margins. Keep Sapio branding and non-bank PNG behavior.
+- **Deliverable:** Extend the existing canvas exporter to render all typed banking rows and the existing bank chart from the same typed model. The two new rows are table-only. Keep chart definitions, axes and legend unchanged; preserve three signed bars, two gapped curves, Persian labels and legend, and two full-row yellow margins. Keep Sapio branding and non-bank PNG behavior.
 - **Likely code:** `src/frontend/src/components/app/quarterly-financial-table-image.ts`, `quarterly-financial-chart-data.ts`, and existing browser PNG test fixture.
 - **Dependency:** T5–T6.
 - **Acceptance criteria:** AC 6, 11, 13–17, 19, 22.
-- **Focused tests:** Canvas calls for 3+2 series and signed bars; 20 rows, two highlighted rows, no omitted text; enabled bank chart even when general setting is off; desktop/mobile browser PNG checks and general PNG regression.
+- **Focused tests:** Canvas parity for unchanged chart series and signed bars; 22-row export with the correct new-row order and only two highlighted rows; enabled bank chart even when general setting is off; desktop/mobile browser PNG checks and general PNG regression.
 - **Complete when:** Exported banking PNG agrees with web values/order/availability and fits its canvas without clipping.
 
 ## T8 — Bank Mellat financial reconciliation and persistence check
@@ -80,19 +80,26 @@ Design approval: [APPROVED](design-review.md). Implementation status and verific
 - **Likely code:** `tests/FinancialCopilot.IntegrationTests/AiFacadeV2EndpointTests.cs`; `tests/FinancialCopilot.UnitTests/QuarterlyFinancialReports144Tests.cs`; `src/frontend/src/components/app/__tests__/quarterly-financial-*.test.tsx`; `src/frontend/scripts/quarterly-financial-table-png.browser.test.mjs`.
 - **Dependency:** T1–T8.
 - **Acceptance criteria:** AC 1–22.
-- **Focused tests:** One bank and one non-bank end-to-end fixture, five-quarter ordering, 20 bank rows, 3+2 chart, zero/null/sign/percent semantics, replay equality, authorization and single billing finalization; existing general fixture unchanged.
+- **Focused tests:** One bank and one non-bank end-to-end fixture, five-quarter ordering, 22 current bank rows and historical 20-row snapshot replay, unchanged chart-series count, zero/null/sign/percent semantics, replay equality, authorization and single billing finalization; existing general fixture unchanged.
 - **Complete when:** Focused backend/frontend/browser suites pass and no unrelated production component was changed.
+
+## T10 — Two operating-income rows (Product Owner approved)
+
+- **Deliverable:** Add the banking-only direct source row `source_194` and the calculated row `banking_operating_income` immediately after it and after FX result. Reuse the persisted statement repository and standalone YTD normalization. Calculate the second row as standalone 306 + 307 + 194 + 61 + 27, preserving signs, unit and typed provenance. Do not modify General-template rows or chart series.
+- **Acceptance criteria:** Current banking result has 22 rows; row 194 standalone Q2 is 614,028,450 million IRR and the calculated operating income is 1,258,004,435 million IRR for the reference reconciliation. Existing 20-row snapshots remain readable.
+- **Focused tests:** Repository returns persisted item 194; exact order; normalized subtraction; valid zero, negative, null, missing predecessor and incompatible unit; source reports/line items/operand values; web/PNG parity; chart series invariance; V2 typed round-trip/replay; General-template regression.
+- **Status:** Implemented. Deterministic backend tests and current frontend/browser results are recorded in `ImplementationReport.md`; Development database and full V2 host replay remain subject to the documented environment gates.
 
 ## Implementation status (2026-10-24)
 
 | Task | Status | Evidence / limitation |
 |---|---|---|
 | T1 — classification and routing | COMPLETE | `NoavaranEligibleCompanies` reader checks canonical ID, provider, external ID, and exactly one non-null GroupId. Banking GroupId is centralized. Unit coverage verifies bank, non-bank, missing and duplicate evidence. |
-| T2 — 20-row template and source retrieval | COMPLETE | Stable ordered bank rows use source IDs 304, 305, 306, 26, 7, 307, 61, 27, 40, 5, 6, 12, 142, 13, 278, 143, 160, 153 plus two formulas. Existing repository now selects these catalog IDs. Unit test asserts exact row order and omissions. Persisted Development inventory was not accessible; see T8. |
+| T2 — original 20-row template and source retrieval | COMPLETE (superseded row count) | The original approved baseline and exclusions are retained as history. The current 22-row row list and new source/formula rules are specified in T10 and `spec.md`. |
 | T3 — normalization and margins | COMPLETE | Reuses adjacent YTD normalization and existing EPS/share-basis derivation. Deterministic FY1405 Q1/Q2 fixture verifies Q2 306, 143, 305, 307, 13, 278 and both ratios. Expense QoQ semantics covered for item 305. |
 | T4 — V2/API/render/replay | PARTIAL | Typed template ID and classification snapshot are part of the existing quarterly result and therefore flow through the existing API and assistant-message persistence/replay. JSON round-trip is tested. V2 host integration test could not start because Feature 141 application-database settings are absent. |
-| T5 — typed web table | COMPLETE | Frontend reads the typed result for banking, orders by stable row IDs, preserves cell state/provenance, and formats actual Jalali period ends. Chrome evidence verifies 20 rows, omitted-row absence, RTL/mobile width and both highlighted rows. |
-| T6 — five-series chart | UPDATED | The banking chart now has three amount bars (304, 306, 143) and two percent lines; item 305 remains table-only. Re-run browser checks for this presentation change. |
-| T7 — PNG parity | COMPLETE | Browser-generated 2400×3836 banking PNG includes chart, 20-row table and full-width yellow margin rows. PNG and web screenshots are saved under `evidence/`. |
+| T5 — typed web table | COMPLETE | The original 20-row browser evidence is a historical baseline. The current follow-up verifies the 22-row table, omitted-row absence, RTL/mobile width and both highlighted rows. |
+| T6 — five-series chart | COMPLETE | Current approved chart is exactly 3 BAR + 2 LINE = 5 SERIES: bars 304, 306, 143 and lines for the two unchanged margin formulas. Item 305 remains table-only. Follow-up browser/component checks are recorded in the implementation report. |
+| T7 — PNG parity | COMPLETE | The original 20-row PNG is a historical baseline. The current 2400×4052 banking PNG includes the 22-row table, approved five-series chart and full-width yellow margin rows; evidence is saved under `evidence/`. |
 | T8 — persisted Bank Mellat reconciliation | PARTIAL | Reference arithmetic is reproduced by deterministic tests. Development DB check is `NOT VERIFIED — DEVELOPMENT DB ACCESS UNAVAILABLE`: no Development connection variables or `psql` client were available; the local read-only attempt could not connect. No Production data was accessed. |
 | T9 — end-to-end/regression gate | PARTIAL | 62 targeted backend tests, 17 frontend component tests, production build and Chrome PNG test pass. V2 API/replay host test is blocked by missing Feature 141 DB configuration; PostgreSQL-gated tests were skipped by their environment guard. See implementation report. |

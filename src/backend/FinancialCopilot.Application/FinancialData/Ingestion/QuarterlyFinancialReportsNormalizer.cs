@@ -14,6 +14,7 @@ public static class QuarterlyFinancialReportsNormalizer
         (307, "خالص درآمد کارمزد", "", QuarterlyRowPolicy.CumulativeFlow),
         (61, "خالص سود (زیان) سرمایه‌گذاری‌ها", "", QuarterlyRowPolicy.CumulativeFlow),
         (27, "نتیجه معاملات ارزی", "", QuarterlyRowPolicy.CumulativeFlow),
+        (194, "سایر درآمدها و هزینه‌های عملیاتی", "", QuarterlyRowPolicy.CumulativeFlow),
         (40, "سایر درآمدها و هزینه‌های غیرعملیاتی", "", QuarterlyRowPolicy.CumulativeFlow),
         (5, "هزینه‌های عمومی و اداری", "", QuarterlyRowPolicy.CumulativeFlow),
         (6, "هزینه مطالبات مشکوک‌الوصول", "", QuarterlyRowPolicy.CumulativeFlow),
@@ -225,6 +226,13 @@ public static class QuarterlyFinancialReportsNormalizer
                         item.Current, item.Previous, row.Id);
                     continue;
                 }
+                if (isBanking && row.Id == 194 && !IsCompatibleBankingSourceUnit(currentValue.Unit))
+                {
+                    cellMap[key] = Missing(QuarterlyCellState.IncompatibleObservation,
+                        "The persisted source item declares an incompatible unit.", unit,
+                        item.Current, item.Previous, row.Id);
+                    continue;
+                }
                 if (row.Policy != QuarterlyRowPolicy.ReportedPointInTime && item.Period.Quarter > 1 && !previousValue.Present)
                 {
                     cellMap[key] = Missing(QuarterlyCellState.MissingPredecessor,
@@ -362,6 +370,12 @@ public static class QuarterlyFinancialReportsNormalizer
         {
             if (isBanking)
             {
+                cellMap[("banking_operating_income", item.Period.Label)] = DerivedBankingOperatingIncome(
+                    ("source_306", cellMap.GetValueOrDefault(("source_306", item.Period.Label))),
+                    ("source_307", cellMap.GetValueOrDefault(("source_307", item.Period.Label))),
+                    ("source_194", cellMap.GetValueOrDefault(("source_194", item.Period.Label))),
+                    ("source_61", cellMap.GetValueOrDefault(("source_61", item.Period.Label))),
+                    ("source_27", cellMap.GetValueOrDefault(("source_27", item.Period.Label))));
                 cellMap[("banking_gross_margin", item.Period.Label)] = DerivedMargin(
                     cellMap.GetValueOrDefault(("source_306", item.Period.Label)),
                     cellMap.GetValueOrDefault(("source_304", item.Period.Label)), "BankingNetInterest / InterestIncome * 100");
@@ -387,7 +401,11 @@ public static class QuarterlyFinancialReportsNormalizer
             display.AddRange(directRows.Skip(3).Take(3).Select(row => ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
             display.Add(("banking_fee_margin", "حاشیه سود کارمزد", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
-            display.AddRange(directRows.Skip(6).Select(row => ($"source_{row.Id}", row.Label,
+            display.AddRange(directRows.Skip(6).Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            display.Add(("banking_operating_income", "خالص درآمدهای عملیاتی", null, null,
+                QuarterlyRowPolicy.DerivedBankingOperatingIncome, "million_rial"));
+            display.AddRange(directRows.Skip(9).Select(row => ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
         }
         else
@@ -476,12 +494,19 @@ public static class QuarterlyFinancialReportsNormalizer
             orderedRows.AddRange(BankingRows.Skip(3).Take(3).Select(row => ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
             orderedRows.Add(("banking_fee_margin", "حاشیه سود کارمزد", null, null, QuarterlyRowPolicy.DerivedBankingMargin, "percent"));
-            orderedRows.AddRange(BankingRows.Skip(6).Select(row => ($"source_{row.Id}", row.Label,
+            orderedRows.AddRange(BankingRows.Skip(6).Take(3).Select(row => ($"source_{row.Id}", row.Label,
+                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+            orderedRows.Add(("banking_operating_income", "خالص درآمدهای عملیاتی", null, null,
+                QuarterlyRowPolicy.DerivedBankingOperatingIncome, "million_rial"));
+            orderedRows.AddRange(BankingRows.Skip(9).Select(row => ($"source_{row.Id}", row.Label,
                 (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
         }
-        orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
-            ($"source_{row.Id}", row.Label,
-                (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+        else
+        {
+            orderedRows.AddRange(DirectRows.Where(row => row.Id is not (15 or 1 or 139)).Select(row =>
+                ($"source_{row.Id}", row.Label,
+                    (int?)row.Id, (string?)row.CatalogId, row.Policy, Unit(row.Id))));
+        }
         var rows = orderedRows.Select((row, index) => new QuarterlyFinancialRow(row.Id, index + 1, row.Label,
             row.SourceId, row.Catalog is null || row.Catalog.Length == 0 ? null : Guid.Parse(row.Catalog), row.Policy, row.Unit,
             new Dictionary<string, QuarterlyFinancialCell>())).ToArray();
@@ -743,6 +768,46 @@ public static class QuarterlyFinancialReportsNormalizer
             policy, [numerator.Value, denominator.Value]);
     }
 
+    private static QuarterlyFinancialCell DerivedBankingOperatingIncome(
+        params (string RowId, QuarterlyFinancialCell? Cell)[] operands)
+    {
+        const string policy = "StandaloneOperatingIncome:source_306 + source_307 + source_194 + source_61 + source_27";
+        var reportIds = operands.SelectMany(operand => operand.Cell?.SourceReportIds ?? [])
+            .Distinct().ToArray();
+        var lineIds = operands.SelectMany(operand => operand.Cell?.SourceLineItemIds ?? [])
+            .Distinct().ToArray();
+        var operandValues = operands.Select(operand => operand.Cell?.Value).ToArray();
+        var incompatible = operands.FirstOrDefault(operand => operand.Cell is
+            { State: QuarterlyCellState.Available } cell &&
+            (cell.Unit != "million_rial" || cell.CurrencyCode != "IRR" || cell.ValueScale != 6));
+        if (incompatible.Cell is not null)
+            return new(null, QuarterlyCellState.IncompatibleObservation,
+                $"Standalone operand {incompatible.RowId} has an incompatible currency, scale, or unit.",
+                "million_rial", false, reportIds, lineIds, policy, operandValues, "IRR", 6);
+
+        var unavailable = operands.FirstOrDefault(operand => operand.Cell is null ||
+            operand.Cell.State != QuarterlyCellState.Available || !operand.Cell.Value.HasValue);
+        if (unavailable.Cell is not null || operands.Any(operand => operand.Cell is null))
+        {
+            var rowId = unavailable.RowId;
+            var state = unavailable.Cell?.State switch
+            {
+                QuarterlyCellState.MissingPredecessor => QuarterlyCellState.MissingPredecessor,
+                QuarterlyCellState.IncompatibleObservation => QuarterlyCellState.IncompatibleObservation,
+                QuarterlyCellState.ConflictingObservation => QuarterlyCellState.ConflictingObservation,
+                QuarterlyCellState.UnsupportedFiscalPeriod => QuarterlyCellState.UnsupportedFiscalPeriod,
+                _ => QuarterlyCellState.CalculationUnavailable
+            };
+            var reason = unavailable.Cell?.Reason ?? "The required standalone source observation is missing.";
+            return new(null, state, $"Standalone operand {rowId} is unavailable: {reason}",
+                "million_rial", false, reportIds, lineIds, policy, operandValues, "IRR", 6);
+        }
+
+        var value = operandValues.Sum(operand => operand!.Value);
+        return new(value, QuarterlyCellState.Available, null, "million_rial", value == 0m,
+            reportIds, lineIds, policy, operandValues, "IRR", 6);
+    }
+
     private static QuarterlyQoQComparison Compare(string rowId, QuarterlyFiscalPeriod currentPeriod,
         QuarterlyFiscalPeriod previousPeriod, QuarterlyFinancialCell current, QuarterlyFinancialCell previous,
         bool isBanking = false)
@@ -792,6 +857,13 @@ public static class QuarterlyFinancialReportsNormalizer
         160 => "rial_per_share",
         _ => "million_rial"
     };
+
+    // Noavaran's statement samples use AmountUnit="N/A" for monetary source lines and document
+    // those report amounts as million Rials. The report-level AssumedScale check above establishes
+    // the normalized unit; accept that provider marker while still rejecting a declared share unit.
+    private static bool IsCompatibleBankingSourceUnit(string? unit) =>
+        string.Equals(unit?.Trim(), "million_rial", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(unit?.Trim(), "N/A", StringComparison.OrdinalIgnoreCase);
 
     private static Guid[] PerviousReports(this (QuarterlyFiscalPeriod Period, QuarterlyReportObservation? Current, QuarterlyReportObservation? Previous) item) =>
         new[] { item.Current?.ReportId, item.Previous?.ReportId }.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();

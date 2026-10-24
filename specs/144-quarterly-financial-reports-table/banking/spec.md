@@ -10,36 +10,40 @@ Only persisted, separate (`IsComposing=false`) `IncomeStatement` observations fr
 
 ## Banking rows
 
-The banking table has **exactly 20 rows**, in the order below. The `#` column retains the original request's positions for traceability; positions 11, 12, 17, and 20 are intentionally absent. The Product Owner approved omitting those four nonmandatory rows entirely: no placeholder, substitute item, or derived continuing-operations formula. The supplied six-report JSON confirms the listed source titles, signed amounts, and arithmetic for the mapped Bank Mellat rows. It is not proof that identical reports are persisted or selected in Development; the source catalog and persisted observations must be checked during implementation validation.
+The current banking table has **exactly 22 rows**, in the order below. The previous approved 20-row version omitted four nonmandatory rows entirely; those earlier exclusions remain in force and must not be restored. This addition uses ItemId 194 for the newly approved direct row and a separate five-operand calculation for operating income. The supplied JSON and FY1405 Q2 values are reconciliation evidence only. Runtime reads the existing persisted PostgreSQL statements; the JSON is not a prerequisite or data source.
 
 | # | Display title | Source/policy | Mapping state |
 |---:|---|---|---|
-| 1 | درآمد تسهیلات اعطایی و سپرده‌گذاری | 304, cumulative flow | Verified in reference JSON and catalog |
-| 2 | هزینه سود سپرده‌ها | 305, cumulative flow | Verified in reference JSON and catalog |
-| 3 | خالص درآمد تسهیلات و سپرده‌گذاری | 306, cumulative flow | Verified; 306 = 304 + 305 in all six reports |
+| 1 | درآمد تسهیلات اعطایی و سپرده‌گذاری | 304, cumulative flow | Verified in reference evidence and persisted catalog |
+| 2 | هزینه سود سپرده‌ها | 305, cumulative flow | Verified; table-only chart behavior is unchanged |
+| 3 | خالص درآمد تسهیلات و سپرده‌گذاری | 306, cumulative flow | Verified; 306 = 304 + 305 in all six reference reports |
 | 4 | مارجین ناخالص عملیات بانکی | standalone 306 / standalone 304 × 100 | Approved formula |
 | 5 | درآمد کارمزد | 26, cumulative flow | Verified; source title includes agency fees |
-| 6 | هزینه کارمزد | 7, cumulative flow | Verified in reference JSON and catalog |
-| 7 | خالص درآمد کارمزد | 307, cumulative flow | Verified; 307 = 26 + 7 in all six reports |
+| 6 | هزینه کارمزد | 7, cumulative flow | Verified in reference evidence and catalog |
+| 7 | خالص درآمد کارمزد | 307, cumulative flow | Verified; 307 = 26 + 7 in all six reference reports |
 | 8 | حاشیه سود کارمزد | standalone 307 / standalone 26 × 100 | Approved formula |
-| 9 | خالص سود (زیان) سرمایه‌گذاری‌ها | 61, cumulative flow | Verified investment profit/loss source; disclose source's non-operating qualifier |
-| 10 | نتیجه معاملات ارزی | 27, cumulative flow | Verified in reference JSON and catalog |
-| 13 | سایر درآمدها و هزینه‌های غیرعملیاتی | 40, cumulative flow | Verified in reference JSON and catalog |
+| 9 | خالص سود (زیان) سرمایه‌گذاری‌ها | 61, cumulative flow | Verified investment source; disclose its non-operating qualifier in provenance |
+| 10 | نتیجه معاملات ارزی | 27, cumulative flow | Verified in reference evidence and catalog |
+| 11 | سایر درآمدها و هزینه‌های عملیاتی | 194, cumulative flow | Direct persisted source; source title: خالص سایر درآمدهای غیر مشاع |
+| 12 | خالص درآمدهای عملیاتی | standalone 306 + 307 + 194 + 61 + 27 | Calculated product-defined measure; not a reported source item |
+| 13 | سایر درآمدها و هزینه‌های غیرعملیاتی | 40, cumulative flow | Verified in reference evidence and catalog |
 | 14 | هزینه‌های عمومی و اداری | 5, cumulative flow | Verified; source title includes selling costs |
-| 15 | هزینه مطالبات مشکوک‌الوصول | 6, cumulative flow | Verified in reference JSON and catalog |
-| 16 | هزینه‌های مالی | 12, cumulative flow | Verified in reference JSON and catalog |
-| 18 | سود (زیان) قبل از کسر مالیات | 142, cumulative flow | Verified in reference JSON and catalog |
-| 19 | مالیات | 13, cumulative flow | `مالیات بر درآمد`; 336 is equal in all six reports, validation only |
-| 21 | سود (زیان) خالص عملیات متوقف‌شده | 278, cumulative flow | Verified title; all six reference values are zero; post-tax meaning remains qualified |
-| 22 | سود (زیان) خالص | 143, cumulative flow | Verified in reference JSON and catalog |
-| 23 | سود هر سهم بر اساس آخرین سرمایه | existing Feature 144 comparable EPS policy | Display this explanatory label; preserve source identity and calculation provenance |
-| 24 | تعداد سهام شرکت (هزار سهم) | 153, existing comparable share basis policy | Approved policy |
+| 15 | هزینه مطالبات مشکوک‌الوصول | 6, cumulative flow | Verified in reference evidence and catalog |
+| 16 | هزینه‌های مالی | 12, cumulative flow | Verified in reference evidence and catalog |
+| 17 | سود (زیان) قبل از کسر مالیات | 142, cumulative flow | Verified in reference evidence and catalog |
+| 18 | مالیات | 13, cumulative flow | `مالیات بر درآمد`; item 336 is a parity check only |
+| 19 | سود (زیان) خالص عملیات متوقف‌شده | 278, cumulative flow | Verified title; reported zeros remain valid observations |
+| 20 | سود (زیان) خالص | 143, cumulative flow | Verified in reference evidence and catalog |
+| 21 | سود هر سهم بر اساس آخرین سرمایه | existing Feature 144 comparable EPS policy | Display label; preserve source identity and calculation provenance |
+| 22 | تعداد سهام شرکت (هزار سهم) | 153, existing comparable share basis policy | Approved policy |
 
 There are exactly two **bank-specific** calculated percentage rows, #4 and #8. Both use normalized standalone values, preserve decimal precision, reject missing/incompatible operands and zero denominators, and store the result already scaled by 100. Rendering uses Persian digits and one decimal place without a second multiplication. The supplied six-report JSON independently confirms FY1405 Q2 item 306 as `930,601,037 − 358,231,194 = 572,369,843` million IRR and item 143 as `1,025,278,132 − 384,058,010 = 641,220,122` million IRR. These are reference calculations, not runtime data.
 
+For the operating-income calculation, normalize all five signed inputs to standalone quarters before addition. Preserve the source order `306, 307, 194, 61, 27`; no missing, null, incompatible, or unverified operand is treated as zero. A reported zero remains a valid operand. Carry operand values, source line-item IDs, selected report IDs, calculation policy and million-IRR unit in the typed cell. The deterministic FY1405 Q2 reconciliation is `572,369,843 + 58,739,197 + 614,028,450 + 9,955,258 + 2,911,687 = 1,258,004,435` million IRR. No additional scaling is applied.
+
 ## Chart and presentation
 
-Place the banking chart above the table in web and PNG, even if the optional non-bank chart setting is off. Use the same five period identities and typed cells as the table. The chart has exactly three **bars** (304, 306, 143; million IRR) and two **lines** (rows #4 and #8; percent) with separate monetary and percent axes. Deposit interest expense (305) remains unchanged in the table and is omitted from the chart. Negative values fall below zero. Missing values are gaps, not zeros. Axis labels, fiscal-quarter labels, legend, and tooltips use Persian digits. Table and chart show the same amount precision and availability semantics; chart calculations never reparse rounded display strings.
+Place the banking chart above the table in web and PNG, even if the optional non-bank chart setting is off. Use the same five period identities and typed cells as the table. The final approved chart is **3 BAR + 2 LINE = 5 SERIES**: three **bars**—درآمد تسهیلات و سپرده‌گذاری (ItemId 304), خالص درآمد تسهیلات و سپرده‌گذاری (ItemId 306), and سود خالص (ItemId 143)—on the million-IRR axis; and two **lines**—مارجین ناخالص عملیات بانکی (`standalone(306) / standalone(304) × 100`) and حاشیه سود کارمزد (`standalone(307) / standalone(26) × 100`)—on the percent axis. Deposit interest expense (ItemId 305) remains unchanged in the table and is omitted from the chart. Negative values fall below zero. Missing values are gaps, not zeros. Axis labels, fiscal-quarter labels, legend, and tooltips use Persian digits. Table and chart show the same amount precision and availability semantics; chart calculations never reparse rounded display strings.
 
 The table retains rightmost `شرح`, oldest quarter next to it, newest quarter to the left, and leftmost QoQ column. It uses actual Jalali period ends, a teal header, pale label cells, accounting parentheses, and no page-width overflow. Both calculated margin rows use the existing full-row yellow emphasis and stronger type. QoQ uses standalone values and typed statuses. Expense favorability is defined per banking row, not from sign alone; derived percentage rows keep percentage units. Preserve non-bank colors and behavior.
 
@@ -50,14 +54,14 @@ The table retains rightmost `شرح`, oldest quarter next to it, newest quarter 
 3. Missing, duplicate, or conflicting eligibility/group evidence returns a typed unavailable classification and never guesses banking membership.
 4. Only persisted `NoavaranCurrentApi` separate income statements are selected; consolidated requests and mixed-scope pairs are rejected.
 5. Existing audit/restatement priority, period boundaries, source IDs, and selected report provenance are preserved.
-6. The banking table contains exactly the 20 approved rows in the order above; original positions 11, 12, 17, and 20 are absent, with no unavailable placeholders.
+6. The current banking table contains exactly 22 rows in the order above; the four previously omitted nonmandatory rows remain absent, with no unavailable placeholders. Earlier saved 20-row snapshots remain readable.
 7. Each approved direct monetary item uses adjacent compatible YTD subtraction for Q2–Q4, signed full-precision values, and pass-through 3M for Q1.
 8. Missing predecessor, conflicting revision, incompatible scope/unit/scale, or absent source line yields a typed unavailable cell without affecting independent valid cells.
 9. Banking gross margin equals standalone 306 / standalone 304 × 100, with null for missing/incompatible/zero denominator.
 10. Fee margin equals standalone 307 / standalone 26 × 100, with the same safeguards.
 11. The two margin cells serialize as already-scaled `percent` values and render in Persian digits with one decimal, exactly once.
 12. Comparable EPS and share count follow the current Feature 144 143/313 numerator and newest-selected-quarter item-153 basis policy; every quarter shares that denominator and raw observations remain distinct.
-13. The chart uses exactly three signed monetary bar series (304, 306, 143) and two percentage line series on distinct axes, in the same chronological five-quarter order as the table. Item 305 remains in the table and is excluded from web and PNG charts.
+13. The final approved chart is exactly 3 BAR + 2 LINE = 5 SERIES: three signed monetary bars (304, 306, 143) and two percentage lines (the banking gross margin and fee profit margin formulas above) on distinct axes, in the same chronological five-quarter order as the table. Item 305 remains in the table and is excluded from web and PNG charts.
 14. Missing chart values are gaps, zero remains a valid zero, and negative values in charted rows remain below the zero line in web and PNG.
 15. The banking chart is shown above the table in web and PNG; the existing non-bank chart setting and series stay unchanged.
 16. RTL table columns, PeriodType quarter headings, actual Jalali ends, Persian digits, accounting negatives, and no horizontal page overflow match Feature 144 presentation.

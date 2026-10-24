@@ -44,9 +44,14 @@ try {
   await page.getByRole("button", { name: "دانلود تصویر جدول" }).waitFor({ timeout: 120000 });
   await page.getByRole("img", { name: /نمودار درآمد تسهیلات/ }).waitFor();
   const table = page.locator("section > table").first();
-  assert.equal(await table.locator("tbody tr").count(), 20);
+  assert.equal(await table.locator("tbody tr").count(), 22);
+  const rowLabels = await table.locator("tbody tr th").allTextContents();
+  assert.deepEqual(rowLabels.slice(8, 13), [
+    "خالص سود (زیان) سرمایه‌گذاری‌ها", "نتیجه معاملات ارزی", "سایر درآمدها و هزینه‌های عملیاتی",
+    "خالص درآمدهای عملیاتی", "سایر درآمدها و هزینه‌های غیرعملیاتی",
+  ]);
   const text = await table.innerText();
-  for (const omitted of ["خالص درآمدهای عملیاتی", "استهلاک", "عملیات در حال تداوم"])
+  for (const omitted of ["استهلاک", "سود خالص عملیات در حال تداوم"])
     assert.equal(text.includes(omitted), false, `Unexpected omitted row: ${omitted}`);
   const yellowMarginCells = await table.locator("tbody tr").nth(3).locator("th,td").evaluateAll((cells) =>
     cells.map((cell) => getComputedStyle(cell).backgroundColor));
@@ -54,6 +59,12 @@ try {
     cells.map((cell) => getComputedStyle(cell).backgroundColor));
   assert.ok([...yellowMarginCells, ...yellowFeeCells].every((color) => color === yellowMarginCells[0]),
     `Banking margin rows are not fully yellow: ${JSON.stringify({ yellowMarginCells, yellowFeeCells })}`);
+  for (const index of [10, 11]) {
+    const colors = await table.locator("tbody tr").nth(index).locator("th,td").evaluateAll((cells) =>
+      cells.map((cell) => getComputedStyle(cell).backgroundColor));
+    assert.equal(colors.some((color) => color === yellowMarginCells[0]), false,
+      `Operating income row ${index} must use normal row styling`);
+  }
   await page.setViewportSize({ width: 390, height: 900 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 1);
   await page.setViewportSize({ width: 1300, height: 1100 });
@@ -72,11 +83,15 @@ try {
     assert.ok(chartLegendText.some((entry) => entry.includes(label)), `Banking chart is missing ${label}`);
   assert.equal(chartLegendText.some((entry) => entry.includes("هزینه سود سپرده‌ها")), false,
     "Deposit interest expense must not appear in the chart legend");
+  assert.equal(chartLegendText.some((entry) => entry.includes("سایر درآمدها و هزینه‌های عملیاتی")), false,
+    "Source item 194 is a table-only row");
+  assert.equal(chartLegendText.some((entry) => entry.includes("خالص درآمدهای عملیاتی")), false,
+    "Calculated operating income is a table-only row");
   assert.ok(canvasText.some((entry) => entry.text.includes("هزینه سود سپرده‌ها")),
     "Deposit interest expense must remain in the PNG table");
   assert.ok(text.includes("سود هر سهم بر اساس آخرین سرمایه"), "Updated EPS label is missing from the banking table");
   console.log(JSON.stringify({ pngPath, webPath, width: image.width, height: image.height,
-    rows: 20, marginHighlightColors: yellowMarginCells, feeHighlightColors: yellowFeeCells }, null, 2));
+    rows: 22, marginHighlightColors: yellowMarginCells, feeHighlightColors: yellowFeeCells }, null, 2));
 } finally {
   await browser?.close();
   await server.close();

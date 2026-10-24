@@ -79,21 +79,21 @@ public sealed class QuarterlyFinancialReports144Tests
     }
 
     [Fact]
-    public void Normalize_BankingUsesTwentyApprovedRowsAndStandaloneMargins()
+    public void Normalize_BankingUsesTwentyTwoRowsAndStandaloneOperatingIncome()
     {
         var start = Jalali(1405, 1, 1);
         var q1 = Report(start, 3, new Dictionary<int, decimal?>
         {
             [304] = 1_009_684_387m, [305] = -651_453_193m, [306] = 358_231_194m,
             [26] = 186_404_253m, [7] = -15_582_207m, [307] = 170_822_046m,
-            [61] = 2m, [27] = 3m, [40] = 4m, [5] = -5m, [6] = -6m, [12] = -7m,
+            [61] = 2m, [27] = 3m, [194] = 200_000_000m, [40] = 4m, [5] = -5m, [6] = -6m, [12] = -7m,
             [142] = 395_735_576m, [13] = -11_677_566m, [278] = 0m, [143] = 384_058_010m, [153] = 3_382_000_000m
         });
         var q2 = Report(start, 6, new Dictionary<int, decimal?>
         {
             [304] = 2_150_761_533m, [305] = -1_220_160_496m, [306] = 930_601_037m,
             [26] = 264_372_382m, [7] = -34_811_139m, [307] = 229_561_243m,
-            [61] = 3m, [27] = 4m, [40] = 5m, [5] = -8m, [6] = -9m, [12] = -11m,
+            [61] = 9_955_260m, [27] = 2_911_690m, [194] = 814_028_450m, [40] = 5m, [5] = -8m, [6] = -9m, [12] = -11m,
             [142] = 1_112_706_518m, [13] = -87_428_386m, [278] = 0m, [143] = 1_025_278_132m, [153] = 3_382_000_000m
         });
         var group = BankingIndustryGroupId;
@@ -102,15 +102,31 @@ public sealed class QuarterlyFinancialReports144Tests
 
         Assert.Equal("BankingIncomeStatement", result.TemplateId);
         Assert.Equal(group, result.ClassificationGroupId);
-        Assert.Equal(20, result.Rows.Count);
+        Assert.Equal(22, result.Rows.Count);
         Assert.Equal("سود هر سهم بر اساس آخرین سرمایه", result.Rows.Single(row => row.SourceItemId == 160).LabelFa);
-        Assert.Equal(new int?[] { 304, 305, 306, null, 26, 7, 307, null, 61, 27, 40, 5, 6, 12, 142, 13, 278, 143, 160, 153 },
+        Assert.Equal(new int?[] { 304, 305, 306, null, 26, 7, 307, null, 61, 27, 194, null, 40, 5, 6, 12, 142, 13, 278, 143, 160, 153 },
             result.Rows.Select(row => row.SourceItemId));
+        Assert.Equal(new[] { "source_61", "source_27", "source_194", "banking_operating_income", "source_40" },
+            result.Rows.Skip(8).Take(5).Select(row => row.RowId));
         Assert.DoesNotContain(result.Rows, row => row.SourceItemId is 140 or 199 or 309);
         Assert.DoesNotContain(result.Rows, row => row.RowId is "source_140" or "source_199" or "source_309");
         Assert.Equal(572_369_843m, result.Rows.Single(row => row.SourceItemId == 306).Cells["1405 Q2"].Value);
         Assert.Equal(-568_707_303m, result.Rows.Single(row => row.SourceItemId == 305).Cells["1405 Q2"].Value);
         Assert.Equal(58_739_197m, result.Rows.Single(row => row.SourceItemId == 307).Cells["1405 Q2"].Value);
+        var otherOperatingIncome = result.Rows.Single(row => row.SourceItemId == 194);
+        Assert.Equal(614_028_450m, otherOperatingIncome.Cells["1405 Q2"].Value);
+        Assert.Equal("million_rial", otherOperatingIncome.Cells["1405 Q2"].Unit);
+        Assert.Equal(q2.Items.Single(item => item.SourceItemId == 194).CatalogId, otherOperatingIncome.SourceCatalogId);
+        Assert.Equal("خالص سایر درآمدهای غیر مشاع", otherOperatingIncome.SourceCatalogTitleFa);
+        var operatingIncome = result.Rows.Single(row => row.RowId == "banking_operating_income");
+        var operatingCell = operatingIncome.Cells["1405 Q2"];
+        Assert.Null(operatingIncome.SourceItemId);
+        Assert.Equal(QuarterlyRowPolicy.DerivedBankingOperatingIncome, operatingIncome.Policy);
+        Assert.Equal(1_258_004_435m, operatingCell.Value);
+        Assert.Equal("million_rial", operatingCell.Unit);
+        Assert.Equal(new decimal?[] { 572_369_843m, 58_739_197m, 614_028_450m, 9_955_258m, 2_911_687m }, operatingCell.OperandValues);
+        Assert.Equal(10, operatingCell.SourceLineItemIds.Count);
+        Assert.Contains("source_306 + source_307 + source_194 + source_61 + source_27", operatingCell.NormalizationPolicy);
         Assert.Equal(-75_750_820m, result.Rows.Single(row => row.SourceItemId == 13).Cells["1405 Q2"].Value);
         Assert.Equal(0m, result.Rows.Single(row => row.SourceItemId == 278).Cells["1405 Q2"].Value);
         Assert.Equal(641_220_122m, result.Rows.Single(row => row.SourceItemId == 143).Cells["1405 Q2"].Value);
@@ -126,6 +142,82 @@ public sealed class QuarterlyFinancialReports144Tests
         Assert.Equal("BankingIncomeStatement", roundTrip?.TemplateId);
         Assert.Equal(572_369_843m / 1_141_077_146m * 100m,
             roundTrip?.Rows.Single(row => row.RowId == "banking_gross_margin").Cells["1405 Q2"].Value);
+        Assert.Equal(1_258_004_435m,
+            roundTrip?.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q2"].Value);
+    }
+
+    [Fact]
+    public void Normalize_BankingOperatingIncomeRequiresAllVerifiedStandaloneOperandsAndPreservesSignsAndZero()
+    {
+        var start = Jalali(1405, 1, 1);
+        var complete = Report(start, 3, new Dictionary<int, decimal?>
+        {
+            [306] = 1m, [307] = 0m, [194] = 10m, [61] = -1m, [27] = 0m
+        });
+        // Noavaran reports monetary source lines with AmountUnit="N/A"; the report's
+        // MillionRials scale is authoritative for the normalized output unit.
+        complete = complete with
+        {
+            Items = complete.Items.Select(item => item.SourceItemId == 194
+                ? item with { Unit = "N/A" }
+                : item).ToArray()
+        };
+        var noUnitResult = QuarterlyFinancialReportsNormalizer.Normalize("وبملت", "بانک ملت", "issuer-1",
+            [complete], 1, null, DateTimeOffset.UtcNow, true, BankingIndustryGroupId);
+        var item194 = noUnitResult.Rows.Single(row => row.SourceItemId == 194).Cells["1405 Q1"];
+        Assert.Equal(QuarterlyCellState.Available, item194.State);
+        Assert.Equal(10m, item194.Value);
+        var noUnitOperatingCell = noUnitResult.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q1"];
+        Assert.Equal(QuarterlyCellState.Available, noUnitOperatingCell.State);
+        Assert.Equal(10m, noUnitOperatingCell.Value);
+        Assert.Equal(new decimal?[] { 1m, 0m, 10m, -1m, 0m }, noUnitOperatingCell.OperandValues);
+
+        var zeroObservation = Report(start, 3, new Dictionary<int, decimal?>
+        {
+            [306] = 1m, [307] = 0m, [194] = 0m, [61] = -1m, [27] = 0m
+        });
+        var zeroResult = QuarterlyFinancialReportsNormalizer.Normalize("وبملت", "بانک ملت", "issuer-1",
+            [zeroObservation], 1, null, DateTimeOffset.UtcNow, true, BankingIndustryGroupId);
+        var zeroCell = zeroResult.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q1"];
+        Assert.Equal(QuarterlyCellState.Available, zeroCell.State);
+        Assert.Equal(0m, zeroCell.Value);
+
+        var missingNullOperand = Report(start, 3, new Dictionary<int, decimal?>
+        {
+            [306] = 1m, [307] = 0m, [194] = null, [61] = -1m, [27] = 0m
+        });
+        var missingResult = QuarterlyFinancialReportsNormalizer.Normalize("وبملت", "بانک ملت", "issuer-1",
+            [missingNullOperand], 1, null, DateTimeOffset.UtcNow, true, BankingIndustryGroupId);
+        var unavailableCell = missingResult.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q1"];
+        Assert.Equal(QuarterlyCellState.CalculationUnavailable, unavailableCell.State);
+        Assert.Null(unavailableCell.Value);
+
+        var incompatibleUnit = Report(start, 3, new Dictionary<int, decimal?>
+        {
+            [306] = 1m, [307] = 0m, [194] = 10m, [61] = -1m, [27] = 0m
+        });
+        incompatibleUnit = incompatibleUnit with
+        {
+            Items = incompatibleUnit.Items.Select(item => item.SourceItemId == 194
+                ? item with { Unit = "thousand_shares" }
+                : item).ToArray()
+        };
+        var incompatibleResult = QuarterlyFinancialReportsNormalizer.Normalize("وبملت", "بانک ملت", "issuer-1",
+            [incompatibleUnit], 1, null, DateTimeOffset.UtcNow, true, BankingIndustryGroupId);
+        Assert.Equal(QuarterlyCellState.IncompatibleObservation,
+            incompatibleResult.Rows.Single(row => row.SourceItemId == 194).Cells["1405 Q1"].State);
+        Assert.Equal(QuarterlyCellState.IncompatibleObservation,
+            incompatibleResult.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q1"].State);
+
+        var missingPredecessor = Report(start, 6, new Dictionary<int, decimal?>
+        {
+            [306] = 1m, [307] = 0m, [194] = 0m, [61] = -1m, [27] = 0m
+        });
+        var predecessorResult = QuarterlyFinancialReportsNormalizer.Normalize("وبملت", "بانک ملت", "issuer-1",
+            [missingPredecessor], 2, null, DateTimeOffset.UtcNow, true, BankingIndustryGroupId);
+        var q2Cell = predecessorResult.Rows.Single(row => row.RowId == "banking_operating_income").Cells["1405 Q2"];
+        Assert.Equal(QuarterlyCellState.MissingPredecessor, q2Cell.State);
+        Assert.Null(q2Cell.Value);
     }
 
     [Fact]
@@ -382,6 +474,7 @@ public sealed class QuarterlyFinancialReports144Tests
             "bd36909d-abf8-44c2-b7db-5e53dd678b53", "2146da26-b28e-4d04-b50c-f49fc9b70e61",
             "e98e6c00-7204-44b1-a279-bbbb68781d3c"
         }, QuarterlyFinancialReportsNormalizer.ApprovedMappings.Select(item => item.CatalogId));
+        Assert.Contains(194, QuarterlyFinancialReportsNormalizer.RequiredSourceItemIds);
     }
 
     [Fact]
@@ -778,7 +871,8 @@ public sealed class QuarterlyFinancialReports144Tests
                 string.IsNullOrWhiteSpace(mapping.CatalogId) ? Guid.NewGuid() : Guid.Parse(mapping.CatalogId),
                 pair.Key,
                 pair.Key == 12 ? "\u0647\u0632\u06cc\u0646\u0647\u200c\u0647\u0627\u06cc \u0645\u0627\u0644\u06cc" :
-                    pair.Key == 278 ? "\u0633\u0648\u062f \u0639\u0645\u0644\u06cc\u0627\u062a \u0645\u062a\u0648\u0642\u0641\u200c\u0634\u062f\u0647" : null,
+                    pair.Key == 278 ? "\u0633\u0648\u062f \u0639\u0645\u0644\u06cc\u0627\u062a \u0645\u062a\u0648\u0642\u0641\u200c\u0634\u062f\u0647" :
+                    pair.Key == 194 ? "\u062e\u0627\u0644\u0635 \u0633\u0627\u06cc\u0631 \u062f\u0631\u0622\u0645\u062f\u0647\u0627\u06cc \u063a\u06cc\u0631 \u0645\u0634\u0627\u0639" : null,
                 pair.Key switch
                 {
                     153 => "thousand_shares",

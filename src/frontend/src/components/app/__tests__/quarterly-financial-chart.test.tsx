@@ -75,6 +75,8 @@ describe("Feature 144 comparison chart", () => {
         { rowId: "source_304", chartValues: [10, 20, 30, 40, 50] },
         { rowId: "source_305", chartValues: [-2, -3, -4, -5, -6] },
         { rowId: "source_306", chartValues: [8, 17, 26, 35, 44] },
+        { rowId: "source_194", chartValues: [100, 200, 300, 400, 500] },
+        { rowId: "banking_operating_income", chartValues: [111, 222, 333, 444, 555] },
         { rowId: "banking_gross_margin", chartValues: [80, null, 86, 87.5, 88] },
         { rowId: "banking_fee_margin", chartValues: [60, 61, 62, 63, 64] },
       ],
@@ -82,6 +84,8 @@ describe("Feature 144 comparison chart", () => {
     const points = quarterlyChartPointsChronologically(bankModel as ReturnType<typeof model>);
     expect(points.map((point) => point.interestIncome)).toEqual([10, 20, 30, 40, 50]);
     expect(points[0]).not.toHaveProperty("depositCost");
+    expect(points[0]).not.toHaveProperty("otherOperatingIncome");
+    expect(points[0]).not.toHaveProperty("bankingOperatingIncome");
     expect(points.map((point) => point.bankingGrossMargin)).toEqual([80, null, 86, 87.5, 88]);
   });
 

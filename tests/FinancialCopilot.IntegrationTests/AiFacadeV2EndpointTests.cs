@@ -1985,7 +1985,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
             .GetProperty("labelFa").GetString());
         Assert.Equal("latest_selected_quarter", comparableEps.GetProperty("comparableEvidence")
             .GetProperty("method").GetString());
-        Assert.Equal(144, comparableEps.GetProperty("comparableEvidence")
+        Assert.Equal(143, comparableEps.GetProperty("comparableEvidence")
             .GetProperty("attributableProfitSourceItemId").GetInt32());
         Assert.Equal(200_000m, comparableEps.GetProperty("comparableEvidence")
             .GetProperty("shareBasisThousand").GetDecimal());
@@ -2005,6 +2005,58 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
         using var unauthorized = await _factory.CreateClient().PostAsJsonAsync("/api/ai/v1/query",
             new { message = "جدول صورت سود و زیان 5 فصل اخیر غالبر" }, CancellationToken.None);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+    }
+
+    [Fact]
+    public async Task V2QuarterlyBankingTable_PersistsAndReplaysBothOperatingIncomeRows()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FinancialIngestionDbContext>();
+        var companyId = Guid.Parse("57000000-0000-0000-0000-000000000006");
+        db.Companies.Add(new NormalizedCompanyRow
+        {
+            Id = companyId, Name = "بانک ملت", ProviderName = "NoavaranCurrentApi",
+            ExternalCompanyId = "FS-BANK", Ticker = "وبملت", CompanySymbol = "وبملت", TseSymbol = "وبملت",
+            LastSynchronizedAt = DateTimeOffset.UtcNow
+        });
+        db.NoavaranEligibleCompanies.Add(new NoavaranEligibleCompanyRow
+        {
+            Id = companyId, ProviderName = "NoavaranCurrentApi", ExternalCompanyId = "FS-BANK",
+            Name = "بانک ملت", CompanySymbol = "وبملت", TseSymbol = "وبملت",
+            GroupId = Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2")
+        });
+        await db.SaveChangesAsync();
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+        var usageBefore = _factory.ReadUsageEntries().Count;
+        var reservationsBefore = _factory.ReadBillingReservations().Count;
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query",
+            new { message = "گزارش فصلی وبملت" }, CancellationToken.None);
+        using var document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var root = document.RootElement;
+        var conversationId = root.GetProperty("conversationId").GetGuid();
+        var quarterly = root.GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal("BankingIncomeStatement", quarterly.GetProperty("templateId").GetString());
+        Assert.Equal(22, quarterly.GetProperty("rows").GetArrayLength());
+        var rows = quarterly.GetProperty("rows").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "source_61", "source_27", "source_194", "banking_operating_income", "source_40" },
+            rows.Skip(8).Take(5).Select(row => row.GetProperty("rowId").GetString()));
+        Assert.Equal(17m, rows.Single(row => row.GetProperty("rowId").GetString() == "source_194")
+            .GetProperty("cells").EnumerateObject().Single().Value.GetProperty("value").GetDecimal());
+        Assert.Equal(141m, rows.Single(row => row.GetProperty("rowId").GetString() == "banking_operating_income")
+            .GetProperty("cells").EnumerateObject().Single().Value.GetProperty("value").GetDecimal());
+
+        using var replayResponse = await client.GetAsync(
+            $"/api/ai/v1/conversations/{conversationId}/messages", CancellationToken.None);
+        using var replay = await ReadJsonAsync(replayResponse);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        var replayedQuarterly = replay.RootElement.GetProperty("messages").EnumerateArray().Last()
+            .GetProperty("assistantContent").GetProperty("financialStatementTableResult").GetProperty("quarterlyResult");
+        Assert.Equal(quarterly.GetRawText(), replayedQuarterly.GetRawText());
+        Assert.Equal(usageBefore + 1, _factory.ReadUsageEntries().Count);
+        Assert.Equal(reservationsBefore + 1, _factory.ReadBillingReservations().Count);
     }
 
     [Theory]
@@ -2125,6 +2177,15 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
 
 internal sealed class QuarterlyFinancialReports144RepositoryFake : IQuarterlyFinancialReportsRepository
 {
+    public Task<IReadOnlyList<Guid?>> GetEligibleCompanyGroupsAsync(Guid canonicalCompanyId,
+        string providerName, string externalCompanyId, CancellationToken cancellationToken = default)
+    {
+        var groupId = externalCompanyId == "FS-BANK"
+            ? Guid.Parse("c96520f9-1d2e-444a-ab46-5bdffd3797d2")
+            : Guid.Parse("11111111-2222-3333-4444-555555555555");
+        return Task.FromResult<IReadOnlyList<Guid?>>([groupId]);
+    }
+
     public Task<IReadOnlyList<QuarterlyReportObservation>> GetIncomeStatementReportsAsync(
         QuarterlyFinancialReportSelection selection, CancellationToken cancellationToken = default)
     {
@@ -2146,13 +2207,24 @@ internal sealed class QuarterlyFinancialReports144RepositoryFake : IQuarterlyFin
             {
                 15 => 0m,
                 1 => -123.456789m,
-                144 => 20_000m,
+                143 => 20_000m,
                 153 => 200_000m,
                 160 or 317 => 100m,
                 _ => null
             };
             return new QuarterlySourceObservation(Guid.NewGuid(), Guid.Parse(mapping.CatalogId),
                 mapping.SourceItemId, null, unit, value);
+        }).Concat(new QuarterlySourceObservation[]
+        {
+            new(Guid.NewGuid(), Guid.NewGuid(), 304, null, "million_rial", 100m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 305, null, "million_rial", -20m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 306, null, "million_rial", 80m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 26, null, "million_rial", 50m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 7, null, "million_rial", -5m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 307, null, "million_rial", 45m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 61, null, "million_rial", -3m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 27, null, "million_rial", 2m),
+            new(Guid.NewGuid(), Guid.NewGuid(), 194, null, "million_rial", 17m)
         }).ToArray();
         IReadOnlyList<QuarterlyReportObservation> reports =
         [new(Guid.NewGuid(), "feature144-api-report", "NoavaranCurrentApi", selection.ExternalCompanyId, "IncomeStatement", 3,

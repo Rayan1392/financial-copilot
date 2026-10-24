@@ -21,6 +21,7 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
         await using var database = await fixture.CreateDatabaseAsync();
         var sourceIds = QuarterlyFinancialReportsNormalizer.RequiredMappings.ToDictionary(
             mapping => mapping.SourceItemId, mapping => Guid.Parse(mapping.CatalogId));
+        var otherOperatingIncomeCatalogId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
 
         await using (var db = database.CreateContext())
@@ -34,6 +35,12 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
                     TitleFa = $"catalog-{mapping.SourceItemId}", Unit = "million_rial", LastSynchronizedAt = now
                 });
             }
+            db.FinancialStatementSourceItems.Add(new FinancialStatementSourceItemCatalogRow
+            {
+                Id = otherOperatingIncomeCatalogId, ProviderName = "NoavaranCurrentApi",
+                StatementType = "IncomeStatement", SourceItemId = 194,
+                TitleFa = "خالص سایر درآمدهای غیر مشاع", Unit = "N/A", LastSynchronizedAt = now
+            });
 
             var ytd = new[]
             {
@@ -52,6 +59,7 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
             db.FinancialStatements.AddRange(ytd);
             db.FinancialStatementLineItems.AddRange(
                 Line(ytd[0].Id, sourceIds[15], null, 0m),
+                Line(ytd[0].Id, otherOperatingIncomeCatalogId, null, 194m),
                 Line(ytd[1].Id, sourceIds[15], null, 100m),
                 Line(ytd[2].Id, sourceIds[15], "REVENUE", 250m),
                 Line(ytd[3].Id, sourceIds[15], "REVENUE", 400m),
@@ -94,13 +102,18 @@ public sealed class QuarterlyFinancialReports144PostgreSqlTests(FinancialStateme
             Assert.StartsWith("r", report.ReportRevisionLineage);
         });
         Assert.Equal([12, 9, 6, 6, 3], reports.Select(report => report.PeriodMonths));
-        var zero = Assert.Single(reports.Single(report => report.ExternalReportId == "q1").Items);
+        var firstQuarterItems = reports.Single(report => report.ExternalReportId == "q1").Items;
+        var zero = Assert.Single(firstQuarterItems, item => item.SourceItemId == 15);
         Assert.Equal(15, zero.SourceItemId);
         Assert.Equal(sourceIds[15], zero.CatalogId);
         Assert.Equal("million_rial", zero.Unit);
         Assert.Single(await repository.GetIncomeStatementReportsAsync(new("company-144", 5, null, true)));
         Assert.Contains(reports, report => report.ExternalReportId == "q2-revision");
         Assert.Equal(0m, zero.Value);
+        var persistedOperatingIncome = Assert.Single(firstQuarterItems, item => item.SourceItemId == 194);
+        Assert.Equal(otherOperatingIncomeCatalogId, persistedOperatingIncome.CatalogId);
+        Assert.Equal("N/A", persistedOperatingIncome.Unit);
+        Assert.Equal(194m, persistedOperatingIncome.Value);
         Assert.NotEqual(Guid.Empty, zero.LineItemId);
         Assert.Contains(reports, report => report.ExternalReportId == "q1" &&
             report.SourcePayloadChecksum == "checksum-q1" && report.Items.Single().LineItemId == zero.LineItemId);

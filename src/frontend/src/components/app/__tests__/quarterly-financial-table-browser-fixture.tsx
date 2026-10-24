@@ -58,6 +58,8 @@ const bankItems: Array<[string, number | null, string, number[]]> = [
   ["banking_fee_margin", null, "حاشیه سود کارمزد", [80, 80, 80, 80, 80]],
   ["source_61", 61, "خالص سود (زیان) سرمایه‌گذاری‌ها", [10, 12, 14, 16, 18]],
   ["source_27", 27, "نتیجه معاملات ارزی", [1, -2, 3, -4, 5]],
+  ["source_194", 194, "سایر درآمدها و هزینه‌های عملیاتی", [20, 30, 40, 50, 60]],
+  ["banking_operating_income", null, "خالص درآمدهای عملیاتی", [711, 808, 923, 1016, 1125]],
   ["source_40", 40, "سایر درآمدها و هزینه‌های غیرعملیاتی", [8, 9, 10, 11, 12]],
   ["source_5", 5, "هزینه‌های عمومی و اداری", [-50, -51, -52, -53, -54]],
   ["source_6", 6, "هزینه مطالبات مشکوک‌الوصول", [-5, -6, -7, -8, -9]],
@@ -75,7 +77,7 @@ const bankResult = {
   selectedReports: bankPeriods.map((period) => ({ periodEnd: period.end })),
   rows: bankItems.map(([rowId, sourceItemId, labelFa, values], index) => ({
     rowId, sourceItemId, order: index + 1, labelFa,
-    policy: rowId.includes("margin") ? "DerivedBankingMargin" : "CumulativeFlow",
+    policy: rowId.includes("margin") ? "DerivedBankingMargin" : rowId === "banking_operating_income" ? "DerivedBankingOperatingIncome" : "CumulativeFlow",
     unit: rowId.includes("margin") ? "percent" : "million_rial",
     cells: Object.fromEntries(bankPeriods.map((period, i) => [period.label, {
       value: values[4 - i], state: "Available", unit: rowId.includes("margin") ? "percent" : "million_rial",

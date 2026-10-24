@@ -107,7 +107,7 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
     }
 
     [Fact]
-    public async Task QuarterlyUseCase_UsesOnlyAuthoritativeBankGroupForTwentyRowTemplate()
+    public async Task QuarterlyUseCase_UsesOnlyAuthoritativeBankGroupForTwentyTwoRowTemplate()
     {
         var configuredBankingGroupId = Guid.Parse("11111111-2222-3333-4444-555555555555");
         await using var db = CreateDbContext();
@@ -124,7 +124,7 @@ public sealed class QuarterlyFinancialReports144ResolutionTests
 
         Assert.Equal("BankingIncomeStatement", result.TemplateId);
         Assert.Equal(configuredBankingGroupId, result.ClassificationGroupId);
-        Assert.Equal(20, result.Rows.Count);
+        Assert.Equal(22, result.Rows.Count);
         Assert.Equal("وبملت", result.CompanySymbol);
     }
 

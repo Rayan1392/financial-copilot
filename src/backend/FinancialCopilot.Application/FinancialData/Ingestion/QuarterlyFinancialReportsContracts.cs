@@ -2,7 +2,7 @@ namespace FinancialCopilot.Application.FinancialData.Ingestion;
 
 public enum QuarterlyCellState { Available, MissingObservation, IncompatibleObservation, ConflictingObservation, UnsupportedFiscalPeriod, MissingPredecessor, CalculationUnavailable }
 public enum QuarterlyComparisonState { Available, MissingCurrent, MissingPrevious, NonPositiveBase, SignChanged, Unavailable }
-public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin, DerivedBankingMargin, ComparableEps, ComparableShareBasis }
+public enum QuarterlyRowPolicy { CumulativeFlow, CumulativeEps, ReportedPointInTime, DerivedGrossMargin, DerivedBankingMargin, ComparableEps, ComparableShareBasis, DerivedBankingOperatingIncome }
 public enum QuarterlyFinancialReportOutcome
 {
     SuccessfulTable,

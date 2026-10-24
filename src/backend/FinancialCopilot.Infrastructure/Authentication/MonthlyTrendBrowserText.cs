@@ -61,6 +61,11 @@ internal static class MonthlyTrendBrowserText
             if (bitmap is null || bitmap.Width != width || bitmap.Height != height ||
                 bitmap.GetPixel(0, 0) != new SKColor(250, 250, 250))
                 throw new InvalidOperationException("Monthly chart browser returned an incomplete chart canvas.");
+            // Chromium can take its screenshot before the async font work finishes.
+            // In that case the dimensions and corner pixel are valid, but the plot is blank.
+            using var source = SKBitmap.Decode(background);
+            if (source is null || !ContainsChartPlot(bitmap, source))
+                return background;
             return bytes;
         }
         finally
@@ -70,6 +75,28 @@ internal static class MonthlyTrendBrowserText
             catch (UnauthorizedAccessException) { }
             Slots.Release();
         }
+    }
+
+    private static bool ContainsChartPlot(SKBitmap screenshot, SKBitmap source)
+    {
+        var occupied = 0;
+        var preserved = 0;
+        for (var y = 230; y < Math.Min(910, source.Height); y += 8)
+        for (var x = 170; x < Math.Min(1710, source.Width); x += 8)
+        {
+            var expected = source.GetPixel(x, y);
+            if (Math.Abs(expected.Red - 250) < 20 &&
+                Math.Abs(expected.Green - 250) < 20 &&
+                Math.Abs(expected.Blue - 250) < 20)
+                continue;
+            occupied++;
+            var actual = screenshot.GetPixel(x, y);
+            if (Math.Abs(actual.Red - expected.Red) < 20 &&
+                Math.Abs(actual.Green - expected.Green) < 20 &&
+                Math.Abs(actual.Blue - expected.Blue) < 20)
+                preserved++;
+        }
+        return occupied > 0 && preserved >= occupied / 2;
     }
 
     private static string FindBrowser()
@@ -102,10 +129,12 @@ internal static class MonthlyTrendBrowserText
             background = Convert.ToBase64String(background),
             regular = Font("FinancialCopilot.Assets.Samim.ttf"),
             bold = Font("FinancialCopilot.Assets.Samim-Bold.ttf") });
+        var fallbackImage = $"<img style=\"display:block\" src=\"data:image/png;base64,{Convert.ToBase64String(background)}\">";
         return """
             <!doctype html><meta charset="utf-8">
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:">
-            <style>html,body{margin:0;padding:0;overflow:hidden;background:#FAFAFA}canvas{display:block}</style>
+            <style>html,body{margin:0;padding:0;overflow:hidden;background:#FAFAFA}canvas{position:absolute;inset:0}</style>
+            """ + fallbackImage + """
             <canvas id="chart"></canvas><script>
             (async () => {
             const model =

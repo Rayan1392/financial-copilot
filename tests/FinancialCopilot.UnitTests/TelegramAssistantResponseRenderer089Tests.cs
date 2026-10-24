@@ -174,7 +174,7 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         var media = Assert.IsType<TelegramAssistantMediaAttachment>(first.Media);
         Assert.Equal("photo", media.Kind);
         Assert.Equal("image/png", media.ContentType);
-        Assert.Equal("monthly-trend-chart-v12-browser-text", media.RenderVersion);
+        Assert.Equal("monthly-trend-chart-v13-visible-plot", media.RenderVersion);
         var bytes = Convert.FromBase64String(media.ContentBase64);
         Assert.Equal(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, bytes[..8]);
         Assert.InRange(bytes.Length, 1, 5 * 1024 * 1024);
@@ -182,6 +182,10 @@ public sealed class TelegramAssistantResponseRenderer089Tests
         Assert.Equal(1800, bitmap.Width);
         Assert.True(bitmap.Height > 1100);
         Assert.Equal(new SKColor(250, 250, 250), bitmap.GetPixel(0, 0));
+        Assert.Contains(Enumerable.Range(230, 680).Where(y => y % 8 == 0)
+            .SelectMany(y => Enumerable.Range(170, 1540).Where(x => x % 8 == 0)
+                .Select(x => bitmap.GetPixel(x, y))),
+            color => color.Red < 150 || color.Green < 150 || color.Blue < 150);
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(bytes)), media.Sha256);
         Assert.Equal(media.ContentBase64, second.Media?.ContentBase64);
         Assert.Equal(media.Sha256, second.Media?.Sha256);

@@ -12,7 +12,7 @@ namespace FinancialCopilot.Infrastructure.Authentication;
 
 public sealed class TelegramMonthlyTrendChartRenderer : ITelegramMonthlyTrendChartRenderer
 {
-    internal const string ChartRenderVersion = "monthly-trend-chart-v12-browser-text";
+    internal const string ChartRenderVersion = "monthly-trend-chart-v13-visible-plot";
     internal const string ProductRevenueMixRenderVersion = "product-revenue-mix-table-v1";
     internal const int Width = 1800;
     private const int Padding = 90;

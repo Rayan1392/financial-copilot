@@ -30,20 +30,23 @@ export interface QuarterlyChartPoint {
 }
 
 function rowValues(rows: QuarterlyFinancialTableRow[], sourceItemId: number | null, grossMargin = false) {
-  const row = rows.find((item) => grossMargin ? item.grossMargin : item.sourceItemId === sourceItemId);
+  const row = rows.find((item) => grossMargin
+    ? item.rowId === "gross_margin" || (item.rowId == null && item.grossMargin && !item.bankingMargin)
+    : item.sourceItemId === sourceItemId || item.rowId === `source_${sourceItemId}`);
   return row?.chartValues ?? [];
 }
 
 export function quarterlyChartPoints(model: QuarterlyFinancialTableModel): QuarterlyChartPoint[] {
-  const sales = rowValues(model.rows, 15);
-  const grossProfit = rowValues(model.rows, 139);
+  const banking = model.templateId === "BankingIncomeStatement";
+  const sales = banking ? [] : rowValues(model.rows, 15);
+  const grossProfit = banking ? [] : rowValues(model.rows, 139);
   const netProfit = rowValues(model.rows, 143);
-  const grossMargin = rowValues(model.rows, null, true);
+  const grossMargin = banking ? [] : rowValues(model.rows, null, true);
   const bankValue = (rowId: string) => model.rows.find((row) => row.rowId === rowId)?.chartValues ?? [];
-  const interestIncome = bankValue("source_304");
-  const netInterestIncome = bankValue("source_306");
-  const bankingGrossMargin = bankValue("banking_gross_margin");
-  const feeProfitMargin = bankValue("banking_fee_margin");
+  const interestIncome = banking ? bankValue("source_304") : [];
+  const netInterestIncome = banking ? bankValue("source_306") : [];
+  const bankingGrossMargin = banking ? bankValue("banking_gross_margin") : [];
+  const feeProfitMargin = banking ? bankValue("banking_fee_margin") : [];
   return model.quarters.map((quarter, index) => {
     const labels = quarterlyPeriodHeaderLines(quarter);
     const year = labels.join(" ").match(/[۰-۹٠-٩0-9]{4}/)?.[0] ?? "";

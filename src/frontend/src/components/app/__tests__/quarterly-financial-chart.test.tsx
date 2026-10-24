@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { parseQuarterlyFinancialTable, QuarterlyFinancialTable } from "../quarterly-financial-table";
-import { BANKING_CHART_SERIES, quarterlyChartPoints, quarterlyChartPointsChronologically } from "../quarterly-financial-chart-data";
+import { parseQuarterlyFinancialTable, QuarterlyFinancialTable, quarterlyFinancialTableModelFromTypedResult } from "../quarterly-financial-table";
+import { BANKING_CHART_SERIES, QUARTERLY_CHART_SERIES, quarterlyChartPoints, quarterlyChartPointsChronologically } from "../quarterly-financial-chart-data";
+import type { QuarterlyFinancialReportTableResult } from "@/lib/chat.functions";
 
 const body = [
   "فروش", "بهای تمام‌شده کالای فروش‌رفته", "سود (زیان) ناخالص", "مارجین ناخالص",
@@ -38,6 +39,48 @@ beforeEach(() => vi.stubGlobal("ResizeObserver", class {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Feature 144 comparison chart", () => {
+  it("maps typed General rows to all four numeric series without turning missing values into zero", () => {
+    const periodsNewestFirst = [
+      { fiscalYear: 1405, quarter: 1, start: "2026-03-21", end: "2026-06-21", label: "1405 Q1" },
+      { fiscalYear: 1404, quarter: 4, start: "2025-12-22", end: "2026-03-20", label: "1404 Q4" },
+    ];
+    const cell = (value: number | null) => ({
+      value, state: value == null ? "MissingObservation" : "Available",
+      unit: "million_rial", renderZeroAsDash: value === 0,
+    });
+    const makeRow = (rowId: string, sourceItemId: number | null, values: [number | null, number | null]) => ({
+      rowId, order: 1, labelFa: rowId, sourceItemId,
+      policy: rowId === "gross_margin" ? "DerivedGrossMargin" : "CumulativeFlow",
+      unit: rowId === "gross_margin" ? "percent" : "million_rial",
+      cells: { "1405 Q1": cell(values[0]), "1404 Q4": cell(values[1]) },
+    });
+    const result: QuarterlyFinancialReportTableResult = {
+      templateId: "GeneralIncomeStatement", companySymbol: "TEST", companyName: "Test Company",
+      status: "Available", periodsNewestFirst, comparisons: [],
+      rows: [
+        makeRow("source_15", 15, [4166493, 4801738]),
+        makeRow("source_139", 139, [1325755, 1269855]),
+        makeRow("source_143", 143, [406843, null]),
+        makeRow("gross_margin", null, [31.82, 0]),
+      ],
+    };
+    const model = quarterlyFinancialTableModelFromTypedResult(result);
+    const points = quarterlyChartPoints(model);
+    expect(points.map(({ sales, grossProfit, netProfit, grossMargin }) =>
+      [sales, grossProfit, netProfit, grossMargin])).toEqual([
+      [4801738, 1269855, null, 0],
+      [4166493, 1325755, 406843, 31.82],
+    ]);
+    expect(QUARTERLY_CHART_SERIES.map((series) => series.key))
+      .toEqual(["sales", "grossProfit", "netProfit", "grossMargin"]);
+    expect(QUARTERLY_CHART_SERIES.every((series) => points.every((point) => series.key in point))).toBe(true);
+    expect(points.every((point) => [point.interestIncome, point.netInterestIncome,
+      point.bankingGrossMargin, point.feeProfitMargin].every((value) => value === null))).toBe(true);
+    expect(model.rows.find((row) => row.rowId === "source_15")?.values.slice(0, 2))
+      .toEqual([new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 }).format(4801738),
+        new Intl.NumberFormat("fa-IR-u-nu-arabext", { maximumFractionDigits: 2 }).format(4166493)]);
+  });
+
   it("accepts the configured 1–12 quarter range", () => {
     for (const count of [1, 12]) {
       const headers = Array.from({ length: count }, (_, index) => `سال مالی ${1403 + Math.floor(index / 4)}، فصل ${(index % 4) + 1}`);

@@ -118,7 +118,10 @@ function AssistantBlock({
         ? ""
         : replaceProviderDisplayNames(block.message);
   const typedQuarterly = block.financialStatementTableResult?.quarterlyResult;
-  const typedBankingTable = typedQuarterly?.templateId === "BankingIncomeStatement"
+  const typedQuarterlyTable = typedQuarterly &&
+    (typedQuarterly.templateId === "BankingIncomeStatement" ||
+      (typedQuarterly.templateId === "GeneralIncomeStatement" &&
+        typedQuarterly.status !== "Unavailable" && typedQuarterly.periodsNewestFirst.length > 0))
     ? quarterlyFinancialTableModelFromTypedResult(typedQuarterly)
     : null;
   const dailyTradesSource = "منبع: آمار معاملات روزانه";
@@ -161,10 +164,10 @@ function AssistantBlock({
       >
         {(displayMessage.length > 0 || tradingDate || hasDailyTradesSource) && (
           <div className="space-y-1">
-            {displayMessage.length > 0 && !typedBankingTable && (
+            {displayMessage.length > 0 && !typedQuarterlyTable && (
               <MarkdownMessage content={displayMessage} direction={isRtlMessage ? "rtl" : "ltr"} />
             )}
-            {typedBankingTable && <QuarterlyFinancialTable model={typedBankingTable} />}
+            {typedQuarterlyTable && <QuarterlyFinancialTable model={typedQuarterlyTable} />}
             {tradingDate && (
               <p className="text-xs leading-relaxed text-muted-foreground">{tradingDate}</p>
             )}

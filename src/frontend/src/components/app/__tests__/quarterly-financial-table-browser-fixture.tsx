@@ -86,5 +86,25 @@ const bankResult = {
   })),
   comparisons: [],
 };
-const modelToRender = banking ? quarterlyFinancialTableModelFromTypedResult(bankResult) : parsed.model;
+const generalTyped = new URLSearchParams(location.search).has("general-typed");
+const generalRowIds = [15, 1, 139, null, 5, 39, 140, 12, 40, 142, 334, 278, 143, 160, 153];
+const generalResult = {
+  templateId: "GeneralIncomeStatement", companySymbol: "TEST", companyName: "General fixture", status: "Available",
+  periodsNewestFirst: bankPeriods, selectedReports: bankPeriods.map((period) => ({ periodEnd: period.end })),
+  rows: parsed.model.rows.map((row, index) => ({
+    rowId: generalRowIds[index] == null ? "gross_margin" : `source_${generalRowIds[index]}`,
+    sourceItemId: generalRowIds[index], order: index + 1, labelFa: row.label,
+    policy: generalRowIds[index] == null ? "DerivedGrossMargin" : "CumulativeFlow",
+    unit: generalRowIds[index] == null ? "percent" : "million_rial",
+    cells: Object.fromEntries(bankPeriods.map((period, i) => [period.label, {
+      value: row.chartValues?.[4 - i] ?? null,
+      state: row.chartValues?.[4 - i] == null ? "MissingObservation" : "Available",
+      unit: generalRowIds[index] == null ? "percent" : "million_rial",
+      renderZeroAsDash: row.chartValues?.[4 - i] === 0,
+    }])),
+  })),
+  comparisons: [],
+};
+const modelToRender = banking ? quarterlyFinancialTableModelFromTypedResult(bankResult)
+  : generalTyped ? quarterlyFinancialTableModelFromTypedResult(generalResult) : parsed.model;
 createRoot(document.getElementById("root")!).render(<QuarterlyFinancialTable model={modelToRender} />);

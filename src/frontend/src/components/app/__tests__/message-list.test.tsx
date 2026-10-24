@@ -14,6 +14,33 @@ function renderMessageList(ui: ReactElement) {
 }
 
 describe("MessageList", () => {
+  it("uses typed General financial rows for a fresh answer and its saved replay", () => {
+    const period = { fiscalYear: 1405, quarter: 1, start: "2026-03-21", end: "2026-06-21", label: "1405 Q1" };
+    const row = (rowId: string, sourceItemId: number | null, value: number) => ({
+      rowId, sourceItemId, order: 1, labelFa: rowId, policy: "CumulativeFlow", unit: "million_rial",
+      cells: { [period.label]: { value, state: "Available", unit: "million_rial", renderZeroAsDash: false } },
+    });
+    const quarterlyResult = {
+      templateId: "GeneralIncomeStatement", companySymbol: "TEST", status: "Available",
+      periodsNewestFirst: [period], comparisons: [],
+      rows: [row("source_15", 15, 100), row("source_139", 139, 40),
+        row("source_143", 143, 20), row("gross_margin", null, 40)],
+    };
+    const block: AssistantChatBlock = {
+      message: "Saved formatted table that lacks chart row metadata",
+      intent: "FinancialStatementTable", creditsUsed: 0, suggestedQuestions: [], suggestedActions: [],
+      filters: [], citations: [], financialStatementTableResult: { quarterlyResult },
+    };
+    const messages: ChatMessage[] = ["fresh", "replayed"].map((id) => ({
+      id, role: "assistant", content: block, created_at: "2026-10-24T00:00:00Z",
+    }));
+    const { container } = renderMessageList(<MessageList messages={messages} loading={false}
+      streaming={false} onSuggested={vi.fn()} />);
+    expect(container).not.toHaveTextContent(block.message);
+    expect(container.querySelectorAll("section > table")).toHaveLength(2);
+    expect(container).toHaveTextContent(new Intl.NumberFormat("fa-IR-u-nu-arabext").format(100));
+  });
+
   it("renders the typed Feature 129 payload without recalculating or zeroing nulls", () => {
     const comparison = {
       state: "Partial",

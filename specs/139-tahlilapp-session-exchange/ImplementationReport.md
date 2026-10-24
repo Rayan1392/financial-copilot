@@ -1,221 +1,138 @@
-# Feature 139 — Implementation Report
+﻿# Feature 139 — Implementation Report
 
-Written for: engineers and operators who will review, test, and decide on rollout of the TahlilApp session exchange.
+## Revision 6 execution update — 2026-10-24
 
-## 1. Final implementation status
+**Status: PARTIAL.** Product decisions for Plus→Pro carry and authoritative TahlilApp activation were applied. TahlilApp staging and operational gates remain unverified.
 
-**`PARTIAL`**
+- **Tasks:** 24/33 complete; 6 partial; 2 deferred (`T-24`, `T-28`); 1 open Operations task (`T-06`).
+- **ACs:** 82/99 fully verified. AC-97 and AC-98 have unit coverage, while their PostgreSQL concurrency evidence is pending. The 15 previously incomplete external, privacy, or operations criteria remain incomplete.
+- **Focused unit tests:** 134 passed, 0 failed, 0 skipped (`SubscriptionCreditLifecycleTests`, Billing sync/service, TahlilApp policy/parsers/status refresh).
+- **Focused integration tests:** 53 passed, 0 failed, 1 skipped. TahlilApp launch, native enrollment, Billing persistence/purchase, and Feature 139 suites passed. The skipped PostgreSQL transfer-race test could not start because `docker info` failed: Docker Desktop Linux engine pipe was unavailable.
+- **Full unit regression:** 2,323 passed, 23 failed, 0 skipped (2,346 total). The 23 failing test names exactly match the saved pre-change TRX at `%TEMP%\\feature139-regression-20261023\\unit.trx`; these are unrelated to Billing/Feature 139.
+- **Backend Release build:** `dotnet build src/backend/FinancialCopilot.sln --configuration Release --no-restore` succeeded with 0 warnings and 0 errors.
+- **Migration:** `20261024004630_AddAuthoritativeSubscriptionActivationRevision` adds nullable `ExternalSubscriptionRevision` and a default-false `SubscriptionActivationIsAuthoritative` marker. It does not modify balances or ledger rows and was not applied by this work; database applied state is unverified because no database connection was used.
+- **Contract:** SapioAI sends `X-SapioAI-Contract-Version: 2` for exchange and status calls. The deployed response remains parse-compatible; missing, malformed, non-UTC, future or expired activation timestamps cannot anchor paid allocations.
+- **Credit lifecycle:** Free→paid forfeiture is auditable. Plus→Pro creates a fresh Pro period with 2600 credits plus only the unconsumed Plus remainder, paired transfer ledger adjustments, and expiry with that Pro period. Pro→Plus resolves to Free rather than retaining paid Pro eligibility.
+- **Staging:** TahlilApp contract deployment, API credentials, real launch/status round trips, PostgreSQL concurrency execution, migration application in non-production staging, legacy-wallet reconciliation, and Operations checks remain unverified. No production migration, deployment, commit or push was performed.
 
-The Sapino-side launch path and native email/password journey are implemented and tested. The TahlilApp side is external and unverified, and launch-critical operational prerequisites remain open. Status `COMPLETE` is not claimed because production credential rotation, proxy topology, persistent key-ring operations, migration rollout, and the external round trip remain operator/integration work.
+This update supersedes earlier statements below that Plus→Pro transfer and the authoritative activation decision were still awaiting Product approval.
 
-The integration handoff is documented in [`TahlilAppIntegrationContract.md`](TahlilAppIntegrationContract.md) and [`StagingReadinessChecklist.md`](StagingReadinessChecklist.md). The contract deliberately separates fields consumed today from permission/status extensions that require coordinated changes. The checklist is evidence-driven and remains open until staging owners execute it.
+**Report date:** 2026-10-24
+**Status:** `PARTIAL — Revision 6 billing semantics are implemented; PostgreSQL concurrency, TahlilApp staging contract and operational gates remain unverified.`
 
-## 2. Completed and incomplete tasks
+Design.md Revision 4 §22 remains authoritative for identity and integration reconciliation; Revision 6 §24 supersedes earlier Plus→Pro and activation-anchor questions. User-facing product name is SapioAI; existing `FinancialCopilot` namespaces, routes and deployed API contracts are preserved. No commit, push, deployment or production migration was performed.
 
-Full list with evidence is in `tasks.md`.
+## 1. Tasks and acceptance criteria
 
-| Status | Tasks |
-| --- | --- |
-| Implemented and verified by tests | T-01, T-02, T-03, T-04, T-05 (with a restart-simulation gap), T-07, T-08, T-09, T-10, T-11, T-12, T-13, T-15, T-16, T-18, T-19, T-20, T-22, T-23, T-26, T-27, T-29, T-30 |
-| Implemented, verification gap stated | T-25 (log-sink test not written), T-15 (JWT `amr` value not asserted) |
-| Not implemented in this increment | T-14 (profile deletion on revoke) |
-| Deferred with reason | T-17, T-24, T-28 |
-| Operations (not done here) | T-06 (backup, restore drill, runbook, health self-check) |
+- **Tasks:** 24/33 fully checked; 6 partial (`T-04`, `T-18`, `T-21`, `T-30`, `T-32`, `T-33`); 2 deferred (`T-24`, `T-28`); 1 Operations-owned task open (`T-06`).
+- **Acceptance criteria:** 82/99 fully verified. AC-01…AC-04, AC-06, AC-21, AC-22, AC-34, AC-67, AC-70, AC-71, AC-75, AC-79, AC-81, AC-95, AC-97 and AC-98 lack full evidence. AC-97/AC-98 unit coverage passes, but PostgreSQL concurrency execution is skipped because Docker is unavailable.
+- **Phase 1 deferrals:** T-24 (admin masked profile/audited reveal) and T-28 (explicit account linking) are not launch-critical and remain deferred. The batch status endpoint is also deferred unless measured scale requires it.
 
-## 3. Verified and unverified acceptance criteria
+## 2. New and completed implementation work
 
-Counts are against the 87 ACs in `Design.md` §19 and §22.8.
+- Revoked TahlilApp status now deletes the encrypted profile in the same Auth database save while retaining the external-identity denial tombstone. Local-user deletion cascades to profile and external-identity rows.
+- `/launch` checks for an existing SapioAI session and asks before replacing it. Confirm exchanges the one-time code; cancel returns to `/chat`.
+- `/launch-failed` offers a return link only when the validated `VITE_TAHLILAPP_RETURN_URL` is configured. It remains a user-triggered navigation and does not create an automatic redirect loop.
+- Integration coverage now exercises the real application log sink with unique profile PII, `amr=tahlilapp`, launch rate limiting, profile revocation/deletion, different-code same-identity concurrency, expiry guards and native direct login resolving the launch-created user.
+- The native-identity test host disables database-backed production workers and Feature 141 because it uses in-memory test stores. The tests no longer need a tracked database credential to start.
+- Runtime appsettings no longer contains PostgreSQL connection values. EF design-time commands require `FINANCIAL_COPILOT_CONNECTION_STRING` from the operator's environment or secret store.
+- Updated the affected .NET 10 dependencies, OpenAPI, MailKit, Testcontainers and SSH.NET packages to versions that restore without the previously surfaced advisory/downgrade errors.
+- Added `SubscriptionCreditLifecycleService` and a bounded allocation worker using the existing wallet and append-only usage ledger. New-wallet/activation grants, period expiry, Free-to-paid forfeiture and usage/refund attribution are auditable and keyed for idempotency.
+- Added `SubscriptionCreditPeriodRow`, its unique/concurrency indexes, nullable `SubscriptionCreditsApplied`, and forward-only EF migration `20261023200709_AddSubscriptionCreditLifecycle`. The migration changes schema only; it does not backfill or reset production balances and was not applied by this work; database applied state is unverified because no database connection was used.
+- Generated the idempotent migration delta with EF CLI `10.0.13` into `%TEMP%\feature139-credit-lifecycle.sql` and inspected the SQL: it adds the nullable usage attribution column, creates the period table/indexes, and records migration history; it contains no wallet balance update or ledger backfill.
+- Preserved existing wallet balances and historical ledgers for accounts without period rows. Their recurring allocation is held until a reviewed legacy reconciliation is approved.
+- Added lifecycle tests for initial Free/Plus/Pro allowance, exact 30-day expiry, no rollover, Free-to-Plus/Pro forfeiture, partial/full consumption, Plus-to-Pro no-balance-change hold, Pro-to-Plus rejection, expired Pro-to-Free, repeat events, worker concurrency, legacy preservation, and launch/native-login parity.
 
-**Verified by an automated test in this increment (42):** AC-05, AC-06, AC-08 (header sent; TahlilApp side external), AC-10, AC-11, AC-12, AC-13, AC-16, AC-17, AC-18, AC-20, AC-25, AC-26, AC-27, AC-28, AC-29, AC-30, AC-31, AC-35, AC-36, AC-37, AC-38, AC-39, AC-42, AC-56, AC-57, AC-58, AC-59, AC-60, AC-61, AC-62, AC-63, AC-64 (warning not asserted), AC-68, AC-69, AC-73, AC-78 (restart simulated), AC-80, AC-82, AC-83, AC-84, AC-86, AC-87.
+## 3. Billing and credit allocation
 
-**Verified by code review only (15):** AC-07, AC-09, AC-14, AC-15, AC-19, AC-23, AC-24, AC-40, AC-41, AC-43 (limiter configured; 429 path untested), AC-65, AC-66, AC-67, AC-72 (no log-sink test), AC-74, AC-85.
+TahlilApp owns purchases, active external subscription status and user eligibility. SapioAI owns internal plan capabilities, wallet balances, consumption and immutable ledgers.
 
-**Not implemented in this increment (deferred or not done):** AC-21, AC-22 (verified by inspection only; no code path shares a cookie), AC-70, AC-71 (admin PII), AC-75 (external status endpoint is not available in this repository), AC-76, AC-77 (profile deletion on revoke), AC-79, AC-81 (key-ring restore drill, operations). Native credential and parity criteria are now covered by the recovery integration suite; Sapino-side stale-grace and background revalidation code exists, but its real TahlilApp dependency remains unverified.
+The approved monthly allowances are Free `25`, Plus `260`, Pro `2600`; the period is exactly 30 days, with no rollover. First activation and due rollover create one keyed grant. Free-to-Plus/Pro forfeits the tracked remaining Free allowance through a ledger adjustment and grants the full paid allowance. Usage is attributed to the subscription period and the existing wallet; consumption history remains append-only. Repeated login, exchange, status sync and worker retry do not grant twice or reset balances.
 
-**External, not verifiable here:** AC-01–AC-04; the TahlilApp halves of AC-05, AC-06, AC-08. These are verified only against an in-test double. A real TahlilApp round trip has not been run.
+At the period boundary unused credits expire through a negative ledger adjustment. External paid expiry removes paid capabilities immediately, while the existing credit period remains valid until its own 30-day end; Free begins at that boundary. Pro-to-Plus is rejected. Plus-to-Pro synchronizes external eligibility but makes no credit balance change until Product explicitly approves the proposed remaining-Plus transfer and timing.
 
-## 4. Production files changed
+The former Revision 5 product questions are resolved by Revision 6: TahlilApp `effectiveFrom` is authoritative, and Plus→Pro carries only the remaining Plus balance into a fresh Pro period. TahlilApp v2 rollout and legacy wallet reconciliation remain staging gates. The generated migration is schema-only and was not applied by this work; database applied state is unverified because no database connection was used.
 
-Backend, modified:
-- `FinancialCopilot.API/Program.cs` — registers `AddTahlilAppIdentity`.
-- `FinancialCopilot.API/Controllers/AuthController.cs` — null-safe email in the response mapping only.
-- `FinancialCopilot.API/Contracts/OwnedIdentityContracts.cs` — launch body, profile contracts.
-- `FinancialCopilot.Infrastructure/Authentication/OwnedIdentityService.cs` — session `amr`, email-less JWT, `CreateSessionForLinkedUserAsync`, `PrepareBaselineAsync`, refresh carries the method.
-- `FinancialCopilot.Infrastructure/Authentication/OwnedIdentityContracts.cs` — nullable profile email, two new interface members.
-- `FinancialCopilot.Infrastructure/Authentication/Persistence/AuthDbContext.cs` — three new tables and the refresh column.
-- `FinancialCopilot.Infrastructure/Authentication/Persistence/AuthPersistenceModels.cs` — `RefreshTokenRow.AuthenticationMethod`.
-- `FinancialCopilot.Infrastructure/Billing/Persistence/PlanCapabilityService.cs` — expiry guard.
-- `FinancialCopilot.Infrastructure/Billing/Persistence/BillingRepositories.cs` — expiry guard in `SubscriptionPlanRepository`.
-- `FinancialCopilot.Infrastructure/FinancialCopilot.Infrastructure.csproj` — `Microsoft.AspNetCore.DataProtection` 10.0.4 (version already in the local package cache).
+Refund boundary: the existing `UsageRefundService` returns refund credits to the general wallet. It restores subscription-period attribution only while the source period remains active; after expiry it does not reopen that period. Product must confirm whether a refund of subscription-funded usage remains spendable after expiry. No changed late-refund policy was invented.
 
-Backend, new:
-- Domain: `Identity/TahlilApp/TahlilAppValueObjects.cs`, `TahlilAppSubscriptionPolicy.cs`, `ProfileMasking.cs`.
-- Application: `Authentication/TahlilApp/TahlilAppLaunchPorts.cs`, `TahlilAppLaunchUseCase.cs`; `Authentication/Profile/OwnProfileUseCase.cs`.
-- Billing: `Accounts/SubscriptionEffectiveness.cs`.
-- Infrastructure: `Authentication/TahlilApp/` (options and validator, exchange parser, gateway, attempt store, account provisioner, profile protector, session issuer, composition root); `Authentication/Profile/OwnProfileStore.cs`; `Authentication/Persistence/TahlilAppPersistenceModels.cs`; `Billing/Persistence/ExternalSubscriptionSynchronizer.cs`.
-- Migration: `Authentication/Persistence/Migrations/20261017135632_AddTahlilAppIdentityAndProfile.cs` (+ Designer), and the model snapshot.
-- API: `Controllers/TahlilAppLaunchController.cs`, `Controllers/ProfileController.cs`.
+## 4. Permission mapping
 
-Frontend:
-- Modified: `src/integrations/financial-copilot/auth.ts` (one export, `completeTahlilAppLaunch`), `src/routeTree.gen.ts` (regenerated by `npm run build`).
-- New: `src/routes/launch.tsx`, `src/routes/launch-failed.tsx`, `src/integrations/financial-copilot/launch.ts`, `__tests__/launch.test.ts`.
+The current external `permissions[]` is parsed as informational metadata only. No authoritative TahlilApp permission codes have been supplied, so no external permission grants or removes SapioAI capabilities.
 
-Tests, new: 5 unit files (`TahlilAppDomainTests`, `TahlilAppLaunchUseCaseTests`, `TahlilAppInfrastructureTests`, `TahlilAppBillingSyncTests`, `TahlilAppProfileProtectionTests`); 4 integration files (`TahlilAppLaunchIntegrationTests`, `TahlilAppLaunchDisabledIntegrationTests`, `OwnProfileIntegrationTests`, plus the factory in the launch file).
+SapioAI registered `admin.users.pii.read` for possible later admin reveal; it is not assigned to default roles and authorizes no current endpoint. TahlilApp determines external eligibility; SapioAI Billing maps the approved subscription plan to internal capabilities. Before permission-dependent authorization is enabled in staging, TahlilApp and SapioAI Product/Security must approve a versioned list of exact external codes and their mapping.
 
-Spec documents: `Design.md` (Revision 4, §22), `tasks.md`, `user-story.md`, `design-review.md`, `tasks-review.md`, this report.
+## 5. Focused verification
 
-Not changed on purpose: the pre-existing uncommitted NADPCO normaliser and its test, and the two untracked 143 and 144 investigation notes that were present at session start.
-
-## 5. Database migrations
-
-`20261017135632_AddTahlilAppIdentityAndProfile` is additive:
-- Creates `auth_external_identities` (unique `(Provider, ExternalUserId)` and `(Provider, LocalUserId)`).
-- Creates `auth_tahlilapp_launch_attempts` (unique `CodeHash`, index on `CreatedAtUtc`).
-- Creates `auth_user_profiles` (1:1 with `auth_users`; no index or unique constraint on PII columns).
-- Adds a nullable `AuthenticationMethod` to `auth_refresh_tokens`.
-
-No backfill. Verified by generation and by `EnsureCreated` in tests. **Not applied to any live database.** Apply it with the backup-first procedure in Feature 145's staging checklist.
-
-## 6. API endpoints introduced
-
-| Method and path | Auth | Behaviour |
+| Suite | Command/filter | Result |
 | --- | --- | --- |
-| `POST /api/auth/v1/tahlilapp/launch` | Anonymous, `PublicAuthentication` limit | Body `{ code }`. `200` session (sets refresh cookie); `401 launch-invalid`; `403 launch-account-disabled`; `503 launch-unavailable`; `404` when the feature is off. |
-| `GET /api/auth/v1/profile` | JWT | Own profile. Names in full; national id and mobile masked; `Cache-Control: no-store`. |
-| `POST /api/auth/v1/profile/reveal` | JWT, `AuthenticatedActor` limit | Body `{ field: "nationalId" \| "mobile" }`. Returns the caller's own value; `no-store`. |
+| Billing and credit lifecycle unit | `dotnet test tests/FinancialCopilot.UnitTests/FinancialCopilot.UnitTests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~BillingServiceTests|FullyQualifiedName~SubscriptionCreditLifecycleTests|FullyQualifiedName~TahlilAppBillingSyncTests|FullyQualifiedName~TahlilAppEntitlementRefreshTests"` | 48 passed, 0 failed |
+| Feature 139 / native enrollment integration | `dotnet test tests/FinancialCopilot.IntegrationTests/FinancialCopilot.IntegrationTests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~TahlilApp|FullyQualifiedName~NativeEnrollmentIntegrationTests"` | 36 passed, 0 failed |
+| Billing persistence / endpoints integration | `dotnet test tests/FinancialCopilot.IntegrationTests/FinancialCopilot.IntegrationTests.csproj --configuration Release --no-build --filter "FullyQualifiedName~BillingPersistenceTests|FullyQualifiedName~BillingEndpointTests"` | 34 passed, 0 failed |
+| Narrow subscription lifecycle / Tahlil sync | `dotnet test tests/FinancialCopilot.UnitTests/FinancialCopilot.UnitTests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~SubscriptionCreditLifecycleTests|FullyQualifiedName~TahlilAppBillingSyncTests|FullyQualifiedName~TahlilAppEntitlementRefreshTests"` | 37 passed, 0 failed |
+| Native identity/profile/forwarded headers | focused filter for `NativeEnrollmentIntegrationTests`, `OwnProfileIntegrationTests`, `ForwardedHeadersSecurityTests` | 29 passed, 0 failed |
+| Frontend launch and return URL | `npm run test -- --pool=threads --run src/integrations/financial-copilot/__tests__/launch.test.ts src/integrations/financial-copilot/__tests__/launch-return-url.test.ts` | 16 passed, 0 failed |
+| Backend Release build | `dotnet build src/backend/FinancialCopilot.sln --configuration Release --no-restore` | Passed, 0 warnings, 0 errors |
+| Frontend production build | `npm run build` | Passed |
 
-The existing `/me` returns an empty `email` for email-less users. No other existing endpoint changed behaviour.
+The TahlilApp gateway is replaced with an in-test double in integration tests. These results do not verify a live TahlilApp service.
 
-## 7. Frontend routes and components introduced
+## 6. Full regression results
 
-- `/launch` — reads and removes `?code=` before any request, exchanges it once, then `location.replace('/chat')` (constant target). Sends `no-referrer`. Does not redirect to `/auth`.
-- `/launch-failed?reason=&correlationId=` — closed reason enum only; no automatic redirect; link to `/auth`. The "return to TahlilApp" button is not rendered because the return URL is server configuration with no frontend key.
+Full backend test command, with optional Feature 141 disabled for this test process because the local test environment has no application database:
 
-## 8. Authentication and identity flow verification
+```powershell
+$env:Feature141__Enabled = 'false'
+dotnet test src/backend/FinancialCopilot.sln --configuration Release
+```
 
-Verified by integration tests on the real API pipeline (only the TahlilApp gateway is a double):
-- First launch creates one local user with no email, no password, and an encrypted profile.
-- Second launch with a new code resolves the same local user id.
-- A replayed code is refused without a second exchange.
-- A malformed code is refused without an exchange.
-- An exchange outage returns `503` once, and the code is not retried.
-- A suspended external user gets `403` and no cookie.
-- A presented refresh cookie is revoked and a new one issued (`Replaced by TahlilApp launch.`).
-- Five concurrent launches with one code produce one exchange and one success.
-- The session token is accepted by `/me`, and an email-less session returns an empty email.
-
-Not verified: the real TahlilApp service, the TahlilApp launch-code issuance, and the `amr` value inside the JWT.
-
-## 9. Subscription and permissions mapping verification
-
-- Mapping is in Domain (`TahlilAppSubscriptionPolicy`) and fails closed to Free for: unknown plan, inactive, missing expiry, expired, or a `Free` external plan. Tested with a matrix.
-- An active paid plan with a future expiry is synced with that expiry as `EffectiveTo`.
-- The Billing read path applies the expiry rule in `PlanCapabilityService` (both reads) and `SubscriptionPlanRepository`. A lapsed paid window reads as Free. Tested for capability loss; the repository change is not directly tested.
-- External permission names never grant anything: `permissions[]` is counted, not interpreted.
-- No plan, balance, or permission is written into the JWT as an authorisation source.
-
-**Behaviour change for every account:** an admin-set subscription window that has already lapsed now reads as Free. This is the designed expiry behaviour, but it applies beyond TahlilApp users and should be communicated before release.
-
-## 10. Credit allocation and idempotency verification
-
-- Repeated identical syncs: no revision bump, no audit row, wallet balance unchanged (tested).
-- Sync grants no credits. Included credits are seeded once when a wallet is first created, which is existing Billing behaviour and was verified by the billing review.
-- Plan changes do not grant credits. A downgrade to Free clears the window and bumps the revision once (tested).
-- Upgrades to a paid plan grant nothing extra. Whether paid activation should include credits is a Billing and product decision (Design Q5) and is not decided here.
-
-**Approved catalog correction:** the canonical monthly AI-credit grants are Free `25`, Plus `260`, and Pro `2600`. The values are seeded in the billing model and migration `20261018092758_UpdateApprovedMonthlyAiCredits`. Existing wallets and usage ledgers are not reset; external subscription synchronization remains idempotent and grants no credits on sync or plan change. The migration has not been applied to any live database.
-
-## 11. Security test results
-
-- Replay, concurrency, malformed input, and expiry-related failures: tested (section 8).
-- Gateway: no retry on any failure (tested for 5xx, 401, 403, 429, 3xx, timeout); no redirect followed; 8 KB body cap; content-type check; credential sent only as a header; no credential when unset.
-- PII: stored encrypted (ciphertext is not the plaintext; last-4 stored); decryption fails closed to null; `ToString` overrides redact PII; logs carry field names and local user ids only. **The log-sink test (AC-72) is not written.**
-- Key ring: startup fails when the feature is enabled and the ring is missing or not writable (tested); a fresh provider over the same ring decrypts (simulated restart, tested).
-- Session fixation: presented refresh tokens are revoked on launch (tested).
-
-**Security recovery findings and status:**
-- **F-09 fixed in repository code:** forwarded headers are disabled by default, require explicit trusted proxies or non-global networks when enabled, bound the forwarding limit, and run before logging/authentication/rate limiting. Focused tests cover trusted, untrusted, forged, and multi-hop inputs. Deployment must still supply the correct proxy allow-list.
-- **F-10 fixed in repository contents, operational rotation remains required:** committed JWT, database, SMTP, provider, worker, and Telegram credential values were removed from tracked runtime configuration and documentation; JWT startup validation now fails unless an issuer or a sufficiently long signing key is supplied externally. Operators must rotate any credentials that may have been used from earlier repository revisions and verify the deployed secret store.
-- **F-11 fixed:** same-origin redirect validation rejects backslashes, protocol-relative paths, control/whitespace characters, and multi-layer encoded bypasses. Frontend regression tests cover the encoded cases.
-
-## 12. Focused test results
-
-| Suite | Filter | Result |
+| Suite | Result | Observed failure detail |
 | --- | --- | --- |
-| Backend unit | Feature 139/native/billing/security-focused filters | 161 passed, 0 failed |
-| Backend integration | Feature 139/native/forwarded-header/owned-identity-focused filters | 52 passed, 0 failed |
-| Frontend | auth, launch, and safe-redirect focused files with `--pool=threads` | 29 passed, 0 failed |
+| Unit | 2,312 passed, 23 failed, 0 skipped (2,335 total) | All 23 failed test names match the earlier pre-credit-lifecycle TRX at `%TEMP%\feature139-regression-20261023\unit.trx`; the current run added 10 passing lifecycle tests. Failures span unrelated source-planner, semantic routing/catalog, Feature 141, NADPCO, Telegram and quarterly-report suites. |
+| Integration, initial baseline | 191 passed, 396 failed, 48 skipped (635 total) | First captured sequential run. The first isolated V2 failure reproduced a database-backed `FundPortfolioImportProcessingWorker` exception from an unset PostgreSQL connection string; Feature 143's reconciliation worker also logged the same missing connection. `TestServer` shutdown and disposed-service errors were cascading symptoms. |
+| Integration, after test-host isolation | 518 passed, 69 failed, 48 skipped (635 total) | Removing production `IHostedService` registrations in the common `AuthenticationApiFactory` eliminated the cascading host shutdowns. Six PostgreSQL cases reported `DockerUnavailableException` (Docker unavailable); 63 other failures remain and are listed in the TRX. A later focused correction supplied the missing test-only JWT key; Foundation and Fund Portfolio admin now pass 5/5. The full integration suite has not yet been rerun after that correction. |
+| Architecture | 11 passed, 1 failed (12 total) | This increment reran the suite and reproduced `MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction`; the same failure name is in the earlier pre-credit-lifecycle architecture TRX. It is a source assertion in the semantic executor area, outside Billing. |
+| Frontend full tests | 156 passed, 2 failed (158 tests; 22 files) | After `npm ci`, the standalone quarterly PNG browser check passes. Remaining failures are quarterly-table numeral expectations in `markdown-message.test.tsx` and a failed-product-message assertion in `monthly-product-trend-chart.test.tsx`. `disclosures.test.ts` was fixed to label receipt time as Tehran and passes 2/2 in a focused rerun. |
 
-Frontend note: the default `forks` pool times out starting workers in this environment, and the pre-existing `auth.test.ts` fails the same way. The threads pool is used for this report.
+Sequential baseline logs and TRX files are preserved under `%TEMP%\feature139-regression-20261023`. The rerun after isolation is under `%TEMP%\feature139-regression-after-base-isolation`; exact failing test names and stack traces are in `integration.trx` and `integration.log`. Current architecture/frontend logs are under `%TEMP%\feature139-regression-final-20261023`; focused verification logs are under `%TEMP%\feature139-final-focused-after-isolation`. The scoped integration runs in this increment used `$env:Feature141__Enabled = 'false'` because the local test environment has no application database. Current focused totals: lifecycle/Billing unit 48/48; Feature 139/native integration 36/36; Billing persistence/endpoints 34/34; backend Release build 0 warnings/errors. Full integration was not rerun in this increment. Earlier targeted V2 isolation reproduction passed 7/7; Foundation/Fund Portfolio auth configuration passed 5/5 after adding test-only signing-key configuration.
 
-## 13. Regression and build results
+## 7. Staging runbook and operational evidence
 
-Latest full suites run sequentially before the final configuration-only secret scrub; the scrub and design-time connection-string change were followed by a clean Release build and did not alter test code paths:
+`StagingReadinessChecklist.md` now contains exact commands and evidence gates for:
 
-| Suite | Result | Classification |
-| --- | --- | --- |
-| Unit (`FinancialCopilot.UnitTests`) | 2,297 passed, 19 failed, 2,316 total | Failures are in existing Feature 128/141/143 and semantic-routing/recognizer tests; none are in the recovery-focused filters. |
-| Integration (`FinancialCopilot.IntegrationTests`) | 528 passed, 54 failed, 48 skipped, 630 total | Failures are concentrated in existing Feature 087/128/129/141 and data/admin scenarios; Docker/Testcontainers PostgreSQL cases were skipped because Docker is unavailable. Recovery-focused filters remained green. |
-| Architecture (`FinancialCopilot.ArchitectureTests`) | 11 passed, 1 failed | `MigratedSemanticExecutors_DoNotReintroduceLegacySymbolExtraction`; unrelated to this recovery and unchanged by its files. |
-| Frontend build (`npm run build`) | Exit 0 | Regenerated the route tree with `/launch` and `/launch-failed`. |
-| Frontend focused tests | 29 passed, 0 failed | `safe-redirect`, `auth`, and `launch` tests pass with the threads pool. |
-| Frontend full tests | 149 passed, 2 failed, 21 files | Two unrelated assertion failures (`disclosures`, `monthly-product-trend-chart`) plus one environment-only browser-script suite failure; no recovery-focused failure. |
-| Backend Release build (`src/backend/FinancialCopilot.sln`) | Passed | 0 errors, 0 warnings |
+- Restore, focused/full tests and Release builds.
+- Auth and Billing migration listing, idempotent SQL generation/review and staging-only application. Design-time connection uses `FINANCIAL_COPILOT_CONNECTION_STRING`.
+- Lifecycle migration `20261023200709_AddSubscriptionCreditLifecycle`, EF CLI/runtime match `10.0.13`, legacy-wallet balance/reservation/ledger snapshot, and no-apply-before-approval guard.
+- Secret configuration, secret-store usage, credential rotation, and TahlilApp API-key issuance/rotation coordination.
+- Durable Data Protection volume, backup/archive verification and a restore drill.
+- Trusted reverse proxies, forwarded-header/rate-limit checks and same-site frontend/API topology.
+- SMTP configuration and test-message verification.
+- Contract approval, disposable staging launch/exchange/status cases, authentication parity, Billing/credit checks and the final feature-flag gate.
 
-Verification practice: two test runs in parallel collided on shared build outputs and produced truncated output. The reported runs are sequential.
+All external and operational checklist boxes remain unchecked because no staging environment, live TahlilApp service, secret manager, SMTP provider, proxy topology, migration window or key-ring volume was available here. No migration was applied and no deployment was attempted.
 
-These are not claims of a green suite. The pre-existing classification rests on test-name and failure-signature matches against the Feature 145 audit. I did not rerun that baseline in this session, so the classification is evidence-based but not re-established here.
+## 8. Remaining SapioAI work
 
-## 14. External TahlilApp dependencies
+- Resolve the 23 unchanged unit failures, rerun the full integration suite to get a current count after the five focused test-only JWT fixes, resolve the remaining integration/architecture/frontend failures, and rerun all suites. Six PostgreSQL integration cases were blocked by unavailable Docker in the last full integration run.
+- Add/verify dedicated hosted-worker integration coverage with explicit test stores; the integration project contains no tests that directly host `FundPortfolioImportProcessingWorker` or `TelegramFinancialStatementReconciliationWorker`. The test-only factory override leaves production registrations unchanged.
+- Close the three frontend assertion failures and rerun frontend regression.
+- TahlilApp must deploy the approved version 2 contract and return authoritative UTC `effectiveFrom`; no SapioAI observation timestamp is substituted.
+- Plus→Pro transfer and 30-day Pro timing are approved and implemented; cross-process PostgreSQL evidence and live contract integration remain pending.
+- Approve a legacy-wallet reconciliation plan before assigning period grants to existing wallets; their current balances and historical ledger rows are preserved.
+- Confirm the existing general-wallet handling of refunds for subscription-funded usage after the source period expires.
+- Add a cross-process PostgreSQL concurrency/race test for competing allocation workers when PostgreSQL integration infrastructure is available.
+- Execute and attach evidence for staging Auth/Billing migrations, persistent key-ring backup/restore, proxy/rate-limit, SMTP and E2E checks after environments are supplied.
+- Get the existing Product/Billing decision on account-wide behavior for expired admin-set subscription windows.
+- Keep permission-dependent authorization disabled until the coordinated permission contract is approved.
 
-- **Q1 contract confirmation:** paths, field names, the `permissions` shape, and error codes are a proposal. The gateway implements the proposal only.
-- **Q2 service credential:** Sapino reads the key from an environment variable. TahlilApp must issue and restrict it.
-- **Launch-code issuance (S-2) and exchange endpoint (S-3):** external and untested against the real service.
-- **Batch status and webhook (Q4):** not required by the current Sapino worker, which performs bounded per-user status GETs. A batch endpoint remains an optional scale extension, not an implemented dependency.
-- **Launch-code single use and atomic consumption:** TahlilApp's responsibility. Sapino's local replay guard adds a second barrier but cannot replace it.
+## 9. Remaining TahlilApp dependencies
 
-## 15. Operational deployment prerequisites
+- Approve and provide the exact launch, exchange and per-user status endpoints, DTOs, error semantics, SLA and service-key policy.
+- Issue/restrict the staging service API key and confirm launch-code single-use/atomic consumption and real concurrency behavior.
+- Approve exact external permission codes only if permission-dependent authorization is required.
+- Provide a disposable staging account and run the contract and end-to-end round trip with SapioAI QA.
 
-Before enabling `Authentication:TahlilApp:Enabled` in any environment:
-1. **Rotate and relocate committed credentials (F-10).**
-2. **Persistent key ring (T-06):** configure `DataProtection:KeyRingPath` on a durable volume; run a backup and a restore drill; write the key-loss runbook. Keys must not be stored in the database.
-3. **Forwarded headers (F-09, Q12):** the middleware is configured securely but disabled by default. Before enabling it, provide the exact trusted proxy/network allow-list and verify the reverse-proxy topology so the public limiter uses the real client IP.
-4. **Same-site topology (Q9):** the refresh cookie is `SameSite=Strict`. The frontend and the API must be same-site.
-5. **Legal basis and retention for PII (Q13):** a decision for Legal and Product before storing national id and mobile.
-6. **Migration staging:** apply the migration to staging first, after a backup, following Feature 145's checklist.
-7. **Non-production TahlilApp round trip:** exchange, error mapping, and TLS settings tested against a real staging TahlilApp.
-8. **Return-URL decision:** whether `/launch-failed` should show a "return to TahlilApp" button, and the configuration key for it.
+## 10. Staging blockers and final status
 
-## 16. Remaining blockers and follow-ups
+Staging is blocked on the unresolved external API contract/key, real launch/exchange/status tests, approval of the activation anchor, Plus-to-Pro handling and late-refund behavior, legacy-wallet reconciliation, auth and Billing migration evidence, credential rotation, persistent key-ring restore, trusted proxy and same-site verification, SMTP verification, and the non-green full regression. T-06 and all checklist operations gates remain open. T-24 and T-28 remain explicit Phase 1 deferrals.
 
-Blockers for enabling the feature in production: credential rotation, key-ring operations, migration staging, same-site/proxy configuration, legal review, the external launch/exchange/status contract, and the real staging round trip (sections 14–15 and the staging checklist).
-
-Deferred Sapino work (documented in `Design.md` §22.5 and `tasks.md`):
-- Switch-account confirmation in the frontend (T-17).
-- Admin masked profile and audited reveal (T-24).
-- Profile deletion on revoke (T-14). There is no revoke path yet.
-- Explicit account linking (T-28).
-
-Implemented Sapino-side refresh work still requiring staging evidence:
-- Per-user status refresh, direct-login TTL and stale-grace downgrade (T-21, T-22); TahlilApp endpoint availability, contract confirmation and real round trip are open.
-
-Verification gaps to close:
-- Log-sink capture test for AC-72.
-- A test that the JWT carries `amr: tahlilapp`.
-- A direct test of the repository expiry guard.
-- A real process-restart test for Data Protection.
-- A 429 test for the launch endpoint's own limit.
-- PostgreSQL concurrency for the provisioning race (this environment has no Docker).
-
-Behaviour to decide and communicate:
-- Admin-set lapsed windows now read as Free (section 9).
-- Approved catalog: Free `25`, Plus `260`, Pro `2600`; the migration is not applied to live databases (section 10).
-- Admin `SetSubscriptionAsync` accepts a null plan code, which leaves an account unassigned and skips capability gating (billing review F-14). Not changed here.
-
-Error-handling deviation: a provisioning or billing-sync exception surfaces as HTTP 500 through the global handler, not as `launch-unavailable` (503). No session is created in that case, so the failure is fail-closed, but the status code differs from Design §14.
-
-Design deviations recorded in `Design.md` §22.9: no row-version column on the two new identity tables; UTC `DateTime` for the replay-guard timestamps; the null-email direct insert.
-
----
-
-Final status: **`PARTIAL`**.
+**Final status: `PARTIAL`.** SapioAI-owned Plus→Pro transfer, authoritative activation validation, ledger operations, revision ordering and tests are implemented. Focused suites pass and the backend Release build is clean. The full unit suite has 23 failures, each matching the saved pre-change TRX. PostgreSQL concurrency could not run because Docker Desktop is unavailable. TahlilApp contract deployment/real status and exchange tests, legacy-wallet reconciliation, migration execution in staging and Operations gates remain unverified; Feature 139 is not `COMPLETE`.

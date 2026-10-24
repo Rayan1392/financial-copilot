@@ -12,7 +12,7 @@ namespace FinancialCopilot.UnitTests;
 /// <summary>
 /// Entitlement refresh (Design §11) through the production refresher and the real Billing synchroniser,
 /// over an in-memory Billing context. TahlilApp and the sync-state store are test doubles.
-/// Release gates: no revision bump or credit change on an identical refresh, no credits on upgrade or downgrade,
+/// Release gates: no revision bump or duplicate credit grant on an identical refresh, pending paid-plan credit decisions,
 /// stale grace, lapsed windows, suspension and revocation.
 /// </summary>
 public sealed class TahlilAppEntitlementRefreshTests
@@ -55,7 +55,7 @@ public sealed class TahlilAppEntitlementRefreshTests
     }
 
     [Fact]
-    public async Task UpgradeThenDowngrade_GrantNoCredits_AndDowngradeToFreeClearsTheWindow()
+    public async Task UpgradeThenDowngrade_UsesPendingCreditPolicy_AndDowngradeToFreeClearsTheWindow()
     {
         var harness = new Harness();
         await harness.RefreshAsync(Status("Plus", true, Start.AddDays(30), 1));
@@ -295,7 +295,10 @@ public sealed class TahlilAppEntitlementRefreshTests
             Billing = new BillingDbContext(new DbContextOptionsBuilder<BillingDbContext>()
                 .UseInMemoryDatabase($"tahlilapp-refresh-{Guid.NewGuid():N}")
                 .Options);
-            Billing.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
+            Billing.SubscriptionPlans.AddRange(
+                new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25m, PricingPolicyVersion = "v1" },
+                new SubscriptionPlanRow { Code = "Plus", Name = "Plus", IncludedCredits = 260m, PricingPolicyVersion = "v1" },
+                new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600m, PricingPolicyVersion = "v1" });
             Billing.SaveChanges();
 
             var synchronizer = new ExternalSubscriptionSynchronizer(

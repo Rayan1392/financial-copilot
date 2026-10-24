@@ -8,6 +8,7 @@ using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
+using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -26,9 +27,12 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
     private const string Password = "NativePassword!123";
 
     [Fact]
-    public async Task EnrollConfirmPassword_ThenDirectLogin_ReturnsTheLaunchUser_WithoutCreatingAUser()
+    public async Task EnrollConfirmPassword_ThenRepeatedDirectLogin_ReusesLaunchUserAndCreditGrant()
     {
         var launched = await LaunchUserAsync(factory);
+        var initialBilling = await ReadCreditStateAsync(factory, launched.UserId);
+        Assert.Equal(25m, initialBilling.Balance);
+        Assert.Equal(1, initialBilling.GrantCount);
         var email = NewEmail();
         var usersBefore = await CountUsersAsync(factory);
 
@@ -50,7 +54,19 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         using var session = await ReadAsync(login);
         Assert.Equal(launched.UserId, session.RootElement.GetProperty("user").GetProperty("userId").GetGuid());
+
+        using var repeatedLogin = await anonymous.PostAsJsonAsync(
+            "/api/auth/v1/login",
+            new { email, password = Password });
+        Assert.Equal(HttpStatusCode.OK, repeatedLogin.StatusCode);
+        using var repeatedSession = await ReadAsync(repeatedLogin);
+        Assert.Equal(launched.UserId,
+            repeatedSession.RootElement.GetProperty("user").GetProperty("userId").GetGuid());
         Assert.Equal(usersBefore, await CountUsersAsync(factory));
+
+        var afterBilling = await ReadCreditStateAsync(factory, launched.UserId);
+        Assert.Equal(initialBilling.Balance, afterBilling.Balance);
+        Assert.Equal(initialBilling.GrantCount, afterBilling.GrantCount);
     }
 
     [Fact]
@@ -436,6 +452,20 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
         using var scope = target.Services.CreateScope();
         var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         return await auth.Users.CountAsync();
+    }
+
+    private static async Task<(decimal Balance, int GrantCount)> ReadCreditStateAsync(
+        NativeEnrollmentApiFactory target,
+        Guid userId)
+    {
+        using var scope = target.Services.CreateScope();
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId == userId);
+        var wallet = await billing.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+        var grants = await billing.UsageLedgerEntries.CountAsync(row =>
+            row.CustomerAccountId == account.Id &&
+            row.OperationCode == "Billing.SubscriptionCreditGrant");
+        return (wallet.Balance, grants);
     }
 
     private static async Task<FinancialCopilotUser> ReadUserAsync(NativeEnrollmentApiFactory target, string email)

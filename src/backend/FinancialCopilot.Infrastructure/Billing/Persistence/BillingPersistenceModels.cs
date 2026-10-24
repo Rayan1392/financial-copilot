@@ -18,8 +18,10 @@ public sealed class CustomerAccountRow
 
     public string? SubscriptionPlanCode { get; set; }
     public DateTimeOffset? SubscriptionEffectiveFrom { get; set; }
+    public bool SubscriptionActivationIsAuthoritative { get; set; }
     public DateTimeOffset? SubscriptionEffectiveTo { get; set; }
     public long SubscriptionRevision { get; set; }
+    public long? ExternalSubscriptionRevision { get; set; }
 }
 
 public sealed class WalletProjectionRow
@@ -105,6 +107,43 @@ public sealed class UsageLedgerEntryRow
     public string? AllocationSource { get; set; }
 
     public string? AllowanceDateKey { get; set; }
+
+    public decimal? SubscriptionCreditsApplied { get; set; }
+}
+
+public sealed class SubscriptionCreditPeriodRow
+{
+    public Guid Id { get; set; }
+
+    public Guid CustomerAccountId { get; set; }
+
+    public string PlanCode { get; set; } = string.Empty;
+
+    public string IdempotencyKey { get; set; } = string.Empty;
+
+    public DateTimeOffset AnchorAtUtc { get; set; }
+
+    public long ActivationRevision { get; set; }
+
+    public long PeriodNumber { get; set; }
+
+    public DateTimeOffset StartsAtUtc { get; set; }
+
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+
+    public decimal GrantedCredits { get; set; }
+
+    public decimal RemainingCredits { get; set; }
+
+    public Guid GrantLedgerEntryId { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public DateTimeOffset? ClosedAtUtc { get; set; }
+
+    public long Revision { get; set; }
 }
 
 public sealed class DailyFreeAllowanceGrantRow

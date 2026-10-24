@@ -17,7 +17,7 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -453,6 +453,12 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<decimal?>("CreditLineWarningThreshold")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<long?>("ExternalSubscriptionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("SubscriptionActivationIsAuthoritative")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("SubscriptionEffectiveFrom")
                         .HasColumnType("timestamp with time zone");
@@ -911,6 +917,79 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionCreditPeriodRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ActivationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("AnchorAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("GrantedCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<long>("PeriodNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("RemainingCredits")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "ExpiresAtUtc");
+
+                    b.HasIndex("CustomerAccountId", "ActivationRevision", "PeriodNumber")
+                        .IsUnique();
+
+                    b.ToTable("billing_subscription_credit_periods", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionPlanRow", b =>
                 {
                     b.Property<string>("Code")
@@ -1041,6 +1120,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.Property<Guid?>("RelatedEntryId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal?>("SubscriptionCreditsApplied")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -1198,6 +1281,15 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionPlanRow", null)
                         .WithMany()
                         .HasForeignKey("PlanCode")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionCreditPeriodRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

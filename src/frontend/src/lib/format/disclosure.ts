@@ -26,7 +26,7 @@ export function formatDisclosurePublicationDate(value?: string) {
 
 /** System receipt is an instant and is displayed in Tehran time. */
 export function formatDisclosureReceiptDate(value: string) {
-  return jalaliDateTime.format(new Date(value));
+  return `${jalaliDateTime.format(new Date(value))} (تهران)`;
 }
 
 const jalaliMonth = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {

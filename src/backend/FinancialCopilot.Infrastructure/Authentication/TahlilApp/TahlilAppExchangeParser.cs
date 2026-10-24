@@ -66,6 +66,7 @@ public static class TahlilAppExchangeParser
         var isActive = subscription.TryGetProperty("isActive", out var activeElement) &&
             activeElement.ValueKind == JsonValueKind.True;
 
+        DateTimeOffset? effectiveFrom = TryReadSubscriptionInstant(subscription, "effectiveFrom", now);
         DateTimeOffset? expiresAt = null;
         if (TryGetString(subscription, "expiresAt", out var expiresText) &&
             DateTimeOffset.TryParse(expiresText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedExpiry) &&
@@ -99,7 +100,21 @@ public static class TahlilAppExchangeParser
             FirstName: ReadPersonName(user, "firstName"),
             LastName: ReadPersonName(user, "lastName"),
             NationalId: ReadNationalId(user, "nationalId"),
-            Mobile: ReadMobile(user, "mobile"));
+            Mobile: ReadMobile(user, "mobile"),
+            SubscriptionEffectiveFrom: effectiveFrom);
+    }
+
+    private static DateTimeOffset? TryReadSubscriptionInstant(JsonElement subscription, string property, DateTimeOffset now)
+    {
+        if (!TryGetString(subscription, property, out var text) ||
+            !DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var value) ||
+            value.Offset != TimeSpan.Zero ||
+            value > now + MaximumExpiryHorizon)
+        {
+            return null;
+        }
+
+        return value.ToUniversalTime();
     }
 
     private static IncomingProfileField ReadPersonName(JsonElement user, string property) =>

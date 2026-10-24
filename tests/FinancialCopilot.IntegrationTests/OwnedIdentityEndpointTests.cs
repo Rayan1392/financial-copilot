@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FinancialCopilot.IntegrationTests;
@@ -453,11 +454,16 @@ public class OwnedIdentityApiFactory : AuthenticationApiFactory
                 ["Authentication:Email:TokenHashSecret"] = "integration-test-email-hash-secret-more-than-32-characters",
                 ["Authentication:Smtp:Host"] = "smtp.example.test",
                 ["Authentication:Smtp:SenderAddress"] = "noreply@example.test",
-                ["RateLimiting:PublicAuthentication:PermitLimit"] = "1000"
+                ["RateLimiting:PublicAuthentication:PermitLimit"] = "1000",
+                ["Feature141:Enabled"] = "false"
             });
         });
         builder.ConfigureTestServices(services =>
         {
+            // These endpoint tests use in-memory Auth/Billing stores. Production hosted workers
+            // execute database-backed work and can stop this test host before requests complete.
+            services.RemoveAll<IHostedService>();
+
             services.RemoveAll<AuthDbContext>();
             services.RemoveAll<DbContextOptions<AuthDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AuthDbContext>>();

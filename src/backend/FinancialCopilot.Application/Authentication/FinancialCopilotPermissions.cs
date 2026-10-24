@@ -43,6 +43,7 @@ public static class FinancialCopilotPermissions
     public const string AdminCreditsAdjust = "admin.credits.adjust";
     public const string AdminBillingAuditRead = "admin.billing-audit.read";
     public const string AdminSecurityAuditRead = "admin.security-audit.read";
+    public const string AdminUsersPiiRead = "admin.users.pii.read";
 
     public static readonly IReadOnlyCollection<string> All =
     [
@@ -86,7 +87,8 @@ public static class FinancialCopilotPermissions
         AdminUsageLedgerRead,
         AdminCreditsAdjust,
         AdminBillingAuditRead,
-        AdminSecurityAuditRead
+        AdminSecurityAuditRead,
+        AdminUsersPiiRead
     ];
 
     public static readonly IReadOnlyCollection<string> AdminAll =

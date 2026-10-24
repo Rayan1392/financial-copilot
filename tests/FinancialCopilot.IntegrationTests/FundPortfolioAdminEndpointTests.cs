@@ -7,7 +7,11 @@ namespace FinancialCopilot.IntegrationTests;
 public sealed class FundPortfolioAdminEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> factory;
-    public FundPortfolioAdminEndpointTests(WebApplicationFactory<Program> factory) => this.factory = factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Database:ApplyMigrationsOnStartup"] = "false" })));
+    public FundPortfolioAdminEndpointTests(WebApplicationFactory<Program> factory) => this.factory = factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Database:ApplyMigrationsOnStartup"] = "false",
+        ["Authentication:JwtBearer:SigningKey"] = "integration-test-signing-key-with-more-than-32-characters"
+    })));
 
     [Theory]
     [InlineData("/api/v1/admin/fund-portfolio-reports/health")]

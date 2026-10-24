@@ -8,7 +8,10 @@ using System.Text.Json;
 using FinancialCopilot.Application.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FinancialCopilot.IntegrationTests;
@@ -213,6 +216,15 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
                 ["Authentication:ApiKeys:Clients:1:IsActive"] = "true",
                 ["Database:ApplyMigrationsOnStartup"] = "false"
             });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            // API integration fixtures inherit this factory and often substitute stores.
+            // Keep production database workers out of these HTTP test hosts so they cannot
+            // start against default PostgreSQL registrations and stop TestServer. This
+            // override affects test hosts only; production worker registrations are intact.
+            services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
         });
     }
 

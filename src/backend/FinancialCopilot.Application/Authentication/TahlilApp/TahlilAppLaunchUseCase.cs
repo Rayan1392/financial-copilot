@@ -71,6 +71,7 @@ public sealed class TahlilAppLaunchUseCase(
             var decision = TahlilAppSubscriptionPolicy.Decide(
                 snapshot.ExternalPlan,
                 snapshot.IsSubscriptionActive,
+                snapshot.SubscriptionEffectiveFrom,
                 snapshot.SubscriptionExpiresAt,
                 now,
                 policy.PlanMap);

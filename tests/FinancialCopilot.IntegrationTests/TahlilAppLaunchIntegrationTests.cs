@@ -5,6 +5,8 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Logging;
 using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.Persistence;
@@ -17,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace FinancialCopilot.IntegrationTests;
 
@@ -41,7 +44,10 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadAsync(response);
         Assert.Equal(string.Empty, body.RootElement.GetProperty("user").GetProperty("email").GetString());
-        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("accessToken").GetString()));
+        var accessToken = body.RootElement.GetProperty("accessToken").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(accessToken));
+        Assert.Contains(new JwtSecurityTokenHandler().ReadJwtToken(accessToken).Claims,
+            claim => claim.Type == "amr" && claim.Value == "tahlilapp");
         Assert.NotNull(ReadRefreshCookie(response));
 
         using var scope = factory.Services.CreateScope();
@@ -57,6 +63,72 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         Assert.NotEqual("+989121234567", profile.MobileEncrypted);
         Assert.Equal("5678", profile.NationalIdLast4);
         Assert.Equal("4567", profile.MobileLast4);
+    }
+
+    [Fact]
+    public async Task RevokedIdentity_DeletesProfile_AndDeletingLocalUserCascadesProfile()
+    {
+        var externalId = NewExternalId();
+        var code = NewCode();
+        factory.Gateway.Respond(code, Succeeded(externalId, firstName: "Private Name", nationalId: "0012345678", mobile: "09121234567"));
+        await Launch(code);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var identity = await auth.TahlilAppExternalIdentities.SingleAsync(row => row.ExternalUserId == externalId);
+            var store = new TahlilAppSyncStateStore(auth);
+            await store.RecordIdentityStatusAsync(identity.LocalUserId, TahlilAppIdentityStatus.Revoked,
+                DateTimeOffset.UtcNow, CancellationToken.None);
+            Assert.False(await auth.UserProfiles.AnyAsync(row => row.UserId == identity.LocalUserId));
+            Assert.Equal(TahlilAppIdentityStatus.Revoked, identity.Status);
+        }
+
+        var secondExternalId = NewExternalId();
+        var secondCode = NewCode();
+        factory.Gateway.Respond(secondCode, Succeeded(secondExternalId, firstName: "Private Name", nationalId: "0098765432", mobile: "09129876543"));
+        await Launch(secondCode);
+        using var deleteScope = factory.Services.CreateScope();
+        var deleteAuth = deleteScope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var secondIdentity = await deleteAuth.TahlilAppExternalIdentities.SingleAsync(row => row.ExternalUserId == secondExternalId);
+        var user = await deleteAuth.Users.SingleAsync(row => row.Id == secondIdentity.LocalUserId);
+        deleteAuth.Users.Remove(user);
+        await deleteAuth.SaveChangesAsync();
+        Assert.False(await deleteAuth.UserProfiles.AnyAsync(row => row.UserId == secondIdentity.LocalUserId));
+        Assert.False(await deleteAuth.TahlilAppExternalIdentities.AnyAsync(row => row.LocalUserId == secondIdentity.LocalUserId));
+    }
+
+    [Fact]
+    public async Task LaunchLogsNeverContainProfilePiiValues()
+    {
+        const string firstName = "PrivacySentinelFirst";
+        const string lastName = "PrivacySentinelLast";
+        const string nationalId = "0012345678";
+        const string mobile = "+989121234567";
+        var code = NewCode();
+        factory.Gateway.Respond(code, new TahlilAppExchangeResult(
+            TahlilAppExchangeOutcome.Succeeded,
+            new TahlilAppExchangeSnapshot(
+                ExternalUserId: ExternalUserId.TryCreate(NewExternalId(), out var parsed) ? parsed!.Value : throw new InvalidOperationException(),
+                IsSuspended: false,
+                ExternalPlan: "Free",
+                IsSubscriptionActive: false,
+                SubscriptionExpiresAt: null,
+                ExternalRevision: null,
+                ExternalPermissionCount: 0,
+                FirstName: IncomingProfileField.Valid(firstName),
+                LastName: IncomingProfileField.Valid(lastName),
+                NationalId: IncomingProfileField.Valid(nationalId),
+                Mobile: IncomingProfileField.Valid(mobile))));
+
+        var response = await Launch(code);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var logs = factory.LogCapture.Messages;
+        Assert.DoesNotContain(logs, message => message.Contains(firstName, StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, message => message.Contains(lastName, StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, message => message.Contains(nationalId, StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, message => message.Contains(mobile, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -77,6 +149,31 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         using var scope = factory.Services.CreateScope();
         var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         Assert.Equal(1, await auth.TahlilAppExternalIdentities.CountAsync(row => row.ExternalUserId == externalId));
+    }
+
+    [Fact]
+    public async Task ConcurrentDifferentCodesForSameExternalIdentity_CreateOneLocalUser()
+    {
+        var externalId = NewExternalId();
+        var first = NewCode();
+        var second = NewCode();
+        factory.Gateway.Respond(first, Succeeded(externalId));
+        factory.Gateway.Respond(second, Succeeded(externalId));
+
+        var responses = await Task.WhenAll(Launch(first), Launch(second));
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        var users = new List<Guid>();
+        foreach (var response in responses)
+        {
+            using var body = await ReadAsync(response);
+            users.Add(body.RootElement.GetProperty("user").GetProperty("userId").GetGuid());
+        }
+
+        Assert.Single(users.Distinct());
+        using var scope = factory.Services.CreateScope();
+        var auth = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        Assert.Equal(1, await auth.TahlilAppExternalIdentities.CountAsync(row => row.ExternalUserId == externalId));
+        Assert.Equal(1, await auth.Users.CountAsync(row => row.Id == users[0]));
     }
 
     [Fact]
@@ -368,26 +465,37 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
 }
 
 /// <summary>Enabled-feature host. Only the outbound gateway is replaced, with an in-test double.</summary>
-public sealed class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
+public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
 {
     private readonly string _keyRing = Directory.CreateTempSubdirectory("tahlilapp-keyring-").FullName;
 
     public FakeTahlilAppGateway Gateway { get; } = new();
+    public TahlilAppLogCaptureProvider LogCapture { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
+        builder.ConfigureLogging(logging => logging.AddProvider(LogCapture));
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Authentication:TahlilApp:Enabled"] = "true",
                 ["Authentication:TahlilApp:BaseUrl"] = "https://tahlilapp.example.test",
-                ["DataProtection:KeyRingPath"] = _keyRing
+                ["DataProtection:KeyRingPath"] = _keyRing,
+                ["Feature141:Enabled"] = "false"
             });
         });
         builder.ConfigureTestServices(services =>
         {
+            foreach (var hostedService in services.Where(descriptor =>
+                         descriptor.ServiceType == typeof(IHostedService) &&
+                         descriptor.ImplementationType is { } implementationType &&
+                         typeof(BackgroundService).IsAssignableFrom(implementationType)).ToArray())
+            {
+                services.Remove(hostedService);
+            }
+
             services.RemoveAll<ITahlilAppIdentityGateway>();
             services.AddSingleton<ITahlilAppIdentityGateway>(Gateway);
         });
@@ -407,6 +515,71 @@ public sealed class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
                 // Best-effort cleanup of the temporary key ring.
             }
         }
+    }
+}
+
+public sealed class TahlilAppLaunchRateLimitFactory : TahlilAppLaunchApiFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["RateLimiting:PublicAuthentication:PermitLimit"] = "1",
+                ["RateLimiting:PublicAuthentication:WindowSeconds"] = "60"
+            }));
+    }
+}
+
+public sealed class TahlilAppLaunchRateLimitIntegrationTests(TahlilAppLaunchRateLimitFactory factory)
+    : IClassFixture<TahlilAppLaunchRateLimitFactory>
+{
+    [Fact]
+    public async Task LaunchEndpoint_Returns429AfterConfiguredPublicLimit()
+    {
+        using var client = factory.CreateClient();
+        var first = await client.PostAsJsonAsync("/api/auth/v1/tahlilapp/launch", new { code = NewCode() });
+        var second = await client.PostAsJsonAsync("/api/auth/v1/tahlilapp/launch", new { code = NewCode() });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, first.StatusCode);
+        Assert.Equal((HttpStatusCode)429, second.StatusCode);
+    }
+
+    private static string NewCode() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(24))
+        .TrimEnd('=')
+        .Replace('+', '-')
+        .Replace('/', '_');
+}
+
+public sealed class TahlilAppLogCaptureProvider : ILoggerProvider
+{
+    private readonly ConcurrentQueue<string> messages = new();
+    public IReadOnlyCollection<string> Messages => messages.ToArray();
+
+    public ILogger CreateLogger(string categoryName) => new CapturingLogger(messages);
+    public void Dispose() { }
+
+    private sealed class CapturingLogger(ConcurrentQueue<string> messages) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            messages.Enqueue(SerializeState(state));
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            messages.Enqueue(formatter(state, exception));
+            messages.Enqueue(SerializeState(state));
+            if (exception is not null) messages.Enqueue(exception.ToString());
+        }
+
+        private static string SerializeState<TState>(TState state) => state is IEnumerable<KeyValuePair<string, object?>> properties
+            ? string.Join(" ", properties.Select(property => $"{property.Key}={property.Value}"))
+            : state?.ToString() ?? string.Empty;
     }
 }
 

@@ -228,7 +228,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.LeaseOwner).HasMaxLength(128);
             entity.Property(row => row.LastSyncFailureCategory).HasMaxLength(64);
             entity.Property(row => row.SyncAttemptCount).HasDefaultValue(0).IsRequired();
-            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.LocalUserId);
+            entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.LocalUserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
         });
         builder.Entity<TahlilAppLaunchAttemptRow>(entity =>
@@ -249,7 +249,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.Property(row => row.LastName).HasMaxLength(100);
             entity.Property(row => row.NationalIdLast4).HasMaxLength(4);
             entity.Property(row => row.MobileLast4).HasMaxLength(4);
-            entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserProfileRow>(row => row.UserId);
+            entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserProfileRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

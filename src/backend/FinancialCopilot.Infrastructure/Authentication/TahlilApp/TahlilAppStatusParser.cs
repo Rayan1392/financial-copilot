@@ -115,6 +115,15 @@ public static class TahlilAppStatusParser
             expiresAt = parsedExpiry;
         }
 
+        DateTimeOffset? effectiveFrom = null;
+        if (TryGetString(subscription, "effectiveFrom", out var effectiveFromText) &&
+            DateTimeOffset.TryParse(effectiveFromText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedEffectiveFrom) &&
+            parsedEffectiveFrom.Offset == TimeSpan.Zero &&
+            parsedEffectiveFrom <= now + MaximumExpiryHorizon)
+        {
+            effectiveFrom = parsedEffectiveFrom.ToUniversalTime();
+        }
+
         long? revision = null;
         if (subscription.TryGetProperty("revision", out var revisionElement) &&
             revisionElement.ValueKind == JsonValueKind.Number &&
@@ -131,7 +140,8 @@ public static class TahlilAppStatusParser
             ExternalPlan: plan,
             IsSubscriptionActive: isActive,
             SubscriptionExpiresAt: expiresAt,
-            ExternalRevision: revision);
+            ExternalRevision: revision,
+            SubscriptionEffectiveFrom: effectiveFrom);
     }
 
     private static string? FindForbiddenField(JsonElement element)

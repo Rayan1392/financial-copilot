@@ -9,6 +9,8 @@ public sealed class UsageFinalizationService(
     BillingDbContext dbContext,
     TimeProvider timeProvider) : IUsageFinalizationService
 {
+    private readonly SubscriptionCreditLifecycleService creditLifecycle = new(dbContext);
+
     public async Task<UsageFinalizationResult> CommitAsync(
         UsageCommitCommand command,
         CancellationToken cancellationToken)
@@ -54,6 +56,13 @@ public sealed class UsageFinalizationService(
         var reservation = MapReservation(reservationRow);
         var wallet = MapWallet(walletRow);
         var now = timeProvider.GetUtcNow();
+        var subscriptionCreditApplication = await creditLifecycle.ApplyUsageChargeAsync(
+            command.CustomerAccountId,
+            reservation.CreatedAt,
+            command.ActualCharge.CreditsCharged,
+            command.AllocationSource,
+            command.AllowanceDateKey,
+            cancellationToken);
         reservation.Commit(command.ActualCharge.CreditsCharged);
         var updatedWallet = wallet.Commit(
             reservation.ReservedCredits,
@@ -72,6 +81,7 @@ public sealed class UsageFinalizationService(
             command.LedgerIdempotencyKey.Trim(),
             now,
             command.ExternalUserId,
+            RelatedEntryId: subscriptionCreditApplication?.GrantLedgerEntryId,
             CompletionStatus: command.CompletionStatus,
             ProviderName: command.ProviderName,
             ModelName: command.ModelName,
@@ -79,7 +89,10 @@ public sealed class UsageFinalizationService(
             CompletionTokens: command.CompletionTokens,
             TotalTokens: command.TotalTokens,
             EstimatedCost: command.EstimatedCost,
-            AllocationSource: command.AllocationSource,
+            AllocationSource: command.AllocationSource ??
+                (subscriptionCreditApplication is null
+                    ? null
+                    : SubscriptionCreditLifecycleService.SubscriptionAllocationSource),
             AllowanceDateKey: command.AllowanceDateKey);
 
         reservationRow.Status = reservation.Status.ToString();
@@ -88,7 +101,10 @@ public sealed class UsageFinalizationService(
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
-        dbContext.UsageLedgerEntries.Add(MapLedgerRow(entry));
+        var ledgerRow = MapLedgerRow(entry);
+        ledgerRow.RelatedEntryId = subscriptionCreditApplication?.GrantLedgerEntryId;
+        ledgerRow.SubscriptionCreditsApplied = subscriptionCreditApplication?.CreditsApplied;
+        dbContext.UsageLedgerEntries.Add(ledgerRow);
         BillingOutboxWriter.Add(
             dbContext,
             "UsageReservation",
@@ -111,7 +127,8 @@ public sealed class UsageFinalizationService(
                 entry.TotalTokens,
                 entry.EstimatedCost,
                 entry.AllocationSource,
-                entry.AllowanceDateKey
+                entry.AllowanceDateKey,
+                SubscriptionCreditsApplied = subscriptionCreditApplication?.CreditsApplied
             },
             now);
 
@@ -252,6 +269,10 @@ public sealed class UsageFinalizationService(
         UsageLedgerEntryRow ledger,
         UsageCommitCommand command)
     {
+        var allocationSourceMatches = ledger.AllocationSource == command.AllocationSource ||
+            (command.AllocationSource is null &&
+             ledger.AllocationSource == SubscriptionCreditLifecycleService.SubscriptionAllocationSource &&
+             ledger.SubscriptionCreditsApplied > 0);
         if (ledger.CustomerAccountId != command.CustomerAccountId ||
             ledger.ActorId != command.ActorId ||
             ledger.TenantId != command.TenantId ||
@@ -269,7 +290,7 @@ public sealed class UsageFinalizationService(
             ledger.CompletionTokens != command.CompletionTokens ||
             ledger.TotalTokens != command.TotalTokens ||
             ledger.EstimatedCost != command.EstimatedCost ||
-            ledger.AllocationSource != command.AllocationSource ||
+            !allocationSourceMatches ||
             ledger.AllowanceDateKey != command.AllowanceDateKey)
         {
             throw new InvalidOperationException(

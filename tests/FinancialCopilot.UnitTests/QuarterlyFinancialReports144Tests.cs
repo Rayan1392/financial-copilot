@@ -14,6 +14,7 @@ public sealed class QuarterlyFinancialReports144Tests
     [InlineData("گزارشات فصلی چخزر", "چخزر")]
     [InlineData("جدول گزارشات فصلی کگل", "کگل")]
     [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر")]
+    [InlineData("گزارشهای فصلی غبهنوش؟", "غبهنوش")]
     [InlineData("گزارش فصلی چخزر", "چخزر")]
     [InlineData("صورت سود و زیان فصلی کگل", "کگل")]
     public void BuildQuarterlyQuery_RemovesPersianReportCuesWithoutLeakingPluralSuffix(

@@ -325,7 +325,7 @@ public static class FinancialStatementTableIntentRules
             .Concat(CashFlowAliases)
             .Concat(TableActionAliases)
             .Concat(AnalysisAliases)
-            .Concat(["گزارشات", "گزارش ها", "گزارش های"])
+            .Concat(["گزارشات", "گزارش ها", "گزارش های", "گزارشها", "گزارشهای"])
             .OrderByDescending(phrase => phrase.Length);
         foreach (var phrase in phraseCues)
             normalized = RemoveWholePhrase(normalized, NormalizeText(phrase));

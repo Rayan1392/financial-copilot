@@ -155,6 +155,17 @@ public sealed class ConversationDialogueGate(
             timeProvider.GetUtcNow()));
         var entityStart = Stopwatch.GetTimestamp();
         var entity = await entityResolver.ResolveFromInterpretationAsync(interpretation, cancellationToken);
+        if (capability == "financial_statement_table" &&
+            FinancialStatementTableIntentRules.LooksLikeQuarterlyReportTableQuery(request.Message) &&
+            entity is not EntityResolutionResult.Resolved &&
+            FinancialStatementTableIntentRules.BuildQuarterlyQuery(request.Message).CompanyQuery is { } companyHint)
+        {
+            // A product mention can consume or truncate a ticker in semantic interpretation.
+            // Resolve the quarterly parser's company hint through the canonical catalog.
+            var quarterlyEntity = await entityResolver.ResolveMentionAsync(companyHint, cancellationToken);
+            if (quarterlyEntity is EntityResolutionResult.Resolved or EntityResolutionResult.Ambiguous)
+                entity = quarterlyEntity;
+        }
         latencySink?.Record(new SemanticRoutingLatencySample(
             request.CorrelationId,
             EntityResolutionMs: Stopwatch.GetElapsedTime(entityStart).TotalMilliseconds));

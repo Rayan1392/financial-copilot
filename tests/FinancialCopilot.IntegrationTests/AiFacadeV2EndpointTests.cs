@@ -2013,6 +2013,7 @@ public sealed class V2FinancialStatementAnalysisEndpointTests : IClassFixture<V2
     [InlineData("گزارشات فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
     [InlineData("جدول گزارشات فصلی کگل", "کگل", "FS-KGL")]
     [InlineData("جدول گزارش‌های فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
+    [InlineData("گزارشهای فصلی غبهنوش؟", "غبهنوش", "FS-GHABNOOSH")]
     [InlineData("گزارش فصلی چخزر", "چخزر", "FS-CHAKHAZAR")]
     [InlineData("صورت سود و زیان فصلی کگل", "کگل", "FS-KGL")]
     public async Task V2AiQuery_QuarterlyReportAliasesResolveCanonicalCompanyAndReturnStructuredTable(
@@ -2259,6 +2260,17 @@ public sealed class V2FinancialStatementAnalysisApiFactory : AiFacadeApiFactory
                 Ticker = "بدونگزارش",
                 CompanySymbol = "بدونگزارش",
                 TseSymbol = "بدونگزارش",
+                LastSynchronizedAt = now
+            },
+            new NormalizedCompanyRow
+            {
+                Id = Guid.Parse("57000000-0000-0000-0000-000000000005"),
+                Name = "شرکت غبهنوش",
+                ProviderName = "NoavaranCurrentApi",
+                ExternalCompanyId = "FS-GHABNOOSH",
+                Ticker = "غبهنوش",
+                CompanySymbol = "غبهنوش",
+                TseSymbol = "غبهنوش",
                 LastSynchronizedAt = now
             });
 

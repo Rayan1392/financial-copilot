@@ -188,3 +188,30 @@
     text-anchor: middle;
   }
 }
+
+.admin-panel .admin-table {
+  min-width: 680px;
+  text-align: right;
+}
+
+.admin-panel .admin-table thead th {
+  height: 44px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-panel .admin-table tbody td {
+  padding: 0.85rem 1rem;
+  color: #334155;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.admin-panel .admin-table tbody tr:hover td {
+  background: #f8fafc;
+}

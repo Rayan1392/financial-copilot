@@ -355,6 +355,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelegramChannelMonthlyReportHandler, TelegramChannelMonthlyReportHandler>();
         services.AddScoped<OwnedIdentityBillingProvisioner>();
         services.AddScoped<IAdminManagementService, EfCoreAdminManagementService>();
+        services.AddScoped<IAdminUserQueries, EfCoreAdminUserQueries>();
 
         services.AddOptions<SalesGrowthScannerOptions>()
             .BindConfiguration(SalesGrowthScannerOptions.SectionName)

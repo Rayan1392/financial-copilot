@@ -118,6 +118,13 @@ public sealed class TahlilAppAccountProvisioner(
             TenantId = tenantId,
             IsDefault = true
         });
+        dbContext.UserOperationalMetadata.Add(new UserOperationalMetadataRow
+        {
+            UserId = user.Id,
+            RegisteredAtUtc = now,
+            AcquisitionSourceCode = UserOperationalMetadataCodes.TahlilApp,
+            ConcurrencyVersion = 1
+        });
         dbContext.TahlilAppExternalIdentities.Add(new TahlilAppExternalIdentityRow
         {
             Id = Guid.NewGuid(),

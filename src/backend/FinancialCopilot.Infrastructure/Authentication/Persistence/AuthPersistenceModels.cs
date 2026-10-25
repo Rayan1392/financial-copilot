@@ -39,6 +39,24 @@ public sealed class UserTenantRow
     public bool IsDefault { get; set; }
 }
 
+/// <summary>Operational attribution and successful-authentication metadata for one local Identity user.</summary>
+public sealed class UserOperationalMetadataRow
+{
+    public Guid UserId { get; set; }
+    public DateTimeOffset? RegisteredAtUtc { get; set; }
+    public string AcquisitionSourceCode { get; set; } = "unknown";
+    public DateTimeOffset? LastSuccessfulLoginAtUtc { get; set; }
+    public string? LastLoginProviderCode { get; set; }
+    public long ConcurrencyVersion { get; set; } = 1;
+}
+
+public static class UserOperationalMetadataCodes
+{
+    public const string Native = "native";
+    public const string TahlilApp = "tahlilapp";
+    public const string Unknown = "unknown";
+}
+
 public sealed class RefreshTokenRow
 {
     public Guid Id { get; set; }

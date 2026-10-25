@@ -17,7 +17,7 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -170,6 +170,8 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("IsEnabled", "LockoutEnd", "Id");
 
                     b.ToTable("auth_users", (string)null);
                 });
@@ -394,13 +396,15 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
 
                     b.HasIndex("NextEntitlementSyncDueAtUtc");
 
-                    b.HasIndex("TenantId");
-
                     b.HasIndex("Provider", "ExternalUserId")
                         .IsUnique();
 
                     b.HasIndex("Provider", "LocalUserId")
                         .IsUnique();
+
+                    b.HasIndex("TenantId", "Provider", "ExternalUserId");
+
+                    b.HasIndex("TenantId", "Provider", "LocalUserId", "Status");
 
                     b.ToTable("auth_external_identities", (string)null);
                 });
@@ -485,11 +489,11 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"RevokedAtUtc\" IS NULL");
 
-                    b.HasIndex("TenantId");
-
                     b.HasIndex("ActorId", "TenantId")
                         .IsUnique()
                         .HasFilter("\"RevokedAtUtc\" IS NULL");
+
+                    b.HasIndex("TenantId", "ActorId", "RevokedAtUtc");
 
                     b.ToTable("auth_telegram_account_links", (string)null);
                 });
@@ -886,6 +890,46 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.ToTable("auth_tenants", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.UserOperationalMetadataRow", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AcquisitionSourceCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("LastLoginProviderCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("LastSuccessfulLoginAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RegisteredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("LastSuccessfulLoginAtUtc", "UserId");
+
+                    b.HasIndex("RegisteredAtUtc", "UserId")
+                        .IsDescending(true, false);
+
+                    b.HasIndex("AcquisitionSourceCode", "RegisteredAtUtc", "UserId")
+                        .IsDescending(false, true, false);
+
+                    b.ToTable("auth_user_operational_metadata", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_auth_user_operational_metadata_acquisition_source_code", "\"AcquisitionSourceCode\" IN ('native', 'tahlilapp', 'unknown')");
+                        });
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.UserProfileRow", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -940,7 +984,7 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
 
                     b.HasKey("UserId", "TenantId");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("TenantId", "UserId");
 
                     b.ToTable("auth_user_tenants", (string)null);
                 });
@@ -1176,6 +1220,15 @@ namespace FinancialCopilot.Infrastructure.Authentication.Persistence.Migrations
                     b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.TenantRow", null)
                         .WithMany()
                         .HasForeignKey("TenantId");
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.UserOperationalMetadataRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Authentication.Persistence.FinancialCopilotUser", null)
+                        .WithOne()
+                        .HasForeignKey("FinancialCopilot.Infrastructure.Authentication.Persistence.UserOperationalMetadataRow", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Authentication.Persistence.UserProfileRow", b =>

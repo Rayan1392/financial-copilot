@@ -1,0 +1,20 @@
+services:
+  feature139-postgres:
+    image: postgres:16-alpine
+    container_name: sapioai-feature139-local-postgres
+    environment:
+      POSTGRES_DB: sapioai_feature139_local
+      POSTGRES_USER: sapioai_local
+      POSTGRES_PASSWORD: local_feature139_only
+    ports:
+      - "127.0.0.1:55439:5432"
+    volumes:
+      - feature139-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sapioai_local -d sapioai_feature139_local"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  feature139-postgres-data:

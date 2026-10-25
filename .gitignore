@@ -9,6 +9,7 @@ src/backend/FinancialCopilot.API/appsettings.Development.Local.json
 .idea/
 .vscode/
 /specs.zip
+/tools/local-state/
 
 
 graphify-out/

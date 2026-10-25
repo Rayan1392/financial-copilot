@@ -19,6 +19,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     public DbSet<RolePermissionRow> RolePermissions => Set<RolePermissionRow>();
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserTenantRow> UserTenants => Set<UserTenantRow>();
+    public DbSet<UserOperationalMetadataRow> UserOperationalMetadata => Set<UserOperationalMetadataRow>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
     public DbSet<AuthEmailActionTokenRow> AuthEmailActionTokens => Set<AuthEmailActionTokenRow>();
     public DbSet<SecurityAdminAuditRow> SecurityAdminAudits => Set<SecurityAdminAuditRow>();
@@ -38,6 +39,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         base.OnModelCreating(builder);
 
         builder.Entity<FinancialCopilotUser>().ToTable("auth_users");
+        builder.Entity<FinancialCopilotUser>().HasIndex(user => new { user.IsEnabled, user.LockoutEnd, user.Id });
         builder.Entity<FinancialCopilotRole>().ToTable("auth_roles");
         builder.Entity<FinancialCopilotRole>().Property(role => role.IsEnabled).HasDefaultValue(true);
         builder.Entity<IdentityUserRole<Guid>>().ToTable("auth_user_roles");
@@ -70,8 +72,24 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         {
             entity.ToTable("auth_user_tenants");
             entity.HasKey(row => new { row.UserId, row.TenantId });
+            entity.HasIndex(row => new { row.TenantId, row.UserId });
             entity.HasOne<FinancialCopilotUser>().WithMany().HasForeignKey(row => row.UserId);
             entity.HasOne<TenantRow>().WithMany().HasForeignKey(row => row.TenantId);
+        });
+        builder.Entity<UserOperationalMetadataRow>(entity =>
+        {
+            entity.ToTable("auth_user_operational_metadata", table =>
+                table.HasCheckConstraint(
+                    "CK_auth_user_operational_metadata_acquisition_source_code",
+                    "\"AcquisitionSourceCode\" IN ('native', 'tahlilapp', 'unknown')"));
+            entity.HasKey(row => row.UserId);
+            entity.HasIndex(row => new { row.RegisteredAtUtc, row.UserId }).IsDescending(true, false);
+            entity.HasIndex(row => new { row.AcquisitionSourceCode, row.RegisteredAtUtc, row.UserId }).IsDescending(false, true, false);
+            entity.HasIndex(row => new { row.LastSuccessfulLoginAtUtc, row.UserId });
+            entity.Property(row => row.AcquisitionSourceCode).HasMaxLength(32).IsRequired();
+            entity.Property(row => row.LastLoginProviderCode).HasMaxLength(32);
+            entity.Property(row => row.ConcurrencyVersion).IsConcurrencyToken();
+            entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserOperationalMetadataRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<RefreshTokenRow>(entity =>
         {
@@ -117,6 +135,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         {
             entity.ToTable("auth_telegram_account_links");
             entity.HasKey(row => row.Id);
+            entity.HasIndex(row => new { row.TenantId, row.ActorId, row.RevokedAtUtc });
             entity.HasIndex(row => new { row.ActorId, row.TenantId })
                 .IsUnique()
                 .HasFilter("\"RevokedAtUtc\" IS NULL");
@@ -219,6 +238,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             // Stable cross-system key (Design §10). Email, phone and national id are never keys.
             entity.HasIndex(row => new { row.Provider, row.ExternalUserId }).IsUnique();
             entity.HasIndex(row => new { row.Provider, row.LocalUserId }).IsUnique();
+            entity.HasIndex(row => new { row.TenantId, row.Provider, row.LocalUserId, row.Status });
+            entity.HasIndex(row => new { row.TenantId, row.Provider, row.ExternalUserId });
             // Worker scan: due paid identities (Design §11 trigger 3).
             entity.HasIndex(row => row.NextEntitlementSyncDueAtUtc);
             entity.Property(row => row.Provider).HasMaxLength(32).IsRequired();

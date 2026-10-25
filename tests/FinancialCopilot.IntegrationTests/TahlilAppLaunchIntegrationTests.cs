@@ -56,6 +56,11 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
         Assert.Equal("Active", identity.Status);
         var user = await auth.Users.SingleAsync(row => row.Id == identity.LocalUserId);
         Assert.Null(user.Email);
+        var operationalMetadata = await auth.UserOperationalMetadata.SingleAsync(row => row.UserId == user.Id);
+        Assert.Equal(UserOperationalMetadataCodes.TahlilApp, operationalMetadata.AcquisitionSourceCode);
+        Assert.NotNull(operationalMetadata.RegisteredAtUtc);
+        Assert.Equal(UserOperationalMetadataCodes.TahlilApp, operationalMetadata.LastLoginProviderCode);
+        Assert.NotNull(operationalMetadata.LastSuccessfulLoginAtUtc);
 
         var profile = await auth.UserProfiles.SingleAsync(row => row.UserId == user.Id);
         Assert.Equal("Ali", profile.FirstName);

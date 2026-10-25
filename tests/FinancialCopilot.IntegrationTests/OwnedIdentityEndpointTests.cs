@@ -48,6 +48,10 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
         var user = await db.Users.SingleAsync(row => row.Email == email);
         Assert.False(user.EmailConfirmed);
         Assert.True(user.EmailVerificationRequired);
+        var metadata = await db.UserOperationalMetadata.SingleAsync(row => row.UserId == user.Id);
+        Assert.Equal(UserOperationalMetadataCodes.Native, metadata.AcquisitionSourceCode);
+        Assert.NotNull(metadata.RegisteredAtUtc);
+        Assert.Null(metadata.LastSuccessfulLoginAtUtc);
         var tokenRow = await db.AuthEmailActionTokens.SingleAsync(row => row.UserId == user.Id);
         Assert.NotEqual(_factory.EmailSender.LatestToken, tokenRow.TokenHash);
         Assert.Contains("lang=\"fa\" dir=\"rtl\"", _factory.EmailSender.LatestMessage!.HtmlBody, StringComparison.Ordinal);
@@ -172,11 +176,32 @@ public sealed class OwnedIdentityEndpointTests : IClassFixture<OwnedIdentityApiF
         var register = await RegisterAsync(client, $"refresh-{Guid.NewGuid():N}@example.test");
         var originalCookie = register.Headers.GetValues("Set-Cookie").Single();
         var originalToken = ReadCookieValue(originalCookie);
+        using var registrationJson = await ReadJsonAsync(register);
+        var userId = Guid.Parse(registrationJson.RootElement.GetProperty("user").GetProperty("userId").GetString()!);
+        DateTimeOffset? lastLoginAtUtc;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var metadata = await db.UserOperationalMetadata.SingleAsync(row => row.UserId == userId);
+            Assert.Equal(UserOperationalMetadataCodes.Native, metadata.LastLoginProviderCode);
+            lastLoginAtUtc = metadata.LastSuccessfulLoginAtUtc;
+            Assert.NotNull(lastLoginAtUtc);
+        }
 
         using var refresh = await client.PostAsync("/api/auth/v1/refresh", null);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
         var replacementCookie = refresh.Headers.GetValues("Set-Cookie").Single();
         Assert.NotEqual(originalToken, ReadCookieValue(replacementCookie));
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var metadata = await db.UserOperationalMetadata.SingleAsync(row => row.UserId == userId);
+            Assert.Equal(lastLoginAtUtc, metadata.LastSuccessfulLoginAtUtc);
+            var tenantId = await db.UserTenants.Where(row => row.UserId == userId).Select(row => row.TenantId).SingleAsync();
+            var refreshTokens = await db.RefreshTokens.Where(row => row.UserId == userId && row.TenantId == tenantId).ToArrayAsync();
+            var activeRefreshSessions = refreshTokens.Count(row => row.RevokedAt == null && row.ExpiresAt > DateTimeOffset.UtcNow);
+            Assert.Equal(1, activeRefreshSessions);
+        }
 
         using var replayClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {

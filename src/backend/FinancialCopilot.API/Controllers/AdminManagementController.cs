@@ -14,7 +14,9 @@ namespace FinancialCopilot.API.Controllers;
 [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]
 public sealed class AdminManagementController(
     ICurrentActorContext actorContext,
-    IAdminManagementService administration) : ControllerBase
+    IAdminManagementService administration,
+    IAdminUserQueries userQueries,
+    IAuthorizationService authorizationService) : ControllerBase
 {
     [HttpGet("users")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
@@ -25,6 +27,49 @@ public sealed class AdminManagementController(
     [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
     public Task<AdminUserView> GetUser(Guid userId, CancellationToken cancellationToken) =>
         administration.GetUserAsync(Actor.TenantId, userId, cancellationToken);
+
+    [HttpGet("users/directory")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<AdminUserDirectoryPage> GetUserDirectory([FromQuery] AdminUserDirectoryQuery query, CancellationToken cancellationToken)
+    {
+        var canReadSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded;
+        var canReadCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded;
+        var canManageSubscription = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsManage)).Succeeded;
+        var canAdjustCredits = (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminCreditsAdjust)).Succeeded;
+        var canResolveBillingAccount = canReadSubscription || canReadCredits || canManageSubscription || canAdjustCredits;
+        return await userQueries.GetDirectoryAsync(Actor.TenantId, query, canReadSubscription, canReadCredits, canResolveBillingAccount, cancellationToken);
+    }
+
+    [HttpGet("users/{userId:guid}/customer-360")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    public async Task<AdminCustomer360View> GetCustomer360(Guid userId, CancellationToken cancellationToken)
+    {
+        var permissions = new AdminCustomer360Permissions(
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminSubscriptionsRead)).Succeeded,
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminUsageLedgerRead)).Succeeded,
+            (await authorizationService.AuthorizeAsync(User, resource: null, AuthorizationPolicies.AdminBillingAuditRead)).Succeeded);
+        return await userQueries.GetCustomer360Async(Actor.TenantId, userId, permissions, cancellationToken);
+    }
+
+    [HttpGet("users/{userId:guid}/customer-360/credits")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsageLedgerRead)]
+    public Task<AdminCreditHistoryPage> GetCustomerCreditHistory(
+        Guid userId,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default) =>
+        userQueries.GetCreditHistoryAsync(Actor.TenantId, userId, pageSize, cursor, cancellationToken);
+
+    [HttpGet("users/{userId:guid}/customer-360/purchases")]
+    [Authorize(Policy = AuthorizationPolicies.AdminUsersRead)]
+    [Authorize(Policy = AuthorizationPolicies.AdminBillingAuditRead)]
+    public Task<AdminPurchaseHistoryPage> GetCustomerPurchaseHistory(
+        Guid userId,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default) =>
+        userQueries.GetPurchaseHistoryAsync(Actor.TenantId, userId, pageSize, cursor, cancellationToken);
 
     [HttpPatch("users/{userId:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.AdminUsersManage)]

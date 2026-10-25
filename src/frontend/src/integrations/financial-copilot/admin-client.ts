@@ -8,6 +8,185 @@ export type AdminUser = {
   roles: string[];
   tenantIds: string[];
 };
+export type AdminSection<T> = {
+  status: "available" | "unavailable" | "not_authorized";
+  data: T | null;
+  reason?: string | null;
+};
+export type AdminUserDirectoryQuery = {
+  pageSize?: number;
+  cursor?: string | null;
+  search?: string;
+  status?: "any" | "enabled" | "disabled" | "locked";
+  acquisitionSource?: "native" | "tahlilapp" | "unknown";
+  linkedProvider?: "tahlilapp" | "telegram";
+  externalProvider?: "tahlilapp";
+  externalUserId?: string;
+  registeredFromUtc?: string;
+  registeredToUtc?: string;
+  lastLoginFromUtc?: string;
+  lastLoginToUtc?: string;
+  sort?: string;
+};
+export type AdminUserDirectoryItem = {
+  userId: string;
+  maskedEmail: string | null;
+  displayName: string | null;
+  isEnabled: boolean;
+  isLockedOut: boolean;
+  status: string;
+  acquisitionSourceCode: string;
+  registeredAtUtc: string | null;
+  lastSuccessfulLoginAtUtc: string | null;
+  lastLoginProviderCode: string | null;
+  linkedProviderCodes: string[];
+  subscription: AdminSection<AdminUserSubscriptionSummary>;
+  credits: AdminSection<AdminUserCreditSummary>;
+  customerAccountId?: string | null;
+};
+export type AdminUserDirectoryPage = {
+  items: AdminUserDirectoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
+export type AdminUserSubscriptionSummary = {
+  customerAccountId: string;
+  accountType: string;
+  planCode: string | null;
+  effectiveFromUtc: string | null;
+  effectiveToUtc: string | null;
+  revision: number;
+  isActive: boolean;
+  capabilityCodes: string[];
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminUserCreditSummary = {
+  spendableCredits: number | null;
+  reservedCredits: number | null;
+  approvedCreditLine: number | null;
+  activeSubscriptionCredits: number;
+  nextExpiryUtc: string | null;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminProviderLink = {
+  providerCode: string;
+  status: string;
+  maskedExternalId: string;
+  displayMetadata: string | null;
+  linkedAtUtc: string;
+  revokedAtUtc: string | null;
+  lastAuthenticatedAtUtc: string | null;
+  profileSyncedAtUtc: string | null;
+};
+export type AdminCustomer360 = {
+  userId: string;
+  tenantId: string;
+  isEnabled: boolean;
+  isLockedOut: boolean;
+  acquisitionSourceCode: string;
+  registeredAtUtc: string | null;
+  lastSuccessfulLoginAtUtc: string | null;
+  lastLoginProviderCode: string | null;
+  hasNativeCredential: boolean;
+  emailConfirmed: boolean;
+  activeRefreshSessions: number;
+  tenantMemberships: string[];
+  linkedProviders: AdminProviderLink[];
+  subscription: AdminSection<AdminCustomerSubscription>;
+  credits: AdminSection<AdminCustomerCredits>;
+  purchases: AdminSection<AdminCustomerPurchases>;
+  asOfUtc: string;
+};
+export type AdminCustomerSubscription = {
+  customerAccountId: string;
+  accountType: string;
+  planCode: string | null;
+  planName: string | null;
+  effectiveFromUtc: string | null;
+  effectiveToUtc: string | null;
+  revision: number;
+  isActive: boolean;
+  capabilities: { code: string; isEnabled: boolean; limit: number | null; policyVersion: string }[];
+  externalSyncStatus: string | null;
+  externalLastSyncedAtUtc: string | null;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminCustomerCredits = {
+  spendableCredits: number | null;
+  reservedCredits: number | null;
+  approvedCreditLine: number | null;
+  activeSubscriptionCredits: number;
+  nextExpiryUtc: string | null;
+  activePeriods: {
+    id: string;
+    planCode: string;
+    grantedCredits: number;
+    remainingCredits: number;
+    startsAtUtc: string;
+    expiresAtUtc: string;
+    status: string;
+  }[];
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminPurchaseHistoryItem = {
+  checkoutIntentId: string;
+  createdAtUtc: string;
+  productType: string;
+  productCode: string;
+  productDisplayName: string;
+  status: string;
+  amount: number;
+  currency: string;
+  channel: string;
+  providerName: string | null;
+  paymentReference: string;
+  receiptSubmittedAtUtc: string | null;
+  reviewedAtUtc: string | null;
+  fulfilledAtUtc: string | null;
+  financialTransactionId: string | null;
+  financialTransactionType: string | null;
+  financialTransactionOccurredAtUtc: string | null;
+  reconciliationState: string | null;
+};
+export type AdminCustomerPurchases = {
+  completedLocalPurchaseCount: number | null;
+  recentLocalPurchases: AdminPurchaseHistoryItem[];
+  externalEntitlementsStatus: string;
+  sourceSystem: string;
+  asOfUtc: string;
+};
+export type AdminCreditHistoryItem = {
+  id: string;
+  occurredAtUtc: string;
+  recordType: string;
+  entryType: string | null;
+  operationCode: string | null;
+  credits: number;
+  allocationSource: string | null;
+  expiresAtUtc: string | null;
+  relatedEntryId: string | null;
+  status: string;
+  customerAccountId: string;
+  remainingCredits: number | null;
+  grantLedgerEntryId: string | null;
+};
+export type AdminCreditHistoryPage = {
+  items: AdminCreditHistoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
+export type AdminPurchaseHistoryPage = {
+  items: AdminPurchaseHistoryItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  asOfUtc: string;
+};
 export type AdminRole = { roleId: string; name: string; isEnabled: boolean; permissions: string[] };
 export type AdminTenant = { tenantId: string; name: string };
 export type AdminTenantMember = { userId: string; email: string; isDefault: boolean };
@@ -117,6 +296,29 @@ export const adminApi = {
     financialCopilotApi<AdminUser[]>(
       `/api/v1/admin/users?search=${encodeURIComponent(search)}&limit=50`,
     ),
+  userDirectory: (query: AdminUserDirectoryQuery = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+    }
+    return financialCopilotApi<AdminUserDirectoryPage>(`/api/v1/admin/users/directory?${params}`);
+  },
+  customer360: (id: string) =>
+    financialCopilotApi<AdminCustomer360>(`/api/v1/admin/users/${id}/customer-360`),
+  customerCreditHistory: (id: string, pageSize = 10, cursor?: string | null) => {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set("cursor", cursor);
+    return financialCopilotApi<AdminCreditHistoryPage>(
+      `/api/v1/admin/users/${id}/customer-360/credits?${params}`,
+    );
+  },
+  customerPurchaseHistory: (id: string, pageSize = 10, cursor?: string | null) => {
+    const params = new URLSearchParams({ pageSize: String(pageSize) });
+    if (cursor) params.set("cursor", cursor);
+    return financialCopilotApi<AdminPurchaseHistoryPage>(
+      `/api/v1/admin/users/${id}/customer-360/purchases?${params}`,
+    );
+  },
   user: (id: string) => financialCopilotApi<AdminUser>(`/api/v1/admin/users/${id}`),
   setUserStatus: (id: string, isEnabled: boolean, unlock: boolean, reason: string) =>
     financialCopilotApi<AdminUser>(

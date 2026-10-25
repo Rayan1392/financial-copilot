@@ -1,5 +1,6 @@
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Providers.Persistence;
+using FinancialCopilot.Infrastructure.Authentication.Persistence;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -121,11 +122,25 @@ public sealed class PostgreSqlTestDatabase(
             .EnableDetailedErrors()
             .Options);
 
-    public BillingDbContext CreateBillingContext() =>
-        new(new DbContextOptionsBuilder<BillingDbContext>()
+    public AuthDbContext CreateAuthContext(DbCommandInterceptor? commandInterceptor = null)
+    {
+        var builder = new DbContextOptionsBuilder<AuthDbContext>()
             .UseNpgsql(ConnectionString)
-            .EnableDetailedErrors()
-            .Options);
+            .EnableDetailedErrors();
+        if (commandInterceptor is not null)
+            builder.AddInterceptors(commandInterceptor);
+        return new AuthDbContext(builder.Options);
+    }
+
+    public BillingDbContext CreateBillingContext(DbCommandInterceptor? commandInterceptor = null)
+    {
+        var builder = new DbContextOptionsBuilder<BillingDbContext>()
+            .UseNpgsql(ConnectionString)
+            .EnableDetailedErrors();
+        if (commandInterceptor is not null)
+            builder.AddInterceptors(commandInterceptor);
+        return new BillingDbContext(builder.Options);
+    }
 
     public async ValueTask DisposeAsync()
     {

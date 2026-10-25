@@ -88,6 +88,13 @@ public sealed class OwnedIdentityService(
                 TenantId = tenantId,
                 IsDefault = true
             });
+            dbContext.UserOperationalMetadata.Add(new UserOperationalMetadataRow
+            {
+                UserId = user.Id,
+                RegisteredAtUtc = timeProvider.GetUtcNow(),
+                AcquisitionSourceCode = UserOperationalMetadataCodes.Native,
+                ConcurrencyVersion = 1
+            });
             await dbContext.SaveChangesAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         }
@@ -126,7 +133,13 @@ public sealed class OwnedIdentityService(
         }
         var tenantId = await ResolveDefaultTenantAsync(user.Id, cancellationToken);
         await RefreshEntitlementsBestEffortAsync(tenantId, user.Id, cancellationToken);
-        return await CreateSessionAsync(user, tenantId, PasswordAuthenticationMethod, cancellationToken);
+        return await CreateSessionAsync(
+            user,
+            tenantId,
+            PasswordAuthenticationMethod,
+            cancellationToken,
+            recordSuccessfulAuthentication: true,
+            loginProviderCode: UserOperationalMetadataCodes.Native);
     }
 
     public Task PrepareBaselineAsync(CancellationToken cancellationToken) =>
@@ -152,7 +165,15 @@ public sealed class OwnedIdentityService(
             await RevokeAsync(presentedRefreshToken, "Replaced by TahlilApp launch.", cancellationToken);
         }
 
-        return await CreateSessionAsync(user, tenantId, authenticationMethod, cancellationToken);
+        return await CreateSessionAsync(
+            user,
+            tenantId,
+            authenticationMethod,
+            cancellationToken,
+            recordSuccessfulAuthentication: true,
+            loginProviderCode: string.Equals(authenticationMethod, TahlilAppAuthenticationMethod, StringComparison.Ordinal)
+                ? UserOperationalMetadataCodes.TahlilApp
+                : UserOperationalMetadataCodes.Unknown);
     }
 
     public async Task<OwnedIdentitySession> RefreshAsync(
@@ -686,7 +707,9 @@ public sealed class OwnedIdentityService(
         FinancialCopilotUser user,
         Guid tenantId,
         string authenticationMethod,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool recordSuccessfulAuthentication = false,
+        string? loginProviderCode = null)
     {
         await billingProvisioner.EnsureProvisionedAsync(tenantId, user.Id, cancellationToken);
 
@@ -709,7 +732,43 @@ public sealed class OwnedIdentityService(
             ExpiresAt = refreshExpiresAt,
             AuthenticationMethod = authenticationMethod
         });
-        await dbContext.SaveChangesAsync(cancellationToken);
+        UserOperationalMetadataRow? loginMetadata = null;
+        if (recordSuccessfulAuthentication)
+        {
+            loginMetadata = await dbContext.UserOperationalMetadata
+                .SingleOrDefaultAsync(row => row.UserId == user.Id, cancellationToken);
+            if (loginMetadata is null)
+            {
+                loginMetadata = new UserOperationalMetadataRow
+                {
+                    UserId = user.Id,
+                    AcquisitionSourceCode = UserOperationalMetadataCodes.Unknown,
+                    ConcurrencyVersion = 1
+                };
+                dbContext.UserOperationalMetadata.Add(loginMetadata);
+            }
+            else
+            {
+                loginMetadata.ConcurrencyVersion++;
+            }
+
+            loginMetadata.LastSuccessfulLoginAtUtc = now;
+            loginMetadata.LastLoginProviderCode = loginProviderCode ?? UserOperationalMetadataCodes.Unknown;
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException) when (loginMetadata is not null && dbContext.Entry(loginMetadata).State == EntityState.Modified)
+        {
+            // Preserve both successful concurrent sessions while serializing their metadata updates.
+            await dbContext.Entry(loginMetadata).ReloadAsync(cancellationToken);
+            loginMetadata.LastSuccessfulLoginAtUtc = now;
+            loginMetadata.LastLoginProviderCode = loginProviderCode ?? UserOperationalMetadataCodes.Unknown;
+            loginMetadata.ConcurrencyVersion++;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         // Email may be absent for TahlilApp-provisioned users (Design §12); the profile carries null, never a placeholder.
         return new OwnedIdentitySession(

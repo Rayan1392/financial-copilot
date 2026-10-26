@@ -23,7 +23,7 @@ public sealed record AdminUserDirectoryPage(
 
 public sealed record AdminUserDirectoryItem(
     Guid UserId,
-    string? MaskedEmail,
+    string? Email,
     string? DisplayName,
     bool IsEnabled,
     bool IsLockedOut,
@@ -156,7 +156,8 @@ public sealed record AdminCreditHistoryItem(
     string Status,
     Guid CustomerAccountId,
     decimal? RemainingCredits,
-    Guid? GrantLedgerEntryId);
+    Guid? GrantLedgerEntryId,
+    string? AuditDescription = null);
 
 public sealed record AdminPurchaseHistoryPage(
     IReadOnlyCollection<AdminPurchaseHistoryItem> Items,

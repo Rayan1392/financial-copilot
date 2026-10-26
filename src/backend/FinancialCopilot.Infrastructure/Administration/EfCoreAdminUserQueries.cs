@@ -187,7 +187,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         var pageRows = rows.Take(filters.PageSize).ToArray();
         var items = pageRows.Select(row => new AdminUserDirectoryItem(
             row.UserId,
-            MaskEmail(row.Email),
+            row.Email,
             JoinDisplayName(row.FirstName, row.LastName),
             row.IsEnabled,
             IsLocked(row.LockoutEnd, asOfUtc),
@@ -359,7 +359,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                 Status = row.CompletionStatus ?? "unknown",
                 row.CustomerAccountId,
                 RemainingCredits = (decimal?)null,
-                GrantLedgerEntryId = (Guid?)null
+                GrantLedgerEntryId = (Guid?)null,
+                row.AuditDescription
             });
         var periods = billing.SubscriptionCreditPeriods.AsNoTracking()
             .Where(row => row.CustomerAccountId == account.Id)
@@ -377,7 +378,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                 row.Status,
                 row.CustomerAccountId,
                 RemainingCredits = (decimal?)row.RemainingCredits,
-                GrantLedgerEntryId = (Guid?)row.GrantLedgerEntryId
+                GrantLedgerEntryId = (Guid?)row.GrantLedgerEntryId,
+                AuditDescription = (string?)null
             });
         var combined = ledger.Concat(periods);
         if (pageCursor is not null)
@@ -408,7 +410,8 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                 row.Status,
                 row.CustomerAccountId,
                 row.RemainingCredits,
-                row.GrantLedgerEntryId))
+                row.GrantLedgerEntryId,
+                row.AuditDescription))
             .ToArrayAsync(cancellationToken);
         return BuildCreditHistoryPage(rows, tenantId, userId, account.Id, pageSize, filterHash, asOfUtc);
     }
@@ -966,16 +969,6 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
 
     private static string GetStatus(bool isEnabled, DateTimeOffset? lockoutEnd, DateTimeOffset asOfUtc) =>
         !isEnabled ? "disabled" : IsLocked(lockoutEnd, asOfUtc) ? "locked" : "enabled";
-
-    private static string? MaskEmail(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email)) return null;
-        var separator = email.IndexOf('@');
-        if (separator <= 0 || separator == email.Length - 1) return "***";
-        var local = email[..separator];
-        var visible = local.Length == 1 ? local : local[..1];
-        return $"{visible}***{email[separator..]}";
-    }
 
     private static string? JoinDisplayName(string? firstName, string? lastName)
     {

@@ -30,7 +30,7 @@ export type AdminUserDirectoryQuery = {
 };
 export type AdminUserDirectoryItem = {
   userId: string;
-  maskedEmail: string | null;
+  email: string | null;
   displayName: string | null;
   isEnabled: boolean;
   isLockedOut: boolean;
@@ -174,6 +174,7 @@ export type AdminCreditHistoryItem = {
   customerAccountId: string;
   remainingCredits: number | null;
   grantLedgerEntryId: string | null;
+  auditDescription?: string | null;
 };
 export type AdminCreditHistoryPage = {
   items: AdminCreditHistoryItem[];

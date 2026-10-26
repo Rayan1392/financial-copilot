@@ -8,6 +8,7 @@ using FinancialCopilot.Infrastructure.Billing.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace FinancialCopilot.Infrastructure.Administration;
 
@@ -49,6 +50,30 @@ public sealed class EfCoreAdminManagementService(
     }
 
     public async Task<AdminUserView> ChangeUserStatusAsync(
+        Guid userId,
+        AdminUserStatusChange change,
+        AdminMutationContext context,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await ChangeUserStatusOnceAsync(userId, change, context, cancellationToken);
+            }
+            catch (Exception exception) when
+                (attempt < maxAttempts && IsSerializationFailure(exception))
+            {
+                // Retry the whole serializable transaction after PostgreSQL aborts it for a
+                // concurrent write. Clear tracked entities so the retry reads fresh values.
+                auth.ChangeTracker.Clear();
+                await Task.Delay(TimeSpan.FromMilliseconds(75 * attempt), cancellationToken);
+            }
+        }
+    }
+
+    private async Task<AdminUserView> ChangeUserStatusOnceAsync(
         Guid userId,
         AdminUserStatusChange change,
         AdminMutationContext context,
@@ -451,6 +476,19 @@ public sealed class EfCoreAdminManagementService(
         auth.Database.IsRelational()
             ? await auth.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             : null;
+
+    private static bool IsSerializationFailure(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException postgres &&
+                postgres.SqlState == PostgresErrorCodes.SerializationFailure)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private async Task RejectLockoutAsync(
         AdminMutationContext context,

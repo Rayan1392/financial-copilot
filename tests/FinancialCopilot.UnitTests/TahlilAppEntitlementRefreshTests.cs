@@ -55,7 +55,7 @@ public sealed class TahlilAppEntitlementRefreshTests
     }
 
     [Fact]
-    public async Task UpgradeThenDowngrade_UsesPendingCreditPolicy_AndDowngradeToFreeClearsTheWindow()
+    public async Task ConcurrentPlusAndPro_AccumulateCredits_AndFreeStartsAfterBothExpire()
     {
         var harness = new Harness();
         await harness.RefreshAsync(Status("Plus", true, Start.AddDays(30), 1));
@@ -66,18 +66,18 @@ public sealed class TahlilAppEntitlementRefreshTests
         await harness.RefreshAsync(Status("Pro", true, proExpiry, 2));
         var upgraded = await harness.ReadAsync();
 
-        harness.Clock.Advance(TimeSpan.FromMinutes(16));
+        harness.Clock.Advance(TimeSpan.FromDays(31));
         await harness.RefreshAsync(Status("Free", false, null, 3));
         var downgraded = await harness.ReadAsync();
 
         Assert.Equal("Pro", upgraded.PlanCode);
         Assert.Equal(proExpiry, upgraded.EffectiveTo);
-        Assert.Equal(balance, upgraded.Balance);
+        Assert.Equal(balance + 2600m, upgraded.Balance);
         Assert.Equal(2, upgraded.Revision);
 
         Assert.Equal("Free", downgraded.PlanCode);
         Assert.Null(downgraded.EffectiveTo);
-        Assert.Equal(balance, downgraded.Balance);
+        Assert.Equal(0m, downgraded.Balance);
         Assert.Equal(3, downgraded.Revision);
         Assert.Equal("Free", harness.Store.Identity!.LastSyncedPlanCode);
         Assert.Null(harness.Store.Identity.NextEntitlementSyncDueAtUtc);
@@ -274,7 +274,12 @@ public sealed class TahlilAppEntitlementRefreshTests
         new(Guid.Empty, Guid.Empty, ExternalId, TahlilAppIdentityStatus.Active, lastSync, nextDue, expiry, plan);
 
     private static TahlilAppStatusResult Status(string? plan, bool active, DateTimeOffset? expiry, long? revision, bool suspended = false) =>
-        new(TahlilAppStatusOutcome.Succeeded, new TahlilAppStatusSnapshot(ExternalId, suspended, plan, active, expiry, revision));
+        new(TahlilAppStatusOutcome.Succeeded, new TahlilAppStatusSnapshot(
+            ExternalId, suspended, plan, active, expiry, revision, PlanSubscriptions:
+                active && expiry is { } end && plan is "Plus" or "Pro"
+                    ? new[] { new TahlilAppPlanSubscription(plan == "Plus" ? "sapio_plus" : "sapio_pro", plan,
+                        end.AddDays(-30), end, $"test:{plan}:{end.UtcDateTime.Ticks}") }
+                    : Array.Empty<TahlilAppPlanSubscription>()));
 
     private static TahlilAppStatusResult Unavailable() => new(TahlilAppStatusOutcome.Unavailable);
 

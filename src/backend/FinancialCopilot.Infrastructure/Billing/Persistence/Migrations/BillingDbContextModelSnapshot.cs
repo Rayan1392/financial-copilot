@@ -454,6 +454,9 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<bool>("ExternalSubscriptionManaged")
+                        .HasColumnType("boolean");
+
                     b.Property<long?>("ExternalSubscriptionRevision")
                         .HasColumnType("bigint");
 
@@ -552,6 +555,44 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.ToTable("billing_daily_free_allowance_grants", (string)null);
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdentityKey")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("PlusTransferApplied")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerAccountId", "ExpiresAtUtc");
+
+                    b.HasIndex("CustomerAccountId", "IdentityKey")
+                        .IsUnique();
+
+                    b.ToTable("billing_external_plan_subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.FinancialTransactionRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -615,6 +656,26 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.HasKey("CustomerAccountId");
 
                     b.ToTable("billing_invoice_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PaidExpiryCooldownRow", b =>
+                {
+                    b.Property<Guid>("CustomerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CooldownUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastPaidExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("CustomerAccountId");
+
+                    b.ToTable("billing_paid_expiry_cooldowns", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PlanCapabilityRow", b =>
@@ -977,6 +1038,11 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<string>("SubscriptionIdentity")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IdempotencyKey")
@@ -984,7 +1050,7 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.HasIndex("Status", "ExpiresAtUtc");
 
-                    b.HasIndex("CustomerAccountId", "ActivationRevision", "PeriodNumber")
+                    b.HasIndex("CustomerAccountId", "SubscriptionIdentity", "PeriodNumber")
                         .IsUnique();
 
                     b.ToTable("billing_subscription_credit_periods", (string)null);
@@ -1036,6 +1102,37 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                             Name = "Plus",
                             PricingPolicyVersion = "v1"
                         });
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditAllocationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CreditsApplied")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("GrantLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SubscriptionCreditPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UsageLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GrantLedgerEntryId");
+
+                    b.HasIndex("SubscriptionCreditPeriodId");
+
+                    b.HasIndex("UsageLedgerEntryId", "SubscriptionCreditPeriodId")
+                        .IsUnique();
+
+                    b.ToTable("billing_usage_credit_allocations", (string)null);
                 });
 
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", b =>
@@ -1276,6 +1373,24 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.ExternalPlanSubscriptionRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PaidExpiryCooldownRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
+                        .WithOne()
+                        .HasForeignKey("FinancialCopilot.Infrastructure.Billing.Persistence.PaidExpiryCooldownRow", "CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.PlanCapabilityRow", b =>
                 {
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionPlanRow", null)
@@ -1290,6 +1405,21 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.CustomerAccountRow", null)
                         .WithMany()
                         .HasForeignKey("CustomerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FinancialCopilot.Infrastructure.Billing.Persistence.UsageCreditAllocationRow", b =>
+                {
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.SubscriptionCreditPeriodRow", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriptionCreditPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FinancialCopilot.Infrastructure.Billing.Persistence.UsageLedgerEntryRow", null)
+                        .WithMany()
+                        .HasForeignKey("UsageLedgerEntryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

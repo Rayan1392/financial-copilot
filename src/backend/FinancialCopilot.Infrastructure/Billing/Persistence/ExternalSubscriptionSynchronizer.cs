@@ -28,6 +28,12 @@ public sealed class ExternalSubscriptionSynchronizer(
     {
         await billingProvisioner.EnsureProvisionedAsync(tenantId, localUserId, cancellationToken);
 
+        if (decision.PlanSubscriptions is { } planSubscriptions)
+        {
+            await SynchronizePlanSetAsync(tenantId, localUserId, decision, planSubscriptions, cancellationToken);
+            return;
+        }
+
         if (decision.PlanCode == "Plus" && decision.EffectiveTo is not null)
         {
             var current = await dbContext.CustomerAccounts.SingleAsync(
@@ -148,6 +154,72 @@ public sealed class ExternalSubscriptionSynchronizer(
         }
 
         throw new InvalidOperationException("TahlilApp subscription synchronisation did not converge.");
+    }
+
+    private async Task SynchronizePlanSetAsync(
+        Guid tenantId,
+        Guid localUserId,
+        TahlilAppSubscriptionDecision decision,
+        IReadOnlyList<FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppPlanSubscription> subscriptions,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var account = await dbContext.CustomerAccounts.SingleAsync(
+                row => row.TenantId == tenantId && row.UserId == localUserId, cancellationToken);
+            var wallet = await dbContext.WalletProjections.SingleAsync(
+                row => row.CustomerAccountId == account.Id, cancellationToken);
+            var previousPlan = account.SubscriptionPlanCode ?? "Free";
+            var previousEnd = account.SubscriptionEffectiveTo;
+            var now = timeProvider.GetUtcNow();
+
+            var incomingKeys = subscriptions.Select(item => item.IdentityKey).ToHashSet(StringComparer.Ordinal);
+            var storedKeys = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+                .Where(row => row.CustomerAccountId == account.Id)
+                .Select(row => row.IdentityKey)
+                .ToListAsync(cancellationToken);
+            var newSubscriptionObserved = incomingKeys.Except(storedKeys, StringComparer.Ordinal).Any();
+            var effectiveChanged = !account.ExternalSubscriptionManaged ||
+                !string.Equals(account.SubscriptionPlanCode, decision.PlanCode, StringComparison.Ordinal) ||
+                !SameInstant(account.SubscriptionEffectiveTo, decision.EffectiveTo) ||
+                !SameInstant(account.SubscriptionEffectiveFrom, decision.EffectiveFrom);
+
+            await creditLifecycle.ApplyExternalPlanSnapshotAsync(account, wallet, subscriptions, now, cancellationToken);
+            account.SubscriptionPlanCode = decision.PlanCode;
+            account.SubscriptionEffectiveFrom = decision.EffectiveFrom;
+            account.SubscriptionEffectiveTo = decision.EffectiveTo;
+            account.SubscriptionActivationIsAuthoritative = true;
+            if (effectiveChanged || newSubscriptionObserved)
+            {
+                account.SubscriptionRevision++;
+                dbContext.AdminAudits.Add(new BillingAdminAuditRow
+                {
+                    Id = Guid.NewGuid(),
+                    OccurredAt = now,
+                    TenantId = tenantId,
+                    ActorId = Guid.Empty,
+                    ActionCode = AuditActionCode,
+                    TargetType = nameof(CustomerAccountRow),
+                    TargetId = account.Id.ToString(),
+                    Reason = "TahlilApp official plan set synchronized using per-plan starts_at and expires_at.",
+                    CorrelationId = CorrelationIdentifier,
+                    Before = $"{previousPlan}|{previousEnd:O}",
+                    After = $"{decision.PlanCode}|{decision.EffectiveTo:O}"
+                });
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException) when (attempt == 0)
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+
+        throw new InvalidOperationException("TahlilApp plan-set synchronisation did not converge.");
     }
 
     private static bool SameInstant(DateTimeOffset? stored, DateTimeOffset? incoming)

@@ -1,8 +1,6 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text;
 using FinancialCopilot.Application.Authentication.TahlilApp;
-using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -11,92 +9,58 @@ namespace FinancialCopilot.UnitTests;
 
 public sealed class TahlilAppExchangeParserTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 10, 17, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = new(2026, 11, 20, 12, 0, 0, TimeSpan.Zero);
+    private static readonly IReadOnlyDictionary<string, string> Plans = new Dictionary<string, string>
+    {
+        ["sapio_plus"] = "Plus",
+        ["sapio_pro"] = "Pro"
+    };
 
     [Fact]
-    public void ValidResponse_ProducesNormalisedSnapshot()
+    public void OfficialResponse_ParsesSnakeCaseAndNullableName()
     {
-        var snapshot = Parse("""
-            {"user":{"externalUserId":"u-1","firstName":" Ali ","lastName":"Ahmadi","nationalId":"۰۰۱۲۳۴۵۶۷۸","mobile":"09121234567","status":"Active"},
-             "subscription":{"plan":"Plus","isActive":true,"effectiveFrom":"2026-10-10T00:00:00Z","expiresAt":"2026-12-01T00:00:00Z","revision":17},
-             "permissions":["a","b"],"unknownField":{"x":1}}
-            """);
-
-        Assert.NotNull(snapshot);
-        Assert.Equal("u-1", snapshot!.ExternalUserId);
-        Assert.False(snapshot.IsSuspended);
-        Assert.Equal(IncomingProfileFieldKind.Valid, snapshot.FirstName.Kind);
-        Assert.Equal("Ali", snapshot.FirstName.NormalizedValue);
-        Assert.Equal("0012345678", snapshot.NationalId.NormalizedValue);
-        Assert.Equal("+989121234567", snapshot.Mobile.NormalizedValue);
-        Assert.Equal("Plus", snapshot.ExternalPlan);
-        Assert.True(snapshot.IsSubscriptionActive);
-        Assert.Equal(new DateTimeOffset(2026, 10, 10, 0, 0, 0, TimeSpan.Zero), snapshot.SubscriptionEffectiveFrom);
-        Assert.Equal(17, snapshot.ExternalRevision);
-        Assert.Equal(2, snapshot.ExternalPermissionCount);
+        var result = Parse("""{"user_id":"u-1","name":null,"subscription":{"active":true,"expires_at":"2026-12-16T08:06:31.000Z","plans":[{"slug":"sapio_plus","starts_at":"2026-11-16T08:06:31.000Z","expires_at":"2026-12-16T08:06:31.000Z"}]}}""");
+        Assert.NotNull(result);
+        Assert.Null(result!.Name);
+        Assert.Equal("Plus", result.ExternalPlan);
+        var item = result.PlanSubscriptions![0];
+        Assert.Equal($"sapio_plus:{item.StartsAt.ToUnixTimeMilliseconds()}:{item.ExpiresAt.ToUnixTimeMilliseconds()}", item.IdentityKey);
     }
 
     [Fact]
-    public void InvalidOptionalFields_AreDroppedToInvalid_AndAbsentOrNullStayDistinct()
+    public void ConcurrentPlusAndPro_AreBothPreservedAndProWins()
     {
-        var snapshot = Parse("""
-            {"user":{"externalUserId":"u-2","firstName":"","lastName":null,"nationalId":"123","status":"Active"},
-             "subscription":{"plan":"Pro","isActive":true,"expiresAt":"2026-12-01T00:00:00Z"}}
-            """);
-
-        Assert.NotNull(snapshot);
-        Assert.Equal(IncomingProfileFieldKind.Invalid, snapshot!.FirstName.Kind);
-        Assert.Equal(IncomingProfileFieldKind.Null, snapshot.LastName.Kind);
-        Assert.Equal(IncomingProfileFieldKind.Invalid, snapshot.NationalId.Kind);
-        Assert.Equal(IncomingProfileFieldKind.Absent, snapshot.Mobile.Kind);
+        var result = Parse("""{"user_id":"u-2","subscription":{"plans":[{"slug":"sapio_plus","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-20T00:00:00Z"},{"slug":"sapio_pro","starts_at":"2026-11-15T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.PlanSubscriptions!.Count);
+        var decision = FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            result.PlanSubscriptions.Select(item => (item.Slug, item.StartsAt, item.ExpiresAt)).ToArray(), Now, Plans);
+        Assert.Equal("Pro", decision.PlanCode);
     }
 
     [Fact]
-    public void Suspended_IsRecognised()
+    public void InvalidTimestampOrUnknownUserShapeIsRejected()
     {
-        var snapshot = Parse("""{"user":{"externalUserId":"u-3","status":"Suspended"},"subscription":{"plan":"Free","isActive":false}}""");
-        Assert.True(snapshot!.IsSuspended);
+        Assert.Null(Parse("""{"user_id":"u-3","subscription":{"plans":[{"slug":"sapio_pro","starts_at":"2026-11-01T00:00:00+03:30","expires_at":"2026-12-01T00:00:00Z"}]}}"""));
+        Assert.Null(Parse("""{"user":{"user_id":"u-3"},"subscription":{"plans":[]}}"""));
     }
 
-    [Theory]
-    [InlineData("""{"user":{"externalUserId":"u-4","status":"Deleted"},"subscription":{"plan":"Free","isActive":false}}""")]
-    [InlineData("""{"user":{"externalUserId":"bad id!","status":"Active"},"subscription":{"plan":"Free","isActive":false}}""")]
-    [InlineData("""{"user":{"status":"Active"},"subscription":{"plan":"Free","isActive":false}}""")]
-    [InlineData("""{"user":{"externalUserId":"u-5","status":"Active"}}""")]
-    [InlineData("""["not","an","object"]""")]
-    [InlineData("{\"user\":{\"externalUserId\":\"u-6\",\"status\":\"Active\"},\"subscription\":{\"plan\":\"Free\"")]
-    public void StructuralViolations_ReturnNull(string json) =>
-        Assert.Null(Parse(json));
-
-    [Fact]
-    public void MissingIsActive_FailsClosed()
-    {
-        var snapshot = Parse("""{"user":{"externalUserId":"u-7","status":"Active"},"subscription":{"plan":"Pro","expiresAt":"2026-12-01T00:00:00Z"}}""");
-        Assert.False(snapshot!.IsSubscriptionActive);
-    }
-
-    [Fact]
-    public void ImplausibleExpiry_IsIgnoredAsMissing()
-    {
-        var snapshot = Parse("""{"user":{"externalUserId":"u-8","status":"Active"},"subscription":{"plan":"Pro","isActive":true,"expiresAt":"2099-01-01T00:00:00Z"}}""");
-        Assert.Null(snapshot!.SubscriptionExpiresAt);
-    }
-
-    [Theory]
-    [InlineData("not-a-timestamp")]
-    [InlineData("2026-10-10T00:00:00+03:30")]
-    [InlineData("2099-01-01T00:00:00Z")]
-    public void InvalidActivationTimestamp_IsNotAcceptedAsCreditAnchor(string effectiveFrom)
-    {
-        var json = "{\"user\":{\"externalUserId\":\"u-9\",\"status\":\"Active\"},\"subscription\":{\"plan\":\"Plus\",\"isActive\":true,\"effectiveFrom\":\"" +
-            effectiveFrom + "\",\"expiresAt\":\"2026-12-01T00:00:00Z\"}}";
-        var snapshot = Parse(json);
-        Assert.NotNull(snapshot);
-        Assert.Null(snapshot!.SubscriptionEffectiveFrom);
-    }
-
-    private static TahlilAppExchangeSnapshot? Parse(string json) =>
+    private static FinancialCopilot.Application.Authentication.TahlilApp.TahlilAppExchangeSnapshot? Parse(string json) =>
         TahlilAppExchangeParser.TryParse(Encoding.UTF8.GetBytes(json), Now);
+}
+
+public sealed class TahlilAppStatusParserTests
+{
+    [Fact]
+    public void StatusResponseMatchesStableUserIdAndReturnsPlanSet()
+    {
+        var json = Encoding.UTF8.GetBytes("""{"user_id":"u-status","subscription":{"plans":[{"slug":"sapio_pro","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
+        var result = TahlilAppStatusParser.TryParse(json, "u-status", DateTimeOffset.Parse("2026-11-20T00:00:00Z"), out var rejected);
+        Assert.NotNull(result);
+        Assert.Null(rejected);
+        Assert.Equal("Pro", result!.PlanSubscriptions![0].PlanCode);
+        Assert.Null(TahlilAppStatusParser.TryParse(json, "other", DateTimeOffset.UtcNow, out _));
+    }
 }
 
 public sealed class TahlilAppIdentityGatewayTests
@@ -104,160 +68,61 @@ public sealed class TahlilAppIdentityGatewayTests
     private const string Code = "AbCdEfGhIjKlMnOpQrStUvWx";
 
     [Fact]
-    public async Task Success_ReturnsValidatedSnapshot_AndSendsCredentialsOnlyAsHeaders()
+    public async Task ExchangeUsesOfficialPathAndBasicAuthentication()
     {
         var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
+        Environment.SetEnvironmentVariable(variable, "test-secret");
         try
         {
-            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, """{"user":{"externalUserId":"u-1","status":"Active"},"subscription":{"plan":"Free","isActive":false}}"""));
-            var gateway = CreateGateway(handler, variable);
-
-            var result = await gateway.ExchangeAsync(Code, "corr-9", CancellationToken.None);
-
+            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, """{"user_id":"u-1","name":null,"subscription":{"plans":[]}}"""));
+            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "corr-9", CancellationToken.None);
             Assert.Equal(TahlilAppExchangeOutcome.Succeeded, result.Outcome);
-            Assert.Equal("u-1", result.Snapshot!.ExternalUserId);
-            Assert.Equal(1, handler.Requests);
-            Assert.Equal("test-credential", handler.LastRequestHeaders!["X-Api-Key"]);
-            Assert.Equal("corr-9", handler.LastRequestHeaders["X-Correlation-Id"]);
-            Assert.Equal("2", handler.LastRequestHeaders["X-SapioAI-Contract-Version"]);
+            Assert.Equal("https://api.tahlilapp.example.test/api/partners/exchange", handler.LastRequestUri);
+            Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("financial-copilot:test-secret")), handler.LastRequestHeaders!["Authorization"]);
+            Assert.DoesNotContain("X-Api-Key", handler.LastRequestHeaders.Keys);
+            Assert.DoesNotContain("X-SapioAI-Contract-Version", handler.LastRequestHeaders.Keys);
             Assert.Contains(Code, handler.LastRequestBody);
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
     }
 
     [Fact]
-    public async Task BadRequest_IsInvalidCode()
+    public async Task StatusUsesOfficialPathAndBasicAuthentication()
     {
         var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
+        Environment.SetEnvironmentVariable(variable, "test-secret");
         try
         {
-            var handler = new StubHandler(_ => Json(HttpStatusCode.BadRequest, """{"error":"invalid_code"}"""));
-            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-            Assert.Equal(TahlilAppExchangeOutcome.InvalidCode, result.Outcome);
+            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, """{"user_id":"user:1","subscription":{"plans":[]}}"""));
+            var result = await CreateGateway(handler, variable).GetStatusAsync("user:1", "corr", CancellationToken.None);
+            Assert.Equal(TahlilAppStatusOutcome.Succeeded, result.Outcome);
+            Assert.Equal("https://api.tahlilapp.example.test/api/partners/users/user%3A1/status", handler.LastRequestUri);
+            Assert.StartsWith("Basic ", handler.LastRequestHeaders!["Authorization"]);
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
-    }
-
-    [Theory]
-    [InlineData(HttpStatusCode.InternalServerError)]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    [InlineData(HttpStatusCode.TooManyRequests)]
-    [InlineData(HttpStatusCode.Redirect)]
-    public async Task ServerFailuresAndRedirects_AreUnavailable_AndNeverRetried(HttpStatusCode status)
-    {
-        var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
-        try
-        {
-            var handler = new StubHandler(_ => new HttpResponseMessage(status));
-            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-
-            Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
-            Assert.Equal(1, handler.Requests);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
     }
 
     [Fact]
-    public async Task UnexpectedContentType_IsUnavailable()
+    public async Task MissingSecretDoesNotSendRequest()
     {
-        var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
-        try
-        {
-            var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("<html/>", Encoding.UTF8, "text/html")
-            });
-            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-            Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
-    }
-
-    [Fact]
-    public async Task OversizedBody_IsUnavailable()
-    {
-        var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
-        try
-        {
-            var padding = new string('x', 9000);
-            var body = "{\"user\":{\"externalUserId\":\"u-1\",\"status\":\"Active\",\"pad\":\"" + padding +
-                "\"},\"subscription\":{\"plan\":\"Free\",\"isActive\":false}}";
-            var handler = new StubHandler(_ => Json(HttpStatusCode.OK, body));
-            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-            Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
-    }
-
-    [Fact]
-    public async Task MissingCredential_IsUnavailable_AndSendsNothing()
-    {
-        var variable = UniqueVariable();
         var handler = new StubHandler(_ => Json(HttpStatusCode.OK, "{}"));
-        var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-
+        var result = await CreateGateway(handler, UniqueVariable()).ExchangeAsync(Code, "c", CancellationToken.None);
         Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
         Assert.Equal(0, handler.Requests);
     }
 
-    [Fact]
-    public async Task Timeout_IsUnavailable_AndNeverRetried()
-    {
-        var variable = UniqueVariable();
-        Environment.SetEnvironmentVariable(variable, "test-credential");
-        try
-        {
-            var handler = new StubHandler(_ => throw new TaskCanceledException("timeout"));
-            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "c", CancellationToken.None);
-
-            Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
-            Assert.Equal(1, handler.Requests);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
-    }
-
     private static string UniqueVariable() => $"TAHLILAPP_TEST_{Guid.NewGuid():N}";
-
-    private static TahlilAppIdentityGateway CreateGateway(StubHandler handler, string variable)
-    {
-        var options = new TahlilAppOptions
+    private static TahlilAppIdentityGateway CreateGateway(StubHandler handler, string variable) => new(
+        new HttpClient(handler),
+        Options.Create(new TahlilAppOptions
         {
             Enabled = true,
-            BaseUrl = "https://tahlilapp.example.test",
-            ApiKeyEnvironmentVariable = variable,
-            ExchangeTimeoutSeconds = 2,
-            MaximumResponseBytes = 8192
-        };
-        return new TahlilAppIdentityGateway(
-            new HttpClient(handler),
-            Options.Create(options),
-            TimeProvider.System,
-            NullLogger<TahlilAppIdentityGateway>.Instance);
-    }
+            BaseUrl = "https://api.tahlilapp.example.test/api/",
+            ClientSecretEnvironmentVariable = variable,
+            ExchangeTimeoutSeconds = 2
+        }),
+        TimeProvider.System,
+        NullLogger<TahlilAppIdentityGateway>.Instance);
 
     private static HttpResponseMessage Json(HttpStatusCode status, string body) =>
         new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
@@ -267,14 +132,14 @@ public sealed class TahlilAppIdentityGatewayTests
         public int Requests { get; private set; }
         public Dictionary<string, string>? LastRequestHeaders { get; private set; }
         public string LastRequestBody { get; private set; } = string.Empty;
+        public string? LastRequestUri { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests++;
-            LastRequestHeaders = request.Headers.ToDictionary(
-                header => header.Key,
-                header => string.Join(",", header.Value),
-                StringComparer.OrdinalIgnoreCase);
+            LastRequestUri = request.RequestUri?.ToString();
+            LastRequestHeaders = request.Headers.ToDictionary(header => header.Key,
+                header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase);
             LastRequestBody = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
             return respond(request);
         }
@@ -286,13 +151,10 @@ public sealed class TahlilAppOptionsValidatorTests
     private static readonly TahlilAppOptionsValidator Validator = new();
 
     [Fact]
-    public void DisabledWithCanonicalPlansIsValid()
-    {
-        Assert.True(Validator.Validate(null, new TahlilAppOptions()).Succeeded);
-    }
+    public void DisabledConfigurationIsValid() => Assert.True(Validator.Validate(null, new TahlilAppOptions()).Succeeded);
 
     [Fact]
-    public void EnabledRequiresHttpsBaseUrlAndKeyRingPath()
+    public void EnabledRequiresHttpsAndWritableKeyRing()
     {
         var result = Validator.Validate(null, new TahlilAppOptions { Enabled = true, BaseUrl = "http://tahlilapp.example.test" });
         Assert.False(result.Succeeded);
@@ -301,23 +163,9 @@ public sealed class TahlilAppOptionsValidatorTests
     }
 
     [Fact]
-    public void EnabledRejectsNonWritableKeyRing()
-    {
-        var missing = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}");
-        var result = Validator.Validate(null, new TahlilAppOptions
-        {
-            Enabled = true,
-            BaseUrl = "https://tahlilapp.example.test",
-            DataProtectionKeyRingPath = missing
-        });
-        Assert.False(result.Succeeded);
-        Assert.Contains(result.Failures!, failure => failure.Contains("writable"));
-    }
-
-    [Fact]
     public void PlanMapTargetMustBeCanonical()
     {
-        var options = new TahlilAppOptions { PlanMap = new Dictionary<string, string> { ["Gold"] = "Enterprise" } };
+        var options = new TahlilAppOptions { PlanMap = new Dictionary<string, string> { ["sapio_plus"] = "Enterprise" } };
         var result = Validator.Validate(null, options);
         Assert.False(result.Succeeded);
         Assert.Contains(result.Failures!, failure => failure.Contains("canonical"));

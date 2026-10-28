@@ -2,6 +2,7 @@ using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Pricing;
 using FinancialCopilot.Billing.Usage;
+using FinancialCopilot.Billing.Services;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using FinancialCopilot.Infrastructure.Authentication;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
@@ -264,6 +265,182 @@ public sealed class SubscriptionCreditLifecycleTests
     }
 
     [Fact]
+    public async Task ConcurrentPlusAndPro_TransfersOnlyRemainingPlusCredits_AndIsIdempotent()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var time = new MutableTimeProvider(InitialAt);
+        var (account, wallet) = AddAccountAndWallet(db, "Free", InitialAt, InitialAt.AddDays(30));
+        await db.SaveChangesAsync();
+        var synchronizer = new ExternalSubscriptionSynchronizer(db, new OwnedIdentityBillingProvisioner(db, time), time);
+        var plans = new[]
+        {
+            Subscription("sapio_plus", "Plus", InitialAt.AddDays(-10), InitialAt.AddDays(30)),
+            Subscription("sapio_pro", "Pro", InitialAt.AddDays(2), InitialAt.AddDays(45))
+        };
+
+        await synchronizer.SynchronizeAsync(account.TenantId, account.UserId!.Value,
+            Decide(plans, InitialAt), 1, CancellationToken.None);
+        Assert.Equal("Plus", account.SubscriptionPlanCode);
+        Assert.Equal(260m, wallet.Balance);
+
+        time.Set(InitialAt.AddDays(1));
+        await CommitChargeAsync(db, account, wallet, time, 100m);
+        time.Set(InitialAt.AddDays(3));
+        await synchronizer.SynchronizeAsync(account.TenantId, account.UserId.Value,
+            Decide(plans, time.GetUtcNow()), 2, CancellationToken.None);
+        var afterUpgrade = wallet.Balance;
+        await synchronizer.SynchronizeAsync(account.TenantId, account.UserId.Value,
+            Decide(plans, time.GetUtcNow()), 2, CancellationToken.None);
+
+        Assert.Equal("Pro", account.SubscriptionPlanCode);
+        Assert.Equal(2760m, afterUpgrade);
+        Assert.Equal(afterUpgrade, wallet.Balance);
+        Assert.Equal(2, await db.ExternalPlanSubscriptions.CountAsync());
+        var plus = await db.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Plus");
+        var pro = await db.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Pro");
+        Assert.Equal(SubscriptionCreditLifecycleService.TransferredStatus, plus.Status);
+        Assert.Equal(0m, plus.RemainingCredits);
+        Assert.Equal(2760m, pro.GrantedCredits);
+        Assert.Equal(-160m, await db.UsageLedgerEntries.Where(row => row.OperationCode == "Billing.SubscriptionCreditTransferOut")
+            .SumAsync(row => row.CreditsCharged));
+        Assert.Equal(160m, await db.UsageLedgerEntries.Where(row => row.OperationCode == "Billing.SubscriptionCreditTransferIn")
+            .SumAsync(row => row.CreditsCharged));
+        Assert.Equal(2, await db.UsageLedgerEntries.CountAsync(row => row.OperationCode == "Billing.SubscriptionCreditGrant"));
+    }
+
+    [Fact]
+    public async Task ProExpiryWhilePlusRemainsActive_DoesNotStartCooldown()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var time = new MutableTimeProvider(InitialAt);
+        var (account, wallet) = AddAccountAndWallet(db, "Free", InitialAt, InitialAt.AddDays(30));
+        await db.SaveChangesAsync();
+        var subscriptions = new[]
+        {
+            Subscription("sapio_plus", "Plus", InitialAt.AddDays(-5), InitialAt.AddDays(20)),
+            Subscription("sapio_pro", "Pro", InitialAt.AddDays(-2), InitialAt.AddDays(1))
+        };
+        var sync = new ExternalSubscriptionSynchronizer(db, new OwnedIdentityBillingProvisioner(db, time), time);
+        await sync.SynchronizeAsync(account.TenantId, account.UserId!.Value,
+            Decide(subscriptions, InitialAt), 1, CancellationToken.None);
+        Assert.Equal("Pro", account.SubscriptionPlanCode);
+
+        time.Set(InitialAt.AddDays(2));
+        await sync.SynchronizeAsync(account.TenantId, account.UserId.Value,
+            Decide(subscriptions, time.GetUtcNow()), 2, CancellationToken.None);
+
+        Assert.Equal("Plus", account.SubscriptionPlanCode);
+        Assert.Equal(InitialAt.AddDays(20), account.SubscriptionEffectiveTo);
+        Assert.Empty(await db.PaidExpiryCooldowns.ToListAsync());
+        Assert.Equal(2860m, wallet.Balance);
+    }
+
+    [Fact]
+    public async Task PlusExpiryWhileProRemainsActive_DoesNotStartCooldown()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var time = new MutableTimeProvider(InitialAt);
+        var (account, wallet) = AddAccountAndWallet(db, "Free", InitialAt, InitialAt.AddDays(30));
+        await db.SaveChangesAsync();
+        var subscriptions = new[]
+        {
+            Subscription("sapio_plus", "Plus", InitialAt.AddDays(-2), InitialAt.AddDays(1)),
+            Subscription("sapio_pro", "Pro", InitialAt.AddDays(-5), InitialAt.AddDays(20))
+        };
+        var sync = new ExternalSubscriptionSynchronizer(db, new OwnedIdentityBillingProvisioner(db, time), time);
+        await sync.SynchronizeAsync(account.TenantId, account.UserId!.Value,
+            Decide(subscriptions, InitialAt), 1, CancellationToken.None);
+
+        time.Set(InitialAt.AddDays(2));
+        await sync.SynchronizeAsync(account.TenantId, account.UserId.Value,
+            Decide(subscriptions, time.GetUtcNow()), 2, CancellationToken.None);
+
+        Assert.Equal("Pro", account.SubscriptionPlanCode);
+        Assert.Equal(InitialAt.AddDays(20), account.SubscriptionEffectiveTo);
+        Assert.Empty(await db.PaidExpiryCooldowns.ToListAsync());
+        Assert.Equal(2860m, wallet.Balance);
+    }
+
+    [Fact]
+    public async Task LastPaidExpiry_StartsDurableCooldown_ThenResumesFreeGrantOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var expiry = InitialAt.AddDays(5);
+        var time = new MutableTimeProvider(InitialAt);
+        var (account, wallet) = AddAccountAndWallet(db, "Free", InitialAt, expiry);
+        await db.SaveChangesAsync();
+        var synchronizer = new ExternalSubscriptionSynchronizer(db, new OwnedIdentityBillingProvisioner(db, time), time);
+        var paid = new[] { Subscription("sapio_plus", "Plus", InitialAt.AddDays(-10), expiry) };
+        await synchronizer.SynchronizeAsync(account.TenantId, account.UserId!.Value,
+            Decide(paid, InitialAt), 1, CancellationToken.None);
+
+        time.Set(expiry);
+        await new SubscriptionCreditLifecycleService(db).EnsureCurrentPeriodTrackedAsync(
+            account, wallet, expiry, CancellationToken.None);
+        await db.SaveChangesAsync();
+        var cooldown = await db.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal(expiry, cooldown.LastPaidExpiresAtUtc);
+        Assert.Equal(expiry.AddDays(30), cooldown.CooldownUntilUtc);
+        Assert.True(await new SubscriptionCreditLifecycleService(db)
+            .IsPaidExpiryCooldownActiveAsync(account.Id, expiry, CancellationToken.None));
+        Assert.Equal(0, await db.SubscriptionCreditPeriods.CountAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free"));
+
+        time.Set(cooldown.CooldownUntilUtc);
+        await new SubscriptionCreditLifecycleService(db).EnsureCurrentPeriodTrackedAsync(
+            account, wallet, time.GetUtcNow(), CancellationToken.None);
+        await db.SaveChangesAsync();
+        await new SubscriptionCreditLifecycleService(db).EnsureCurrentPeriodTrackedAsync(
+            account, wallet, time.GetUtcNow(), CancellationToken.None);
+        await db.SaveChangesAsync();
+
+        Assert.False(await new SubscriptionCreditLifecycleService(db)
+            .IsPaidExpiryCooldownActiveAsync(account.Id, time.GetUtcNow(), CancellationToken.None));
+        Assert.Equal(1, await db.SubscriptionCreditPeriods.CountAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free"));
+        Assert.Equal(25m, wallet.Balance);
+    }
+
+    [Fact]
+    public async Task PaidExpiryCooldown_DeniesReservationEvenWhenWalletHasCredits()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var expiry = InitialAt.AddDays(-1);
+        var now = InitialAt;
+        var accountId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        db.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = accountId, TenantId = tenantId, UserId = Guid.NewGuid(), AccountType = "Individual",
+            BillingMode = "Prepaid", SubscriptionPlanCode = "Free", ExternalSubscriptionManaged = true
+        });
+        db.WalletProjections.Add(new WalletProjectionRow
+        {
+            CustomerAccountId = accountId, Balance = 10m, ReservedAmount = 0m, UpdatedAt = now, Revision = 0
+        });
+        db.ExternalPlanSubscriptions.Add(SubscriptionRow(accountId, "sapio_plus", "Plus", InitialAt.AddDays(-31), expiry));
+        await db.SaveChangesAsync();
+
+        var account = new FinancialCopilot.Billing.Accounts.CustomerAccount(
+            accountId, tenantId, FinancialCopilot.Billing.Accounts.CustomerAccountType.Individual,
+            FinancialCopilot.Billing.Accounts.BillingMode.Prepaid);
+        var wallet = new WalletSnapshot(accountId, 10m, 0m, now, 0);
+        var service = new UsageReservationAuthorizationService(db, new CreditLinePolicyService(), new MutableTimeProvider(now));
+
+        await Assert.ThrowsAsync<FinancialCopilot.Billing.InsufficientCreditException>(() => service.ReserveAsync(
+            account, wallet, "AiQuery.Test", 1m, "cooldown-denied", CancellationToken.None));
+
+        Assert.Empty(await db.UsageReservations.ToListAsync());
+        var cooldown = await db.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == accountId);
+        Assert.Equal(expiry, cooldown.LastPaidExpiresAtUtc);
+        Assert.Equal(expiry.AddDays(30), cooldown.CooldownUntilUtc);
+        Assert.Equal(10m, (await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == accountId)).Balance);
+    }
+
+    [Fact]
     public async Task LateFirstPaidActivation_GrantsOnlyTheCurrentlyActiveAnchoredPeriod()
     {
         await using var db = CreateDbContext();
@@ -459,6 +636,28 @@ public sealed class SubscriptionCreditLifecycleTests
         db.CustomerAccounts.Add(account);
         db.WalletProjections.Add(wallet);
         return (account, wallet);
+    }
+
+    private static FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppPlanSubscription Subscription(
+        string slug, string plan, DateTimeOffset startsAt, DateTimeOffset expiresAt) =>
+        new(slug, plan, startsAt, expiresAt,
+            $"{slug}:{startsAt.ToUnixTimeMilliseconds()}:{expiresAt.ToUnixTimeMilliseconds()}");
+
+    private static ExternalPlanSubscriptionRow SubscriptionRow(
+        Guid accountId, string slug, string plan, DateTimeOffset startsAt, DateTimeOffset expiresAt) => new()
+    {
+        Id = Guid.NewGuid(), CustomerAccountId = accountId,
+        IdentityKey = $"{slug}:{startsAt.ToUnixTimeMilliseconds()}:{expiresAt.ToUnixTimeMilliseconds()}",
+        PlanCode = plan, StartsAtUtc = startsAt, ExpiresAtUtc = expiresAt
+    };
+
+    private static FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionDecision Decide(
+        IReadOnlyList<FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppPlanSubscription> plans,
+        DateTimeOffset now)
+    {
+        var map = new Dictionary<string, string> { ["sapio_plus"] = "Plus", ["sapio_pro"] = "Pro" };
+        return FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppSubscriptionPolicy.Decide(
+            plans.Select(item => (item.Slug, item.StartsAt, item.ExpiresAt)).ToArray(), now, map);
     }
 
     private static async Task SeedPlansAsync(BillingDbContext db)

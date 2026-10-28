@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 
 /// <summary>
-/// Server-to-server TahlilApp exchange client (Design §13.1, §14).
+/// Server-to-server TahlilApp exchange and status client using the confirmed partner API contract.
 /// The named HttpClient is registered without any retry or resilience handler: the exchange is not idempotent.
 /// Transport and protocol failures are returned as outcomes; no response body or code is ever logged.
 /// </summary>
@@ -20,7 +20,7 @@ public sealed class TahlilAppIdentityGateway(
     TimeProvider timeProvider,
     ILogger<TahlilAppIdentityGateway> logger) : ITahlilAppIdentityGateway
 {
-    /// <summary>Design §9.1: the status response is bounded to 8 KB.</summary>
+    /// <summary>The status response is bounded to 8 KB.</summary>
     private const int StatusMaximumResponseBytes = 8192;
 
     public async Task<TahlilAppExchangeResult> ExchangeAsync(
@@ -29,18 +29,16 @@ public sealed class TahlilAppIdentityGateway(
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var apiKey = Environment.GetEnvironmentVariable(settings.ApiKeyEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(apiKey))
+        var clientSecret = Environment.GetEnvironmentVariable(settings.ClientSecretEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(clientSecret))
         {
             logger.LogError("TahlilApp service credential is not configured. CorrelationId: {CorrelationId}", correlationId);
             return Unavailable();
         }
 
         var stopwatch = Stopwatch.StartNew();
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(new Uri(settings.BaseUrl), settings.ExchangePath));
-        request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
-        request.Headers.TryAddWithoutValidation("X-Correlation-Id", correlationId);
-        request.Headers.TryAddWithoutValidation("X-SapioAI-Contract-Version", "2");
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildPartnerUri(settings.BaseUrl, settings.ExchangePath));
+        SetBasicAuthentication(request, settings.ClientId, clientSecret);
         request.Content = new StringContent(JsonSerializer.Serialize(new { code }), Encoding.UTF8, "application/json");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -103,8 +101,7 @@ public sealed class TahlilAppIdentityGateway(
     }
 
     /// <summary>
-    /// Entitlement status read (Design §9.1, §11). UNVERIFIED with TahlilApp: the endpoint and its fields are a proposal
-    /// until TahlilApp confirms them (Q1, Q4). One bounded GET, no retry, no redirects (the client disables them).
+    /// Reads the confirmed per-user status endpoint. One bounded GET, no retry, and no redirects.
     /// Only the outcome category is returned; no body, PII or credential is logged.
     /// </summary>
     public async Task<TahlilAppStatusResult> GetStatusAsync(
@@ -113,8 +110,8 @@ public sealed class TahlilAppIdentityGateway(
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var apiKey = Environment.GetEnvironmentVariable(settings.ApiKeyEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(apiKey))
+        var clientSecret = Environment.GetEnvironmentVariable(settings.ClientSecretEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(clientSecret))
         {
             logger.LogError("TahlilApp service credential is not configured. CorrelationId: {CorrelationId}", correlationId);
             return StatusUnavailable();
@@ -125,10 +122,8 @@ public sealed class TahlilAppIdentityGateway(
             Uri.EscapeDataString(externalUserId),
             StringComparison.Ordinal);
         var stopwatch = Stopwatch.StartNew();
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(settings.BaseUrl), path));
-        request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
-        request.Headers.TryAddWithoutValidation("X-Correlation-Id", correlationId);
-        request.Headers.TryAddWithoutValidation("X-SapioAI-Contract-Version", "2");
+        using var request = new HttpRequestMessage(HttpMethod.Get, BuildPartnerUri(settings.BaseUrl, path));
+        SetBasicAuthentication(request, settings.ClientId, clientSecret);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -194,6 +189,15 @@ public sealed class TahlilAppIdentityGateway(
     }
 
     private static TahlilAppExchangeResult Unavailable() => new(TahlilAppExchangeOutcome.Unavailable);
+
+    private static void SetBasicAuthentication(HttpRequestMessage request, string clientId, string clientSecret)
+    {
+        var bytes = Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(bytes));
+    }
+
+    private static Uri BuildPartnerUri(string baseUrl, string relativePath) =>
+        new(new Uri(baseUrl.TrimEnd('/') + "/", UriKind.Absolute), relativePath);
 
     private static TahlilAppStatusResult StatusUnavailable() => new(TahlilAppStatusOutcome.Unavailable);
 

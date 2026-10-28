@@ -68,6 +68,14 @@ public sealed class UsageReservationAuthorizationService(
             await creditLifecycle.EnsureCurrentPeriodTrackedAsync(accountRow, walletRow, now, cancellationToken);
             currentWallet = MapWallet(walletRow);
 
+            if (accountRow.ExternalSubscriptionManaged &&
+                await creditLifecycle.IsPaidExpiryCooldownActiveAsync(account.Id, now, cancellationToken))
+            {
+                // Persist the authoritative expiry cooldown even though this reservation is denied.
+                await dbContext.SaveChangesAsync(cancellationToken);
+                throw new InsufficientCreditException();
+            }
+
             if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))
             {
                 throw new InsufficientCreditException();

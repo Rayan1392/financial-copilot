@@ -56,7 +56,7 @@ public sealed class UsageFinalizationService(
         var reservation = MapReservation(reservationRow);
         var wallet = MapWallet(walletRow);
         var now = timeProvider.GetUtcNow();
-        var subscriptionCreditApplication = await creditLifecycle.ApplyUsageChargeAsync(
+        var subscriptionCreditApplications = await creditLifecycle.ApplyUsageChargeAsync(
             command.CustomerAccountId,
             reservation.CreatedAt,
             command.ActualCharge.CreditsCharged,
@@ -81,7 +81,7 @@ public sealed class UsageFinalizationService(
             command.LedgerIdempotencyKey.Trim(),
             now,
             command.ExternalUserId,
-            RelatedEntryId: subscriptionCreditApplication?.GrantLedgerEntryId,
+            RelatedEntryId: subscriptionCreditApplications.FirstOrDefault()?.GrantLedgerEntryId,
             CompletionStatus: command.CompletionStatus,
             ProviderName: command.ProviderName,
             ModelName: command.ModelName,
@@ -90,7 +90,7 @@ public sealed class UsageFinalizationService(
             TotalTokens: command.TotalTokens,
             EstimatedCost: command.EstimatedCost,
             AllocationSource: command.AllocationSource ??
-                (subscriptionCreditApplication is null
+                (subscriptionCreditApplications.Count == 0
                     ? null
                     : SubscriptionCreditLifecycleService.SubscriptionAllocationSource),
             AllowanceDateKey: command.AllowanceDateKey);
@@ -102,9 +102,20 @@ public sealed class UsageFinalizationService(
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
         walletRow.Revision = updatedWallet.Revision;
         var ledgerRow = MapLedgerRow(entry);
-        ledgerRow.RelatedEntryId = subscriptionCreditApplication?.GrantLedgerEntryId;
-        ledgerRow.SubscriptionCreditsApplied = subscriptionCreditApplication?.CreditsApplied;
+        ledgerRow.RelatedEntryId = subscriptionCreditApplications.FirstOrDefault()?.GrantLedgerEntryId;
+        ledgerRow.SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied);
         dbContext.UsageLedgerEntries.Add(ledgerRow);
+        foreach (var allocation in subscriptionCreditApplications)
+        {
+            dbContext.UsageCreditAllocations.Add(new UsageCreditAllocationRow
+            {
+                Id = Guid.NewGuid(),
+                UsageLedgerEntryId = ledgerRow.Id,
+                SubscriptionCreditPeriodId = allocation.PeriodId,
+                GrantLedgerEntryId = allocation.GrantLedgerEntryId,
+                CreditsApplied = allocation.CreditsApplied
+            });
+        }
         BillingOutboxWriter.Add(
             dbContext,
             "UsageReservation",
@@ -128,7 +139,7 @@ public sealed class UsageFinalizationService(
                 entry.EstimatedCost,
                 entry.AllocationSource,
                 entry.AllowanceDateKey,
-                SubscriptionCreditsApplied = subscriptionCreditApplication?.CreditsApplied
+                SubscriptionCreditsApplied = subscriptionCreditApplications.Sum(item => item.CreditsApplied)
             },
             now);
 

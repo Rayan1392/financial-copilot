@@ -22,6 +22,7 @@ public sealed class CustomerAccountRow
     public DateTimeOffset? SubscriptionEffectiveTo { get; set; }
     public long SubscriptionRevision { get; set; }
     public long? ExternalSubscriptionRevision { get; set; }
+    public bool ExternalSubscriptionManaged { get; set; }
 }
 
 public sealed class WalletProjectionRow
@@ -111,6 +112,37 @@ public sealed class UsageLedgerEntryRow
     public decimal? SubscriptionCreditsApplied { get; set; }
 }
 
+/// <summary>Immutable source attribution for charges funded by one or more subscription periods.</summary>
+public sealed class UsageCreditAllocationRow
+{
+    public Guid Id { get; set; }
+    public Guid UsageLedgerEntryId { get; set; }
+    public Guid SubscriptionCreditPeriodId { get; set; }
+    public Guid GrantLedgerEntryId { get; set; }
+    public decimal CreditsApplied { get; set; }
+}
+
+/// <summary>One authoritative TahlilApp paid-plan window, identified only by the confirmed fields.</summary>
+public sealed class ExternalPlanSubscriptionRow
+{
+    public Guid Id { get; set; }
+    public Guid CustomerAccountId { get; set; }
+    public string IdentityKey { get; set; } = string.Empty;
+    public string PlanCode { get; set; } = string.Empty;
+    public DateTimeOffset StartsAtUtc { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public bool PlusTransferApplied { get; set; }
+}
+
+/// <summary>Durable eligibility state, separate from identity authentication and effective plan.</summary>
+public sealed class PaidExpiryCooldownRow
+{
+    public Guid CustomerAccountId { get; set; }
+    public DateTimeOffset LastPaidExpiresAtUtc { get; set; }
+    public DateTimeOffset CooldownUntilUtc { get; set; }
+    public long Revision { get; set; }
+}
+
 public sealed class SubscriptionCreditPeriodRow
 {
     public Guid Id { get; set; }
@@ -118,6 +150,8 @@ public sealed class SubscriptionCreditPeriodRow
     public Guid CustomerAccountId { get; set; }
 
     public string PlanCode { get; set; } = string.Empty;
+
+    public string SubscriptionIdentity { get; set; } = string.Empty;
 
     public string IdempotencyKey { get; set; } = string.Empty;
 

@@ -386,6 +386,22 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
         Guid customerAccountId,
         CancellationToken cancellationToken)
     {
+        var isExternal = await dbContext.CustomerAccounts.AsNoTracking()
+            .Where(account => account.Id == customerAccountId)
+            .Select(account => account.ExternalSubscriptionManaged)
+            .SingleOrDefaultAsync(cancellationToken);
+        string? planCodeFromSubscriptions = null;
+        if (isExternal)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var activePlans = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+                .Where(row => row.CustomerAccountId == customerAccountId && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                .Select(row => row.PlanCode)
+                .ToListAsync(cancellationToken);
+            planCodeFromSubscriptions = activePlans.Contains("Pro", StringComparer.Ordinal) ? "Pro" :
+                activePlans.Contains("Plus", StringComparer.Ordinal) ? "Plus" : "Free";
+        }
+
         var subscription = await dbContext.CustomerAccounts
             .AsNoTracking()
             .Where(account => account.Id == customerAccountId)
@@ -397,10 +413,11 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
         }
 
         // Expiry guard (Design §11, AC-35): a lapsed paid window reads as the Free plan.
-        var planCode = FinancialCopilot.Billing.Accounts.SubscriptionEffectiveness.ResolveEffectivePlanCode(
-            subscription.SubscriptionPlanCode,
-            subscription.SubscriptionEffectiveTo,
-            DateTimeOffset.UtcNow);
+        var planCode = isExternal ? planCodeFromSubscriptions :
+            FinancialCopilot.Billing.Accounts.SubscriptionEffectiveness.ResolveEffectivePlanCode(
+                subscription.SubscriptionPlanCode,
+                subscription.SubscriptionEffectiveTo,
+                DateTimeOffset.UtcNow);
         if (string.IsNullOrWhiteSpace(planCode))
         {
             return null;

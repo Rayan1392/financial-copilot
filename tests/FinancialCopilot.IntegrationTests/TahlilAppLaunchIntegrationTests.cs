@@ -323,6 +323,31 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
     }
 
     [Fact]
+    public async Task ExpiredPaidSubscription_StillAuthenticatesDuringFreeCreditCooldown()
+    {
+        var externalId = NewExternalId();
+        var expired = NewCode();
+        factory.Gateway.Respond(expired, Succeeded(
+            externalId, plan: "Pro", active: true, expiresAt: DateTimeOffset.UtcNow.AddDays(-1)));
+
+        var response = await Launch(expired);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await ReadAsync(response);
+        Assert.False(string.IsNullOrWhiteSpace(body.RootElement.GetProperty("accessToken").GetString()));
+
+        var userId = await FindLocalUserAsync(externalId);
+        using var scope = factory.Services.CreateScope();
+        var billing = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var account = await billing.CustomerAccounts.SingleAsync(row => row.UserId == userId);
+        var cooldown = await billing.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal("Free", account.SubscriptionPlanCode);
+        Assert.True(cooldown.CooldownUntilUtc > DateTimeOffset.UtcNow);
+        Assert.DoesNotContain(await billing.SubscriptionCreditPeriods
+                .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free").ToListAsync(),
+            row => row.Status == SubscriptionCreditLifecycleService.ActiveStatus);
+    }
+
+    [Fact]
     public async Task MalformedCode_IsRejectedWithoutAnExchange()
     {
         var response = await Launch("not a valid code!");
@@ -466,7 +491,11 @@ public sealed class TahlilAppLaunchIntegrationTests(TahlilAppLaunchApiFactory fa
             FirstName: firstName is null ? IncomingProfileField.Absent : IncomingProfileField.Valid(firstName),
             LastName: IncomingProfileField.Absent,
             NationalId: nationalId is null ? IncomingProfileField.Absent : IncomingProfileField.Valid(nationalId),
-            Mobile: mobile is null ? IncomingProfileField.Absent : IncomingProfileField.Valid(NormaliseMobile(mobile))));
+            Mobile: mobile is null ? IncomingProfileField.Absent : IncomingProfileField.Valid(NormaliseMobile(mobile)),
+            PlanSubscriptions: active && expiresAt is { } end && plan is "Plus" or "Pro"
+                ? new[] { new TahlilAppPlanSubscription(plan == "Plus" ? "sapio_plus" : "sapio_pro", plan,
+                    end.AddDays(-30), end, $"test:{plan}:{end.UtcDateTime.Ticks}") }
+                : Array.Empty<TahlilAppPlanSubscription>()));
 }
 
 /// <summary>Enabled-feature host. Only the outbound gateway is replaced, with an in-test double.</summary>

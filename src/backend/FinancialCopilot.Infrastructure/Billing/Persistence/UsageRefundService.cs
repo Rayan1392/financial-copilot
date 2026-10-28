@@ -57,7 +57,7 @@ public sealed class UsageRefundService(
         }
 
         var now = timeProvider.GetUtcNow();
-        var subscriptionCreditsRestored = await creditLifecycle.ApplyRefundAsync(
+        var subscriptionCreditRestorations = await creditLifecycle.ApplyRefundAsync(
             originalCharge,
             command.Credits,
             now,
@@ -96,8 +96,19 @@ public sealed class UsageRefundService(
             RelatedEntryId = entry.RelatedEntryId,
             AllocationSource = entry.AllocationSource,
             AllowanceDateKey = entry.AllowanceDateKey,
-            SubscriptionCreditsApplied = subscriptionCreditsRestored
+            SubscriptionCreditsApplied = subscriptionCreditRestorations.Sum(item => item.CreditsApplied)
         });
+        foreach (var restoration in subscriptionCreditRestorations)
+        {
+            dbContext.UsageCreditAllocations.Add(new UsageCreditAllocationRow
+            {
+                Id = Guid.NewGuid(),
+                UsageLedgerEntryId = entry.Id,
+                SubscriptionCreditPeriodId = restoration.PeriodId,
+                GrantLedgerEntryId = restoration.GrantLedgerEntryId,
+                CreditsApplied = restoration.CreditsApplied
+            });
+        }
         walletRow.Balance = updatedWallet.Balance;
         walletRow.ReservedAmount = updatedWallet.ReservedAmount;
         walletRow.UpdatedAt = updatedWallet.UpdatedAt;
@@ -113,7 +124,7 @@ public sealed class UsageRefundService(
                 entry.CustomerAccountId,
                 entry.RelatedEntryId,
                 Credits = entry.CreditsCharged,
-                SubscriptionCreditsRestored = subscriptionCreditsRestored,
+                SubscriptionCreditsRestored = subscriptionCreditRestorations.Sum(item => item.CreditsApplied),
                 entry.AuditDescription
             },
             now);

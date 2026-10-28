@@ -80,13 +80,16 @@ public sealed class TahlilAppEntitlementRefresher(
         }
 
         // Same policy as the launch path: unknown plan, inactive, expired or missing expiry all become Free (Design §11, D7).
-        var decision = TahlilAppSubscriptionPolicy.Decide(
-            snapshot.ExternalPlan,
-            snapshot.IsSubscriptionActive,
-            snapshot.SubscriptionEffectiveFrom,
-            snapshot.SubscriptionExpiresAt,
-            now,
-            options.Value.PlanMap);
+        var decision = snapshot.PlanSubscriptions is { } plans
+            ? TahlilAppSubscriptionPolicy.Decide(
+                plans.Select(plan => (plan.Slug, plan.StartsAt, plan.ExpiresAt)).ToArray(), now, options.Value.PlanMap)
+            : TahlilAppSubscriptionPolicy.Decide(
+                snapshot.ExternalPlan,
+                snapshot.IsSubscriptionActive,
+                snapshot.SubscriptionEffectiveFrom,
+                snapshot.SubscriptionExpiresAt,
+                now,
+                options.Value.PlanMap);
 
         await subscriptions.SynchronizeAsync(tenantId, localUserId, decision, snapshot.ExternalRevision, cancellationToken);
         await state.RecordSuccessAsync(

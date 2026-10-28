@@ -5,22 +5,59 @@ using FinancialCopilot.Domain.Identity.TahlilApp;
 
 namespace FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 
-/// <summary>
-/// Parses and validates the TahlilApp exchange response (Design §9.1, §13.2). Pure: no I/O, no logging of values.
-/// Structural failures return null (the launch fails as unavailable). Invalid optional profile fields are dropped
-/// to <see cref="IncomingProfileFieldKind.Invalid"/> and never block the launch.
-/// </summary>
+/// <summary>Parses the official TahlilApp partner exchange response. No response values are logged.</summary>
 public static class TahlilAppExchangeParser
 {
     private const int MaximumDepth = 8;
-    private static readonly TimeSpan MaximumExpiryHorizon = TimeSpan.FromDays(366 * 5);
+    private static readonly TimeSpan MaximumWindow = TimeSpan.FromDays(366 * 5);
 
     public static TahlilAppExchangeSnapshot? TryParse(ReadOnlySpan<byte> utf8Json, DateTimeOffset now)
     {
         try
         {
             using var document = JsonDocument.Parse(utf8Json.ToArray(), new JsonDocumentOptions { MaxDepth = MaximumDepth });
-            return Parse(document.RootElement, now);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !TryString(root, "user_id", out var userId) ||
+                !ExternalUserId.TryCreate(userId, out var externalId) ||
+                !root.TryGetProperty("subscription", out var subscription) ||
+                subscription.ValueKind != JsonValueKind.Object ||
+                !TryReadPlans(subscription, now, out var plans))
+            {
+                return null;
+            }
+
+            string? name = null;
+            if (root.TryGetProperty("name", out var nameElement))
+            {
+                if (nameElement.ValueKind == JsonValueKind.String) name = nameElement.GetString();
+                else if (nameElement.ValueKind != JsonValueKind.Null) return null;
+            }
+
+            var decision = TahlilAppSubscriptionPolicy.Decide(
+                plans.Select(plan => (plan.Slug, plan.StartsAt, plan.ExpiresAt)).ToArray(),
+                now,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["sapio_plus"] = "Plus",
+                    ["sapio_pro"] = "Pro"
+                });
+
+            return new TahlilAppExchangeSnapshot(
+                ExternalUserId: externalId!.Value,
+                IsSuspended: false,
+                ExternalPlan: decision.PlanCode,
+                IsSubscriptionActive: decision.PlanCode != "Free",
+                SubscriptionExpiresAt: decision.EffectiveTo,
+                ExternalRevision: null,
+                ExternalPermissionCount: 0,
+                FirstName: IncomingProfileField.Absent,
+                LastName: IncomingProfileField.Absent,
+                NationalId: IncomingProfileField.Absent,
+                Mobile: IncomingProfileField.Absent,
+                SubscriptionEffectiveFrom: decision.EffectiveFrom,
+                PlanSubscriptions: plans,
+                Name: name);
         }
         catch (JsonException)
         {
@@ -28,134 +65,69 @@ public static class TahlilAppExchangeParser
         }
     }
 
-    private static TahlilAppExchangeSnapshot? Parse(JsonElement root, DateTimeOffset now)
+    internal static bool TryReadPlans(
+        JsonElement subscription,
+        DateTimeOffset now,
+        out IReadOnlyList<TahlilAppPlanSubscription> plans)
     {
-        if (root.ValueKind != JsonValueKind.Object ||
-            !root.TryGetProperty("user", out var user) || user.ValueKind != JsonValueKind.Object ||
-            !root.TryGetProperty("subscription", out var subscription) || subscription.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        if (!TryGetString(user, "externalUserId", out var externalUserId) ||
-            !ExternalUserId.TryCreate(externalUserId, out var validatedExternalId))
-        {
-            return null;
-        }
-
-        if (!TryGetString(user, "status", out var status))
-        {
-            return null;
-        }
-
-        bool isSuspended;
-        if (string.Equals(status, "Active", StringComparison.Ordinal))
-        {
-            isSuspended = false;
-        }
-        else if (string.Equals(status, "Suspended", StringComparison.Ordinal))
-        {
-            isSuspended = true;
-        }
-        else
-        {
-            return null;
-        }
-
-        // Fail closed: a missing or non-boolean isActive is treated as inactive.
-        var isActive = subscription.TryGetProperty("isActive", out var activeElement) &&
-            activeElement.ValueKind == JsonValueKind.True;
-
-        DateTimeOffset? effectiveFrom = TryReadSubscriptionInstant(subscription, "effectiveFrom", now);
-        DateTimeOffset? expiresAt = null;
-        if (TryGetString(subscription, "expiresAt", out var expiresText) &&
-            DateTimeOffset.TryParse(expiresText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedExpiry) &&
-            parsedExpiry <= now + MaximumExpiryHorizon)
-        {
-            expiresAt = parsedExpiry;
-        }
-
-        long? revision = null;
-        if (subscription.TryGetProperty("revision", out var revisionElement) &&
-            revisionElement.ValueKind == JsonValueKind.Number &&
-            revisionElement.TryGetInt64(out var parsedRevision))
-        {
-            revision = parsedRevision;
-        }
-
-        TryGetString(subscription, "plan", out var plan);
-
-        var permissionCount = root.TryGetProperty("permissions", out var permissions) && permissions.ValueKind == JsonValueKind.Array
-            ? permissions.GetArrayLength()
-            : 0;
-
-        return new TahlilAppExchangeSnapshot(
-            ExternalUserId: validatedExternalId!.Value,
-            IsSuspended: isSuspended,
-            ExternalPlan: plan,
-            IsSubscriptionActive: isActive,
-            SubscriptionExpiresAt: expiresAt,
-            ExternalRevision: revision,
-            ExternalPermissionCount: permissionCount,
-            FirstName: ReadPersonName(user, "firstName"),
-            LastName: ReadPersonName(user, "lastName"),
-            NationalId: ReadNationalId(user, "nationalId"),
-            Mobile: ReadMobile(user, "mobile"),
-            SubscriptionEffectiveFrom: effectiveFrom);
-    }
-
-    private static DateTimeOffset? TryReadSubscriptionInstant(JsonElement subscription, string property, DateTimeOffset now)
-    {
-        if (!TryGetString(subscription, property, out var text) ||
-            !DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var value) ||
-            value.Offset != TimeSpan.Zero ||
-            value > now + MaximumExpiryHorizon)
-        {
-            return null;
-        }
-
-        return value.ToUniversalTime();
-    }
-
-    private static IncomingProfileField ReadPersonName(JsonElement user, string property) =>
-        ReadField(user, property, raw => PersonName.TryCreate(raw, out var name) ? name!.Value : null);
-
-    private static IncomingProfileField ReadNationalId(JsonElement user, string property) =>
-        ReadField(user, property, raw => IranianNationalId.TryCreate(raw, out var id) ? id!.Value : null);
-
-    private static IncomingProfileField ReadMobile(JsonElement user, string property) =>
-        ReadField(user, property, raw => IranianMobile.TryCreate(raw, out var mobile) ? mobile!.Value : null);
-
-    private static IncomingProfileField ReadField(JsonElement user, string property, Func<string, string?> normalize)
-    {
-        if (!user.TryGetProperty(property, out var element))
-        {
-            return IncomingProfileField.Absent;
-        }
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return IncomingProfileField.Null;
-        }
-
-        if (element.ValueKind != JsonValueKind.String)
-        {
-            return IncomingProfileField.Invalid;
-        }
-
-        var normalized = normalize(element.GetString() ?? string.Empty);
-        return normalized is null ? IncomingProfileField.Invalid : IncomingProfileField.Valid(normalized);
-    }
-
-    private static bool TryGetString(JsonElement element, string property, out string? value)
-    {
-        value = null;
-        if (!element.TryGetProperty(property, out var child) || child.ValueKind != JsonValueKind.String)
+        plans = Array.Empty<TahlilAppPlanSubscription>();
+        if (!subscription.TryGetProperty("plans", out var entries) || entries.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
 
-        value = child.GetString();
-        return value is not null;
+        var parsed = new List<TahlilAppPlanSubscription>();
+        foreach (var entry in entries.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.Object ||
+                !TryString(entry, "slug", out var slug) ||
+                !TryString(entry, "starts_at", out var startsText) ||
+                !TryString(entry, "expires_at", out var expiresText) ||
+                !TryUtcInstant(startsText, out var startsAt) ||
+                !TryUtcInstant(expiresText, out var expiresAt) ||
+                startsAt > now + MaximumWindow ||
+                expiresAt > now + MaximumWindow ||
+                expiresAt <= startsAt)
+            {
+                return false;
+            }
+
+            var planCode = slug switch
+            {
+                "sapio_plus" => "Plus",
+                "sapio_pro" => "Pro",
+                _ => null
+            };
+            if (planCode is null) continue;
+
+            var startUtc = startsAt.ToUniversalTime();
+            var expiryUtc = expiresAt.ToUniversalTime();
+            parsed.Add(new TahlilAppPlanSubscription(
+                slug,
+                planCode,
+                startUtc,
+                expiryUtc,
+                $"{slug}:{startUtc.ToUnixTimeMilliseconds()}:{expiryUtc.ToUnixTimeMilliseconds()}"));
+        }
+
+        plans = parsed
+            .GroupBy(item => item.IdentityKey, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToArray();
+        return true;
+    }
+
+    private static bool TryUtcInstant(string text, out DateTimeOffset value)
+    {
+        return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out value) &&
+            value.Offset == TimeSpan.Zero;
+    }
+
+    private static bool TryString(JsonElement element, string name, out string value)
+    {
+        value = string.Empty;
+        if (!element.TryGetProperty(name, out var child) || child.ValueKind != JsonValueKind.String) return false;
+        value = child.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(value);
     }
 }

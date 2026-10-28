@@ -41,6 +41,11 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        if (account.ExternalSubscriptionManaged)
+        {
+            await EnsureExternalPlanPeriodsAsync(account, wallet, now, cancellationToken);
+            return;
+        }
         var planCode = FinancialCopilot.Billing.Accounts.SubscriptionEffectiveness.ResolveEffectivePlanCode(
             account.SubscriptionPlanCode,
             account.SubscriptionEffectiveTo,
@@ -233,10 +238,229 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         WalletProjectionRow wallet,
         DateTimeOffset now,
         CancellationToken cancellationToken) =>
-        WithAccountLockAsync(
+        account.ExternalSubscriptionManaged
+            ? WithAccountLockAsync(account.Id, () => EnsureExternalPlanPeriodsAsync(account, wallet, now, cancellationToken), cancellationToken)
+            : WithAccountLockAsync(
             account.Id,
             () => EnsureCurrentPeriodTrackedCoreAsync(account, wallet, now, cancellationToken),
             cancellationToken);
+
+    public async Task ApplyExternalPlanSnapshotAsync(
+        CustomerAccountRow account,
+        WalletProjectionRow wallet,
+        IReadOnlyList<FinancialCopilot.Domain.Identity.TahlilApp.TahlilAppPlanSubscription> subscriptions,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        account.ExternalSubscriptionManaged = true;
+        foreach (var subscription in subscriptions)
+        {
+            var row = await dbContext.ExternalPlanSubscriptions.SingleOrDefaultAsync(
+                item => item.CustomerAccountId == account.Id && item.IdentityKey == subscription.IdentityKey,
+                cancellationToken);
+            if (row is null)
+            {
+                dbContext.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+                {
+                    Id = Guid.NewGuid(),
+                    CustomerAccountId = account.Id,
+                    IdentityKey = subscription.IdentityKey,
+                    PlanCode = subscription.PlanCode,
+                    StartsAtUtc = subscription.StartsAt.ToUniversalTime(),
+                    ExpiresAtUtc = subscription.ExpiresAt.ToUniversalTime()
+                });
+            }
+        }
+
+        await EnsureExternalPlanPeriodsAsync(account, wallet, now, cancellationToken);
+    }
+
+    public async Task<bool> IsPaidExpiryCooldownActiveAsync(Guid customerAccountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var hasPaid = await dbContext.ExternalPlanSubscriptions.AnyAsync(
+            row => row.CustomerAccountId == customerAccountId &&
+                   row.StartsAtUtc <= now && row.ExpiresAtUtc > now &&
+                   (row.PlanCode == "Plus" || row.PlanCode == "Pro"), cancellationToken);
+        if (hasPaid) return false;
+        var cooldown = dbContext.PaidExpiryCooldowns.Local.SingleOrDefault(
+            row => row.CustomerAccountId == customerAccountId) ??
+            await dbContext.PaidExpiryCooldowns.SingleOrDefaultAsync(
+                row => row.CustomerAccountId == customerAccountId, cancellationToken);
+        return cooldown is not null && now < cooldown.CooldownUntilUtc;
+    }
+
+    private async Task<bool> EnsureExternalPlanPeriodsAsync(
+        CustomerAccountRow account,
+        WalletProjectionRow wallet,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var subscriptions = await dbContext.ExternalPlanSubscriptions
+            .Where(row => row.CustomerAccountId == account.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var added in dbContext.ExternalPlanSubscriptions.Local.Where(row =>
+                     row.CustomerAccountId == account.Id && subscriptions.All(existing => existing.Id != row.Id)))
+        {
+            subscriptions.Add(added);
+        }
+        var active = subscriptions
+            .Where(row => row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+            .OrderBy(row => row.ExpiresAtUtc)
+            .ThenBy(row => row.PlanCode == "Plus" ? 0 : 1)
+            .ThenBy(row => row.StartsAtUtc)
+            .ToArray();
+        var activePaid = active.Where(row => row.PlanCode is "Plus" or "Pro").ToArray();
+
+        account.SubscriptionPlanCode = activePaid.Any(row => row.PlanCode == "Pro") ? "Pro" :
+            activePaid.Length > 0 ? "Plus" : "Free";
+        account.SubscriptionEffectiveFrom = activePaid.Length == 1 ? activePaid[0].StartsAtUtc : null;
+        account.SubscriptionEffectiveTo = activePaid.Length == 0 ? null : activePaid.Max(row => row.ExpiresAtUtc);
+        account.SubscriptionActivationIsAuthoritative = true;
+
+        var changed = false;
+        var expired = await dbContext.SubscriptionCreditPeriods
+            .Where(row => row.CustomerAccountId == account.Id && row.Status == ActiveStatus && row.ExpiresAtUtc <= now)
+            .ToListAsync(cancellationToken);
+        if (wallet.ReservedAmount <= 0)
+        {
+            foreach (var period in expired)
+            {
+                ClosePeriod(account, wallet, period, period.ExpiresAtUtc, ExpiredStatus, ExpiryOperationCode);
+                changed = true;
+            }
+        }
+
+        if (activePaid.Length > 0)
+        {
+            var freePeriods = await dbContext.SubscriptionCreditPeriods
+                .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free" && row.Status == ActiveStatus)
+                .ToListAsync(cancellationToken);
+            foreach (var period in freePeriods)
+            {
+                ClosePeriod(account, wallet, period, now, ForfeitedStatus, ForfeitureOperationCode);
+                changed = true;
+            }
+
+            foreach (var subscription in activePaid)
+            {
+                var cycle = GetCycleIndex(subscription.StartsAtUtc, now);
+                var cycleStarts = subscription.StartsAtUtc.AddTicks(PeriodDuration.Ticks * cycle);
+                if (cycleStarts >= subscription.ExpiresAtUtc) continue;
+
+                var periodExists = await dbContext.SubscriptionCreditPeriods.AnyAsync(row =>
+                    row.CustomerAccountId == account.Id && row.SubscriptionIdentity == subscription.IdentityKey &&
+                    row.PeriodNumber == cycle, cancellationToken);
+                periodExists |= dbContext.SubscriptionCreditPeriods.Local.Any(row =>
+                    row.CustomerAccountId == account.Id && row.SubscriptionIdentity == subscription.IdentityKey &&
+                    row.PeriodNumber == cycle);
+                if (periodExists)
+                {
+                    continue;
+                }
+
+                var plan = await FindPlanAsync(subscription.PlanCode, cancellationToken);
+                SubscriptionCreditPeriodRow? source = null;
+                if (subscription.PlanCode == "Pro" && !subscription.PlusTransferApplied)
+                {
+                    var plusPeriods = await dbContext.SubscriptionCreditPeriods
+                        .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Plus" &&
+                                      row.Status == ActiveStatus && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                        .ToListAsync(cancellationToken);
+                    plusPeriods.AddRange(dbContext.SubscriptionCreditPeriods.Local.Where(row =>
+                        row.CustomerAccountId == account.Id && row.PlanCode == "Plus" &&
+                        row.Status == ActiveStatus && row.StartsAtUtc <= now && row.ExpiresAtUtc > now &&
+                        plusPeriods.All(existing => existing.Id != row.Id)));
+                    source = plusPeriods.OrderBy(row => row.ExpiresAtUtc).FirstOrDefault();
+                }
+                var transferred = source?.RemainingCredits ?? 0m;
+                if (transferred > 0 && wallet.ReservedAmount > 0)
+                {
+                    continue;
+                }
+                await AddPeriodAsync(account, wallet, plan, subscription.StartsAtUtc, 0, cycle, now,
+                    cancellationToken, transferred, transferred > 0 ? source : null, subscription.IdentityKey);
+                if (subscription.PlanCode == "Pro" && !subscription.PlusTransferApplied)
+                {
+                    subscription.PlusTransferApplied = true;
+                }
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        var lastPaidExpiry = subscriptions
+            .Where(row => row.PlanCode is "Plus" or "Pro")
+            .Select(row => (DateTimeOffset?)row.ExpiresAtUtc)
+            .Max();
+        PaidExpiryCooldownRow? cooldown = null;
+        if (lastPaidExpiry is { } expiry)
+        {
+            cooldown = await dbContext.PaidExpiryCooldowns.SingleOrDefaultAsync(
+                row => row.CustomerAccountId == account.Id, cancellationToken);
+            var cooldownEnd = expiry.AddDays(30);
+            if (cooldown is null)
+            {
+                cooldown = new PaidExpiryCooldownRow
+                {
+                    CustomerAccountId = account.Id,
+                    LastPaidExpiresAtUtc = expiry,
+                    CooldownUntilUtc = cooldownEnd,
+                    Revision = 0
+                };
+                dbContext.PaidExpiryCooldowns.Add(cooldown);
+                changed = true;
+            }
+            else if (expiry > cooldown.LastPaidExpiresAtUtc)
+            {
+                cooldown.LastPaidExpiresAtUtc = expiry;
+                cooldown.CooldownUntilUtc = cooldownEnd;
+                cooldown.Revision++;
+                changed = true;
+            }
+
+            if (now < cooldown.CooldownUntilUtc)
+            {
+                var freePeriods = await dbContext.SubscriptionCreditPeriods
+                    .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free" && row.Status == ActiveStatus)
+                    .ToListAsync(cancellationToken);
+                foreach (var period in freePeriods)
+                {
+                    ClosePeriod(account, wallet, period, expiry, ForfeitedStatus, ForfeitureOperationCode);
+                    changed = true;
+                }
+
+                return changed;
+            }
+
+            var freePlan = await FindPlanAsync("Free", cancellationToken);
+            var freeCycle = GetCycleIndex(cooldown.CooldownUntilUtc, now);
+            await AddPeriodAsync(account, wallet, freePlan, cooldown.CooldownUntilUtc, 0, freeCycle, now,
+                cancellationToken, subscriptionIdentity: $"free-after-paid:{cooldown.CooldownUntilUtc.UtcDateTime.Ticks}");
+            return true;
+        }
+
+        // Accounts that have never held a TahlilApp paid plan retain the ordinary Free cycle.
+        var latestFree = await dbContext.SubscriptionCreditPeriods
+            .Where(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free")
+            .OrderByDescending(row => row.StartsAtUtc).FirstOrDefaultAsync(cancellationToken);
+        if (latestFree is null)
+        {
+            var plan = await FindPlanAsync("Free", cancellationToken);
+            await AddPeriodAsync(account, wallet, plan, now, 0, 0, now, cancellationToken,
+                subscriptionIdentity: $"initial-free:{now.UtcDateTime.Ticks}");
+            return true;
+        }
+        if (latestFree.Status == ActiveStatus && latestFree.ExpiresAtUtc <= now && wallet.ReservedAmount <= 0)
+        {
+            var plan = await FindPlanAsync("Free", cancellationToken);
+            var next = Math.Max(latestFree.PeriodNumber + 1, GetCycleIndex(latestFree.AnchorAtUtc, now));
+            await AddPeriodAsync(account, wallet, plan, latestFree.AnchorAtUtc, 0, next, now,
+                cancellationToken, subscriptionIdentity: latestFree.SubscriptionIdentity);
+            return true;
+        }
+        return changed;
+    }
 
     private async Task<bool> EnsureCurrentPeriodTrackedCoreAsync(
         CustomerAccountRow account,
@@ -324,7 +548,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         return changed;
     }
 
-    public async Task<SubscriptionCreditApplication?> ApplyUsageChargeAsync(
+    public async Task<IReadOnlyList<SubscriptionCreditApplication>> ApplyUsageChargeAsync(
         Guid customerAccountId,
         DateTimeOffset reservationCreatedAt,
         decimal chargedCredits,
@@ -334,7 +558,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
     {
         if (chargedCredits <= 0)
         {
-            return null;
+            return Array.Empty<SubscriptionCreditApplication>();
         }
 
         var otherAllowanceConsumed = 0m;
@@ -365,28 +589,33 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         var chargeAfterOtherAllowance = chargedCredits - otherAllowanceConsumed;
         if (chargeAfterOtherAllowance <= 0)
         {
-            return null;
+            return Array.Empty<SubscriptionCreditApplication>();
         }
 
         var periods = await dbContext.SubscriptionCreditPeriods
             .Where(row => row.CustomerAccountId == customerAccountId && row.Status == ActiveStatus)
             .ToListAsync(cancellationToken);
-        var period = periods
+        var eligible = periods
             .Where(row => reservationCreatedAt >= row.StartsAtUtc && reservationCreatedAt < row.ExpiresAtUtc)
-            .OrderByDescending(row => row.StartsAtUtc)
-            .FirstOrDefault();
-        if (period is null || period.RemainingCredits <= 0)
+            .Where(row => row.RemainingCredits > 0)
+            .OrderBy(row => row.ExpiresAtUtc)
+            .ThenBy(row => row.StartsAtUtc)
+            .ToArray();
+        var applications = new List<SubscriptionCreditApplication>();
+        var remaining = chargeAfterOtherAllowance;
+        foreach (var period in eligible)
         {
-            return null;
+            if (remaining <= 0) break;
+            var applied = Math.Min(period.RemainingCredits, remaining);
+            period.RemainingCredits -= applied;
+            period.Revision++;
+            remaining -= applied;
+            applications.Add(new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, applied));
         }
-
-        var applied = Math.Min(period.RemainingCredits, chargeAfterOtherAllowance);
-        period.RemainingCredits -= applied;
-        period.Revision++;
-        return new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, applied);
+        return applications;
     }
 
-    public async Task<decimal> ApplyRefundAsync(
+    public async Task<IReadOnlyList<SubscriptionCreditApplication>> ApplyRefundAsync(
         UsageLedgerEntryRow originalCharge,
         decimal refundCredits,
         DateTimeOffset now,
@@ -395,30 +624,56 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         var availableToRestore = originalCharge.SubscriptionCreditsApplied ?? 0m;
         if (availableToRestore <= 0 || originalCharge.RelatedEntryId is not { } grantLedgerEntryId)
         {
-            return 0m;
+            return Array.Empty<SubscriptionCreditApplication>();
         }
 
-        var priorRefunds = await dbContext.UsageLedgerEntries
-            .Where(row => row.RelatedEntryId == originalCharge.Id &&
-                          row.EntryType == nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Refund))
-            .SumAsync(row => row.SubscriptionCreditsApplied ?? 0m, cancellationToken);
-        availableToRestore = Math.Max(0, availableToRestore - priorRefunds);
-        var period = await dbContext.SubscriptionCreditPeriods.SingleOrDefaultAsync(
-            row => row.GrantLedgerEntryId == grantLedgerEntryId,
-            cancellationToken);
-        if (period is null || period.Status != ActiveStatus || now >= period.ExpiresAtUtc)
+        var originalAllocations = await dbContext.UsageCreditAllocations
+            .Where(row => row.UsageLedgerEntryId == originalCharge.Id)
+            .ToListAsync(cancellationToken);
+        var legacyAttribution = originalAllocations.Count == 0;
+        if (originalAllocations.Count == 0)
         {
-            return 0m;
+            originalAllocations.Add(new UsageCreditAllocationRow
+            {
+                UsageLedgerEntryId = originalCharge.Id,
+                SubscriptionCreditPeriodId = Guid.Empty,
+                GrantLedgerEntryId = grantLedgerEntryId,
+                CreditsApplied = availableToRestore
+            });
         }
 
-        var restored = Math.Min(Math.Min(refundCredits, availableToRestore), period.GrantedCredits - period.RemainingCredits);
-        if (restored <= 0)
+        var refundedRows = await (from allocation in dbContext.UsageCreditAllocations
+                                  join refund in dbContext.UsageLedgerEntries on allocation.UsageLedgerEntryId equals refund.Id
+                                  where refund.RelatedEntryId == originalCharge.Id &&
+                                        refund.EntryType == nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Refund)
+                                  select allocation).ToListAsync(cancellationToken);
+        var legacyRefunded = legacyAttribution
+            ? await dbContext.UsageLedgerEntries
+                .Where(row => row.RelatedEntryId == originalCharge.Id &&
+                              row.EntryType == nameof(FinancialCopilot.Billing.Usage.UsageLedgerEntryType.Refund))
+                .SumAsync(row => row.SubscriptionCreditsApplied ?? 0m, cancellationToken)
+            : 0m;
+        var remainingRefund = refundCredits;
+        var restored = new List<SubscriptionCreditApplication>();
+        foreach (var allocation in originalAllocations)
         {
-            return 0m;
+            if (remainingRefund <= 0) break;
+            var prior = legacyAttribution ? legacyRefunded :
+                refundedRows.Where(row => row.SubscriptionCreditPeriodId == allocation.SubscriptionCreditPeriodId)
+                    .Sum(row => row.CreditsApplied);
+            var available = Math.Max(0, allocation.CreditsApplied - prior);
+            if (available <= 0) continue;
+            var period = allocation.SubscriptionCreditPeriodId == Guid.Empty
+                ? await dbContext.SubscriptionCreditPeriods.SingleOrDefaultAsync(row => row.GrantLedgerEntryId == grantLedgerEntryId, cancellationToken)
+                : await dbContext.SubscriptionCreditPeriods.SingleOrDefaultAsync(row => row.Id == allocation.SubscriptionCreditPeriodId, cancellationToken);
+            if (period is null || period.Status != ActiveStatus || now >= period.ExpiresAtUtc) continue;
+            var amount = Math.Min(Math.Min(available, remainingRefund), period.GrantedCredits - period.RemainingCredits);
+            if (amount <= 0) continue;
+            period.RemainingCredits += amount;
+            period.Revision++;
+            remainingRefund -= amount;
+            restored.Add(new SubscriptionCreditApplication(period.Id, period.GrantLedgerEntryId, amount));
         }
-
-        period.RemainingCredits += restored;
-        period.Revision++;
         return restored;
     }
 
@@ -476,7 +731,8 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         DateTimeOffset now,
         CancellationToken cancellationToken,
         decimal transferredCredits = 0m,
-        SubscriptionCreditPeriodRow? transferSource = null)
+        SubscriptionCreditPeriodRow? transferSource = null,
+        string? subscriptionIdentity = null)
     {
         if (plan.IncludedCredits <= 0)
         {
@@ -485,7 +741,8 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
 
         var startsAt = anchorAt.AddTicks(PeriodDuration.Ticks * periodNumber);
         var expiresAt = startsAt.Add(PeriodDuration);
-        var idempotencyKey = BuildPeriodKey(account.Id, plan.Code, activationRevision, anchorAt, periodNumber);
+        subscriptionIdentity ??= $"legacy:{plan.Code}:{activationRevision}:{anchorAt.UtcDateTime.Ticks}";
+        var idempotencyKey = BuildPeriodKey(account.Id, plan.Code, subscriptionIdentity, anchorAt, periodNumber);
         var existing = await dbContext.SubscriptionCreditPeriods
             .SingleOrDefaultAsync(row => row.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null)
@@ -502,6 +759,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             Id = periodId,
             CustomerAccountId = account.Id,
             PlanCode = plan.Code,
+            SubscriptionIdentity = subscriptionIdentity,
             IdempotencyKey = idempotencyKey,
             AnchorAtUtc = anchorAt,
             ActivationRevision = activationRevision,
@@ -694,10 +952,10 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
     private static string BuildPeriodKey(
         Guid accountId,
         string planCode,
-        long activationRevision,
+        string subscriptionIdentity,
         DateTimeOffset anchorAt,
         long periodNumber) =>
-        $"subscription-credit:{accountId:N}:{planCode}:{activationRevision}:{anchorAt.UtcDateTime.Ticks}:{periodNumber}";
+        $"subscription-credit:{accountId:N}:{planCode}:{subscriptionIdentity}:{periodNumber}";
 
     private static void ValidateExistingPeriod(
         SubscriptionCreditPeriodRow existing,

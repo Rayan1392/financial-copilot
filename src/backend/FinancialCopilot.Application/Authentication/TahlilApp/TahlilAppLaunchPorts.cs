@@ -26,7 +26,9 @@ public sealed record TahlilAppExchangeSnapshot(
     IncomingProfileField LastName,
     IncomingProfileField NationalId,
     IncomingProfileField Mobile,
-    DateTimeOffset? SubscriptionEffectiveFrom = null)
+    DateTimeOffset? SubscriptionEffectiveFrom = null,
+    IReadOnlyList<TahlilAppPlanSubscription>? PlanSubscriptions = null,
+    string? Name = null)
 {
     /// <summary>Redacted: contains the external id and profile PII (Design §13.3, AC-72).</summary>
     public override string ToString() =>
@@ -54,7 +56,8 @@ public sealed record TahlilAppStatusSnapshot(
     bool IsSubscriptionActive,
     DateTimeOffset? SubscriptionExpiresAt,
     long? ExternalRevision,
-    DateTimeOffset? SubscriptionEffectiveFrom = null);
+    DateTimeOffset? SubscriptionEffectiveFrom = null,
+    IReadOnlyList<TahlilAppPlanSubscription>? PlanSubscriptions = null);
 
 public sealed record TahlilAppStatusResult(
     TahlilAppStatusOutcome Outcome,

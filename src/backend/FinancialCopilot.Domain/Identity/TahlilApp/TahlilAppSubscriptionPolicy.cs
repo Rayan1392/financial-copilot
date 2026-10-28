@@ -8,7 +8,16 @@ public sealed record TahlilAppSubscriptionDecision(
     string PlanCode,
     DateTimeOffset? EffectiveTo,
     string Reason,
-    DateTimeOffset? EffectiveFrom = null);
+    DateTimeOffset? EffectiveFrom = null,
+    IReadOnlyList<TahlilAppPlanSubscription>? PlanSubscriptions = null);
+
+/// <summary>One authoritative paid-plan window returned by TahlilApp.</summary>
+public sealed record TahlilAppPlanSubscription(
+    string Slug,
+    string PlanCode,
+    DateTimeOffset StartsAt,
+    DateTimeOffset ExpiresAt,
+    string IdentityKey);
 
 /// <summary>
 /// Maps a TahlilApp subscription to a Sapino plan. Fails closed: anything that cannot be proven
@@ -17,6 +26,36 @@ public sealed record TahlilAppSubscriptionDecision(
 public static class TahlilAppSubscriptionPolicy
 {
     public const string FreePlanCode = "Free";
+
+    public static TahlilAppSubscriptionDecision Decide(
+        IReadOnlyList<(string Slug, DateTimeOffset StartsAt, DateTimeOffset ExpiresAt)> subscriptions,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, string> planMap)
+    {
+        ArgumentNullException.ThrowIfNull(subscriptions);
+        ArgumentNullException.ThrowIfNull(planMap);
+
+        var valid = subscriptions
+            .Where(item => item.ExpiresAt > item.StartsAt)
+            .Where(item => planMap.ContainsKey(item.Slug))
+            .Select(item => new TahlilAppPlanSubscription(
+                item.Slug,
+                planMap[item.Slug],
+                item.StartsAt.ToUniversalTime(),
+                item.ExpiresAt.ToUniversalTime(),
+                $"{item.Slug}:{item.StartsAt.ToUnixTimeMilliseconds()}:{item.ExpiresAt.ToUnixTimeMilliseconds()}"))
+            .ToArray();
+
+        var active = valid.Where(item => item.StartsAt <= now && item.ExpiresAt > now).ToArray();
+        var plan = active.Any(item => item.PlanCode == "Pro") ? "Pro" :
+            active.Any(item => item.PlanCode == "Plus") ? "Plus" : FreePlanCode;
+        return new TahlilAppSubscriptionDecision(
+            plan,
+            active.Length == 0 ? null : active.Max(item => item.ExpiresAt),
+            active.Length == 0 ? "free-or-no-active-paid-plan" : "active-paid-plan-set",
+            active.Length == 1 ? active[0].StartsAt : null,
+            valid);
+    }
 
     public static TahlilAppSubscriptionDecision Decide(
         string? externalPlan,

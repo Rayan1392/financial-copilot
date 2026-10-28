@@ -68,13 +68,16 @@ public sealed class TahlilAppLaunchUseCase(
             }
 
             // Plan is decided by policy from the external subscription; it is never read from the browser (AC-09).
-            var decision = TahlilAppSubscriptionPolicy.Decide(
-                snapshot.ExternalPlan,
-                snapshot.IsSubscriptionActive,
-                snapshot.SubscriptionEffectiveFrom,
-                snapshot.SubscriptionExpiresAt,
-                now,
-                policy.PlanMap);
+            var decision = snapshot.PlanSubscriptions is { } plans
+                ? TahlilAppSubscriptionPolicy.Decide(
+                    plans.Select(plan => (plan.Slug, plan.StartsAt, plan.ExpiresAt)).ToArray(), now, policy.PlanMap)
+                : TahlilAppSubscriptionPolicy.Decide(
+                    snapshot.ExternalPlan,
+                    snapshot.IsSubscriptionActive,
+                    snapshot.SubscriptionEffectiveFrom,
+                    snapshot.SubscriptionExpiresAt,
+                    now,
+                    policy.PlanMap);
             await subscriptions.SynchronizeAsync(
                 provisioned.TenantId,
                 provisioned.LocalUserId,

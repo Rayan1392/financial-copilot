@@ -5,8 +5,8 @@ using Microsoft.Extensions.Options;
 namespace FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 
 /// <summary>
-/// TahlilApp launch and exchange settings (Design §17). The service credential is read from the environment
-/// variable named by <see cref="ApiKeyEnvironmentVariable"/> and never stored in configuration files.
+/// TahlilApp partner API settings. The client secret is read from the configured environment variable
+/// and never stored in configuration files.
 /// </summary>
 public sealed class TahlilAppOptions
 {
@@ -16,13 +16,22 @@ public sealed class TahlilAppOptions
     public bool Enabled { get; set; }
 
     /// <summary>Absolute HTTPS origin of the TahlilApp backend. Required when enabled.</summary>
-    public string BaseUrl { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = "https://api.tahlilapp.com/api/";
 
-    /// <summary>Relative path of the server-to-server exchange endpoint.</summary>
-    public string ExchangePath { get; set; } = "/api/financial-copilot/session-exchange";
+    /// <summary>Relative path of the official partner exchange endpoint.</summary>
+    public string ExchangePath { get; set; } = "partners/exchange";
 
-    /// <summary>Environment variable that holds the Sapino service credential for TahlilApp.</summary>
-    public string ApiKeyEnvironmentVariable { get; set; } = "TAHLILAPP_EXCHANGE_API_KEY";
+    public string ClientId { get; set; } = "financial-copilot";
+
+    /// <summary>Environment variable holding the HTTP Basic Auth client secret.</summary>
+    public string ClientSecretEnvironmentVariable { get; set; } = "TAHLILAPP_CLIENT_SECRET";
+
+    // Kept as a source-compatible configuration alias for existing local deployments.
+    public string ApiKeyEnvironmentVariable
+    {
+        get => ClientSecretEnvironmentVariable;
+        set => ClientSecretEnvironmentVariable = value;
+    }
 
     public int ExchangeTimeoutSeconds { get; set; } = 5;
 
@@ -32,19 +41,17 @@ public sealed class TahlilAppOptions
     /// <summary>External plan name → Sapino plan code. Targets must be canonical Billing plans.</summary>
     public Dictionary<string, string> PlanMap { get; set; } = new(StringComparer.Ordinal)
     {
-        ["Free"] = "Free",
-        ["Plus"] = "Plus",
-        ["Pro"] = "Pro"
+        ["sapio_plus"] = "Plus",
+        ["sapio_pro"] = "Pro"
     };
 
     /// <summary>Key ring location for Data Protection (Design §17.1). Required when the feature is enabled.</summary>
     public string DataProtectionKeyRingPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Relative path of the entitlement status endpoint; <c>{externalUserId}</c> is replaced by the escaped id.
-    /// UNVERIFIED: the TahlilApp contract for this endpoint (Design §9.1) is proposed and not yet agreed (Q1, Q4).
+    /// Relative path of the official entitlement endpoint; <c>{externalUserId}</c> is the escaped TahlilApp user id.
     /// </summary>
-    public string StatusPathTemplate { get; set; } = "/api/financial-copilot/users/{externalUserId}/status";
+    public string StatusPathTemplate { get; set; } = "partners/users/{externalUserId}/status";
 
     /// <summary>Single bounded status call budget (Design §11: 3 s). No retry.</summary>
     public int StatusTimeoutSeconds { get; set; } = 3;
@@ -87,7 +94,7 @@ public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOption
 
         if (!IsValidStatusPathTemplate(options.StatusPathTemplate))
         {
-            failures.Add("StatusPathTemplate must be a rooted relative path containing exactly one {externalUserId} placeholder.");
+            failures.Add("StatusPathTemplate must be a safe relative path containing exactly one {externalUserId} placeholder.");
         }
 
         if (options.StatusTimeoutSeconds is < 1 or > 10)
@@ -148,15 +155,20 @@ public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOption
         }
 
         if (string.IsNullOrWhiteSpace(options.ExchangePath) ||
-            !options.ExchangePath.StartsWith('/') ||
-            options.ExchangePath.StartsWith("//", StringComparison.Ordinal))
+            options.ExchangePath.StartsWith('/') ||
+            options.ExchangePath.Contains("..", StringComparison.Ordinal))
         {
-            failures.Add("ExchangePath must be a rooted relative path.");
+            failures.Add("ExchangePath must be a safe relative path under BaseUrl.");
         }
 
-        if (!EnvironmentVariableName.IsMatch(options.ApiKeyEnvironmentVariable ?? string.Empty))
+        if (string.IsNullOrWhiteSpace(options.ClientId) || options.ClientId != "financial-copilot")
         {
-            failures.Add("ApiKeyEnvironmentVariable must be a valid environment variable name.");
+            failures.Add("ClientId must be financial-copilot.");
+        }
+
+        if (!EnvironmentVariableName.IsMatch(options.ClientSecretEnvironmentVariable ?? string.Empty))
+        {
+            failures.Add("ClientSecretEnvironmentVariable must be a valid environment variable name.");
         }
 
         if (options.ExchangeTimeoutSeconds is < 1 or > 10)
@@ -185,8 +197,8 @@ public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOption
     private static bool IsValidStatusPathTemplate(string? template)
     {
         if (string.IsNullOrWhiteSpace(template) ||
-            !template.StartsWith('/') ||
-            template.StartsWith("//", StringComparison.Ordinal) ||
+            template.StartsWith('/') ||
+            template.Contains("..", StringComparison.Ordinal) ||
             template.IndexOfAny(['?', '#']) >= 0)
         {
             return false;

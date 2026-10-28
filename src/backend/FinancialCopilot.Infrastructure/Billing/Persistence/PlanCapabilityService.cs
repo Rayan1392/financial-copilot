@@ -56,6 +56,21 @@ public sealed class PlanCapabilityService(BillingDbContext dbContext) : IPlanCap
     /// </summary>
     private async Task<string?> ReadEffectivePlanCodeAsync(Guid customerAccountId, CancellationToken cancellationToken)
     {
+        var external = await dbContext.CustomerAccounts.AsNoTracking()
+            .Where(row => row.Id == customerAccountId)
+            .Select(row => row.ExternalSubscriptionManaged)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (external)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var active = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
+                .Where(row => row.CustomerAccountId == customerAccountId && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                .Select(row => row.PlanCode)
+                .ToListAsync(cancellationToken);
+            return active.Contains("Pro", StringComparer.Ordinal) ? "Pro" :
+                active.Contains("Plus", StringComparer.Ordinal) ? "Plus" : "Free";
+        }
+
         var subscription = await dbContext.CustomerAccounts
             .Where(row => row.Id == customerAccountId)
             .Select(row => new { row.SubscriptionPlanCode, row.SubscriptionEffectiveTo })

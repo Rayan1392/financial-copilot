@@ -158,8 +158,10 @@ internal sealed class Feature141ChatQueryService(
             if (resolution.Status != FinancialSourceTitleResolutionStatus.Resolved || resolution.Reference is null)
                 return "قلم مالی در فهرست ثبت‌شده به‌صورت یکتا پیدا نشد؛ لطفاً عنوان دقیق قلم صورت مالی را بنویسید.";
 
+            var directSource = catalogSnapshot.DirectSources.SingleOrDefault(source =>
+                string.Equals(source.CatalogId, resolution.Reference.CatalogId, StringComparison.Ordinal));
             var handoff = FinancialSourcePlannerHandoff.Create(
-                intent, resolution, catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash);
+                intent, resolution, catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash, directSource);
             if (handoff.Status != FinancialSourcePlannerHandoffStatus.ReadyForOfflineValidation
                 || handoff.Binding is null)
                 return RenderHandoffFailure(handoff.DiagnosticCode);

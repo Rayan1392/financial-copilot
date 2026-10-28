@@ -42,7 +42,7 @@ public sealed class TahlilAppEntitlementStatusTests
     }
 
     [Fact]
-    public async Task NotFound_IsNotRetried()
+    public async Task NotFound_IsUnavailableAndIsNotRetried()
     {
         var variable = UniqueVariable();
         Environment.SetEnvironmentVariable(variable, "test-secret");
@@ -50,7 +50,25 @@ public sealed class TahlilAppEntitlementStatusTests
         {
             var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
             var result = await CreateGateway(handler, variable).GetStatusAsync(ExternalId, "c", CancellationToken.None);
-            Assert.Equal(TahlilAppStatusOutcome.NotFound, result.Outcome);
+            Assert.Equal(TahlilAppStatusOutcome.Unavailable, result.Outcome);
+            Assert.Equal(1, handler.Requests);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task StatusFailures_AreUnavailableAndAreNotRetried(HttpStatusCode status)
+    {
+        var variable = UniqueVariable();
+        Environment.SetEnvironmentVariable(variable, "test-secret");
+        try
+        {
+            var handler = new StubHandler(_ => new HttpResponseMessage(status));
+            var result = await CreateGateway(handler, variable).GetStatusAsync(ExternalId, "c", CancellationToken.None);
+            Assert.Equal(TahlilAppStatusOutcome.Unavailable, result.Outcome);
             Assert.Equal(1, handler.Requests);
         }
         finally { Environment.SetEnvironmentVariable(variable, null); }

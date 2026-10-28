@@ -107,6 +107,79 @@ public sealed class FinancialSourcePlannerHandoffTests
         Assert.Null(result.Binding);
     }
 
+    [Fact]
+    public async Task DirectSourceMappingAddsCompanyDimensionAndVerifiedJoinsToPlannerRequirements()
+    {
+        var (provider, version, hash) = CreateProvider();
+        var references = await provider.GetFinancialSourceReferencesAsync(version, hash, CancellationToken.None);
+        var resolved = FinancialSourceItemTitleResolver.Resolve(
+            new("سود عملیاتی هر سهم", "NoavaranCurrentApi", "IncomeStatement"), references);
+        var snapshot = CreateSnapshot();
+        var directSource = snapshot.DirectSources.Single(source => source.CatalogId == resolved.Reference!.CatalogId);
+        var intent = CreateIntent("سود عملیاتی هر سهم", "operatingProfitPerShare", BusinessMeasureDimension.CurrencyPerShare) with
+        {
+            Period = new(ReportingPeriodKind.Unspecified),
+            EntityScope = new(EntityScopeKind.NamedCompanies, ["کگهر"])
+        };
+
+        var handoff = FinancialSourcePlannerHandoff.Create(intent, resolved, version, hash, directSource);
+
+        Assert.Equal(FinancialSourcePlannerHandoffStatus.ReadyForOfflineValidation, handoff.Status);
+        var requirements = handoff.Binding!.PlannerRequirements;
+        Assert.Equal([FinancialSourcePlannerHandoff.CompanyDimensionId], requirements.DimensionIds);
+        Assert.Equal(["company"], requirements.EntityKinds);
+        Assert.Equal(directSource.RelationshipIds.Order(StringComparer.Ordinal), requirements.RelationshipIds);
+        Assert.Equal(3, requirements.RelationshipIds.Count);
+        Assert.Equal(["latest"], requirements.PeriodPolicies);
+        Assert.Equal(["کگهر"], requirements.EntityReferences);
+        Assert.Equal(intent.Period, handoff.Binding.PeriodIntent);
+
+        // The real hierarchy context must now satisfy the deterministic completeness gate.
+        var required = requirements.DimensionIds.Concat(requirements.RelationshipIds)
+            .Concat(requirements.FinancialValueReferences!.Select(reference => reference.CatalogId)).ToArray();
+        var context = await provider.GetContextAsync(new SchemaContextExpansionRequest(1, version, hash, [], 0,
+            RequiredCatalogIds: required), CancellationToken.None);
+        Assert.NotNull(context);
+        context = context with
+        {
+            PeriodPolicies = context.PeriodPolicies.Concat(requirements.PeriodPolicies).Distinct().ToArray(),
+            PresentationRequirements = requirements.PresentationRequirements,
+            StatementScopes = requirements.StatementScopes,
+            EntityReferences = requirements.EntityReferences
+        };
+        var completeness = new SchemaContextCompletenessValidator().Validate(requirements, context);
+        Assert.True(completeness.RetrievalComplete, string.Join(", ", completeness.MissingRequirements));
+        Assert.Contains("company", context.EntityKinds);
+    }
+
+    [Fact]
+    public async Task DirectSourceMappingForAnotherSourceIsRejected()
+    {
+        var (provider, version, hash) = CreateProvider();
+        var references = await provider.GetFinancialSourceReferencesAsync(version, hash, CancellationToken.None);
+        var resolved = FinancialSourceItemTitleResolver.Resolve(
+            new("سود عملیاتی هر سهم", "NoavaranCurrentApi", "IncomeStatement"), references);
+        var other = CreateSnapshot().DirectSources.First(source => source.CatalogId != resolved.Reference!.CatalogId);
+        var intent = CreateIntent("سود عملیاتی هر سهم", "operatingProfitPerShare", BusinessMeasureDimension.CurrencyPerShare);
+
+        var handoff = FinancialSourcePlannerHandoff.Create(intent, resolved, version, hash, other);
+
+        Assert.Equal(FinancialSourcePlannerHandoffStatus.Incompatible, handoff.Status);
+        Assert.Equal("direct_source_mapping_identity_mismatch", handoff.DiagnosticCode);
+    }
+
+    private static StructuredQueryCatalogSnapshot CreateSnapshot()
+    {
+        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "README.md")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        var root = directory!.FullName;
+        return new StructuredQueryCatalogSnapshotBuilder().Build(
+            Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "SemanticCatalog"),
+            Path.Combine(root, "specs", "141-schema-aware-semantic-query-engine", "artifacts", "navigation-hierarchy.yaml"));
+    }
+
     private static CanonicalSemanticIntent CreateIntent(string phrase, string? concept,
         BusinessMeasureDimension dimension)
     {

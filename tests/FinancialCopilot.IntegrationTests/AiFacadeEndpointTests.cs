@@ -5,6 +5,10 @@ using System.Text.Json;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Billing;
+using FinancialCopilot.Billing.Accounts;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Infrastructure.Billing.Persistence;
 using FinancialCopilot.Infrastructure.Conversations.Persistence;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
@@ -126,6 +130,26 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
             CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AiQuery_BillingCooldownDenial_ReturnsTyped402()
+    {
+        var cooldownUntil = DateTimeOffset.UtcNow.AddDays(1);
+        using var client = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICreditReservationService>();
+            services.AddSingleton<ICreditReservationService>(new CooldownDenialReservationService(cooldownUntil));
+        })).CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message = "P/E below 6" });
+        using var document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.PaymentRequired, response.StatusCode);
+        Assert.Equal("SUBSCRIPTION_COOLDOWN_ACTIVE", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(cooldownUntil, document.RootElement.GetProperty("cooldownUntilUtc").GetDateTimeOffset());
+        Assert.Equal(25m, document.RootElement.GetProperty("freePlanCredits").GetDecimal());
     }
 
     [Fact]
@@ -425,6 +449,23 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         await using var content = await response.Content.ReadAsStreamAsync(CancellationToken.None);
         return await JsonDocument.ParseAsync(content, cancellationToken: CancellationToken.None);
     }
+}
+
+internal sealed class CooldownDenialReservationService(DateTimeOffset cooldownUntilUtc) : ICreditReservationService
+{
+    public Task<UsageReservation> ReserveAsync(
+        CustomerAccount account,
+        WalletSnapshot wallet,
+        string operationCode,
+        decimal maximumCredits,
+        string idempotencyKey,
+        CancellationToken cancellationToken) =>
+        throw new InsufficientCreditException(
+            InsufficientCreditException.SubscriptionCooldownActiveCode,
+            cooldownUntilUtc,
+            25m);
+
+    public Task<int> ExpireAbandonedAsync(int maximumCount, CancellationToken cancellationToken) => Task.FromResult(0);
 }
 
 public class AiFacadeApiFactory : AuthenticationApiFactory

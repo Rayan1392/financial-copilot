@@ -132,6 +132,8 @@ public sealed class ExternalPlanSubscriptionRow
     public DateTimeOffset StartsAtUtc { get; set; }
     public DateTimeOffset ExpiresAtUtc { get; set; }
     public bool PlusTransferApplied { get; set; }
+    public bool IsRevoked { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
 }
 
 /// <summary>Durable eligibility state, separate from identity authentication and effective plan.</summary>
@@ -140,6 +142,7 @@ public sealed class PaidExpiryCooldownRow
     public Guid CustomerAccountId { get; set; }
     public DateTimeOffset LastPaidExpiresAtUtc { get; set; }
     public DateTimeOffset CooldownUntilUtc { get; set; }
+    public DateTimeOffset? RevocationObservedAtUtc { get; set; }
     public long Revision { get; set; }
 }
 

@@ -33,3 +33,13 @@ Do not approve or modify canonical `queryAuthorization` fields as a side effect 
 ## Preflight and rollback
 
 Run `python tools/SemanticCatalog/preflight_feature141.py` (or add `--json`) to validate the canonical catalog and hashes and report key-name presence plus known governance status. It never opens a database connection, reads configuration values or secret-store entries, or runs a financial query. It reports secure-store configuration as uninspected; the role grants remain unverified until the DBA runs the separate verification script. To revoke the prepared grants, use `tools/SemanticCatalog/sql/feature141-read-role-revoke.sql` after reviewing its target database guard. Remove Feature141 settings from the secure store and then independently inspect ACLs/memberships before any optional role drop.
+
+## Disposable local instance for the engine E2E runner (2026-10-28)
+
+The isolated engine runner does not use the Development role above. When Docker/Testcontainers is
+unavailable, run `tools/SemanticCatalog/scripts/Feature141DisposablePostgres.ps1 -Action start` to
+create a throwaway PostgreSQL 18 server (own data directory under `%LOCALAPPDATA%`, loopback only,
+port 55441, generated admin password kept in an ACL-restricted file, never printed). The fixture creates
+a fresh database per run, applies the application migrations, seeds synthetic rows, creates a
+SELECT-only role on the four reviewed tables and drops the database afterwards. Nothing in this path
+touches the application PostgreSQL service on port 5432.

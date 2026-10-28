@@ -1244,6 +1244,7 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         var queryAuthorized = plan.QueryAuthorized && source.Queryable
             && requiredTables.All(table => table.Queryable) && requiredColumnsAuthorized
             && relationships.All(relationship => relationship.Queryable && relationship.QueryAuthorized);
+        var effectiveUnit = ResolveDirectSourceEffectiveUnit(source);
         var identityAuthorized = queryAuthorized && source.IdentityVerified
             && plan.Sources.Count == 1
             && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem
@@ -1255,12 +1256,24 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             Math.Min(plan.Pagination.Limit, MaximumRows), plan.Presentation, plan.Sources.Select(x => x.CatalogId).ToArray(),
             source.RelationshipIds, physicalObjectIds, plan.Entities[0].ResolvedEntityId!.Value,
             plan.FinancialOperation.Operation, semanticReviewApproved, queryAuthorized, plan.RetrievalComplete,
-            string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
-                ? source.SourceUnit : null,
-            source.SourceUnitStatus,
-            string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
-                ? "registered-source-unit" : null,
+            effectiveUnit.Unit, effectiveUnit.Status, effectiveUnit.Provenance,
             identityAuthorized: identityAuthorized), []);
+    }
+
+    /// <summary>
+    /// The unit a direct source value is reported in. A provider-reported source unit is used as-is;
+    /// otherwise only an owner-approved effective unit recorded in the reviewed catalog is carried.
+    /// Anything else stays null so the renderer cannot present an unreviewed unit as a fact.
+    /// </summary>
+    internal static (string? Unit, string? Status, string? Provenance) ResolveDirectSourceEffectiveUnit(StructuredSqlDirectSource source)
+    {
+        if (string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(source.SourceUnit))
+            return (source.SourceUnit, source.SourceUnitStatus, "registered-source-unit");
+        if (string.Equals(source.EffectiveUnitStatus, "owner-approved", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(source.EffectiveUnit))
+            return (source.EffectiveUnit, source.EffectiveUnitStatus, source.EffectiveUnitProvenance ?? "catalog-effective-unit");
+        return (null, source.EffectiveUnitStatus ?? source.SourceUnitStatus, null);
     }
 
     private static string Q(string value) => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";

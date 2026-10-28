@@ -1,23 +1,26 @@
 {
   "feature": "141",
-  "runId": "engine-e2e-2026-10-20",
+  "runId": "engine-e2e-2026-10-28-baseline-stabilization",
   "verdict": "ENGINE_E2E_BLOCKED",
   "chatIntegrationEnabled": false,
   "measured": {
-    "llmCalls": 0,
-    "postgresqlQueries": 0,
-    "tokens": 0,
-    "elapsedMs": 0
+    "llmCalls": 2,
+    "postgresqlQueries": 2,
+    "tokens": 8668,
+    "inputTokens": 7426,
+    "outputTokens": 1242,
+    "elapsedMs": 17175
   },
   "metrics": {
     "totalCases": 20,
-    "pass": 0,
+    "pass": 4,
     "fail": 0,
-    "blocked": 20,
-    "typedRejectionsObserved": 0,
+    "blocked": 16,
+    "typedRejectionsObserved": 3,
     "incorrectNumericResults": 0,
     "unauthorizedExecutions": 0,
-    "silentSemanticOmissions": 0
+    "silentSemanticOmissions": 0,
+    "executedCases": 4
   },
   "catalogEvidence": {
     "sourceItemsTotal": 296,
@@ -29,7 +32,7 @@
     "productConceptsApproved": "aliases only (گندله, گندله سنگ‌آهن)",
     "companyDiscoveryScopes": 0
   },
-  "dockerEngine": "27.3.1 (available after start in this run)",
+  "dockerEngine": "27.3.1 client; desktop-linux engine returned Internal Server Error on docker version/info (2026-10-28); replaced by disposable local PostgreSQL 18.1 via tools/SemanticCatalog/scripts/Feature141DisposablePostgres.ps1",
   "cases": [
     {
       "caseId": "E141-01",
@@ -65,32 +68,66 @@
       "originalQuestion": "سود عملیاتی هر سهم کگهر چقدر است؟",
       "canonicalIntent": {
         "measureConceptHint": "operatingProfitPerShare",
-        "extractedByLlm": false
+        "extractedByLlm": true,
+        "conceptId": "operatingProfitPerShare",
+        "dimension": "CurrencyPerShare",
+        "companyLabels": [
+          "کگهر"
+        ],
+        "period": "Unspecified"
       },
-      "boundCatalogReferences": null,
-      "plannerOutput": null,
-      "generatedSql": null,
-      "sqlParameters": null,
-      "authorizationDecision": null,
-      "actualPostgreSqlResult": null,
+      "boundCatalogReferences": [
+        "source_item_682beceadddc1458"
+      ],
+      "plannerOutput": {
+        "executionEligible": true,
+        "relationshipIds": [
+          "rel_2588cf95d01a651a",
+          "rel_cd8a77a2717ac71f",
+          "rel_e4fa0fe989156533"
+        ],
+        "periodPolicies": [
+          "latest"
+        ]
+      },
+      "generatedSql": "WITH latest_period AS (\n  SELECT MAX(st_scope.\"PeriodEnd\") AS \"PeriodEnd\"\n  FROM \"public\".\"FinancialStatements\" st_scope\n  WHERE st_scope.\"CompanyId\" = @company_id\n    AND st_scope.\"ProviderName\" = @provider_name\n    AND st_scope.\"StatementType\" = @statement_type\n  GROUP BY st_scope.\"IsComposing\"\n)\nSELECT li.\"Value\" AS \"Value\", st.\"PeriodEnd\" AS \"PeriodEnd\", st.\"Id\" AS \"StatementId\", st.\"ProviderName\" AS \"ProviderName\", st.\"StatementType\" AS \"StatementType\", @source_item_id AS \"SourceItemId\", (SELECT si.\"Unit\" FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id) AS \"SourceUnit\", @source_item_catalog_id AS \"SourceItemCatalogId\", st.\"IsComposing\" AS \"IsComposing\", st.\"CompanyId\" AS \"CompanyId\", st.\"PeriodType\" AS \"PeriodType\", st.\"IsAudited\" AS \"IsAudited\", st.\"IsRepresented\" AS \"IsRepresented\", st.\"ExternalStatementId\" AS \"ExternalStatementId\", st.\"PeriodStart\" AS \"PeriodStart\", st.\"SourcePayloadChecksum\" AS \"SourcePayloadChecksum\", st.\"PublishedAt\" AS \"PublishedAt\", st.\"LastSynchronizedAt\" AS \"LastSynchronizedAt\", st.\"WarningsJson\" AS \"WarningsJson\", st.\"LogicalVendor\" AS \"LogicalVendor\", st.\"SourceMode\" AS \"SourceMode\"\nFROM \"public\".\"FinancialStatements\" st\nJOIN \"public\".\"Companies\" co ON st.\"CompanyId\" = co.\"Id\"\nLEFT JOIN \"public\".\"FinancialStatementLineItems\" li ON li.\"FinancialStatementId\" = st.\"Id\" AND li.\"SourceItemCatalogId\" = @source_item_catalog_id\nWHERE co.\"Id\" = @company_id\n  AND st.\"ProviderName\" = @provider_name\n  AND st.\"StatementType\" = @statement_type\n  AND EXISTS (SELECT 1 FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id AND si.\"ProviderName\" = @provider_name AND si.\"StatementType\" = @statement_type AND si.\"SourceItemId\" = @source_item_id)\n  AND st.\"PeriodEnd\" IN (SELECT \"PeriodEnd\" FROM latest_period)\nORDER BY st.\"PeriodEnd\" DESC, st.\"PeriodType\", st.\"Id\"\nLIMIT @row_limit OFFSET @row_offset",
+      "sqlParameters": {
+        "company_id": "55ce8ab4-f6d4-4147-a8a1-e62eee9d217e",
+        "source_item_catalog_id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+        "provider_name": "NoavaranCurrentApi",
+        "statement_type": "IncomeStatement",
+        "source_item_id": 161,
+        "row_limit": 101,
+        "row_offset": 0
+      },
+      "authorizationDecision": "granted:feature141-isolated-vertical-slice-fixture",
+      "actualPostgreSqlResult": {
+        "status": "Succeeded",
+        "value": 3753,
+        "periodEnd": "2026-06-21",
+        "rows": 1
+      },
       "expectedNumericResult": {
         "value": 3753,
         "unit": "IRRPerShare",
         "periodEnd": "2026-06-21",
-        "provenance": "fixture seed in MonthlyStructuredQueryPostgreSqlTests (not yet executed)"
+        "provenance": "seeded fixture in Feature141EngineVerticalSliceTests; independently re-read with the admin connection"
       },
-      "unitCorrect": null,
-      "periodCorrect": null,
-      "finalPersianAnswer": null,
-      "semanticCorrect": null,
-      "executionCorrect": null,
-      "observedOutcome": null,
+      "unitCorrect": true,
+      "periodCorrect": true,
+      "finalPersianAnswer": "کگهر در بازهٔ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱، مقدار مالی گزارش‌شده: ۳٬۷۵۳ IRRPerShare.\nمنبع: NoavaranCurrentApi.",
+      "semanticCorrect": true,
+      "executionCorrect": true,
+      "observedOutcome": "Answered with 3753 IRRPerShare (IncomeStatement/161, period 2026-03-21..2026-06-21 = 1405-01-01..1405-03-31)",
       "expectedOutcome": "Answered with 3753 IRRPerShare (IncomeStatement/161, period end 2026-06-21)",
-      "status": "BLOCKED",
-      "reasonCode": "harness_not_executed; registry_authorization_conflict",
-      "reason": "bound to IncomeStatement/161 (IRRPerShare); end-to-end run not executed",
-      "llmTokens": null,
-      "elapsedMs": null
+      "status": "PASS",
+      "reasonCode": "live_llm_isolated_postgresql_pass",
+      "reason": "full chain executed on 2026-10-28; see verticalSlice",
+      "llmTokens": {
+        "input": 7426,
+        "output": 1242
+      },
+      "elapsedMs": 17175
     },
     {
       "caseId": "E141-03",
@@ -596,5 +633,755 @@
       "llmTokens": null,
       "elapsedMs": null
     }
-  ]
+  ],
+  "currentVerification": {
+    "date": "2026-10-28",
+    "verdict": "ENGINE_E2E_BLOCKED",
+    "firstVerticalSliceStatus": "FIRST_VERTICAL_SLICE_PASSED",
+    "totalCases": 20,
+    "passed": 1,
+    "blocked": 19,
+    "semanticEvaluatedLive": 1,
+    "executionEvaluatedLive": 1,
+    "docker": "Linux engine Internal Server Error; disposable local PostgreSQL 18.1 used instead",
+    "note": "E141-02 executed end to end with the live provider and an isolated database. The other 19 remain blocked on governance (monthly measures, netProfit/EPS/totalAssets bindings, product equivalence, discovery scopes) and on unimplemented planner algebra; see engine-e2e-report.md."
+  },
+  "currentProposedCases": [
+    {
+      "id": "E01",
+      "originalPersianQuestion": "سود خالص کگل چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 1200,
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E02",
+      "originalPersianQuestion": "سود عملیاتی کگهر چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 1100,
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Operating profit (MillionIRR) has no approved canonical binding; the per-share variant E141-02 passed on 2026-10-28 (see verticalSlice).",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E03",
+      "originalPersianQuestion": "سود هر سهم فملی چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 3200,
+        "unit": "IRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E04",
+      "originalPersianQuestion": "سود عملیاتی هر سهم کگل چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "outcome": "numeric-value-pending-fixture"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E05",
+      "originalPersianQuestion": "سود خالص کگل و کگهر را مقایسه کن",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "values": [
+          1200,
+          900
+        ],
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E06",
+      "originalPersianQuestion": "کدام یک سود خالص بیشتری دارد، کگل یا کگهر؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "symbol": "کگل",
+        "value": 1200,
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E07",
+      "originalPersianQuestion": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 25,
+        "unit": "Ton",
+        "period": "1405-06"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E08",
+      "originalPersianQuestion": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 700,
+        "unit": "MillionIRR",
+        "period": "1405-06"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E09",
+      "originalPersianQuestion": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 20,
+        "unit": "Ton",
+        "period": "1405-06"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E10",
+      "originalPersianQuestion": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کردند؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "symbols": [
+          "کگل",
+          "کگهر"
+        ],
+        "period": "1405-06"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E11",
+      "originalPersianQuestion": "شرکت‌های تولیدکننده گندله سنگ‌آهن را پیدا کن",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "outcome": "product-equivalence-approval-required"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E12",
+      "originalPersianQuestion": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور ۱۴۰۴ چقدر تغییر کرد؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 3,
+        "unit": "Ton",
+        "periods": [
+          "1404-06",
+          "1405-06"
+        ]
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E13",
+      "originalPersianQuestion": "رشد مبلغ فروش گندله کگل نسبت به شهریور سال قبل چند درصد است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 80,
+        "unit": "Percent",
+        "periods": [
+          "1404-06",
+          "1405-06"
+        ]
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E14",
+      "originalPersianQuestion": "شرکت‌ها را بر اساس سود خالص از بیشترین به کمترین مرتب کن",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "symbols": [
+          "فملی",
+          "کگل",
+          "کگهر"
+        ],
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E15",
+      "originalPersianQuestion": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال کدام‌اند؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "symbols": [
+          "فملی",
+          "کگل"
+        ],
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E16",
+      "originalPersianQuestion": "مجموع سود خالص کگل و کگهر چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "value": 2100,
+        "unit": "MillionIRR"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E17",
+      "originalPersianQuestion": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "symbols": [
+          "فملی",
+          "کگل"
+        ]
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E18",
+      "originalPersianQuestion": "فروش کگل چقدر است؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "outcome": "Ambiguous"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E19",
+      "originalPersianQuestion": "ارزش ذاتی کگل در سال آینده چقدر می‌شود؟",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "outcome": "Unsupported"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    },
+    {
+      "id": "E20",
+      "originalPersianQuestion": "اطلاعات مالی جدول محرمانه کارکنان را نشان بده",
+      "canonicalIntent": null,
+      "boundCatalogReferences": null,
+      "plannerOutput": null,
+      "generatedSql": null,
+      "sqlParameters": null,
+      "authorizationDecision": "not reached",
+      "actualPostgresqlResult": null,
+      "expectedNumericResult": {
+        "outcome": "Unauthorized"
+      },
+      "unitCorrect": null,
+      "periodCorrect": null,
+      "finalPersianAnswer": null,
+      "semanticStatus": "BLOCKED",
+      "executionStatus": "BLOCKED",
+      "passFailReason": "Approved binding or execution infrastructure unavailable; stage not run.",
+      "llmInputTokens": null,
+      "llmOutputTokens": null,
+      "elapsedMs": null
+    }
+  ],
+  "firstVerticalSliceStatus": "FIRST_VERTICAL_SLICE_PASSED",
+  "verticalSlice": {
+    "date": "2026-10-28",
+    "status": "FIRST_VERTICAL_SLICE_PASSED",
+    "caseId": "E141-02-operating-profit-per-share",
+    "question": "سود عملیاتی هر سهم کگهر چقدر است؟",
+    "substitution": "Monthly sales measures (metric_monthly_sales, metric_monthly_sales_quantity, metric_monthly_production_quantity) are review.semanticApproved=false and review.queryable=false in the canonical catalog; operatingProfitPerShare (IncomeStatement/161, source_item_682beceadddc1458) is the only canonical concept with an approved catalog binding, so it was used.",
+    "runner": "tests/FinancialCopilot.IntegrationTests/Feature141EngineVerticalSliceTests.cs (Feature141EngineVerticalSliceRunner)",
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "catalogVersion": "1",
+    "catalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+    "canonicalIntent": {
+      "conceptId": "operatingProfitPerShare",
+      "dimension": "CurrencyPerShare",
+      "valueForm": "ReportedValue",
+      "requestedUnit": "IRRPerShare",
+      "operation": "Retrieve",
+      "comparison": "None",
+      "period": "Unspecified",
+      "companyLabels": [
+        "کگهر"
+      ],
+      "output": "Scalar",
+      "requiresClarification": false
+    },
+    "catalogBinding": {
+      "typedBinding": "Bound",
+      "chatPathBinding": "Bound",
+      "handoff": "ReadyForOfflineValidation",
+      "handoffDiagnostic": "source_identity_ready_for_planner_validation",
+      "sourceCatalogId": "source_item_682beceadddc1458",
+      "sourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "statementType": "IncomeStatement",
+      "sourceItemId": 161
+    },
+    "navigator": {
+      "modelCalls": 1,
+      "selectedNodeIds": [
+        "dimension-dim_company",
+        "direct-source-item-source_item_682beceadddc1458",
+        "domain-company-industry",
+        "domain-financial-statements",
+        "financial-semantic-catalog",
+        "financial-statement-source-items",
+        "shared-dimensions",
+        "source-items-incomestatement",
+        "table-tbl_36036602dbf76362",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "missingContext": []
+    },
+    "plan": {
+      "structurallyValid": true,
+      "executionEligible": true,
+      "relationshipIds": [
+        "rel_2588cf95d01a651a",
+        "rel_cd8a77a2717ac71f",
+        "rel_e4fa0fe989156533"
+      ],
+      "periodPolicies": [
+        "latest"
+      ],
+      "companyBinding": "Found",
+      "governanceFlagsForcedByTest": false
+    },
+    "sql": "WITH latest_period AS (\n  SELECT MAX(st_scope.\"PeriodEnd\") AS \"PeriodEnd\"\n  FROM \"public\".\"FinancialStatements\" st_scope\n  WHERE st_scope.\"CompanyId\" = @company_id\n    AND st_scope.\"ProviderName\" = @provider_name\n    AND st_scope.\"StatementType\" = @statement_type\n  GROUP BY st_scope.\"IsComposing\"\n)\nSELECT li.\"Value\" AS \"Value\", st.\"PeriodEnd\" AS \"PeriodEnd\", st.\"Id\" AS \"StatementId\", st.\"ProviderName\" AS \"ProviderName\", st.\"StatementType\" AS \"StatementType\", @source_item_id AS \"SourceItemId\", (SELECT si.\"Unit\" FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id) AS \"SourceUnit\", @source_item_catalog_id AS \"SourceItemCatalogId\", st.\"IsComposing\" AS \"IsComposing\", st.\"CompanyId\" AS \"CompanyId\", st.\"PeriodType\" AS \"PeriodType\", st.\"IsAudited\" AS \"IsAudited\", st.\"IsRepresented\" AS \"IsRepresented\", st.\"ExternalStatementId\" AS \"ExternalStatementId\", st.\"PeriodStart\" AS \"PeriodStart\", st.\"SourcePayloadChecksum\" AS \"SourcePayloadChecksum\", st.\"PublishedAt\" AS \"PublishedAt\", st.\"LastSynchronizedAt\" AS \"LastSynchronizedAt\", st.\"WarningsJson\" AS \"WarningsJson\", st.\"LogicalVendor\" AS \"LogicalVendor\", st.\"SourceMode\" AS \"SourceMode\"\nFROM \"public\".\"FinancialStatements\" st\nJOIN \"public\".\"Companies\" co ON st.\"CompanyId\" = co.\"Id\"\nLEFT JOIN \"public\".\"FinancialStatementLineItems\" li ON li.\"FinancialStatementId\" = st.\"Id\" AND li.\"SourceItemCatalogId\" = @source_item_catalog_id\nWHERE co.\"Id\" = @company_id\n  AND st.\"ProviderName\" = @provider_name\n  AND st.\"StatementType\" = @statement_type\n  AND EXISTS (SELECT 1 FROM \"public\".\"FinancialStatementSourceItems\" si WHERE si.\"Id\" = @source_item_catalog_id AND si.\"ProviderName\" = @provider_name AND si.\"StatementType\" = @statement_type AND si.\"SourceItemId\" = @source_item_id)\n  AND st.\"PeriodEnd\" IN (SELECT \"PeriodEnd\" FROM latest_period)\nORDER BY st.\"PeriodEnd\" DESC, st.\"PeriodType\", st.\"Id\"\nLIMIT @row_limit OFFSET @row_offset",
+    "sqlParameters": {
+      "company_id": "55ce8ab4-f6d4-4147-a8a1-e62eee9d217e",
+      "source_item_catalog_id": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+      "provider_name": "NoavaranCurrentApi",
+      "statement_type": "IncomeStatement",
+      "source_item_id": 161,
+      "row_limit": 101,
+      "row_offset": 0
+    },
+    "queryFingerprint": "dd03b72a1503990941e1c1bd9222690abd008e8b506b6e860608bf07efc12cec",
+    "authorization": {
+      "grantIssued": true,
+      "database": "feature131_99c090015a0543b0a474d8dcb31fb56a",
+      "role": "feature141_vs_reader_884c3c3593cd459e91b7cd2da7454db1",
+      "provenance": "feature141-isolated-vertical-slice-fixture",
+      "compiledIdentityAuthorized": true,
+      "compiledQueryAuthorized": true,
+      "compiledSemanticReviewApproved": false
+    },
+    "postgresql": {
+      "status": "Succeeded",
+      "rows": 1,
+      "elapsedMs": 36.5277,
+      "row": {
+        "Value": 3753,
+        "PeriodEnd": "2026-06-21",
+        "StatementId": "996ad6e0-f912-42f3-ba92-2f66d651f71b",
+        "ProviderName": "NoavaranCurrentApi",
+        "StatementType": "IncomeStatement",
+        "SourceItemId": 161,
+        "SourceUnit": "N/A",
+        "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
+        "IsComposing": false,
+        "CompanyId": "55ce8ab4-f6d4-4147-a8a1-e62eee9d217e",
+        "PeriodType": "ThreeMonths",
+        "IsAudited": false,
+        "IsRepresented": false,
+        "ExternalStatementId": "vs-kgehr-latest",
+        "PeriodStart": "2026-03-21",
+        "SourcePayloadChecksum": "feature141-vs-vs-kgehr-latest",
+        "PublishedAt": "2026-07-22",
+        "LastSynchronizedAt": "2026-10-28T17:19:08.692708Z",
+        "WarningsJson": "[]",
+        "LogicalVendor": null,
+        "SourceMode": null
+      },
+      "independentAdminReadOfSameLineItem": 3753,
+      "seededLineItems": 4,
+      "decoyRowsReturned": 0
+    },
+    "expected": {
+      "value": 3753,
+      "unit": "IRRPerShare",
+      "periodStart": "2026-03-21",
+      "periodEnd": "2026-06-21",
+      "persianPeriodStart": "1405-01-01",
+      "persianPeriodEnd": "1405-03-31"
+    },
+    "actual": {
+      "value": 3753,
+      "unit": "IRRPerShare",
+      "periodStart": "2026-03-21",
+      "periodEnd": "2026-06-21",
+      "persianPeriodStart": "1405-01-01",
+      "persianPeriodEnd": "1405-03-31",
+      "companyId": "55ce8ab4-f6d4-4147-a8a1-e62eee9d217e",
+      "sourceItemId": 161
+    },
+    "persianAnswer": "کگهر در بازهٔ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱، مقدار مالی گزارش‌شده: ۳٬۷۵۳ IRRPerShare.\nمنبع: NoavaranCurrentApi.",
+    "persianAnswerStatus": "Answered",
+    "unauthorizedAccessChecks": {
+      "restrictedRoleSelectOnly": true,
+      "restrictedRoleCanReadMonthlyReports": false,
+      "writablePrincipalExecution": "Unauthorized",
+      "writablePrincipalDiagnostic": "database_read_only_identity_check_failed"
+    },
+    "llm": {
+      "calls": 2,
+      "inputTokens": 7426,
+      "outputTokens": 1242,
+      "intentLatencyMs": 8266,
+      "navigatorLatencyMs": 6889
+    },
+    "testCommand": "$env:FINANCIAL_COPILOT_TEST_POSTGRES_CONNECTION_STRING=(Get-Content \"$env:LOCALAPPDATA\\feature141-disposable-postgres\\connection.txt\" -Raw).Trim(); $env:FEATURE141_RUN_LIVE_LLM_POSTGRES=\"1\"; dotnet test tests/FinancialCopilot.IntegrationTests/FinancialCopilot.IntegrationTests.csproj -c Release --filter \"FullyQualifiedName~Feature141EngineVerticalSliceTests\"",
+    "testExitCode": 0,
+    "productionFixesRequired": [
+      "FinancialSourcePlannerHandoff: carry catalog relationship IDs, dim_company and the latest period policy (planner was retrieval_requirements_incomplete and the compiler would have rejected the empty relationship set)",
+      "CanonicalIntentCatalogBinding: a requested unit equal to the approved effective unit is representable",
+      "StructuredQueryCompiler: carry the owner-approved effective unit (the answer rendered N/A before)"
+    ],
+    "artifact": "evaluation/artifacts/engine-e2e-vertical-slice-2026-10-28.json"
+  },
+  "authoritativeSuite": "engine-e2e-suite-v1.json",
+  "historicalNote": "The \"cases\" (E141-01..20, 2026-10-20) and \"currentProposedCases\" (E01..E20) blocks are historical and no longer scored; engine-e2e-suite-v1.json is the authoritative versioned suite (F141-E01..E20) and maps legacy IDs.",
+  "baselineStabilization": {
+    "date": "2026-10-28",
+    "status": "BASELINE_STABILIZED",
+    "suite": {
+      "total": 20,
+      "pass": 4,
+      "blocked": 16,
+      "passIds": [
+        "F141-E04",
+        "F141-E18",
+        "F141-E19",
+        "F141-E20"
+      ]
+    },
+    "typedRejections": {
+      "F141-E18": {
+        "question": "فروش کگل چقدر است؟",
+        "outcome": "Ambiguous",
+        "reason": "canonical_measure_ambiguous",
+        "modelCalls": 1,
+        "executorCalls": 0,
+        "runs": [
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E18-ambiguous.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192035-F141-E18-ambiguous.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192136-F141-E18-ambiguous.json"
+        ]
+      },
+      "F141-E19": {
+        "question": "ارزش ذاتی کگل در سال آینده چقدر می‌شود؟",
+        "outcome": "Unsupported",
+        "reason": "intent_extraction_failed:unsupported_semantic_intent",
+        "modelCalls": 1,
+        "executorCalls": 0,
+        "runs": [
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E19-unsupported.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192043-F141-E19-unsupported.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192145-F141-E19-unsupported.json"
+        ]
+      },
+      "F141-E20": {
+        "question": "سود عملیاتی هر سهم کگهر چقدر است؟ [tenant/actor scope missing]",
+        "outcome": "Unauthorized",
+        "reason": "feature141_chat_gate_refused_missing_tenant_or_actor_scope",
+        "modelCalls": 0,
+        "executorCalls": 0,
+        "message": "این قابلیت برای درخواست احراز هویت‌شدهٔ فعلی فعال نیست.",
+        "runs": [
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E20-unauthorized.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192022-F141-E20-unauthorized.json",
+          "artifacts/engine-e2e-vertical-slice-2026-10-28-192128-F141-E20-unauthorized.json"
+        ]
+      }
+    },
+    "verticalSliceReruns": [
+      "artifacts/engine-e2e-vertical-slice-2026-10-28-192056-F141-E04-answered.json",
+      "artifacts/engine-e2e-vertical-slice-2026-10-28-192156-F141-E04-answered.json"
+    ],
+    "verticalSliceFailedRun": "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E04-run2-unsupported-requestedfields.json",
+    "latestPeriodSemantics": {
+      "test": "Feature141LatestPeriodSemanticsPostgreSqlTests",
+      "scenarios": 11,
+      "passed": 11,
+      "beforeFix": "artifacts/latest-period-semantics-2026-10-28-before-executor-fix.json",
+      "afterFix": "artifacts/latest-period-semantics-2026-10-28.json",
+      "defectsFixed": [
+        "single latest row without value reported Succeeded (now NoData eligible_statement_observation_missing)",
+        "newer consolidated statement silently answered an unscoped question (now Ambiguous statement_scope_unspecified_across_consolidation_bases)"
+      ]
+    },
+    "report": "engine-baseline-stabilization-report.md"
+  }
 }

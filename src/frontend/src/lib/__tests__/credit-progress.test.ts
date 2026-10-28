@@ -21,6 +21,14 @@ describe("computeCreditProgress", () => {
     expect(result.tone).toBe("danger");
   });
 
+  it("uses the resolved Free plan catalog allowance after revocation", () => {
+    const progress = computeCreditProgress(0, 25);
+
+    expect(progress.remaining).toBe(0);
+    expect(progress.limit).toBe(25);
+    expect(progress.percentage).toBe(0);
+  });
+
   it("clamps remaining credit above the plan limit to 100%", () => {
     expect(computeCreditProgress(40, 25).percentage).toBe(100);
   });

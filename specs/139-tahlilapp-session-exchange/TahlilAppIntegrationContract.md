@@ -48,7 +48,7 @@ sequenceDiagram
 
 1. `POST /api/financial-copilot/launch` در TahlilApp Backend — پیشنهادی و متعلق به تیم TahlilApp.
 2. `POST /api/financial-copilot/session-exchange` در TahlilApp Backend — قرارداد server-to-server پیشنهادی/نیازمند تأیید TahlilApp.
-3. `GET /api/financial-copilot/users/{externalUserId}/status` در TahlilApp Backend — قرارداد پیشنهادی برای refresh.
+3. `GET /api/partners/users/{user_id}/status` در TahlilApp Backend — قرارداد پیشنهادی برای refresh.
 4. `POST /api/auth/v1/tahlilapp/launch` در SapioAI Backend — endpoint پیاده‌سازی‌شده SapioAI.
 
 Endpointهای native احراز هویت SapioAI مانند `login`، `refresh`، `logout`، enrollment ایمیل و password reset بخشی از قرارداد TahlilApp نیستند؛ در checklist برای E2E پوشش داده می‌شوند.
@@ -247,7 +247,7 @@ Revision 5 historical note, superseded by Revision 6: the new contract requires 
 
 ## ۷. Status endpoint و revalidation
 
-### `GET /api/financial-copilot/users/{externalUserId}/status`
+### `GET /api/partners/users/{user_id}/status`
 
 این endpoint برای login-path و background revalidation طراحی شده و در SapioAI با `StatusPathTemplate` پیش‌فرض فراخوانی می‌شود. endpoint و schema هنوز از TahlilApp تأیید نشده‌اند.
 
@@ -466,7 +466,7 @@ refresh token در response JSON نیست و در cookie امن نوشته می�
 2. base URL و availability واقعی `POST /api/financial-copilot/launch` و redirect به SapioAI `/launch`.
 3. schema نهایی، مالکیت و rotation برای `X-Api-Key`.
 4. staging DNS، TLS certificate، trusted proxy و مسیر network دو Backend.
-5. تأیید schema و SLA برای `GET /api/financial-copilot/users/{externalUserId}/status`.
+5. تأیید schema و SLA برای `GET /api/partners/users/{user_id}/status`.
 6. اجرای کنترل‌شده auth/billing migrations در staging و ثبت evidence؛ migration credit در live هنوز اجرا نشده است.
 
 ### Non-blocking
@@ -575,3 +575,13 @@ The official exchange response (`POST /partners/exchange`) identifies the user b
 - **Any other type, empty or whitespace-only string, control character, or more than 100 characters:** the field is ignored and the stored value is kept. The launch is **not** rejected and the user still receives a session.
 
 The `name` value is never logged by SapioAI. The status endpoint (`GET /partners/users/{user_id}/status`) is not read for profile data and does not change the stored name. The earlier `user.firstName`/`user.lastName` fields in this document are not part of the official response; values already stored from them remain as a display fallback. Clearing a stored name requires a future explicit contract operation.
+
+## Revision 8 � Revocation and status refresh
+
+The status endpoint's official URL is `GET /api/partners/users/{user_id}/status`, where `{user_id}` comes only from `auth_external_identities.ExternalUserId` for Provider `TahlilApp`. The existing Basic Auth client is reused; credentials and external identity values are not returned to the browser or logged.
+
+An authoritative inactive response with an empty plan list revokes all previously stored still-future TahlilApp paid windows regardless of their recorded future expiry. Persist `RevokedAtUtc` as the first successfully observed revocation time and keep the source's contractual `ExpiresAtUtc` unchanged. Natural expiry remains anchored to the authoritative contractual expiry. Forfeit each affected source's unused balance with one idempotent ledger adjustment, preserve earlier grants/charges, and release pending reservations atomically before forfeiture. No Free grant occurs until 30 days after the final paid entitlement ends. Repeated inactive responses preserve the original revocation and cooldown times.
+
+The 15-minute successful-verification TTL bounds request-time refresh frequency. Login and credit reservation call the same refresher; fresh state makes no external request. Per-user single-flight and a 1.1-second per-process request pace reduce duplicates and stay below 60/minute per process. A deployment with multiple API processes must provide shared rate limiting to meet the partner-wide limit. Status 401/404/429, timeout, and 5xx are unavailable, not positive entitlement: preserve a last-known paid plan only within the configured six-hour grace, otherwise fail closed to Free. Do not retry exchange codes.
+
+Migration `Feature139SubscriptionRevocation` adds source revocation state and a distinct observed-revocation cooldown timestamp. Apply it only through the normal reviewed staging/production migration process; it was not applied as part of this change.

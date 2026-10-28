@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.AI.Evaluation;
@@ -111,9 +112,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 {
                     workflowActivity?.SetStatus(ActivityStatusCode.Error,
                         errorEvent.Exception?.Message ?? "Workflow execution failed");
-                    throw new InvalidOperationException(
-                        $"Workflow execution failed: {errorEvent.Exception?.Message}",
-                        errorEvent.Exception);
+                    if (errorEvent.Exception is { } workflowException)
+                    {
+                        var preservedException = workflowException;
+                        while (preservedException.InnerException is { } innerException)
+                        {
+                            preservedException = innerException;
+                        }
+
+                        ExceptionDispatchInfo.Capture(preservedException).Throw();
+                    }
+                    throw new InvalidOperationException("Workflow execution failed without an exception payload.");
                 }
             }
 

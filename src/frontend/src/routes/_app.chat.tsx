@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { sendChatMessage } from "@/lib/chat.functions";
 import { PromptInput } from "@/components/app/prompt-input";
 import { MessageList } from "@/components/app/message-list";
 import { useState } from "react";
+import { isSubscriptionCooldownMessage } from "@/lib/subscription-cooldown";
 import { Activity, ArrowLeft, BarChart3, FileText, Package, PieChart, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/_app/chat")({
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_app/chat")({
 });
 
 function chatErrorMessage(error: Error): string {
+  if (isSubscriptionCooldownMessage(error.message)) return error.message;
   if (error.message.toLowerCase().includes("insufficient"))
     return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
   return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
@@ -19,6 +21,7 @@ function chatErrorMessage(error: Error): string {
 
 function NewChatPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const send = useServerFn(sendChatMessage);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -39,10 +42,14 @@ function NewChatPage() {
       const result = await send({ data: { message, scannerPage: 1, suggestedActionId } });
       return result.threadId;
     },
-    onSuccess: (id) => navigate({ to: "/c/$threadId", params: { threadId: id } }),
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: ["usage"] });
+      navigate({ to: "/c/$threadId", params: { threadId: id } });
+    },
     onError: (error: Error) => {
       setPendingMessage(null);
       setQueryError(chatErrorMessage(error));
+      void qc.invalidateQueries({ queryKey: ["usage"] });
     },
   });
 

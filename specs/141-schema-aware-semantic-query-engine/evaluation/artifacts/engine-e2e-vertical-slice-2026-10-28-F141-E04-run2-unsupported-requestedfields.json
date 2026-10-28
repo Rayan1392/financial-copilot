@@ -1,0 +1,160 @@
+{
+  "runAt": "2026-10-28T19:16:38.7936609+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E04",
+    "Question": "سود عملیاتی هر سهم کگهر چقدر است؟",
+    "Fixture": {
+      "DatabaseName": "feature131_95183cd2ce68406698897f7e4acb2f40",
+      "RestrictedRole": "feature141_vs_reader_e940e4cfea0c4167a34f01b5464a74fd",
+      "CompanyId": "8d186e71-12ae-4e4b-8da8-676f3648aedd",
+      "DecoyCompanyId": "3c95311a-24a3-467a-a64c-0e32f23ae5d9",
+      "StatementId": "3bddb2b1-6c5f-46be-90ef-27e5dc77c7b2",
+      "OlderStatementId": "35bde281-25bc-4558-8277-efb2be400bee",
+      "SeededLineItemCount": 4
+    },
+    "ExpectedOutcome": "Answered",
+    "TypedOutcome": "Unsupported",
+    "TypedOutcomeReason": "canonical_semantics_not_representable_in_current_planner_handoff",
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "سود عملیاتی هر سهم",
+          "ConceptId": "operatingProfitPerShare",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "operatingProfitPerShare"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyPerShare",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "Unspecified"
+          },
+          "RequestedUnit": "IRRPerShare",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Retrieve",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "کگهر"
+        ]
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Scalar",
+        "RequestedFields": [
+          "سود عملیاتی هر سهم"
+        ]
+      },
+      "Constraints": [],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Unsupported",
+    "TypedBindingDiagnostics": [
+      "canonical_semantics_not_representable_in_current_planner_handoff"
+    ],
+    "BoundSourceCatalogId": "source_item_682beceadddc1458",
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": null,
+    "Navigation": null,
+    "Plan": null,
+    "PlanStructurallyValid": false,
+    "PlanExecutionEligible": false,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadMonthlyReports": false,
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 1,
+    "ObservedModelCalls": 1,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 2443,
+    "LlmOutputTokens": 512,
+    "IntentLatencyMs": 5787.0288,
+    "NavigatorLatencyMs": 0,
+    "TotalElapsedMs": 6078.1666,
+    "SecretValuesLogged": false
+  }
+}

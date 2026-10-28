@@ -2,6 +2,7 @@ using FinancialCopilot.Billing;
 using FinancialCopilot.Billing.Accounts;
 using FinancialCopilot.Billing.Contracts;
 using FinancialCopilot.Billing.Usage;
+using FinancialCopilot.Application.Authentication.TahlilApp;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
@@ -10,7 +11,8 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence;
 public sealed class UsageReservationAuthorizationService(
     BillingDbContext dbContext,
     ICreditLinePolicyService creditLinePolicy,
-    TimeProvider timeProvider) : ICreditReservationService
+    TimeProvider timeProvider,
+    ITahlilAppEntitlementRefresher? entitlementRefresher = null) : ICreditReservationService
 {
     private static readonly TimeSpan DefaultReservationDuration = TimeSpan.FromMinutes(5);
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ReservationLocks = new();
@@ -43,6 +45,8 @@ public sealed class UsageReservationAuthorizationService(
                 return existing;
             }
 
+            // Revalidate only when due. The refresher is identity-provider scoped and is a no-op
+            // for native accounts; the persisted TahlilApp external id is resolved inside its state store.
             var accountRow = await dbContext.CustomerAccounts.SingleOrDefaultAsync(
                 row => row.Id == account.Id && row.TenantId == account.TenantId,
                 cancellationToken);
@@ -50,6 +54,11 @@ public sealed class UsageReservationAuthorizationService(
             if (accountRow is null)
             {
                 throw new KeyNotFoundException("Billing account is not configured in this tenant.");
+            }
+
+            if (entitlementRefresher is not null && accountRow.UserId is { } localUserId)
+            {
+                await entitlementRefresher.RefreshIfDueAsync(accountRow.TenantId, localUserId, cancellationToken);
             }
 
             var walletRow = await dbContext.WalletProjections.SingleOrDefaultAsync(
@@ -68,12 +77,21 @@ public sealed class UsageReservationAuthorizationService(
             await creditLifecycle.EnsureCurrentPeriodTrackedAsync(accountRow, walletRow, now, cancellationToken);
             currentWallet = MapWallet(walletRow);
 
-            if (accountRow.ExternalSubscriptionManaged &&
-                await creditLifecycle.IsPaidExpiryCooldownActiveAsync(account.Id, now, cancellationToken))
+            var cooldownUntilUtc = accountRow.ExternalSubscriptionManaged
+                ? await creditLifecycle.GetActivePaidExpiryCooldownEndAsync(account.Id, now, cancellationToken)
+                : null;
+            if (cooldownUntilUtc is { } cooldownEnd)
             {
                 // Persist the authoritative expiry cooldown even though this reservation is denied.
                 await dbContext.SaveChangesAsync(cancellationToken);
-                throw new InsufficientCreditException();
+                var freePlanCredits = await dbContext.SubscriptionPlans.AsNoTracking()
+                    .Where(plan => plan.Code == "Free")
+                    .Select(plan => (decimal?)plan.IncludedCredits)
+                    .SingleOrDefaultAsync(cancellationToken);
+                throw new InsufficientCreditException(
+                    InsufficientCreditException.SubscriptionCooldownActiveCode,
+                    cooldownEnd,
+                    freePlanCredits);
             }
 
             if (!creditLinePolicy.CanReserve(account, currentWallet, maximumCredits))

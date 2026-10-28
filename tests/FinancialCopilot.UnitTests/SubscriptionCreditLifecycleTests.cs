@@ -338,6 +338,64 @@ public sealed class SubscriptionCreditLifecycleTests
     }
 
     [Fact]
+    public async Task AuthoritativeEmptyPlanSet_RevokesUnusedPaidCreditsOnceAndAnchorsCooldownAtFirstObservation()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlansAsync(db);
+        var time = new MutableTimeProvider(InitialAt);
+        var provisioner = new OwnedIdentityBillingProvisioner(db, time);
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        await provisioner.EnsureProvisionedAsync(tenantId, userId, CancellationToken.None);
+        var account = await db.CustomerAccounts.SingleAsync(row => row.UserId == userId);
+        var wallet = await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == account.Id);
+        var synchronizer = new ExternalSubscriptionSynchronizer(db, provisioner, time);
+        var pro = Subscription("sapio_pro", "Pro", InitialAt, InitialAt.AddDays(60));
+
+        await synchronizer.SynchronizeAsync(tenantId, userId, Decide([pro], InitialAt), 1, CancellationToken.None);
+        var paidPeriod = await db.SubscriptionCreditPeriods.SingleAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Pro");
+        var charge = await CommitChargeAsync(db, account, wallet, time, 1m);
+        Assert.Equal(2599m, wallet.Balance);
+        var pendingKey = "reservation-before-revocation";
+        wallet.ReservedAmount = 5m;
+        db.UsageReservations.Add(new UsageReservationRow
+        {
+            Id = Guid.NewGuid(), CustomerAccountId = account.Id, IdempotencyKey = pendingKey,
+            OperationCode = "AiQuery.Test", ReservedCredits = 5m, CreatedAt = InitialAt.AddDays(1),
+            ExpiresAt = InitialAt.AddDays(1).AddMinutes(5), Status = nameof(UsageReservationStatus.Reserved)
+        });
+        await db.SaveChangesAsync();
+
+        var revokedAt = InitialAt.AddDays(2);
+        time.Set(revokedAt);
+        await synchronizer.SynchronizeAsync(tenantId, userId, Decide([], revokedAt), 2, CancellationToken.None);
+
+        Assert.Equal("Free", account.SubscriptionPlanCode);
+        Assert.Equal(0m, wallet.Balance);
+        Assert.Equal(0m, wallet.ReservedAmount);
+        Assert.Equal(nameof(UsageReservationStatus.Released),
+            (await db.UsageReservations.SingleAsync(row => row.IdempotencyKey == pendingKey)).Status);
+        Assert.Equal(1m, (await db.UsageLedgerEntries.SingleAsync(row => row.Id == charge.Id)).CreditsCharged);
+        Assert.Equal(-2599m, await db.UsageLedgerEntries
+            .Where(row => row.OperationCode == "Billing.SubscriptionCreditForfeiture" && row.RelatedEntryId == paidPeriod.GrantLedgerEntryId)
+            .SumAsync(row => row.CreditsCharged));
+        Assert.Equal(0, await db.SubscriptionCreditPeriods.CountAsync(row => row.CustomerAccountId == account.Id && row.PlanCode == "Free" && row.Status == SubscriptionCreditLifecycleService.ActiveStatus));
+        var cooldown = await db.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal(revokedAt, cooldown.LastPaidExpiresAtUtc);
+        Assert.Equal(revokedAt, cooldown.RevocationObservedAtUtc);
+        Assert.Equal(revokedAt.AddDays(30), cooldown.CooldownUntilUtc);
+
+        time.Set(revokedAt.AddDays(1));
+        await synchronizer.SynchronizeAsync(tenantId, userId, Decide([], time.GetUtcNow()), 3, CancellationToken.None);
+        var repeated = await db.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == account.Id);
+        Assert.Equal(revokedAt, repeated.RevocationObservedAtUtc);
+        Assert.Equal(revokedAt.AddDays(30), repeated.CooldownUntilUtc);
+        Assert.Equal(-2599m, await db.UsageLedgerEntries
+            .Where(row => row.OperationCode == "Billing.SubscriptionCreditForfeiture" && row.RelatedEntryId == paidPeriod.GrantLedgerEntryId)
+            .SumAsync(row => row.CreditsCharged));
+    }
+
+    [Fact]
     public async Task PlusExpiryWhileProRemainsActive_DoesNotStartCooldown()
     {
         await using var db = CreateDbContext();
@@ -430,13 +488,16 @@ public sealed class SubscriptionCreditLifecycleTests
         var wallet = new WalletSnapshot(accountId, 10m, 0m, now, 0);
         var service = new UsageReservationAuthorizationService(db, new CreditLinePolicyService(), new MutableTimeProvider(now));
 
-        await Assert.ThrowsAsync<FinancialCopilot.Billing.InsufficientCreditException>(() => service.ReserveAsync(
+        var denial = await Assert.ThrowsAsync<FinancialCopilot.Billing.InsufficientCreditException>(() => service.ReserveAsync(
             account, wallet, "AiQuery.Test", 1m, "cooldown-denied", CancellationToken.None));
 
         Assert.Empty(await db.UsageReservations.ToListAsync());
         var cooldown = await db.PaidExpiryCooldowns.SingleAsync(row => row.CustomerAccountId == accountId);
         Assert.Equal(expiry, cooldown.LastPaidExpiresAtUtc);
         Assert.Equal(expiry.AddDays(30), cooldown.CooldownUntilUtc);
+        Assert.Equal(FinancialCopilot.Billing.InsufficientCreditException.SubscriptionCooldownActiveCode, denial.ErrorCode);
+        Assert.Equal(cooldown.CooldownUntilUtc, denial.CooldownUntilUtc);
+        Assert.Equal(25m, denial.FreePlanCredits);
         Assert.Equal(10m, (await db.WalletProjections.SingleAsync(row => row.CustomerAccountId == accountId)).Balance);
     }
 

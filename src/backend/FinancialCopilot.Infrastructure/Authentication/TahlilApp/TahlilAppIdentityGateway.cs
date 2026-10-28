@@ -22,6 +22,9 @@ public sealed class TahlilAppIdentityGateway(
 {
     /// <summary>The status response is bounded to 8 KB.</summary>
     private const int StatusMaximumResponseBytes = 8192;
+    private static readonly SemaphoreSlim PartnerRequestGate = new(1, 1);
+    private static long lastPartnerRequestTimestamp;
+    private static readonly TimeSpan MinimumPartnerRequestInterval = TimeSpan.FromMilliseconds(1100);
 
     public async Task<TahlilAppExchangeResult> ExchangeAsync(
         string code,
@@ -41,11 +44,11 @@ public sealed class TahlilAppIdentityGateway(
         SetBasicAuthentication(request, settings.ClientId, clientSecret);
         request.Content = new StringContent(JsonSerializer.Serialize(new { code }), Encoding.UTF8, "application/json");
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(settings.ExchangeTimeoutSeconds));
-
         try
         {
+            await WaitForPartnerRequestSlotAsync(cancellationToken);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(settings.ExchangeTimeoutSeconds));
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
@@ -126,20 +129,12 @@ public sealed class TahlilAppIdentityGateway(
         SetBasicAuthentication(request, settings.ClientId, clientSecret);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(settings.StatusTimeoutSeconds));
-
         try
         {
+            await WaitForPartnerRequestSlotAsync(cancellationToken);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(settings.StatusTimeoutSeconds));
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                logger.LogInformation(
-                    "TahlilApp status reported no such user. Status: {Status}; LatencyMs: {LatencyMs}; CorrelationId: {CorrelationId}",
-                    (int)response.StatusCode, stopwatch.ElapsedMilliseconds, correlationId);
-                return new TahlilAppStatusResult(TahlilAppStatusOutcome.NotFound);
-            }
-
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning(
@@ -204,6 +199,27 @@ public sealed class TahlilAppIdentityGateway(
 
     private static Uri BuildPartnerUri(string baseUrl, string relativePath) =>
         new(new Uri(baseUrl.TrimEnd('/') + "/", UriKind.Absolute), relativePath);
+
+    private static async Task WaitForPartnerRequestSlotAsync(CancellationToken cancellationToken)
+    {
+        await PartnerRequestGate.WaitAsync(cancellationToken);
+        try
+        {
+            var previous = Interlocked.Read(ref lastPartnerRequestTimestamp);
+            if (previous != 0)
+            {
+                var elapsed = Stopwatch.GetElapsedTime(previous);
+                var wait = MinimumPartnerRequestInterval - elapsed;
+                if (wait > TimeSpan.Zero) await Task.Delay(wait, cancellationToken);
+            }
+
+            Interlocked.Exchange(ref lastPartnerRequestTimestamp, Stopwatch.GetTimestamp());
+        }
+        finally
+        {
+            PartnerRequestGate.Release();
+        }
+    }
 
     private static TahlilAppStatusResult StatusUnavailable() => new(TahlilAppStatusOutcome.Unavailable);
 

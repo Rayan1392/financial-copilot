@@ -395,7 +395,8 @@ public sealed class SubscriptionPlanRepository(BillingDbContext dbContext) : ISu
         {
             var now = DateTimeOffset.UtcNow;
             var activePlans = await dbContext.ExternalPlanSubscriptions.AsNoTracking()
-                .Where(row => row.CustomerAccountId == customerAccountId && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+                .Where(row => row.CustomerAccountId == customerAccountId && !row.IsRevoked &&
+                              row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
                 .Select(row => row.PlanCode)
                 .ToListAsync(cancellationToken);
             planCodeFromSubscriptions = activePlans.Contains("Pro", StringComparer.Ordinal) ? "Pro" :

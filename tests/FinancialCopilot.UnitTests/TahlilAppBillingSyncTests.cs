@@ -85,6 +85,42 @@ public sealed class TahlilAppBillingSyncTests
     }
 
     [Fact]
+    public async Task SubscriptionRepository_RevokedProWindowReturnsFreePlanAllowance()
+    {
+        await using var dbContext = CreateBillingDbContext();
+        var accountId = Guid.NewGuid();
+        dbContext.CustomerAccounts.Add(new CustomerAccountRow
+        {
+            Id = accountId,
+            TenantId = Guid.NewGuid(),
+            AccountType = "Individual",
+            BillingMode = "Prepaid",
+            SubscriptionPlanCode = "Free",
+            ExternalSubscriptionManaged = true
+        });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Pro", Name = "Pro", IncludedCredits = 2600, PricingPolicyVersion = "v1" });
+        dbContext.SubscriptionPlans.Add(new SubscriptionPlanRow { Code = "Free", Name = "Free", IncludedCredits = 25, PricingPolicyVersion = "v1" });
+        dbContext.ExternalPlanSubscriptions.Add(new ExternalPlanSubscriptionRow
+        {
+            Id = Guid.NewGuid(),
+            CustomerAccountId = accountId,
+            IdentityKey = "tahlilapp-user",
+            PlanCode = "Pro",
+            StartsAtUtc = Now.AddDays(-10),
+            ExpiresAtUtc = Now.AddDays(20),
+            IsRevoked = true,
+            RevokedAtUtc = Now
+        });
+        await dbContext.SaveChangesAsync();
+
+        var result = await new SubscriptionPlanRepository(dbContext).FindForCustomerAsync(accountId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("Free", result.Code);
+        Assert.Equal(25m, result.IncludedCredits);
+    }
+
+    [Fact]
     public async Task Sync_IsIdempotent_AndGrantsOnlyOneApprovedCreditPeriod()
     {
         await using var dbContext = CreateBillingDbContext();

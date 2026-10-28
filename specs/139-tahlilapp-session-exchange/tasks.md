@@ -64,7 +64,7 @@ Integration handoff artifacts: [`TahlilAppIntegrationContract.md`](TahlilAppInte
 - [~] **T-18** `ExternalSubscriptionSynchronizer`: applies TahlilApp external subscription revisions, uses only authoritative `effectiveFrom` for paid period transitions, and leaves missing-anchor legacy eligibility without paid grants. Free→paid forfeiture and approved Plus→Pro transfer are audited and keyed. ACs: AC-12, AC-36, AC-38, AC-88…AC-99. Tests: TahlilApp sync and credit lifecycle suites pass; PostgreSQL race test is present but skipped because Docker is unavailable. Owner: SapioAI/TahlilApp.
 - [x] **T-19** Read-side expiry guard applies in PlanCapabilityService and SubscriptionPlanRepository; direct repository test now asserts an expired Plus account resolves to Free and Free allowance. Capability loss test also passes. ACs: AC-35, AC-87. This behavior affects any account with a lapsed admin-set window. Owner: SapioAI.
 - [x] **T-20** Launch-time subscription sync: exchange â†’ policy â†’ synchroniser, with unknown plan, inactive, expired and missing-expiry all becoming Free. ACs: AC-12, AC-36, AC-37, AC-86. Tests: `TahlilAppDomainTests.Subscription_*` (fail-closed matrix); `SubscriptionSync_IsIdempotent_AndGrantsNoCredits`; `ExpiredPaidSubscription_IsSyncedToFree`. Owner: SapioAI.
-- [~] **T-21** Background entitlement revalidation worker and per-user status refresh. SapioAI claims due identities under a lease and performs one bounded `GET /api/financial-copilot/users/{externalUserId}/status` per identity; a TahlilApp batch endpoint is not a current dependency. ACs: AC-34, AC-35. Verification gap: the external endpoint, SLA and real staging round trip are unverified. Owner: SapioAI/TahlilApp/Operations.
+- [~] **T-21** Background entitlement revalidation worker and per-user status refresh. SapioAI claims due identities under a lease and performs one bounded `GET /api/partners/users/{user_id}/status` per identity; a TahlilApp batch endpoint is not a current dependency. ACs: AC-34, AC-35. Verification gap: the external endpoint, SLA and real staging round trip are unverified. Owner: SapioAI/TahlilApp/Operations.
 - [x] **T-22** Direct-login TTL refresh and stale-grace downgrade on login. Implemented through the shared entitlement refresher: successful status is due again after the configured 15-minute TTL; unavailable status preserves the last-known paid state through the configured six-hour stale grace, then synchronizes Free. ACs: AC-32, AC-33, AC-35, AC-76. Verification gap: real TahlilApp status behavior and staging evidence remain open. Owner: SapioAI.
 
 ## S-9 Profile views
@@ -128,3 +128,17 @@ Acceptance criteria added by Revision 7:
 - **AC-104:** Authentication remains available during cooldown, but Billing reservation denies all new AI credit-consuming work even when held wallet balance is positive. A paid reactivation enables paid use immediately.
 - **AC-105:** No Free credits are granted during cooldown. Existing Free-period remainder cannot bypass the gate and is not restored later. At cooldown completion, normal Free grants resume with a stable idempotency key and no duplicate historic grant.
 - **AC-106:** Schema changes, adapter behavior, plan-set selection, independent expiries, partial transfer/consumption, cooldown persistence and reservation denial are covered by focused tests. PostgreSQL concurrency and live contract results remain release evidence gates.
+
+## Revision 8 work items � authoritative revocation
+
+- [x] Persist source revocation (`IsRevoked`, `RevokedAtUtc`) separately from contractual `ExpiresAtUtc`; persist `RevocationObservedAtUtc` separately from the cooldown's contractual expiry anchor.
+- [x] Treat an authoritative empty plan set as revoking all previously stored still-future TahlilApp plan sources; natural expired sources retain their original expiry semantics.
+- [x] Forfeit unused credits once per source with append-only ledger adjustments; preserve historical consumption and grants.
+- [x] Release pending reservations exactly once before source forfeiture and write reservation release outbox events in the same transaction.
+- [x] Keep the first observed revocation timestamp stable; suppress Free grants and reservations during the existing 30-day cooldown.
+- [x] Revalidate due TahlilApp identities before new credit reservations; reuse the existing gateway, persisted external id mapping, and 15-minute success TTL.
+- [x] Add per-user single-flight and per-process request pacing; 401/404/429/timeout/5xx are unavailable and cannot turn verified Free into paid.
+- [x] Generate `Feature139SubscriptionRevocation` migration; it is not applied.
+- [x] Run focused Billing, Feature 139, V1/V2 AI endpoint suites and backend Release build; results and one unrelated launch-disabled integration failure are recorded in `ImplementationReport.md`.
+- [ ] Provide a distributed rate limiter or confirm single-instance status traffic before enabling multi-instance status refresh; verify the combined 60/minute partner budget in staging.
+- [ ] Apply migration and run PostgreSQL concurrency checks in staging; confirm official partner status response and revocation behavior jointly with TahlilApp.

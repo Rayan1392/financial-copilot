@@ -62,8 +62,21 @@ public sealed record FinancialSourcePlannerHandoffResult(
 /// StructuredQueryPlanner input contract. Unsupported intent is rejected rather than erased.</summary>
 public static class FinancialSourcePlannerHandoff
 {
+    /// <summary>
+    /// The company dimension every direct statement retrieval is scoped by. A direct source item is
+    /// read through statements that belong to exactly one company, so the planner must require it.
+    /// </summary>
+    public const string CompanyDimensionId = "dim_company";
+
+    /// <param name="directSource">
+    /// The integrity-checked compiler mapping of the resolved source. When supplied, its verified
+    /// join relationships and the company dimension become explicit planner requirements so the
+    /// deterministic completeness, validation and compilation gates can check them against the
+    /// catalog context instead of silently receiving an empty relationship set.
+    /// </param>
     public static FinancialSourcePlannerHandoffResult Create(CanonicalSemanticIntent intent,
-        FinancialSourceTitleResolution resolution, string catalogVersion, string catalogHash)
+        FinancialSourceTitleResolution resolution, string catalogVersion, string catalogHash,
+        StructuredSqlDirectSource? directSource = null)
     {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(resolution);
@@ -123,13 +136,24 @@ public static class FinancialSourcePlannerHandoff
         if (intent.Output.RequestedFields.Count != 0)
             return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "requested_output_fields_not_representable_in_planner_slice");
 
+        if (directSource is not null && !string.Equals(directSource.CatalogId, reference.CatalogId, StringComparison.Ordinal))
+            return Fail(FinancialSourcePlannerHandoffStatus.Incompatible, "direct_source_mapping_identity_mismatch");
+
         var authorizationStatus = reference.QueryAuthorizationStatus
             ?? (reference.Queryable ? "authorized" : "not-authorized");
         var auth = new FinancialSourceAuthorizationEvidence(authorizationStatus, reference.Queryable,
             $"navigation-hierarchy.yaml#/nodes/*/sourceItemReferences[?(@.catalogId=='{reference.CatalogId}')]/queryAuthorization");
+        var hasCompanyScope = intent.EntityScope.CompanyLabels.Count != 0;
+        // The current planner slice represents exactly one latest direct statement value (see
+        // CanonicalIntentCatalogBinding). A question with no stated period therefore resolves to the
+        // latest reporting period, and the rendered answer always states that period explicitly.
+        IReadOnlyList<string> periodPolicies = intent.Period.Kind is ReportingPeriodKind.LatestAvailable
+            or ReportingPeriodKind.Unspecified ? ["latest"] : [];
         var requirements = new QuestionSchemaRequirements(1, catalogVersion, catalogHash,
-            [], [], intent.EntityScope.CompanyLabels.Count == 0 ? [] : ["company"], [], [],
-            intent.Period.Kind == ReportingPeriodKind.LatestAvailable ? ["latest"] : [], [],
+            [], directSource is not null && hasCompanyScope ? [CompanyDimensionId] : [],
+            hasCompanyScope ? ["company"] : [],
+            directSource?.RelationshipIds.Order(StringComparer.Ordinal).ToArray() ?? [], [],
+            periodPolicies, [],
             [Presentation(intent.Output.Kind)],
             FinancialValueReferences: [new(nameof(FinancialValueReferenceType.DirectSourceItem), reference.CatalogId)],
             RequestedFinancialValueOperation: nameof(FinancialValueOperation.DirectValueRetrieval))
@@ -182,7 +206,7 @@ public static class FinancialSourcePlannerHandoff
         };
     }
 
-    private static string UnitCode(SemanticUnit unit) => unit switch
+    internal static string UnitCode(SemanticUnit unit) => unit switch
     {
         SemanticUnit.Count => "Count",
         SemanticUnit.Ton => "Ton",

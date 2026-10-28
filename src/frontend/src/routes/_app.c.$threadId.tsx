@@ -8,12 +8,14 @@ import { PromptInput } from "@/components/app/prompt-input";
 import { useEffect, useRef, useState } from "react";
 import { getAuthenticatedUser } from "@/integrations/financial-copilot/auth";
 import { adminPermissions, hasPermission } from "@/integrations/financial-copilot/admin-permissions";
+import { isSubscriptionCooldownMessage } from "@/lib/subscription-cooldown";
 
 export const Route = createFileRoute("/_app/c/$threadId")({
   component: ChatThreadPage,
 });
 
 function chatErrorMessage(error: Error): string {
+  if (isSubscriptionCooldownMessage(error.message)) return error.message;
   if (error.message.toLowerCase().includes("insufficient"))
     return "اعتبار کافی برای پردازش درخواست وجود ندارد. لطفاً حساب خود را شارژ کنید.";
   return "متأسفیم، خطایی در پردازش درخواست رخ داد. لطفاً دوباره امتحان کنید.";
@@ -59,8 +61,12 @@ function ChatThreadPage() {
       qc.invalidateQueries({ queryKey: ["messages", threadId] });
       qc.invalidateQueries({ queryKey: ["threads"] });
       qc.invalidateQueries({ queryKey: ["subscription"] });
+      qc.invalidateQueries({ queryKey: ["usage"] });
     },
-    onError: (error: Error) => setQueryError(chatErrorMessage(error)),
+    onError: (error: Error) => {
+      setQueryError(chatErrorMessage(error));
+      void qc.invalidateQueries({ queryKey: ["usage"] });
+    },
   });
 
   const submit = (text: string, suggestedActionId?: string) => {

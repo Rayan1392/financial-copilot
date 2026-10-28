@@ -1,6 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { buildFinancialCopilotApiUrl } from "./api-url";
+import { formatSubscriptionCooldownDeniedMessage } from "@/lib/subscription-cooldown";
 
 type FinancialCopilotServerContext = {
   authorization: string;
@@ -37,6 +38,13 @@ export async function financialCopilotServerApi<T>(
   const response = await fetch(apiUrl(path), { ...init, headers });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
+    const code = typeof problem?.code === "string" ? problem.code : problem?.title;
+    if (code === "SUBSCRIPTION_COOLDOWN_ACTIVE") {
+      throw new Error(formatSubscriptionCooldownDeniedMessage(
+        typeof problem?.cooldownUntilUtc === "string" ? problem.cooldownUntilUtc : null,
+        typeof problem?.freePlanCredits === "number" ? problem.freePlanCredits : null,
+      ));
+    }
     throw new Error(
       problem?.detail ??
         problem?.title ??

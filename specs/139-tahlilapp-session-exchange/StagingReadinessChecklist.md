@@ -262,3 +262,15 @@ Implementation adds per-plan subscription state, credit-period identity, immutab
 Verification: focused Feature 139/Billing tests pass (121 unit tests; 20 integration tests pass and one PostgreSQL concurrency test is skipped because its database infrastructure is unavailable). The backend Release solution build passes with zero warnings and errors. The full unit suite has 20 unrelated failures: 18 match failures in the saved baseline TRX and two are in Nadpco/Telegram tests; details are in `ImplementationReport.md`. No production API call, deployment, or database migration was performed. TahlilApp delivery of `starts_at`, joint staging exchange/status verification, migration application, and operational readiness remain unverified.
 
 Revision 7 acceptance criteria AC-100 through AC-106 are defined in tasks.md and apply to this document. Revision 7 controls over conflicting earlier assumptions.
+
+## Feature 139 revocation rollout gate
+
+- [ ] Review and apply `Feature139SubscriptionRevocation` in staging; verify existing wallet and ledger totals before and after migration.
+- [ ] Confirm TahlilApp returns the official status schema, including `active=false`, `plans=[]`, and nullable `expires_at` for the administrative-revocation case.
+- [ ] Verify a Pro 2600 grant with one consumed credit produces a 2599 source forfeiture, zero spendable paid balance, stable `RevokedAtUtc`, and a cooldown deadline exactly 30 days after first observation.
+- [ ] Verify pending reservations release once and cannot finalize after revocation; verify login and conversation history remain accessible.
+- [ ] Verify Plus-only and Pro-only revocation while the other independent plan remains active.
+- [ ] Verify status 401, 404, 429, timeout and 5xx preserve authentication, never grant paid access, and follow the configured stale-grace behavior.
+- [ ] Confirm aggregate status plus exchange traffic across all API instances stays within the partner's 60 requests/minute limit; the in-process 1.1-second pace is not a distributed limiter.
+- [ ] Confirm credentials are present only in server-side secret configuration and no Basic Auth or external user id appears in logs or browser responses.
+- [ ] Record PostgreSQL concurrency results and real partner staging evidence. No production API calls or production migrations are part of implementation work.

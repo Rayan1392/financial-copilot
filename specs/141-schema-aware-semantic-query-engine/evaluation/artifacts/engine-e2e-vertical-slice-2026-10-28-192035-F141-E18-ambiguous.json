@@ -1,0 +1,167 @@
+{
+  "runAt": "2026-10-28T19:20:35.9830103+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E18",
+    "Question": "فروش کگل چقدر است؟",
+    "Fixture": {
+      "DatabaseName": "feature131_ad029cacae174a309cce4e98c5b03bb9",
+      "RestrictedRole": "feature141_vs_reader_5ab3aa10105c4df1a1e728ec187f19a0",
+      "CompanyId": "7822a787-4875-4320-abe3-b654030dec80",
+      "DecoyCompanyId": "8d7ffcf4-4c29-41a0-baa3-1979ac68de07",
+      "StatementId": "da5155f5-d181-447c-9cc4-f31f788856e6",
+      "OlderStatementId": "40741056-560a-41ae-8fbe-3bf0228abb1b",
+      "SeededLineItemCount": 4
+    },
+    "ExpectedOutcome": "Ambiguous",
+    "TypedOutcome": "Ambiguous",
+    "TypedOutcomeReason": "canonical_measure_ambiguous",
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "cd7da04a59d9ea7cfac96db7f63b3dc03c6fe909dafa417734b3560028eab98c",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "فروش",
+          "ConceptId": null,
+          "CanonicalizationStatus": "Ambiguous",
+          "CandidateConceptIds": [
+            "salesAmount",
+            "salesQuantity"
+          ],
+          "Kind": "OtherBusinessMeasure",
+          "Dimension": "Unknown",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "CompanyTotal"
+          },
+          "RequestedUnit": "Unspecified",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Retrieve",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "کگل"
+        ]
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Scalar",
+        "RequestedFields": []
+      },
+      "Constraints": [],
+      "Ambiguity": {
+        "RequiresClarification": true,
+        "Questions": [
+          "منظور شما مبلغ فروش است یا مقدار/حجم فروش؟",
+          "فروش مربوط به کدام دوره است؟",
+          "منظورتان از «فروش» مبلغ فروش است یا مقدار فروش؟"
+        ],
+        "UnresolvedPoints": [
+          "نوع فروش: مبلغ یا مقدار/حجم",
+          "دوره گزارش",
+          "ambiguous_reviewed_measure_term"
+        ]
+      }
+    },
+    "TypedBindingStatus": "Ambiguous",
+    "TypedBindingDiagnostics": [
+      "canonical_measure_ambiguous"
+    ],
+    "BoundSourceCatalogId": null,
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": null,
+    "Navigation": null,
+    "Plan": null,
+    "PlanStructurallyValid": false,
+    "PlanExecutionEligible": false,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadMonthlyReports": false,
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 1,
+    "ObservedModelCalls": 1,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 2438,
+    "LlmOutputTokens": 794,
+    "IntentLatencyMs": 9088.9298,
+    "NavigatorLatencyMs": 0,
+    "TotalElapsedMs": 9337.4677,
+    "SecretValuesLogged": false
+  }
+}

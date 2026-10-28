@@ -521,3 +521,20 @@ statement observations.
 - [x] Release tool build; focused semantic tests 14/14; Python scoring/builder tests 5/5; catalog integrity passes.
 - [ ] Obtain independent human/domain review of v3 gold and resolve the `fa-value-02` source-vs-correction conflict.
 - [ ] Restore provider availability, then evaluate semantic accuracy with nonzero valid-output denominators before considering Phase 2; do not activate routing or execution based on these failed runs.
+
+## 2026-10-28 — First real engine vertical slice (FIRST_VERTICAL_SLICE_PASSED)
+
+- [x] Run one Persian question through live LLM → canonical intent → approved catalog binding → live navigator → planner → SQL compiler → authorized read-only PostgreSQL executor → Persian answer on an isolated database: `سود عملیاتی هر سهم کگهر چقدر است؟` returned 3753 IRRPerShare for 1405-01-01..1405-03-31 (`evaluation/engine-e2e-report.md`, `evaluation/artifacts/engine-e2e-vertical-slice-2026-10-28.json`). Monthly sales was substituted because its measures are still pending owner review.
+- [x] Add the reusable runner `Feature141EngineVerticalSliceTests` / `Feature141EngineVerticalSliceRunner` and the disposable PostgreSQL script for Docker-less hosts.
+- [x] Fix the three production gaps the run exposed: planner handoff now carries `dim_company`, the three verified join relationships and the `latest` period policy; typed binding accepts a requested unit equal to the approved effective unit; compiler carries the owner-approved effective unit.
+- [ ] Remaining 19 cases: approve canonical bindings for `netProfit`, `operatingProfit`, `earningsPerShare`, `totalAssets`; approve monthly measures (`review.semanticApproved/queryable`), product equivalence and company discovery scopes; implement comparison, ranking, filter and aggregation algebra; then reuse the runner case by case.
+- [ ] Restore the Docker Desktop Linux engine or keep the disposable instance as the supported fallback; make the 12 pre-existing focused unit failures (handoff/compilation/UAT tests asserting the older unauthorized catalog state) consistent with the current catalog.
+
+## 2026-10-28 — Evaluation baseline stabilization (BASELINE_STABILIZED)
+
+- [x] One authoritative suite (`evaluation/engine-e2e-suite-v1.json`, F141-E01..E20) with fixture v1, invariants test and legacy-ID mapping; 4 PASS (E04 answered, E18 ambiguous, E19 unsupported, E20 unauthorized), 16 BLOCKED with named blockers.
+- [x] Latest-period semantics regression (11 scenarios, isolated PostgreSQL, no LLM); two fail-closed executor fixes: single row without value → NoData, unscoped question across consolidation bases → Ambiguous.
+- [x] Typed rejections run through the full-chain runner with model/executor call counters; tenant-less request refused before any model call.
+- [x] Canonicalizer drops a requested output field that merely restates the measure (live model emitted it intermittently and broke the slice).
+- [x] Governance boundary analysis recorded in `evaluation/engine-baseline-stabilization-report.md`.
+- [ ] Decide the stale-test contract updates listed in the report (12 focused unit tests asserting the pre-approval catalog state) with the product owner before editing them.

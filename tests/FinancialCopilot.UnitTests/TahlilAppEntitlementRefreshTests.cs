@@ -36,6 +36,7 @@ public sealed class TahlilAppEntitlementRefreshTests
         Assert.Equal(2, harness.Gateway.Calls);
         Assert.Equal(before.Revision, after.Revision);
         Assert.Equal(1, before.Revision);
+        Assert.Equal(ExternalId, harness.Gateway.LastExternalUserId);
         Assert.Equal(before.Audits, after.Audits);
         Assert.Equal(1, after.Audits);
         Assert.Equal(before.Balance, after.Balance);
@@ -55,11 +56,24 @@ public sealed class TahlilAppEntitlementRefreshTests
     }
 
     [Fact]
-    public async Task ConcurrentPlusAndPro_AccumulateCredits_AndFreeStartsAfterBothExpire()
+    public async Task ConcurrentDueRefreshesForOneUserShareOneStatusRequest()
+    {
+        var harness = new Harness();
+        harness.Gateway.Result = Status("Pro", true, Start.AddDays(30), 1);
+
+        await Task.WhenAll(Enumerable.Range(0, 12).Select(_ =>
+            harness.Refresher.RefreshIfDueAsync(harness.TenantId, harness.UserId, CancellationToken.None)));
+
+        Assert.Equal(1, harness.Gateway.Calls);
+        Assert.Equal("Pro", (await harness.ReadAsync()).PlanCode);
+    }
+
+    [Fact]
+    public async Task ProSnapshotRevokesOmittedPlus_AndFreeStartsAfterProExpires()
     {
         var harness = new Harness();
         await harness.RefreshAsync(Status("Plus", true, Start.AddDays(30), 1));
-        var balance = (await harness.ReadAsync()).Balance;
+        Assert.Equal(260m, (await harness.ReadAsync()).Balance);
 
         harness.Clock.Advance(TimeSpan.FromMinutes(16));
         var proExpiry = harness.Clock.GetUtcNow().AddDays(30);
@@ -72,7 +86,7 @@ public sealed class TahlilAppEntitlementRefreshTests
 
         Assert.Equal("Pro", upgraded.PlanCode);
         Assert.Equal(proExpiry, upgraded.EffectiveTo);
-        Assert.Equal(balance + 2600m, upgraded.Balance);
+        Assert.Equal(2600m, upgraded.Balance);
         Assert.Equal(2, upgraded.Revision);
 
         Assert.Equal("Free", downgraded.PlanCode);
@@ -194,7 +208,7 @@ public sealed class TahlilAppEntitlementRefreshTests
     }
 
     [Fact]
-    public async Task NotFound_MarksTheIdentityRevoked()
+    public async Task NotFound_FailsClosedWithoutDisablingAuthentication()
     {
         var harness = new Harness();
         await harness.RefreshAsync(Status("Plus", true, Start.AddDays(30), 1));
@@ -203,7 +217,9 @@ public sealed class TahlilAppEntitlementRefreshTests
         harness.Gateway.Result = new TahlilAppStatusResult(TahlilAppStatusOutcome.NotFound);
         await harness.Refresher.RefreshIfDueAsync(harness.TenantId, harness.UserId, CancellationToken.None);
 
-        Assert.Equal(TahlilAppIdentityStatus.Revoked, harness.Store.Identity!.Status);
+        Assert.Equal(TahlilAppIdentityStatus.Active, harness.Store.Identity!.Status);
+        Assert.Equal("Plus", (await harness.ReadAsync()).PlanCode);
+        Assert.Single(harness.Store.Failures);
     }
 
     [Fact]
@@ -373,10 +389,12 @@ public sealed class TahlilAppEntitlementRefreshTests
     {
         public TahlilAppStatusResult Result { get; set; } = new(TahlilAppStatusOutcome.Unavailable);
         public int Calls { get; private set; }
+        public string? LastExternalUserId { get; private set; }
 
         public Task<TahlilAppStatusResult> GetStatusAsync(string externalUserId, string correlationId, CancellationToken cancellationToken)
         {
             Calls++;
+            LastExternalUserId = externalUserId;
             return Task.FromResult(Result);
         }
 

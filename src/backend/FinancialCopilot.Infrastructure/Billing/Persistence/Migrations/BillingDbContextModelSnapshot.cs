@@ -572,6 +572,9 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(180)
                         .HasColumnType("character varying(180)");
 
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PlanCode")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -579,6 +582,9 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
 
                     b.Property<bool>("PlusTransferApplied")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("StartsAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -672,6 +678,9 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                     b.Property<long>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("RevocationObservedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("CustomerAccountId");
 

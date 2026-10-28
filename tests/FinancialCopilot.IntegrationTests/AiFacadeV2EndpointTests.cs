@@ -5,6 +5,10 @@ using FinancialCopilot.Application.AI.ModelProviders;
 using FinancialCopilot.Application.AI.Orchestration;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Scanner;
+using FinancialCopilot.Billing;
+using FinancialCopilot.Billing.Accounts;
+using FinancialCopilot.Billing.Contracts;
+using FinancialCopilot.Billing.Usage;
 using FinancialCopilot.Domain.Financial.Entities;
 using FinancialCopilot.Infrastructure.Financial.Ingestion.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +18,52 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FinancialCopilot.IntegrationTests;
+
+public sealed class V2CooldownDenialEndpointTests : IClassFixture<V2CooldownDenialApiFactory>
+{
+    private readonly V2CooldownDenialApiFactory _factory;
+
+    public V2CooldownDenialEndpointTests(V2CooldownDenialApiFactory factory)
+    {
+        _factory = factory;
+        factory.EnsureBillingSeeded();
+    }
+
+    [Fact]
+    public async Task V2AiQuery_BillingCooldownDenial_ReturnsTyped402InsteadOfGeneric500()
+    {
+        var cooldownUntil = DateTimeOffset.UtcNow.AddDays(1);
+        using var client = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ICreditReservationService>();
+            services.AddSingleton<ICreditReservationService>(new CooldownDenialReservationService(cooldownUntil));
+        })).CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var response = await client.PostAsJsonAsync("/api/ai/v1/query", new { message = "P/E below 6" });
+        var responseBody = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(responseBody);
+
+        Assert.True(response.StatusCode == HttpStatusCode.PaymentRequired, $"{response.StatusCode}: {responseBody}");
+        Assert.Equal("SUBSCRIPTION_COOLDOWN_ACTIVE", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(cooldownUntil, document.RootElement.GetProperty("cooldownUntilUtc").GetDateTimeOffset());
+        Assert.Equal(25m, document.RootElement.GetProperty("freePlanCredits").GetDecimal());
+    }
+}
+
+public sealed class V2CooldownDenialApiFactory : AiFacadeApiFactory
+{
+    protected override bool ForceV1Orchestration => false;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AiOrchestration:Mode"] = "MicrosoftAgentFrameworkV2"
+        }));
+    }
+}
 
 // â”€â”€â”€ V2 Scanner tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

@@ -195,3 +195,17 @@ Revision 7 acceptance criteria AC-100 through AC-106 are defined in tasks.md and
 ### Latest full unit regression result
 
 `dotnet test tests/FinancialCopilot.UnitTests/FinancialCopilot.UnitTests.csproj --configuration Release --no-build --no-restore` completed with 2,298 passed and 20 failed (2,318 total). The 20 failures are outside Feature 139/Billing, in existing Feature 128/141, semantic dialogue, financial source planning, schema navigation, Telegram/Nadpco and structured query tests. A prior full run had 18 failures overlapping the saved pre-change baseline TRX; the remaining failures are unrelated to this change and vary across repeated runs. No Feature 139/Billing test failed in the focused run.
+
+## Revision 8 — Implementation status
+
+Implemented authoritative empty-plan revocation in the existing per-plan Billing synchronizer. It marks omitted still-future plan rows revoked without changing their original expiry, forfeits remaining period credits through an idempotent append-only adjustment, releases outstanding reservations before forfeiture, and persists a stable first-observed revocation timestamp for the 30-day cooldown. Independent remaining paid plans continue to determine the effective plan. Status refresh is checked on login and before new usage reservations when the 15-minute verification TTL is stale; it uses the persisted TahlilApp external id, shared single-flight refresh and a 1.1-second per-process partner request pace. Unavailable responses do not alter authentication and fail closed after the configured stale grace.
+
+Migration `Feature139SubscriptionRevocation` is generated and remains unapplied. Focused regression and Release build results for this revision are recorded after execution below. No production endpoint, deployment, or migration was used.
+
+### Revision 8 verification
+
+- Focused unit command: `dotnet test tests/FinancialCopilot.UnitTests/FinancialCopilot.UnitTests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~TahlilApp|FullyQualifiedName~SubscriptionCreditLifecycle|FullyQualifiedName~Billing"` — **186 passed, 0 failed**. Includes authoritative inactive/empty-plan revocation, stable cooldown, consumed-credit preservation, pending reservation release, per-user concurrent refresh, official status path/auth, and status failure mapping.
+- Focused integration command covered TahlilApp launch, Billing persistence/endpoints, V1/V2 AI facade endpoints, and Feature 139 PostgreSQL tests — **65 passed, 2 PostgreSQL tests skipped, 1 failed**. The unrelated `TahlilAppLaunchDisabledIntegrationTests.WhenFeatureIsDisabled_LaunchReturnsNotFound` returned HTTP 401 instead of the expected 404; it does not exercise the revocation path and has not been confirmed against a pre-change run.
+- Backend Release solution build: **passed, 0 warnings, 0 errors**.
+- The PostgreSQL tests were skipped because local PostgreSQL/Docker infrastructure was unavailable. Migration `Feature139SubscriptionRevocation` was generated only; it was not applied. No production partner endpoint was called, and no deployment, commit, or push was performed.
+- A shared distributed rate limiter is still an operational requirement for multiple API instances. Current pacing is process-wide (one request per 1.1 seconds per process), so aggregate traffic across replicas must be verified or routed through one shared limiter before staging enablement.

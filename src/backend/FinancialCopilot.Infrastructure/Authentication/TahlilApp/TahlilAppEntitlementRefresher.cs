@@ -2,6 +2,7 @@ using FinancialCopilot.Application.Authentication.TahlilApp;
 using FinancialCopilot.Domain.Identity.TahlilApp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 
 namespace FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 
@@ -20,8 +21,23 @@ public sealed class TahlilAppEntitlementRefresher(
     ILogger<TahlilAppEntitlementRefresher> logger) : ITahlilAppEntitlementRefresher
 {
     private const string UnavailableDecisionReason = "unavailable-stale-grace-expired";
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> RefreshLocks = new();
 
     public async Task RefreshIfDueAsync(Guid tenantId, Guid localUserId, CancellationToken cancellationToken)
+    {
+        var refreshLock = RefreshLocks.GetOrAdd(localUserId, static _ => new SemaphoreSlim(1, 1));
+        await refreshLock.WaitAsync(cancellationToken);
+        try
+        {
+            await RefreshCoreAsync(tenantId, localUserId, cancellationToken);
+        }
+        finally
+        {
+            refreshLock.Release();
+        }
+    }
+
+    private async Task RefreshCoreAsync(Guid tenantId, Guid localUserId, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         if (!settings.Enabled)
@@ -50,12 +66,14 @@ public sealed class TahlilAppEntitlementRefresher(
         switch (result.Outcome)
         {
             case TahlilAppStatusOutcome.Succeeded when result.Snapshot is { } snapshot:
-                await ApplySnapshotAsync(tenantId, localUserId, snapshot, now, statusTtl, cancellationToken);
-                return;
+                var latest = await state.FindByLocalUserAsync(localUserId, cancellationToken);
+                if (latest?.LastEntitlementSyncAtUtc is { } lastVerified && lastVerified > now)
+                {
+                    // Another instance completed a newer verification while this HTTP request was in flight.
+                    return;
+                }
 
-            case TahlilAppStatusOutcome.NotFound:
-                await state.RecordIdentityStatusAsync(localUserId, TahlilAppIdentityStatus.Revoked, now, cancellationToken);
-                logger.LogWarning("TahlilApp identity is no longer present upstream; identity revoked. LocalUserId: {LocalUserId}", localUserId);
+                await ApplySnapshotAsync(tenantId, localUserId, snapshot, now, statusTtl, cancellationToken);
                 return;
 
             default:

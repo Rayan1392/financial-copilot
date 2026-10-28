@@ -306,11 +306,15 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
                 return Result(status, query, grant, !query.CompanyDiscoveryCoverageComplete
                     ? "population_discovery_authorized_company_coverage_incomplete"
                     : "population_discovery_product_alias_coverage_incomplete", rows, timer.Elapsed, bytes);
-            if (query.ResultShape == PlanPresentation.Scalar && rows.Count > 1)
+            if (query.ResultShape == PlanPresentation.Scalar && rows.Count > 1 && query.IsMonthlyValueQuery)
+                return Result(StructuredQueryExecutionStatus.Ambiguous, query, grant,
+                    "monthly_product_period_has_multiple_source_rows", rows, timer.Elapsed, bytes);
+            // A statement value is only an answer when exactly one eligible observation carries a value.
+            // A single latest statement without the requested item (or with a NULL value) is NoData, never
+            // a substitute from an older period, and never a "Succeeded" row without a number.
+            if (query.ResultShape == PlanPresentation.Scalar && rows.Count >= 1 && !query.IsMonthlyValueQuery
+                && !query.IsPopulationDiscoveryQuery)
             {
-                if (query.IsMonthlyValueQuery)
-                    return Result(StructuredQueryExecutionStatus.Ambiguous, query, grant,
-                        "monthly_product_period_has_multiple_source_rows", rows, timer.Elapsed, bytes);
                 var resolution = ResolveStatementTie(rows);
                 if (resolution.Status != StructuredQueryExecutionStatus.Succeeded)
                     return Result(resolution.Status, query, grant, resolution.DiagnosticCode, resolution.Rows, timer.Elapsed, bytes);
@@ -413,14 +417,22 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
         string? DiagnosticCode) ResolveStatementTie(IReadOnlyList<IReadOnlyDictionary<string, object?>> rows)
     {
         if (rows.Count == 0) return (StructuredQueryExecutionStatus.NoData, [], null);
-        if (rows.Count == 1) return (rows[0].GetValueOrDefault("Value") is null
-            ? StructuredQueryExecutionStatus.NoData : StructuredQueryExecutionStatus.Succeeded, rows, null);
+        if (rows.Count == 1) return rows[0].GetValueOrDefault("Value") is null
+            ? (StructuredQueryExecutionStatus.NoData, rows, "eligible_statement_observation_missing")
+            : (StructuredQueryExecutionStatus.Succeeded, rows, null);
         var periods = rows.Select(row => ReportingPeriod(row.GetValueOrDefault("PeriodEnd"))).ToArray();
         if (periods.Any(period => !period.HasValue))
             return (StructuredQueryExecutionStatus.Ambiguous, rows, "reporting_period_evidence_unavailable");
         var latestEnd = periods.Max(period => period!.Value);
         var latest = rows.Where((_, index) => periods[index] == latestEnd).ToArray();
         if (latest.Length == 0) return (StructuredQueryExecutionStatus.NoData, [], null);
+        // When no consolidation basis was requested, the compiled query returns the latest statement
+        // of each basis. Choosing the newer basis would silently change the reporting basis of the
+        // answer, so the choice is left to the user instead of being made here.
+        var bases = rows.Select(row => row.GetValueOrDefault("IsComposing")).Distinct().ToArray();
+        var latestBases = latest.Select(row => row.GetValueOrDefault("IsComposing")).Distinct().ToArray();
+        if (bases.Length > 1 && latestBases.Length == 1)
+            return (StructuredQueryExecutionStatus.Ambiguous, rows, "statement_scope_unspecified_across_consolidation_bases");
         // Period type and start are selection dimensions; audit, representation and revision are
         // competing statement identities within one otherwise comparable period.
         var periodScopes = latest.Select(row => (Start: row.GetValueOrDefault("PeriodStart"),

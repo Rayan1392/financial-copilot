@@ -197,12 +197,23 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
                 (ambiguity?.UnresolvedPoints ?? []).Append("ambiguous_reviewed_measure_term").Distinct(StringComparer.Ordinal).ToArray());
         }
 
+        // A requested output field that only restates a requested measure (its phrase or its concept)
+        // adds no semantics; models emit it inconsistently, so it is removed deterministically here.
+        var measureTerms = measures.SelectMany(measure => new[] { CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(measure.UserPhrase), measure.ConceptId ?? string.Empty })
+            .Where(term => term.Length > 0).ToHashSet(StringComparer.Ordinal);
+        var requestedFields = (intent.Output?.RequestedFields ?? [])
+            .Where(field => !string.IsNullOrWhiteSpace(field)
+                && !measureTerms.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field))
+                && !measureTerms.Contains(ResolveReference(field)))
+            .Distinct(StringComparer.Ordinal).ToArray();
+
         return intent with
         {
             Measures = measures,
             Operation = operation!,
             Filters = CanonicalizeFilter(intent.Filters),
             Ranking = intent.Ranking is null ? null : intent.Ranking with { MeasureConcept = ResolveReference(intent.Ranking.MeasureConcept) },
+            Output = intent.Output is null ? intent.Output! : intent.Output with { RequestedFields = requestedFields },
             Ambiguity = ambiguity!
         };
     }

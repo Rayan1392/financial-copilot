@@ -253,6 +253,21 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
         CancellationToken cancellationToken)
     {
         account.ExternalSubscriptionManaged = true;
+        var incomingKeys = subscriptions.Select(item => item.IdentityKey).ToHashSet(StringComparer.Ordinal);
+        var storedSubscriptions = await dbContext.ExternalPlanSubscriptions
+            .Where(item => item.CustomerAccountId == account.Id)
+            .ToListAsync(cancellationToken);
+        var newlyRevoked = new List<ExternalPlanSubscriptionRow>();
+        foreach (var stored in storedSubscriptions)
+        {
+            if (!stored.IsRevoked && !incomingKeys.Contains(stored.IdentityKey) && stored.ExpiresAtUtc > now)
+            {
+                stored.IsRevoked = true;
+                stored.RevokedAtUtc = now;
+                newlyRevoked.Add(stored);
+            }
+        }
+
         foreach (var subscription in subscriptions)
         {
             var row = await dbContext.ExternalPlanSubscriptions.SingleOrDefaultAsync(
@@ -272,21 +287,71 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             }
         }
 
+        if (newlyRevoked.Count > 0)
+        {
+            // A reservation has no source allocation until finalization. Release every in-flight
+            // hold before forfeiting revoked sources so none can later charge those credits.
+            await ReleasePendingReservationsForRevocationAsync(account, wallet, now, cancellationToken);
+            var revokedKeys = newlyRevoked.Select(item => item.IdentityKey).ToHashSet(StringComparer.Ordinal);
+            var periods = await dbContext.SubscriptionCreditPeriods
+                .Where(row => row.CustomerAccountId == account.Id && row.Status == ActiveStatus)
+                .ToListAsync(cancellationToken);
+            foreach (var period in periods.Where(row => revokedKeys.Contains(row.SubscriptionIdentity)))
+            {
+                ClosePeriod(account, wallet, period, now, ForfeitedStatus, ForfeitureOperationCode);
+            }
+        }
+
         await EnsureExternalPlanPeriodsAsync(account, wallet, now, cancellationToken);
     }
 
+    private async Task ReleasePendingReservationsForRevocationAsync(
+        CustomerAccountRow account,
+        WalletProjectionRow wallet,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var pending = await dbContext.UsageReservations
+            .Where(row => row.CustomerAccountId == account.Id &&
+                          row.Status == nameof(FinancialCopilot.Billing.Usage.UsageReservationStatus.Reserved))
+            .ToListAsync(cancellationToken);
+        if (pending.Count == 0) return;
+
+        var released = pending.Sum(row => row.ReservedCredits);
+        foreach (var reservation in pending)
+        {
+            reservation.Status = nameof(FinancialCopilot.Billing.Usage.UsageReservationStatus.Released);
+            reservation.FinalizationReason = "Released because the authoritative TahlilApp subscription snapshot revoked its credit source.";
+            BillingOutboxWriter.Add(dbContext, "UsageReservation", reservation.Id,
+                "Billing.UsageReservationReleased", $"{reservation.IdempotencyKey}:revoked-release",
+                new { reservation.CustomerAccountId, reservation.ReservedCredits, Reason = "subscription-revoked" }, now);
+        }
+
+        wallet.ReservedAmount = Math.Max(0m, wallet.ReservedAmount - released);
+        wallet.UpdatedAt = now;
+        wallet.Revision++;
+    }
+
     public async Task<bool> IsPaidExpiryCooldownActiveAsync(Guid customerAccountId, DateTimeOffset now, CancellationToken cancellationToken)
+        => await GetActivePaidExpiryCooldownEndAsync(customerAccountId, now, cancellationToken) is not null;
+
+    public async Task<DateTimeOffset?> GetActivePaidExpiryCooldownEndAsync(
+        Guid customerAccountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
     {
         var hasPaid = await dbContext.ExternalPlanSubscriptions.AnyAsync(
-            row => row.CustomerAccountId == customerAccountId &&
+            row => row.CustomerAccountId == customerAccountId && !row.IsRevoked &&
                    row.StartsAtUtc <= now && row.ExpiresAtUtc > now &&
                    (row.PlanCode == "Plus" || row.PlanCode == "Pro"), cancellationToken);
-        if (hasPaid) return false;
+        if (hasPaid) return null;
         var cooldown = dbContext.PaidExpiryCooldowns.Local.SingleOrDefault(
             row => row.CustomerAccountId == customerAccountId) ??
             await dbContext.PaidExpiryCooldowns.SingleOrDefaultAsync(
                 row => row.CustomerAccountId == customerAccountId, cancellationToken);
-        return cooldown is not null && now < cooldown.CooldownUntilUtc;
+        return cooldown is not null && now < cooldown.CooldownUntilUtc
+            ? cooldown.CooldownUntilUtc
+            : null;
     }
 
     private async Task<bool> EnsureExternalPlanPeriodsAsync(
@@ -304,7 +369,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             subscriptions.Add(added);
         }
         var active = subscriptions
-            .Where(row => row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
+            .Where(row => !row.IsRevoked && row.StartsAtUtc <= now && row.ExpiresAtUtc > now)
             .OrderBy(row => row.ExpiresAtUtc)
             .ThenBy(row => row.PlanCode == "Plus" ? 0 : 1)
             .ThenBy(row => row.StartsAtUtc)
@@ -391,13 +456,17 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
 
         var lastPaidExpiry = subscriptions
             .Where(row => row.PlanCode is "Plus" or "Pro")
-            .Select(row => (DateTimeOffset?)row.ExpiresAtUtc)
+            .Select(row => (DateTimeOffset?)(row.RevokedAtUtc ?? row.ExpiresAtUtc))
             .Max();
         PaidExpiryCooldownRow? cooldown = null;
         if (lastPaidExpiry is { } expiry)
         {
             cooldown = await dbContext.PaidExpiryCooldowns.SingleOrDefaultAsync(
                 row => row.CustomerAccountId == account.Id, cancellationToken);
+            var observedRevocation = subscriptions
+                .Where(row => row.PlanCode is "Plus" or "Pro" && row.IsRevoked)
+                .Select(row => (DateTimeOffset?)row.RevokedAtUtc)
+                .Max();
             var cooldownEnd = expiry.AddDays(30);
             if (cooldown is null)
             {
@@ -406,6 +475,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
                     CustomerAccountId = account.Id,
                     LastPaidExpiresAtUtc = expiry,
                     CooldownUntilUtc = cooldownEnd,
+                    RevocationObservedAtUtc = observedRevocation,
                     Revision = 0
                 };
                 dbContext.PaidExpiryCooldowns.Add(cooldown);
@@ -415,6 +485,7 @@ public sealed class SubscriptionCreditLifecycleService(BillingDbContext dbContex
             {
                 cooldown.LastPaidExpiresAtUtc = expiry;
                 cooldown.CooldownUntilUtc = cooldownEnd;
+                cooldown.RevocationObservedAtUtc = observedRevocation;
                 cooldown.Revision++;
                 changed = true;
             }

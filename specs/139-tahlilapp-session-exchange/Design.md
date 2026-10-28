@@ -1,6 +1,23 @@
 # Feature 139 — TahlilApp Session Exchange
 
-Status: **Revision 6 — Revision 4 repository reconciliation remains authoritative for identity and integration (§22); Revision 5 §23 records the 30-day credit lifecycle; Revision 6 §24 confirms Plus→Pro transfer and requires authoritative TahlilApp activation timestamps. TahlilApp-side behavior is external and unverified.**
+## Revision 9 — Official `name` persisted as `DisplayName`
+
+The official exchange response carries the TahlilApp full name as the optional root `name` (for example `"name": "کامران عبدی"`) next to `user_id`; it does not supply `firstName`/`lastName`. Before this revision the parser read `name` but nothing stored it, so a real launch created an all-null `auth_user_profiles` row and the profile page could render `null null`. Decision D8 (§22) is superseded for the official contract.
+
+- **Storage.** One additive nullable column, `auth_user_profiles.DisplayName varchar(100)` (migration `Feature139UserProfileDisplayName`). It is a §10.2 profile attribute: plain text, treated as PII for logging, no index, no unique constraint, never a lookup or linking key. `auth_users` and `auth_external_identities` are unchanged; `user_id` stays only in `auth_external_identities.ExternalUserId` under `(Provider = TahlilApp, ExternalUserId)`.
+- **No splitting.** The full name is stored exactly as validated. It is never split into `FirstName`/`LastName` (Persian compound names cannot be split reliably). `FirstName`/`LastName` remain for older records and a possible future contract.
+- **Parsing.** `name` maps to an `IncomingProfileField`: a string accepted by `PersonName` (trimmed, 1–100 characters, no control characters) is Valid; a missing key is Absent; JSON `null` is Null; any other JSON type, an empty or whitespace-only string, a control character, or more than 100 characters is Invalid. An invalid optional `name` never rejects an otherwise valid exchange (previously a non-string `name` rejected the whole response).
+- **Synchronisation.** The §10.2 per-field policy applies unchanged. First launch stores a valid name in the provisioning transaction. A later TahlilApp launch overwrites a valid changed name and sets `UpdatedAtUtc`; an identical name writes nothing and leaves `UpdatedAtUtc`; Absent, Null or Invalid keeps the stored value. `ProfileSyncedAtUtc` is set on every successful launch. Direct login and the entitlement status sync never touch it (the status endpoint carries no profile fields). Clearing remains out of scope.
+- **Logging.** A change logs the field name `displayName` only; an invalid value logs `TahlilAppProfileFieldRejected` with field name and reason only. The value is never logged.
+- **Read surfaces.** `GET /api/auth/v1/profile` adds nullable `displayName`; all name and masked fields may be JSON `null`. Display precedence everywhere: `DisplayName`, else `FirstName + " " + LastName` with blank parts skipped, else «—». The admin user directory shows the same precedence and also searches `DisplayName`; existing first/last name search is kept.
+
+Acceptance criteria AC-107…AC-110 are defined in tasks.md (T-39).
+
+## Revision 8 — Temporary Closed Registration policy
+
+Public account creation through `POST /api/auth/v1/register` is disabled by default with `Authentication:OwnedIdentity:PublicRegistrationEnabled=false`; the API returns HTTP 403 with `REGISTRATION_DISABLED` before invoking account creation. This check is confined to the public registration controller boundary. Direct email/password login, refresh, password recovery, verification, and Feature 145 credential enrollment remain enabled. New users enter through trusted external identity providers, initially TahlilApp. The `(Provider, ExternalUserId)` mapping and provisioning boundary remain generic for future trusted providers. Native public registration may be enabled only under a future separate product decision. Historical references below to open registration describe the prior implementation and are superseded by this revision.
+
+Status: **Revision 9 — the official `name` is persisted as `auth_user_profiles.DisplayName`; Revision 8 — public registration is temporarily closed; Revision 7 governs the official TahlilApp contract and independent subscription policy; Revision 6 §24 and earlier revisions retain the implementation history for identity and Billing. TahlilApp-side behavior is external and unverified.**
 
 Revisions 1â€“3 were design-only (see sections 1â€“21 below). Revision 4 (Â§22) reconciles identity and integration behavior. For Billing credit behavior, this Revision 5â€™s Â§23 and AC-88â€¦AC-95 supersede conflicting statements in Â§Â§11, 19 and 22.
 
@@ -232,6 +249,7 @@ Returning launch: lookup by `(TahlilApp, ExternalUserId)` â†’ same `LocalUs
 | --- | --- |
 | `UserId` (Guid PK/FK `auth_users`) | 1:1 with the local user. |
 | `FirstName`, `LastName` (varchar 100, nullable) | Plain text. Treated as PII for logging purposes (never logged). |
+| `DisplayName` (varchar 100, nullable) | Revision 9. Official TahlilApp root `name`, stored as one value and never split. Same policy as the names above. |
 | `NationalIdEncrypted`, `MobileEncrypted` (text, nullable) | Field-level encryption with ASP.NET Core **Data Protection** (`IDataProtector`, purposes `FinancialCopilot.Profile.NationalId.v1` / `.Mobile.v1`) â€” no custom cryptography, no additional key management beyond the key ring (Â§17.1). Stored normalized (national id: 10 ASCII digits; mobile: E.164). |
 | `NationalIdLast4`, `MobileLast4` (char(4), nullable, optional) | Display/audit metadata so masked values render without decrypting. Not an index, not a lookup key. |
 | `CreatedAtUtc`, `UpdatedAtUtc` | Row lifecycle. |
@@ -666,7 +684,7 @@ Total: **14 slices** (S-2/S-3 are TahlilApp-side).
 | D5 | Â§10.1 `Email = null` provisioning under `UserManager.CreateAsync` | **Verify before relying on it.** `RequireUniqueEmail = true` is configured (`ServiceCollectionExtensions.cs:241`). ASP.NET Core's default user validator can reject a null email when that option is set. Provisioning must be proven with an integration test. If rejected, provisioning writes the user row through `AuthDbContext` with `NormalizedUserName`, `SecurityStamp` and `ConcurrencyStamp` set explicitly, and this exception is documented and covered by the test. No placeholder email is ever written. | Prevents silently fabricating an email; tracked as review finding F-03. |
 | D6 | Â§9.1 `entitlements[]` / Â§11 Q3 external permissions | **v1 accepts no external permission as a grant.** `permissions[]`, if present, is parsed, counted and logged only. Plan from Billing remains the single entitlement source. | Product permission names are unverified (prompt Â§12); accepting them would create a second authorization system (Feature 035). |
 | D7 | Â§11 `active paid, no expiresAt` (unspecified) | Treated as **fail-closed**: `Free` with a warning. | Unbounded paid access without an expiry cannot be validated. |
-| D8 | Â§9.1 `displayName` dropped, names from first+last | Unchanged. | â€” |
+| D8 | Â§9.1 `displayName` dropped, names from first+last | **Superseded by Revision 9:** the official contract sends one root `name`, stored as `auth_user_profiles.DisplayName` and never split. | â€” |
 | D9 | Â§13.1 HMAC request signing | Not implemented in v1; API key only (repository convention, Q2). | Q2 open with TahlilApp. |
 | D10 | Â§12 `amr` on refresh | `amr` is stored on `auth_refresh_tokens` (nullable, legacy = `pwd`) and copied on refresh. | Keeps `amr` truthful across refresh rotation. |
 | D11 | Â§10.2 `auth_user_profiles` PII | Unchanged. Encryption uses `IDataProtectionProvider` with purposes `FinancialCopilot.Profile.NationalId.v1` / `.Mobile.v1`. | â€” |

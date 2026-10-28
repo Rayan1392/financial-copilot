@@ -1,5 +1,45 @@
 # Feature 139 — Implementation Report
 
+## Revision 9 — Official `name` persisted as `DisplayName` (2026-10-28)
+
+**Status: IMPLEMENTED; migration NOT applied.** The official exchange `name` was parsed but discarded, so every real launch created an all-null profile and the profile page could render `null null`. It is now stored in `auth_user_profiles.DisplayName`.
+
+- **Schema.** Migration `20261028144627_Feature139UserProfileDisplayName` adds one nullable column, `auth_user_profiles.DisplayName character varying(100)`, with no default and no index (`Down` drops only that column). The model snapshot changes only by that property. `auth_users` and `auth_external_identities` are unchanged; `user_id` remains in `auth_external_identities.ExternalUserId`.
+- **Parsing.** `TahlilAppExchangeSnapshot.Name` (`string?`) became `DisplayName` (`IncomingProfileField?`; null = Absent). `TahlilAppExchangeParser` validates with `PersonName`. A non-string `name` previously rejected the whole exchange; it is now `Invalid` and the launch proceeds (Design §10.2 / Revision 9).
+- **Synchronisation.** `TahlilAppAccountProvisioner` applies `ProfileFieldMergePolicy` to `DisplayName` exactly as for the other profile fields. Changed fields log `displayName` by name; an invalid value logs `TahlilAppProfileFieldRejected` with field name and reason only.
+- **Read surfaces.** `OwnProfileView`/`OwnProfileResponse` add nullable `DisplayName`. The admin directory projects and searches `DisplayName` and displays it before the first/last join (`ResolveDisplayName`). Frontend: `OwnProfile` fields are nullable; `profileDisplayName` gives DisplayName → first + last → «—»; masked identifiers render «—» when null.
+- **Test-host logging fix.** `Program.cs` uses `UseSerilog(...)` without `writeToProviders`, so the `TahlilAppLogCaptureProvider` used by T-25 never received application log calls; `LaunchLogsNeverContainProfilePiiValues` passed without observing provisioner logs. `TahlilAppLaunchApiFactory` now routes the test host's `ILoggerFactory` to the capture provider. With real capture, the existing T-25 test and the new DisplayName redaction test both pass and positively observe the `displayName` change and rejection log lines. Production logging is unchanged.
+
+Tests added or updated:
+
+| Area | Tests |
+| --- | --- |
+| Parser (unit) | Official JSON and Persian «کامران عبدی» sample, trim, Absent, Null, 8 invalid shapes (number, boolean, object, array, empty, whitespace, control characters), 100/101-character boundary, `ToString` redaction |
+| Admin precedence (unit) | `ResolveDisplayName`: DisplayName wins, trimmed; blank falls back to first/last; all-blank gives null |
+| Launch (integration) | Through the production `TahlilAppIdentityGateway` and parser over a stubbed HTTP 200 body: first launch, changed name, identical name (`UpdatedAtUtc` unchanged), missing/null/invalid keeps stored value, first launch without a usable name, same local user and one identity link reused, `auth_users` unchanged |
+| Profile API (integration) | `displayName` returned; missing names are JSON `null` |
+| Admin directory (integration, EF InMemory) | Display and search by DisplayName; first/last fallback and search for older records; unnamed user shows null |
+| PII logs (integration) | Valid and invalid name values never appear in captured logs; field-name lines do |
+| PostgreSQL (integration, skippable) | Upgrade from the previous migration keeps existing rows; column type, length, nullability, no default, no index; rollback; directory SQL search and fallback |
+| Frontend | `profileDisplayName` precedence and «—»; rendered `TahlilAppProfileCard` shows DisplayName, fallback, and never `null null` |
+
+Verification for Revision 9:
+
+- Backend Release solution build (non-incremental): 0 warnings, 0 errors.
+- Focused unit tests (TahlilApp, admin display name, merge policy): 126 passed, 0 failed.
+- Full unit suite: 2,320 passed, 20 failed (2,340). The 20 failures are in the same unrelated areas recorded below (Feature 128/141, semantic dialogue, financial source planning, schema navigation, Telegram/Nadpco, structured query); none in Feature 139, profile or admin.
+- Focused Feature 139/profile/auth integration tests: 86 passed, 1 failed, 2 skipped (89). The failure, `TahlilAppLaunchDisabledIntegrationTests.WhenFeatureIsDisabled_LaunchReturnsNotFound` (expected 404, actual 401), reproduces identically on a clean `HEAD` worktree and predates this revision. The 2 skips are the new PostgreSQL tests (Docker unavailable).
+- Full integration suite: 549 passed, 58 failed, 57 skipped (664). A clean `HEAD` worktree run gives 533 passed, 58 failed, 55 skipped (646), and the two failure lists are identical test-for-test: no new failure.
+- Frontend: focused profile/auth tests 45 passed (8 files). Full vitest run: 169 passed, 2 failed; the 2 failures (`markdown-message`, `monthly-product-trend-chart` Persian digit formatting) do not import any changed module, and the 3 browser-only `scripts/*.browser.test.mjs` files are not vitest targets. No type or lint error is on a changed line; `_app.profile.tsx` has pre-existing prettier findings.
+
+Remaining gates: PostgreSQL schema/rollback and directory tests must run where Docker is available; migration application in staging; staging verification with a live TahlilApp `name`; existing TahlilApp users receive `DisplayName` only on their next launch (no backfill is possible because the name was never stored). No production API call, deployment, migration or commit was made.
+
+## Revision 8 — Temporary Closed Registration policy
+
+Implemented: `/auth` now provides local email/password login and password recovery without a public sign-up control; the frontend public registration helper was removed. The sole public registration endpoint, `POST /api/auth/v1/register`, rejects requests before account creation with HTTP 403 and `REGISTRATION_DISABLED`. The option defaults to false and is explicit in API settings. The restriction is not applied in `OwnedIdentityService` or the provider provisioner. Feature 139 launch tests run with public registration disabled, preserving first-time and repeated TahlilApp provisioning; Feature 145 credential enrollment, direct login and refresh remain separate supported flows. No database, billing policy, deployment, or external API changes were made for this increment.
+
+Verification for Revision 8: focused frontend auth tests pass (2 files, 3 tests); focused authentication/Feature 139 integration tests pass (53 tests, including closed-endpoint side-effect checks, first/repeat external launch, enrollment, direct login and refresh); backend Release solution build succeeds with 0 warnings and 0 errors. Full regression suites were not rerun. Previously recorded unrelated failures remain documented in the earlier regression sections above. Staging remains blocked on the existing contract, migration, wallet reconciliation, key-ring, SMTP, proxy and external end-to-end evidence gates; registration-disabled staging verification is also pending. No production API, deployment, or migration was executed.
+
 ## Revision 6 execution update — 2026-10-24
 
 **Status: PARTIAL.** Product decisions for Plus→Pro carry and authoritative TahlilApp activation were applied. TahlilApp staging and operational gates remain unverified.

@@ -206,6 +206,8 @@ public class AuthenticationApiFactory : WebApplicationFactory<Program>
                 ["Authentication:JwtBearer:Audience"] = Audience,
                 ["Authentication:JwtBearer:SigningKey"] = SigningKey,
                 ["Authentication:JwtBearer:RequireHttpsMetadata"] = "false",
+                // Legacy auth fixtures exercise account flows with explicitly open test registration.
+                ["Authentication:OwnedIdentity:PublicRegistrationEnabled"] = "true",
                 // Keep the production-configured client intact and append a test-only,
                 // unrestricted client. Overwriting index 0 leaves its production path
                 // prefixes bound and causes valid test requests to authenticate then fail.

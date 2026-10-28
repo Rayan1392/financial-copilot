@@ -58,6 +58,9 @@ public sealed class UserProfileRow
     public Guid UserId { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
+
+    /// <summary>Official TahlilApp full name, stored as received (never split into first/last).</summary>
+    public string? DisplayName { get; set; }
     public string? NationalIdEncrypted { get; set; }
     public string? NationalIdLast4 { get; set; }
     public string? MobileEncrypted { get; set; }

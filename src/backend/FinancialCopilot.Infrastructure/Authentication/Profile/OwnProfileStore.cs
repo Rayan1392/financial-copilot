@@ -28,7 +28,8 @@ public sealed class OwnProfileStore(
             profile.LastName,
             ProfileMasking.MaskNationalId(profile.NationalIdLast4),
             ProfileMasking.MaskMobile(mobile, profile.MobileLast4),
-            profile.ProfileSyncedAtUtc);
+            profile.ProfileSyncedAtUtc,
+            profile.DisplayName);
     }
 
     public async Task<string?> RevealAsync(Guid userId, RevealableProfileField field, CancellationToken cancellationToken)

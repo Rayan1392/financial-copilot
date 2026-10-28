@@ -12,7 +12,8 @@ public sealed record OwnProfileView(
     string? LastName,
     string? NationalIdMasked,
     string? MobileMasked,
-    DateTimeOffset? ProfileSyncedAtUtc);
+    DateTimeOffset? ProfileSyncedAtUtc,
+    string? DisplayName);
 
 /// <summary>Data-access port for the caller's own profile. Implemented in Infrastructure.</summary>
 public interface IOwnProfileStore

@@ -1,6 +1,21 @@
 # Feature 139 â€” Implementation Tasks
 
-Source of truth: `Design.md` Revision 6 (§22 remains authoritative for Revision 4 identity/integration reconciliation; §§23–24 and AC-88…AC-99 govern the credit lifecycle and activation contract). Slices S-1…S-14 follow `Design.md` §21. Ownership: **SapioAI** (this repository), **TahlilApp** (external, not verified here), **Operations** (secrets, proxy, key-ring backup, rollout).
+## Revision 9 — Official `name` persisted as `DisplayName`
+
+- [~] **T-39** Persist the official root `name` as nullable `auth_user_profiles.DisplayName varchar(100)` through the existing `IncomingProfileField`/`PersonName`/`ProfileFieldMergePolicy` path; never split it; an invalid `name` no longer rejects the exchange; expose `displayName` on `GET /api/auth/v1/profile`; display precedence DisplayName → first + last → «—» in the profile page and admin directory; admin directory searches DisplayName. Migration `Feature139UserProfileDisplayName` is generated and **not applied**. Tests: parser (official JSON, Persian name, Absent/Null/Invalid, length boundary, redaction), launch integration through the production gateway and parser over a stubbed HTTP body (first, changed, identical, missing/null/invalid, link reuse, profile API, log redaction), admin directory display/search with first/last fallback, frontend null-safe rendering. **Open:** the PostgreSQL schema/rollback and directory tests are written but skipped here (Docker unavailable); live TahlilApp `name` verification in staging.
+
+Acceptance criteria added by Revision 9:
+
+- **AC-107:** A valid official `name`, including the Persian sample «کامران عبدی», is stored in `auth_user_profiles.DisplayName` as one trimmed value on first launch. `FirstName`/`LastName` are not derived from it; `auth_users` and the `(Provider, ExternalUserId)` link are unchanged.
+- **AC-108:** On a later TahlilApp launch, a valid changed `name` overwrites `DisplayName` and sets `UpdatedAtUtc`; an identical `name` leaves `UpdatedAtUtc`; a missing, `null` or invalid `name` keeps the stored value. `ProfileSyncedAtUtc` is set on every successful launch. The same local user and the single identity link are reused.
+- **AC-109:** A non-string, empty, whitespace-only, control-character or over-100-character `name` is ignored and never rejects an otherwise valid exchange. No log entry contains the name value; a change or rejection logs the field name only.
+- **AC-110:** `GET /api/auth/v1/profile` returns nullable `displayName`. The profile page and admin directory show `DisplayName`, else first + last name, else «—», and never render `null null`. The admin directory finds users by `DisplayName` and still by first/last name.
+
+## Revision 8 — Temporary Closed Registration policy
+
+- [x] **T-38** Disable public self-registration at the HTTP boundary by default (`REGISTRATION_DISABLED`, HTTP 403); remove registration UI/API entry points from `/auth`; retain direct login, password recovery, Feature 145 enrollment, and provider-neutral external provisioning. Tests cover the closed endpoint, no account/Billing side effects, closed-policy TahlilApp first and repeat launch, and the login/refresh/enrollment regressions. Native registration can return only through a separate product decision.
+
+Source of truth: `Design.md` Revision 9 governs `name`/`DisplayName` persistence; Revision 8 governs closed registration; Revision 7 governs the official TahlilApp contract; earlier revisions retain identity/integration and credit lifecycle decisions. Slices S-1…S-14 follow `Design.md` §21. Ownership: **SapioAI** (this repository), **TahlilApp** (external, not verified here), **Operations** (secrets, proxy, key-ring backup, rollout).
 
 Status legend (updated at the end of this increment, from test results):
 - `[x]` implemented and verified by a passing test in this increment.

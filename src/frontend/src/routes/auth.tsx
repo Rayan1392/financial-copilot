@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { login, register } from "@/integrations/financial-copilot/auth";
+import { login } from "@/integrations/financial-copilot/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
 
 export const Route = createFileRoute("/auth")({
@@ -17,25 +17,18 @@ export function AuthPage() {
 }
 
 export function AuthScreen({ redirect }: { redirect: string }) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      if (mode === "signin") {
-        await login(email, password);
-        window.location.assign(redirect);
-      } else {
-        await register(email, password);
-        setRegistered(true);
-      }
+      await login(email, password);
+      window.location.assign(redirect);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "خطا");
     } finally {
@@ -54,17 +47,16 @@ export function AuthScreen({ redirect }: { redirect: string }) {
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="text-base font-semibold mb-1">
-            {mode === "signin" ? "ورود به حساب" : "ساخت حساب جدید"}
-          </h2>
+          <h2 className="text-base font-semibold mb-1">ورود به حساب</h2>
           <p className="text-xs text-muted-foreground mb-5">
-            {registered ? "برای تایید حساب، پیوند ارسال‌شده به ایمیل خود را باز کنید." : "برای دسترسی به تحلیل‌های هوشمند بازار"}
+            برای دسترسی به تحلیل‌های هوشمند بازار
           </p>
 
-          {!registered && <form onSubmit={submit} className="space-y-3">
+          <form onSubmit={submit} className="space-y-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">ایمیل</label>
+              <label htmlFor="auth-email" className="block text-xs text-muted-foreground mb-1.5">ایمیل</label>
               <input
+                id="auth-email"
                 type="email"
                 required
                 value={email}
@@ -73,11 +65,11 @@ export function AuthScreen({ redirect }: { redirect: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">رمز عبور</label>
+              <label htmlFor="auth-password" className="block text-xs text-muted-foreground mb-1.5">رمز عبور</label>
               <input
+                id="auth-password"
                 type="password"
                 required
-                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -88,21 +80,11 @@ export function AuthScreen({ redirect }: { redirect: string }) {
               disabled={loading}
               className="w-full bg-emerald text-primary-foreground rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 hover:brightness-110 transition"
             >
-              {loading ? "..." : mode === "signin" ? "ورود" : "ساخت حساب"}
+              {loading ? "..." : "ورود"}
             </button>
-          </form>}
+          </form>
 
-          {mode === "signin" && <a href="/forgot-password" className="mt-4 block text-center text-xs text-emerald">گذرواژه را فراموش کرده‌اید؟</a>}
-
-          <button
-            onClick={() => {
-              setRegistered(false);
-              setMode(mode === "signin" ? "signup" : "signin");
-            }}
-            className="w-full text-xs text-muted-foreground hover:text-foreground mt-4"
-          >
-            {registered ? "بازگشت به ورود" : mode === "signin" ? "حساب ندارم — ساخت حساب جدید" : "حساب دارم — ورود"}
-          </button>
+          <a href="/forgot-password" className="mt-4 block text-center text-xs text-emerald">گذرواژه را فراموش کرده‌اید؟</a>
         </div>
       </div>
     </div>

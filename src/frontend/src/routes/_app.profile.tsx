@@ -12,6 +12,7 @@ import {
   type OwnProfile,
   type ProfileRevealField,
 } from "@/integrations/financial-copilot/auth";
+import { MISSING_PROFILE_VALUE, profileDisplayName } from "@/lib/profile-display-name";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({ meta: [{ title: "پروفایل حساب — ساپیو - دستیار هوشمند بازار" }] }),
@@ -29,6 +30,7 @@ const SESSION_EXPIRED_TEXT = "نشست شما معتبر نیست. دوباره 
 const GENERIC_FAILURE_TEXT = "درخواست انجام نشد. کمی بعد دوباره تلاش کنید.";
 
 type Notice = { tone: "success" | "error"; text: string; signIn?: boolean };
+type MaskedProfileField = { field: ProfileRevealField; label: string; masked: string | null };
 
 function ProfilePage() {
   const [summary, setSummary] = useState<AccountSummary | null>(null);
@@ -120,7 +122,7 @@ function AccountSummaryCard({ summary }: { summary: AccountSummary }) {
   );
 }
 
-function TahlilAppProfileCard() {
+export function TahlilAppProfileCard() {
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   // Revealed values live only in this component's state for the current page session.
@@ -169,7 +171,7 @@ function TahlilAppProfileCard() {
     }
   }
 
-  const maskedFields: { field: ProfileRevealField; label: string; masked: string }[] = profile
+  const maskedFields: MaskedProfileField[] = profile
     ? [
         { field: "nationalId", label: "کد ملی", masked: profile.nationalIdMasked },
         { field: "mobile", label: "شماره همراه", masked: profile.mobileMasked },
@@ -190,7 +192,7 @@ function TahlilAppProfileCard() {
           <dl className="mt-3 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">نام و نام خانوادگی</dt>
-              <dd className="mt-1 break-words">{`${profile.firstName} ${profile.lastName}`.trim() || "—"}</dd>
+              <dd className="mt-1 break-words">{profileDisplayName(profile)}</dd>
             </div>
           </dl>
           <ul className="mt-4">
@@ -204,7 +206,7 @@ function TahlilAppProfileCard() {
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">{label}</p>
                     <p dir="ltr" className="mt-1 break-all font-mono text-sm">
-                      {isRevealed ? revealed[field] : masked}
+                      {isRevealed ? revealed[field] : (masked ?? MISSING_PROFILE_VALUE)}
                     </p>
                   </div>
                   <button

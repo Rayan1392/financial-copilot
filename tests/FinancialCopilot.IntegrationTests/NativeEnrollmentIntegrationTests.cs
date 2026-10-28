@@ -431,7 +431,7 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
         return json.RootElement.Clone();
     }
 
-    private static async Task<LaunchedUser> LaunchUserAsync(NativeEnrollmentApiFactory target)
+    internal static async Task<LaunchedUser> LaunchUserAsync(NativeEnrollmentApiFactory target)
     {
         var code = NewCode();
         target.Gateway.Respond(code, Succeeded($"tahlil-{Guid.NewGuid():N}"));
@@ -505,7 +505,7 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
         return await JsonDocument.ParseAsync(stream);
     }
 
-    private static string NewEmail() => $"enroll-{Guid.NewGuid():N}@example.test";
+    internal static string NewEmail() => $"enroll-{Guid.NewGuid():N}@example.test";
 
     private static string NewCode() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
         .Replace('+', '-').Replace('/', '_').TrimEnd('=');
@@ -524,7 +524,7 @@ public sealed class NativeEnrollmentIntegrationTests(NativeEnrollmentApiFactory 
             NationalId: IncomingProfileField.Absent,
             Mobile: IncomingProfileField.Absent));
 
-    private sealed record LaunchedUser(Guid UserId, string AccessToken);
+    internal sealed record LaunchedUser(Guid UserId, string AccessToken);
 }
 
 /// <summary>

@@ -481,6 +481,7 @@ services:
       ChannelMonthlyReports__AllowedChannelIds__0: ${CODALMIRROR_CHANNEL_ID:-}
       ConnectionStrings__Feature141ReadOnly: ${FEATURE141_READONLY_CONNECTION_STRING:?Feature 141 read-only connection is required}
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      Authentication__OwnedIdentity__PublicRegistrationEnabled: ${AUTH_PUBLIC_REGISTRATION_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy

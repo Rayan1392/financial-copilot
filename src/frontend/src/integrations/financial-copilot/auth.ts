@@ -31,10 +31,6 @@ export class FinancialCopilotAuthError extends Error {
 let accessToken: string | null = null;
 let refreshPromise: Promise<string | null> | null = null;
 
-export async function register(email: string, password: string) {
-  return authJsonRequest<{ message: string }>("/api/auth/v1/register", { email, password });
-}
-
 export async function login(email: string, password: string) {
   return applySession(await authRequest("/api/auth/v1/login", { email, password }));
 }
@@ -222,11 +218,13 @@ export type AccountSummary = {
   accountAuthState: AccountAuthState;
 };
 
+/** Every profile field is optional on the server and arrives as JSON null when TahlilApp never supplied it. */
 export type OwnProfile = {
-  firstName: string;
-  lastName: string;
-  nationalIdMasked: string;
-  mobileMasked: string;
+  displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nationalIdMasked: string | null;
+  mobileMasked: string | null;
   profileSyncedAtUtc: string | null;
 };
 

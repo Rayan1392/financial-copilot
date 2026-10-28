@@ -37,7 +37,8 @@ public sealed class ProfileController(OwnProfileUseCase profiles) : ControllerBa
             view.LastName,
             view.NationalIdMasked,
             view.MobileMasked,
-            view.ProfileSyncedAtUtc));
+            view.ProfileSyncedAtUtc,
+            view.DisplayName));
     }
 
     [EnableRateLimiting(RateLimitPolicies.AuthenticatedActor)]

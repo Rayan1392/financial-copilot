@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using FinancialCopilot.Application.Authentication.TahlilApp;
+using FinancialCopilot.Domain.Identity.TahlilApp;
+using FinancialCopilot.Infrastructure.Administration;
 using FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -21,7 +23,7 @@ public sealed class TahlilAppExchangeParserTests
     {
         var result = Parse("""{"user_id":"u-1","name":null,"subscription":{"active":true,"expires_at":"2026-12-16T08:06:31.000Z","plans":[{"slug":"sapio_plus","starts_at":"2026-11-16T08:06:31.000Z","expires_at":"2026-12-16T08:06:31.000Z"}]}}""");
         Assert.NotNull(result);
-        Assert.Null(result!.Name);
+        Assert.Equal(IncomingProfileField.Null, result!.DisplayName);
         Assert.Equal("Plus", result.ExternalPlan);
         var item = result.PlanSubscriptions![0];
         Assert.Equal($"sapio_plus:{item.StartsAt.ToUnixTimeMilliseconds()}:{item.ExpiresAt.ToUnixTimeMilliseconds()}", item.IdentityKey);
@@ -34,11 +36,80 @@ public sealed class TahlilAppExchangeParserTests
 
         Assert.NotNull(result);
         Assert.Equal("d647420371eb1270418f59c20d6c7d02", result!.ExternalUserId);
-        Assert.Equal("Test User", result.Name);
+        Assert.Equal(IncomingProfileField.Valid("Test User"), result.DisplayName);
         Assert.Equal("Pro", result.ExternalPlan);
         Assert.True(result.IsSubscriptionActive);
         Assert.Equal(DateTimeOffset.Parse("2026-11-27T08:22:04.000Z"), result.SubscriptionExpiresAt);
     }
+
+    [Fact]
+    public void OfficialPersianResponse_ParsesTheFullNameAsDisplayName_WithoutSplittingIt()
+    {
+        var result = Parse(OfficialJson("\"name\":\"کامران عبدی\","));
+
+        Assert.NotNull(result);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result!.ExternalUserId);
+        Assert.Equal(IncomingProfileField.Valid("کامران عبدی"), result.DisplayName);
+        Assert.Equal(IncomingProfileField.Absent, result.FirstName);
+        Assert.Equal(IncomingProfileField.Absent, result.LastName);
+        Assert.Equal("Pro", result.ExternalPlan);
+    }
+
+    [Fact]
+    public void Name_IsTrimmed()
+    {
+        var result = Parse(OfficialJson("\"name\":\"  کامران عبدی \","));
+
+        Assert.Equal(IncomingProfileField.Valid("کامران عبدی"), result!.DisplayName);
+    }
+
+    [Fact]
+    public void MissingName_IsAbsent()
+    {
+        Assert.Equal(IncomingProfileField.Absent, Parse(OfficialJson(string.Empty))!.DisplayName);
+    }
+
+    [Theory]
+    [InlineData("\"name\":123,")]
+    [InlineData("\"name\":true,")]
+    [InlineData("\"name\":{\"first\":\"x\"},")]
+    [InlineData("\"name\":[\"x\"],")]
+    [InlineData("\"name\":\"\",")]
+    [InlineData("\"name\":\"   \",")]
+    [InlineData("\"name\":\"bad\\u0007name\",")]
+    [InlineData("\"name\":\"line\\nbreak\",")]
+    public void InvalidName_IsInvalid_AndNeverRejectsTheExchange(string nameProperty)
+    {
+        var result = Parse(OfficialJson(nameProperty));
+
+        Assert.NotNull(result);
+        Assert.Equal(IncomingProfileField.Invalid, result!.DisplayName);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result.ExternalUserId);
+        Assert.Equal("Pro", result.ExternalPlan);
+    }
+
+    [Fact]
+    public void NameLongerThanTheColumn_IsInvalid_AndTheBoundaryLengthIsValid()
+    {
+        var atLimit = new string('ن', PersonName.MaximumLength);
+        var overLimit = new string('ن', PersonName.MaximumLength + 1);
+
+        Assert.Equal(IncomingProfileField.Valid(atLimit), Parse(OfficialJson($"\"name\":\"{atLimit}\","))!.DisplayName);
+        Assert.Equal(IncomingProfileField.Invalid, Parse(OfficialJson($"\"name\":\"{overLimit}\","))!.DisplayName);
+    }
+
+    [Fact]
+    public void ParsedDisplayName_IsRedactedInToString()
+    {
+        var result = Parse(OfficialJson("\"name\":\"کامران عبدی\","));
+
+        Assert.DoesNotContain("کامران", result!.ToString());
+        Assert.DoesNotContain("کامران", result.DisplayName!.ToString());
+    }
+
+    /// <summary>The official exchange sample (Feature 139 contract) with a replaceable <c>name</c> property.</summary>
+    internal static string OfficialJson(string nameProperty) =>
+        $$$"""{"user_id":"d647420371eb1270418f59c20d6c7d02",{{{nameProperty}}}"subscription":{"active":true,"expires_at":"2026-11-27T08:22:04.000Z","plans":[{"slug":"sapio_pro","starts_at":"2026-10-28T08:22:04.000Z","expires_at":"2026-11-27T08:22:04.000Z"}]}}""";
 
     [Fact]
     public void ConcurrentPlusAndPro_AreBothPreservedAndProWins()
@@ -176,6 +247,23 @@ public sealed class TahlilAppIdentityGatewayTests
             LastRequestBody = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
             return respond(request);
         }
+    }
+}
+
+public sealed class AdminDirectoryDisplayNameTests
+{
+    [Theory]
+    [InlineData("کامران عبدی", "Ali", "Rezaei", "کامران عبدی")]
+    [InlineData(" کامران عبدی ", null, null, "کامران عبدی")]
+    [InlineData(null, "Ali", "Rezaei", "Ali Rezaei")]
+    [InlineData("   ", "Ali", null, "Ali")]
+    [InlineData(null, null, "Rezaei", "Rezaei")]
+    [InlineData(null, null, null, null)]
+    [InlineData("", " ", " ", null)]
+    public void DisplayName_WinsOverFirstAndLastName_ForOlderRecordsTheJoinRemains(
+        string? displayName, string? firstName, string? lastName, string? expected)
+    {
+        Assert.Equal(expected, EfCoreAdminUserQueries.ResolveDisplayName(displayName, firstName, lastName));
     }
 }
 

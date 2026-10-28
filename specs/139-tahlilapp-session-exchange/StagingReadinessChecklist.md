@@ -1,5 +1,9 @@
 # Feature 139 â€” SapioAI Staging Readiness Checklist
 
+## Temporary Closed Registration policy
+
+Public registration must remain disabled in deployed environments (`Authentication:OwnedIdentity:PublicRegistrationEnabled=false`). Verify an anonymous `POST /api/auth/v1/register` returns 403 with `REGISTRATION_DISABLED` and creates no Identity or Billing rows. Direct login and password recovery for existing users remain available. Newly onboarded users enter through trusted external providers; TahlilApp is the first. Keep Feature 145 email verification/password enrollment operational for provisioned users. Future native public registration requires a separate product decision.
+
 This checklist records staging evidence. Repository code and local tests do not prove external service availability, secret rotation, migration execution, or operational readiness. Leave environment gates unchecked until evidence includes a run timestamp, environment, owner and artifact or command output.
 
 ## 1. Repository verification

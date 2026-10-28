@@ -514,6 +514,7 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["Authentication:OwnedIdentity:PublicRegistrationEnabled"] = "false",
                 ["Authentication:TahlilApp:Enabled"] = "true",
                 ["Authentication:TahlilApp:BaseUrl"] = "https://tahlilapp.example.test",
                 ["DataProtection:KeyRingPath"] = _keyRing,
@@ -530,7 +531,15 @@ public class TahlilAppLaunchApiFactory : OwnedIdentityApiFactory
                 services.Remove(hostedService);
             }
 
+            // Program.cs routes ILogger<T> through Serilog without writeToProviders, so ILoggerProvider registrations
+            // never see application logs. Route this test host's loggers to the capture provider instead, so the
+            // redaction tests observe the real provisioner/gateway log calls.
+            services.RemoveAll<ILoggerFactory>();
+            services.AddSingleton<ILoggerFactory>(_ => LoggerFactory.Create(logging =>
+                logging.SetMinimumLevel(LogLevel.Trace).AddProvider(LogCapture)));
+
             services.RemoveAll<ITahlilAppIdentityGateway>();
+            Gateway.Logs = LogCapture;
             services.AddSingleton<ITahlilAppIdentityGateway>(Gateway);
         });
     }
@@ -620,16 +629,31 @@ public sealed class TahlilAppLogCaptureProvider : ILoggerProvider
 /// <summary>Test double for the TahlilApp exchange. Records calls per code; never used outside tests.</summary>
 public sealed class FakeTahlilAppGateway : ITahlilAppIdentityGateway
 {
+    /// <summary>Receives the production gateway's log output for <see cref="RespondWithOfficialBody"/> answers.</summary>
+    public ILoggerProvider? Logs { get; set; }
+
     private readonly ConcurrentDictionary<string, TahlilAppExchangeResult> _responses = new();
+    private readonly ConcurrentDictionary<string, string> _officialBodies = new();
     private readonly ConcurrentDictionary<string, int> _calls = new();
 
     public void Respond(string code, TahlilAppExchangeResult result) => _responses[code] = result;
+
+    /// <summary>
+    /// Answers the code through the production gateway and exchange parser, fed this official response body over
+    /// a stubbed HTTP 200. No network call leaves the process.
+    /// </summary>
+    public void RespondWithOfficialBody(string code, string json) => _officialBodies[code] = json;
 
     public int CallsFor(string code) => _calls.TryGetValue(code, out var count) ? count : 0;
 
     public Task<TahlilAppExchangeResult> ExchangeAsync(string code, string correlationId, CancellationToken cancellationToken)
     {
         _calls.AddOrUpdate(code, 1, (_, count) => count + 1);
+        if (_officialBodies.TryGetValue(code, out var body))
+        {
+            return CreateProductionGateway(body).ExchangeAsync(code, correlationId, cancellationToken);
+        }
+
         return Task.FromResult(_responses.TryGetValue(code, out var result)
             ? result
             : new TahlilAppExchangeResult(TahlilAppExchangeOutcome.InvalidCode));
@@ -649,5 +673,33 @@ public sealed class FakeTahlilAppGateway : ITahlilAppIdentityGateway
         return Task.FromResult(_statuses.TryGetValue(externalUserId, out var result)
             ? result
             : new TahlilAppStatusResult(TahlilAppStatusOutcome.Unavailable));
+    }
+
+    private TahlilAppIdentityGateway CreateProductionGateway(string body)
+    {
+        var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            if (Logs is not null) builder.AddProvider(Logs);
+        });
+        return new TahlilAppIdentityGateway(
+            new HttpClient(new OfficialBodyHandler(body)),
+            Microsoft.Extensions.Options.Options.Create(new TahlilAppOptions
+            {
+                Enabled = true,
+                BaseUrl = "https://tahlilapp.example.test/api/",
+                ClientSecretEnvironmentVariable = $"TAHLILAPP_TEST_UNSET_{Guid.NewGuid():N}",
+                ClientSecret = "integration-test-secret"
+            }),
+            TimeProvider.System,
+            loggerFactory.CreateLogger<TahlilAppIdentityGateway>());
+    }
+
+    private sealed class OfficialBodyHandler(string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
     }
 }

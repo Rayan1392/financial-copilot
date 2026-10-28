@@ -12,7 +12,8 @@ namespace FinancialCopilot.API.Controllers;
 [Route("api/auth/v1")]
 public sealed class AuthController(
     IOwnedIdentityService identityService,
-    IWebHostEnvironment environment) : ControllerBase
+    IWebHostEnvironment environment,
+    Microsoft.Extensions.Options.IOptions<OwnedIdentityOptions> ownedIdentityOptions) : ControllerBase
 {
     private const string RefreshCookieName = "financial_copilot_refresh";
     private const string GenericEmailRequestMessage = "If the address is eligible, instructions will be sent by email.";
@@ -24,6 +25,15 @@ public sealed class AuthController(
         RegisterRequest request,
         CancellationToken cancellationToken)
     {
+        if (!ownedIdentityOptions.Value.PublicRegistrationEnabled)
+        {
+            return Problem(
+                type: "https://financialcopilot/errors/REGISTRATION_DISABLED",
+                title: "Public account registration is currently unavailable.",
+                statusCode: StatusCodes.Status403Forbidden,
+                extensions: new Dictionary<string, object?> { ["correlationId"] = HttpContext.TraceIdentifier });
+        }
+
         try
         {
             await identityService.RegisterAsync(request.Email, request.Password, cancellationToken);

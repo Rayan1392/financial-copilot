@@ -110,6 +110,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
                 pageQuery = pageQuery.Where(row =>
                     (row.User.NormalizedEmail != null && row.User.NormalizedEmail.Contains(normalizedSearch)) ||
                     (row.Profile != null && (
+                        (row.Profile.DisplayName != null && row.Profile.DisplayName.ToUpper().Contains(normalizedSearch)) ||
                         (row.Profile.FirstName != null && row.Profile.FirstName.ToUpper().Contains(normalizedSearch)) ||
                         (row.Profile.LastName != null && row.Profile.LastName.ToUpper().Contains(normalizedSearch)) ||
                         ((row.Profile.FirstName ?? "") + " " + (row.Profile.LastName ?? "")).ToUpper().Contains(normalizedSearch) ||
@@ -168,6 +169,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
             .Select(row => new DirectoryRow(
                 row.User.Id,
                 row.User.Email,
+                row.Profile == null ? null : row.Profile.DisplayName,
                 row.Profile == null ? null : row.Profile.FirstName,
                 row.Profile == null ? null : row.Profile.LastName,
                 row.User.IsEnabled,
@@ -188,7 +190,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
         var items = pageRows.Select(row => new AdminUserDirectoryItem(
             row.UserId,
             row.Email,
-            JoinDisplayName(row.FirstName, row.LastName),
+            ResolveDisplayName(row.DisplayName, row.FirstName, row.LastName),
             row.IsEnabled,
             IsLocked(row.LockoutEnd, asOfUtc),
             GetStatus(row.IsEnabled, row.LockoutEnd, asOfUtc),
@@ -970,12 +972,18 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
     private static string GetStatus(bool isEnabled, DateTimeOffset? lockoutEnd, DateTimeOffset asOfUtc) =>
         !isEnabled ? "disabled" : IsLocked(lockoutEnd, asOfUtc) ? "locked" : "enabled";
 
-    private static string? JoinDisplayName(string? firstName, string? lastName)
+    /// <summary>The official TahlilApp name wins; older records fall back to first + last name.</summary>
+    internal static string? ResolveDisplayName(string? displayName, string? firstName, string? lastName)
     {
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            return displayName.Trim();
+        }
+
         var parts = new[] { firstName?.Trim(), lastName?.Trim() }
             .Where(value => !string.IsNullOrWhiteSpace(value));
-        var displayName = string.Join(" ", parts);
-        return displayName.Length == 0 ? null : displayName;
+        var joined = string.Join(" ", parts);
+        return joined.Length == 0 ? null : joined;
     }
 
     private static string MaskExternalId(string? externalId)
@@ -1000,6 +1008,7 @@ public sealed class EfCoreAdminUserQueries : IAdminUserQueries
     private sealed record DirectoryRow(
         Guid UserId,
         string? Email,
+        string? DisplayName,
         string? FirstName,
         string? LastName,
         bool IsEnabled,

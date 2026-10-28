@@ -44,7 +44,8 @@ public sealed record OwnProfileResponse(
     string? LastName,
     string? NationalIdMasked,
     string? MobileMasked,
-    DateTimeOffset? ProfileSyncedAtUtc);
+    DateTimeOffset? ProfileSyncedAtUtc,
+    string? DisplayName);
 
 public sealed record ProfileRevealRequest(string? Field);
 

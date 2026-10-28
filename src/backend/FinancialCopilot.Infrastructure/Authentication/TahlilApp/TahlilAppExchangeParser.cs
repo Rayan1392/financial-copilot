@@ -27,12 +27,7 @@ public static class TahlilAppExchangeParser
                 return null;
             }
 
-            string? name = null;
-            if (root.TryGetProperty("name", out var nameElement))
-            {
-                if (nameElement.ValueKind == JsonValueKind.String) name = nameElement.GetString();
-                else if (nameElement.ValueKind != JsonValueKind.Null) return null;
-            }
+            var displayName = ReadDisplayName(root);
 
             var decision = TahlilAppSubscriptionPolicy.Decide(
                 plans.Select(plan => (plan.Slug, plan.StartsAt, plan.ExpiresAt)).ToArray(),
@@ -57,7 +52,7 @@ public static class TahlilAppExchangeParser
                 Mobile: IncomingProfileField.Absent,
                 SubscriptionEffectiveFrom: decision.EffectiveFrom,
                 PlanSubscriptions: plans,
-                Name: name);
+                DisplayName: displayName);
         }
         catch (JsonException)
         {
@@ -115,6 +110,18 @@ public static class TahlilAppExchangeParser
             .Select(group => group.First())
             .ToArray();
         return true;
+    }
+
+    /// <summary>
+    /// Optional root <c>name</c> (Design §10.2). A bad value drops only this field and never rejects the response.
+    /// </summary>
+    private static IncomingProfileField ReadDisplayName(JsonElement root)
+    {
+        if (!root.TryGetProperty("name", out var element)) return IncomingProfileField.Absent;
+        if (element.ValueKind == JsonValueKind.Null) return IncomingProfileField.Null;
+        return element.ValueKind == JsonValueKind.String && PersonName.TryCreate(element.GetString(), out var name)
+            ? IncomingProfileField.Valid(name!.Value)
+            : IncomingProfileField.Invalid;
     }
 
     private static bool TryUtcInstant(string text, out DateTimeOffset value)

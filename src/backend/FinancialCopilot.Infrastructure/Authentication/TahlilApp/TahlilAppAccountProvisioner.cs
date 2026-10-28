@@ -182,6 +182,21 @@ public sealed class TahlilAppAccountProvisioner(
             changedFields.Add("lastName");
         }
 
+        var displayName = snapshot.DisplayName ?? IncomingProfileField.Absent;
+        if (displayName.Kind == IncomingProfileFieldKind.Invalid)
+        {
+            // Field name and reason only; the rejected value is never logged (Design §13.3).
+            logger.LogWarning(
+                "TahlilAppProfileFieldRejected. LocalUserId: {LocalUserId}; Field: {Field}; Reason: {Reason}",
+                userId, "displayName", "invalid");
+        }
+
+        if (ProfileFieldMergePolicy.Decide(profile.DisplayName, displayName) == ProfileFieldAction.Overwrite)
+        {
+            profile.DisplayName = displayName.NormalizedValue;
+            changedFields.Add("displayName");
+        }
+
         var storedNationalId = Unprotect(TahlilAppProfileProtector.NationalIdPurpose, profile.NationalIdEncrypted, "nationalId", userId);
         if (ProfileFieldMergePolicy.Decide(storedNationalId, snapshot.NationalId) == ProfileFieldAction.Overwrite)
         {

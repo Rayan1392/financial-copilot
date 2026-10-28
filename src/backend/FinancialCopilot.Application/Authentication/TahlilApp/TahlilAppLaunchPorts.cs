@@ -13,6 +13,7 @@ public enum TahlilAppExchangeOutcome
 
 /// <summary>
 /// Validated, PII-normalised exchange response. Built only by the gateway adapter after schema and value validation.
+/// <see cref="DisplayName"/> carries the official root <c>name</c>; null means the field was not supplied (Absent).
 /// </summary>
 public sealed record TahlilAppExchangeSnapshot(
     string ExternalUserId,
@@ -28,7 +29,7 @@ public sealed record TahlilAppExchangeSnapshot(
     IncomingProfileField Mobile,
     DateTimeOffset? SubscriptionEffectiveFrom = null,
     IReadOnlyList<TahlilAppPlanSubscription>? PlanSubscriptions = null,
-    string? Name = null)
+    IncomingProfileField? DisplayName = null)
 {
     /// <summary>Redacted: contains the external id and profile PII (Design §13.3, AC-72).</summary>
     public override string ToString() =>

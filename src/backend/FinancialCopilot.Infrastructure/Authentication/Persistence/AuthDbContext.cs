@@ -268,6 +268,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             entity.HasKey(row => row.UserId);
             entity.Property(row => row.FirstName).HasMaxLength(100);
             entity.Property(row => row.LastName).HasMaxLength(100);
+            entity.Property(row => row.DisplayName).HasMaxLength(100);
             entity.Property(row => row.NationalIdLast4).HasMaxLength(4);
             entity.Property(row => row.MobileLast4).HasMaxLength(4);
             entity.HasOne<FinancialCopilotUser>().WithOne().HasForeignKey<UserProfileRow>(row => row.UserId).OnDelete(DeleteBehavior.Cascade);

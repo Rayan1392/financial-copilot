@@ -163,6 +163,7 @@ describe("account, credential, and profile calls", () => {
 
   it("getOwnProfile returns masked fields from a no-store GET", async () => {
     const profile = {
+      displayName: "کامران عبدی",
       firstName: "Test",
       lastName: "Person",
       nationalIdMasked: "***-***-**89",

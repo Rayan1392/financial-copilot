@@ -81,8 +81,13 @@ dotnet test src/backend/FinancialCopilot.sln --configuration Release
 Run the API locally:
 
 ```powershell
+$env:TAHLILAPP_CLIENT_SECRET = "<tahlilapp-client-secret>"
 dotnet run --project src/backend/FinancialCopilot.API
 ```
+
+Development uses the persistent `DataProtectionKeys` directory under the API project.
+The key files are ignored by Git. Set `DataProtection__KeyRingPath` to an existing,
+writable directory to use a different key ring.
 
 Run the frontend locally in a second terminal:
 

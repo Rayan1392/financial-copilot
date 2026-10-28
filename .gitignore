@@ -10,6 +10,8 @@ src/backend/FinancialCopilot.API/appsettings.Development.Local.json
 .vscode/
 /specs.zip
 /tools/local-state/
+/src/backend/FinancialCopilot.API/DataProtectionKeys/*
+!/src/backend/FinancialCopilot.API/DataProtectionKeys/.gitkeep
 
 
 graphify-out/

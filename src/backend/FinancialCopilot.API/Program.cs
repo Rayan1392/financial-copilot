@@ -75,6 +75,15 @@ if (builder.Environment.IsDevelopment())
             Optional = true,
             ReloadOnChange = true
         });
+
+    // Keep the configured development key ring at the API content root even when
+    // the process is launched from a different working directory.
+    var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+    if (!string.IsNullOrWhiteSpace(keyRingPath) && !Path.IsPathRooted(keyRingPath))
+    {
+        builder.Configuration["DataProtection:KeyRingPath"] =
+            Path.GetFullPath(keyRingPath, builder.Environment.ContentRootPath);
+    }
 }
 
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));

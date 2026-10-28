@@ -28,6 +28,19 @@ public sealed class TahlilAppExchangeParserTests
     }
 
     [Fact]
+    public void OfficialProResponseSample_ParsesUserAndActivePlan()
+    {
+        var result = Parse("""{"user_id":"d647420371eb1270418f59c20d6c7d02","name":"Test User","subscription":{"active":true,"expires_at":"2026-11-27T08:22:04.000Z","plans":[{"slug":"sapio_pro","starts_at":"2026-10-28T08:22:04.000Z","expires_at":"2026-11-27T08:22:04.000Z"}]}}""");
+
+        Assert.NotNull(result);
+        Assert.Equal("d647420371eb1270418f59c20d6c7d02", result!.ExternalUserId);
+        Assert.Equal("Test User", result.Name);
+        Assert.Equal("Pro", result.ExternalPlan);
+        Assert.True(result.IsSubscriptionActive);
+        Assert.Equal(DateTimeOffset.Parse("2026-11-27T08:22:04.000Z"), result.SubscriptionExpiresAt);
+    }
+
+    [Fact]
     public void ConcurrentPlusAndPro_AreBothPreservedAndProWins()
     {
         var result = Parse("""{"user_id":"u-2","subscription":{"plans":[{"slug":"sapio_plus","starts_at":"2026-11-01T00:00:00Z","expires_at":"2026-12-20T00:00:00Z"},{"slug":"sapio_pro","starts_at":"2026-11-15T00:00:00Z","expires_at":"2026-12-01T00:00:00Z"}]}}""");
@@ -109,6 +122,26 @@ public sealed class TahlilAppIdentityGatewayTests
         var result = await CreateGateway(handler, UniqueVariable()).ExchangeAsync(Code, "c", CancellationToken.None);
         Assert.Equal(TahlilAppExchangeOutcome.Unavailable, result.Outcome);
         Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
+    public async Task PartnerBadRequestForExpiredOrConsumedCodeMapsToInvalidCode()
+    {
+        var variable = UniqueVariable();
+        Environment.SetEnvironmentVariable(variable, "test-secret");
+        try
+        {
+            var handler = new StubHandler(_ => Json(
+                HttpStatusCode.BadRequest,
+                """{"statusCode":400,"message":"کد ورود نامعتبر یا منقضی است"}"""));
+
+            var result = await CreateGateway(handler, variable).ExchangeAsync(Code, "corr-invalid", CancellationToken.None);
+
+            Assert.Equal(TahlilAppExchangeOutcome.InvalidCode, result.Outcome);
+            Assert.Equal(1, handler.Requests);
+            Assert.Contains(Code, handler.LastRequestBody);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); }
     }
 
     private static string UniqueVariable() => $"TAHLILAPP_TEST_{Guid.NewGuid():N}";

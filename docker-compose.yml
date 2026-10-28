@@ -87,6 +87,16 @@ services:
         Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:?set FRONTEND_PUBLIC_ORIGIN in .env}
         Cors__AllowedOrigins__1: ${FRONTEND_PUBLIC_ORIGIN_ALT:-https://sapio.ir}
         Authentication__JwtBearer__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+        Authentication__TahlilApp__Enabled: ${TAHLILAPP_AUTHENTICATION_ENABLED:-true}
+        Authentication__TahlilApp__BaseUrl: ${TAHLILAPP_BASE_URL:-https://api.tahlilapp.com/api/}
+        Authentication__TahlilApp__ClientId: ${TAHLILAPP_CLIENT_ID:-financial-copilot}
+        Authentication__TahlilApp__ClientSecretEnvironmentVariable: ${TAHLILAPP_CLIENT_SECRET_ENVIRONMENT_VARIABLE:-TAHLILAPP_CLIENT_SECRET}
+        Authentication__TahlilApp__ExchangePath: ${TAHLILAPP_EXCHANGE_PATH:-partners/exchange}
+        Authentication__TahlilApp__StatusPathTemplate: ${TAHLILAPP_STATUS_PATH_TEMPLATE:-partners/users/{externalUserId}/status}
+        Authentication__TahlilApp__PlanMap__sapio_plus: ${TAHLILAPP_PLAN_MAP_SAPIO_PLUS:-Plus}
+        Authentication__TahlilApp__PlanMap__sapio_pro: ${TAHLILAPP_PLAN_MAP_SAPIO_PRO:-Pro}
+        DataProtection__KeyRingPath: ${DATA_PROTECTION_KEY_RING_PATH:-/var/lib/sapioai/dpkeys}
+        TAHLILAPP_CLIENT_SECRET: ${TAHLILAPP_CLIENT_SECRET:-}
         OpenApi__Enabled: ${OPENAPI_ENABLED:-false}
         OpenApi__ServerUrl: ${OPENAPI_SERVER_URL:-}
         AiProvider__DefaultProvider: ${AI_PROVIDER_DEFAULT_PROVIDER:-OpenAI}
@@ -479,6 +489,9 @@ services:
       rabbitmq:
         condition: service_healthy
     volumes:
+      - type: volume
+        source: data-protection-keys
+        target: ${DATA_PROTECTION_KEY_RING_PATH:-/var/lib/sapioai/dpkeys}
       - type: bind
         source: ${FUND_PORTFOLIO_HOST_PATH:-/opt/sapio/financial-copilot/data/fund-portfolios}
         target: ${FUND_PORTFOLIO_CONTAINER_PATH:-/data/fund-portfolios}
@@ -508,6 +521,9 @@ services:
       Authentication__Email__TokenHashSecret: ""
       Authentication__Smtp__UserName: ""
       Authentication__Smtp__Password: ""
+      Authentication__TahlilApp__Enabled: "false"
+      DataProtection__KeyRingPath: ""
+      TAHLILAPP_CLIENT_SECRET: ""
       FEATURE141_READONLY_CONNECTION_STRING: ''
       Feature141__Enabled: "false"
       DataSyncMessaging__ConsumerCount: ${DATA_SYNC_CONSUMER_COUNT:-4}
@@ -543,6 +559,7 @@ services:
       AUTH_EMAIL_TOKEN_HASH_SECRET: ""
       AUTH_SMTP_USERNAME: ""
       AUTH_SMTP_PASSWORD: ""
+      TAHLILAPP_CLIENT_SECRET: ""
       TelegramGateway__Enabled: ${TELEGRAM_GATEWAY_ENABLED:-false}
       TelegramGateway__BotToken: ${TELEGRAM_BOT_TOKEN:-}
       TelegramGateway__PrimaryApiBaseUrl: ${TELEGRAM_PRIMARY_API_BASE_URL:-}
@@ -587,6 +604,7 @@ services:
       - "${FRONTEND_PORT:-8080}:80"
 
 volumes:
+  data-protection-keys:
   postgres-data:
   redis-data:
   rabbitmq-data:

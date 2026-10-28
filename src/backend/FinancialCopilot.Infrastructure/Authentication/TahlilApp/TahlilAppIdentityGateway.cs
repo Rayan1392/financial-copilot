@@ -29,7 +29,7 @@ public sealed class TahlilAppIdentityGateway(
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var clientSecret = Environment.GetEnvironmentVariable(settings.ClientSecretEnvironmentVariable);
+        var clientSecret = GetClientSecret(settings);
         if (string.IsNullOrWhiteSpace(clientSecret))
         {
             logger.LogError("TahlilApp service credential is not configured. CorrelationId: {CorrelationId}", correlationId);
@@ -110,7 +110,7 @@ public sealed class TahlilAppIdentityGateway(
         CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        var clientSecret = Environment.GetEnvironmentVariable(settings.ClientSecretEnvironmentVariable);
+        var clientSecret = GetClientSecret(settings);
         if (string.IsNullOrWhiteSpace(clientSecret))
         {
             logger.LogError("TahlilApp service credential is not configured. CorrelationId: {CorrelationId}", correlationId);
@@ -190,6 +190,12 @@ public sealed class TahlilAppIdentityGateway(
 
     private static TahlilAppExchangeResult Unavailable() => new(TahlilAppExchangeOutcome.Unavailable);
 
+    private static string? GetClientSecret(TahlilAppOptions settings)
+    {
+        var environmentSecret = Environment.GetEnvironmentVariable(settings.ClientSecretEnvironmentVariable);
+        return string.IsNullOrWhiteSpace(environmentSecret) ? settings.ClientSecret : environmentSecret;
+    }
+
     private static void SetBasicAuthentication(HttpRequestMessage request, string clientId, string clientSecret)
     {
         var bytes = Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}");
@@ -203,20 +209,13 @@ public sealed class TahlilAppIdentityGateway(
 
     private static async Task<byte[]?> ReadBoundedAsync(HttpContent content, int maximumBytes, CancellationToken cancellationToken)
     {
-        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        using var buffer = new MemoryStream();
-        var chunk = new byte[1024];
-        int read;
-        while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
+        if (content.Headers.ContentLength is long contentLength && contentLength > maximumBytes)
         {
-            if (buffer.Length + read > maximumBytes)
-            {
-                return null;
-            }
-
-            buffer.Write(chunk, 0, read);
+            return null;
         }
 
-        return buffer.ToArray();
+        // Use HttpContent's buffered JSON-body path while retaining a hard bound for chunked responses.
+        await content.LoadIntoBufferAsync(maximumBytes, cancellationToken);
+        return await content.ReadAsByteArrayAsync(cancellationToken);
     }
 }

@@ -6,7 +6,7 @@ namespace FinancialCopilot.Infrastructure.Authentication.TahlilApp;
 
 /// <summary>
 /// TahlilApp partner API settings. The client secret is read from the configured environment variable
-/// and never stored in configuration files.
+/// first, with a configuration fallback for local development and testing.
 /// </summary>
 public sealed class TahlilAppOptions
 {
@@ -25,6 +25,9 @@ public sealed class TahlilAppOptions
 
     /// <summary>Environment variable holding the HTTP Basic Auth client secret.</summary>
     public string ClientSecretEnvironmentVariable { get; set; } = "TAHLILAPP_CLIENT_SECRET";
+
+    /// <summary>Optional local-development fallback when the configured environment variable is absent.</summary>
+    public string? ClientSecret { get; set; }
 
     // Kept as a source-compatible configuration alias for existing local deployments.
     public string ApiKeyEnvironmentVariable
@@ -171,9 +174,9 @@ public sealed class TahlilAppOptionsValidator : IValidateOptions<TahlilAppOption
             failures.Add("ClientSecretEnvironmentVariable must be a valid environment variable name.");
         }
 
-        if (options.ExchangeTimeoutSeconds is < 1 or > 10)
+        if (options.ExchangeTimeoutSeconds is < 1 or > 120)
         {
-            failures.Add("ExchangeTimeoutSeconds must be between 1 and 10.");
+            failures.Add("ExchangeTimeoutSeconds must be between 1 and 120.");
         }
 
         if (options.MaximumResponseBytes is < 1024 or > 65536)

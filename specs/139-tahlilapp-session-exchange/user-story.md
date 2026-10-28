@@ -4,6 +4,8 @@
 
 Public self-registration is disabled. Previously provisioned users retain direct email/password login and password recovery, and Feature 145 email verification plus credential enrollment remains available to externally provisioned users. New users enter through trusted external identity providers; TahlilApp is the first provider. Provider-to-external-user identity mapping remains provider-neutral. Native public registration may be enabled later only as a separate product decision.
 
+The `/auth` login page directs new users to [TahlilApp](https://tahlilapp.com/sapio) for SapioAI registration and entry; it does not offer local public registration.
+
 Product name: **SapioAI** (internal namespaces and API contracts stay `FinancialCopilot`). Acceptance criteria are defined in `Design.md` §19 and refined in §22.8; this file maps stories to them. Status reflects `ImplementationReport.md`.
 
 ## Launch from TahlilApp

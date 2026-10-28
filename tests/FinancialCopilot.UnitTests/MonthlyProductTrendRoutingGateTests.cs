@@ -32,11 +32,31 @@ public sealed class MonthlyProductTrendRoutingGateTests
     [Theory]
     [InlineData("روند فروش کچاد", "monthly_activity_trend")]
     [InlineData("روند فروش ماهانه کگهر", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی را نمایش بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی را نشان بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی را نشون بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی را نشونم بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی را بهم نشون بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی بهم نشون بده", "monthly_activity_trend")]
+    [InlineData("روند فروش ماهانه فملی رو نشون بده", "monthly_activity_trend")]
+    [InlineData("نمودار فروش ماهانه کگل", "monthly_activity_trend")]
     [InlineData("ترکیب فروش محصولات کچاد", "product_revenue_mix")]
     public void CompanyTrendAndRevenueMixRouting_Unchanged(string query, string expected)
     {
         Assert.False(MonthlyProductTrendIntentRules.LooksLikeMonthlyProductTrendQuery(query));
         Assert.Equal(expected, TopCapability(query));
+    }
+
+    [Theory]
+    [InlineData("فروش ماهانه فملی چقدر بوده؟")]
+    [InlineData("قیمت فملی را نشون بده")]
+    [InlineData("سود خالص فولاد را نشون بده")]
+    public void ColloquialDisplayWithoutTrend_DoesNotSelectSalesChart(string query)
+    {
+        Assert.False(MonthlyActivityTrendIntentRules.LooksLikeMonthlyActivityTrendQuery(query));
+        Assert.NotEqual("monthly_activity_trend", TopCapability(query));
+        Assert.NotEqual("product_sales_trend", TopCapability(query));
     }
 
     [Theory]

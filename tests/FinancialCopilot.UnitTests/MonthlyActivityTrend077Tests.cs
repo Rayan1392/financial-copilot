@@ -31,6 +31,13 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("فروش امسال نسبت به سال قبل کچاد")]
     [InlineData("میانگین ۱۲ ماهه فروش کگل")]
     [InlineData("گزارش تولید و فروش با نمودار کهمدا")]
+    [InlineData("روند فروش ماهانه فملی را نمایش بده")]
+    [InlineData("روند فروش ماهانه فملی را نشان بده")]
+    [InlineData("روند فروش ماهانه فملی را نشون بده")]
+    [InlineData("روند فروش ماهانه فملی را نشونم بده")]
+    [InlineData("روند فروش ماهانه فملی را بهم نشون بده")]
+    [InlineData("روند فروش ماهانه فملی بهم نشون بده")]
+    [InlineData("روند فروش ماهانه فملی رو نشون بده")]
     public async Task Detect_TrendQuery_RoutesToMonthlyActivityTrend(string query)
     {
         var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());
@@ -51,6 +58,15 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("نمودار تولید و فروش ماهانه فملی", "فملی")]
     [InlineData("نمودار فروش فولاد", "فولاد")]
     [InlineData("نمودار فروش ماهانه شپدیس", "شپدیس")]
+    [InlineData("روند فروش ماهانه فملی", "فملی")]
+    [InlineData("روند فروش ماهانه فملی را نمایش بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی را نشان بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی را نشون بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی را نشونم بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی را بهم نشون بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی بهم نشون بده", "فملی")]
+    [InlineData("روند فروش ماهانه فملی رو نشون بده", "فملی")]
+    [InlineData("نمودار فروش ماهانه کگل", "کگل")]
     [InlineData("روند فروش ماهانه شپاکسا", "شپاکسا")]
     [InlineData("روند فروش ماهانه شپ‌اکسا", "شپاکسا")]
     [InlineData("روند فروش ماهانه شپاکسا؟", "شپاکسا")]
@@ -102,6 +118,9 @@ public sealed class MonthlyActivityTrend077Tests
     [InlineData("پرفروش‌ترین محصول کچاد")]        // product mix → ProductRevenueMix
     [InlineData("ترکیب فروش محصولات فملی")]       // product mix → ProductRevenueMix
     [InlineData("آخرین فروش کگل چقدر بوده؟")]     // single-number → SymbolLookup or Unknown
+    [InlineData("فروش ماهانه فملی چقدر بوده؟")]
+    [InlineData("قیمت فملی را نشون بده")]
+    [InlineData("سود خالص فولاد را نشون بده")]
     public async Task Detect_NonTrendQuery_DoesNotRouteToMonthlyActivityTrend(string query)
     {
         var detector = new LlmAiIntentDetector(new UnknownIntentExecutionService());

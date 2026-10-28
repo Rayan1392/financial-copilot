@@ -32,7 +32,7 @@ public static class MonthlyProductTrendIntentRules
 
     private static readonly HashSet<string> CommandStopWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "را", "نشان", "بده", "کن", "کنید", "ده", "دهید", "نمایش", "لطفا", "لطفاً",
+        "را", "رو", "نشان", "نشون", "نشونم", "بهم", "بده", "کن", "کنید", "ده", "دهید", "نمایش", "چقدر", "بوده", "لطفا", "لطفاً",
         "Ø±Ø§", "Ù†Ø´Ø§Ù†", "Ø¨Ø¯Ù‡", "Ú©Ù†", "Ú©Ù†ÛŒØ¯", "Ø¯Ù‡", "Ø¯Ù‡ÛŒØ¯", "Ù†Ù…Ø§ÛŒØ´"
     };
 

@@ -1590,6 +1590,12 @@ public sealed class V2MonthlyActivityTrendEndpointTests : IClassFixture<V2Monthl
     [InlineData("نمودار تولید و فروش ماهانه کهمدا")]
     [InlineData("نمودار فروش کهمدا")]
     [InlineData("نمودار فروش ماهانه کهمدا")]
+    [InlineData("روند فروش ماهانه کهمدا را نمایش بده")]
+    [InlineData("روند فروش ماهانه کهمدا را نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا را نشونم بده")]
+    [InlineData("روند فروش ماهانه کهمدا را بهم نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا بهم نشون بده")]
+    [InlineData("روند فروش ماهانه کهمدا رو نشون بده")]
     public async Task V2AiQuery_MonthlyActivityTrendQueries_ReturnChartPayloadWithoutToolLoop(string message)
     {
         using var client = _factory.CreateClient();

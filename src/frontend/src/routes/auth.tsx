@@ -54,7 +54,9 @@ export function AuthScreen({ redirect }: { redirect: string }) {
 
           <form onSubmit={submit} className="space-y-3">
             <div>
-              <label htmlFor="auth-email" className="block text-xs text-muted-foreground mb-1.5">ایمیل</label>
+              <label htmlFor="auth-email" className="block text-xs text-muted-foreground mb-1.5">
+                ایمیل
+              </label>
               <input
                 id="auth-email"
                 type="email"
@@ -65,7 +67,9 @@ export function AuthScreen({ redirect }: { redirect: string }) {
               />
             </div>
             <div>
-              <label htmlFor="auth-password" className="block text-xs text-muted-foreground mb-1.5">رمز عبور</label>
+              <label htmlFor="auth-password" className="block text-xs text-muted-foreground mb-1.5">
+                رمز عبور
+              </label>
               <input
                 id="auth-password"
                 type="password"
@@ -84,7 +88,23 @@ export function AuthScreen({ redirect }: { redirect: string }) {
             </button>
           </form>
 
-          <a href="/forgot-password" className="mt-4 block text-center text-xs text-emerald">گذرواژه را فراموش کرده‌اید؟</a>
+          <a href="/forgot-password" className="mt-4 block text-center text-xs text-emerald">
+            گذرواژه را فراموش کرده‌اید؟
+          </a>
+          <p dir="rtl" className="mt-4 text-right text-xs leading-6 text-muted-foreground sm:mt-5">
+            هنوز حساب کاربری ندارید؟
+            <br />
+            برای ثبت‌نام و ورود به ساپیو، از طریق{" "}
+            <a
+              href="https://tahlilapp.com/sapio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald hover:underline focus-visible:underline"
+            >
+              تحلیل‌اپ
+            </a>{" "}
+            اقدام کنید.
+          </p>
         </div>
       </div>
     </div>

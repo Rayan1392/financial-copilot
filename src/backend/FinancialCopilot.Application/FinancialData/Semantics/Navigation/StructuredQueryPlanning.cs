@@ -62,7 +62,8 @@ public sealed record PlanSourceReference(
     string? UnitStatus,
     string IdentityStatus,
     string SemanticReviewStatus,
-    bool Queryable);
+    bool Queryable,
+    string? TitleFa = null);
 
 public sealed record PlanProjection(string CatalogId, PlanProjectionRole Role);
 public enum PlanProjectionRole { Value, Grouping, Comparison }
@@ -220,7 +221,8 @@ public sealed class StructuredQueryPlanBuilder : IStructuredQueryPlanBuilder
                 if (identity is null) continue;
                 refs.Add(new(type, identity.CatalogId, identity.SourceItemCatalogId, identity.ProviderName,
                     identity.StatementType, identity.SourceItemId, identity.MetricCode, identity.NormalizedUnit ?? identity.SourceUnit,
-                    identity.SourceUnitStatus, identity.IdentityStatus, identity.SemanticReviewStatus, identity.Queryable));
+                    identity.SourceUnitStatus, identity.IdentityStatus, identity.SemanticReviewStatus, identity.Queryable,
+                    identity.TitleFa));
             }
             else
             {
@@ -393,12 +395,18 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
                     .Any(entity => !entity.ResolvedEntityId.HasValue || !entity.IdentityVerified
                         || string.IsNullOrWhiteSpace(entity.IdentityProvenance))))
             issues.Add("company_population_approval_or_membership_incomplete");
+        // A statement-item population (ranking over the authorized universe) has no product; a monthly
+        // discovery population is always driven by an approved product concept.
+        var statementPopulation = string.Equals(plan.PopulationCoveragePolicyId,
+            StatementComparisonPolicyIds.AuthorizedCompanyUniverse, StringComparison.Ordinal);
         if (plan.PopulationCoveragePolicyId is not null
             && (plan.CompanyDiscoveryScope is null
                 || plan.CompanyDiscoveryScope.TenantId != request.TenantId
                 || string.IsNullOrWhiteSpace(plan.CompanyDiscoveryScope.ScopeId)
                 || string.IsNullOrWhiteSpace(plan.CompanyDiscoveryScope.ApprovalReference)
-                || !plan.Entities.Any(entity => entity.EntityKind.Equals("Product", StringComparison.OrdinalIgnoreCase))
+                || statementPopulation == plan.Entities.Any(entity => entity.EntityKind.Equals("Product", StringComparison.OrdinalIgnoreCase))
+                || statementPopulation && !(plan.Sources.Count == 1
+                    && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem)
                 || plan.Entities.Any(entity => entity.EntityKind.Equals("Company", StringComparison.OrdinalIgnoreCase))))
             issues.Add("company_population_discovery_scope_or_unbound_entity_invalid");
         if (plan.ProductConcept is { } concept
@@ -480,15 +488,29 @@ public sealed class StructuredQueryPlanValidator : IStructuredQueryPlanValidator
             if (requiredScope is null || !plan.Period.ComparisonScopes.Contains(requiredScope, StringComparer.Ordinal))
                 issues.Add("period_comparison_scope_missing_or_unapproved");
         }
+        // A statement-item comparison reads one latest-common-period value per company (no aggregation);
+        // a monthly comparison sums a governed measure over a common bounded period.
+        var statementComparison = plan.Sources.Count == 1
+            && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem;
+        var comparedCompanyCount = plan.Entities.Count(x => x.EntityKind == "Company");
         if (plan.FinancialOperation.ComparisonMode == PlanComparisonMode.MultiCompanyComparison
             && (plan.FinancialOperation.Operation != FinancialValueOperation.DirectValueRetrieval
                 || plan.FinancialOperation.Kind != PlanFinancialOperationKind.DirectValue
-                || plan.Entities.Count(x => x.EntityKind == "Company") < 2
+                || (comparedCompanyCount < 2 && !(statementComparison && statementPopulation && comparedCompanyCount == 0))
                 || !plan.Period.ComparisonScopes.Contains("compare", StringComparer.Ordinal)
                 || (!plan.Period.SelectLatestByReportingPeriod
                     && (!plan.Period.ReportingPeriodStart.HasValue || !plan.Period.ReportingPeriodEnd.HasValue))
-                || plan.Aggregations.Count(x => x.Operation == PlanAggregationOperation.Sum) != 1))
+                || (statementComparison
+                    ? plan.Aggregations.Count != 0 || !plan.Period.SelectLatestByReportingPeriod
+                        || plan.Sort.Any(sort => sort.CatalogId != plan.Sources[0].CatalogId) || plan.Sort.Count > 1
+                    : plan.Aggregations.Count(x => x.Operation == PlanAggregationOperation.Sum) != 1)))
             issues.Add("multi_company_comparison_scope_missing_or_unapproved");
+        // Every named company of a statement comparison must be bound to one verified company identity;
+        // an unknown or ambiguous company stops the comparison before SQL instead of shrinking it.
+        if (plan.FinancialOperation.ComparisonMode == PlanComparisonMode.MultiCompanyComparison && statementComparison
+            && plan.Entities.Where(x => x.EntityKind == "Company").Any(x => !x.ResolvedEntityId.HasValue
+                || x.ResolvedEntityId.Value == Guid.Empty || !x.IdentityVerified))
+            issues.Add("statement_comparison_company_binding_unresolved");
         var monthlyMultiCompanyCompare = (requirements.FinancialValueReferences ?? []).Any(x =>
                 string.Equals(x.ReferenceType, nameof(FinancialValueReferenceType.MonthlyMeasure), StringComparison.Ordinal))
             && plan.Entities.Count(x => x.EntityKind == "Company") > 1
@@ -639,6 +661,24 @@ public sealed class OfflineStructuredQueryPlanningService(
         }
         var companyBinding = companyMentions.Count == 1 ? companyBindings[0] : null;
 
+        // An unbound company population for a statement-item comparison or ranking is the tenant's
+        // reviewed company universe; without an authorized scope the plan is refused before SQL.
+        if (requirements.PopulationDiscoveryRequested && companyMentions.Count == 0 && productMentions.Count == 0
+            && requirements.StructuredShape?.ComparisonMode == PlanComparisonMode.MultiCompanyComparison
+            && (requirements.FinancialValueReferences ?? []) is [{ ReferenceType: nameof(FinancialValueReferenceType.DirectSourceItem) }])
+        {
+            var scope = companyDiscoveryScopeResolver?.Resolve(request.TenantId);
+            requirements = requirements with
+            {
+                AuthorizedCompanyDiscoveryScope = scope,
+                PopulationCoveragePolicyId = StatementComparisonPolicyIds.AuthorizedCompanyUniverse,
+                NormalizationDiagnostics = requirements.NormalizationDiagnostics
+                    .Append(scope is null ? "company_discovery_scope_not_authorized"
+                        : $"statement_population_scope_resolved:{scope.ScopeId}:{scope.ApprovalReference}")
+                    .Distinct(StringComparer.Ordinal).ToArray()
+            };
+        }
+
         var shape = requirements.StructuredShape;
         var hasMonthlyMeasure = (requirements.FinancialValueReferences ?? []).Any(reference =>
             reference.ReferenceType == nameof(FinancialValueReferenceType.MonthlyMeasure));
@@ -767,6 +807,38 @@ public sealed class OfflineStructuredQueryPlanningService(
                             completeness = completenessValidator.Validate(requirements, context);
                         }
                     }
+                    // Production discovery is governed deterministically by the approved product concept, the
+                    // explicit production verb and the catalog measure. When the navigator could not map the
+                    // question onto the monthly domain, the catalog context is expanded to that measure here so
+                    // the deterministic rule below decides, not the model's uncertainty about the catalog.
+                    if (companyMentions.Count == 0 && containsProductionActivity && !producerSalesIntent.IsProducerSalesRanking
+                        && !context.MeasureIds.Contains(monthlyProductionMeasureId, StringComparer.Ordinal))
+                    {
+                        var expanded = await hierarchyProvider.GetContextAsync(new SchemaContextExpansionRequest(
+                            request.ContractVersion, request.CatalogVersion, request.CatalogHash, navigation.SelectedNodeIds, 0,
+                            RequiredCatalogIds: [monthlyProductionMeasureId, monthlyActivityRelationshipId,
+                                "dim_company", "dim_product_identity", "dim_monthly_period"]), cancellationToken);
+                        if (expanded is not null && expanded.MeasureIds.Contains(monthlyProductionMeasureId, StringComparer.Ordinal))
+                        {
+                            context = expanded with
+                            {
+                                ComparisonScopes = context.ComparisonScopes,
+                                PresentationRequirements = context.PresentationRequirements,
+                                StatementScopes = context.StatementScopes,
+                                AggregationRequirements = context.AggregationRequirements,
+                                OrderingRequirements = context.OrderingRequirements,
+                                EntityReferences = context.EntityReferences,
+                                SourcePolicies = context.SourcePolicies.Concat(expanded.SourcePolicies).Distinct(StringComparer.Ordinal).ToArray(),
+                                PeriodPolicies = context.PeriodPolicies.Concat(expanded.PeriodPolicies).Distinct(StringComparer.Ordinal).ToArray()
+                            };
+                            requirements = requirements with
+                            {
+                                NormalizationDiagnostics = requirements.NormalizationDiagnostics
+                                    .Append("population_discovery_context_expanded_to_monthly_production_measure")
+                                    .Distinct(StringComparer.Ordinal).ToArray()
+                            };
+                        }
+                    }
                     var hasMonthlyProductionReference = (requirements.FinancialValueReferences ?? [])
                         .Any(reference => reference.ReferenceType == nameof(FinancialValueReferenceType.MonthlyMeasure)
                             && reference.CatalogId == monthlyProductionMeasureId);
@@ -783,13 +855,19 @@ public sealed class OfflineStructuredQueryPlanningService(
                             DimensionIds = dimensions,
                             EntityKinds = ["company", "product"],
                             RelationshipIds = [monthlyActivityRelationshipId],
-                            PeriodPolicies = [],
+                            // An explicit, deterministically normalized month survives the rewrite; without one the
+                            // trailing-12-month observation window policy applies below.
+                            PeriodPolicies = requirements.StructuredShape?.ReportingPeriodStart is not null
+                                && requirements.StructuredShape?.ReportingPeriodEnd is not null
+                                ? ["explicit-period"] : [],
                             PresentationRequirements = ["table"],
                             FinancialValueReferences = [new(nameof(FinancialValueReferenceType.MonthlyMeasure),
                                 monthlyProductionMeasureId)],
                             RequestedFinancialValueOperation = nameof(FinancialValueOperation.DirectValueRetrieval),
                             StructuredShape = new StructuredPlanShape([], [], [], [], [], 0, 20,
-                                PlanFinancialOperationKind.DirectValue),
+                                PlanFinancialOperationKind.DirectValue,
+                                requirements.StructuredShape?.ReportingPeriodStart,
+                                requirements.StructuredShape?.ReportingPeriodEnd),
                             HasUnknownOrAmbiguousRequirements = false,
                             UncertaintyReason = null,
                             NormalizationDiagnostics = requirements.NormalizationDiagnostics

@@ -27,6 +27,14 @@ public static class Feature141DeveloperUatAuthorizationPolicy
 }
 
 /// <summary>
+/// A Feature 141 chat answer. <paramref name="Definitive"/> is true when the governed engine owned the question: a plan
+/// was produced and answered or refused by the engine, or a material constraint was refused with a typed outcome. A
+/// non-definitive answer (extraction failure, clarification, unbound measure) never replaces another route's answer.
+/// <paramref name="Refused"/> marks the typed Unsupported outcome (a material constraint the engine cannot honor).
+/// </summary>
+internal sealed record Feature141ChatAnswer(string Text, bool Definitive, bool Refused = false);
+
+/// <summary>
 /// Executes the catalog-governed Feature 141 pipeline for an authenticated chat request. SQL is
 /// never accepted from the model: the model produces typed intent, while the deterministic
 /// planner/compiler and the read-only executor own all executable structure.
@@ -66,10 +74,17 @@ internal sealed class Feature141ChatQueryService(
     public async Task<string> ExecuteAsync(
         AiQueryRequest request,
         string? validatedCompanySymbol,
+        CancellationToken cancellationToken) =>
+        (await AnswerAsync(request, validatedCompanySymbol, cancellationToken).ConfigureAwait(false)).Text;
+
+    public async Task<Feature141ChatAnswer> AnswerAsync(
+        AiQueryRequest request,
+        string? validatedCompanySymbol,
         CancellationToken cancellationToken)
     {
+        static Feature141ChatAnswer Pending(string text) => new(text, false);
         if (!IsEnabled(request))
-            return "این قابلیت برای درخواست احراز هویت‌شدهٔ فعلی فعال نیست.";
+            return Pending("این قابلیت برای درخواست احراز هویت‌شدهٔ فعلی فعال نیست.");
 
         logger.LogInformation(
             "Feature141 registered financial source route selected. Route={Route} CorrelationId={CorrelationId}",
@@ -86,11 +101,14 @@ internal sealed class Feature141ChatQueryService(
                 correlationId: request.CorrelationId);
             var extraction = await extractor.ExtractAsync(request.Message, cancellationToken).ConfigureAwait(false);
             if (!extraction.Succeeded || extraction.Intent is null)
-                return "برای تعیین دقیق قلم مالی، شرکت، دوره و نوع گزارش به توضیح بیشتری نیاز دارم.";
+                return Pending("برای تعیین دقیق قلم مالی، شرکت، دوره و نوع گزارش به توضیح بیشتری نیاز دارم.");
 
             var intent = extraction.Intent;
+            // A router-validated symbol replaces the extracted label of a single-company request only;
+            // replacing the labels of a multi-company request would silently drop the other companies.
             if (!string.IsNullOrWhiteSpace(validatedCompanySymbol) &&
-                intent.EntityScope.Kind == EntityScopeKind.NamedCompanies)
+                intent.EntityScope.Kind == EntityScopeKind.NamedCompanies &&
+                intent.EntityScope.CompanyLabels.Count <= 1)
             {
                 intent = intent with
                 {
@@ -106,10 +124,26 @@ internal sealed class Feature141ChatQueryService(
                 intent.Period.Kind, intent.Period.NumberOfPeriods, intent.Comparison.Mode,
                 intent.Output.Kind);
             if (intent.Ambiguity.RequiresClarification)
-                return RenderClarification(intent.Ambiguity.Questions,
-                    "درخواست مالی برای اجرای دقیق نیاز به شفاف‌سازی دارد.");
-            if (intent.Measures.Count != 1)
-                return "لطفاً در هر پرسش یک قلم مالی مشخص را درخواست کنید تا منبع و واحد آن بدون حدس انتخاب شود.";
+                return Pending(RenderClarification(intent.Ambiguity.Questions,
+                    "درخواست مالی برای اجرای دقیق نیاز به شفاف‌سازی دارد."));
+            // Cross-company comparison, ranking and threshold filtering of statement items use the verified
+            // cross-company handoff (StatementQueryShapeClassifier owns which intents are representable).
+            var shapeResult = intent.Measures.Count > 0
+                && intent.Measures.All(item => item.Kind == MeasureConceptKind.FinancialStatementItem)
+                    ? StatementQueryShapeClassifier.Classify(intent)
+                    : null;
+            var statementShape = shapeResult?.Shape;
+            logger.LogInformation(
+                "Feature141 statement shape classified. Shape={Shape} Diagnostic={Diagnostic} Operation={Operation} Ranking={Ranking} Constraints={Constraints} RequestedFields={RequestedFields} Filters={Filters} CorrelationId={CorrelationId}",
+                statementShape?.ToString() ?? "none", shapeResult?.Diagnostic ?? "none", intent.Operation.Kind,
+                intent.Ranking is null ? "none" : $"{intent.Ranking.Direction}:{intent.Ranking.MeasureConcept}:{intent.Ranking.Limit}",
+                string.Join(',', intent.Constraints.Select(constraint => $"{constraint.Name}={constraint.Value}/{constraint.Provenance}")),
+                string.Join(',', intent.Output.RequestedFields), intent.Filters is null ? "none" : intent.Filters.GetType().Name,
+                request.CorrelationId);
+            var crossCompany = statementShape is StatementQueryShape.MultiCompanyComparison
+                or StatementQueryShape.Ranking or StatementQueryShape.Filter;
+            if (intent.Measures.Count != 1 && !crossCompany)
+                return Pending("لطفاً در هر پرسش یک قلم مالی مشخص را درخواست کنید تا منبع و واحد آن بدون حدس انتخاب شود.");
 
             var measure = intent.Measures[0];
             var navigationRequest = new SchemaNavigationRequest(
@@ -119,15 +153,24 @@ internal sealed class Feature141ChatQueryService(
                 catalogSnapshot.CatalogHash,
                 TenantId: request.TenantId,
                 CorrelationId: request.CorrelationId);
-            var requiresGeneralPlanner = measure.Kind != MeasureConceptKind.FinancialStatementItem
+            var requiresGeneralPlanner = !crossCompany && (measure.Kind != MeasureConceptKind.FinancialStatementItem
                 || intent.Operation.Kind != AnalyticalOperationKind.Retrieve
                 || intent.Comparison.Mode != ComparisonMode.None
                 || intent.Period.Kind is not (ReportingPeriodKind.LatestAvailable or ReportingPeriodKind.Unspecified)
                 || intent.Products.Count != 0 || intent.Categories.Count != 0 || intent.Filters is not null
                 || intent.Aggregation is not null || intent.Ranking is not null || intent.Constraints.Count != 0
-                || intent.Output.RequestedFields.Count != 0;
+                || intent.Output.RequestedFields.Count != 0);
             if (requiresGeneralPlanner)
             {
+                // The general planner path has no numeric-threshold representation (monthly production or
+                // sales filters among them); executing it would answer the question without the threshold.
+                if (DropsMaterialThreshold(intent))
+                {
+                    logger.LogInformation(
+                        "Feature141 typed outcome. Outcome={Outcome} Diagnostic={Diagnostic} CorrelationId={CorrelationId}",
+                        "Unsupported", "threshold_filter_not_supported_on_general_planner_path", request.CorrelationId);
+                    return new("شرط عددی (مانند «بالای ۵۰۰ تن» یا «بیشتر از مبلغی مشخص») روی آمار تولید و فروش ماهانه هنوز پشتیبانی نمی‌شود؛ برای جلوگیری از پاسخ نادرست، پرس‌وجو بدون این شرط اجرا نشد. می‌توانید مقدار ماهانهٔ یک شرکت و محصول مشخص را بپرسید.", true, true);
+                }
                 // The model names the Persian year and month; the calendar bounds are computed here so
                 // model-generated Gregorian dates never become authoritative.
                 var requirements = await requirementsExtractor.ExtractAsync(navigationRequest, cancellationToken).ConfigureAwait(false);
@@ -139,16 +182,29 @@ internal sealed class Feature141ChatQueryService(
                         logger.LogInformation(
                             "Feature141 Persian month could not be normalized. CorrelationId={CorrelationId} Diagnostic={Diagnostic}",
                             request.CorrelationId, period.DiagnosticCode);
-                        return "ماه شمسی درخواستی قابل تشخیص نیست؛ لطفاً نام ماه و سال شمسی را دقیق بنویسید (مثلاً شهریور ۱۴۰۵).";
+                        return Pending("ماه شمسی درخواستی قابل تشخیص نیست؛ لطفاً نام ماه و سال شمسی را دقیق بنویسید (مثلاً شهریور ۱۴۰۵).");
                     }
                     requirements = ReportingPeriodRequirementsNormalizer.Apply(requirements, period);
                 }
                 var generalPlan = await planningService.PlanAsync(navigationRequest, requirements, cancellationToken).ConfigureAwait(false);
-                return await ExecutePlannedAsync(request, generalPlan, cancellationToken).ConfigureAwait(false);
+                return new(await ExecutePlannedAsync(request, generalPlan, cancellationToken).ConfigureAwait(false), true);
             }
 
             var references = await hierarchyProvider.GetFinancialSourceReferencesAsync(
                 catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash, cancellationToken).ConfigureAwait(false);
+            if (crossCompany)
+            {
+                // Same typed gate as the verified engine path: unrepresentable units, operators or bindings stop here.
+                var typedBinding = CanonicalIntentCatalogBinding.Bind(intent, references);
+                if (typedBinding.Status != CanonicalCatalogBindingStatus.Bound)
+                {
+                    logger.LogInformation(
+                        "Feature141 typed outcome. Outcome={Outcome} Diagnostic={Diagnostic} CorrelationId={CorrelationId}",
+                        typedBinding.Status, string.Join(',', typedBinding.Diagnostics), request.CorrelationId);
+                    var refused = typedBinding.Status == CanonicalCatalogBindingStatus.Unsupported;
+                    return new(RenderHandoffFailure(typedBinding.Diagnostics.LastOrDefault() ?? string.Empty), refused, refused);
+                }
+            }
             var canonical = CanonicalSourceItemBindingResolver.Resolve(measure, references, ProviderName);
             var resolution = canonical.Status == CanonicalSourceItemBindingStatus.Bound
                              && canonical.Reference is { } bound
@@ -167,24 +223,27 @@ internal sealed class Feature141ChatQueryService(
             {
                 var labels = (resolution.Candidates ?? []).Select(item => item.TitleFa)
                     .Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.Ordinal).Take(5).ToArray();
-                return labels.Length == 0
+                return Pending(labels.Length == 0
                     ? "چند قلم مالی با این عبارت سازگار است؛ لطفاً عنوان دقیق قلم صورت مالی را مشخص کنید."
-                    : $"چند قلم مالی با این عبارت سازگار است؛ لطفاً یکی را دقیق مشخص کنید: {string.Join("، ", labels)}.";
+                    : $"چند قلم مالی با این عبارت سازگار است؛ لطفاً یکی را دقیق مشخص کنید: {string.Join("، ", labels)}.");
             }
             if (resolution.Status != FinancialSourceTitleResolutionStatus.Resolved || resolution.Reference is null)
-                return "قلم مالی در فهرست ثبت‌شده به‌صورت یکتا پیدا نشد؛ لطفاً عنوان دقیق قلم صورت مالی را بنویسید.";
+                return Pending("قلم مالی در فهرست ثبت‌شده به‌صورت یکتا پیدا نشد؛ لطفاً عنوان دقیق قلم صورت مالی را بنویسید.");
 
             var directSource = catalogSnapshot.DirectSources.SingleOrDefault(source =>
                 string.Equals(source.CatalogId, resolution.Reference.CatalogId, StringComparison.Ordinal));
-            var handoff = FinancialSourcePlannerHandoff.Create(
-                intent, resolution, catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash, directSource);
+            var handoff = crossCompany
+                ? FinancialSourcePlannerHandoff.CreateCrossCompany(
+                    intent, resolution, catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash, directSource, references)
+                : FinancialSourcePlannerHandoff.Create(
+                    intent, resolution, catalogSnapshot.CatalogVersion, catalogSnapshot.CatalogHash, directSource);
             if (handoff.Status != FinancialSourcePlannerHandoffStatus.ReadyForOfflineValidation
                 || handoff.Binding is null)
-                return RenderHandoffFailure(handoff.DiagnosticCode);
+                return Pending(RenderHandoffFailure(handoff.DiagnosticCode));
 
             var planned = await planningService.PlanAsync(
                 navigationRequest, handoff.Binding.PlannerRequirements, cancellationToken).ConfigureAwait(false);
-            return await ExecutePlannedAsync(request, planned, cancellationToken).ConfigureAwait(false);
+            return new(await ExecutePlannedAsync(request, planned, cancellationToken).ConfigureAwait(false), true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -195,7 +254,7 @@ internal sealed class Feature141ChatQueryService(
             logger.LogError(exception,
                 "Feature141 chat execution failed without exposing internal details. CorrelationId={CorrelationId}",
                 request.CorrelationId);
-            return "اجرای امن پرس‌وجوی مالی کامل نشد؛ هیچ عددی گزارش نمی‌کنم. لطفاً عنوان قلم، شرکت و دوره را دقیق‌تر بنویسید.";
+            return Pending("اجرای امن پرس‌وجوی مالی کامل نشد؛ هیچ عددی گزارش نمی‌کنم. لطفاً عنوان قلم، شرکت و دوره را دقیق‌تر بنویسید.");
         }
     }
 
@@ -242,6 +301,27 @@ internal sealed class Feature141ChatQueryService(
                 .TextAnswer;
     }
 
+    /// <summary>
+    /// True when the intent carries a numeric threshold the general planner path cannot honor. "Which companies produced X"
+    /// is discovery of positive recorded production, so a single "production &gt; 0" threshold restates that selection rule
+    /// and is not dropped; every other threshold is.
+    /// </summary>
+    internal static bool DropsMaterialThreshold(CanonicalSemanticIntent intent) =>
+        ContainsThreshold(intent.Filters)
+        && !(intent.Operation.Kind == AnalyticalOperationKind.DiscoverPopulation
+             && intent.Filters is MeasureThresholdFilter
+             {
+                 MeasureConcept: CanonicalBusinessMeasureConceptRegistry.ProductionQuantity,
+                 Threshold: { Operator: NumericComparisonOperator.GreaterThan, Value: 0m }
+             });
+
+    private static bool ContainsThreshold(FilterExpression? filter) => filter switch
+    {
+        MeasureThresholdFilter => true,
+        FilterGroup group => (group.Children ?? []).Any(ContainsThreshold),
+        _ => false
+    };
+
     private static string RenderClarification(IReadOnlyList<string> questions, string fallback) =>
         questions.Count == 0 ? fallback : string.Join(" ", questions);
 
@@ -251,10 +331,15 @@ internal sealed class Feature141ChatQueryService(
             "لطفاً مشخص کنید گزارش مستقل شرکت را می‌خواهید یا گزارش تلفیقی؛ این دو دامنه با هم ادغام نمی‌شوند.",
         "period_intent_not_supported_by_planner_slice" =>
             "این دوره در مسیر امن فعلی به‌صورت یکتا قابل انتخاب نیست؛ لطفاً دورهٔ گزارش را دقیق‌تر مشخص کنید.",
-        "requested_result_unit_conversion_not_supported" or "effective_source_unit_unresolved" =>
+        "requested_result_unit_conversion_not_supported" or "effective_source_unit_unresolved"
+            or "statement_filter_threshold_unit_conversion_not_supported" or "statement_filter_threshold_unit_unspecified" =>
             "واحد درخواستی با واحد مستند منبع سازگار نیست؛ لطفاً واحد موردنظر را مشخص کنید.",
         "operation_or_comparison_not_supported_by_planner_slice" =>
             "این نوع مقایسه برای قلم انتخاب‌شده هنوز شواهد کافی ندارد؛ مقدار یک دورهٔ مشخص را درخواست کنید.",
+        "statement_filter_expression_not_supported" =>
+            "ترکیب «یا»، نفی یا بیش از دو شرط عددی پشتیبانی نمی‌شود؛ حداکثر دو شرط را با «و» بیان کنید.",
+        "statement_filter_items_on_different_statements" =>
+            "شرط‌ها باید روی اقلام یک صورت مالی باشند تا برای هر شرکت در یک دورهٔ گزارش بررسی شوند.",
         "source_identity_ambiguous" =>
             "چند قلم مالی ممکن است منظور شما باشد؛ لطفاً عنوان دقیق قلم صورت مالی را مشخص کنید.",
         _ => "این درخواست بدون حدس دربارهٔ مفهوم، واحد، دوره یا دامنهٔ گزارش قابل اجرا نیست؛ لطفاً آن را دقیق‌تر بیان کنید."

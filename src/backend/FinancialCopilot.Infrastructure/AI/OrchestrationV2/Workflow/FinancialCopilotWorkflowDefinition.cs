@@ -79,6 +79,38 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     internal static readonly ActivitySource ActivitySource =
         new("FinancialCopilot.AI.OrchestrationV2.Workflow", "2.0");
 
+    /// <summary>
+    /// Feature 141 answers a question the selected existing route did not answer (clarification, unsupported or no data).
+    /// Existing answers always win, and only a definitive Feature 141 result replaces the non-answer. The turn is billed
+    /// once as a completed chat answer: on the turn's reservation when it has one, otherwise on a derived reservation;
+    /// with <paramref name="billSeparately"/> false the caller settles the turn's reservation itself.
+    /// </summary>
+    private async Task<(string Answer, UsageAccountingResult? Usage, DialogueOutcome Outcome)?> TryFeature141FallbackAsync(
+        AiQueryRequest request, BillingReservationHandle? turnReservation, string previousRoute, CancellationToken ct,
+        bool billSeparately = true)
+    {
+        if (feature141ChatQueryService?.IsEnabled(request) != true) return null;
+        var reservation = !billSeparately ? null : turnReservation ?? await billingFunctions.TryReserveAsync(
+            request with { CorrelationId = $"{request.CorrelationId}:feature141" }, ct);
+        var answer = await feature141ChatQueryService.AnswerAsync(request, null, ct);
+        logger.LogInformation(
+            "Chat Feature 141 fallback evaluated. PreviousRoute={PreviousRoute} Definitive={Definitive} CorrelationId={CorrelationId}",
+            previousRoute, answer.Definitive, request.CorrelationId);
+        if (!answer.Definitive)
+        {
+            // An unused derived reservation settles at zero charge; the turn's own reservation stays with the existing flow.
+            if (turnReservation is null && reservation is not null)
+                await billingFunctions.FinalizeAsync(reservation, "ClarificationRequired", false, CancellationToken.None);
+            return null;
+        }
+        var usage = reservation is null
+            ? null
+            : await billingFunctions.FinalizeAsync(reservation, answer.Refused ? "ValidationFailed" : "Completed", false,
+                CancellationToken.None);
+        // The engine's typed refusal is the existing Unsupported chat outcome; every other definitive result is its answer.
+        return (answer.Text, usage, answer.Refused ? DialogueOutcome.Unsupported : DialogueOutcome.Answered);
+    }
+
     internal async Task<AiQueryResponse> RunAsync(AiQueryRequest request, CancellationToken ct)
     {
         var requestStart = Stopwatch.GetTimestamp();
@@ -342,6 +374,21 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 semanticPsVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
                     new PsVisualizationQuery(monthlyActivityTrendResult.CompanySymbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
             }
+            if (semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired
+                    or CapabilityExecutionStatus.Unsupported or CapabilityExecutionStatus.NoData
+                && await TryFeature141FallbackAsync(request, null,
+                    $"semantic_capability:{semanticFrame.CapabilityCode}:{semantic.Execution.Status}", ct) is { } semanticFallback)
+            {
+                stepActivity?.SetTag("workflow.intent", "Feature141Fallback");
+                return new AgentExecutedMessage(
+                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext, null,
+                    semanticFallback.Answer, null, null, null, null, null, null, null, null,
+                    "Completed", false, null, semanticFallback.Usage,
+                    SemanticOutcome: semanticFallback.Outcome,
+                    SemanticReplyLanguage: AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message),
+                    // The turn was answered by the registered financial source, not by the routed capability.
+                    ExecutedFrame: semanticFrame with { CapabilityCode = CapabilityExecutionRoutes.RegisteredFinancialSource });
+            }
             var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
             var summary = semantic.Execution.Payload switch
             {
@@ -396,6 +443,17 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         if (request.SemanticFrame is null && request.SemanticRoutingDisposition is "Unsupported" or "Clarification")
         {
+            if (await TryFeature141FallbackAsync(request, msg.Reservation,
+                    $"semantic_stop:{request.SemanticRoutingDisposition}", ct) is { } stopFallback)
+            {
+                stepActivity?.SetTag("workflow.intent", "Feature141Fallback");
+                return new AgentExecutedMessage(
+                    request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext,
+                    msg.Reservation, stopFallback.Answer, null, null, null, null, null, null, null, null,
+                    "Completed", false, null, stopFallback.Usage,
+                    SemanticOutcome: stopFallback.Outcome,
+                    SemanticReplyLanguage: AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message));
+            }
             var requiresClarification = request.SemanticRoutingDisposition == "Clarification";
             var outcome = requiresClarification ? DialogueOutcome.ClarificationNeeded : DialogueOutcome.Unsupported;
             var reasonCode = requiresClarification ? "low_confidence_or_unresolved_semantic_intent" : "unsupported_semantic_intent";
@@ -526,7 +584,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     return feature141Answer;
                 },
                 name: "query_registered_financial_source",
-                description: "Query a registered financial-statement source item through the governed Feature 141 planner and read-only PostgreSQL executor. Use for direct reported statement-item values or per-share statement values not covered by an existing specialized capability. Do NOT use for monthly-sales/product capabilities, symbol market metrics, screening, or analysis posts. Preserve the requested company, item, period, consolidation scope, and unit; the tool returns a Persian answer or a safe clarification.");
+                description: "Query registered financial data through the governed Feature 141 planner and read-only PostgreSQL executor. Use, when no existing specialized capability answers it, for: a reported statement-item or per-share value of a company; comparing or ranking companies by a statement item; listing companies whose statement items satisfy numeric thresholds (one condition, or two joined by AND); and a company's monthly production or sales quantity/amount of a named product in a named Persian month, or which companies produced a product in that month. Do NOT use for symbol market metrics, market-ratio screening, or analysis posts. Preserve the requested companies, items, thresholds, period, consolidation scope, and unit; the tool returns a Persian answer or a safe refusal.");
         }
 
         UsageAccountingResult? usage = null;
@@ -892,6 +950,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 parserContextMessage: msg.EnrichedMessage);
 
             var directCompletionStatus = lookupResult.CompletionStatus;
+            var directText = lookupResult.AgentSummary;
+            DialogueOutcome? directFallbackOutcome = null;
+            // A lookup without rows or with unresolved symbols did not answer: a definitive Feature 141 answer
+            // takes the turn, which is still settled once below on the turn's own reservation.
+            if (!(lookupResult.Table?.Rows.Count > 0 && lookupResult.Table.UnresolvedSymbols.Count == 0)
+                && await TryFeature141FallbackAsync(request, null, "direct_metric_lookup_without_answer", ct,
+                    billSeparately: false) is { } directFallback)
+            {
+                directText = directFallback.Answer;
+                directFallbackOutcome = directFallback.Outcome;
+                directCompletionStatus = directFallback.Outcome == DialogueOutcome.Unsupported ? "ValidationFailed" : "Completed";
+                lookupResult = null;
+            }
             UsageAccountingResult? directUsage = null;
             if (msg.Reservation is not null)
             {
@@ -906,9 +977,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             return new AgentExecutedMessage(
                 msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
                 msg.MemoryContext, msg.Reservation,
-                lookupResult.AgentSummary, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
+                directText, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
                 monthlySalesQualityRankingResult,
-                directCompletionStatus, false, modelClient, directUsage);
+                directCompletionStatus, false, modelClient, directUsage,
+                SemanticOutcome: directFallbackOutcome,
+                SemanticReplyLanguage: directFallbackOutcome is null ? null : AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message));
         }
 
         var agentTools = new List<AITool> { scannerTool, lookupTool, comprehensiveAnalysisTool };
@@ -921,6 +994,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         var agent = agentFactory.Create(chatClientAdapter, systemInstructions, agentTools);
 
         string agentResponseText;
+        DialogueOutcome? feature141FallbackOutcome = null;
         var completionStatus = "Completed";
         var fromCache = false;
 
@@ -936,8 +1010,26 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 && scannerResult is null && lookupResult is null && comprehensiveAnalysisResult is null)
                 agentResponseText = feature141Answer;
 
+            // The agent produced no grounded tool result: a definitive Feature 141 answer takes the turn,
+            // which is still settled once below on the turn's own reservation.
+            // A lookup with unresolved symbols is a disambiguation, not an answer (same rule as the outcome policy).
+            var groundedToolResult = scannerResult?.Table is not null
+                || lookupResult?.Table?.Rows.Count > 0 && lookupResult.Table.UnresolvedSymbols.Count == 0
+                || comprehensiveAnalysisResult?.QueryResponse?.HasResults == true;
+            if (feature141Answer is null && !groundedToolResult
+                && await TryFeature141FallbackAsync(request, null, "agent_without_grounded_result", ct,
+                    billSeparately: false) is { } agentFallback)
+            {
+                agentResponseText = agentFallback.Answer;
+                feature141FallbackOutcome = agentFallback.Outcome;
+                scannerResult = null;
+                lookupResult = null;
+                comprehensiveAnalysisResult = null;
+            }
+
             fromCache = scannerResult?.FromCache ?? false;
-            completionStatus = scannerResult?.CompletionStatus ?? lookupResult?.CompletionStatus ?? "Completed";
+            completionStatus = scannerResult?.CompletionStatus ?? lookupResult?.CompletionStatus
+                ?? (feature141FallbackOutcome == DialogueOutcome.Unsupported ? "ValidationFailed" : "Completed");
 
             if (msg.Reservation is not null)
                 usage = await billingFunctions.FinalizeAsync(
@@ -972,7 +1064,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             msg.MemoryContext, msg.Reservation,
             agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
             monthlySalesQualityRankingResult,
-            completionStatus, fromCache, modelClient, usage);
+            completionStatus, fromCache, modelClient, usage,
+            SemanticOutcome: feature141FallbackOutcome,
+            SemanticReplyLanguage: feature141FallbackOutcome is null ? null : AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message));
     }
 
     private async ValueTask<ResultsComputedMessage> ExecuteResultComputationStepAsync(

@@ -480,6 +480,8 @@ services:
       ChannelFinancialStatements__InitialDelayMinutes: ${CHANNEL_FINANCIAL_STATEMENTS_INITIAL_DELAY_MINUTES:-5}
       ChannelMonthlyReports__AllowedChannelIds__0: ${CODALMIRROR_CHANNEL_ID:-}
       ConnectionStrings__Feature141ReadOnly: ${FEATURE141_READONLY_CONNECTION_STRING:?Feature 141 read-only connection is required}
+      # Feature 141 chat route: off unless a pilot environment sets FEATURE141_ENABLED=true; set false to roll back.
+      Feature141__Enabled: ${FEATURE141_ENABLED:-false}
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       Authentication__OwnedIdentity__PublicRegistrationEnabled: ${AUTH_PUBLIC_REGISTRATION_ENABLED:-false}
     depends_on:

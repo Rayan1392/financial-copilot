@@ -30,6 +30,29 @@ public sealed class CanonicalIntentRequestedFieldNormalizationTests
     }
 
     [Fact]
+    public void CompanyTotalGrainOnAStatementItemIsNormalizedAway()
+    {
+        var intent = Intent();
+        var withGrain = intent with { Measures = [intent.Measures[0] with { UserPhrase = "سود خالص", Qualifiers = new(ValueGrain: MeasureValueGrain.CompanyTotal) }] };
+        var actual = new CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasureConceptRegistry.Default).Canonicalize(withGrain);
+        Assert.Equal("netProfit", actual.Measures[0].ConceptId);
+        Assert.Equal(MeasureValueGrain.Unspecified, actual.Measures[0].Qualifiers.ValueGrain);
+        var productLevel = intent with { Measures = [intent.Measures[0] with { UserPhrase = "سود خالص", Qualifiers = new(ValueGrain: MeasureValueGrain.ProductLevel) }] };
+        Assert.Equal(MeasureValueGrain.ProductLevel,
+            new CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasureConceptRegistry.Default).Canonicalize(productLevel).Measures[0].Qualifiers.ValueGrain);
+    }
+
+    [Theory]
+    [InlineData("value")]
+    [InlineData("Value")]
+    [InlineData("مقدار")]
+    public void GenericValuePlaceholderFieldIsRemoved(string field)
+    {
+        var actual = new CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasureConceptRegistry.Default).Canonicalize(Intent(field));
+        Assert.Empty(actual.Output.RequestedFields);
+    }
+
+    [Fact]
     public void DifferentRequestedFieldIsPreserved()
     {
         var actual = new CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasureConceptRegistry.Default)

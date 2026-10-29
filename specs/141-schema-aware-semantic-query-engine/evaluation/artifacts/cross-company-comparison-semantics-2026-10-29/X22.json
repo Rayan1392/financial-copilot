@@ -1,0 +1,47 @@
+{
+  "id": "X22",
+  "description": "incompatible units: a source without a resolved effective unit is not compared",
+  "expectedStatus": null,
+  "expectedDiagnostic": null,
+  "expectedRefusal": "statement_comparison_requires_resolved_effective_unit",
+  "expectedRows": [],
+  "bindingStatus": "Bound",
+  "planEligible": true,
+  "planDiagnostics": [
+    "navigation_metadata_pending:dimension-dim_company",
+    "navigation_metadata_pending:shared-dimensions",
+    "navigation_metadata_pending:financial-semantic-catalog",
+    "navigation_metadata_pending:table-tbl_53d51e26e1ca6929",
+    "navigation_metadata_pending:domain-financial-statements",
+    "navigation_metadata_pending:table-tbl_36036602dbf76362",
+    "navigation_metadata_pending:direct-source-item-source_item_66fdf1090cbf96d3",
+    "navigation_metadata_pending:source-items-incomestatement",
+    "navigation_metadata_pending:financial-statement-source-items",
+    "semantic_meaning_unapproved:dimension-dim_company",
+    "semantic_meaning_unapproved:shared-dimensions",
+    "semantic_meaning_unapproved:financial-semantic-catalog",
+    "semantic_meaning_unapproved:table-tbl_53d51e26e1ca6929",
+    "semantic_meaning_unapproved:domain-financial-statements",
+    "semantic_meaning_unapproved:table-tbl_36036602dbf76362",
+    "semantic_meaning_unapproved:source-items-incomestatement",
+    "semantic_meaning_unapproved:financial-statement-source-items",
+    "query_not_authorized:dimension-dim_company",
+    "query_not_authorized:shared-dimensions",
+    "query_not_authorized:financial-semantic-catalog",
+    "query_not_authorized:table-tbl_53d51e26e1ca6929",
+    "query_not_authorized:domain-financial-statements",
+    "query_not_authorized:table-tbl_36036602dbf76362",
+    "query_not_authorized:source-items-incomestatement",
+    "query_not_authorized:financial-statement-source-items",
+    "statement_comparison_period_policy:latest-common-reporting-period-v1"
+  ],
+  "companyBindings": [
+    "Found:70438df0-78f5-4a6d-816e-516545d807af",
+    "Found:696130c8-703a-4a98-ac50-b4d409c15a02"
+  ],
+  "compilationDiagnostics": [
+    "statement_comparison_requires_resolved_effective_unit"
+  ],
+  "outcome": "refused_at_compilation",
+  "runAt": "2026-10-29T10:44:50.0447678+00:00"
+}

@@ -1,7 +1,7 @@
 {
   "suiteId": "feature141-engine-e2e-suite",
-  "version": "1.0.0",
-  "date": "2026-10-28",
+  "version": "1.2.0",
+  "date": "2026-10-29",
   "authoritative": true,
   "supersedes": [
     "engine-e2e-cases.json (E01-E20, 2026-10-20 design set; kept for history, no longer scored)",
@@ -16,34 +16,1433 @@
     "periods": "Gregorian and Persian (Jalali) dates are both stated; the engine reports the latest reporting period when the question names none, and the answer states that period."
   },
   "blockerVocabulary": {
-    "B-CONCEPT-BINDING": { "owner": "Product owner / catalog governance", "action": "Approve canonicalConceptBindings (dimension, value form, effective unit) for the concept on the relevant financial-statement-source-items.yaml entries and hierarchy references; regenerate the catalog hash." },
-    "B-MONTHLY-MEASURE-REVIEW": { "owner": "Product owner", "action": "Approve metric_monthly_production_quantity / metric_monthly_sales_quantity / metric_monthly_sales (review.semanticApproved, review.queryable) and verify metric_monthly_sales_rate unit." },
-    "B-PRODUCT-EQUIVALENCE": { "owner": "Product owner", "action": "Approve a Feature141:ReviewedProductEquivalenceGroups entry for گندله / گندله سنگ‌آهن with company-scoped product identities." },
-    "B-DISCOVERY-SCOPE": { "owner": "Product owner", "action": "Configure Feature141:CompanyDiscoveryScopes for the tenant with CompanyCoverageComplete evidence." },
-    "B-PLANNER-ALGEBRA": { "owner": "Engineering", "action": "Extend planner/validator/compiler for the operator (comparison, ranking, filter, aggregation, multi-measure) with tests; CanonicalIntentCatalogBinding rejects them as Unsupported today." },
-    "B-FIXTURE-NOT-SEEDED": { "owner": "Engineering", "action": "Seed the proposed fixture block through the runner once the governing approval exists." }
+    "B-CONCEPT-BINDING": {
+      "owner": "Product owner / catalog governance",
+      "action": "Approve canonicalConceptBindings (dimension, value form, effective unit) for the concept on the relevant financial-statement-source-items.yaml entries and hierarchy references; regenerate the catalog hash."
+    },
+    "B-MONTHLY-MEASURE-REVIEW": {
+      "owner": "Product owner",
+      "action": "Approve metric_monthly_production_quantity / metric_monthly_sales_quantity / metric_monthly_sales (review.semanticApproved, review.queryable) and verify metric_monthly_sales_rate unit."
+    },
+    "B-PRODUCT-EQUIVALENCE": {
+      "owner": "Product owner",
+      "action": "Approve a Feature141:ReviewedProductEquivalenceGroups entry for گندله / گندله سنگ‌آهن with company-scoped product identities."
+    },
+    "B-DISCOVERY-SCOPE": {
+      "owner": "Product owner",
+      "action": "Configure Feature141:CompanyDiscoveryScopes for the tenant with CompanyCoverageComplete evidence."
+    },
+    "B-PLANNER-ALGEBRA": {
+      "owner": "Engineering",
+      "action": "Extend planner/validator/compiler for the operator (comparison, ranking, filter, aggregation, multi-measure) with tests; CanonicalIntentCatalogBinding rejects them as Unsupported today."
+    },
+    "B-FIXTURE-NOT-SEEDED": {
+      "owner": "Engineering",
+      "action": "Seed the proposed fixture block through the runner once the governing approval exists."
+    }
   },
   "cases": [
-    { "id": "F141-E01", "legacyIds": ["E01", "E141-01"], "category": "single_company_statement", "question": "سود خالص کگل چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 1200, "unit": "MillionIRR", "period": "latest reporting period of the seeded statement", "fixtureSource": "proposed.companies[کگل].netProfit" }, "executable": false, "blocker": { "code": "B-CONCEPT-BINDING", "detail": "netProfit has no approved canonical binding (IncomeStatement/143 is identity-approved only)" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E02", "legacyIds": ["E02"], "category": "single_company_statement", "question": "سود عملیاتی کگهر چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 1100, "unit": "MillionIRR", "period": "latest reporting period of the seeded statement", "fixtureSource": "proposed.companies[کگهر].operatingProfit" }, "executable": false, "blocker": { "code": "B-CONCEPT-BINDING", "detail": "operatingProfit has no approved canonical binding" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E03", "legacyIds": ["E03", "E141-03"], "category": "single_company_statement", "question": "سود هر سهم فملی چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 3200, "unit": "IRRPerShare", "period": "latest reporting period of the seeded statement", "fixtureSource": "proposed.companies[فملی].eps" }, "executable": false, "blocker": { "code": "B-CONCEPT-BINDING", "detail": "earningsPerShare has no approved canonical binding" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E04", "legacyIds": ["E04", "E141-02"], "category": "single_company_statement", "question": "سود عملیاتی هر سهم کگهر چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 3753, "unit": "IRRPerShare", "periodStart": "2026-03-21", "periodEnd": "2026-06-21", "persianPeriodStart": "1405-01-01", "persianPeriodEnd": "1405-03-31", "sourceCatalogId": "source_item_682beceadddc1458", "sourceItemId": 161, "fixtureSource": "seeded.statementLineItems[role=expected]" }, "executable": true, "blocker": null, "status": "PASS", "evidence": [ "engine-e2e-results.json#verticalSlice (run 2026-10-28T17:19Z)", "artifacts/engine-e2e-vertical-slice-2026-10-28-192056-F141-E04-answered.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192156-F141-E04-answered.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E04-run2-unsupported-requestedfields.json" ], "lastRun": "2026-10-28T19:21:56Z", "note": "Legacy E04 asked for کگل with a pending fixture value; the seeded fixture company is کگهر, so the question text follows legacy E141-02. The run2 artifact is a failed run (model echoed the measure as a requested output field) kept as evidence for the requested-field normalization fix; the two later runs passed." },
-    { "id": "F141-E05", "legacyIds": ["E05", "E141-04"], "category": "cross_company_comparison", "question": "سود خالص کگل و کگهر را مقایسه کن", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "values": { "کگل": 1200, "کگهر": 900 }, "unit": "MillionIRR", "period": "same latest reporting period for both companies", "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-CONCEPT-BINDING", "detail": "netProfit unbound; also B-PLANNER-ALGEBRA (multi-company comparison of statement items)" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E06", "legacyIds": ["E06"], "category": "cross_company_comparison", "question": "کدام یک سود خالص بیشتری دارد، کگل یا کگهر؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "symbol": "کگل", "value": 1200, "unit": "MillionIRR", "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-CONCEPT-BINDING", "detail": "netProfit unbound; also B-PLANNER-ALGEBRA (ranking of statement items)" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E07", "legacyIds": ["E07", "E141-06"], "category": "monthly_production_sales", "question": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 25, "unit": "ton", "persianPeriod": "1405-06", "periodStart": "2026-08-23", "periodEnd": "2026-09-22", "persianPeriodStart": "1405-06-01", "persianPeriodEnd": "1405-06-31", "measureCatalogId": "metric_monthly_production_quantity", "productLabel": "گندله", "fixtureSource": "seeded monthly block in Feature141EngineVerticalSliceRunner (accepted Shahrivar 1405 report for کگل; decoys: other product, Mordad, superseded revision, other company)" }, "executable": true, "blocker": null, "status": "PASS", "evidence": [ "artifacts/engine-e2e-vertical-slice-2026-10-29-035155-F141-E07-answered.json", "artifacts/engine-e2e-vertical-slice-2026-10-29-035459-F141-E07-answered.json", "artifacts/engine-e2e-vertical-slice-2026-10-29-035550-F141-E07-answered.json" ], "lastRun": "2026-10-29T03:55:50Z", "governance": "governance/metric_monthly_production_quantity-decision-request-2026-10-28.json applied 2026-10-29 (provenance product-owner-approved:Feature141-monthly-production-quantity-2026-10-29); catalog hash 29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a", "note": "The first two 2026-10-29 runs answered 25 تن correctly and failed only a test-side model-call-count assertion that was then corrected; the third run passed. Persian month normalized deterministically (1405-06 → 2026-08-23..2026-09-22); model bounds are not authoritative." },
-    { "id": "F141-E08", "legacyIds": ["E08", "E141-08"], "category": "monthly_production_sales", "question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 700, "unit": "MillionIRR", "persianPeriod": "1405-06", "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-MONTHLY-MEASURE-REVIEW", "detail": "metric_monthly_sales pending-owner-review" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E09", "legacyIds": ["E09", "E141-07"], "category": "monthly_production_sales", "question": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 20, "unit": "Ton", "persianPeriod": "1405-06", "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-MONTHLY-MEASURE-REVIEW", "detail": "metric_monthly_sales_quantity pending-owner-review" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E10", "legacyIds": ["E10", "E141-09"], "category": "product_discovery", "question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کردند؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "symbols": ["کگل", "کگهر"], "persianPeriod": "1405-06", "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-DISCOVERY-SCOPE", "detail": "Feature141:CompanyDiscoveryScopes is empty; also B-MONTHLY-MEASURE-REVIEW" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E11", "legacyIds": ["E11", "E141-11"], "category": "semantic_product_equivalence", "question": "شرکت‌های تولیدکننده گندله سنگ‌آهن را پیدا کن", "tenantScope": "authenticated", "expectedOutcome": "Incomplete", "expected": { "outcome": "typed rejection until the equivalence group is approved; afterwards symbols [کگل, کگهر]", "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-PRODUCT-EQUIVALENCE", "detail": "گندله / گندله سنگ‌آهن equivalence is alias-only in Feature141:ProductCatalog; no reviewed group" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E12", "legacyIds": ["E12", "E141-13"], "category": "historical_period_comparison", "question": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور ۱۴۰۴ چقدر تغییر کرد؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 3, "unit": "Ton", "persianPeriods": ["1404-06", "1405-06"], "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-MONTHLY-MEASURE-REVIEW", "detail": "monthly production measure pending; year-over-year compiler exists for monthly measures" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E13", "legacyIds": ["E13", "E141-14"], "category": "historical_period_comparison", "question": "رشد مبلغ فروش گندله کگل نسبت به شهریور سال قبل چند درصد است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 80, "unit": "Percent", "persianPeriods": ["1404-06", "1405-06"], "fixtureSource": "proposed.monthlyProductRows" }, "executable": false, "blocker": { "code": "B-MONTHLY-MEASURE-REVIEW", "detail": "metric_monthly_sales pending-owner-review" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E14", "legacyIds": ["E14"], "category": "ranking_filter_aggregation", "question": "شرکت‌ها را بر اساس سود خالص از بیشترین به کمترین مرتب کن", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "symbols": ["فملی", "کگل", "کگهر"], "unit": "MillionIRR", "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-PLANNER-ALGEBRA", "detail": "ranking over statement items; also B-CONCEPT-BINDING (netProfit) and B-DISCOVERY-SCOPE (unbound population)" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E15", "legacyIds": ["E15", "E141-16"], "category": "ranking_filter_aggregation", "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال کدام‌اند؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "symbols": ["فملی", "کگل"], "unit": "MillionIRR", "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-PLANNER-ALGEBRA", "detail": "filters_are_not_supported_until_catalog_filter_fields_are_bound; also B-CONCEPT-BINDING" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E16", "legacyIds": ["E16"], "category": "ranking_filter_aggregation", "question": "مجموع سود خالص کگل و کگهر چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "value": 2100, "unit": "MillionIRR", "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-PLANNER-ALGEBRA", "detail": "grouping_and_aggregation_not_supported_by_current_sql_subset; also B-CONCEPT-BINDING" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E17", "legacyIds": ["E17", "E141-17"], "category": "multi_condition", "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده", "tenantScope": "authenticated", "expectedOutcome": "Answered", "expected": { "symbols": ["فملی", "کگل"], "fixtureSource": "proposed.companies" }, "executable": false, "blocker": { "code": "B-PLANNER-ALGEBRA", "detail": "multiple measures and threshold filters unsupported; also B-CONCEPT-BINDING (netProfit, earningsPerShare)" }, "status": "BLOCKED", "evidence": [] },
-    { "id": "F141-E18", "legacyIds": ["E18", "E141-18"], "category": "ambiguous_request", "question": "فروش کگل چقدر است؟", "tenantScope": "authenticated", "expectedOutcome": "Ambiguous", "expected": { "typedOutcome": "Ambiguous", "reason": "canonical_measure_ambiguous (salesAmount vs salesQuantity); clarification questions returned; no SQL" }, "executable": true, "blocker": null, "status": "PASS", "evidence": [ "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E18-ambiguous.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192035-F141-E18-ambiguous.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192136-F141-E18-ambiguous.json" ], "lastRun": "2026-10-28T19:21:36Z" },
-    { "id": "F141-E19", "legacyIds": ["E19", "E141-19"], "category": "unsupported_request", "question": "ارزش ذاتی کگل در سال آینده چقدر می‌شود؟", "tenantScope": "authenticated", "expectedOutcome": "Unsupported", "expected": { "typedOutcome": "Unsupported", "reason": "extractor validator category unsupported_semantic_intent; no catalog binding, no SQL" }, "executable": true, "blocker": null, "status": "PASS", "evidence": [ "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E19-unsupported.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192043-F141-E19-unsupported.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192145-F141-E19-unsupported.json" ], "lastRun": "2026-10-28T19:21:45Z" },
-    { "id": "F141-E20", "legacyIds": ["E20", "E141-20"], "category": "unauthorized_request", "question": "سود عملیاتی هر سهم کگهر چقدر است؟", "tenantScope": "missing", "expectedOutcome": "Unauthorized", "expected": { "typedOutcome": "Unauthorized", "reason": "Feature141ChatQueryService.IsEnabled refuses a request with empty TenantId/ActorId before any model or SQL call; 0 model calls, 0 executor calls" }, "executable": true, "blocker": null, "status": "PASS", "evidence": [ "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E20-unauthorized.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192022-F141-E20-unauthorized.json", "artifacts/engine-e2e-vertical-slice-2026-10-28-192128-F141-E20-unauthorized.json" ], "lastRun": "2026-10-28T19:21:28Z", "note": "Legacy E20 text (اطلاعات مالی جدول محرمانه کارکنان) is an out-of-catalog request that the extractor rejects as unsupported, not an authorization case; the tenant-less form from E141-20 is the real pre-model authorization rejection." }
+    {
+      "id": "F141-E01",
+      "legacyIds": [
+        "E01",
+        "E141-01"
+      ],
+      "category": "single_company_statement",
+      "question": "سود خالص کگل چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 1200,
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_66fdf1090cbf96d3",
+        "sourceItemId": 143,
+        "fixtureSource": "seeded.statementLineItems[role=expected] (runner seeds the case source item from the catalog)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052451-F141-E01-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052903-F141-E01-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065225-F141-E01-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:52:25Z",
+      "governance": "capability directive 2026-10-29: reviewedItems added for IncomeStatement/143,140,160 with unitStatus capability-directive-approved (provenance engineering-applied:Feature141-core-capabilities-directive-2026-10-29, owner countersign pending); catalog hash 93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "note": "The 05:24 run answered ۱٬۲۰۰ میلیون ریال correctly and failed only the test-side independent-database check, which looked the value up under the legacy 161 catalog id; the runner now reads the seeded source item. The 05:29 run passed every assertion. Earlier unsupported runs (05:17, 05:21) were caused by a model-emitted CompanyTotal grain on a statement item, now normalized away deterministically.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064801-F141-E01-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065225-F141-E01-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E02",
+      "legacyIds": [
+        "E02"
+      ],
+      "category": "single_company_statement",
+      "question": "سود عملیاتی کگهر چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 1100,
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_9c617846fc7c5c13",
+        "sourceItemId": 140,
+        "fixtureSource": "seeded.statementLineItems[role=expected] (runner seeds the case source item from the catalog)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052515-F141-E02-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052915-F141-E02-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065254-F141-E02-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:52:54Z",
+      "governance": "capability directive 2026-10-29: reviewedItems added for IncomeStatement/143,140,160 with unitStatus capability-directive-approved (provenance engineering-applied:Feature141-core-capabilities-directive-2026-10-29, owner countersign pending); catalog hash 93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "note": "The 05:25 run was rejected before planning because the model emitted a generic requested output field \"value\"; the canonicalizer now drops generic value placeholders (value/amount/مقدار/ارزش) deterministically. The 05:29 run passed.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064830-F141-E02-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065254-F141-E02-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E03",
+      "legacyIds": [
+        "E03",
+        "E141-03"
+      ],
+      "category": "single_company_statement",
+      "question": "سود هر سهم فملی چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 3200,
+        "unit": "IRRPerShare",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_bb4b63de3c1ecfe9",
+        "sourceItemId": 160,
+        "fixtureSource": "seeded.statementLineItems[role=expected] (runner seeds the case source item from the catalog)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052530-F141-E03-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052929-F141-E03-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065309-F141-E03-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:53:09Z",
+      "governance": "capability directive 2026-10-29: reviewedItems added for IncomeStatement/143,140,160 with unitStatus capability-directive-approved (provenance engineering-applied:Feature141-core-capabilities-directive-2026-10-29, owner countersign pending); catalog hash 93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "note": "Title سود خالص هر سهم (IncomeStatement/160) bound through canonical earningsPerShare. The 05:25 run answered ۳٬۲۰۰ IRRPerShare correctly and failed only the test-side independent-database check (fixed as for E01); the 05:29 run passed.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064843-F141-E03-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065309-F141-E03-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E04",
+      "legacyIds": [
+        "E04",
+        "E141-02"
+      ],
+      "category": "single_company_statement",
+      "question": "سود عملیاتی هر سهم کگهر چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 3753,
+        "unit": "IRRPerShare",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_682beceadddc1458",
+        "sourceItemId": 161,
+        "fixtureSource": "seeded.statementLineItems[role=expected]"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "engine-e2e-results.json#verticalSlice (run 2026-10-28T17:19Z)",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192056-F141-E04-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192156-F141-E04-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E04-run2-unsupported-requestedfields.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052942-F141-E04-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065420-F141-E04-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:54:20Z",
+      "note": "Legacy E04 asked for کگل with a pending fixture value; the seeded fixture company is کگهر, so the question text follows legacy E141-02. The run2 artifact is a failed run (model echoed the measure as a requested output field) kept as evidence for the requested-field normalization fix; the two later runs passed. Regression 2026-10-29: run 05:26 was rejected on a model-emitted generic requested field \"value\" (now normalized away); run 05:29 passed.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064946-F141-E04-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065420-F141-E04-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E05",
+      "legacyIds": [
+        "E05",
+        "E141-04"
+      ],
+      "category": "cross_company_comparison",
+      "question": "سود خالص کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "values": {
+          "کگل": 1200,
+          "کگهر": 900
+        },
+        "ranks": {
+          "کگل": 1,
+          "کگهر": 2
+        },
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_66fdf1090cbf96d3",
+        "sourceItemId": 143,
+        "fixtureSource": "runner StatementComparison fixture (فملی 1600 seeded but not requested; older quarters as decoys)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064652-F141-E05-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065110-F141-E05-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064652-F141-E05-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065110-F141-E05-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:51:10Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E06",
+      "legacyIds": [
+        "E06"
+      ],
+      "category": "cross_company_comparison",
+      "question": "کدام یک سود خالص بیشتری دارد، کگل یا کگهر؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbol": "کگل",
+        "value": 1200,
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "sourceCatalogId": "source_item_66fdf1090cbf96d3",
+        "sourceItemId": 143,
+        "fixtureSource": "runner StatementComparison fixture"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064550-F141-E06-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065012-F141-E06-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064550-F141-E06-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065012-F141-E06-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:12Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E07",
+      "legacyIds": [
+        "E07",
+        "E141-06"
+      ],
+      "category": "monthly_production_sales",
+      "question": "تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 25,
+        "unit": "ton",
+        "persianPeriod": "1405-06",
+        "periodStart": "2026-08-23",
+        "periodEnd": "2026-09-22",
+        "persianPeriodStart": "1405-06-01",
+        "persianPeriodEnd": "1405-06-31",
+        "measureCatalogId": "metric_monthly_production_quantity",
+        "productLabel": "گندله",
+        "fixtureSource": "seeded monthly block in Feature141EngineVerticalSliceRunner (accepted Shahrivar 1405 report for کگل; decoys: other product, Mordad, superseded revision, other company)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-035155-F141-E07-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-035459-F141-E07-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-035550-F141-E07-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052548-F141-E07-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065331-F141-E07-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:53:31Z",
+      "governance": "governance/metric_monthly_production_quantity-decision-request-2026-10-28.json applied 2026-10-29 (provenance product-owner-approved:Feature141-monthly-production-quantity-2026-10-29); catalog hash 29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
+      "note": "The first two 2026-10-29 runs answered 25 تن correctly and failed only a test-side model-call-count assertion that was then corrected; the third run passed. Persian month normalized deterministically (1405-06 → 2026-08-23..2026-09-22); model bounds are not authoritative.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064901-F141-E07-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065331-F141-E07-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E08",
+      "legacyIds": [
+        "E08",
+        "E141-08"
+      ],
+      "category": "monthly_production_sales",
+      "question": "مبلغ فروش گندله کگهر در شهریور ۱۴۰۵ چقدر بود؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 700,
+        "unit": "MillionIRR",
+        "persianPeriod": "1405-06",
+        "periodStart": "2026-08-23",
+        "periodEnd": "2026-09-22",
+        "persianPeriodStart": "1405-06-01",
+        "persianPeriodEnd": "1405-06-31",
+        "measureCatalogId": "metric_monthly_sales",
+        "productLabel": "گندله",
+        "fixtureSource": "seeded monthly block (SalesAmount column; accepted Shahrivar 1405 report for کگهر; decoys: other product, Mordad, superseded revision, other company)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052439-F141-E08-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065213-F141-E08-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:52:13Z",
+      "governance": "capability directive 2026-10-29: metric_monthly_sales approved with verified unit policy MillionIRR (provenance engineering-applied:Feature141-core-capabilities-directive-2026-10-29, owner countersign pending)",
+      "note": "Earlier runs at 05:17 and 05:21 failed on a duplicate fixture ticker (stale assembly); the decoy ticker is now chosen distinct from the case company. Answer ۷۰۰ میلیون ریال.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064751-F141-E08-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065213-F141-E08-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E09",
+      "legacyIds": [
+        "E09",
+        "E141-07"
+      ],
+      "category": "monthly_production_sales",
+      "question": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 20,
+        "unit": "ton",
+        "persianPeriod": "1405-06",
+        "periodStart": "2026-08-23",
+        "periodEnd": "2026-09-22",
+        "persianPeriodStart": "1405-06-01",
+        "persianPeriodEnd": "1405-06-31",
+        "measureCatalogId": "metric_monthly_sales_quantity",
+        "productLabel": "گندله",
+        "fixtureSource": "seeded monthly block (SalesQuantity column; accepted Shahrivar 1405 report for کگل)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-051746-F141-E09-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052205-F141-E09-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052508-F141-E09-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065242-F141-E09-answered.json"
+      ],
+      "lastRun": "2026-10-29T06:52:42Z",
+      "governance": "capability directive 2026-10-29: metric_monthly_sales_quantity approved with verified unit policy (provenance engineering-applied:Feature141-core-capabilities-directive-2026-10-29, owner countersign pending)",
+      "note": "Three consecutive live runs answered ۲۰ تن.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064819-F141-E09-answered.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065242-F141-E09-answered.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E10",
+      "legacyIds": [
+        "E10",
+        "E141-09"
+      ],
+      "category": "product_discovery",
+      "question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Incomplete",
+      "expected": {
+        "symbols": [
+          "کگل",
+          "کگهر"
+        ],
+        "persianPeriod": "1405-06",
+        "periodStart": "2026-08-23",
+        "periodEnd": "2026-09-22",
+        "typedOutcome": "Incomplete with the full producer set: product mapping coverage is approved-aliases-only, so the engine discloses the list as partial by design",
+        "fixtureSource": "seeded discovery block in Feature141EngineVerticalSliceRunner (کگل گندله 25 ton, کگهر گندله سنگ‌آهن 47 ton; decoys: zero, NULL, other month, other product, unauthorized producer)"
+      },
+      "executable": true,
+      "blocker": {
+        "code": "B-DISCOVERY-SCOPE",
+        "detail": "Two authorization decisions are outstanding: (1) Companies.Name and Companies.Ticker are not query-authorized in the canonical catalog (approvedObjects = Id only) and discovery output needs them; (2) no tenant has a reviewed company-discovery scope and reviewed company universe. The runner proves the chain with a fixture-only column approval and a fixture-only scope. See governance/company-discovery-decision-request-2026-10-29.json (PRODUCT_DISCOVERY_APPROVAL_REQUIRED)."
+      },
+      "status": "BLOCKED",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052609-F141-E10-incomplete.json"
+      ],
+      "readinessEvidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-*-F141-E10-incomplete.json (live LLM + isolated PostgreSQL, fixture-only authorization; not a PASS)"
+      ],
+      "note": "Legacy E10 text used کردند; the executed question uses کرده‌اند as specified on 2026-10-29.",
+      "lastRun": "2026-10-29T05:26:09Z",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064919-F141-E10-incomplete.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065351-F141-E10-incomplete.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E11",
+      "legacyIds": [
+        "E11",
+        "E141-11"
+      ],
+      "category": "semantic_product_equivalence",
+      "question": "شرکت‌های تولیدکننده گندله سنگ‌آهن را پیدا کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Incomplete",
+      "expected": {
+        "outcome": "typed rejection until the equivalence group is approved; afterwards symbols [کگل, کگهر]",
+        "fixtureSource": "proposed.monthlyProductRows"
+      },
+      "executable": false,
+      "blocker": {
+        "code": "B-PRODUCT-EQUIVALENCE",
+        "detail": "گندله / گندله سنگ‌آهن equivalence is alias-only in Feature141:ProductCatalog; no reviewed group"
+      },
+      "status": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "F141-E12",
+      "legacyIds": [
+        "E12",
+        "E141-13"
+      ],
+      "category": "historical_period_comparison",
+      "question": "تولید گندله کگل در شهریور ۱۴۰۵ نسبت به شهریور ۱۴۰۴ چقدر تغییر کرد؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 3,
+        "unit": "Ton",
+        "persianPeriods": [
+          "1404-06",
+          "1405-06"
+        ],
+        "fixtureSource": "proposed.monthlyProductRows"
+      },
+      "executable": false,
+      "blocker": {
+        "code": "B-MONTHLY-MEASURE-REVIEW",
+        "detail": "monthly production measure pending; year-over-year compiler exists for monthly measures"
+      },
+      "status": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "F141-E13",
+      "legacyIds": [
+        "E13",
+        "E141-14"
+      ],
+      "category": "historical_period_comparison",
+      "question": "رشد مبلغ فروش گندله کگل نسبت به شهریور سال قبل چند درصد است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 80,
+        "unit": "Percent",
+        "persianPeriods": [
+          "1404-06",
+          "1405-06"
+        ],
+        "fixtureSource": "proposed.monthlyProductRows"
+      },
+      "executable": false,
+      "blocker": {
+        "code": "B-MONTHLY-MEASURE-REVIEW",
+        "detail": "metric_monthly_sales pending-owner-review"
+      },
+      "status": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "F141-E14",
+      "legacyIds": [
+        "E14"
+      ],
+      "category": "ranking_filter_aggregation",
+      "question": "شرکت‌ها را بر اساس سود خالص از بیشترین به کمترین مرتب کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی",
+          "کگل",
+          "کگهر"
+        ],
+        "values": {
+          "فملی": 1600,
+          "کگل": 1200,
+          "کگهر": 900
+        },
+        "ranks": {
+          "فملی": 1,
+          "کگل": 2,
+          "کگهر": 3
+        },
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "population": "tenant reviewed company universe (fixture-only scope, coverage complete); فولاد (9999) outside the universe",
+        "sourceCatalogId": "source_item_66fdf1090cbf96d3",
+        "sourceItemId": 143
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064704-F141-E14-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065125-F141-E14-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064704-F141-E14-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065125-F141-E14-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:51:25Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E15",
+      "legacyIds": [
+        "E15",
+        "E141-16"
+      ],
+      "category": "ranking_filter_aggregation",
+      "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی",
+          "کگل"
+        ],
+        "unit": "MillionIRR",
+        "fixtureSource": "proposed.companies",
+        "values": {
+          "فملی": 1600,
+          "کگل": 1200
+        },
+        "excluded": [
+          "کگهر"
+        ],
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31",
+        "population": "tenant reviewed company universe (fixture-only scope, coverage complete); فولاد (9999 on every item) outside the universe; prior quarter values flip every predicate",
+        "sourceItemId": 143
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075857-F141-E15-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075857-F141-E15-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:58:57Z"
+    },
+    {
+      "id": "F141-E16",
+      "legacyIds": [
+        "E16"
+      ],
+      "category": "ranking_filter_aggregation",
+      "question": "مجموع سود خالص کگل و کگهر چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "value": 2100,
+        "unit": "MillionIRR",
+        "fixtureSource": "proposed.companies"
+      },
+      "executable": false,
+      "blocker": {
+        "code": "B-PLANNER-ALGEBRA",
+        "detail": "grouping_and_aggregation_not_supported_by_current_sql_subset; also B-CONCEPT-BINDING"
+      },
+      "status": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "F141-E17",
+      "legacyIds": [
+        "E17",
+        "E141-17"
+      ],
+      "category": "multi_condition",
+      "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی",
+          "کگل"
+        ],
+        "fixtureSource": "proposed.companies",
+        "values": {
+          "فملی": 1600,
+          "کگل": 1200
+        },
+        "excluded": [
+          "کگهر"
+        ],
+        "unit": "MillionIRR",
+        "eps": {
+          "فملی": 3200,
+          "کگل": 2400,
+          "کگهر": 1800
+        },
+        "population": "tenant reviewed company universe (fixture-only scope, coverage complete); فولاد (9999 on every item) outside the universe; prior quarter values flip every predicate",
+        "sourceItemId": 143
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075750-F141-E17-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075750-F141-E17-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:57:50Z"
+    },
+    {
+      "id": "F141-E18",
+      "legacyIds": [
+        "E18",
+        "E141-18"
+      ],
+      "category": "ambiguous_request",
+      "question": "فروش کگل چقدر است؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Ambiguous",
+      "expected": {
+        "typedOutcome": "Ambiguous",
+        "reason": "canonical_measure_ambiguous (salesAmount vs salesQuantity); clarification questions returned; no SQL"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E18-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192035-F141-E18-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192136-F141-E18-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052618-F141-E18-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065402-F141-E18-ambiguous.json"
+      ],
+      "lastRun": "2026-10-29T06:54:02Z",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064929-F141-E18-ambiguous.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065402-F141-E18-ambiguous.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E19",
+      "legacyIds": [
+        "E19",
+        "E141-19"
+      ],
+      "category": "unsupported_request",
+      "question": "ارزش ذاتی کگل در سال آینده چقدر می‌شود؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Unsupported",
+      "expected": {
+        "typedOutcome": "Unsupported",
+        "reason": "extractor validator category unsupported_semantic_intent; no catalog binding, no SQL"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E19-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192043-F141-E19-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192145-F141-E19-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052626-F141-E19-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065410-F141-E19-unsupported.json"
+      ],
+      "lastRun": "2026-10-29T06:54:10Z",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064935-F141-E19-unsupported.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065410-F141-E19-unsupported.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E20",
+      "legacyIds": [
+        "E20",
+        "E141-20"
+      ],
+      "category": "unauthorized_request",
+      "question": "سود عملیاتی هر سهم کگهر چقدر است؟",
+      "tenantScope": "missing",
+      "expectedOutcome": "Unauthorized",
+      "expected": {
+        "typedOutcome": "Unauthorized",
+        "reason": "Feature141ChatQueryService.IsEnabled refuses a request with empty TenantId/ActorId before any model or SQL call; 0 model calls, 0 executor calls"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-F141-E20-unauthorized.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192022-F141-E20-unauthorized.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-28-192128-F141-E20-unauthorized.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-052611-F141-E20-unauthorized.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065353-F141-E20-unauthorized.json"
+      ],
+      "lastRun": "2026-10-29T06:53:53Z",
+      "note": "Legacy E20 text (اطلاعات مالی جدول محرمانه کارکنان) is an out-of-catalog request that the extractor rejects as unsupported, not an authorization case; the tenant-less form from E141-20 is the real pre-model authorization rejection.",
+      "regression": [
+        {
+          "date": "2026-10-29",
+          "context": "slice 3a regression after catalog hash 2fb37d4a and extractor prompt change",
+          "runs": 2,
+          "matchingExpectedOutcome": 2,
+          "artifacts": [
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-064921-F141-E20-unauthorized.json",
+            "artifacts/engine-e2e-vertical-slice-2026-10-29-065353-F141-E20-unauthorized.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F141-E21",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و زاگرس را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Incomplete",
+      "expected": {
+        "diagnostic": "statement_comparison_company_binding_unresolved",
+        "note": "زاگرس is not a company in the fixture; refused before SQL"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064721-F141-E21-incomplete.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065141-F141-E21-incomplete.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064721-F141-E21-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065141-F141-E21-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:51:41Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E22",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "هزینه استهلاک کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Incomplete",
+      "expected": {
+        "diagnostic": "approved_catalog_binding_missing:depreciationExpense",
+        "note": "reviewed concept without an approved catalog binding; refused at typed binding"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064534-F141-E22-incomplete.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065000-F141-E22-incomplete.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064534-F141-E22-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065000-F141-E22-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:00Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E23",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "values": {
+          "کگل": 1100,
+          "کگهر": 800
+        },
+        "unit": "MillionIRR",
+        "periodStart": "2025-12-21",
+        "periodEnd": "2026-03-20",
+        "persianPeriodStart": "1404-09-30",
+        "persianPeriodEnd": "1404-12-29",
+        "note": "کگل has a newer quarter (1300) that کگهر lacks; both are read at the latest common period and the newer period is disclosed"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064626-F141-E23-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065048-F141-E23-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064626-F141-E23-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065048-F141-E23-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:48Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E24",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و کگهر را به میلیارد ریال مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Unsupported",
+      "expected": {
+        "diagnostic": "requested_result_unit_conversion_not_supported",
+        "note": "requested BillionIRR differs from the source unit MillionIRR; no conversion"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064710-F141-E24-unsupported.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065132-F141-E24-unsupported.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064710-F141-E24-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065132-F141-E24-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:51:32Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E25",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Ambiguous",
+      "expected": {
+        "diagnostic": "requested_item_values_conflict",
+        "note": "two valid کگل statements for the same period with 1200 and 1250; never chosen arbitrarily"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064601-F141-E25-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065025-F141-E25-ambiguous.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064601-F141-E25-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065025-F141-E25-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:25Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E26",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Ambiguous",
+      "expected": {
+        "diagnostic": "cross_company_consolidation_basis_mismatch",
+        "note": "کگل consolidated only, کگهر standalone only; not compared without a stated basis"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064637-F141-E26-ambiguous.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065057-F141-E26-ambiguous.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064637-F141-E26-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065057-F141-E26-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:57Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E27",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "کدام یک سود خالص بیشتری دارد، کگل یا کگهر؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "values": {
+          "کگل": 1200,
+          "کگهر": 1200
+        },
+        "ranks": {
+          "کگل": 1,
+          "کگهر": 1
+        },
+        "tie": true,
+        "unit": "MillionIRR",
+        "periodStart": "2026-03-21",
+        "periodEnd": "2026-06-21",
+        "persianPeriodStart": "1405-01-01",
+        "persianPeriodEnd": "1405-03-31"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064614-F141-E27-answered.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065037-F141-E27-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064614-F141-E27-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065037-F141-E27-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:50:37Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E28",
+      "legacyIds": [],
+      "category": "cross_company_negative",
+      "question": "سود خالص کگل و کگهر را مقایسه کن",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Incomplete",
+      "expected": {
+        "diagnostic": "comparison_companies_without_statements",
+        "note": "both companies exist without statements (empty result set)"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-064732-F141-E28-incomplete.json",
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-065152-F141-E28-incomplete.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064732-F141-E28-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065152-F141-E28-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3a 2026-10-29: netProfit binding (IncomeStatement/143, MillionIRR) from the slice 1 directive; decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive, owner countersign pending; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "lastRun": "2026-10-29T06:51:52Z",
+      "liveRuns": {
+        "total": 2,
+        "matchingExpectation": 2
+      }
+    },
+    {
+      "id": "F141-E29",
+      "legacyIds": [],
+      "category": "filter_variation",
+      "question": "شرکت‌هایی با سود عملیاتی بیشتر از ۱۲۰۰ میلیون ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی",
+          "کگل"
+        ],
+        "values": {
+          "فملی": 2000,
+          "کگل": 1500
+        },
+        "excluded": [
+          "کگهر"
+        ],
+        "unit": "MillionIRR",
+        "sourceItemId": 140
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075828-F141-E29-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075828-F141-E29-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:58:28Z"
+    },
+    {
+      "id": "F141-E30",
+      "legacyIds": [],
+      "category": "filter_variation",
+      "question": "شرکت‌هایی با سود هر سهم کمتر از ۲۵۰۰ ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "کگل",
+          "کگهر"
+        ],
+        "values": {
+          "کگل": 2400,
+          "کگهر": 1800
+        },
+        "excluded": [
+          "فملی"
+        ],
+        "unit": "IRRPerShare",
+        "sourceItemId": 160
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075737-F141-E30-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075737-F141-E30-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:57:37Z"
+    },
+    {
+      "id": "F141-E31",
+      "legacyIds": [],
+      "category": "multi_condition",
+      "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و سود هر سهم بالای ۲۵۰۰ ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی"
+        ],
+        "values": {
+          "فملی": 1600
+        },
+        "excluded": [
+          "کگل",
+          "کگهر"
+        ],
+        "unit": "MillionIRR",
+        "sourceItemId": 143,
+        "note": "کگل passes net profit (1200) but fails EPS > 2500 (2400): the AND is evaluated"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075845-F141-E31-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075845-F141-E31-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:58:45Z"
+    },
+    {
+      "id": "F141-E32",
+      "legacyIds": [],
+      "category": "filter_negative",
+      "question": "شرکت‌هایی با سود خالص بالای ۱ میلیارد ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Unsupported",
+      "expected": {
+        "diagnostic": "unit_conversion_not_supported",
+        "note": "BillionIRR threshold vs MillionIRR item; no conversion"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075800-F141-E32-unsupported.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075800-F141-E32-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:58:00Z"
+    },
+    {
+      "id": "F141-E33",
+      "legacyIds": [],
+      "category": "filter_negative",
+      "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Answered",
+      "expected": {
+        "symbols": [
+          "فملی"
+        ],
+        "values": {
+          "فملی": 1600
+        },
+        "excluded": [
+          "کگهر"
+        ],
+        "unit": "MillionIRR",
+        "sourceItemId": 143,
+        "warning": "statement_filter_value_missing:کگل",
+        "note": "کگل has no EPS line: excluded and disclosed, never zero"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075815-F141-E33-answered.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075815-F141-E33-answered.json",
+          "typedOutcome": "Answered",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:58:15Z"
+    },
+    {
+      "id": "F141-E34",
+      "legacyIds": [],
+      "category": "filter_negative",
+      "question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال یا EPS بالای ۲۰۰۰ ریال کدام‌اند؟",
+      "tenantScope": "authenticated",
+      "expectedOutcome": "Unsupported",
+      "expected": {
+        "diagnostic": "statement_filter_expression_not_supported",
+        "note": "OR between conditions is outside the slice"
+      },
+      "executable": true,
+      "blocker": null,
+      "status": "PASS",
+      "evidence": [
+        "artifacts/engine-e2e-vertical-slice-2026-10-29-075906-F141-E34-unsupported.json"
+      ],
+      "liveRunsDetail": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075906-F141-E34-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "matchesExpectation": true
+        }
+      ],
+      "governance": "slice 3b 2026-10-29: netProfit/143, operatingProfit/140, earningsPerShare/160 bindings from the slice 1 directive (owner countersign pending); D1 Companies.Name/Ticker engineering-applied; no catalog change in 3b; catalog hash 2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "liveRuns": {
+        "total": 1,
+        "matchingExpectation": 1
+      },
+      "lastRun": "2026-10-29T07:59:06Z"
+    }
   ],
-  "summary": { "totalCases": 20, "pass": 5, "blocked": 15, "notRun": 0, "fail": 0, "executedLive": 5, "unauthorizedSqlExecutions": 0, "wrongNumbers": 0 }
+  "summary": {
+    "totalCases": 34,
+    "pass": 29,
+    "blocked": 5,
+    "notRun": 0,
+    "fail": 0,
+    "executedLive": 30,
+    "unauthorizedSqlExecutions": 0,
+    "wrongNumbers": 0
+  }
 }

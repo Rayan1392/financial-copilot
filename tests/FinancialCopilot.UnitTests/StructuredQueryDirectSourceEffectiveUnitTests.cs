@@ -30,6 +30,15 @@ public sealed class StructuredQueryDirectSourceEffectiveUnitTests
         Assert.Equal(("IRRPerShare", "owner-approved", "business-owner-confirmed:Feature141-2026-10-08"), unit);
     }
 
+    [Fact]
+    public void DirectiveApprovedEffectiveUnitIsCarriedLikeOwnerApproved()
+    {
+        var unit = StructuredQueryCompiler.ResolveDirectSourceEffectiveUnit(
+            Source("N/A", "unknown", "MillionIRR", "capability-directive-approved", "engineering-applied:Feature141-core-capabilities-directive-2026-10-29"));
+        Assert.Equal("MillionIRR", unit.Unit);
+        Assert.Equal("capability-directive-approved", unit.Status);
+    }
+
     [Theory]
     [InlineData("N/A", "unknown", "IRRPerShare", "requires-semantic-review")]
     [InlineData("N/A", "unknown", null, "owner-approved")]

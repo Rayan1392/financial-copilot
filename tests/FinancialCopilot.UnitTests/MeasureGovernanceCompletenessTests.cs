@@ -61,7 +61,7 @@ public sealed class MeasureGovernanceCompletenessTests
     }
 
     [Fact]
-    public void RealCatalogExposesTheApprovedMonthlyProductionMeasureOnly()
+    public void RealCatalogExposesOnlyTheApprovedMonthlyMeasures()
     {
         var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "README.md")))
@@ -70,15 +70,17 @@ public sealed class MeasureGovernanceCompletenessTests
         var root = Path.Combine(directory!.FullName, "specs", "141-schema-aware-semantic-query-engine");
         var snapshot = new StructuredQueryCatalogSnapshotBuilder().Build(
             Path.Combine(root, "SemanticCatalog"), Path.Combine(root, "artifacts", "navigation-hierarchy.yaml"));
-        var approved = snapshot.MonthlyMeasures.Where(m => m.SemanticApproved && m.Queryable).Select(m => m.CatalogId).ToArray();
-        Assert.Equal([Measure], approved);
+        // Owner decision 2026-10-29 (production quantity) plus the core-capabilities directive of
+        // 2026-10-29 (sales quantity, sales amount). The sales rate stays unapproved: unit unverified.
+        var approved = snapshot.MonthlyMeasures.Where(m => m.SemanticApproved && m.Queryable).Select(m => m.CatalogId).Order().ToArray();
+        Assert.Equal([Measure, "metric_monthly_sales", "metric_monthly_sales_quantity"], approved);
         var production = snapshot.MonthlyMeasures.Single(m => m.CatalogId == Measure);
         var lineTable = snapshot.Tables.Single(t => t.CatalogId == production.LineItemsTableCatalogId);
         var reportTable = snapshot.Tables.Single(t => t.CatalogId == production.ReportsTableCatalogId);
         Assert.True(lineTable.Queryable && lineTable.SemanticApproved && reportTable.Queryable && reportTable.SemanticApproved);
-        // Least privilege: sales columns are not query-authorized.
-        Assert.All(snapshot.Columns.Where(c => c.TableCatalogId == lineTable.CatalogId && c.Name is "SalesQuantity" or "SalesAmount" or "SalesRate"),
-            column => Assert.False(column.Queryable));
-        Assert.True(snapshot.Columns.Single(c => c.TableCatalogId == lineTable.CatalogId && c.Name == "ProductionQuantity").Queryable);
+        // Least privilege: only the columns behind approved measures are query-authorized.
+        Assert.False(snapshot.Columns.Single(c => c.TableCatalogId == lineTable.CatalogId && c.Name == "SalesRate").Queryable);
+        Assert.All(new[] { "ProductionQuantity", "SalesQuantity", "SalesAmount" },
+            name => Assert.True(snapshot.Columns.Single(c => c.TableCatalogId == lineTable.CatalogId && c.Name == name).Queryable));
     }
 }

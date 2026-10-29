@@ -1,0 +1,246 @@
+{
+  "runAt": "2026-10-29T07:33:34.9190283+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E17",
+    "Question": "شرکت‌هایی با سود خالص بالای ۱۰۰۰ میلیون ریال و EPS بالای ۲۰۰۰ ریال را نشان بده",
+    "Fixture": {
+      "DatabaseName": "feature131_ba19adb5a7a149938adb10f928a9d037",
+      "RestrictedRole": "feature141_vs_cmp_reader_cb453b74cfbf4849a6807d1650288587",
+      "CompanyId": "ca6a1cc2-17fe-430f-be05-d3cf59aa4946",
+      "DecoyCompanyId": "00000000-0000-0000-0000-000000000000",
+      "StatementId": "00000000-0000-0000-0000-000000000000",
+      "OlderStatementId": "00000000-0000-0000-0000-000000000000",
+      "SeededLineItemCount": 28,
+      "MonthlyReportId": null,
+      "ProductKey": null,
+      "ReviewedCompanyUniverse": [
+        "20829d17-7bf5-4d64-9ac4-09244a3c3b27",
+        "75e9df79-06d9-45f3-b282-d9e706f090d1",
+        "ca6a1cc2-17fe-430f-be05-d3cf59aa4946"
+      ],
+      "UnauthorizedProducerId": null,
+      "CompaniesBySymbol": {
+        "کگل": "ca6a1cc2-17fe-430f-be05-d3cf59aa4946",
+        "کگهر": "75e9df79-06d9-45f3-b282-d9e706f090d1",
+        "فملی": "20829d17-7bf5-4d64-9ac4-09244a3c3b27",
+        "فولاد": "e9759cf2-d23b-4bcf-8ad9-004da4d1d8e1"
+      },
+      "MonthlyValueColumn": "ProductionQuantity",
+      "SeededSourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53"
+    },
+    "ExpectedOutcome": "Answered",
+    "TypedOutcome": "Unsupported",
+    "TypedOutcomeReason": "canonical_semantics_not_representable_in_current_planner_handoff|statement_query_shape_not_supported",
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "سود خالص",
+          "ConceptId": "netProfit",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "netProfit"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyAmount",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "Unspecified"
+          },
+          "RequestedUnit": "Unspecified",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        },
+        {
+          "UserPhrase": "EPS",
+          "ConceptId": "earningsPerShare",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "earningsPerShare"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyPerShare",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "Unspecified"
+          },
+          "RequestedUnit": "IRRPerShare",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "DiscoverPopulation",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "UnboundCompanyPopulation",
+        "CompanyLabels": []
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": {
+        "kind": "group",
+        "Operator": "And",
+        "Children": [
+          {
+            "kind": "measureThreshold",
+            "MeasureConcept": "netProfit",
+            "Threshold": {
+              "Value": 1000,
+              "Unit": "MillionIRR",
+              "Operator": "GreaterThan"
+            }
+          },
+          {
+            "kind": "measureThreshold",
+            "MeasureConcept": "earningsPerShare",
+            "Threshold": {
+              "Value": 2000,
+              "Unit": "IRRPerShare",
+              "Operator": "GreaterThan"
+            }
+          }
+        ]
+      },
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Table",
+        "RequestedFields": []
+      },
+      "Constraints": [
+        {
+          "Name": "netProfitValueGrain",
+          "Value": "companyTotal",
+          "Provenance": "Inferred"
+        }
+      ],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Unsupported",
+    "TypedBindingDiagnostics": [
+      "canonical_semantics_not_representable_in_current_planner_handoff",
+      "statement_query_shape_not_supported"
+    ],
+    "BoundSourceCatalogId": "source_item_66fdf1090cbf96d3",
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": null,
+    "Navigation": null,
+    "Plan": null,
+    "PlanStructurallyValid": false,
+    "PlanExecutionEligible": false,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [],
+    "RequirementsNormalizationDiagnostics": [],
+    "ModelPeriodStart": null,
+    "ModelPeriodEnd": null,
+    "NormalizedPersianMonth": null,
+    "NormalizedPeriodStart": null,
+    "NormalizedPeriodEnd": null,
+    "ProductBindingStatus": null,
+    "ProductKey": null,
+    "ActualProductCode": null,
+    "ActualSourceUnit": null,
+    "ProductConceptCatalogId": null,
+    "ProductConceptAliases": [],
+    "ProductMappingCoverageStatus": null,
+    "CompanyDiscoveryScopeId": null,
+    "CompanyDiscoveryCoverageComplete": null,
+    "GrantAllowedCompanyIds": [],
+    "ActualCompanySymbols": [],
+    "ActualCompanyIds": [],
+    "StatementQueryShape": null,
+    "ComparisonRows": [],
+    "ExecutionWarnings": [],
+    "IndependentComparisonValues": {},
+    "CompiledWithFixtureOnlyColumnApproval": false,
+    "FixtureOnlyApprovedColumns": [],
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 1,
+    "ObservedModelCalls": 1,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 2604,
+    "LlmOutputTokens": 776,
+    "IntentLatencyMs": 8299.3645,
+    "NavigatorLatencyMs": 0,
+    "TotalElapsedMs": 8708.322,
+    "SecretValuesLogged": false
+  }
+}

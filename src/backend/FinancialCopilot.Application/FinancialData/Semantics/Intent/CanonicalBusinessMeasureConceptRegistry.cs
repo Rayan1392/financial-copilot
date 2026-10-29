@@ -162,7 +162,14 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
         ArgumentNullException.ThrowIfNull(intent);
         var productLabels = (intent.Products ?? []).Select(product => CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(product.UserLabel))
             .Where(label => label.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
-        var measures = (intent.Measures ?? []).Select(measure => Canonicalize(measure, productLabels)).ToArray();
+        // A canonical measure repeated with identical qualifiers and units (observed live once per compared
+        // company) is one measure; entries that differ in any qualifier, such as two statement scopes, are kept.
+        var measures = (intent.Measures ?? []).Select(measure => Canonicalize(measure, productLabels))
+            .DistinctBy(measure => measure.ConceptId is null
+                ? (object)measure
+                : (measure.ConceptId, measure.Kind, measure.Dimension, measure.Qualifiers, measure.RequestedUnit,
+                    measure.EffectiveSourceUnit, measure.EffectiveSourceUnitEvidence))
+            .ToArray();
         var populationComparison = intent.Operation?.Kind == AnalyticalOperationKind.Compare
             && intent.EntityScope?.Kind == EntityScopeKind.UnboundCompanyPopulation
             && intent.Output?.Kind == RequestedOutputKind.Table
@@ -180,9 +187,23 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
             return canonicalByPhrase.GetValueOrDefault(normalized, reference);
         }
 
+        // A threshold stated in rials on a per-share measure ("EPS بالای ۲۰۰۰ ریال") is rials per share, the
+        // reviewed implied unit of per-share terms; the magnitude is unchanged. Every other unit is left as stated.
+        MeasureThresholdFilter CanonicalizeThreshold(MeasureThresholdFilter threshold)
+        {
+            var concept = ResolveReference(threshold.MeasureConcept);
+            var perShare = measures.Any(measure => measure.ConceptId == concept && measure.Dimension == BusinessMeasureDimension.CurrencyPerShare);
+            return threshold with
+            {
+                MeasureConcept = concept,
+                Threshold = perShare && threshold.Threshold is { Unit: SemanticUnit.IRR } value
+                    ? value with { Unit = SemanticUnit.IRRPerShare } : threshold.Threshold
+            };
+        }
+
         FilterExpression? CanonicalizeFilter(FilterExpression? filter) => filter switch
         {
-            MeasureThresholdFilter threshold => threshold with { MeasureConcept = ResolveReference(threshold.MeasureConcept) },
+            MeasureThresholdFilter threshold => CanonicalizeThreshold(threshold),
             FilterGroup group => group with { Children = (group.Children ?? []).Select(child => CanonicalizeFilter(child)!).ToArray() },
             _ => filter
         };
@@ -201,15 +222,47 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
         // adds no semantics; models emit it inconsistently, so it is removed deterministically here.
         var measureTerms = measures.SelectMany(measure => new[] { CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(measure.UserPhrase), measure.ConceptId ?? string.Empty })
             .Where(term => term.Length > 0).ToHashSet(StringComparer.Ordinal);
+        // Likewise a generic placeholder for the scalar result itself ("value", "مقدار") names no
+        // additional column; it is removed so the retrieval slice is not rejected over it.
+        // In a multi-company comparison or ranking the company identity is part of every result row, so a
+        // requested "company"/"symbol" field, or a field that repeats a named company, restates the output
+        // shape and entity scope; elsewhere such a field is preserved.
+        var multiCompanyResult = intent.Output?.Kind is RequestedOutputKind.RankedList or RequestedOutputKind.Comparison
+            || intent.Operation?.Kind is AnalyticalOperationKind.Compare or AnalyticalOperationKind.Rank
+            || intent.EntityScope?.Kind == EntityScopeKind.UnboundCompanyPopulation
+            || (intent.EntityScope?.CompanyLabels ?? []).Count > 1;
+        // A ranking returns every row with its rank, so a requested "rank" field restates the output shape.
+        var rankedResult = intent.Ranking is not null || intent.Output?.Kind == RequestedOutputKind.RankedList;
+        var companyLabelTerms = (intent.EntityScope?.CompanyLabels ?? [])
+            .Select(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm).Where(term => term.Length > 0).ToHashSet(StringComparer.Ordinal);
         var requestedFields = (intent.Output?.RequestedFields ?? [])
             .Where(field => !string.IsNullOrWhiteSpace(field)
+                && !(multiCompanyResult && companyLabelTerms.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
+                && !GenericValuePlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field))
+                && !(multiCompanyResult && CompanyIdentityPlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
+                && !(rankedResult && RankPlaceholders.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field)))
                 && !measureTerms.Contains(CanonicalBusinessMeasureConceptRegistry.NormalizeTerm(field))
                 && !measureTerms.Contains(ResolveReference(field)))
             .Distinct(StringComparer.Ordinal).ToArray();
 
+        // A financial statement line item is the company total by definition (see the qualifier rule in
+        // Canonicalize(measure)); an *inferred* constraint that only restates that grain carries no
+        // semantics and is removed. Explicit constraints and every other constraint are preserved. The
+        // model names it "valueGrain" or, per requested measure, "<conceptId>ValueGrain".
+        var statementItemsOnly = measures.Length > 0 && measures.All(measure =>
+            measure.CanonicalizationStatus == MeasureCanonicalizationStatus.Canonicalized
+            && measure.Kind == MeasureConceptKind.FinancialStatementItem);
+        var grainNames = measures.Select(measure => measure.ConceptId + "ValueGrain").Append("valueGrain").ToArray();
+        var constraints = (intent.Constraints ?? []).Where(constraint => !(statementItemsOnly
+                && constraint.Provenance == ConstraintProvenance.Inferred
+                && grainNames.Contains(constraint.Name?.Trim(), StringComparer.OrdinalIgnoreCase)
+                && string.Equals(constraint.Value?.Trim(), "companyTotal", StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
         return intent with
         {
             Measures = measures,
+            Constraints = constraints,
             Operation = operation!,
             Filters = CanonicalizeFilter(intent.Filters),
             Ranking = intent.Ranking is null ? null : intent.Ranking with { MeasureConcept = ResolveReference(intent.Ranking.MeasureConcept) },
@@ -239,11 +292,22 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
                 Dimension = BusinessMeasureDimension.Unknown
             };
 
+        // Rials stated for a per-share measure are rials per share (same magnitude, no conversion).
         var requestedUnit = measure.Qualifiers?.ValueForm == MeasureValueForm.PercentageChange
             ? SemanticUnit.Percent
             : measure.RequestedUnit == SemanticUnit.Unspecified && resolution.ImpliedRequestedUnit.HasValue
                 ? resolution.ImpliedRequestedUnit.Value
-                : measure.RequestedUnit;
+                : measure.RequestedUnit == SemanticUnit.IRR && resolution.Dimension == BusinessMeasureDimension.CurrencyPerShare
+                    ? SemanticUnit.IRRPerShare
+                    : measure.RequestedUnit;
+        // A financial statement line item is by definition the company total; a model-emitted
+        // CompanyTotal grain restates that and is normalized away so it cannot block the retrieval
+        // slice. ProductLevel on a statement item remains a contradiction and is left for rejection.
+        var currentQualifiers = measure.Qualifiers ?? new MeasureQualifiers();
+        var qualifiers = resolution.Kind == MeasureConceptKind.FinancialStatementItem
+            && currentQualifiers.ValueGrain == MeasureValueGrain.CompanyTotal
+            ? currentQualifiers with { ValueGrain = MeasureValueGrain.Unspecified }
+            : currentQualifiers;
         return measure with
         {
             ConceptId = resolution.ConceptId,
@@ -252,8 +316,39 @@ public sealed class CanonicalSemanticIntentCanonicalizer(CanonicalBusinessMeasur
             Kind = resolution.Kind,
             Dimension = resolution.Dimension,
             RequestedUnit = requestedUnit,
+            Qualifiers = qualifiers,
         };
     }
+
+    private static readonly HashSet<string> GenericValuePlaceholders = new(StringComparer.Ordinal)
+    {
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("value"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("amount"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("مقدار"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("ارزش"),
+    };
+
+    private static readonly HashSet<string> RankPlaceholders = new(StringComparer.Ordinal)
+    {
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("rank"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("ranking"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("رتبه"),
+    };
+
+    private static readonly HashSet<string> CompanyIdentityPlaceholders = new(StringComparer.Ordinal)
+    {
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("company"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("companies"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("company name"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("companyName"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("companyLabel"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("companySymbol"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("symbol"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("ticker"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("شرکت"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("نام شرکت"),
+        CanonicalBusinessMeasureConceptRegistry.NormalizeTerm("نماد"),
+    };
 
     private static string RemoveExplicitQualifierTerms(string phrase, MeasureQualifiers? qualifiers)
     {

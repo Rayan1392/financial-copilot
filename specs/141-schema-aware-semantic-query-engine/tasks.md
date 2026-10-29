@@ -554,3 +554,53 @@ statement observations.
 - [x] Executor fail-closed checks for a single monthly observation without value (`monthly_observation_missing`) or unit (`monthly_quantity_unit_missing`).
 - [x] F141-E07 live: `تولید گندله کگل در شهریور ۱۴۰۵ چقدر بود؟` → ۲۵ تن, 1405-06; 12 negative scenarios (11 asserted, 1 observed); previous four PASS cases unchanged.
 - [ ] Owner decision: a company reporting the same product title in two units (M10) is resolved to one key by the Feature 129 product resolver; decide whether Feature 141 must treat it as ambiguous.
+
+## 2026-10-29 — Product identity and cross-company discovery (PRODUCT_DISCOVERY_APPROVAL_REQUIRED)
+
+- [x] Product identity traced ingestion → line items → Feature 129 resolver → catalog → binding → compiler; collision (same title, two units) corrected in the Feature 141 adapter only (`StructuredQueryProductBinder` → Ambiguous `monthly_product_units_incompatible`); Feature 129 unchanged.
+- [x] Discovery grant restored: tenant reviewed company universe + scope required (`CatalogStructuredQueryAuthorizer`); planner expands context to the production measure deterministically and preserves the normalized month.
+- [x] F141-E10 executed live end to end under fixture-only authorization; 8 discovery scenarios and the unit-collision scenario pass; all 22 Feature 141 integration tests pass; unit suite 2403/2423 (same 20 pre-existing failures).
+- [ ] Owner decisions D1–D4 in `evaluation/governance/company-discovery-decision-request-2026-10-29.json`; then rerun without the fixture-only snapshot and mark F141-E10 PASS.
+
+## 2026-10-29 — Core capabilities slice 1: retrieval breadth (CORE_RETRIEVAL_SLICE_PASSED)
+
+- [x] Plan written (`evaluation/core-capabilities-implementation-plan.md`): five phases cut into executable slices; slice 1 = statement items by canonical concept + monthly production/sales quantity/sales amount for one company, product and explicit month.
+- [x] Catalog enabled under the capability directive (provenance `engineering-applied:Feature141-core-capabilities-directive-2026-10-29`, owner countersign pending): netProfit/143, operatingProfit/140, earningsPerShare/160 bindings; monthly sales quantity and sales amount measures; SalesQuantity/SalesAmount columns. SalesRate stays unapproved. Hash `93acd370…`.
+- [x] Canonicalizer: CompanyTotal grain on a statement item → Unspecified; generic requested field naming the scalar result (value/amount/مقدار/ارزش) dropped. Compiler carries directive-approved effective units.
+- [x] Runner generalized (case-declared statement item or monthly value column, catalog-sourced identities, distinct decoy ticker, seeded-item independent check); live: E01, E02, E03, E04, E07, E08, E09 answered; E10 readiness; E18/E19/E20 rejected. Suite v1: 10 PASS / 10 BLOCKED.
+- [x] Regression: Feature 141 offline integration 15/15; unit suite 2408 passed, 20 failed = the 20 pre-existing on HEAD; three catalog-state contract tests updated to the directive.
+- [ ] Owner countersign of the directive-applied catalog records.
+- [x] Slice 3a: cross-company comparison and ranking of a statement item (E05, E06, E14) — see the slice 3a section below; 3b filters (E15, E17) and 3c aggregation (E16) remain.
+
+## 2026-10-29 — Core capabilities slice 3a: cross-company comparison and ranking (CROSS_COMPANY_COMPARISON_PASSED)
+
+- [x] One shape rule (`StatementQueryShapeClassifier`) shared by typed binding and the new `FinancialSourcePlannerHandoff.CreateCrossCompany`: single company value, comparison of named companies (also multi-company retrieval), ranking of named companies or the authorized population; explicit standalone/consolidated scope is now representable. `Create` (chat route) is unchanged.
+- [x] Plan algebra reused: `MultiCompanyComparison` mode, "compare" scope, latest period, sort on the compared value, top-N in pagination; validator distinguishes statement comparisons (no aggregation, value-bound sort, every named company bound) from monthly ones (governed Sum); an unbound population resolves the tenant's authorized discovery scope (`statement-comparison-authorized-company-universe-v1`) or is refused before SQL.
+- [x] Compiler `CompileStatementComparison`: one bounded SELECT over the latest reporting period (start, end, period type) that every compared company reports, with per-company coverage, latest period and basis count; named companies are parameters, a population is the grant's reviewed universe; refuses an unresolved effective unit and, for populations, unapproved company label columns. Direct-source mapping checks and physical binding extracted into shared helpers (single-company SQL unchanged).
+- [x] Application policy `CrossCompanyStatementComparisonPolicy` (per-company `LatestStatementObservationPolicy`, moved out of the executor): same period, basis and unit across companies; missing value never zero (named → Incomplete, population → excluded and disclosed); conflicting duplicates/mixed bases → Ambiguous; competition ranks, label/id tie order, top-N keeps boundary ties.
+- [x] Persian renderer for comparisons/rankings (labels, values, units, Jalali and Gregorian period, basis, verdict, disclosures); chat guard `StatementComparisonPlans` keeps the capability out of chat routing.
+- [x] Catalog: decision D1 (Companies.Name/Ticker display columns) engineering-applied under the capability directive with per-object provenance, owner countersign pending; hash `2fb37d4a…`.
+- [x] Live-model quirks handled deterministically: requested fields "company"/symbol or repeating a named company dropped for multi-company results; extractor prompt states the documented latest-period and statement-basis policies so a missing period or basis alone is not a clarification.
+- [x] Evaluation: suite extended to 28 cases (E21-E28 negatives); live runner kind `StatementComparison`; 22 offline PostgreSQL scenarios; unit contracts. Report `evaluation/core-capabilities-slice3a-report.md`.
+- [ ] Owner countersign of D1 (and of the slice 1 directive records); tenant discovery scopes and reviewed universes (D2/D3) must be configured per tenant before any real tenant sees a population ranking.
+- [ ] Before chat routing: owner decision to enable `StatementComparisonPlans` in `Feature141ChatQueryService`.
+- [x] Slice 3b threshold filters (E15, E17) — see the slice 3b section below; 3c aggregation (E16) and statement period comparison/growth (E12, E13) remain.
+
+## 2026-10-29 — Core capabilities slice 3b: numeric threshold filters (FILTERING_SLICE_PASSED)
+
+- [x] `StatementQueryShape.Filter` in the existing classifier: one threshold or one flat AND of two (`>`, `>=`, `<`, `<=`, `=`) on requested statement items, over named companies or the authorized population; OR/NOT/nesting, monthly measures and periods other than latest are typed `Unsupported`.
+- [x] Binding and `CreateCrossCompany` bind each threshold measure through the same approved-binding rule; the threshold must be in the item's own effective unit (no conversion; unitless threshold → Incomplete); both items must be on the same statement. Thresholds become typed `PlanFilter`s; the planner, validator and authorizer are unchanged.
+- [x] `CompileStatementComparison` joins each filter item on the compared statement and projects `(value <op> @filter_threshold_<n>)`; filter items join the query's sources and authorization flags. `CrossCompanyStatementComparisonPolicy` filters after per-company resolution and comparability; missing filter value never zero (named → Incomplete, population → excluded and disclosed); conflicting filter values across competing statements → Ambiguous. Persian renderer states the conditions, each filter item's value and unit, and exclusions.
+- [x] Live-model quirks handled deterministically in the canonicalizer: per-measure inferred `<concept>ValueGrain=companyTotal` constraint, a canonical measure repeated per company, rial (`irr`) on a per-share measure or threshold → rial per share, requested field `companyLabel`. Binding reports a requested-unit conversion before the shape.
+- [x] Evaluation: suite v1.2.0 = 34 cases (E29–E34 added), 29 PASS / 5 BLOCKED / 0 FAIL; live final pass 29/30 (E24 diagnostic-order variance, fixed and rerun); unit 20 pre-existing failures unchanged. Report `evaluation/core-capabilities-slice3b-report.md`.
+- [ ] Monthly threshold filters (production quantity, sales amount) are not implemented; before chat routing, guard the general-planner path so a monthly intent with a threshold cannot drop the predicate.
+- [x] Next milestone: route the verified Feature 141 capabilities in chat behind the existing `Feature141:Enabled` flag — see the chat MVP section below.
+
+## 2026-10-29 — Feature 141 MVP chat integration (FEATURE141_CHAT_MVP_PASSED)
+
+- [x] `Feature141ChatQueryService`: comparison/ranking/filter intents use `CreateCrossCompany` behind the typed binding gate; slice 3a chat refusal removed; threshold guard refuses numeric thresholds on the general (monthly/discovery) path (typed Unsupported; `production > 0` discovery exempt); router symbol no longer overwrites multi-company requests; definitive-answer signal.
+- [x] Workflow: Feature 141 takes the turn only when the selected route did not answer (semantic non-answer, semantic stop, unresolved direct lookup, agent without grounded result); existing answers win; one settled usage per turn (answers 1 credit, refusals zero-charge).
+- [x] Activation: `Feature141:Enabled` default `false` in `appsettings.json`; api service `Feature141__Enabled: ${FEATURE141_ENABLED:-false}`; rollback = flag off.
+- [x] Live verification through `IAiQueryOrchestrationService` (MAF V2, isolated PostgreSQL, live providers): 9 chat questions + flag-off rollback + 30 engine slices = 40/40, exit 0. Report `evaluation/feature141-chat-mvp-integration-report.md`.
+- [ ] Owner: D1 countersign, D2/D3 per pilot tenant, D4 product alias coverage; decide whether a per-user pilot allowlist is needed (environment-level flag only today).
+- [ ] Optional: improve semantic routing of statement-item questions (specialists currently fail first, adding latency).

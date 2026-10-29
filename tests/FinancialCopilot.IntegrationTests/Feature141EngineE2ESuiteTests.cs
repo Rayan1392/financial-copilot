@@ -22,8 +22,11 @@ public sealed class Feature141EngineE2ESuiteTests
         Assert.True(File.Exists(Path.Combine(evaluation, root.GetProperty("fixture").GetString()!)));
         var blockers = root.GetProperty("blockerVocabulary").EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal);
         var cases = root.GetProperty("cases").EnumerateArray().ToArray();
-        Assert.Equal(20, cases.Length);
-        Assert.Equal(20, cases.Select(item => item.GetProperty("id").GetString()).Distinct(StringComparer.Ordinal).Count());
+        // The suite only grows: the original 20 design cases plus cases added by later slices (summary.totalCases).
+        var totalCases = root.GetProperty("summary").GetProperty("totalCases").GetInt32();
+        Assert.True(totalCases >= 20, "the suite never drops below the original 20 cases");
+        Assert.Equal(totalCases, cases.Length);
+        Assert.Equal(totalCases, cases.Select(item => item.GetProperty("id").GetString()).Distinct(StringComparer.Ordinal).Count());
         var pass = 0; var blocked = 0;
         foreach (var item in cases)
         {
@@ -57,7 +60,7 @@ public sealed class Feature141EngineE2ESuiteTests
         var summary = root.GetProperty("summary");
         Assert.Equal(pass, summary.GetProperty("pass").GetInt32());
         Assert.Equal(blocked, summary.GetProperty("blocked").GetInt32());
-        Assert.Equal(20, summary.GetProperty("totalCases").GetInt32());
+        Assert.Equal(cases.Count(item => item.GetProperty("status").GetString() == "FAIL"), summary.GetProperty("fail").GetInt32());
 
         // Every runner case is a suite case with the same question and typed expectation.
         foreach (var runnerCase in Feature141VerticalSliceCases.All)

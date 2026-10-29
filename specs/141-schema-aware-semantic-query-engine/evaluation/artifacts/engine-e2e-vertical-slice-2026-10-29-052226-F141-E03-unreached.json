@@ -1,0 +1,588 @@
+{
+  "runAt": "2026-10-29T05:22:26.0982647+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E03",
+    "Question": "سود هر سهم فملی چقدر است؟",
+    "Fixture": {
+      "DatabaseName": "feature131_5bd06f6393764ff086a0cfb99ba8e52c",
+      "RestrictedRole": "feature141_vs_reader_2e9da15c6944446cbfd004d54e96f356",
+      "CompanyId": "f45d2ecd-31af-4111-ba39-4c984a9df7cc",
+      "DecoyCompanyId": "1b754be8-6247-42e1-b333-c200989f08c6",
+      "StatementId": "d62b6884-dc41-4f3a-9868-6fb830493d32",
+      "OlderStatementId": "15fa35ec-3e47-4dad-847d-8bed9eb66e73",
+      "SeededLineItemCount": 4,
+      "MonthlyReportId": null,
+      "ProductKey": null,
+      "ReviewedCompanyUniverse": null,
+      "UnauthorizedProducerId": null,
+      "CompaniesBySymbol": null,
+      "MonthlyValueColumn": "ProductionQuantity"
+    },
+    "ExpectedOutcome": "Answered",
+    "TypedOutcome": null,
+    "TypedOutcomeReason": null,
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "سود هر سهم",
+          "ConceptId": "earningsPerShare",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "earningsPerShare"
+          ],
+          "Kind": "FinancialStatementItem",
+          "Dimension": "CurrencyPerShare",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "Unspecified"
+          },
+          "RequestedUnit": "IRRPerShare",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Retrieve",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "Unspecified",
+        "Granularity": "Unspecified",
+        "UserPeriodLabel": null,
+        "NumberOfPeriods": null,
+        "StartLabel": null,
+        "EndLabel": null
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "فملی"
+        ]
+      },
+      "Products": [],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Scalar",
+        "RequestedFields": []
+      },
+      "Constraints": [],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Bound",
+    "TypedBindingDiagnostics": [],
+    "BoundSourceCatalogId": "source_item_bb4b63de3c1ecfe9",
+    "ChatPathBindingStatus": "Bound",
+    "ChatPathBindingDiagnostic": "canonical_source_item_bound",
+    "HandoffStatus": "ReadyForOfflineValidation",
+    "HandoffDiagnosticCode": "source_identity_ready_for_planner_validation",
+    "PlannerRequirements": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "MeasureIds": [],
+      "DimensionIds": [
+        "dim_company"
+      ],
+      "EntityKinds": [
+        "company"
+      ],
+      "RelationshipIds": [
+        "rel_2588cf95d01a651a",
+        "rel_cd8a77a2717ac71f",
+        "rel_e4fa0fe989156533"
+      ],
+      "SourcePolicies": [],
+      "PeriodPolicies": [
+        "latest"
+      ],
+      "ComparisonScopes": [],
+      "PresentationRequirements": [
+        "scalar"
+      ],
+      "HasUnknownOrAmbiguousRequirements": false,
+      "UncertaintyReason": null,
+      "StatementScopes": [],
+      "AggregationRequirements": null,
+      "OrderingRequirements": null,
+      "EntityReferences": [
+        "فملی"
+      ],
+      "ModelCalls": 0,
+      "InputTokens": null,
+      "OutputTokens": null,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": null,
+      "FinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_bb4b63de3c1ecfe9"
+        }
+      ],
+      "RequestedFinancialValueOperation": "DirectValueRetrieval",
+      "StructuredShape": null,
+      "ProductReferences": null,
+      "ResolvedCompanyPopulation": null,
+      "ResolvedProductEquivalence": null,
+      "ResolvedProductConcept": null,
+      "AuthorizedCompanyDiscoveryScope": null,
+      "PopulationDiscoveryRequested": false,
+      "PopulationCoveragePolicyId": null,
+      "PopulationSalesScope": null,
+      "PopulationSalesScopeAmbiguous": false,
+      "NormalizationDiagnostics": [],
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": null,
+      "EstimatedOutputTokens": null
+    },
+    "Navigation": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "Candidates": [
+        {
+          "NodeId": "direct-source-item-source_item_bb4b63de3c1ecfe9",
+          "Confidence": 1,
+          "Rationale": "independently validated financial-value reference"
+        },
+        {
+          "NodeId": "dimension-dim_company",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        },
+        {
+          "NodeId": "domain-financial-statements",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        },
+        {
+          "NodeId": "source-items-incomestatement",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        }
+      ],
+      "SelectedNodeIds": [
+        "dimension-dim_company",
+        "direct-source-item-source_item_bb4b63de3c1ecfe9",
+        "domain-company-industry",
+        "domain-financial-statements",
+        "financial-semantic-catalog",
+        "financial-statement-source-items",
+        "shared-dimensions",
+        "source-items-incomestatement",
+        "table-tbl_36036602dbf76362",
+        "table-tbl_4f2ef2d8dd59b46a",
+        "table-tbl_53d51e26e1ca6929",
+        "table-tbl_8646d83cdb350f92"
+      ],
+      "SelectedMeasureIds": [],
+      "SelectedDimensionIds": [
+        "dim_company"
+      ],
+      "SelectedEntityKinds": [
+        "company"
+      ],
+      "SelectedRelationshipIds": [
+        "rel_2588cf95d01a651a",
+        "rel_cd8a77a2717ac71f",
+        "rel_e4fa0fe989156533"
+      ],
+      "SelectedSourcePolicies": [],
+      "SelectedPeriodPolicies": [
+        "latest"
+      ],
+      "MissingContext": [],
+      "Diagnostics": [
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:table-tbl_53d51e26e1ca6929",
+        "navigation_metadata_pending:domain-financial-statements",
+        "navigation_metadata_pending:table-tbl_36036602dbf76362",
+        "navigation_metadata_pending:direct-source-item-source_item_bb4b63de3c1ecfe9",
+        "navigation_metadata_pending:source-items-incomestatement",
+        "navigation_metadata_pending:financial-statement-source-items",
+        "navigation_metadata_pending:domain-company-industry",
+        "navigation_metadata_pending:table-tbl_4f2ef2d8dd59b46a",
+        "navigation_metadata_pending:table-tbl_8646d83cdb350f92",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:table-tbl_53d51e26e1ca6929",
+        "semantic_meaning_unapproved:domain-financial-statements",
+        "semantic_meaning_unapproved:table-tbl_36036602dbf76362",
+        "semantic_meaning_unapproved:source-items-incomestatement",
+        "semantic_meaning_unapproved:financial-statement-source-items",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "semantic_meaning_unapproved:table-tbl_4f2ef2d8dd59b46a",
+        "semantic_meaning_unapproved:table-tbl_8646d83cdb350f92",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:table-tbl_53d51e26e1ca6929",
+        "query_not_authorized:domain-financial-statements",
+        "query_not_authorized:table-tbl_36036602dbf76362",
+        "query_not_authorized:source-items-incomestatement",
+        "query_not_authorized:financial-statement-source-items",
+        "query_not_authorized:domain-company-industry",
+        "query_not_authorized:table-tbl_4f2ef2d8dd59b46a",
+        "query_not_authorized:table-tbl_8646d83cdb350f92",
+        "context_expansion_fanout_limited:source-items-incomestatement"
+      ],
+      "SelectedComparisonScopes": [],
+      "SelectedPresentationRequirements": [
+        "scalar"
+      ],
+      "SelectedStatementScopes": [],
+      "SelectedAggregationRequirements": null,
+      "SelectedOrderingRequirements": null,
+      "SelectedEntityReferences": [
+        "فملی"
+      ],
+      "ModelCalls": 1,
+      "InputTokens": 4963,
+      "OutputTokens": 458,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": "00:00:05.4906828",
+      "CompletenessStatus": "Complete",
+      "SelectedFinancialValueReferences": [
+        {
+          "referenceType": "DirectSourceItem",
+          "catalogId": "source_item_bb4b63de3c1ecfe9"
+        }
+      ],
+      "FinancialValueOperation": "DirectValueRetrieval",
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": 0,
+      "EstimatedOutputTokens": 0,
+      "RetrievalComplete": true,
+      "SemanticReviewApproved": false,
+      "QueryAuthorized": true,
+      "CandidateMeasureIds": [
+        "metric_asset_turnover",
+        "metric_average_collection_period",
+        "metric_capital",
+        "metric_comprehensive_liquidity_index",
+        "metric_current_assets_to_total_assets",
+        "metric_current_debt_to_total_assets",
+        "metric_current_ratio",
+        "metric_debt_to_equity",
+        "metric_ebit",
+        "metric_ebit_growth_qoq",
+        "metric_ebit_growth_yoy",
+        "metric_eps",
+        "metric_eps_growth_qoq",
+        "metric_eps_growth_yoy",
+        "metric_finance_costs",
+        "metric_gross_profit",
+        "metric_gross_profit_growth_qoq",
+        "metric_gross_profit_growth_yoy",
+        "metric_gross_profit_margin",
+        "metric_income_tax",
+        "metric_net_profit",
+        "metric_net_profit_growth_qoq",
+        "metric_net_profit_growth_rate",
+        "metric_net_profit_growth_yoy",
+        "metric_net_profit_margin",
+        "metric_operating_cash_flow",
+        "metric_operating_profit",
+        "metric_operating_profit_growth_qoq",
+        "metric_operating_profit_growth_yoy",
+        "metric_operating_profit_margin"
+      ],
+      "RequiredMeasureIds": [],
+      "CandidateDimensionIds": [
+        "dim_company",
+        "dim_industry"
+      ],
+      "CandidateRelationshipIds": [
+        "rel_01d20c44fad46b14",
+        "rel_0a064593b79bfabb",
+        "rel_1f9aee4cf408c134",
+        "rel_2588cf95d01a651a",
+        "rel_27c113242c5db114",
+        "rel_38ed0217e96af6f4",
+        "rel_43ae23d35efbe735",
+        "rel_4602c28feda3a0a8",
+        "rel_4c8e0741d5b7ab00",
+        "rel_4e54d40aee8b45e4",
+        "rel_5bc660a22f34ed20",
+        "rel_5cce5a3ef281dec0",
+        "rel_635b794f3c9a6eec",
+        "rel_795f5fd8f8c6a468",
+        "rel_7bf681885d1db432",
+        "rel_7ea100339cd75190",
+        "rel_818227f1407b2495",
+        "rel_8856eca122e9381e",
+        "rel_909a4c520eaae110",
+        "rel_99dda63b5dc55e19",
+        "rel_a7c0e9de39ddac74",
+        "rel_b033eb0fdb5fd5dd",
+        "rel_b812b9c90dfb6118",
+        "rel_baaf281697dd8f05",
+        "rel_be5496879e7b3a75",
+        "rel_cd8a77a2717ac71f",
+        "rel_de517d46b8e8921b",
+        "rel_dfacaa7ccc6b1ef1",
+        "rel_e4fa0fe989156533",
+        "rel_e632198d030be7c8",
+        "rel_e90be0fb24eb6f5e",
+        "rel_f0a4c63a5f3b214d",
+        "rel_f28877e057383f55"
+      ],
+      "RequirementsCalls": 0,
+      "NavigationCalls": 1,
+      "ExpansionCalls": 0,
+      "RequirementsRetryAttempts": 0,
+      "NavigationRetryAttempts": 0
+    },
+    "Plan": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+      "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+      "Entities": [
+        {
+          "EntityKind": "Company",
+          "UserReference": "فملی",
+          "ResolvedEntityId": null,
+          "ResolvedEntityKey": null,
+          "IdentityProvenance": null,
+          "IdentityVerified": false
+        }
+      ],
+      "Sources": [
+        {
+          "ReferenceType": "DirectSourceItem",
+          "CatalogId": "source_item_bb4b63de3c1ecfe9",
+          "SourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+          "ProviderName": "NoavaranCurrentApi",
+          "StatementType": "IncomeStatement",
+          "SourceItemId": 160,
+          "MetricCode": "EPS",
+          "Unit": "IRRPerShare",
+          "UnitStatus": "unknown",
+          "IdentityStatus": "verified-persisted-source-key",
+          "SemanticReviewStatus": "approved",
+          "Queryable": true
+        }
+      ],
+      "RelationshipIds": [
+        "rel_2588cf95d01a651a",
+        "rel_cd8a77a2717ac71f",
+        "rel_e4fa0fe989156533"
+      ],
+      "Projection": [
+        {
+          "CatalogId": "source_item_bb4b63de3c1ecfe9",
+          "Role": "Value"
+        }
+      ],
+      "Filters": [],
+      "Period": {
+        "Policies": [
+          "latest"
+        ],
+        "ComparisonScopes": [],
+        "SelectLatestByReportingPeriod": true,
+        "UseSynchronizationTimestampForRecency": false,
+        "ReportingPeriodStart": null,
+        "ReportingPeriodEnd": null,
+        "MaximumPeriods": null
+      },
+      "Statement": {
+        "Scopes": [],
+        "Providers": [
+          "NoavaranCurrentApi"
+        ],
+        "StatementTypes": [
+          "IncomeStatement"
+        ],
+        "SelectionKeys": [
+          "ReportingPeriodDescending",
+          "PeriodType",
+          "ProviderIdentity",
+          "StatementType",
+          "StatementScope",
+          "AuditState",
+          "RestatementState",
+          "RevisionIdentity",
+          "Availability"
+        ],
+        "PreferComposing": false,
+        "PreservePeriodType": true,
+        "PreserveAuditState": true,
+        "PreserveRestatementState": true,
+        "PreserveRevisionIdentity": true,
+        "RequireUnambiguousSelection": true
+      },
+      "Aggregations": [],
+      "Sort": [],
+      "Pagination": {
+        "Offset": 0,
+        "Limit": 100
+      },
+      "Presentation": "Scalar",
+      "FinancialOperation": {
+        "Operation": "DirectValueRetrieval",
+        "Kind": "DirectValue",
+        "ComparisonMode": "None",
+        "ValueDefinitionCatalogIds": [],
+        "FormulaAuthorized": false
+      },
+      "RetrievalComplete": true,
+      "SemanticReviewApproved": false,
+      "QueryAuthorized": true,
+      "ExecutionEligible": true,
+      "Diagnostics": [
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:table-tbl_53d51e26e1ca6929",
+        "navigation_metadata_pending:domain-financial-statements",
+        "navigation_metadata_pending:table-tbl_36036602dbf76362",
+        "navigation_metadata_pending:direct-source-item-source_item_bb4b63de3c1ecfe9",
+        "navigation_metadata_pending:source-items-incomestatement",
+        "navigation_metadata_pending:financial-statement-source-items",
+        "navigation_metadata_pending:domain-company-industry",
+        "navigation_metadata_pending:table-tbl_4f2ef2d8dd59b46a",
+        "navigation_metadata_pending:table-tbl_8646d83cdb350f92",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:table-tbl_53d51e26e1ca6929",
+        "semantic_meaning_unapproved:domain-financial-statements",
+        "semantic_meaning_unapproved:table-tbl_36036602dbf76362",
+        "semantic_meaning_unapproved:source-items-incomestatement",
+        "semantic_meaning_unapproved:financial-statement-source-items",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "semantic_meaning_unapproved:table-tbl_4f2ef2d8dd59b46a",
+        "semantic_meaning_unapproved:table-tbl_8646d83cdb350f92",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:table-tbl_53d51e26e1ca6929",
+        "query_not_authorized:domain-financial-statements",
+        "query_not_authorized:table-tbl_36036602dbf76362",
+        "query_not_authorized:source-items-incomestatement",
+        "query_not_authorized:financial-statement-source-items",
+        "query_not_authorized:domain-company-industry",
+        "query_not_authorized:table-tbl_4f2ef2d8dd59b46a",
+        "query_not_authorized:table-tbl_8646d83cdb350f92",
+        "context_expansion_fanout_limited:source-items-incomestatement",
+        "company_identity_not_found"
+      ],
+      "ReviewedProductEquivalence": null,
+      "CompanyPopulationId": null,
+      "CompanyPopulationApprovalReference": null,
+      "ProductConcept": null,
+      "CompanyDiscoveryScope": null,
+      "PopulationCoveragePolicyId": null,
+      "PopulationSalesScope": null
+    },
+    "PlanStructurallyValid": true,
+    "PlanExecutionEligible": true,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": "NotFound",
+    "BoundCompanyId": null,
+    "CompilationSucceeded": false,
+    "CompilationDiagnostics": [
+      "exactly_one_resolved_company_binding_required"
+    ],
+    "Sql": null,
+    "SqlParameters": {},
+    "QueryFingerprint": null,
+    "CompiledEffectiveUnit": null,
+    "CompiledOperation": null,
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": false,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": false,
+    "GrantIssued": false,
+    "GrantDatabase": null,
+    "GrantRole": null,
+    "GrantProvenance": null,
+    "ExecutionStatus": null,
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 0,
+    "ExecutionRows": [],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": null,
+    "ExecutionAuthorizationProvenance": null,
+    "ExecutionElapsedMs": null,
+    "IndependentDatabaseValue": null,
+    "IndependentLineItemCount": 0,
+    "PersianAnswerStatus": null,
+    "PersianAnswer": null,
+    "PersianAnswerUnit": null,
+    "PersianEvidence": [],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [],
+    "RequirementsNormalizationDiagnostics": [],
+    "ModelPeriodStart": null,
+    "ModelPeriodEnd": null,
+    "NormalizedPersianMonth": null,
+    "NormalizedPeriodStart": null,
+    "NormalizedPeriodEnd": null,
+    "ProductBindingStatus": null,
+    "ProductKey": null,
+    "ActualProductCode": null,
+    "ActualSourceUnit": null,
+    "ProductConceptCatalogId": null,
+    "ProductConceptAliases": [],
+    "ProductMappingCoverageStatus": null,
+    "CompanyDiscoveryScopeId": null,
+    "CompanyDiscoveryCoverageComplete": null,
+    "GrantAllowedCompanyIds": [],
+    "ActualCompanySymbols": [],
+    "ActualCompanyIds": [],
+    "CompiledWithFixtureOnlyColumnApproval": false,
+    "FixtureOnlyApprovedColumns": [],
+    "WritablePrincipalExecutionStatus": null,
+    "WritablePrincipalDiagnostic": null,
+    "LlmCalls": 2,
+    "ObservedModelCalls": 2,
+    "ObservedExecutorCalls": 0,
+    "LlmInputTokens": 7404,
+    "LlmOutputTokens": 940,
+    "IntentLatencyMs": 5418.2275,
+    "NavigatorLatencyMs": 5490.6828,
+    "TotalElapsedMs": 11291.7054,
+    "SecretValuesLogged": false
+  }
+}

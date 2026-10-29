@@ -34,9 +34,9 @@ public sealed class CanonicalIntentCatalogBindingTests
     public async Task MissingApprovedMeaningNeverUsesSimilarTitleOrUnit()
     {
         var result = CanonicalIntentCatalogBinding.Bind(
-            Intent("netProfit", BusinessMeasureDimension.CurrencyAmount), await CatalogReferences());
+            Intent("depreciationExpense", BusinessMeasureDimension.CurrencyAmount), await CatalogReferences());
         Assert.Equal(CanonicalCatalogBindingStatus.Incomplete, result.Status);
-        Assert.Equal("approved_catalog_binding_missing:netProfit", Assert.Single(result.Diagnostics));
+        Assert.Equal("approved_catalog_binding_missing:depreciationExpense", Assert.Single(result.Diagnostics));
         Assert.Empty(result.References);
     }
 

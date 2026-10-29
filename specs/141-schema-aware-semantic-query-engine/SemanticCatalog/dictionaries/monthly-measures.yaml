@@ -23,7 +23,9 @@
       "unitPolicy": {
         "kind": "quantity",
         "code": "source-quantity-unit",
-        "compatibleOnlyWithinSameUnit": true
+        "compatibleOnlyWithinSameUnit": true,
+        "verified": true,
+        "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29 (policy item 5: row unit preserved verbatim, never converted)"
       },
       "review": {
         "semanticApproved": true,
@@ -58,12 +60,20 @@
       "unitPolicy": {
         "kind": "quantity",
         "code": "source-quantity-unit",
-        "compatibleOnlyWithinSameUnit": true
+        "compatibleOnlyWithinSameUnit": true,
+        "verified": true,
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)"
       },
       "review": {
-        "semanticApproved": false,
-        "queryable": false,
-        "status": "pending-owner-review"
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "capability-directive-approved",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvedOperations": [
+          "DirectValueRetrieval",
+          "ApprovedPeriodComparison"
+        ],
+        "approvedScope": "one named company, one company-scoped product, explicit Persian month or latest accepted month; row unit preserved for quantities, MillionIRR for amounts"
       }
     },
     {
@@ -86,12 +96,20 @@
       },
       "unitPolicy": {
         "kind": "monetary",
-        "code": "MillionIRR"
+        "code": "MillionIRR",
+        "verified": true,
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)"
       },
       "review": {
-        "semanticApproved": false,
-        "queryable": false,
-        "status": "pending-owner-review"
+        "semanticApproved": true,
+        "queryable": true,
+        "status": "capability-directive-approved",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvedOperations": [
+          "DirectValueRetrieval",
+          "ApprovedPeriodComparison"
+        ],
+        "approvedScope": "one named company, one company-scoped product, explicit Persian month or latest accepted month; row unit preserved for quantities, MillionIRR for amounts"
       }
     },
     {

@@ -71,3 +71,51 @@ restricted executor (SELECT on `MonthlyReports`, `MonthlyReportLineItems`, `Comp
 Governance comes from the owner-approved catalog objects (measure, tables, relationships); the completeness
 validator treats a reviewed-measure request like exact direct-source identity. Negative scenarios live in
 `Feature141MonthlyProductionSemanticsPostgreSqlTests` (no LLM) and write `artifacts/monthly-production-semantics-<stamp>.json`.
+
+## Company discovery (2026-10-29)
+
+F141-E10 runs through the runner's `CompanyDiscovery` kind: live intent (unbound population) → navigator requirements →
+deterministic month → planner with the approved product concept and a fixture-only discovery scope → discovery compiler
+(fixture-only approval of `Companies.Name/Ticker`, recorded in the trace) → authorizer whose grant carries the tenant's
+reviewed company universe → restricted executor → partial-coverage Persian answer. Offline scenarios live in
+`Feature141CompanyDiscoverySemanticsPostgreSqlTests`. The case stays BLOCKED until decisions D1–D4 are taken.
+
+## Core capabilities slice 1 (2026-10-29)
+
+The runner's `StatementItem` kind now takes the statement type, source item id and official title from the case and
+reads the persisted source-item identity from the catalog snapshot; the `MonthlyMeasure` kind takes the value column
+(`ProductionQuantity`, `SalesQuantity`, `SalesAmount`). `AdditionalQuestionsRunLiveEndToEnd` is the generic live
+theory over `Feature141VerticalSliceCases.AdditionalAnswered` (E01, E02, E03, E08, E09). Every answered case is
+checked against an independent administrative read of the seeded row and against the suite's expected period, value,
+unit and Persian digits. See `core-capabilities-slice1-report.md` for the run log and failure attribution.
+
+## Core capabilities slice 3a: cross-company comparison and ranking (2026-10-29)
+
+The runner's `StatementComparison` kind seeds, per case, the named companies, their statements of the case's statement
+item (identity read from the catalog), older quarters and a decoy item on every statement, and for a population case the
+tenant's fixture-only discovery scope and reviewed company universe (coverage complete by construction, like E10's
+fixture-only scope). The intent's shape (`StatementQueryShapeClassifier`), not the case, selects
+`FinancialSourcePlannerHandoff.CreateCrossCompany`; planner, validator, compiler (`CompileStatementComparison`),
+authorizer and restricted executor are the production components; the executor hands the rows to
+`CrossCompanyStatementComparisonPolicy` (latest common reporting period, one consolidation basis, one unit, missing value
+never zero, competition ranks with label/id tie order, top-N keeps boundary ties). `CrossCompanyComparisonRunsLiveEndToEnd`
+covers F141-E05, E06, E14 and the negative cases E21-E28 (missing company, missing metric, different periods,
+incompatible unit, conflicting duplicate statements, consolidated versus standalone, equal values, empty result set);
+each answered case is checked against an independent administrative read per company and the writable-principal control.
+`Feature141CrossCompanyComparisonSemanticsPostgreSqlTests` runs 22 scenarios without an LLM (each twice, identical) and
+writes `artifacts/cross-company-comparison-semantics-<date>/<scenario>.json`. Chat routing refuses statement comparison
+plans (`StatementComparisonPlans`) and the chat route keeps the single-company handoff. See
+`core-capabilities-slice3a-report.md`.
+
+## Core capabilities slice 3b: numeric threshold filters (2026-10-29)
+
+`ThresholdFilterRunsLiveEndToEnd` reuses the slice 3a runner kind and assertions. The fixture seeds, on the same latest
+statement of each peer, net profit (143), operating profit (140) and EPS (160) from `proposed.companies`; the prior quarter
+carries values that would flip every predicate, and فولاد, outside the reviewed universe, passes every predicate. The
+intent's filter (one threshold or one flat AND of two) selects the `Filter` shape; thresholds become typed `PlanFilter`s
+and are compiled into bound `filter_threshold_<n>` parameters evaluated by PostgreSQL on the compared statement; the
+policy keeps companies whose predicates are all true after per-company resolution and comparability. Cases: F141-E15,
+E17 (required), E29 operating profit, E30 EPS less-than, E31 AND that excludes a company passing only one predicate, and
+the negatives E32 (threshold unit conversion), E33 (missing EPS value: excluded and disclosed) and E34 (OR). Each answered
+case asserts the listed values against an independent administrative read, the excluded companies' absence from the
+answer and the writable-principal control. See `core-capabilities-slice3b-report.md`.

@@ -168,7 +168,9 @@ public sealed class PersianStructuredQueryResponseGeneratorTests
         Assert.Equal(StructuredAnswerStatus.Incomplete, response.Status);
         Assert.Contains("Fixture producer (FIX)", response.TextAnswer);
         Assert.Contains("report-pellet-1", response.TextAnswer);
-        Assert.Equal(1, CountOccurrences(response.TextAnswer, "در بازه"));
+        // The observation's period is stated once, as its Jalali month (2026-08-23..2026-09-22 = Shahrivar 1405).
+        Assert.Equal(1, CountOccurrences(response.TextAnswer, "در شهریور ۱۴۰۵"));
+        Assert.DoesNotContain("۲۰۲۶", response.TextAnswer);
         Assert.Contains("فهرست جزئی است", response.TextAnswer);
     }
 

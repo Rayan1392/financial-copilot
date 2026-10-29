@@ -57,10 +57,10 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
             new Scenario("M7", "شپنا", Pellet, "شهریور ۱۴۰۵", "superseded revision (99) and accepted revision (30)", Expect.Answered, 30m, null, "ton"),
             new Scenario("M8", "وبملت", Pellet, "شهریور ۱۴۰۵", "accepted report, line present, NULL quantity", Expect.NoData, null, "monthly_observation_missing"),
             new Scenario("M9", "شستا", Pellet, "شهریور ۱۴۰۵", "accepted report, line present, missing unit", Expect.Incomplete, null, "monthly_quantity_unit_missing"),
-            // Observed, not asserted: CompanyScopedProductResolver (Feature 129) collapses same-title products
-            // regardless of unit and resolves one key. Whether that must become Ambiguous is an open owner
-            // decision recorded in monthly-production-e2e-execution-report.md; the chosen unit is always stated.
-            new Scenario("M10", "خودرو", Pellet, "شهریور ۱۴۰۵", "same product title reported in two incompatible units (ton and kg)", Expect.Observed),
+            // Owner rules (2026-10-29): product identity is unit independent, but a value is never taken from one
+            // of several units silently. The Feature 141 binder detects the multi-unit title through the product
+            // catalog and returns Ambiguous; the Feature 129 resolver itself is unchanged.
+            new Scenario("M10", "خودرو", Pellet, "شهریور ۱۴۰۵", "same product title reported in two incompatible units (ton and kg)", Expect.ProductAmbiguous),
             new Scenario("M11", "کگل", Pellet, "شهریور ۱۴۰۵", "catalog with the measure unapproved: authorizer refuses, no SQL", Expect.CatalogRefused),
             new Scenario("M12", "کگل", Pellet, "شهریور ۱۴۰۵", "database role without SELECT on MonthlyReportLineItems", Expect.DatabaseDenied, null, "database_query_failed")
         };
@@ -81,7 +81,7 @@ public sealed class Feature141MonthlyProductionSemanticsPostgreSqlTests(
             Options.Create(new CanonicalEntityResolutionOptions(Enabled: true))));
         var productBinder = new StructuredQueryProductBinder(new CompanyScopedProductResolver(
             new CompanyResolverService(bindingDb, NullLogger<CompanyResolverService>.Instance),
-            new EfCoreMonthlyProductComparisonRepository(bindingDb)));
+            new EfCoreMonthlyProductComparisonRepository(bindingDb)), new EfCoreMonthlyProductComparisonRepository(bindingDb));
         var host = new TestEnvironment("Development");
         var results = new List<object>();
         var failures = new List<string>();

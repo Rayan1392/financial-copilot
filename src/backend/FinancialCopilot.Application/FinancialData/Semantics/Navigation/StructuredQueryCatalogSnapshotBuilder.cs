@@ -130,7 +130,7 @@ public sealed class StructuredQueryCatalogSnapshotBuilder
                 string.Equals(StringOrNull(entry, "identityStatus"), "verified-persisted-source-key", StringComparison.Ordinal),
                 string.Equals(StringOrNull(entry, "semanticReviewStatus"), "approved", StringComparison.Ordinal),
                 StringOrNull(entry, "effectiveUnit"), StringOrNull(entry, "effectiveUnitStatus"),
-                StringOrNull(entry, "effectiveUnitProvenance")));
+                StringOrNull(entry, "effectiveUnitProvenance"), StringOrNull(entry, "titleFa")?.Trim()));
         }
 
         // Every source definition must be discoverable in the generated locked hierarchy, with

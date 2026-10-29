@@ -984,6 +984,7 @@ public sealed class MonthlyStructuredQueryPostgreSqlTests(FinancialStatementValu
         var configuration = EvaluationConfigurationLoader.Build(apiDirectory, "Development", configurationOverrides:
             new Dictionary<string, string?>
             {
+                ["Feature141:Enabled"] = "true",
                 ["Feature141:SchemaNavigator:HierarchyPath"] = hierarchyPath,
                 ["Feature141:SchemaNavigator:CatalogPath"] = catalogPath
             });

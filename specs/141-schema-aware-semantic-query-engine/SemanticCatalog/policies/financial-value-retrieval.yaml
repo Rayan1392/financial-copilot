@@ -19,14 +19,21 @@
     "unavailableOutcome": "typed unsupported or unavailable; do not substitute another metric or infer a value"
   },
   "directSourceItemIdentity": {
-    "key": ["ProviderName", "StatementType", "SourceItemId"],
+    "key": [
+      "ProviderName",
+      "StatementType",
+      "SourceItemId"
+    ],
     "physicalReference": "FinancialStatementLineItems.SourceItemCatalogId -> FinancialStatementSourceItems.Id",
     "metricCodeRequired": false,
     "nullPhysicalReferencePolicy": "unresolved; do not backfill historical observations under this feature"
   },
   "units": {
     "sourceUnitIsNormalizedUnit": false,
-    "unknownValues": ["N/A", null],
+    "unknownValues": [
+      "N/A",
+      null
+    ],
     "inferFromTitle": false,
     "convertWithoutApprovedRule": false
   },
@@ -41,8 +48,27 @@
     "normalizedUnitCompatibilityAlias": "effectiveUnit; this never overwrites raw provider Unit",
     "requiresSemanticReviewUnit": null,
     "classificationRules": {
-      "perShareMarkers": ["هر سهم", "هرسهم", "به ازای هر سهم", "per share", "earnings per share", "eps"],
-      "requiresReviewMarkers": ["تعداد", "درصد", "نرخ", "مقدار تولید", "مقدار فروش", "\u0646\u0648\u0639 \u062f\u0648\u0631\u0647 \u0645\u0627\u0644\u06cc", "quantity", "percent", "percentage", "ratio", "shares outstanding"]
+      "perShareMarkers": [
+        "هر سهم",
+        "هرسهم",
+        "به ازای هر سهم",
+        "per share",
+        "earnings per share",
+        "eps"
+      ],
+      "requiresReviewMarkers": [
+        "تعداد",
+        "درصد",
+        "نرخ",
+        "مقدار تولید",
+        "مقدار فروش",
+        "نوع دوره مالی",
+        "quantity",
+        "percent",
+        "percentage",
+        "ratio",
+        "shares outstanding"
+      ]
     },
     "classificationRuleProvenance": "business-owner-confirmed unit policy with deterministic explainable title rules; unmatched monetary statement entries use the ordinary statement unit",
     "reviewedItems": [
@@ -60,7 +86,10 @@
           "approved": true,
           "status": "owner-approved-source-item-semantics",
           "provenance": "business-owner-confirmed:Feature141-2026-10-08",
-          "approvalScope": ["source-item-meaning", "effective-unit"],
+          "approvalScope": [
+            "source-item-meaning",
+            "effective-unit"
+          ],
           "queryAuthorization": true
         },
         "canonicalConceptBindings": [
@@ -73,11 +102,111 @@
             "provenance": "business-owner-confirmed:Feature141-2026-10-08;canonical-business-measure-registry"
           }
         ]
+      },
+      {
+        "providerName": "NoavaranCurrentApi",
+        "statementType": "IncomeStatement",
+        "sourceItemId": 143,
+        "sourceItemCatalogId": "bd36909d-abf8-44c2-b7db-5e53dd678b53",
+        "titleFa": "سود خالص",
+        "referenceType": "DirectSourceItem",
+        "effectiveUnit": "MillionIRR",
+        "unitStatus": "capability-directive-approved",
+        "unitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "semanticApproval": {
+          "approved": true,
+          "status": "capability-directive-source-item-semantics",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+          "approvalScope": [
+            "source-item-meaning",
+            "effective-unit"
+          ],
+          "queryAuthorization": true
+        },
+        "canonicalConceptBindings": [
+          {
+            "canonicalConceptId": "netProfit",
+            "dimension": "CurrencyAmount",
+            "valueForm": "ReportedValue",
+            "status": "approved",
+            "evidence": "Registered title سود خالص is the canonical net profit (standalone statement); unit MillionIRR by the statement-unit policy.",
+            "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+          }
+        ]
+      },
+      {
+        "providerName": "NoavaranCurrentApi",
+        "statementType": "IncomeStatement",
+        "sourceItemId": 140,
+        "sourceItemCatalogId": "f2a6e460-176f-4426-a4e7-78d4ffd86ba6",
+        "titleFa": "سود عملیاتی",
+        "referenceType": "DirectSourceItem",
+        "effectiveUnit": "MillionIRR",
+        "unitStatus": "capability-directive-approved",
+        "unitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "semanticApproval": {
+          "approved": true,
+          "status": "capability-directive-source-item-semantics",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+          "approvalScope": [
+            "source-item-meaning",
+            "effective-unit"
+          ],
+          "queryAuthorization": true
+        },
+        "canonicalConceptBindings": [
+          {
+            "canonicalConceptId": "operatingProfit",
+            "dimension": "CurrencyAmount",
+            "valueForm": "ReportedValue",
+            "status": "approved",
+            "evidence": "Registered title سود عملیاتی is the canonical operating profit; unit MillionIRR by the statement-unit policy.",
+            "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+          }
+        ]
+      },
+      {
+        "providerName": "NoavaranCurrentApi",
+        "statementType": "IncomeStatement",
+        "sourceItemId": 160,
+        "sourceItemCatalogId": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+        "titleFa": "سود خالص هر سهم",
+        "referenceType": "DirectSourceItem",
+        "effectiveUnit": "IRRPerShare",
+        "unitStatus": "capability-directive-approved",
+        "unitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "semanticApproval": {
+          "approved": true,
+          "status": "capability-directive-source-item-semantics",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+          "approvalScope": [
+            "source-item-meaning",
+            "effective-unit"
+          ],
+          "queryAuthorization": true
+        },
+        "canonicalConceptBindings": [
+          {
+            "canonicalConceptId": "earningsPerShare",
+            "dimension": "CurrencyPerShare",
+            "valueForm": "ReportedValue",
+            "status": "approved",
+            "evidence": "Registered title سود خالص هر سهم is the canonical earnings per share; IRRPerShare by the per-share title rule.",
+            "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+          }
+        ]
       }
     ]
   },
   "periodComparison": {
-    "required": ["same company", "same statement scope", "same source item or governed metric", "same provider", "same unit", "comparable reporting periods"],
+    "required": [
+      "same company",
+      "same statement scope",
+      "same source item or governed metric",
+      "same provider",
+      "same unit",
+      "comparable reporting periods"
+    ],
     "negativeBaseline": "unsupported until an owner-approved convention exists",
     "missingPeriod": "unsupported; do not interpolate"
   },
@@ -88,8 +217,16 @@
     "auditedRestatedProviderPreference": "no global preference approved"
   },
   "latestSelection": {
-    "primaryOrdering": ["reporting period end"],
-    "preservedPeriodScope": ["period start", "period type", "statement type", "provider", "consolidation scope"],
+    "primaryOrdering": [
+      "reporting period end"
+    ],
+    "preservedPeriodScope": [
+      "period start",
+      "period type",
+      "statement type",
+      "provider",
+      "consolidation scope"
+    ],
     "synchronizationTimestampOrIdentityAsBusinessTieBreaker": false,
     "samePeriodTieResolution": {
       "comparisonGrain": "requested source item value only",
@@ -102,7 +239,11 @@
   },
   "governance": {
     "registeredDirectSourceIdentityGrantsQueryAuthorization": true,
-    "registeredIdentityScope": ["ProviderName", "StatementType", "SourceItemId"],
+    "registeredIdentityScope": [
+      "ProviderName",
+      "StatementType",
+      "SourceItemId"
+    ],
     "canonicalConceptEquivalenceStillRequiresEvidence": true,
     "queryableOnlyThroughCatalogValidatedCompiler": true,
     "sqlExecutionActivated": true,

@@ -14516,8 +14516,8 @@
       "sourceUnitStatus": "unknown",
       "normalizedUnit": "MillionIRR",
       "effectiveUnit": "MillionIRR",
-      "effectiveUnitStatus": "owner-policy-classified",
-      "effectiveUnitProvenance": "financial-statement-unit-policy-v1:ordinary-statement-amount",
+      "effectiveUnitStatus": "capability-directive-approved",
+      "effectiveUnitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
       "unitClassification": "MonetaryStatementItem",
       "mappedMetricCode": "OPERATING_PROFIT",
       "identityStatus": "verified-persisted-source-key",
@@ -14540,12 +14540,27 @@
         ],
         "provenance": "product-owner-approved:Feature141-source-item-registry-2026-10-10"
       },
-      "semanticReviewStatus": "pending-review",
+      "semanticReviewStatus": "approved",
       "semanticApproval": {
-        "approved": false,
-        "status": "pending-review"
+        "approved": true,
+        "status": "capability-directive-source-item-semantics",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvalScope": [
+          "source-item-meaning",
+          "effective-unit"
+        ],
+        "queryAuthorization": true
       },
-      "canonicalConceptBindings": [],
+      "canonicalConceptBindings": [
+        {
+          "canonicalConceptId": "operatingProfit",
+          "dimension": "CurrencyAmount",
+          "valueForm": "ReportedValue",
+          "status": "approved",
+          "evidence": "Registered title سود عملیاتی is the canonical operating profit; unit MillionIRR by the statement-unit policy.",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+        }
+      ],
       "queryAuthorization": {
         "state": "approved-direct-source-identity",
         "approved": true,
@@ -14723,8 +14738,8 @@
       "sourceUnitStatus": "unknown",
       "normalizedUnit": "MillionIRR",
       "effectiveUnit": "MillionIRR",
-      "effectiveUnitStatus": "owner-policy-classified",
-      "effectiveUnitProvenance": "financial-statement-unit-policy-v1:ordinary-statement-amount",
+      "effectiveUnitStatus": "capability-directive-approved",
+      "effectiveUnitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
       "unitClassification": "MonetaryStatementItem",
       "mappedMetricCode": "NET_PROFIT",
       "identityStatus": "verified-persisted-source-key",
@@ -14747,12 +14762,27 @@
         ],
         "provenance": "product-owner-approved:Feature141-source-item-registry-2026-10-10"
       },
-      "semanticReviewStatus": "pending-review",
+      "semanticReviewStatus": "approved",
       "semanticApproval": {
-        "approved": false,
-        "status": "pending-review"
+        "approved": true,
+        "status": "capability-directive-source-item-semantics",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvalScope": [
+          "source-item-meaning",
+          "effective-unit"
+        ],
+        "queryAuthorization": true
       },
-      "canonicalConceptBindings": [],
+      "canonicalConceptBindings": [
+        {
+          "canonicalConceptId": "netProfit",
+          "dimension": "CurrencyAmount",
+          "valueForm": "ReportedValue",
+          "status": "approved",
+          "evidence": "Registered title سود خالص is the canonical net profit (standalone statement); unit MillionIRR by the statement-unit policy.",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+        }
+      ],
       "queryAuthorization": {
         "state": "approved-direct-source-identity",
         "approved": true,
@@ -15482,8 +15512,8 @@
       "sourceUnitStatus": "unknown",
       "normalizedUnit": "IRRPerShare",
       "effectiveUnit": "IRRPerShare",
-      "effectiveUnitStatus": "owner-policy-classified",
-      "effectiveUnitProvenance": "financial-statement-unit-policy-v1:per-share-title-rule",
+      "effectiveUnitStatus": "capability-directive-approved",
+      "effectiveUnitProvenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
       "unitClassification": "MonetaryPerShareItem",
       "mappedMetricCode": "EPS",
       "identityStatus": "verified-persisted-source-key",
@@ -15506,12 +15536,27 @@
         ],
         "provenance": "product-owner-approved:Feature141-source-item-registry-2026-10-10"
       },
-      "semanticReviewStatus": "pending-review",
+      "semanticReviewStatus": "approved",
       "semanticApproval": {
-        "approved": false,
-        "status": "pending-review"
+        "approved": true,
+        "status": "capability-directive-source-item-semantics",
+        "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+        "approvalScope": [
+          "source-item-meaning",
+          "effective-unit"
+        ],
+        "queryAuthorization": true
       },
-      "canonicalConceptBindings": [],
+      "canonicalConceptBindings": [
+        {
+          "canonicalConceptId": "earningsPerShare",
+          "dimension": "CurrencyPerShare",
+          "valueForm": "ReportedValue",
+          "status": "approved",
+          "evidence": "Registered title سود خالص هر سهم is the canonical earnings per share; IRRPerShare by the per-share title rule.",
+          "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending);canonical-business-measure-registry"
+        }
+      ],
       "queryAuthorization": {
         "state": "approved-direct-source-identity",
         "approved": true,

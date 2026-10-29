@@ -1,0 +1,668 @@
+{
+  "runAt": "2026-10-29T09:48:44.5754977+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E10",
+    "Question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "Fixture": {
+      "DatabaseName": "feature131_2aff9cec4e6c486c8f52bc9a906b47de",
+      "RestrictedRole": "feature141_vs_discovery_reader_8ef0602b2e1648e9a9bce678254c59d1",
+      "CompanyId": "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+      "DecoyCompanyId": "06f965dd-2f48-4590-b028-265fe3d5fbb2",
+      "StatementId": "00000000-0000-0000-0000-000000000000",
+      "OlderStatementId": "00000000-0000-0000-0000-000000000000",
+      "SeededLineItemCount": 7,
+      "MonthlyReportId": null,
+      "ProductKey": null,
+      "ReviewedCompanyUniverse": [
+        "06f965dd-2f48-4590-b028-265fe3d5fbb2",
+        "0f78d320-7604-4451-9b3c-49f53fca348e",
+        "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+        "a1aab38b-3e6d-4c4e-80bb-a9dd1f1b23c2",
+        "b9dc85a8-3195-452c-a4a9-4c7a303ee628",
+        "c7d7a80f-b00d-440a-af5d-ab2dcd3dcaed"
+      ],
+      "UnauthorizedProducerId": "654c6470-7244-4a53-8a8b-0a6490723b0b",
+      "CompaniesBySymbol": {
+        "کگل": "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+        "کگهر": "06f965dd-2f48-4590-b028-265fe3d5fbb2",
+        "فملی": "0f78d320-7604-4451-9b3c-49f53fca348e",
+        "کچاد": "c7d7a80f-b00d-440a-af5d-ab2dcd3dcaed",
+        "وبملت": "a1aab38b-3e6d-4c4e-80bb-a9dd1f1b23c2",
+        "فولاد": "b9dc85a8-3195-452c-a4a9-4c7a303ee628",
+        "UNAUTH": "654c6470-7244-4a53-8a8b-0a6490723b0b"
+      },
+      "MonthlyValueColumn": "ProductionQuantity",
+      "SeededSourceItemCatalogId": null
+    },
+    "ExpectedOutcome": "Incomplete",
+    "TypedOutcome": "Incomplete",
+    "TypedOutcomeReason": null,
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "IntentFailureDiagnostic": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "تولید",
+          "ConceptId": "productionQuantity",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "productionQuantity"
+          ],
+          "Kind": "ProductionQuantity",
+          "Dimension": "PhysicalQuantity",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "Unspecified",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "ProductLevel"
+          },
+          "RequestedUnit": "Unspecified",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "DiscoverPopulation",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "ExplicitMonth",
+        "Granularity": "Month",
+        "UserPeriodLabel": "شهریور ۱۴۰۵",
+        "NumberOfPeriods": 1,
+        "StartLabel": "شهریور ۱۴۰۵",
+        "EndLabel": "شهریور ۱۴۰۵"
+      },
+      "EntityScope": {
+        "Kind": "UnboundCompanyPopulation",
+        "CompanyLabels": []
+      },
+      "Products": [
+        {
+          "UserLabel": "گندله",
+          "ConceptLabel": null,
+          "Provenance": "Explicit"
+        }
+      ],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Table",
+        "RequestedFields": []
+      },
+      "Constraints": [],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Incomplete",
+    "TypedBindingDiagnostics": [
+      "approved_catalog_binding_missing:productionQuantity"
+    ],
+    "BoundSourceCatalogId": null,
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "MeasureIds": [],
+      "DimensionIds": [
+        "dim_company"
+      ],
+      "EntityKinds": [
+        "company",
+        "product"
+      ],
+      "RelationshipIds": [],
+      "SourcePolicies": [],
+      "PeriodPolicies": [
+        "explicit-period"
+      ],
+      "ComparisonScopes": [],
+      "PresentationRequirements": [
+        "table"
+      ],
+      "HasUnknownOrAmbiguousRequirements": true,
+      "UncertaintyReason": "کاتالوگ هیچ سنجه یا منبع داده‌ای برای مقدار تولید یا شناسایی شرکت‌های تولیدکننده گندله ارائه نمی‌کند.",
+      "StatementScopes": [],
+      "AggregationRequirements": [],
+      "OrderingRequirements": [],
+      "EntityReferences": [],
+      "ModelCalls": 1,
+      "InputTokens": 5179,
+      "OutputTokens": 739,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": "00:00:07.8968743",
+      "FinancialValueReferences": [],
+      "RequestedFinancialValueOperation": "DirectValueRetrieval",
+      "StructuredShape": {
+        "ProjectionCatalogIds": [
+          "dim_company"
+        ],
+        "GroupByCatalogIds": [],
+        "Filters": [],
+        "Aggregations": [],
+        "Sort": [],
+        "Offset": 0,
+        "Limit": 100,
+        "FinancialOperationKind": "DirectValue",
+        "ReportingPeriodStart": "2026-08-23",
+        "ReportingPeriodEnd": "2026-09-22",
+        "MaximumPeriods": null,
+        "ComparisonMode": "None"
+      },
+      "ProductReferences": [
+        "گندله"
+      ],
+      "ResolvedCompanyPopulation": null,
+      "ResolvedProductEquivalence": null,
+      "ResolvedProductConcept": null,
+      "AuthorizedCompanyDiscoveryScope": null,
+      "PopulationDiscoveryRequested": false,
+      "PopulationCoveragePolicyId": null,
+      "PopulationSalesScope": null,
+      "PopulationSalesScopeAmbiguous": false,
+      "NormalizationDiagnostics": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+      ],
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": 0,
+      "EstimatedOutputTokens": 0
+    },
+    "Navigation": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "Candidates": [
+        {
+          "NodeId": "domain-company-industry",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        },
+        {
+          "NodeId": "financial-semantic-catalog",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        }
+      ],
+      "SelectedNodeIds": [
+        "dimension-dim_company",
+        "domain-company-industry",
+        "financial-semantic-catalog",
+        "shared-dimensions"
+      ],
+      "SelectedMeasureIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "SelectedDimensionIds": [
+        "dim_company",
+        "dim_product_identity",
+        "dim_monthly_period"
+      ],
+      "SelectedEntityKinds": [
+        "company",
+        "product"
+      ],
+      "SelectedRelationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "SelectedSourcePolicies": [],
+      "SelectedPeriodPolicies": [],
+      "MissingContext": [],
+      "Diagnostics": [
+        "کاتالوگ هیچ سنجه یا منبع داده‌ای برای مقدار تولید یا شناسایی شرکت‌های تولیدکننده گندله ارائه نمی‌کند.",
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:domain-company-industry",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:domain-company-industry"
+      ],
+      "SelectedComparisonScopes": [],
+      "SelectedPresentationRequirements": [
+        "table"
+      ],
+      "SelectedStatementScopes": [],
+      "SelectedAggregationRequirements": [],
+      "SelectedOrderingRequirements": [],
+      "SelectedEntityReferences": [
+        "گندله"
+      ],
+      "ModelCalls": 2,
+      "InputTokens": 10186,
+      "OutputTokens": 1061,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": "00:00:12.8673677",
+      "CompletenessStatus": "ClarificationRequired",
+      "SelectedFinancialValueReferences": [],
+      "FinancialValueOperation": "DirectValueRetrieval",
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": 0,
+      "EstimatedOutputTokens": 0,
+      "RetrievalComplete": false,
+      "SemanticReviewApproved": false,
+      "QueryAuthorized": false,
+      "CandidateMeasureIds": [],
+      "RequiredMeasureIds": [
+        "metric_monthly_production_quantity"
+      ],
+      "CandidateDimensionIds": [
+        "dim_company",
+        "dim_industry"
+      ],
+      "CandidateRelationshipIds": [
+        "rel_01d20c44fad46b14",
+        "rel_0a064593b79bfabb",
+        "rel_1f9aee4cf408c134",
+        "rel_27c113242c5db114",
+        "rel_38ed0217e96af6f4",
+        "rel_43ae23d35efbe735",
+        "rel_4602c28feda3a0a8",
+        "rel_4c8e0741d5b7ab00",
+        "rel_4e54d40aee8b45e4",
+        "rel_5bc660a22f34ed20",
+        "rel_5cce5a3ef281dec0",
+        "rel_795f5fd8f8c6a468",
+        "rel_7bf681885d1db432",
+        "rel_7ea100339cd75190",
+        "rel_818227f1407b2495",
+        "rel_8856eca122e9381e",
+        "rel_909a4c520eaae110",
+        "rel_99dda63b5dc55e19",
+        "rel_a7c0e9de39ddac74",
+        "rel_b033eb0fdb5fd5dd",
+        "rel_b812b9c90dfb6118",
+        "rel_baaf281697dd8f05",
+        "rel_be5496879e7b3a75",
+        "rel_de517d46b8e8921b",
+        "rel_dfacaa7ccc6b1ef1",
+        "rel_e4fa0fe989156533",
+        "rel_e632198d030be7c8",
+        "rel_e90be0fb24eb6f5e",
+        "rel_f0a4c63a5f3b214d",
+        "rel_f28877e057383f55"
+      ],
+      "RequirementsCalls": 1,
+      "NavigationCalls": 1,
+      "ExpansionCalls": 0,
+      "RequirementsRetryAttempts": 0,
+      "NavigationRetryAttempts": 0
+    },
+    "Plan": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+      "Entities": [
+        {
+          "EntityKind": "Product",
+          "UserReference": "گندله",
+          "ResolvedEntityId": null,
+          "ResolvedEntityKey": "product_iron_ore_pellets",
+          "IdentityProvenance": "product-catalog-v1:owner-confirmed:feature141-product-equivalence:2026-10-09",
+          "IdentityVerified": true
+        }
+      ],
+      "Sources": [
+        {
+          "ReferenceType": "MonthlyMeasure",
+          "CatalogId": "metric_monthly_production_quantity",
+          "SourceItemCatalogId": null,
+          "ProviderName": null,
+          "StatementType": null,
+          "SourceItemId": null,
+          "MetricCode": "metric_monthly_production_quantity",
+          "Unit": null,
+          "UnitStatus": null,
+          "IdentityStatus": "catalog-mapped",
+          "SemanticReviewStatus": "pending-or-unresolved",
+          "Queryable": false,
+          "TitleFa": null
+        }
+      ],
+      "RelationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "Projection": [
+        {
+          "CatalogId": "metric_monthly_production_quantity",
+          "Role": "Value"
+        }
+      ],
+      "Filters": [],
+      "Period": {
+        "Policies": [
+          "explicit-period"
+        ],
+        "ComparisonScopes": [],
+        "SelectLatestByReportingPeriod": false,
+        "UseSynchronizationTimestampForRecency": false,
+        "ReportingPeriodStart": "2026-08-23",
+        "ReportingPeriodEnd": "2026-09-22",
+        "MaximumPeriods": null
+      },
+      "Statement": {
+        "Scopes": [],
+        "Providers": [],
+        "StatementTypes": [],
+        "SelectionKeys": [
+          "ReportingPeriodDescending",
+          "PeriodType",
+          "ProviderIdentity",
+          "StatementType",
+          "StatementScope",
+          "AuditState",
+          "RestatementState",
+          "RevisionIdentity",
+          "Availability"
+        ],
+        "PreferComposing": false,
+        "PreservePeriodType": true,
+        "PreserveAuditState": true,
+        "PreserveRestatementState": true,
+        "PreserveRevisionIdentity": true,
+        "RequireUnambiguousSelection": true
+      },
+      "Aggregations": [],
+      "Sort": [],
+      "Pagination": {
+        "Offset": 0,
+        "Limit": 20
+      },
+      "Presentation": "Table",
+      "FinancialOperation": {
+        "Operation": "DirectValueRetrieval",
+        "Kind": "DirectValue",
+        "ComparisonMode": "None",
+        "ValueDefinitionCatalogIds": [],
+        "FormulaAuthorized": false
+      },
+      "RetrievalComplete": true,
+      "SemanticReviewApproved": true,
+      "QueryAuthorized": true,
+      "ExecutionEligible": true,
+      "Diagnostics": [
+        "کاتالوگ هیچ سنجه یا منبع داده‌ای برای مقدار تولید یا شناسایی شرکت‌های تولیدکننده گندله ارائه نمی‌کند.",
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:domain-company-industry",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:domain-company-industry",
+        "navigation_metadata_pending:dimension-dim_monthly_period",
+        "navigation_metadata_pending:dimension-dim_product_identity",
+        "navigation_metadata_pending:table-tbl_8ecd0432a4292998",
+        "navigation_metadata_pending:domain-monthly-activity",
+        "navigation_metadata_pending:table-tbl_8e759d70dada6bd8",
+        "semantic_meaning_unapproved:dimension-dim_monthly_period",
+        "semantic_meaning_unapproved:dimension-dim_product_identity",
+        "semantic_meaning_unapproved:table-tbl_8ecd0432a4292998",
+        "semantic_meaning_unapproved:domain-monthly-activity",
+        "semantic_meaning_unapproved:table-tbl_8e759d70dada6bd8",
+        "query_not_authorized:dimension-dim_monthly_period",
+        "query_not_authorized:dimension-dim_product_identity",
+        "query_not_authorized:table-tbl_8ecd0432a4292998",
+        "query_not_authorized:domain-monthly-activity",
+        "query_not_authorized:table-tbl_8e759d70dada6bd8",
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22",
+        "population_discovery_context_expanded_to_monthly_production_measure",
+        "population_product_production_activity_resolved_to_monthly_production_quantity",
+        "reviewed_product_concept_resolved:product_iron_ore_pellets:product-catalog-v1",
+        "product_population_coverage_limited_to_approved_aliases"
+      ],
+      "ReviewedProductEquivalence": null,
+      "CompanyPopulationId": null,
+      "CompanyPopulationApprovalReference": null,
+      "ProductConcept": {
+        "Status": "Resolved",
+        "CatalogId": "product_iron_ore_pellets",
+        "CatalogVersion": "product-catalog-v1",
+        "CanonicalLabel": "گندله سنگ‌آهن",
+        "ApprovedAliases": [
+          "گندله",
+          "گندله سنگ‌آهن"
+        ],
+        "ApprovalReference": "owner-confirmed:feature141-product-equivalence:2026-10-09",
+        "MappingCoverageStatus": "approved-aliases-only",
+        "DiagnosticCode": null
+      },
+      "CompanyDiscoveryScope": {
+        "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+        "ScopeId": "feature141-isolated-fixture-company-discovery-scope",
+        "ApprovalReference": "fixture-only:feature141-company-discovery:2026-10-29",
+        "CompanyCoverageComplete": false
+      },
+      "PopulationCoveragePolicyId": "explicit-reporting-period-v1",
+      "PopulationSalesScope": null
+    },
+    "PlanStructurallyValid": true,
+    "PlanExecutionEligible": true,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [],
+    "CompanyBindingStatus": null,
+    "BoundCompanyId": null,
+    "CompilationSucceeded": true,
+    "CompilationDiagnostics": [],
+    "Sql": "WITH eligible_observations AS (SELECT c.\"Id\" AS \"CompanyId\", c.\"Name\" AS \"CompanyName\", c.\"Ticker\" AS \"CompanySymbol\", li.\"Title\" AS \"ProductTitle\", li.\"ProductCode\" AS \"ProductCode\", li.\"ProductionQuantity\" AS \"Value\", li.\"Unit\" AS \"SourceUnit\", r.\"PeriodStart\" AS \"PeriodStart\", r.\"PeriodEnd\" AS \"PeriodEnd\", r.\"ProviderName\" AS \"ProviderName\", r.\"Id\" AS \"ReportId\", r.\"ExternalReportId\" AS \"ExternalReportId\", li.\"SourceRowFingerprint\" AS \"SourceRowFingerprint\", li.\"SourceMultiplicity\" AS \"SourceMultiplicity\", COUNT(*) OVER (PARTITION BY c.\"Id\", r.\"PeriodEnd\") AS \"SamePeriodCandidateCount\", ROW_NUMBER() OVER (PARTITION BY c.\"Id\" ORDER BY r.\"PeriodEnd\" DESC, r.\"PeriodStart\" DESC, r.\"Id\" ASC, li.\"ProductCode\" ASC) AS \"DiscoveryRank\" FROM \"public\".\"MonthlyReportLineItems\" li JOIN \"public\".\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" JOIN \"public\".\"Companies\" c ON r.\"CompanyId\" = c.\"Id\" WHERE c.\"Id\" = ANY(@company_ids) AND r.\"ProviderName\" = @provider_name AND r.\"ReportType\" = @report_type AND r.\"OutputType\" = @output_type AND r.\"IsAccepted\" = @is_accepted AND r.\"RevisionStatus\" = @revision_status AND r.\"PeriodStart\" = @period_start AND r.\"PeriodEnd\" = @period_end AND li.\"ProductionQuantity\" > 0 AND BTRIM(li.\"Title\") = ANY(@product_aliases)) SELECT *, 'partial' AS \"ProductMappingCoverageStatus\", @company_coverage_complete AS \"CompanyCoverageComplete\" FROM eligible_observations WHERE \"DiscoveryRank\" = 1 ORDER BY \"CompanyName\" ASC, \"CompanyId\" ASC LIMIT @row_limit",
+    "SqlParameters": {
+      "provider_name": "NoavaranCurrentApi",
+      "report_type": "ProductSales",
+      "output_type": 0,
+      "is_accepted": true,
+      "revision_status": "Accepted",
+      "period_start": "2026-08-23",
+      "period_end": "2026-09-22",
+      "product_aliases": [
+        "گندله",
+        "گندله سنگ‌آهن"
+      ],
+      "company_coverage_complete": false,
+      "row_limit": 21
+    },
+    "QueryFingerprint": "c36e0ccc694039c61334f81407f949cde900256ec100da162e6ce61b561d2c5e",
+    "CompiledEffectiveUnit": "row-source-unit",
+    "CompiledOperation": "DirectValueRetrieval",
+    "CompiledCompanyIds": [],
+    "CompiledSemanticReviewApproved": true,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": true,
+    "GrantIssued": true,
+    "GrantDatabase": "feature131_2aff9cec4e6c486c8f52bc9a906b47de",
+    "GrantRole": "feature141_vs_discovery_reader_8ef0602b2e1648e9a9bce678254c59d1",
+    "GrantProvenance": "feature141-isolated-vertical-slice-fixture",
+    "ExecutionStatus": "Incomplete",
+    "ExecutionDiagnostic": "population_discovery_authorized_company_coverage_incomplete",
+    "ExecutionRowCount": 2,
+    "ExecutionRows": [
+      {
+        "CompanyId": "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+        "CompanyName": "Fixture کگل",
+        "CompanySymbol": "کگل",
+        "ProductTitle": "گندله",
+        "ProductCode": "NoavaranCurrentApi:feature141-vs-disc-کگل:TITLE:گندله|UNIT:ton",
+        "Value": 25,
+        "SourceUnit": "ton",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "ProviderName": "NoavaranCurrentApi",
+        "ReportId": "cca93e53-2a54-414b-b5fb-7e96713e8f4f",
+        "ExternalReportId": "vs-disc-کگل-1405-06",
+        "SourceRowFingerprint": "row-vs-disc-کگل-1405-06-گندله-ton",
+        "SourceMultiplicity": 1,
+        "SamePeriodCandidateCount": 1,
+        "DiscoveryRank": 1,
+        "ProductMappingCoverageStatus": "partial",
+        "CompanyCoverageComplete": false
+      },
+      {
+        "CompanyId": "06f965dd-2f48-4590-b028-265fe3d5fbb2",
+        "CompanyName": "Fixture کگهر",
+        "CompanySymbol": "کگهر",
+        "ProductTitle": "گندله سنگ‌آهن",
+        "ProductCode": "NoavaranCurrentApi:feature141-vs-disc-کگهر:TITLE:گندله سنگ‌آهن|UNIT:ton",
+        "Value": 47,
+        "SourceUnit": "ton",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "ProviderName": "NoavaranCurrentApi",
+        "ReportId": "8c5dd447-0aa4-4af6-bad2-87c6f86768a8",
+        "ExternalReportId": "vs-disc-کگهر-1405-06",
+        "SourceRowFingerprint": "row-vs-disc-کگهر-1405-06-گندله سنگ‌آهن-ton",
+        "SourceMultiplicity": 1,
+        "SamePeriodCandidateCount": 1,
+        "DiscoveryRank": 1,
+        "ProductMappingCoverageStatus": "partial",
+        "CompanyCoverageComplete": false
+      }
+    ],
+    "ActualValue": null,
+    "ActualPeriodStart": null,
+    "ActualPeriodEnd": null,
+    "ActualPersianPeriodStart": null,
+    "ActualPersianPeriodEnd": null,
+    "ActualRowCompanyId": null,
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": "row-source-unit",
+    "ExecutionAuthorizationProvenance": "feature141-isolated-vertical-slice-fixture",
+    "ExecutionElapsedMs": 39.1751,
+    "IndependentDatabaseValue": 3,
+    "IndependentLineItemCount": 7,
+    "PersianAnswerStatus": "Incomplete",
+    "PersianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture کگل (کگل): تولید ثبت‌شدهٔ گندله ۲۵ تن در بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲؛ \nمنبع: NoavaranCurrentApi، گزارش vs-disc-کگل-1405-06؛ Fixture کگهر (کگهر): تولید ثبت‌شدهٔ گندله ۴۷ تن در بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲؛ \nمنبع: NoavaranCurrentApi، گزارش vs-disc-کگهر-1405-06. این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند.",
+    "PersianAnswerUnit": "row-source-unit",
+    "PersianEvidence": [
+      {
+        "Company": "Fixture کگل (کگل)",
+        "Product": "گندله",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "Provider": "NoavaranCurrentApi",
+        "ReportIdentities": [
+          "vs-disc-کگل-1405-06"
+        ],
+        "SourceReferences": [
+          "row-vs-disc-کگل-1405-06-گندله-ton"
+        ],
+        "Facts": {
+          "Value": "25",
+          "SourceUnit": "ton"
+        },
+        "EvidenceStatus": "verified"
+      },
+      {
+        "Company": "Fixture کگهر (کگهر)",
+        "Product": "گندله سنگ‌آهن",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "Provider": "NoavaranCurrentApi",
+        "ReportIdentities": [
+          "vs-disc-کگهر-1405-06"
+        ],
+        "SourceReferences": [
+          "row-vs-disc-کگهر-1405-06-گندله سنگ‌آهن-ton"
+        ],
+        "Facts": {
+          "Value": "47",
+          "SourceUnit": "ton"
+        },
+        "EvidenceStatus": "verified"
+      }
+    ],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [],
+    "RequirementsNormalizationDiagnostics": [
+      "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+    ],
+    "ModelPeriodStart": "2026-08-23",
+    "ModelPeriodEnd": "2026-09-22",
+    "NormalizedPersianMonth": "1405-06",
+    "NormalizedPeriodStart": "2026-08-23",
+    "NormalizedPeriodEnd": "2026-09-22",
+    "ProductBindingStatus": "Found",
+    "ProductKey": "product_iron_ore_pellets",
+    "ActualProductCode": null,
+    "ActualSourceUnit": null,
+    "ProductConceptCatalogId": "product_iron_ore_pellets",
+    "ProductConceptAliases": [
+      "گندله",
+      "گندله سنگ‌آهن"
+    ],
+    "ProductMappingCoverageStatus": "approved-aliases-only",
+    "CompanyDiscoveryScopeId": "feature141-isolated-fixture-company-discovery-scope",
+    "CompanyDiscoveryCoverageComplete": false,
+    "GrantAllowedCompanyIds": [
+      "06f965dd-2f48-4590-b028-265fe3d5fbb2",
+      "0f78d320-7604-4451-9b3c-49f53fca348e",
+      "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+      "a1aab38b-3e6d-4c4e-80bb-a9dd1f1b23c2",
+      "b9dc85a8-3195-452c-a4a9-4c7a303ee628",
+      "c7d7a80f-b00d-440a-af5d-ab2dcd3dcaed"
+    ],
+    "ActualCompanySymbols": [
+      "کگل",
+      "کگهر"
+    ],
+    "ActualCompanyIds": [
+      "5de2542b-1c17-42ff-b2e8-dab865c8499f",
+      "06f965dd-2f48-4590-b028-265fe3d5fbb2"
+    ],
+    "StatementQueryShape": null,
+    "ComparisonRows": [],
+    "ExecutionWarnings": [],
+    "IndependentComparisonValues": {},
+    "CompiledWithFixtureOnlyColumnApproval": true,
+    "FixtureOnlyApprovedColumns": [
+      "tbl_8646d83cdb350f92_Name",
+      "tbl_8646d83cdb350f92_Ticker"
+    ],
+    "WritablePrincipalExecutionStatus": "Unauthorized",
+    "WritablePrincipalDiagnostic": "database_read_only_identity_check_failed",
+    "LlmCalls": 4,
+    "ObservedModelCalls": 3,
+    "ObservedExecutorCalls": 1,
+    "LlmInputTokens": 17984,
+    "LlmOutputTokens": 2326,
+    "IntentLatencyMs": 5792.5091,
+    "NavigatorLatencyMs": 12867.3677,
+    "TotalElapsedMs": 19174.9833,
+    "SecretValuesLogged": false
+  }
+}

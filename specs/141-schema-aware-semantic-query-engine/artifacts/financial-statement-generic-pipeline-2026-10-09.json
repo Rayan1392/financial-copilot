@@ -3,12 +3,12 @@
   "question": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC \u0647\u0631 \u0633\u0647\u0645 \u06A9\u06AF\u0647\u0631 \u0686\u0642\u062F\u0631 \u0627\u0633\u062A\u061F",
   "executionMode": "captured-navigation-plus-isolated-postgresql-fixture",
   "catalogVersion": "1",
-  "catalogHash": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
+  "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
   "companyBinding": {
     "Status": 0,
-    "CompanyId": "9bde5839-5211-4180-9316-b8d4ab77a345",
+    "CompanyId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
     "CandidateCompanyIds": [
-      "9bde5839-5211-4180-9316-b8d4ab77a345"
+      "bdcd984c-4f2e-4e9b-a742-5cae54267d8d"
     ],
     "IdentityProvenance": "exact_ticker",
     "DiagnosticCode": null
@@ -16,13 +16,13 @@
   "plan": {
     "ContractVersion": 1,
     "CatalogVersion": "1",
-    "CatalogHash": "29a100deeb6ca8b6b5693e4fde4aae58c2796e05fc81860eb4dce1ba0767af5a",
+    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
     "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
     "Entities": [
       {
         "EntityKind": "Company",
         "UserReference": "\u06A9\u06AF\u0647\u0631",
-        "ResolvedEntityId": "9bde5839-5211-4180-9316-b8d4ab77a345",
+        "ResolvedEntityId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
         "ResolvedEntityKey": null,
         "IdentityProvenance": "exact_ticker",
         "IdentityVerified": true
@@ -41,7 +41,8 @@
         "UnitStatus": "unknown",
         "IdentityStatus": "verified-persisted-source-key",
         "SemanticReviewStatus": "approved",
-        "Queryable": true
+        "Queryable": true,
+        "TitleFa": "\u0633\u0648\u062F \u0639\u0645\u0644\u06CC\u0627\u062A\u06CC \u0647\u0631 \u0633\u0647\u0645"
       }
     ],
     "RelationshipIds": [
@@ -128,7 +129,7 @@
   "sqlParameters": [
     {
       "Name": "company_id",
-      "Value": "9bde5839-5211-4180-9316-b8d4ab77a345"
+      "Value": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d"
     },
     {
       "Name": "source_item_catalog_id",
@@ -164,14 +165,14 @@
     {
       "Value": 3753,
       "PeriodEnd": "2026-06-21",
-      "StatementId": "89f9dcfd-e00c-4f9e-a205-ba5bd7f8d51c",
+      "StatementId": "632736b9-862f-4dac-b0af-304909c29ddf",
       "ProviderName": "NoavaranCurrentApi",
       "StatementType": "IncomeStatement",
       "SourceItemId": 161,
       "SourceUnit": "N/A",
       "SourceItemCatalogId": "3cafc7d3-b0ab-4341-85ef-ebcbc9d60528",
       "IsComposing": false,
-      "CompanyId": "9bde5839-5211-4180-9316-b8d4ab77a345",
+      "CompanyId": "bdcd984c-4f2e-4e9b-a742-5cae54267d8d",
       "PeriodType": "ThreeMonths",
       "IsAudited": false,
       "IsRepresented": false,
@@ -179,7 +180,7 @@
       "PeriodStart": "2026-03-21",
       "SourcePayloadChecksum": "feature141-statement-fixture",
       "PublishedAt": "2026-07-22",
-      "LastSynchronizedAt": "2026-10-29T04:02:42.419726Z",
+      "LastSynchronizedAt": "2026-10-29T10:43:59.537896Z",
       "WarningsJson": "[]",
       "LogicalVendor": null,
       "SourceMode": null
@@ -188,7 +189,7 @@
   "expectedValue": 3753,
   "actualValue": 3753,
   "effectiveUnit": "IRRPerShare",
-  "finalPersianAnswer": "\u06A9\u06AF\u0647\u0631 \u062F\u0631 \u0628\u0627\u0632\u0647\u0654 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F3-\u06F2\u06F1 \u062A\u0627 \u06F2\u06F0\u06F2\u06F6-\u06F0\u06F6-\u06F2\u06F1\u060C \u0645\u0642\u062F\u0627\u0631 \u0645\u0627\u0644\u06CC \u06AF\u0632\u0627\u0631\u0634\u200C\u0634\u062F\u0647: \u06F3\u066C\u06F7\u06F5\u06F3 IRRPerShare.\n\u0645\u0646\u0628\u0639: NoavaranCurrentApi.",
+  "finalPersianAnswer": "\u06A9\u06AF\u0647\u0631 \u062F\u0631 \u062F\u0648\u0631\u0647 \u0633\u0647\u200C\u0645\u0627\u0647\u0647 \u0645\u0646\u062A\u0647\u06CC \u0628\u0647 \u06F3\u06F1 \u062E\u0631\u062F\u0627\u062F \u06F1\u06F4\u06F0\u06F5\u060C \u0645\u0642\u062F\u0627\u0631 \u0645\u0627\u0644\u06CC \u06AF\u0632\u0627\u0631\u0634\u200C\u0634\u062F\u0647: \u06F3\u066C\u06F7\u06F5\u06F3 IRRPerShare.\n\u0645\u0646\u0628\u0639: NoavaranCurrentApi.",
   "evidence": [
     {
       "Company": "\u06A9\u06AF\u0647\u0631",
@@ -200,7 +201,8 @@
       "SourceReferences": [],
       "Facts": {
         "Value": "3753",
-        "SourceUnit": "N/A"
+        "SourceUnit": "N/A",
+        "PeriodType": "ThreeMonths"
       },
       "EvidenceStatus": "verified"
     }

@@ -64,6 +64,8 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         if (request.Plan is null || execution is null)
             return SafeFailure(StructuredAnswerStatus.Unsupported, request,
                 "این درخواست با تعریف‌های تأییدشدهٔ پرس‌وجو قابل اجرا نیست.");
+        if (PersianStatementComparisonRenderer.Applies(request.Plan))
+            return PersianStatementComparisonRenderer.Render(request, request.Plan, execution);
 
         var status = execution.Status switch
         {
@@ -202,7 +204,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         var metric = plan.PopulationSalesScope == PopulationSalesScope.TotalCompanySales
             ? $"رتبه‌بندی تولیدکنندگان {product} بر اساس {measure} کل شرکت"
             : $"رتبه‌بندی تولیدکنندگان {product} بر اساس {measure} همان محصول";
-        var period = evidence.Count == 0 ? string.Empty : $" در دورهٔ مشترک {Period(evidence[0]).Trim()}";
+        var period = evidence.Count == 0 ? string.Empty : $" در دورهٔ مشترک {PeriodPhrase(evidence[0])}";
         return metric + period + ": " + string.Join("؛ ", rows.Select((row, index) =>
         {
             var company = evidence[index].Company ?? "شرکت با هویت نامشخص";
@@ -215,14 +217,14 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
     private static string RenderCompanyComparison(string measure, string unit,
         IReadOnlyList<IReadOnlyDictionary<string, object?>> rows, IReadOnlyList<StructuredAnswerEvidence> evidence) =>
         "مقایسهٔ " + measure + ": " + string.Join("؛ ", rows.Select((row, index) =>
-            $"{Subject(evidence[index])} {Value(row, "Value")} {unit} ({Period(evidence[index])}){Provenance(evidence[index])}")) + ".";
+            $"{Subject(evidence[index])} {Value(row, "Value")} {unit} ({PeriodPhrase(evidence[index])}){Provenance(evidence[index])}")) + ".";
 
     private string RenderPopulationDiscovery(StructuredQueryPlan plan,
         IReadOnlyList<StructuredAnswerEvidence> evidence,
         IReadOnlyList<IReadOnlyDictionary<string, object?>> rows, bool partial)
     {
         var window = plan.Period.ReportingPeriodStart.HasValue && plan.Period.ReportingPeriodEnd.HasValue
-            ? $"{Digits(plan.Period.ReportingPeriodStart.Value.ToString("yyyy-MM-dd", Invariant))} تا {Digits(plan.Period.ReportingPeriodEnd.Value.ToString("yyyy-MM-dd", Invariant))}"
+            ? PersianReportingPeriodText.Window(plan.Period.ReportingPeriodStart.Value, plan.Period.ReportingPeriodEnd.Value)
             : "دورهٔ گزارش نامشخص";
         var label = ProductLabel(plan) ?? "محصول تأییدشده";
         var items = evidence.Select((item, index) =>
@@ -232,7 +234,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             var unit = ResolveRowUnit(row);
             return $"{company}: تولید ثبت‌شدهٔ {label} {Fact(item, "Value")} {unit} {Period(item).TrimStart()}؛ {Provenance(item)}";
         });
-        var prefix = $"در گزارش‌های ماهانهٔ واجد شرایط بازهٔ {window}، تولید مثبت {label} برای شرکت‌های زیر مشاهده شد: ";
+        var prefix = $"در گزارش‌های ماهانهٔ واجد شرایط {window}، تولید مثبت {label} برای شرکت‌های زیر مشاهده شد: ";
         var coverage = partial
             ? " این فهرست جزئی است: پوشش دسترسی به شرکت‌ها یا نگاشت محصول کامل نیست و از آن نمی‌توان نتیجه گرفت که شرکت‌های فهرست‌نشده تولید نداشته‌اند."
             : " این فهرست همهٔ شرکت‌های داخل دامنهٔ مجاز را پوشش می‌دهد.";
@@ -242,7 +244,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
     private static string PopulationNoMatchText(StructuredQueryPlan plan)
     {
         var window = plan.Period.ReportingPeriodStart.HasValue && plan.Period.ReportingPeriodEnd.HasValue
-            ? $" در بازهٔ {Digits(plan.Period.ReportingPeriodStart.Value.ToString("yyyy-MM-dd", Invariant))} تا {Digits(plan.Period.ReportingPeriodEnd.Value.ToString("yyyy-MM-dd", Invariant))}"
+            ? $" در {PersianReportingPeriodText.Window(plan.Period.ReportingPeriodStart.Value, plan.Period.ReportingPeriodEnd.Value)}"
             : string.Empty;
         return $"در داده‌های قابل دسترسی{window}، مشاهده‌ای با برچسب‌های محصول تأییدشده پیدا نشد. به دلیل کامل نبودن پوشش نگاشت یا دسترسی، نبود تولید برای سایر شرکت‌ها قابل نتیجه‌گیری نیست.";
     }
@@ -255,7 +257,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             .ToArray();
         var subject = subjects.Length == 0 ? "این پرس‌وجو" : string.Join(" و ", subjects);
         var period = plan.Period.ReportingPeriodStart.HasValue && plan.Period.ReportingPeriodEnd.HasValue
-            ? $" در بازهٔ {Digits(plan.Period.ReportingPeriodStart.Value.ToString("yyyy-MM-dd", Invariant))} تا {Digits(plan.Period.ReportingPeriodEnd.Value.ToString("yyyy-MM-dd", Invariant))}"
+            ? $" در {PersianReportingPeriodText.Window(plan.Period.ReportingPeriodStart.Value, plan.Period.ReportingPeriodEnd.Value)}"
             : plan.Period.SelectLatestByReportingPeriod ? " در آخرین دورهٔ گزارش واجد شرایط" : "";
         return $"برای {subject}{period} دادهٔ واجد شرایطی پیدا نشد.";
     }
@@ -270,7 +272,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
             .Concat(Strings(row.GetValueOrDefault("ExternalReportId"))).Distinct(StringComparer.Ordinal).ToArray();
         var references = Strings(row.GetValueOrDefault("SourceRowFingerprint"));
         var facts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var key in new[] { "Value", "PreviousValue", "GrowthPercentage", "ComparisonValue", "SourceUnit", "PreviousSourceUnit", "ComparisonStatus" })
+        foreach (var key in new[] { "Value", "PreviousValue", "GrowthPercentage", "ComparisonValue", "SourceUnit", "PreviousSourceUnit", "ComparisonStatus", "PeriodType" })
             if (row.TryGetValue(key, out var fact) && fact is not null) facts[key] = Convert.ToString(fact, Invariant) ?? string.Empty;
         var companyName = Text(row.GetValueOrDefault("CompanyName")) ?? Text(row.GetValueOrDefault("Company"));
         var symbol = Text(row.GetValueOrDefault("CompanySymbol"));
@@ -358,7 +360,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
     private static string Value(IReadOnlyDictionary<string, object?> row, string key) =>
         row.TryGetValue(key, out var value) && value is not null ? FormatValue(value) : "در دسترس نیست";
 
-    private static string FormatValue(object value)
+    internal static string FormatValue(object value)
     {
         var text = value switch
         {
@@ -372,7 +374,7 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
         return Digits(text);
     }
 
-    private static string Digits(string value)
+    internal static string Digits(string value)
     {
         var builder = new StringBuilder(value.Length);
         foreach (var character in value)
@@ -388,8 +390,23 @@ public sealed class PersianStructuredQueryResponseGenerator : IPersianStructured
 
     private static string Subject(StructuredAnswerEvidence item) =>
         string.Join(" ", new[] { item.Company, item.Product }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private static string Period(StructuredAnswerEvidence item) => item.PeriodStart is null && item.PeriodEnd is null
-        ? "" : $"در بازهٔ {Digits(item.PeriodStart ?? "?")} تا {Digits(item.PeriodEnd ?? "?")}";
+    private static string Period(StructuredAnswerEvidence item) => PeriodPhrase(item) is { Length: > 0 } phrase ? "در " + phrase : "";
+
+    /// <summary>
+    /// Jalali text of an observation's period (the evidence keeps its Gregorian ISO dates): a statement period from its period
+    /// type, a monthly report as its Jalali month, any other window by its two boundaries.
+    /// </summary>
+    private static string PeriodPhrase(StructuredAnswerEvidence item)
+    {
+        if (item.PeriodStart is null && item.PeriodEnd is null) return "";
+        var start = PersianReportingPeriodText.Parse(item.PeriodStart);
+        var end = PersianReportingPeriodText.Parse(item.PeriodEnd);
+        if (item.Facts.TryGetValue("PeriodType", out var periodType))
+            return PersianReportingPeriodText.StatementPeriod(periodType, start, end);
+        return start is { } first && end is { } last ? PersianReportingPeriodText.Window(first, last)
+            : end is { } only ? "دوره منتهی به " + PersianReportingPeriodText.Date(only)
+            : "دوره گزارش نامشخص";
+    }
     private static string Fact(StructuredAnswerEvidence item, string key) =>
         item.Facts.TryGetValue(key, out var value) ? Digits(value) : "ناموجود";
     private static string? Text(object? value) => value switch

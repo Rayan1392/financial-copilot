@@ -52,10 +52,12 @@ public sealed class StructuredQueryCompilationTests
         var snapshot = new StructuredQueryCatalogSnapshotBuilder().Build(catalog, hierarchy);
 
         Assert.Equal(4, snapshot.MonthlyMeasures.Count);
-        // Owner decision 2026-10-29 (evaluation/governance/metric_monthly_production_quantity-decision-request-2026-10-28.json):
-        // only the monthly production quantity is approved and queryable; the sales measures stay pending.
-        Assert.Equal(["metric_monthly_production_quantity"],
-            snapshot.MonthlyMeasures.Where(measure => measure.Queryable || measure.SemanticApproved).Select(measure => measure.CatalogId));
+        // Owner decision 2026-10-29 approved the monthly production quantity; the core-capabilities
+        // directive of 2026-10-29 enabled the sales quantity and sales amount measures with verified
+        // unit policies. The sales rate stays unapproved because its unit is unverified.
+        Assert.Equal(["metric_monthly_production_quantity", "metric_monthly_sales", "metric_monthly_sales_quantity"],
+            snapshot.MonthlyMeasures.Where(measure => measure.Queryable || measure.SemanticApproved).Select(measure => measure.CatalogId).Order());
+        Assert.DoesNotContain(snapshot.MonthlyMeasures, measure => measure.CatalogId == "metric_monthly_sales_rate" && (measure.Queryable || measure.SemanticApproved));
         Assert.All(snapshot.MonthlyMeasures, measure =>
         {
             Assert.Equal("NoavaranCurrentApi", measure.ProviderName);

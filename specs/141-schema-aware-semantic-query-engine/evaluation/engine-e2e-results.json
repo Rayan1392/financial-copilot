@@ -1,7 +1,7 @@
 {
   "feature": "141",
-  "runId": "engine-e2e-2026-10-29-monthly-production",
-  "verdict": "ENGINE_E2E_BLOCKED",
+  "runId": "engine-e2e-2026-10-29-cross-company-slice3a",
+  "verdict": "ENGINE_E2E_PARTIAL",
   "chatIntegrationEnabled": false,
   "measured": {
     "llmCalls": 2,
@@ -13,14 +13,14 @@
   },
   "metrics": {
     "totalCases": 20,
-    "pass": 5,
+    "pass": 10,
     "fail": 0,
-    "blocked": 15,
+    "blocked": 10,
     "typedRejectionsObserved": 3,
     "incorrectNumericResults": 0,
     "unauthorizedExecutions": 0,
     "silentSemanticOmissions": 0,
-    "executedCases": 5
+    "executedCases": 11
   },
   "catalogEvidence": {
     "sourceItemsTotal": 296,
@@ -636,15 +636,17 @@
   ],
   "currentVerification": {
     "date": "2026-10-29",
-    "verdict": "ENGINE_E2E_BLOCKED",
+    "verdict": "ENGINE_E2E_PARTIAL",
     "firstVerticalSliceStatus": "FIRST_VERTICAL_SLICE_PASSED",
-    "totalCases": 20,
-    "passed": 5,
-    "blocked": 15,
-    "semanticEvaluatedLive": 5,
-    "executionEvaluatedLive": 5,
+    "coreCapabilitiesSlice1Status": "CORE_RETRIEVAL_SLICE_PASSED",
+    "totalCases": 28,
+    "passed": 21,
+    "blocked": 7,
+    "semanticEvaluatedLive": 22,
+    "executionEvaluatedLive": 22,
     "docker": "Linux engine Internal Server Error; disposable local PostgreSQL 18.1 used instead",
-    "note": "F141-E04 (statement item) and F141-E07 (monthly production quantity) answered end to end with the live provider and the isolated database; E18/E19/E20 typed rejections reproduced. 15 cases remain blocked on canonical bindings for netProfit/operatingProfit/earningsPerShare/totalAssets, the three unapproved monthly sales measures, product equivalence, discovery scopes and planner algebra."
+    "note": "Suite v1.1.0: E05, E06, E14 and negatives E21-E28 PASS live; E10 executable but BLOCKED on D2-D4; E11-E13, E15-E17 BLOCKED on planner algebra slices 3b/3c and discovery breadth.",
+    "crossCompanySlice3aStatus": "CROSS_COMPANY_COMPARISON_PASSED"
   },
   "currentProposedCases": [
     {
@@ -1504,5 +1506,1661 @@
       }
     },
     "report": "monthly-production-e2e-execution-report.md"
+  },
+  "productDiscovery": {
+    "date": "2026-10-29",
+    "status": "PRODUCT_DISCOVERY_APPROVAL_REQUIRED",
+    "caseId": "F141-E10",
+    "question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+    "decisionRequest": "governance/company-discovery-decision-request-2026-10-29.json",
+    "outstandingDecisions": [
+      "D1 Companies.Name/Ticker query authorization (discovery output columns)",
+      "D2 tenant discovery scope",
+      "D3 reviewed company universe (tenant:company pairs)",
+      "D4 alias coverage status"
+    ],
+    "appliedUnderExistingPolicy": [
+      "dictionaries/monthly-measures.yaml#metric_monthly_production_quantity.unitPolicy.verified=true (policy item 5, row unit preserved); catalog hash 29a100de… → f5024d57…"
+    ],
+    "productIdentityFindings": {
+      "sourceObservationIdentity": "MonthlyReportLineItems.ProductCode = provider:externalCompany:TITLE:<title>|UNIT:<unit> (unit is part of the source identity)",
+      "semanticProductIdentity": "ReviewedProductConcept product_iron_ore_pellets with approved aliases گندله / گندله سنگ‌آهن (unit independent)",
+      "collision": "CompanyScopedProductResolver (Feature 129) groups candidates by normalized title only and resolves one key when a company reports the same title in two units",
+      "correction": "Feature 141 adapter StructuredQueryProductBinder now consults the product catalog and returns Ambiguous monthly_product_units_incompatible for a multi-unit title; Feature 129 resolver unchanged (binder without catalog access is a pass-through, unit-tested)"
+    },
+    "engineChanges": [
+      "CatalogStructuredQueryAuthorizer: discovery grant carries the tenant reviewed company universe (ReviewedTenantCompanyBindings) and requires it; options validator enforces the pairs",
+      "OfflineStructuredQueryPlanningService: expands catalog context to the monthly production measure for an unbound-product production question when the navigator missed it; the deterministic rewrite now preserves the normalized explicit month instead of falling back to a trailing window",
+      "StructuredQueryProductBinder: unit-collision detection (above)"
+    ],
+    "liveRun": {
+      "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-044051-F141-E10-incomplete.json",
+      "provider": "OpenAI",
+      "model": "gpt-5.6-luna",
+      "intent": "UnboundCompanyPopulation, product گندله, DiscoverPopulation, ExplicitMonth شهریور ۱۴۰۵",
+      "period": "1405-06 normalized to 2026-08-23..2026-09-22 (model bounds identical, not authoritative)",
+      "concept": "product_iron_ore_pellets aliases [گندله, گندله سنگ‌آهن], coverage approved-aliases-only",
+      "scope": "fixture-only feature141-isolated-fixture-company-discovery-scope, CompanyCoverageComplete=false, universe = 6 seeded companies (unauthorized producer excluded)",
+      "fixtureOnlyColumnApproval": [
+        "tbl_8646d83cdb350f92_Name",
+        "tbl_8646d83cdb350f92_Ticker"
+      ],
+      "sqlParameters": {
+        "provider_name": "NoavaranCurrentApi",
+        "report_type": "ProductSales",
+        "output_type": 0,
+        "is_accepted": true,
+        "revision_status": "Accepted",
+        "period_start": "2026-08-23",
+        "period_end": "2026-09-22",
+        "product_aliases": [
+          "گندله",
+          "گندله سنگ‌آهن"
+        ],
+        "company_coverage_complete": false,
+        "row_limit": 21,
+        "company_ids": "<grant: reviewed universe, 6 ids>"
+      },
+      "sqlShape": "eligible_observations: li JOIN r JOIN c WHERE c.Id = ANY(@company_ids) AND provider/report/output/accepted/revision filters AND r.PeriodStart = @period_start AND r.PeriodEnd = @period_end AND li.ProductionQuantity > 0 AND BTRIM(li.Title) = ANY(@product_aliases); DiscoveryRank = 1 per company; ORDER BY CompanyName",
+      "result": {
+        "status": "Incomplete",
+        "diagnostic": "population_discovery_authorized_company_coverage_incomplete",
+        "rows": 2,
+        "companies": [
+          {
+            "symbol": "کگل",
+            "title": "گندله",
+            "value": 25,
+            "unit": "ton"
+          },
+          {
+            "symbol": "کگهر",
+            "title": "گندله سنگ‌آهن",
+            "value": 47,
+            "unit": "ton"
+          }
+        ],
+        "expectedCompanies": [
+          "کگل",
+          "کگهر"
+        ],
+        "independentProducersInWindow": 3,
+        "unauthorizedProducerExcluded": true
+      },
+      "persianAnswer": "در گزارش‌های ماهانهٔ واجد شرایط بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲، تولید مثبت گندله برای شرکت‌های زیر مشاهده شد: Fixture کگل (کگل): … ۲۵ تن …؛ Fixture کگهر (کگهر): … ۴۷ تن …. این فهرست جزئی است: …",
+      "llm": {
+        "observedCalls": 3,
+        "inputTokens": 17828,
+        "outputTokens": 2250,
+        "totalMs": 18649
+      },
+      "executorCalls": 1,
+      "writablePrincipal": "Unauthorized"
+    },
+    "scenarios": {
+      "test": "Feature141CompanyDiscoverySemanticsPostgreSqlTests",
+      "artifact": "artifacts/company-discovery-semantics-2026-10-29-044128.json",
+      "failures": 0,
+      "outcomes": {
+        "D1 exact label, multiple companies, unit-mixed producers": "Incomplete (partial coverage) [شپنا kg, کگل ton, کگهر ton]; zero/NULL/other-month/other-product/unauthorized excluded",
+        "D2 equivalent label گندله سنگ‌آهن": "same set",
+        "D3 duplicate accepted reports (alias)": "Ambiguous monthly_product_period_has_multiple_source_rows",
+        "D4 no matching companies": "Incomplete, 0 rows, no-match answer",
+        "D5 incorrect period": "Incomplete, 0 rows",
+        "D6 no scope": "plan refused (company_discovery_scope_not_authorized), no SQL",
+        "D7 unauthorized producer inside universe": "listed only when inside the reviewed universe",
+        "D8 unapproved product": "no concept, not eligible, no SQL"
+      }
+    },
+    "unitCollision": {
+      "test": "Feature141MonthlyProductionSemanticsPostgreSqlTests M10 + Feature141ProductIdentityAndDiscoveryGrantTests",
+      "result": "Ambiguous monthly_product_units_incompatible, no SQL"
+    },
+    "report": "product-discovery-e2e-report.md"
+  },
+  "coreCapabilitiesSlice1": {
+    "date": "2026-10-29",
+    "status": "CORE_RETRIEVAL_SLICE_PASSED",
+    "plan": "core-capabilities-implementation-plan.md",
+    "report": "core-capabilities-slice1-report.md",
+    "directive": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
+    "catalogHash": "93acd3705931532d1a78a4ec8d7e251d6cfa4dae0a9df3a5feafa2949d99ddd2",
+    "catalogChanges": [
+      "policies/financial-value-retrieval.yaml: reviewedItems IncomeStatement/143 netProfit (MillionIRR), 140 operatingProfit (MillionIRR), 160 earningsPerShare (IRRPerShare), unitStatus capability-directive-approved",
+      "dictionaries/monthly-measures.yaml: metric_monthly_sales_quantity and metric_monthly_sales approved with verified unit policies; metric_monthly_sales_rate unchanged (unverified unit)",
+      "tables/tbl_8ecd0432a4292998.yaml: SalesQuantity and SalesAmount added to the query-authorized column allowlist"
+    ],
+    "engineChanges": [
+      "StructuredQueryCompiler.ResolveDirectSourceEffectiveUnit accepts capability-directive-approved effective units",
+      "CanonicalSemanticIntentCanonicalizer normalizes a CompanyTotal grain on a financial statement item to Unspecified",
+      "CanonicalSemanticIntentCanonicalizer drops generic requested output fields that only name the scalar result (value, amount, مقدار, ارزش)"
+    ],
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "liveRuns": {
+      "full": {
+        "startedUtc": "2026-10-29T05:24Z",
+        "tests": 11,
+        "passed": 7,
+        "failed": 4,
+        "failureAttribution": "E01/E03: answers correct, test-side independent database check read the legacy 161 catalog id; E02/E04: model emitted requested field \"value\" (rejected before planning)"
+      },
+      "targetedRerunAfterFixes": {
+        "startedUtc": "2026-10-29T05:29Z",
+        "tests": 4,
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    "answeredCases": {
+      "F141-E01": {
+        "answer": "۱٬۲۰۰ میلیون ریال",
+        "period": "1405-01-01..1405-03-31",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052903-F141-E01-answered.json"
+      },
+      "F141-E02": {
+        "answer": "۱٬۱۰۰ میلیون ریال",
+        "period": "1405-01-01..1405-03-31",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052915-F141-E02-answered.json"
+      },
+      "F141-E03": {
+        "answer": "۳٬۲۰۰ IRRPerShare",
+        "period": "1405-01-01..1405-03-31",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052929-F141-E03-answered.json"
+      },
+      "F141-E04": {
+        "answer": "۳٬۷۵۳ IRRPerShare",
+        "period": "1405-01-01..1405-03-31",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052942-F141-E04-answered.json"
+      },
+      "F141-E07": {
+        "answer": "۲۵ تن",
+        "period": "1405-06",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052548-F141-E07-answered.json"
+      },
+      "F141-E08": {
+        "answer": "۷۰۰ میلیون ریال",
+        "period": "1405-06",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052439-F141-E08-answered.json"
+      },
+      "F141-E09": {
+        "answer": "۲۰ تن",
+        "period": "1405-06",
+        "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-052508-F141-E09-answered.json"
+      }
+    },
+    "regression": {
+      "feature141OfflineIntegration": {
+        "passed": 15,
+        "skipped": 12,
+        "failed": 0
+      },
+      "unitSuite": {
+        "passed": 2408,
+        "failed": 20,
+        "preExistingOnHead": 20,
+        "baselineWorktree": "D:\\Source\\fc-base141 @ ff73d3c (21 failed incl. one environment-dependent fixture-hash test)"
+      },
+      "contractTestsUpdated": [
+        "CanonicalIntentCatalogBindingTests.MissingApprovedMeaningNeverUsesSimilarTitleOrUnit (netProfit -> depreciationExpense)",
+        "MeasureGovernanceCompletenessTests.RealCatalogExposesOnlyTheApprovedMonthlyMeasures",
+        "StructuredQueryCompilationTests.RuntimeCatalogSnapshotBuilder_LoadsMonthlyMeasureMappingsWithoutAuthorizingThem"
+      ],
+      "newUnitTests": [
+        "CanonicalIntentRequestedFieldNormalizationTests.CompanyTotalGrainOnAStatementItemIsNormalizedAway",
+        "CanonicalIntentRequestedFieldNormalizationTests.GenericValuePlaceholderFieldIsRemoved",
+        "StructuredQueryDirectSourceEffectiveUnitTests.DirectiveApprovedEffectiveUnitIsCarriedLikeOwnerApproved"
+      ]
+    },
+    "nextSlice": "3a: statement-item cross-company comparison and ranking (E05, E06, E14) on MultiCompanyComparison"
+  },
+  "crossCompanySlice3a": {
+    "date": "2026-10-29",
+    "status": "CROSS_COMPANY_COMPARISON_PASSED",
+    "report": "core-capabilities-slice3a-report.md",
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "catalogChange": "D1 Companies.Name/Ticker approvedObjects (engineering-applied under the capability directive, owner countersign pending)",
+    "periodPolicy": "latest-common-reporting-period-v1",
+    "populationPolicy": "statement-comparison-authorized-company-universe-v1",
+    "chatRouting": "not enabled; Feature141ChatQueryService refuses statement comparison plans (StatementComparisonPlans)",
+    "liveFinalPasses": [
+      {
+        "log": "live-final-pass1",
+        "tests": 22,
+        "passed": 22,
+        "exitCode": 0
+      },
+      {
+        "log": "live-final-pass2",
+        "tests": 22,
+        "passed": 22,
+        "exitCode": 0
+      }
+    ],
+    "offlineScenarios": {
+      "test": "Feature141CrossCompanyComparisonSemanticsPostgreSqlTests",
+      "scenarios": 22,
+      "passed": 22,
+      "deterministicDoubleExecution": true,
+      "artifacts": "artifacts/cross-company-comparison-semantics-2026-10-29/"
+    },
+    "cases": {
+      "F141-E05": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064652-F141-E05-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 979,
+          "executorCalls": 1,
+          "totalMs": 12497
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065110-F141-E05-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 921,
+          "executorCalls": 1,
+          "totalMs": 11277
+        }
+      ],
+      "F141-E06": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064550-F141-E06-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7642,
+          "outputTokens": 1068,
+          "executorCalls": 1,
+          "totalMs": 12772
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065012-F141-E06-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7642,
+          "outputTokens": 753,
+          "executorCalls": 1,
+          "totalMs": 9576
+        }
+      ],
+      "F141-E14": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064704-F141-E14-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Rank",
+          "comparisonMode": "None",
+          "shape": "Ranking",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 2,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 3,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600,
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7611,
+          "outputTokens": 995,
+          "executorCalls": 1,
+          "totalMs": 11067
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065125-F141-E14-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Rank",
+          "comparisonMode": "None",
+          "shape": "Ranking",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 2,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 900,
+              "Rank": 3,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600,
+            "کگل": 1200,
+            "کگهر": 900
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7611,
+          "outputTokens": 980,
+          "executorCalls": 1,
+          "totalMs": 13267
+        }
+      ],
+      "F141-E21": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064721-F141-E21-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "statement_comparison_company_binding_unresolved",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7748,
+          "outputTokens": 646,
+          "executorCalls": 0,
+          "totalMs": 8649
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065141-F141-E21-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "statement_comparison_company_binding_unresolved",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7748,
+          "outputTokens": 643,
+          "executorCalls": 0,
+          "totalMs": 8078
+        }
+      ],
+      "F141-E22": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064534-F141-E22-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "approved_catalog_binding_missing:depreciationExpense",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2591,
+          "outputTokens": 345,
+          "executorCalls": 0,
+          "totalMs": 6087
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065000-F141-E22-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "approved_catalog_binding_missing:depreciationExpense",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2591,
+          "outputTokens": 360,
+          "executorCalls": 0,
+          "totalMs": 5108
+        }
+      ],
+      "F141-E23": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064626-F141-E23-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1100,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 800,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2025-12-21",
+          "periodEnd": "2026-03-20",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1100,
+            "کگهر": 800
+          },
+          "warnings": [
+            "newer_period_available:کگل:2026-06-21"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 820,
+          "executorCalls": 1,
+          "totalMs": 10154
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065048-F141-E23-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1100,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 800,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2025-12-21",
+          "periodEnd": "2026-03-20",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1100,
+            "کگهر": 800
+          },
+          "warnings": [
+            "newer_period_available:کگل:2026-06-21"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 668,
+          "executorCalls": 1,
+          "totalMs": 9104
+        }
+      ],
+      "F141-E24": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064710-F141-E24-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "requested_result_unit_conversion_not_supported",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2594,
+          "outputTokens": 385,
+          "executorCalls": 0,
+          "totalMs": 4417
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065132-F141-E24-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "requested_result_unit_conversion_not_supported",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2594,
+          "outputTokens": 446,
+          "executorCalls": 0,
+          "totalMs": 5288
+        }
+      ],
+      "F141-E25": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064601-F141-E25-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Ambiguous",
+          "executionDiagnostic": "requested_item_values_conflict",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [
+            "comparison_member_ambiguous:کگل"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 683,
+          "executorCalls": 1,
+          "totalMs": 8622
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065025-F141-E25-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Ambiguous",
+          "executionDiagnostic": "requested_item_values_conflict",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [
+            "comparison_member_ambiguous:کگل"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 865,
+          "executorCalls": 1,
+          "totalMs": 11480
+        }
+      ],
+      "F141-E26": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064637-F141-E26-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Ambiguous",
+          "executionDiagnostic": "cross_company_consolidation_basis_mismatch",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 662,
+          "executorCalls": 1,
+          "totalMs": 9082
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065057-F141-E26-ambiguous.json",
+          "typedOutcome": "Ambiguous",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Ambiguous",
+          "executionDiagnostic": "cross_company_consolidation_basis_mismatch",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 647,
+          "executorCalls": 1,
+          "totalMs": 8368
+        }
+      ],
+      "F141-E27": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064614-F141-E27-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": true
+            },
+            {
+              "Label": "کگهر",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": true
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 1200
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7642,
+          "outputTokens": 1003,
+          "executorCalls": 1,
+          "totalMs": 12041
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065037-F141-E27-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": true
+            },
+            {
+              "Label": "کگهر",
+              "Value": 1200,
+              "Rank": 1,
+              "Tied": true
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "کگل": 1200,
+            "کگهر": 1200
+          },
+          "warnings": [],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7642,
+          "outputTokens": 759,
+          "executorCalls": 1,
+          "totalMs": 9513
+        }
+      ],
+      "F141-E28": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-064732-F141-E28-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Incomplete",
+          "executionDiagnostic": "comparison_companies_without_statements",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [
+            "company_without_statements:کگل",
+            "company_without_statements:کگهر"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 733,
+          "executorCalls": 1,
+          "totalMs": 9392
+        },
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-065152-F141-E28-incomplete.json",
+          "typedOutcome": "Incomplete",
+          "operation": "Compare",
+          "comparisonMode": "MultiCompany",
+          "shape": "MultiCompanyComparison",
+          "execution": "Incomplete",
+          "executionDiagnostic": "comparison_companies_without_statements",
+          "reason": null,
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": "MillionIRR",
+          "independent": null,
+          "warnings": [
+            "company_without_statements:کگل",
+            "company_without_statements:کگهر"
+          ],
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7746,
+          "outputTokens": 702,
+          "executorCalls": 1,
+          "totalMs": 9134
+        }
+      ]
+    }
+  },
+  "thresholdFilterSlice3b": {
+    "date": "2026-10-29",
+    "status": "FILTERING_SLICE_PASSED",
+    "report": "core-capabilities-slice3b-report.md",
+    "provider": "OpenAI",
+    "model": "gpt-5.6-luna",
+    "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "catalogChange": "none",
+    "operators": [
+      ">",
+      ">=",
+      "<",
+      "<=",
+      "="
+    ],
+    "conjunction": "one flat AND of at most two thresholds on items of the same statement",
+    "chatRouting": "not enabled; Feature141ChatQueryService refuses statement comparison plans (StatementComparisonPlans)",
+    "liveRuns": [
+      {
+        "log": "live first filter run (8 filter cases)",
+        "tests": 8,
+        "passed": 7,
+        "exitCode": 1,
+        "note": "E17: inferred netProfitValueGrain constraint; fixed in canonicalizer"
+      },
+      {
+        "log": "live full class pass A",
+        "tests": 30,
+        "passed": 27,
+        "exitCode": 1,
+        "note": "E21 (3a) measure repeated per company; E17/E34 EPS threshold in irr; fixed in canonicalizer"
+      },
+      {
+        "log": "live full class pass B",
+        "tests": 30,
+        "passed": 28,
+        "exitCode": 1,
+        "note": "E29 requested field companyLabel; E30 EPS requested unit irr; both typed non-answers, fixed in canonicalizer"
+      },
+      {
+        "log": "live full class final pass",
+        "tests": 30,
+        "passed": 29,
+        "exitCode": 1,
+        "note": "all 8 filter cases and all slice 1/3a answers pass; E24 (3a) correct Unsupported outcome but shape diagnostic reported before the unit diagnostic; binding now checks the requested unit first"
+      },
+      {
+        "log": "live E24 rerun after binding order fix",
+        "tests": 1,
+        "passed": 1,
+        "exitCode": 0
+      }
+    ],
+    "cases": {
+      "F141-E15": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075857-F141-E15-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit"
+          ],
+          "filters": {
+            "kind": "measureThreshold",
+            "MeasureConcept": "netProfit",
+            "Threshold": {
+              "Value": 1000,
+              "Unit": "MillionIRR",
+              "Operator": "GreaterThan"
+            }
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_66fdf1090cbf96d3",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "1000"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600,
+            "کگل": 1200
+          },
+          "warnings": [
+            "statement_filter_applied:0:GreaterThan:1000:MillionIRR:سود خالص",
+            "statement_filter_excluded_companies:1"
+          ],
+          "sqlParameters": {
+            "source_item_id": 143,
+            "filter_threshold_0": 1000
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7854,
+          "outputTokens": 799,
+          "executorCalls": 1,
+          "totalMs": 10293,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E17": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075750-F141-E17-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit",
+            "earningsPerShare"
+          ],
+          "filters": {
+            "kind": "group",
+            "Operator": "And",
+            "Children": [
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "netProfit",
+                "Threshold": {
+                  "Value": 1000,
+                  "Unit": "MillionIRR",
+                  "Operator": "GreaterThan"
+                }
+              },
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "earningsPerShare",
+                "Threshold": {
+                  "Value": 2000,
+                  "Unit": "IRRPerShare",
+                  "Operator": "GreaterThan"
+                }
+              }
+            ]
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_66fdf1090cbf96d3",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "1000"
+              }
+            },
+            {
+              "CatalogId": "source_item_bb4b63de3c1ecfe9",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "2000"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگل",
+              "Value": 1200,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600,
+            "کگل": 1200
+          },
+          "warnings": [
+            "statement_filter_applied:0:GreaterThan:1000:MillionIRR:سود خالص",
+            "statement_filter_applied:1:GreaterThan:2000:IRRPerShare:سود خالص هر سهم",
+            "statement_filter_excluded_companies:1"
+          ],
+          "sqlParameters": {
+            "source_item_id": 143,
+            "filter_source_item_catalog_id_0": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+            "filter_threshold_0": 1000,
+            "filter_threshold_1": 2000
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7891,
+          "outputTokens": 1024,
+          "executorCalls": 1,
+          "totalMs": 11636,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال» و «سود خالص هر سهم بیشتر از ۲٬۰۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال؛ سود خالص هر سهم: ۳٬۲۰۰ ریال به ازای هر سهم\n- کگل: سود خالص ۱٬۲۰۰ میلیون ریال؛ سود خالص هر سهم: ۲٬۴۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E29": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075828-F141-E29-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "operatingProfit"
+          ],
+          "filters": {
+            "kind": "measureThreshold",
+            "MeasureConcept": "operatingProfit",
+            "Threshold": {
+              "Value": 1200,
+              "Unit": "MillionIRR",
+              "Operator": "GreaterThan"
+            }
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_9c617846fc7c5c13",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "1200"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 2000,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگل",
+              "Value": 1500,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 2000,
+            "کگل": 1500
+          },
+          "warnings": [
+            "statement_filter_applied:0:GreaterThan:1200:MillionIRR:سود عملیاتی",
+            "statement_filter_excluded_companies:1"
+          ],
+          "sqlParameters": {
+            "source_item_id": 140,
+            "filter_threshold_0": 1200
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7785,
+          "outputTokens": 947,
+          "executorCalls": 1,
+          "totalMs": 11027,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود عملیاتی بیشتر از ۱٬۲۰۰ میلیون ریال»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- فملی: سود عملیاتی ۲٬۰۰۰ میلیون ریال\n- کگل: سود عملیاتی ۱٬۵۰۰ میلیون ریال\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود عملیاتی: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E30": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075737-F141-E30-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "earningsPerShare"
+          ],
+          "filters": {
+            "kind": "measureThreshold",
+            "MeasureConcept": "earningsPerShare",
+            "Threshold": {
+              "Value": 2500,
+              "Unit": "IRRPerShare",
+              "Operator": "LessThan"
+            }
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_bb4b63de3c1ecfe9",
+              "Operator": "LessThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "2500"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "کگل",
+              "Value": 2400,
+              "Rank": 1,
+              "Tied": false
+            },
+            {
+              "Label": "کگهر",
+              "Value": 1800,
+              "Rank": 2,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "IRRPerShare",
+          "independent": {
+            "کگل": 2400,
+            "کگهر": 1800
+          },
+          "warnings": [
+            "statement_filter_applied:0:LessThan:2500:IRRPerShare:سود خالص هر سهم",
+            "statement_filter_excluded_companies:1"
+          ],
+          "sqlParameters": {
+            "source_item_id": 160,
+            "filter_threshold_0": 2500
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7656,
+          "outputTokens": 892,
+          "executorCalls": 1,
+          "totalMs": 12536,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص هر سهم کمتر از ۲٬۵۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- کگل: سود خالص هر سهم ۲٬۴۰۰ ریال به ازای هر سهم\n- کگهر: سود خالص هر سهم ۱٬۸۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص هر سهم: ریال به ازای هر سهم؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E31": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075845-F141-E31-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit",
+            "earningsPerShare"
+          ],
+          "filters": {
+            "kind": "group",
+            "Operator": "And",
+            "Children": [
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "netProfit",
+                "Threshold": {
+                  "Value": 1000,
+                  "Unit": "MillionIRR",
+                  "Operator": "GreaterThan"
+                }
+              },
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "earningsPerShare",
+                "Threshold": {
+                  "Value": 2500,
+                  "Unit": "IRRPerShare",
+                  "Operator": "GreaterThan"
+                }
+              }
+            ]
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_66fdf1090cbf96d3",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "1000"
+              }
+            },
+            {
+              "CatalogId": "source_item_bb4b63de3c1ecfe9",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "2500"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600
+          },
+          "warnings": [
+            "statement_filter_applied:0:GreaterThan:1000:MillionIRR:سود خالص",
+            "statement_filter_applied:1:GreaterThan:2500:IRRPerShare:سود خالص هر سهم",
+            "statement_filter_excluded_companies:2"
+          ],
+          "sqlParameters": {
+            "source_item_id": 143,
+            "filter_source_item_catalog_id_0": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+            "filter_threshold_0": 1000,
+            "filter_threshold_1": 2500
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7865,
+          "outputTokens": 1356,
+          "executorCalls": 1,
+          "totalMs": 15551,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال» و «سود خالص هر سهم بیشتر از ۲٬۵۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال؛ سود خالص هر سهم: ۳٬۲۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: ۲ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E32": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075800-F141-E32-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit"
+          ],
+          "filters": {
+            "kind": "measureThreshold",
+            "MeasureConcept": "netProfit",
+            "Threshold": {
+              "Value": 1,
+              "Unit": "BillionIRR",
+              "Operator": "GreaterThan"
+            }
+          },
+          "shape": null,
+          "planFilters": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "requested_result_unit_conversion_not_supported",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": {},
+          "warnings": [],
+          "sqlParameters": {},
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2592,
+          "outputTokens": 661,
+          "executorCalls": 0,
+          "totalMs": 7773,
+          "answer": null
+        }
+      ],
+      "F141-E33": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075815-F141-E33-answered.json",
+          "typedOutcome": "Answered",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit",
+            "earningsPerShare"
+          ],
+          "filters": {
+            "kind": "group",
+            "Operator": "And",
+            "Children": [
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "netProfit",
+                "Threshold": {
+                  "Value": 1000,
+                  "Unit": "MillionIRR",
+                  "Operator": "GreaterThan"
+                }
+              },
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "earningsPerShare",
+                "Threshold": {
+                  "Value": 2000,
+                  "Unit": "IRRPerShare",
+                  "Operator": "GreaterThan"
+                }
+              }
+            ]
+          },
+          "shape": "Filter",
+          "planFilters": [
+            {
+              "CatalogId": "source_item_66fdf1090cbf96d3",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "1000"
+              }
+            },
+            {
+              "CatalogId": "source_item_bb4b63de3c1ecfe9",
+              "Operator": "GreaterThan",
+              "Value": {
+                "Type": "Decimal",
+                "Value": "2000"
+              }
+            }
+          ],
+          "execution": "Succeeded",
+          "executionDiagnostic": null,
+          "reason": null,
+          "rows": [
+            {
+              "Label": "فملی",
+              "Value": 1600,
+              "Rank": 1,
+              "Tied": false
+            }
+          ],
+          "periodStart": "2026-03-21",
+          "periodEnd": "2026-06-21",
+          "unit": "MillionIRR",
+          "independent": {
+            "فملی": 1600
+          },
+          "warnings": [
+            "statement_filter_applied:0:GreaterThan:1000:MillionIRR:سود خالص",
+            "statement_filter_applied:1:GreaterThan:2000:IRRPerShare:سود خالص هر سهم",
+            "statement_filter_value_missing:کگل",
+            "statement_filter_excluded_companies:1"
+          ],
+          "sqlParameters": {
+            "source_item_id": 143,
+            "filter_source_item_catalog_id_0": "2146da26-b28e-4d04-b50c-f49fc9b70e61",
+            "filter_threshold_0": 1000,
+            "filter_threshold_1": 2000
+          },
+          "adminControl": [
+            "Unauthorized",
+            "database_read_only_identity_check_failed"
+          ],
+          "llmCalls": 2,
+          "inputTokens": 7891,
+          "outputTokens": 1180,
+          "executorCalls": 1,
+          "totalMs": 13367,
+          "answer": "شرکت‌های دامنهٔ مجاز شما با شرط «سود خالص بیشتر از ۱٬۰۰۰ میلیون ریال» و «سود خالص هر سهم بیشتر از ۲٬۰۰۰ ریال به ازای هر سهم»، در آخرین دورهٔ گزارش مشترک (دورهٔ سه‌ماهه ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱ شمسی؛ ۲۰۲۶-۰۳-۲۱ تا ۲۰۲۶-۰۶-۲۱ میلادی):\n- فملی: سود خالص ۱٬۶۰۰ میلیون ریال؛ سود خالص هر سهم: ۳٬۲۰۰ ریال به ازای هر سهم\nمبنا: صورت‌های مالی جداگانه (غیرتلفیقی)؛ واحد سود خالص: میلیون ریال؛ منبع: NoavaranCurrentApi.\nهمهٔ شرکت‌های دامنهٔ مجاز شما که در این دوره دادهٔ معتبر دارند بررسی شده‌اند.\nتوضیح: کگل مقدار ثبت‌شده‌ای برای بررسی شرط ندارد و در فهرست نیامد (صفر فرض نمی‌شود).\nتوضیح: ۱ شرکت دیگر دارای داده، شرط را نداشتند و در فهرست نیامده‌اند."
+        }
+      ],
+      "F141-E34": [
+        {
+          "artifact": "artifacts/engine-e2e-vertical-slice-2026-10-29-075906-F141-E34-unsupported.json",
+          "typedOutcome": "Unsupported",
+          "operation": "DiscoverPopulation",
+          "measures": [
+            "netProfit",
+            "earningsPerShare"
+          ],
+          "filters": {
+            "kind": "group",
+            "Operator": "Or",
+            "Children": [
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "netProfit",
+                "Threshold": {
+                  "Value": 1000,
+                  "Unit": "MillionIRR",
+                  "Operator": "GreaterThan"
+                }
+              },
+              {
+                "kind": "measureThreshold",
+                "MeasureConcept": "earningsPerShare",
+                "Threshold": {
+                  "Value": 2000,
+                  "Unit": "IRRPerShare",
+                  "Operator": "GreaterThan"
+                }
+              }
+            ]
+          },
+          "shape": null,
+          "planFilters": null,
+          "execution": null,
+          "executionDiagnostic": null,
+          "reason": "canonical_semantics_not_representable_in_current_planner_handoff|statement_filter_expression_not_supported",
+          "rows": [],
+          "periodStart": null,
+          "periodEnd": null,
+          "unit": null,
+          "independent": {},
+          "warnings": [],
+          "sqlParameters": {},
+          "adminControl": [
+            null,
+            null
+          ],
+          "llmCalls": 1,
+          "inputTokens": 2604,
+          "outputTokens": 705,
+          "executorCalls": 0,
+          "totalMs": 7524,
+          "answer": null
+        }
+      ]
+    }
   }
 }

@@ -76,7 +76,28 @@ public static class FinancialSourcePlannerHandoff
     /// </param>
     public static FinancialSourcePlannerHandoffResult Create(CanonicalSemanticIntent intent,
         FinancialSourceTitleResolution resolution, string catalogVersion, string catalogHash,
-        StructuredSqlDirectSource? directSource = null)
+        StructuredSqlDirectSource? directSource = null) =>
+        CreateCore(intent, resolution, catalogVersion, catalogHash, directSource, crossCompany: false);
+
+    /// <summary>
+    /// Cross-company handoff for one approved statement item: a comparison of explicitly named companies,
+    /// a ranking of named companies or the tenant's authorized population, or a threshold filter over them,
+    /// read at the latest common reporting period. It is used by the Feature 141 engine path only; the chat
+    /// route keeps <see cref="Create"/>, so this capability is not exposed through chat routing.
+    /// </summary>
+    /// <param name="catalogReferences">
+    /// The catalog's source references; required only to bind the measure of a threshold on a second
+    /// statement item. The listed (first) measure is always the resolved source.
+    /// </param>
+    public static FinancialSourcePlannerHandoffResult CreateCrossCompany(CanonicalSemanticIntent intent,
+        FinancialSourceTitleResolution resolution, string catalogVersion, string catalogHash,
+        StructuredSqlDirectSource? directSource = null, IReadOnlyList<FinancialValueCatalogReference>? catalogReferences = null) =>
+        CreateCore(intent, resolution, catalogVersion, catalogHash, directSource, crossCompany: true, catalogReferences);
+
+    private static FinancialSourcePlannerHandoffResult CreateCore(CanonicalSemanticIntent intent,
+        FinancialSourceTitleResolution resolution, string catalogVersion, string catalogHash,
+        StructuredSqlDirectSource? directSource, bool crossCompany,
+        IReadOnlyList<FinancialValueCatalogReference>? catalogReferences = null)
     {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(resolution);
@@ -86,7 +107,10 @@ public static class FinancialSourcePlannerHandoff
             return Fail(resolution.Status == FinancialSourceTitleResolutionStatus.Incompatible
                     ? FinancialSourcePlannerHandoffStatus.Incompatible : FinancialSourcePlannerHandoffStatus.Incomplete,
                 $"source_identity_{resolution.Status.ToString().ToLowerInvariant()}:{resolution.DiagnosticCode}");
-        if (intent.ContractVersion != 2 || intent.Ambiguity.RequiresClarification || intent.Measures.Count != 1)
+        var shape = crossCompany ? StatementQueryShapeClassifier.Classify(intent) : null;
+        // A threshold filter may name a second measure; it is bound as a predicate, never as a second source.
+        var filterShape = shape?.Shape == StatementQueryShape.Filter;
+        if (intent.ContractVersion != 2 || intent.Ambiguity.RequiresClarification || intent.Measures.Count != 1 && !filterShape)
             return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "intent_contract_ambiguous_or_multiple_measures");
 
         var reference = resolution.Reference;
@@ -125,16 +149,25 @@ public static class FinancialSourcePlannerHandoff
             || measure.Qualifiers.ReportingBasis != MeasureReportingBasis.Unspecified
             || measure.Qualifiers.ValueGrain != MeasureValueGrain.Unspecified)
             return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "measure_qualifier_not_supported_by_planner_slice");
-        if (intent.Operation.Kind != AnalyticalOperationKind.Retrieve || intent.Comparison.Mode != ComparisonMode.None)
-            return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "operation_or_comparison_not_supported_by_planner_slice");
-        if (intent.Period.Kind is not (ReportingPeriodKind.LatestAvailable or ReportingPeriodKind.Unspecified))
-            return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "period_intent_not_supported_by_planner_slice");
-        if (intent.EntityScope.Kind != EntityScopeKind.NamedCompanies
-            || intent.Products.Count != 0 || intent.Categories.Count != 0 || intent.Filters is not null
-            || intent.Aggregation is not null || intent.Ranking is not null || intent.Constraints.Count != 0)
-            return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "intent_shape_not_supported_by_planner_slice");
-        if (intent.Output.RequestedFields.Count != 0)
-            return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "requested_output_fields_not_representable_in_planner_slice");
+        if (crossCompany)
+        {
+            if (shape!.Shape is not (StatementQueryShape.MultiCompanyComparison or StatementQueryShape.Ranking or StatementQueryShape.Filter))
+                return Fail(FinancialSourcePlannerHandoffStatus.Incomplete,
+                    $"cross_company_shape_not_supported:{shape.Diagnostic ?? shape.Shape?.ToString() ?? "unknown"}");
+        }
+        else
+        {
+            if (intent.Operation.Kind != AnalyticalOperationKind.Retrieve || intent.Comparison.Mode != ComparisonMode.None)
+                return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "operation_or_comparison_not_supported_by_planner_slice");
+            if (intent.Period.Kind is not (ReportingPeriodKind.LatestAvailable or ReportingPeriodKind.Unspecified))
+                return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "period_intent_not_supported_by_planner_slice");
+            if (intent.EntityScope.Kind != EntityScopeKind.NamedCompanies
+                || intent.Products.Count != 0 || intent.Categories.Count != 0 || intent.Filters is not null
+                || intent.Aggregation is not null || intent.Ranking is not null || intent.Constraints.Count != 0)
+                return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "intent_shape_not_supported_by_planner_slice");
+            if (intent.Output.RequestedFields.Count != 0)
+                return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, "requested_output_fields_not_representable_in_planner_slice");
+        }
 
         if (directSource is not null && !string.Equals(directSource.CatalogId, reference.CatalogId, StringComparison.Ordinal))
             return Fail(FinancialSourcePlannerHandoffStatus.Incompatible, "direct_source_mapping_identity_mismatch");
@@ -143,6 +176,34 @@ public static class FinancialSourcePlannerHandoff
             ?? (reference.Queryable ? "authorized" : "not-authorized");
         var auth = new FinancialSourceAuthorizationEvidence(authorizationStatus, reference.Queryable,
             $"navigation-hierarchy.yaml#/nodes/*/sourceItemReferences[?(@.catalogId=='{reference.CatalogId}')]/queryAuthorization");
+        if (crossCompany)
+        {
+            IReadOnlyList<string> comparisonScopes = measure.Qualifiers.StatementScope switch
+            {
+                FinancialStatementScope.Standalone => ["standalone"],
+                FinancialStatementScope.Consolidated => ["consolidated"],
+                _ => []
+            };
+            IReadOnlyList<PlanFilter> filters = [];
+            if (filterShape)
+            {
+                var (thresholdFilters, diagnostic) = ThresholdFilters(intent, shape!.Thresholds!, reference, catalogReferences);
+                if (diagnostic is not null) return Fail(FinancialSourcePlannerHandoffStatus.Incomplete, diagnostic);
+                filters = thresholdFilters;
+            }
+            return new(FinancialSourcePlannerHandoffStatus.ReadyForOfflineValidation,
+                reference.Queryable ? "cross_company_source_identity_ready_for_planner_validation" : "source_identity_ready_but_query_unauthorized",
+                new(reference.ProviderName, reference.StatementType, reference.SourceItemId, reference.SourceItemCatalogId.Value,
+                    reference.TitleFa, verifiedConcept, measure.UserPhrase, measure.Qualifiers, intent.Period, intent.EntityScope,
+                    intent.Operation, intent.Comparison,
+                    new(measure.Dimension, verifiedConcept?.Dimension ?? reference.UnitClassification
+                        ?? "unreviewed-direct-source-dimension", reference.SourceUnit,
+                        reference.SourceUnitStatus, effectiveUnit, reference.EffectiveUnitStatus, reference.EffectiveUnitProvenance,
+                        measure.RequestedUnit, measure.EffectiveSourceUnitEvidence),
+                    auth, intent, reference,
+                    CrossCompanyRequirements(shape!, reference.CatalogId, comparisonScopes, catalogVersion, catalogHash, directSource,
+                        filters, explicitRanking: intent.Ranking is not null)));
+        }
         var hasCompanyScope = intent.EntityScope.CompanyLabels.Count != 0;
         // The current planner slice represents exactly one latest direct statement value (see
         // CanonicalIntentCatalogBinding). A question with no stated period therefore resolves to the
@@ -177,6 +238,72 @@ public static class FinancialSourcePlannerHandoff
                     reference.SourceUnitStatus, effectiveUnit, reference.EffectiveUnitStatus, reference.EffectiveUnitProvenance,
                     measure.RequestedUnit, measure.EffectiveSourceUnitEvidence),
                 auth, intent, reference, requirements));
+    }
+
+    /// <summary>
+    /// Planner input for a cross-company statement comparison: the shared latest-period policy, a
+    /// "compare" scope, the multi-company comparison mode, and a sort on the compared value when ranked
+    /// or filtered (a filter lists its matches ordered by the listed value). Threshold predicates are typed
+    /// plan filters. An unbound population carries no company labels; the planner resolves the authorized universe.
+    /// </summary>
+    private static QuestionSchemaRequirements CrossCompanyRequirements(StatementQueryShapeResult shape, string sourceCatalogId,
+        IReadOnlyList<string> statementScopes, string catalogVersion, string catalogHash, StructuredSqlDirectSource? directSource,
+        IReadOnlyList<PlanFilter> filters, bool explicitRanking)
+    {
+        var filtered = shape.Shape == StatementQueryShape.Filter;
+        var ranked = shape.Shape == StatementQueryShape.Ranking || filtered && explicitRanking;
+        IReadOnlyList<PlanSort> sort = ranked || filtered ? [new PlanSort(sourceCatalogId, shape.Direction)] : [];
+        return new QuestionSchemaRequirements(1, catalogVersion, catalogHash,
+            [], directSource is not null ? [CompanyDimensionId] : [], ["company"],
+            directSource?.RelationshipIds.Order(StringComparer.Ordinal).ToArray() ?? [], [],
+            ["latest"], ["compare"], [ranked ? "ranked-table" : "table"],
+            OrderingRequirements: sort.Count != 0 ? [shape.Direction == PlanSortDirection.Descending ? "descending" : "ascending"] : [],
+            FinancialValueReferences: [new(nameof(FinancialValueReferenceType.DirectSourceItem), sourceCatalogId)],
+            RequestedFinancialValueOperation: nameof(FinancialValueOperation.DirectValueRetrieval),
+            StructuredShape: new StructuredPlanShape([], [], filters, [], sort, 0,
+                (ranked || filtered) && shape.TopN is { } topN ? topN : StatementQueryShapeClassifier.MaximumTopN,
+                PlanFinancialOperationKind.DirectValue, ComparisonMode: PlanComparisonMode.MultiCompanyComparison))
+        {
+            EntityReferences = shape.PopulationScope ? [] : shape.CompanyLabels ?? [],
+            StatementScopes = statementScopes,
+            PopulationDiscoveryRequested = shape.PopulationScope,
+            NormalizationDiagnostics = [$"statement_comparison_period_policy:{StatementComparisonPolicyIds.LatestCommonReportingPeriod}"]
+        };
+    }
+
+    /// <summary>
+    /// Typed plan predicates of a threshold filter. Each threshold's measure resolves to its single approved,
+    /// queryable item on the listed value's statement (same provider and statement type), and the threshold
+    /// must already be stated in that item's effective unit; no unit is converted.
+    /// </summary>
+    private static (IReadOnlyList<PlanFilter> Filters, string? Diagnostic) ThresholdFilters(CanonicalSemanticIntent intent,
+        IReadOnlyList<MeasureThresholdFilter> thresholds, FinancialValueCatalogReference listed,
+        IReadOnlyList<FinancialValueCatalogReference>? catalogReferences)
+    {
+        var filters = new List<PlanFilter>();
+        foreach (var threshold in thresholds)
+        {
+            var measure = intent.Measures.Single(item => item.ConceptId == threshold.MeasureConcept);
+            var reference = ReferenceEquals(measure, intent.Measures[0]) ? listed
+                : catalogReferences is not null && CanonicalIntentCatalogBinding.ApprovedMatches(measure, catalogReferences) is [var single]
+                    ? single : null;
+            if (reference is null || !reference.Queryable) return ([], "statement_filter_item_binding_missing");
+            if (reference.ProviderName != listed.ProviderName || reference.StatementType != listed.StatementType)
+                return ([], "statement_filter_items_on_different_statements");
+            if (measure.RequestedUnit != SemanticUnit.Unspecified && !CanonicalIntentCatalogBinding.UnitMatchesEffectiveUnit(measure.RequestedUnit, reference)
+                || !CanonicalIntentCatalogBinding.UnitMatchesEffectiveUnit(threshold.Threshold.Unit, reference))
+                return ([], "statement_filter_threshold_unit_conversion_not_supported");
+            filters.Add(new PlanFilter(reference.CatalogId, threshold.Threshold.Operator switch
+                {
+                    NumericComparisonOperator.GreaterThan => PlanFilterOperator.GreaterThan,
+                    NumericComparisonOperator.GreaterThanOrEqual => PlanFilterOperator.GreaterThanOrEqual,
+                    NumericComparisonOperator.LessThan => PlanFilterOperator.LessThan,
+                    NumericComparisonOperator.LessThanOrEqual => PlanFilterOperator.LessThanOrEqual,
+                    _ => PlanFilterOperator.Equal
+                },
+                new PlanLiteral(PlanLiteralType.Decimal, threshold.Threshold.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+        }
+        return (filters, null);
     }
 
     private static VerifiedFinancialBusinessConcept? ResolveApprovedConcept(RequestedMeasure measure,

@@ -176,7 +176,7 @@
     "queryAuthorization": {
       "state": "approved-least-privilege",
       "runtimeQueryable": true,
-      "provenance": "product-owner-approved:Feature141-monthly-production-quantity-2026-10-29",
+      "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (owner countersign pending)",
       "approvedObjects": [
         "tbl_8ecd0432a4292998_MonthlyReportId",
         "tbl_8ecd0432a4292998_ProductCode",
@@ -184,9 +184,11 @@
         "tbl_8ecd0432a4292998_Unit",
         "tbl_8ecd0432a4292998_ProductionQuantity",
         "tbl_8ecd0432a4292998_SourceRowFingerprint",
-        "tbl_8ecd0432a4292998_SourceMultiplicity"
+        "tbl_8ecd0432a4292998_SourceMultiplicity",
+        "tbl_8ecd0432a4292998_SalesQuantity",
+        "tbl_8ecd0432a4292998_SalesAmount"
       ],
-      "reason": "SELECT only on the columns the monthly production quantity compiler reads; sales columns are not approved."
+      "reason": "SELECT only on the columns the monthly production/sales compilers read; SalesRate stays unapproved until its unit is verified."
     }
   },
   "provenance": {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -41,7 +42,8 @@ public sealed record StructuredSqlDirectSource(string CatalogId, Guid SourceItem
     string CompaniesTableCatalogId, IReadOnlyList<string> RelationshipIds, bool Queryable,
     string? SourceUnit = null, string? SourceUnitStatus = null, string? NormalizedUnit = null,
     string? MetricCode = null, bool IdentityVerified = false, bool SemanticApproved = false,
-    string? EffectiveUnit = null, string? EffectiveUnitStatus = null, string? EffectiveUnitProvenance = null);
+    string? EffectiveUnit = null, string? EffectiveUnitStatus = null, string? EffectiveUnitProvenance = null,
+    string? TitleFa = null);
 public sealed record StructuredSqlMonthlyMeasure(string CatalogId, string MetricCode, string LineItemsTableCatalogId,
     string ReportsTableCatalogId, string ValueColumnCatalogId, string ProductCodeColumnCatalogId,
     string ProductTitleColumnCatalogId, string QuantityUnitColumnCatalogId, string PeriodStartColumnCatalogId,
@@ -65,7 +67,7 @@ public sealed class CompiledReadOnlyQuery
         bool isMonthlyValueQuery = false, IReadOnlyList<Guid>? companyIds = null,
         string? companyDiscoveryScopeId = null, string? companyDiscoveryApprovalReference = null,
         bool companyDiscoveryCoverageComplete = false, string? productMappingCoverageStatus = null,
-        bool identityAuthorized = false)
+        bool identityAuthorized = false, StatementComparisonSpecification? statementComparison = null)
     {
         Sql = sql; Parameters = Array.AsReadOnly(parameters.ToArray()); TenantId = tenantId; CatalogVersion = catalogVersion; CatalogHash = catalogHash;
         QueryFingerprint = queryFingerprint; MaximumRows = maximumRows; ResultShape = resultShape;
@@ -83,6 +85,7 @@ public sealed class CompiledReadOnlyQuery
         CompanyDiscoveryCoverageComplete = companyDiscoveryCoverageComplete;
         ProductMappingCoverageStatus = productMappingCoverageStatus;
         IdentityAuthorized = identityAuthorized;
+        StatementComparison = statementComparison;
     }
 
     public string Sql { get; }
@@ -113,6 +116,8 @@ public sealed class CompiledReadOnlyQuery
     public string? CompanyDiscoveryApprovalReference { get; }
     public bool CompanyDiscoveryCoverageComplete { get; }
     public string? ProductMappingCoverageStatus { get; }
+    /// <summary>Present only for a cross-company statement comparison or ranking; instructs the result policy.</summary>
+    public StatementComparisonSpecification? StatementComparison { get; }
 }
 
 public sealed record StructuredQueryCompilationResult(bool Success, CompiledReadOnlyQuery? Query,
@@ -206,6 +211,9 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
     {
         if (plan.Sources.Count == 1 && plan.Sources[0].ReferenceType == FinancialValueReferenceType.MonthlyMeasure)
             return CompileMonthly(plan, snapshot, plan.Sources[0]);
+        if (plan.FinancialOperation.ComparisonMode == PlanComparisonMode.MultiCompanyComparison
+            && plan.Sources.Count == 1 && plan.Sources[0].ReferenceType == FinancialValueReferenceType.DirectSourceItem)
+            return CompileStatementComparison(plan, snapshot);
 
         var errors = new List<string>();
         if (!snapshot.IntegrityValidated || string.IsNullOrWhiteSpace(snapshot.CatalogHash)) errors.Add("catalog_snapshot_not_integrity_validated");
@@ -239,44 +247,53 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
 
         if (errors.Count == 0)
         {
-            var source = plan.Sources[0];
-            var mapping = snapshot.DirectSources.SingleOrDefault(x => x.CatalogId == source.CatalogId);
-            if (mapping is null) errors.Add("direct_source_not_mapped_in_snapshot");
-            else
-            {
-                if (!source.SourceItemCatalogId.HasValue || source.SourceItemCatalogId != mapping.SourceItemCatalogId
-                    || source.ProviderName != mapping.ProviderName || source.StatementType != mapping.StatementType
-                    || source.SourceItemId != mapping.SourceItemId) errors.Add("direct_source_identity_mismatch");
-                if (plan.Projection.Count != 1 || plan.Projection[0].CatalogId != source.CatalogId
-                    || plan.Projection[0].Role != PlanProjectionRole.Value)
-                    errors.Add("projection_does_not_match_direct_value_source");
-                if (!plan.Statement.Providers.SequenceEqual([source.ProviderName], StringComparer.Ordinal)
-                    || !plan.Statement.StatementTypes.SequenceEqual([source.StatementType], StringComparer.Ordinal))
-                    errors.Add("statement_provider_or_type_binding_mismatch");
-                if (!plan.Statement.PreservePeriodType || !plan.Statement.PreserveAuditState
-                    || !plan.Statement.PreserveRestatementState || !plan.Statement.PreserveRevisionIdentity
-                    || !plan.Statement.SelectionKeys.Contains(PlanStatementSelectionKey.ReportingPeriodDescending)
-                    || !plan.Statement.SelectionKeys.Contains(PlanStatementSelectionKey.Availability))
-                    errors.Add("statement_evidence_selection_incomplete");
-                if (mapping.SourceItemCatalogId == Guid.Empty || mapping.SourceItemId <= 0) errors.Add("direct_source_identity_invalid");
-                if (!mapping.IdentityVerified) errors.Add("direct_source_identity_not_verified");
-                var requiredRelationships = mapping.RelationshipIds.ToHashSet(StringComparer.Ordinal);
-                if (mapping.RelationshipIds.Count != 3 || !requiredRelationships.SetEquals(plan.RelationshipIds)
-                    || mapping.RelationshipIds.Any(id => snapshot.Relationships.SingleOrDefault(x => x.CatalogId == id) is not
-                        { Cardinality: "many-to-one" or "one-to-many", Verified: true }))
-                    errors.Add("direct_source_relationship_requirements_incomplete");
-                var consolidatedRequested = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal);
-                if (!plan.Statement.RequireUnambiguousSelection || plan.Statement.PreferComposing != consolidatedRequested
-                    || plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) && consolidatedRequested)
-                    errors.Add("statement_selection_policy_invalid");
-                foreach (var tableId in new[] { mapping.SourceItemsTableCatalogId, mapping.LineItemsTableCatalogId, mapping.StatementsTableCatalogId, mapping.CompaniesTableCatalogId })
-                    if (snapshot.Tables.All(x => x.CatalogId != tableId)) errors.Add("direct_source_table_missing_from_snapshot");
-                foreach (var relationshipId in mapping.RelationshipIds)
-                    if (snapshot.Relationships.All(x => x.CatalogId != relationshipId)) errors.Add("direct_source_relationship_missing_from_snapshot");
-                if (errors.Count == 0) return CompileDirect(plan, snapshot, mapping);
-            }
+            var mapping = ValidateDirectSourceMapping(plan, snapshot, errors);
+            if (errors.Count == 0 && mapping is not null) return CompileDirect(plan, snapshot, mapping);
         }
         return new(false, null, errors.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    /// <summary>Identity, projection, statement-selection and relationship checks shared by every direct-source query.</summary>
+    private static StructuredSqlDirectSource? ValidateDirectSourceMapping(StructuredQueryPlan plan,
+        StructuredQueryCatalogSnapshot snapshot, List<string> errors)
+    {
+        var source = plan.Sources[0];
+        var mapping = snapshot.DirectSources.SingleOrDefault(x => x.CatalogId == source.CatalogId);
+        if (mapping is null)
+        {
+            errors.Add("direct_source_not_mapped_in_snapshot");
+            return null;
+        }
+        if (!source.SourceItemCatalogId.HasValue || source.SourceItemCatalogId != mapping.SourceItemCatalogId
+            || source.ProviderName != mapping.ProviderName || source.StatementType != mapping.StatementType
+            || source.SourceItemId != mapping.SourceItemId) errors.Add("direct_source_identity_mismatch");
+        if (plan.Projection.Count != 1 || plan.Projection[0].CatalogId != source.CatalogId
+            || plan.Projection[0].Role != PlanProjectionRole.Value)
+            errors.Add("projection_does_not_match_direct_value_source");
+        if (!plan.Statement.Providers.SequenceEqual([source.ProviderName], StringComparer.Ordinal)
+            || !plan.Statement.StatementTypes.SequenceEqual([source.StatementType], StringComparer.Ordinal))
+            errors.Add("statement_provider_or_type_binding_mismatch");
+        if (!plan.Statement.PreservePeriodType || !plan.Statement.PreserveAuditState
+            || !plan.Statement.PreserveRestatementState || !plan.Statement.PreserveRevisionIdentity
+            || !plan.Statement.SelectionKeys.Contains(PlanStatementSelectionKey.ReportingPeriodDescending)
+            || !plan.Statement.SelectionKeys.Contains(PlanStatementSelectionKey.Availability))
+            errors.Add("statement_evidence_selection_incomplete");
+        if (mapping.SourceItemCatalogId == Guid.Empty || mapping.SourceItemId <= 0) errors.Add("direct_source_identity_invalid");
+        if (!mapping.IdentityVerified) errors.Add("direct_source_identity_not_verified");
+        var requiredRelationships = mapping.RelationshipIds.ToHashSet(StringComparer.Ordinal);
+        if (mapping.RelationshipIds.Count != 3 || !requiredRelationships.SetEquals(plan.RelationshipIds)
+            || mapping.RelationshipIds.Any(id => snapshot.Relationships.SingleOrDefault(x => x.CatalogId == id) is not
+                { Cardinality: "many-to-one" or "one-to-many", Verified: true }))
+            errors.Add("direct_source_relationship_requirements_incomplete");
+        var consolidatedRequested = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal);
+        if (!plan.Statement.RequireUnambiguousSelection || plan.Statement.PreferComposing != consolidatedRequested
+            || plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) && consolidatedRequested)
+            errors.Add("statement_selection_policy_invalid");
+        foreach (var tableId in new[] { mapping.SourceItemsTableCatalogId, mapping.LineItemsTableCatalogId, mapping.StatementsTableCatalogId, mapping.CompaniesTableCatalogId })
+            if (snapshot.Tables.All(x => x.CatalogId != tableId)) errors.Add("direct_source_table_missing_from_snapshot");
+        foreach (var relationshipId in mapping.RelationshipIds)
+            if (snapshot.Relationships.All(x => x.CatalogId != relationshipId)) errors.Add("direct_source_relationship_missing_from_snapshot");
+        return mapping;
     }
 
     private static StructuredQueryCompilationResult CompileMonthly(StructuredQueryPlan plan,
@@ -1135,40 +1152,248 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         x.AcceptedColumnCatalogId, x.RevisionStatusColumnCatalogId, x.ExternalReportIdColumnCatalogId,
         x.SourceRowFingerprintColumnCatalogId, x.SourceMultiplicityColumnCatalogId];
 
+    /// <summary>
+    /// Cross-company comparison or ranking of one direct statement item. The query returns, for every
+    /// compared company that has statements of the source's provider and type, its candidate statements
+    /// at the latest reporting period (start, end, period type) that all of those companies report, plus
+    /// its latest period and consolidation-basis count; ranking and comparability are decided afterwards by
+    /// <see cref="CrossCompanyStatementComparisonPolicy"/>. Named companies are bound parameters; an
+    /// authorized population is injected by the executor from the grant's reviewed company universe.
+    /// </summary>
+    private static StructuredQueryCompilationResult CompileStatementComparison(StructuredQueryPlan plan,
+        StructuredQueryCatalogSnapshot snapshot)
+    {
+        var errors = new List<string>();
+        if (!snapshot.IntegrityValidated || string.IsNullOrWhiteSpace(snapshot.CatalogHash)) errors.Add("catalog_snapshot_not_integrity_validated");
+        if (!string.Equals(plan.CatalogHash, snapshot.CatalogHash, StringComparison.Ordinal)
+            || !string.Equals(plan.CatalogVersion, snapshot.CatalogVersion, StringComparison.Ordinal)) errors.Add("catalog_snapshot_mismatch");
+        if (plan.ContractVersion != 1) errors.Add("unsupported_plan_contract_version");
+        if (!plan.RetrievalComplete) errors.Add("plan_requirements_incomplete");
+        if (plan.TenantId == Guid.Empty) errors.Add("tenant_binding_missing");
+        if (plan.Pagination.Offset != 0 || plan.Pagination.Limit is < 1 or > MaximumRows) errors.Add("pagination_out_of_bounds");
+        if (plan.Period.UseSynchronizationTimestampForRecency) errors.Add("synchronization_timestamp_is_not_reporting_recency");
+        if (!plan.Period.SelectLatestByReportingPeriod || plan.Period.ReportingPeriodStart.HasValue
+            || plan.Period.ReportingPeriodEnd.HasValue || plan.Period.MaximumPeriods.HasValue)
+            errors.Add("statement_comparison_requires_latest_common_reporting_period");
+        if (plan.FinancialOperation.Operation != FinancialValueOperation.DirectValueRetrieval
+            || plan.FinancialOperation.Kind != PlanFinancialOperationKind.DirectValue || plan.FinancialOperation.FormulaAuthorized
+            || plan.FinancialOperation.ValueDefinitionCatalogIds.Count != 0)
+            errors.Add("financial_formula_not_supported");
+        if (plan.Aggregations.Count > 0 || plan.Projection.Any(x => x.Role == PlanProjectionRole.Grouping))
+            errors.Add("statement_comparison_aggregation_not_supported");
+        // Threshold predicates: at most two comparisons of a statement item with a decimal literal.
+        if (plan.Filters.Count > StatementQueryShapeClassifier.MaximumThresholds
+            || plan.Filters.Any(filter => filter.Operator is PlanFilterOperator.NotEqual or PlanFilterOperator.IsNull or PlanFilterOperator.IsNotNull
+                || filter.Value is not { Type: PlanLiteralType.Decimal } literal
+                || !decimal.TryParse(literal.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _)))
+            errors.Add("statement_filter_not_supported");
+        if (plan.Sort.Count > 1 || plan.Sort.Any(x => x.CatalogId != plan.Sources[0].CatalogId))
+            errors.Add("statement_comparison_sort_must_use_compared_value");
+        if (plan.Presentation is not (PlanPresentation.Scalar or PlanPresentation.Table or PlanPresentation.RankedTable))
+            errors.Add("result_shape_not_supported");
+        var companyEntities = plan.Entities.Where(x => x.EntityKind == "Company").ToArray();
+        if (companyEntities.Length != plan.Entities.Count) errors.Add("statement_comparison_entities_must_be_companies");
+        var population = string.Equals(plan.PopulationCoveragePolicyId, StatementComparisonPolicyIds.AuthorizedCompanyUniverse,
+            StringComparison.Ordinal);
+        var scope = plan.CompanyDiscoveryScope;
+        if (population)
+        {
+            if (companyEntities.Length != 0 || scope is null || scope.TenantId != plan.TenantId
+                || string.IsNullOrWhiteSpace(scope.ScopeId) || string.IsNullOrWhiteSpace(scope.ApprovalReference))
+                errors.Add("company_discovery_scope_not_authorized");
+        }
+        else if (scope is not null || plan.PopulationCoveragePolicyId is not null
+            || companyEntities.Length is < 2 or > StatementQueryShapeClassifier.MaximumNamedCompanies
+            || companyEntities.Any(x => !x.ResolvedEntityId.HasValue || x.ResolvedEntityId.Value == Guid.Empty || !x.IdentityVerified)
+            || companyEntities.Select(x => x.ResolvedEntityId).Distinct().Count() != companyEntities.Length)
+            errors.Add("statement_comparison_requires_resolved_company_bindings");
+        var mapping = errors.Count == 0 ? ValidateDirectSourceMapping(plan, snapshot, errors) : null;
+        if (errors.Count > 0 || mapping is null) return new(false, null, errors.Distinct(StringComparer.Ordinal).ToArray());
+
+        // Values of different companies are only comparable in one documented unit.
+        var effectiveUnit = ResolveDirectSourceEffectiveUnit(mapping);
+        if (string.IsNullOrWhiteSpace(effectiveUnit.Unit))
+            return new(false, null, ["statement_comparison_requires_resolved_effective_unit"]);
+        if (BindDirectSourcePhysical(snapshot, mapping) is not { } bound)
+            return new(false, null, ["direct_source_relationship_column_binding_invalid"]);
+        var (relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId, sourceCatalogId,
+            lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit, statementType,
+            statementProvider, persistedStatementType, isComposing, periodEnd) = bound;
+        var periodStart = statementColumns["PeriodStart"];
+        var periodType = statementColumns["PeriodType"];
+
+        // Each filter item is read from the compared statement itself (same provider and statement type), so
+        // every predicate shares the listed value's company, period and basis. The threshold is stated in the
+        // item's own effective unit (checked before planning); the database evaluates each bound predicate.
+        var filters = new List<StatementComparisonFilter>();
+        var filterSources = new List<StructuredSqlDirectSource>();
+        foreach (var (filter, index) in plan.Filters.Select((filter, index) => (filter, index)))
+        {
+            var filterSource = filter.CatalogId == mapping.CatalogId
+                ? mapping
+                : snapshot.DirectSources.SingleOrDefault(x => x.CatalogId == filter.CatalogId);
+            if (filterSource is null || filterSource.ProviderName != mapping.ProviderName || filterSource.StatementType != mapping.StatementType
+                || filterSource.SourceItemCatalogId == Guid.Empty)
+                return new(false, null, ["statement_filter_source_not_in_compared_statement"]);
+            if (ResolveDirectSourceEffectiveUnit(filterSource).Unit is not { Length: > 0 } filterUnit)
+                return new(false, null, ["statement_filter_requires_resolved_effective_unit"]);
+            if (filterSource.CatalogId != mapping.CatalogId && filterSources.All(source => source.CatalogId != filterSource.CatalogId))
+                filterSources.Add(filterSource);
+            filters.Add(new(index, filterSource.CatalogId, filterSource.TitleFa, filter.Operator,
+                decimal.Parse(filter.Value!.Value, NumberStyles.Number, CultureInfo.InvariantCulture), filterUnit));
+        }
+        string FilterValueExpression(StatementComparisonFilter filter) => filter.SourceCatalogId == mapping.CatalogId
+            ? $"li.{Q(value.Name)}"
+            : $"lf{filterSources.FindIndex(source => source.CatalogId == filter.SourceCatalogId).ToString(CultureInfo.InvariantCulture)}.{Q(value.Name)}";
+        var filterColumns = string.Concat(filters.Select(filter =>
+            $", {FilterValueExpression(filter)} AS \"{filter.ValueColumn}\", ({FilterValueExpression(filter)} {filter.Operator switch
+            {
+                PlanFilterOperator.GreaterThan => ">",
+                PlanFilterOperator.GreaterThanOrEqual => ">=",
+                PlanFilterOperator.LessThan => "<",
+                PlanFilterOperator.LessThanOrEqual => "<=",
+                _ => "="
+            }} @filter_threshold_{filter.Index.ToString(CultureInfo.InvariantCulture)}) AS \"{filter.MatchColumn}\""));
+        var filterJoins = string.Concat(filterSources.Select((_, index) =>
+            $"LEFT JOIN {QT(lineItems)} lf{index.ToString(CultureInfo.InvariantCulture)} " +
+            $"ON lf{index.ToString(CultureInfo.InvariantCulture)}.{Q(lineStatementFk.Name)} = st.{Q(statementId.Name)} " +
+            $"AND lf{index.ToString(CultureInfo.InvariantCulture)}.{Q(lineSourceFk.Name)} = @filter_source_item_catalog_id_{index.ToString(CultureInfo.InvariantCulture)}\n"));
+        StructuredSqlColumn? companySymbol = null;
+        StructuredSqlColumn? companyName = null;
+        if (population)
+        {
+            // A population answer must name its members from persisted identity, so the company label
+            // columns must be catalog-approved for runtime query.
+            companySymbol = columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "Ticker");
+            companyName = columns.Values.SingleOrDefault(x => x.TableCatalogId == companies.CatalogId && x.Name == "Name");
+            if (companySymbol is not { Queryable: true } || companyName is not { Queryable: true })
+                return new(false, null, ["statement_population_company_label_columns_unapproved"]);
+        }
+
+        var requestedConsolidationScope = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal)
+            ? true
+            : plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) ? false : (bool?)null;
+        string ScopeFilter(string alias) => requestedConsolidationScope.HasValue
+            ? $" AND {alias}.{Q(isComposing.Name)} = @is_composing" : string.Empty;
+        var auditColumns = new[] { "IsAudited", "IsRepresented", "ExternalStatementId", "SourcePayloadChecksum", "PublishedAt",
+            "LastSynchronizedAt", "WarningsJson", "LogicalVendor", "SourceMode" }.Select(name => statementColumns[name]).ToArray();
+        var labelColumns = population
+            ? $", co.{Q(companySymbol!.Name)} AS \"CompanySymbol\", co.{Q(companyName!.Name)} AS \"CompanyName\""
+            : string.Empty;
+        var sql = "WITH candidate AS (\n" +
+                  $"  SELECT c_st.{Q(statementCompanyFk.Name)} AS \"CompanyId\", c_st.{Q(periodStart.Name)} AS \"PeriodStart\", " +
+                  $"c_st.{Q(periodEnd.Name)} AS \"PeriodEnd\", c_st.{Q(periodType.Name)} AS \"PeriodType\", c_st.{Q(isComposing.Name)} AS \"IsComposing\"\n" +
+                  $"  FROM {QT(statements)} c_st\n" +
+                  $"  WHERE c_st.{Q(statementCompanyFk.Name)} = ANY(@company_ids)\n" +
+                  $"    AND c_st.{Q(statementProvider.Name)} = @provider_name\n" +
+                  $"    AND c_st.{Q(persistedStatementType.Name)} = @statement_type" + ScopeFilter("c_st") + "\n" +
+                  "),\n" +
+                  "company_coverage AS (\n" +
+                  "  SELECT c.\"CompanyId\", MAX(c.\"PeriodEnd\") AS \"CompanyLatestPeriodEnd\", COUNT(DISTINCT c.\"IsComposing\") AS \"CompanyBasisCount\"\n" +
+                  "  FROM candidate c\n" +
+                  "  GROUP BY c.\"CompanyId\"\n" +
+                  "),\n" +
+                  "common_period AS (\n" +
+                  "  SELECT c.\"PeriodStart\", c.\"PeriodEnd\", c.\"PeriodType\"\n" +
+                  "  FROM candidate c\n" +
+                  "  GROUP BY c.\"PeriodStart\", c.\"PeriodEnd\", c.\"PeriodType\"\n" +
+                  "  HAVING COUNT(DISTINCT c.\"CompanyId\") = (SELECT COUNT(*) FROM company_coverage)\n" +
+                  "),\n" +
+                  "target_period AS (\n" +
+                  "  SELECT cp.\"PeriodStart\", cp.\"PeriodEnd\", cp.\"PeriodType\"\n" +
+                  "  FROM common_period cp\n" +
+                  "  WHERE cp.\"PeriodEnd\" = (SELECT MAX(cp_latest.\"PeriodEnd\") FROM common_period cp_latest)\n" +
+                  ")\n" +
+                  "SELECT cc.\"CompanyId\" AS \"CompanyId\", cc.\"CompanyLatestPeriodEnd\" AS \"CompanyLatestPeriodEnd\", " +
+                  $"cc.\"CompanyBasisCount\" AS \"CompanyBasisCount\", li.{Q(value.Name)} AS \"Value\", " +
+                  $"st.{Q(periodStart.Name)} AS \"PeriodStart\", st.{Q(periodEnd.Name)} AS \"PeriodEnd\", st.{Q(periodType.Name)} AS \"PeriodType\", " +
+                  $"st.{Q(statementId.Name)} AS \"StatementId\", st.{Q(statementProvider.Name)} AS \"ProviderName\", " +
+                  $"st.{Q(persistedStatementType.Name)} AS \"StatementType\", @source_item_id AS \"SourceItemId\", " +
+                  $"(SELECT si.{Q(unit.Name)} FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id) AS \"SourceUnit\", " +
+                  $"@source_item_catalog_id AS \"SourceItemCatalogId\", st.{Q(isComposing.Name)} AS \"IsComposing\", " +
+                  string.Join(", ", auditColumns.Select(column => $"st.{Q(column.Name)} AS \"{column.Name}\"")) + labelColumns + filterColumns + "\n" +
+                  "FROM company_coverage cc\n" +
+                  $"JOIN {QT(companies)} co ON co.{Q(companyId.Name)} = cc.\"CompanyId\"\n" +
+                  $"LEFT JOIN {QT(statements)} st ON st.{Q(statementCompanyFk.Name)} = cc.\"CompanyId\"\n" +
+                  $"  AND st.{Q(statementProvider.Name)} = @provider_name AND st.{Q(persistedStatementType.Name)} = @statement_type" +
+                  ScopeFilter("st") + "\n" +
+                  $"  AND EXISTS (SELECT 1 FROM target_period tp WHERE tp.\"PeriodStart\" = st.{Q(periodStart.Name)} " +
+                  $"AND tp.\"PeriodEnd\" = st.{Q(periodEnd.Name)} AND tp.\"PeriodType\" = st.{Q(periodType.Name)})\n" +
+                  $"LEFT JOIN {QT(lineItems)} li ON li.{Q(lineStatementFk.Name)} = st.{Q(statementId.Name)} " +
+                  $"AND li.{Q(lineSourceFk.Name)} = @source_item_catalog_id\n" +
+                  filterJoins +
+                  $"WHERE co.{Q(companyId.Name)} = ANY(@company_ids)\n" +
+                  $"  AND EXISTS (SELECT 1 FROM {QT(sourceItems)} si WHERE si.{Q(sourceCatalogId.Name)} = @source_item_catalog_id " +
+                  $"AND si.{Q(provider.Name)} = @provider_name AND si.{Q(statementType.Name)} = @statement_type AND si.{Q(srcId.Name)} = @source_item_id)\n" +
+                  $"ORDER BY cc.\"CompanyId\", st.{Q(periodType.Name)}, st.{Q(statementId.Name)}\nLIMIT @row_limit";
+        var parameters = new List<StructuredQueryParameter>();
+        var namedCompanyIds = companyEntities.Select(x => x.ResolvedEntityId!.Value).ToArray();
+        if (!population) parameters.Add(new("company_ids", namedCompanyIds));
+        parameters.AddRange([new("source_item_catalog_id", mapping.SourceItemCatalogId), new("provider_name", mapping.ProviderName),
+            new("statement_type", mapping.StatementType), new("source_item_id", mapping.SourceItemId)]);
+        if (requestedConsolidationScope.HasValue) parameters.Add(new("is_composing", requestedConsolidationScope.Value));
+        parameters.AddRange(filterSources.Select((source, index) =>
+            new StructuredQueryParameter($"filter_source_item_catalog_id_{index.ToString(CultureInfo.InvariantCulture)}", source.SourceItemCatalogId)));
+        parameters.AddRange(filters.Select(filter =>
+            new StructuredQueryParameter($"filter_threshold_{filter.Index.ToString(CultureInfo.InvariantCulture)}", filter.Threshold)));
+        parameters.Add(new("row_limit", MaximumRows + 1));
+
+        var identifiers = new[] { lineItems.Schema, lineItems.Name, statements.Schema, statements.Name, companies.Schema, companies.Name,
+                sourceItems.Schema, sourceItems.Name, value.Name, periodEnd.Name, periodStart.Name, periodType.Name, statementId.Name,
+                provider.Name, statementType.Name, statementProvider.Name, persistedStatementType.Name, srcId.Name, lineSourceFk.Name,
+                isComposing.Name, lineStatementFk.Name, statementCompanyFk.Name, companyId.Name, unit.Name, sourceCatalogId.Name }
+            .Concat(auditColumns.Select(column => column.Name))
+            .Concat(population ? [companySymbol!.Name, companyName!.Name] : []);
+        if (identifiers.Any(identifier => !Identifier.IsMatch(identifier))) return new(false, null, ["catalog_identifier_invalid"]);
+
+        var physicalObjectIds = new[] { sourceItems.CatalogId, lineItems.CatalogId, statements.CatalogId, companies.CatalogId,
+                srcId.CatalogId, unit.CatalogId, sourceCatalogId.CatalogId, lineSourceFk.CatalogId, lineStatementFk.CatalogId,
+                statementId.CatalogId, statementCompanyFk.CatalogId, companyId.CatalogId, value.CatalogId, provider.CatalogId,
+                statementType.CatalogId, statementProvider.CatalogId, persistedStatementType.CatalogId, isComposing.CatalogId,
+                periodEnd.CatalogId, periodStart.CatalogId, periodType.CatalogId }
+            .Concat(auditColumns.Select(column => column.CatalogId))
+            .Concat(population ? [companySymbol!.CatalogId, companyName!.CatalogId] : [])
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var requiredTables = new[] { sourceItems, lineItems, statements, companies };
+        var semanticReviewApproved = plan.SemanticReviewApproved && mapping.SemanticApproved
+            && filterSources.All(source => source.SemanticApproved)
+            && requiredTables.All(table => table.SemanticApproved)
+            && relationships.All(relationship => relationship.SemanticApproved);
+        var queryAuthorized = plan.QueryAuthorized && mapping.Queryable && filterSources.All(source => source.Queryable)
+            && requiredTables.All(table => table.Queryable)
+            && physicalObjectIds.Where(columns.ContainsKey).All(id => columns[id].Queryable)
+            && relationships.All(relationship => relationship.Queryable && relationship.QueryAuthorized)
+            && (!population || scope!.TenantId == plan.TenantId);
+        var identityAuthorized = queryAuthorized && mapping.IdentityVerified && filterSources.All(source => source.IdentityVerified);
+        var specification = new StatementComparisonSpecification(
+            plan.Sort.Count == 1 ? plan.Sort[0].Direction : PlanSortDirection.Descending,
+            plan.Sort.Count == 1 && plan.Pagination.Limit < MaximumRows ? plan.Pagination.Limit : null,
+            population, requestedConsolidationScope,
+            population
+                ? new Dictionary<Guid, string>()
+                : companyEntities.ToDictionary(x => x.ResolvedEntityId!.Value, x => x.UserReference),
+            Ranked: plan.Filters.Count == 0 && plan.Sort.Count == 1 || plan.Presentation == PlanPresentation.RankedTable,
+            Filters: filters);
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sql))).ToLowerInvariant();
+        return new(true, new(sql, parameters, plan.TenantId, snapshot.CatalogVersion, snapshot.CatalogHash, fingerprint,
+            MaximumRows, plan.Presentation, [mapping.CatalogId, .. filterSources.Select(source => source.CatalogId)],
+            mapping.RelationshipIds, physicalObjectIds, population ? Guid.Empty : namedCompanyIds[0], plan.FinancialOperation.Operation, semanticReviewApproved,
+            queryAuthorized, plan.RetrievalComplete, effectiveUnit.Unit, effectiveUnit.Status, effectiveUnit.Provenance,
+            companyIds: population ? [] : namedCompanyIds,
+            companyDiscoveryScopeId: population ? scope!.ScopeId : null,
+            companyDiscoveryApprovalReference: population ? scope!.ApprovalReference : null,
+            companyDiscoveryCoverageComplete: population && scope!.CompanyCoverageComplete,
+            identityAuthorized: identityAuthorized, statementComparison: specification), []);
+    }
+
     private static StructuredQueryCompilationResult CompileDirect(StructuredQueryPlan plan,
         StructuredQueryCatalogSnapshot snapshot, StructuredSqlDirectSource source)
     {
-        var tableMap = snapshot.Tables.ToDictionary(x => x.CatalogId, StringComparer.Ordinal);
-        var relationships = source.RelationshipIds.Select(id => snapshot.Relationships.Single(x => x.CatalogId == id)).ToArray();
-        var lineItems = tableMap[source.LineItemsTableCatalogId];
-        var statements = tableMap[source.StatementsTableCatalogId];
-        var companies = tableMap[source.CompaniesTableCatalogId];
-        var sourceItems = tableMap[source.SourceItemsTableCatalogId];
-        var columns = snapshot.Columns.ToDictionary(x => x.CatalogId, StringComparer.Ordinal);
-        var lineItemColumns = columns.Values.Where(x => x.TableCatalogId == lineItems.CatalogId).ToDictionary(x => x.Name, StringComparer.Ordinal);
-        var statementColumns = columns.Values.Where(x => x.TableCatalogId == statements.CatalogId).ToDictionary(x => x.Name, StringComparer.Ordinal);
-        var lineToStatement = relationships.Single(x => Connects(x, lineItems.CatalogId, statements.CatalogId));
-        var statementToCompany = relationships.Single(x => Connects(x, statements.CatalogId, companies.CatalogId));
-        var sourceToLine = relationships.Single(x => Connects(x, sourceItems.CatalogId, lineItems.CatalogId));
-        var srcId = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "SourceItemId");
-        var (sourceCatalogId, lineSourceFk) = ColumnPair(sourceToLine, sourceItems.CatalogId, columns);
-        var (lineStatementFk, statementId) = ColumnPair(lineToStatement, lineItems.CatalogId, columns);
-        var (statementCompanyFk, companyId) = ColumnPair(statementToCompany, statements.CatalogId, columns);
-        if (sourceCatalogId.TableCatalogId != sourceItems.CatalogId || sourceCatalogId.Name != "Id"
-            || lineSourceFk.TableCatalogId != lineItems.CatalogId || lineSourceFk.Name != "SourceItemCatalogId"
-            || lineStatementFk.TableCatalogId != lineItems.CatalogId || lineStatementFk.Name != "FinancialStatementId"
-            || statementId.TableCatalogId != statements.CatalogId || statementId.Name != "Id"
-            || statementCompanyFk.TableCatalogId != statements.CatalogId || statementCompanyFk.Name != "CompanyId"
-            || companyId.TableCatalogId != companies.CatalogId || companyId.Name != "Id")
+        if (BindDirectSourcePhysical(snapshot, source) is not { } bound)
             return new(false, null, ["direct_source_relationship_column_binding_invalid"]);
-        var value = lineItemColumns["Value"];
-        var provider = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "ProviderName");
-        var unit = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "Unit");
-        var statementType = statementColumns["StatementType"];
-        var statementProvider = statementColumns["ProviderName"];
-        var persistedStatementType = statementColumns["StatementType"];
-        var isComposing = statementColumns["IsComposing"];
-        var periodEnd = statementColumns["PeriodEnd"];
+        var (relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId, sourceCatalogId,
+            lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit, statementType,
+            statementProvider, persistedStatementType, isComposing, periodEnd) = bound;
         var requestedConsolidationScope = plan.Statement.Scopes.Contains("consolidated", StringComparer.Ordinal)
             ? true
             : plan.Statement.Scopes.Contains("standalone", StringComparer.Ordinal) ? false : (bool?)null;
@@ -1260,6 +1485,56 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
             identityAuthorized: identityAuthorized), []);
     }
 
+    private sealed record DirectSourcePhysicalBinding(
+        StructuredSqlRelationship[] Relationships, StructuredSqlTable LineItems, StructuredSqlTable Statements,
+        StructuredSqlTable Companies, StructuredSqlTable SourceItems,
+        IReadOnlyDictionary<string, StructuredSqlColumn> Columns, IReadOnlyDictionary<string, StructuredSqlColumn> StatementColumns,
+        StructuredSqlColumn SrcId, StructuredSqlColumn SourceCatalogId, StructuredSqlColumn LineSourceFk,
+        StructuredSqlColumn LineStatementFk, StructuredSqlColumn StatementId, StructuredSqlColumn StatementCompanyFk,
+        StructuredSqlColumn CompanyId, StructuredSqlColumn Value, StructuredSqlColumn Provider, StructuredSqlColumn Unit,
+        StructuredSqlColumn StatementType, StructuredSqlColumn StatementProvider, StructuredSqlColumn PersistedStatementType,
+        StructuredSqlColumn IsComposing, StructuredSqlColumn PeriodEnd);
+
+    /// <summary>Binds a direct source's physical tables/columns through its verified relationships only.</summary>
+    private static DirectSourcePhysicalBinding? BindDirectSourcePhysical(StructuredQueryCatalogSnapshot snapshot,
+        StructuredSqlDirectSource source)
+    {
+        var tableMap = snapshot.Tables.ToDictionary(x => x.CatalogId, StringComparer.Ordinal);
+        var relationships = source.RelationshipIds.Select(id => snapshot.Relationships.Single(x => x.CatalogId == id)).ToArray();
+        var lineItems = tableMap[source.LineItemsTableCatalogId];
+        var statements = tableMap[source.StatementsTableCatalogId];
+        var companies = tableMap[source.CompaniesTableCatalogId];
+        var sourceItems = tableMap[source.SourceItemsTableCatalogId];
+        var columns = snapshot.Columns.ToDictionary(x => x.CatalogId, StringComparer.Ordinal);
+        var lineItemColumns = columns.Values.Where(x => x.TableCatalogId == lineItems.CatalogId).ToDictionary(x => x.Name, StringComparer.Ordinal);
+        var statementColumns = columns.Values.Where(x => x.TableCatalogId == statements.CatalogId).ToDictionary(x => x.Name, StringComparer.Ordinal);
+        var lineToStatement = relationships.Single(x => Connects(x, lineItems.CatalogId, statements.CatalogId));
+        var statementToCompany = relationships.Single(x => Connects(x, statements.CatalogId, companies.CatalogId));
+        var sourceToLine = relationships.Single(x => Connects(x, sourceItems.CatalogId, lineItems.CatalogId));
+        var srcId = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "SourceItemId");
+        var (sourceCatalogId, lineSourceFk) = ColumnPair(sourceToLine, sourceItems.CatalogId, columns);
+        var (lineStatementFk, statementId) = ColumnPair(lineToStatement, lineItems.CatalogId, columns);
+        var (statementCompanyFk, companyId) = ColumnPair(statementToCompany, statements.CatalogId, columns);
+        if (sourceCatalogId.TableCatalogId != sourceItems.CatalogId || sourceCatalogId.Name != "Id"
+            || lineSourceFk.TableCatalogId != lineItems.CatalogId || lineSourceFk.Name != "SourceItemCatalogId"
+            || lineStatementFk.TableCatalogId != lineItems.CatalogId || lineStatementFk.Name != "FinancialStatementId"
+            || statementId.TableCatalogId != statements.CatalogId || statementId.Name != "Id"
+            || statementCompanyFk.TableCatalogId != statements.CatalogId || statementCompanyFk.Name != "CompanyId"
+            || companyId.TableCatalogId != companies.CatalogId || companyId.Name != "Id")
+            return null;
+        var value = lineItemColumns["Value"];
+        var provider = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "ProviderName");
+        var unit = columns.Values.Single(x => x.TableCatalogId == sourceItems.CatalogId && x.Name == "Unit");
+        var statementType = statementColumns["StatementType"];
+        var statementProvider = statementColumns["ProviderName"];
+        var persistedStatementType = statementColumns["StatementType"];
+        var isComposing = statementColumns["IsComposing"];
+        var periodEnd = statementColumns["PeriodEnd"];
+        return new(relationships, lineItems, statements, companies, sourceItems, columns, statementColumns, srcId,
+            sourceCatalogId, lineSourceFk, lineStatementFk, statementId, statementCompanyFk, companyId, value, provider, unit,
+            statementType, statementProvider, persistedStatementType, isComposing, periodEnd);
+    }
+
     /// <summary>
     /// The unit a direct source value is reported in. A provider-reported source unit is used as-is;
     /// otherwise only an owner-approved effective unit recorded in the reviewed catalog is carried.
@@ -1270,7 +1545,8 @@ public sealed class StructuredQueryCompiler : IStructuredQueryCompiler
         if (string.Equals(source.SourceUnitStatus, "provider-reported", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(source.SourceUnit))
             return (source.SourceUnit, source.SourceUnitStatus, "registered-source-unit");
-        if (string.Equals(source.EffectiveUnitStatus, "owner-approved", StringComparison.OrdinalIgnoreCase)
+        if ((string.Equals(source.EffectiveUnitStatus, "owner-approved", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(source.EffectiveUnitStatus, "capability-directive-approved", StringComparison.OrdinalIgnoreCase))
             && !string.IsNullOrWhiteSpace(source.EffectiveUnit))
             return (source.EffectiveUnit, source.EffectiveUnitStatus, source.EffectiveUnitProvenance ?? "catalog-effective-unit");
         return (null, source.EffectiveUnitStatus ?? source.SourceUnitStatus, null);

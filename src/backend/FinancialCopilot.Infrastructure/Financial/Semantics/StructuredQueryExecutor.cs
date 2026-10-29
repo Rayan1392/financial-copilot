@@ -66,6 +66,10 @@ public sealed class StructuredQueryExecutionOptionsValidator(IHostEnvironment ho
         if (options.ReviewedTenantCompanyDiscoveryScopes.Any(binding =>
                 !TryParseTenantCompanyDiscoveryScope(binding, out _, out _, out _)))
             errors.Add("Feature141 company discovery scope bindings must use tenant-id|scope-id|approval-reference.");
+        if (options.ReviewedTenantCompanyBindings.Any(binding => !TryParseTenantCompanyBinding(binding, out _, out _)))
+            errors.Add("Feature141 reviewed tenant/company bindings must use tenant-guid:company-guid.");
+        if (options.ReviewedTenantCompanyDiscoveryScopes.Length > 0 && options.ReviewedTenantCompanyBindings.Length == 0)
+            errors.Add("Feature141 company discovery requires the reviewed tenant/company universe (ReviewedTenantCompanyBindings).");
         if (options.CommandTimeoutSeconds is < 1 or > 30 || options.MaximumRows is < 1 or > 100
             || options.MaximumResultBytes is < 1 or > 1_000_000 || options.MaximumConcurrency is < 1 or > 4)
             errors.Add("Feature141 timeout and result bounds are outside supported limits.");
@@ -132,9 +136,15 @@ public sealed class CatalogStructuredQueryAuthorizer(
             FinancialValueOperation.DirectValueRetrieval,
             FinancialValueOperation.ApprovedPeriodComparison
         };
+        // Company discovery never scans the whole table: the authorized universe is the tenant's
+        // reviewed tenant/company pairs, and the compiled query selects producers only within it.
+        var reviewedCompanyUniverse = _options.ReviewedTenantCompanyBindings
+            .Select(value => StructuredQueryExecutionOptionsValidator.TryParseTenantCompanyBinding(value,
+                out var allowedTenant, out var allowedCompany) && allowedTenant == tenantId ? allowedCompany : Guid.Empty)
+            .Where(companyId => companyId != Guid.Empty).ToHashSet();
         var companyIds = query.CompanyIds.Distinct().ToArray();
         var companyScopeAuthorized = query.IsPopulationDiscoveryQuery
-            ? companyIds.Length == 0 && discoveryScopeAuthorized
+            ? companyIds.Length == 0 && discoveryScopeAuthorized && reviewedCompanyUniverse.Count > 0
             : companyIds.Length > 0 && companyIds.All(companyId => companyId != Guid.Empty);
         if (!companyScopeAuthorized
             || !allowedOperations.Contains(query.Operation)) return null;
@@ -142,7 +152,7 @@ public sealed class CatalogStructuredQueryAuthorizer(
             ? "feature141:catalog-backed-runtime-v1"
             : _options.AuthorizationProvenance;
         var grantCompanyIds = query.IsPopulationDiscoveryQuery
-            ? new HashSet<Guid>()
+            ? reviewedCompanyUniverse
             : companyIds.ToHashSet();
         return new StructuredQueryExecutionGrant(tenantId, hostEnvironment.EnvironmentName, _options.DesignatedDatabase,
             _options.ReadOnlyRole, query.CatalogHash, allowedSources, allowedRelationships, allowedObjects,
@@ -269,6 +279,19 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
             }
             await transaction.CommitAsync(cancellationToken);
             timer.Stop();
+            // Cross-company statement comparison: the compiler returned candidate statements of every
+            // compared company at their latest common reporting period; the application policy resolves
+            // each company, enforces comparability and ranks. A population is the grant's reviewed universe.
+            if (query.StatementComparison is { } comparison)
+            {
+                var comparedCompanies = query.IsPopulationDiscoveryQuery
+                    ? grant.AllowedCompanyIds.ToArray()
+                    : query.CompanyIds.ToArray();
+                var outcome = CrossCompanyStatementComparisonPolicy.Resolve(rows, comparedCompanies, comparison,
+                    populationCoverageIncomplete: query.IsPopulationDiscoveryQuery && !query.CompanyDiscoveryCoverageComplete);
+                return Result(outcome.Status, query, grant, outcome.DiagnosticCode, outcome.Rows, timer.Elapsed, bytes,
+                    outcome.Warnings);
+            }
             if (query.IsMonthlyValueQuery && rows.Any(row => MoreThanOne(row, "SamePeriodCandidateCount")
                     || MoreThanOne(row, "EligibleReportCount") || Positive(row, "DuplicateProductCount")
                     || MoreThanOne(row, "UnitCompatibilityCount") || Positive(row, "InvalidMultiplicityCount")))
@@ -415,71 +438,16 @@ public sealed class NpgsqlReadOnlyStructuredQueryExecutor : IReadOnlyStructuredQ
         row.TryGetValue(key, out var value) && value is not null
         && Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture) > 0;
 
-    private static DateTime? ReportingPeriod(object? value) => value switch
-    {
-        DateOnly date => date.ToDateTime(TimeOnly.MinValue),
-        DateTime dateTime => dateTime,
-        DateTimeOffset dateTimeOffset => dateTimeOffset.UtcDateTime,
-        string text when DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed) => parsed,
-        _ => null
-    };
-
+    /// <summary>Per-company statement tie policy; owned by the application layer.</summary>
     internal static (StructuredQueryExecutionStatus Status, IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows,
-        string? DiagnosticCode) ResolveStatementTie(IReadOnlyList<IReadOnlyDictionary<string, object?>> rows)
-    {
-        if (rows.Count == 0) return (StructuredQueryExecutionStatus.NoData, [], null);
-        if (rows.Count == 1) return rows[0].GetValueOrDefault("Value") is null
-            ? (StructuredQueryExecutionStatus.NoData, rows, "eligible_statement_observation_missing")
-            : (StructuredQueryExecutionStatus.Succeeded, rows, null);
-        var periods = rows.Select(row => ReportingPeriod(row.GetValueOrDefault("PeriodEnd"))).ToArray();
-        if (periods.Any(period => !period.HasValue))
-            return (StructuredQueryExecutionStatus.Ambiguous, rows, "reporting_period_evidence_unavailable");
-        var latestEnd = periods.Max(period => period!.Value);
-        var latest = rows.Where((_, index) => periods[index] == latestEnd).ToArray();
-        if (latest.Length == 0) return (StructuredQueryExecutionStatus.NoData, [], null);
-        // When no consolidation basis was requested, the compiled query returns the latest statement
-        // of each basis. Choosing the newer basis would silently change the reporting basis of the
-        // answer, so the choice is left to the user instead of being made here.
-        var bases = rows.Select(row => row.GetValueOrDefault("IsComposing")).Distinct().ToArray();
-        var latestBases = latest.Select(row => row.GetValueOrDefault("IsComposing")).Distinct().ToArray();
-        if (bases.Length > 1 && latestBases.Length == 1)
-            return (StructuredQueryExecutionStatus.Ambiguous, rows, "statement_scope_unspecified_across_consolidation_bases");
-        // Period type and start are selection dimensions; audit, representation and revision are
-        // competing statement identities within one otherwise comparable period.
-        var periodScopes = latest.Select(row => (Start: row.GetValueOrDefault("PeriodStart"),
-                Type: row.GetValueOrDefault("PeriodType"), Scope: row.GetValueOrDefault("IsComposing")))
-            .Distinct().ToArray();
-        if (periodScopes.Length != 1)
-            return (StructuredQueryExecutionStatus.Ambiguous, latest, "different_reporting_period_scopes");
-        if (latest.Any(row => row.GetValueOrDefault("Value") is null))
-            return (StructuredQueryExecutionStatus.Incomplete, latest, "eligible_statement_observation_missing");
-        var values = latest.Select(row => row.GetValueOrDefault("Value")).ToArray();
-        if (values.Skip(1).Any(value => !Equals(value, values[0])))
-            return (StructuredQueryExecutionStatus.Ambiguous, latest, "requested_item_values_conflict");
-        var resolved = new Dictionary<string, object?>(latest[0], StringComparer.Ordinal);
-        // A representative row must not imply that its statement was preferred. The complete
-        // competing identities are emitted together and the singular identity is removed.
-        resolved.Remove("StatementId");
-        resolved.Remove("IsAudited");
-        resolved.Remove("IsRepresented");
-        resolved.Remove("ExternalStatementId");
-        resolved.Remove("SourcePayloadChecksum");
-        resolved.Remove("PublishedAt");
-        resolved.Remove("LastSynchronizedAt");
-        resolved.Remove("WarningsJson");
-        resolved.Remove("LogicalVendor");
-        resolved.Remove("SourceMode");
-        resolved["StatementIdentities"] = latest.Select(row => row.GetValueOrDefault("StatementId")).ToArray();
-        resolved["SameValueTieResolved"] = true;
-        resolved["MatchingStatementCount"] = latest.Length;
-        return (StructuredQueryExecutionStatus.Succeeded, [resolved], null);
-    }
+        string? DiagnosticCode) ResolveStatementTie(IReadOnlyList<IReadOnlyDictionary<string, object?>> rows) =>
+        LatestStatementObservationPolicy.Resolve(rows);
 
     private static StructuredQueryExecutionResult Result(StructuredQueryExecutionStatus status,
         CompiledReadOnlyQuery query, StructuredQueryExecutionGrant grant, string? diagnostic,
-        IReadOnlyList<IReadOnlyDictionary<string, object?>>? rows = null, TimeSpan? elapsed = null, long? bytes = null) =>
+        IReadOnlyList<IReadOnlyDictionary<string, object?>>? rows = null, TimeSpan? elapsed = null, long? bytes = null,
+        IReadOnlyList<string>? warnings = null) =>
         new(status, rows ?? [], query.SourceCatalogIds, query.CatalogVersion, query.CatalogHash,
-            query.QueryFingerprint, elapsed, bytes, grant.Provenance, [], diagnostic,
+            query.QueryFingerprint, elapsed, bytes, grant.Provenance, warnings ?? [], diagnostic,
             query.EffectiveUnit, query.EffectiveUnitStatus, query.EffectiveUnitProvenance);
 }

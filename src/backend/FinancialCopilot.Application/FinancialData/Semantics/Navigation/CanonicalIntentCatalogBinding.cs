@@ -37,11 +37,7 @@ public static class CanonicalIntentCatalogBinding
             if (measure.CanonicalizationStatus != MeasureCanonicalizationStatus.Canonicalized
                 || string.IsNullOrWhiteSpace(measure.ConceptId))
                 return Fail(CanonicalCatalogBindingStatus.Incomplete, "canonical_measure_unresolved");
-            var matches = catalogReferences.Where(reference => (reference.CanonicalConceptBindings ?? []).Any(binding =>
-                string.Equals(binding.Status, "approved", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(binding.CanonicalConceptId, measure.ConceptId, StringComparison.Ordinal)
-                && string.Equals(binding.Dimension, measure.Dimension.ToString(), StringComparison.Ordinal)
-                && string.Equals(binding.ValueForm, measure.Qualifiers.ValueForm.ToString(), StringComparison.Ordinal))).ToArray();
+            var matches = ApprovedMatches(measure, catalogReferences);
             if (matches.Length == 0)
                 return Fail(CanonicalCatalogBindingStatus.Incomplete, $"approved_catalog_binding_missing:{measure.ConceptId}");
             if (matches.Length > 1)
@@ -53,31 +49,49 @@ public static class CanonicalIntentCatalogBinding
         if (selected.Any(reference => !reference.Queryable))
             return new(CanonicalCatalogBindingStatus.Unauthorized, intent, selected,
                 ["catalog_query_authorization_missing"]);
-        // The currently proved Planner handoff represents one direct, latest statement value.
-        // Preserve the full intent and reject every other requested operator or scope before planning.
-        if (selected.Count != 1 || intent.Operation.Kind != AnalyticalOperationKind.Retrieve
-            || intent.Comparison.Mode != ComparisonMode.None
-            || intent.Period.Kind is not (ReportingPeriodKind.LatestAvailable or ReportingPeriodKind.Unspecified)
-            || intent.EntityScope.Kind != EntityScopeKind.NamedCompanies
-            || intent.Output.Kind is not (RequestedOutputKind.Scalar or RequestedOutputKind.Table)
-            || intent.Products.Count != 0 || intent.Categories.Count != 0 || intent.Filters is not null
-            || intent.Aggregation is not null || intent.Ranking is not null || intent.Constraints.Count != 0
-            || intent.Measures.Any(m => m.Qualifiers.ReportingBasis != MeasureReportingBasis.Unspecified
-                || m.Qualifiers.StatementScope != FinancialStatementScope.Unspecified
-                || m.Qualifiers.ValueGrain != MeasureValueGrain.Unspecified)
-            || intent.Output.RequestedFields.Count != 0)
-            return new(CanonicalCatalogBindingStatus.Unsupported, intent, selected,
-                ["canonical_semantics_not_representable_in_current_planner_handoff"]);
         // A requested unit is only representable when it is exactly the approved effective unit of
         // the bound source; any other unit would need a conversion the planner slice does not own.
+        // It is checked before the shape so a unit restated elsewhere in the intent reports the conversion.
         if (intent.Measures.Where((measure, index) => measure.RequestedUnit != SemanticUnit.Unspecified
-                && !RequestedUnitMatchesEffectiveUnit(measure.RequestedUnit, selected[index])).Any())
+                && !UnitMatchesEffectiveUnit(measure.RequestedUnit, selected[index])).Any())
             return new(CanonicalCatalogBindingStatus.Unsupported, intent, selected,
                 ["requested_result_unit_conversion_not_supported"]);
+        // The proved planner handoffs represent one latest statement value of one company, a comparison
+        // of explicitly named companies, a ranking of named companies or the authorized population, or a
+        // threshold filter over them (StatementQueryShapeClassifier owns that rule). Every other operator
+        // or scope is rejected before planning while the full intent is preserved.
+        var shape = StatementQueryShapeClassifier.Classify(intent);
+        if (!shape.IsSupported || shape.Shape != StatementQueryShape.Filter && selected.Count != 1)
+            return new(CanonicalCatalogBindingStatus.Unsupported, intent, selected,
+                ["canonical_semantics_not_representable_in_current_planner_handoff",
+                    .. shape.Diagnostic is null ? Array.Empty<string>() : [shape.Diagnostic]]);
+        if (shape.Shape == StatementQueryShape.Filter)
+        {
+            // Every predicate is evaluated on the same statement as the listed value, in the bound item's own unit.
+            if (selected.Any(reference => reference.ProviderName != selected[0].ProviderName || reference.StatementType != selected[0].StatementType))
+                return new(CanonicalCatalogBindingStatus.Unsupported, intent, selected, ["statement_filter_items_on_different_statements"]);
+            foreach (var threshold in shape.Thresholds!)
+            {
+                var reference = selected[intent.Measures.ToList().FindIndex(measure => measure.ConceptId == threshold.MeasureConcept)];
+                if (threshold.Threshold.Unit == SemanticUnit.Unspecified)
+                    return new(CanonicalCatalogBindingStatus.Incomplete, intent, selected, ["statement_filter_threshold_unit_unspecified"]);
+                if (!UnitMatchesEffectiveUnit(threshold.Threshold.Unit, reference))
+                    return new(CanonicalCatalogBindingStatus.Unsupported, intent, selected, ["statement_filter_threshold_unit_conversion_not_supported"]);
+            }
+        }
         return new(CanonicalCatalogBindingStatus.Bound, intent, selected, []);
     }
 
-    private static bool RequestedUnitMatchesEffectiveUnit(SemanticUnit requested, FinancialValueCatalogReference reference) =>
+    /// <summary>Catalog references with an approved binding of the measure's concept, dimension and value form.</summary>
+    internal static FinancialValueCatalogReference[] ApprovedMatches(RequestedMeasure measure,
+        IReadOnlyList<FinancialValueCatalogReference> catalogReferences) =>
+        catalogReferences.Where(reference => (reference.CanonicalConceptBindings ?? []).Any(binding =>
+            string.Equals(binding.Status, "approved", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(binding.CanonicalConceptId, measure.ConceptId, StringComparison.Ordinal)
+            && string.Equals(binding.Dimension, measure.Dimension.ToString(), StringComparison.Ordinal)
+            && string.Equals(binding.ValueForm, measure.Qualifiers.ValueForm.ToString(), StringComparison.Ordinal))).ToArray();
+
+    internal static bool UnitMatchesEffectiveUnit(SemanticUnit requested, FinancialValueCatalogReference reference) =>
         !string.Equals(reference.EffectiveUnitStatus, "requires-semantic-review", StringComparison.OrdinalIgnoreCase)
         && !string.Equals(reference.EffectiveUnitStatus, "unresolved", StringComparison.OrdinalIgnoreCase)
         && string.Equals(FinancialSourcePlannerHandoff.UnitCode(requested),

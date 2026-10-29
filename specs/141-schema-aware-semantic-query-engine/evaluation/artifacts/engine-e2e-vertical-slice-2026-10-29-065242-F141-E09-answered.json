@@ -1,0 +1,666 @@
+{
+  "runAt": "2026-10-29T06:52:42.7921286+00:00",
+  "executionMode": "live-llm-plus-isolated-postgresql-fixture",
+  "chatIntegrationTouched": false,
+  "trace": {
+    "CaseId": "F141-E09",
+    "Question": "مقدار فروش گندله کگل در شهریور ۱۴۰۵ چقدر بود؟",
+    "Fixture": {
+      "DatabaseName": "feature131_45ecfb555eeb48649fb908b32233bb85",
+      "RestrictedRole": "feature141_vs_monthly_reader_6113c949a602460d9555915391a2d4c3",
+      "CompanyId": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+      "DecoyCompanyId": "6a5d47b5-cb66-429b-8e84-bc20903aa77f",
+      "StatementId": "00000000-0000-0000-0000-000000000000",
+      "OlderStatementId": "00000000-0000-0000-0000-000000000000",
+      "SeededLineItemCount": 5,
+      "MonthlyReportId": "0b6f22ff-1bf1-476e-857b-4ce1c34f7591",
+      "ProductKey": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+      "ReviewedCompanyUniverse": null,
+      "UnauthorizedProducerId": null,
+      "CompaniesBySymbol": null,
+      "MonthlyValueColumn": "SalesQuantity",
+      "SeededSourceItemCatalogId": null
+    },
+    "ExpectedOutcome": "Answered",
+    "TypedOutcome": "Answered",
+    "TypedOutcomeReason": null,
+    "ProviderKey": "OpenAI",
+    "ModelKey": "gpt-5.6-luna",
+    "CatalogVersion": "1",
+    "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+    "ChatGateEnabled": true,
+    "ChatGateMessage": null,
+    "IntentExtractionSucceeded": true,
+    "IntentFailureCategory": null,
+    "CanonicalIntent": {
+      "ContractVersion": 2,
+      "Measures": [
+        {
+          "UserPhrase": "مقدار فروش",
+          "ConceptId": "salesQuantity",
+          "CanonicalizationStatus": "Canonicalized",
+          "CandidateConceptIds": [
+            "salesQuantity"
+          ],
+          "Kind": "SalesQuantity",
+          "Dimension": "PhysicalQuantity",
+          "Qualifiers": {
+            "ValueForm": "ReportedValue",
+            "ReportingBasis": "MonthlyDiscrete",
+            "StatementScope": "Unspecified",
+            "ValueGrain": "ProductLevel"
+          },
+          "RequestedUnit": "Unspecified",
+          "EffectiveSourceUnit": null,
+          "EffectiveSourceUnitEvidence": "Unresolved"
+        }
+      ],
+      "Operation": {
+        "Kind": "Retrieve",
+        "Direction": null,
+        "UnsupportedReason": null
+      },
+      "Comparison": {
+        "Mode": "None",
+        "BaselineDescription": null,
+        "TargetDescription": null
+      },
+      "Period": {
+        "Kind": "ExplicitMonth",
+        "Granularity": "Month",
+        "UserPeriodLabel": "شهریور ۱۴۰۵",
+        "NumberOfPeriods": 1,
+        "StartLabel": "شهریور ۱۴۰۵",
+        "EndLabel": "شهریور ۱۴۰۵"
+      },
+      "EntityScope": {
+        "Kind": "NamedCompanies",
+        "CompanyLabels": [
+          "کگل"
+        ]
+      },
+      "Products": [
+        {
+          "UserLabel": "گندله",
+          "ConceptLabel": null,
+          "Provenance": "Explicit"
+        }
+      ],
+      "Categories": [],
+      "Filters": null,
+      "Aggregation": null,
+      "Ranking": null,
+      "Output": {
+        "Kind": "Scalar",
+        "RequestedFields": []
+      },
+      "Constraints": [],
+      "Ambiguity": {
+        "RequiresClarification": false,
+        "Questions": [],
+        "UnresolvedPoints": []
+      }
+    },
+    "TypedBindingStatus": "Incomplete",
+    "TypedBindingDiagnostics": [
+      "approved_catalog_binding_missing:salesQuantity"
+    ],
+    "BoundSourceCatalogId": null,
+    "ChatPathBindingStatus": null,
+    "ChatPathBindingDiagnostic": null,
+    "HandoffStatus": null,
+    "HandoffDiagnosticCode": null,
+    "PlannerRequirements": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "MeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "DimensionIds": [
+        "dim_company",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "EntityKinds": [
+        "company",
+        "product"
+      ],
+      "RelationshipIds": [
+        "rel_31e410fb3ae11956",
+        "rel_4e54d40aee8b45e4"
+      ],
+      "SourcePolicies": [
+        "default-standalone"
+      ],
+      "PeriodPolicies": [
+        "explicit-period"
+      ],
+      "ComparisonScopes": [],
+      "PresentationRequirements": [
+        "scalar"
+      ],
+      "HasUnknownOrAmbiguousRequirements": false,
+      "UncertaintyReason": null,
+      "StatementScopes": [
+        "standalone"
+      ],
+      "AggregationRequirements": [],
+      "OrderingRequirements": [],
+      "EntityReferences": [
+        "کگل"
+      ],
+      "ModelCalls": 1,
+      "InputTokens": 4224,
+      "OutputTokens": 624,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": "00:00:06.7226505",
+      "FinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales_quantity"
+        }
+      ],
+      "RequestedFinancialValueOperation": "DirectValueRetrieval",
+      "StructuredShape": {
+        "ProjectionCatalogIds": [
+          "dim_company",
+          "dim_monthly_period",
+          "dim_product_identity",
+          "metric_monthly_sales_quantity"
+        ],
+        "GroupByCatalogIds": [],
+        "Filters": [],
+        "Aggregations": [],
+        "Sort": [],
+        "Offset": 0,
+        "Limit": 1,
+        "FinancialOperationKind": "DirectValue",
+        "ReportingPeriodStart": "2026-08-23",
+        "ReportingPeriodEnd": "2026-09-22",
+        "MaximumPeriods": null,
+        "ComparisonMode": "None"
+      },
+      "ProductReferences": [
+        "گندله"
+      ],
+      "ResolvedCompanyPopulation": null,
+      "ResolvedProductEquivalence": null,
+      "ResolvedProductConcept": null,
+      "AuthorizedCompanyDiscoveryScope": null,
+      "PopulationDiscoveryRequested": false,
+      "PopulationCoveragePolicyId": null,
+      "PopulationSalesScope": null,
+      "PopulationSalesScopeAmbiguous": false,
+      "NormalizationDiagnostics": [
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+      ],
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": 0,
+      "EstimatedOutputTokens": 0
+    },
+    "Navigation": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "Candidates": [
+        {
+          "NodeId": "domain-monthly-activity",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        },
+        {
+          "NodeId": "table-tbl_8ecd0432a4292998",
+          "Confidence": 0,
+          "Rationale": "catalog match"
+        }
+      ],
+      "SelectedNodeIds": [
+        "dimension-dim_company",
+        "dimension-dim_monthly_period",
+        "dimension-dim_product_identity",
+        "domain-company-industry",
+        "domain-monthly-activity",
+        "financial-semantic-catalog",
+        "shared-dimensions",
+        "table-tbl_8646d83cdb350f92",
+        "table-tbl_8e759d70dada6bd8",
+        "table-tbl_8ecd0432a4292998"
+      ],
+      "SelectedMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "SelectedDimensionIds": [
+        "dim_company",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "SelectedEntityKinds": [
+        "company",
+        "product"
+      ],
+      "SelectedRelationshipIds": [
+        "rel_31e410fb3ae11956",
+        "rel_4e54d40aee8b45e4"
+      ],
+      "SelectedSourcePolicies": [
+        "default-standalone"
+      ],
+      "SelectedPeriodPolicies": [
+        "explicit-period"
+      ],
+      "MissingContext": [],
+      "Diagnostics": [
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:dimension-dim_monthly_period",
+        "navigation_metadata_pending:dimension-dim_product_identity",
+        "navigation_metadata_pending:table-tbl_8ecd0432a4292998",
+        "navigation_metadata_pending:domain-monthly-activity",
+        "navigation_metadata_pending:table-tbl_8e759d70dada6bd8",
+        "navigation_metadata_pending:domain-company-industry",
+        "navigation_metadata_pending:table-tbl_8646d83cdb350f92",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:dimension-dim_monthly_period",
+        "semantic_meaning_unapproved:dimension-dim_product_identity",
+        "semantic_meaning_unapproved:table-tbl_8ecd0432a4292998",
+        "semantic_meaning_unapproved:domain-monthly-activity",
+        "semantic_meaning_unapproved:table-tbl_8e759d70dada6bd8",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "semantic_meaning_unapproved:table-tbl_8646d83cdb350f92",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:dimension-dim_monthly_period",
+        "query_not_authorized:dimension-dim_product_identity",
+        "query_not_authorized:table-tbl_8ecd0432a4292998",
+        "query_not_authorized:domain-monthly-activity",
+        "query_not_authorized:table-tbl_8e759d70dada6bd8",
+        "query_not_authorized:domain-company-industry",
+        "query_not_authorized:table-tbl_8646d83cdb350f92"
+      ],
+      "SelectedComparisonScopes": [],
+      "SelectedPresentationRequirements": [
+        "scalar"
+      ],
+      "SelectedStatementScopes": [
+        "standalone"
+      ],
+      "SelectedAggregationRequirements": [],
+      "SelectedOrderingRequirements": [],
+      "SelectedEntityReferences": [
+        "کگل",
+        "گندله"
+      ],
+      "ModelCalls": 2,
+      "InputTokens": 8080,
+      "OutputTokens": 797,
+      "ProviderReportedCost": null,
+      "ProviderReportedCurrency": null,
+      "ModelLatency": "00:00:09.3152354",
+      "CompletenessStatus": "Complete",
+      "SelectedFinancialValueReferences": [
+        {
+          "referenceType": "MonthlyMeasure",
+          "catalogId": "metric_monthly_sales_quantity"
+        }
+      ],
+      "FinancialValueOperation": "DirectValueRetrieval",
+      "RetryAttempts": 0,
+      "EstimatedInputTokens": 0,
+      "EstimatedOutputTokens": 0,
+      "RetrievalComplete": true,
+      "SemanticReviewApproved": true,
+      "QueryAuthorized": true,
+      "CandidateMeasureIds": [
+        "metric_avg_12m_monthly_sales",
+        "metric_monthly_production_growth_yoy",
+        "metric_monthly_production_quantity",
+        "metric_monthly_sales",
+        "metric_monthly_sales_growth_mom",
+        "metric_monthly_sales_growth_yoy",
+        "metric_monthly_sales_quantity",
+        "metric_monthly_sales_quantity_growth_yoy",
+        "metric_monthly_sales_rate",
+        "metric_monthly_sales_to_production_ratio",
+        "metric_monthly_sales_ytd",
+        "metric_monthly_sales_ytd_previous_month"
+      ],
+      "RequiredMeasureIds": [
+        "metric_monthly_sales_quantity"
+      ],
+      "CandidateDimensionIds": [
+        "dim_company",
+        "dim_industry",
+        "dim_monthly_period",
+        "dim_product_identity"
+      ],
+      "CandidateRelationshipIds": [
+        "rel_01d20c44fad46b14",
+        "rel_0a064593b79bfabb",
+        "rel_1f9aee4cf408c134",
+        "rel_27c113242c5db114",
+        "rel_31e410fb3ae11956",
+        "rel_38ed0217e96af6f4",
+        "rel_43ae23d35efbe735",
+        "rel_4602c28feda3a0a8",
+        "rel_4c8e0741d5b7ab00",
+        "rel_4e54d40aee8b45e4",
+        "rel_5bc660a22f34ed20",
+        "rel_5cce5a3ef281dec0",
+        "rel_795f5fd8f8c6a468",
+        "rel_7bf681885d1db432",
+        "rel_7ea100339cd75190",
+        "rel_818227f1407b2495",
+        "rel_8856eca122e9381e",
+        "rel_909a4c520eaae110",
+        "rel_99dda63b5dc55e19",
+        "rel_a7c0e9de39ddac74",
+        "rel_b033eb0fdb5fd5dd",
+        "rel_b812b9c90dfb6118",
+        "rel_baaf281697dd8f05",
+        "rel_be5496879e7b3a75",
+        "rel_de517d46b8e8921b",
+        "rel_dfacaa7ccc6b1ef1",
+        "rel_e4fa0fe989156533",
+        "rel_e632198d030be7c8",
+        "rel_e90be0fb24eb6f5e",
+        "rel_f0a4c63a5f3b214d",
+        "rel_f28877e057383f55"
+      ],
+      "RequirementsCalls": 1,
+      "NavigationCalls": 1,
+      "ExpansionCalls": 0,
+      "RequirementsRetryAttempts": 0,
+      "NavigationRetryAttempts": 0
+    },
+    "Plan": {
+      "ContractVersion": 1,
+      "CatalogVersion": "1",
+      "CatalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "TenantId": "5f655e78-07c5-4805-a757-a8d1927ab1d2",
+      "Entities": [
+        {
+          "EntityKind": "Company",
+          "UserReference": "کگل",
+          "ResolvedEntityId": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+          "ResolvedEntityKey": null,
+          "IdentityProvenance": "exact_ticker",
+          "IdentityVerified": true
+        },
+        {
+          "EntityKind": "Product",
+          "UserReference": "گندله",
+          "ResolvedEntityId": null,
+          "ResolvedEntityKey": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+          "IdentityProvenance": "feature-129-company-scoped-product-row",
+          "IdentityVerified": true
+        }
+      ],
+      "Sources": [
+        {
+          "ReferenceType": "MonthlyMeasure",
+          "CatalogId": "metric_monthly_sales_quantity",
+          "SourceItemCatalogId": null,
+          "ProviderName": null,
+          "StatementType": null,
+          "SourceItemId": null,
+          "MetricCode": "metric_monthly_sales_quantity",
+          "Unit": null,
+          "UnitStatus": null,
+          "IdentityStatus": "catalog-mapped",
+          "SemanticReviewStatus": "pending-or-unresolved",
+          "Queryable": false,
+          "TitleFa": null
+        }
+      ],
+      "RelationshipIds": [
+        "rel_31e410fb3ae11956"
+      ],
+      "Projection": [
+        {
+          "CatalogId": "metric_monthly_sales_quantity",
+          "Role": "Value"
+        }
+      ],
+      "Filters": [],
+      "Period": {
+        "Policies": [
+          "explicit-period"
+        ],
+        "ComparisonScopes": [],
+        "SelectLatestByReportingPeriod": false,
+        "UseSynchronizationTimestampForRecency": false,
+        "ReportingPeriodStart": "2026-08-23",
+        "ReportingPeriodEnd": "2026-09-22",
+        "MaximumPeriods": null
+      },
+      "Statement": {
+        "Scopes": [
+          "standalone"
+        ],
+        "Providers": [],
+        "StatementTypes": [],
+        "SelectionKeys": [
+          "ReportingPeriodDescending",
+          "PeriodType",
+          "ProviderIdentity",
+          "StatementType",
+          "StatementScope",
+          "AuditState",
+          "RestatementState",
+          "RevisionIdentity",
+          "Availability"
+        ],
+        "PreferComposing": false,
+        "PreservePeriodType": true,
+        "PreserveAuditState": true,
+        "PreserveRestatementState": true,
+        "PreserveRevisionIdentity": true,
+        "RequireUnambiguousSelection": true
+      },
+      "Aggregations": [],
+      "Sort": [],
+      "Pagination": {
+        "Offset": 0,
+        "Limit": 1
+      },
+      "Presentation": "Scalar",
+      "FinancialOperation": {
+        "Operation": "DirectValueRetrieval",
+        "Kind": "DirectValue",
+        "ComparisonMode": "None",
+        "ValueDefinitionCatalogIds": [],
+        "FormulaAuthorized": false
+      },
+      "RetrievalComplete": true,
+      "SemanticReviewApproved": true,
+      "QueryAuthorized": true,
+      "ExecutionEligible": true,
+      "Diagnostics": [
+        "navigation_metadata_pending:dimension-dim_company",
+        "navigation_metadata_pending:shared-dimensions",
+        "navigation_metadata_pending:financial-semantic-catalog",
+        "navigation_metadata_pending:dimension-dim_monthly_period",
+        "navigation_metadata_pending:dimension-dim_product_identity",
+        "navigation_metadata_pending:table-tbl_8ecd0432a4292998",
+        "navigation_metadata_pending:domain-monthly-activity",
+        "navigation_metadata_pending:table-tbl_8e759d70dada6bd8",
+        "navigation_metadata_pending:domain-company-industry",
+        "navigation_metadata_pending:table-tbl_8646d83cdb350f92",
+        "semantic_meaning_unapproved:dimension-dim_company",
+        "semantic_meaning_unapproved:shared-dimensions",
+        "semantic_meaning_unapproved:financial-semantic-catalog",
+        "semantic_meaning_unapproved:dimension-dim_monthly_period",
+        "semantic_meaning_unapproved:dimension-dim_product_identity",
+        "semantic_meaning_unapproved:table-tbl_8ecd0432a4292998",
+        "semantic_meaning_unapproved:domain-monthly-activity",
+        "semantic_meaning_unapproved:table-tbl_8e759d70dada6bd8",
+        "semantic_meaning_unapproved:domain-company-industry",
+        "semantic_meaning_unapproved:table-tbl_8646d83cdb350f92",
+        "query_not_authorized:dimension-dim_company",
+        "query_not_authorized:shared-dimensions",
+        "query_not_authorized:financial-semantic-catalog",
+        "query_not_authorized:dimension-dim_monthly_period",
+        "query_not_authorized:dimension-dim_product_identity",
+        "query_not_authorized:table-tbl_8ecd0432a4292998",
+        "query_not_authorized:domain-monthly-activity",
+        "query_not_authorized:table-tbl_8e759d70dada6bd8",
+        "query_not_authorized:domain-company-industry",
+        "query_not_authorized:table-tbl_8646d83cdb350f92",
+        "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+      ],
+      "ReviewedProductEquivalence": null,
+      "CompanyPopulationId": null,
+      "CompanyPopulationApprovalReference": null,
+      "ProductConcept": null,
+      "CompanyDiscoveryScope": null,
+      "PopulationCoveragePolicyId": null,
+      "PopulationSalesScope": null
+    },
+    "PlanStructurallyValid": true,
+    "PlanExecutionEligible": true,
+    "PlanDiagnostics": [],
+    "PlanStatementScopes": [
+      "standalone"
+    ],
+    "CompanyBindingStatus": "Found",
+    "BoundCompanyId": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+    "CompilationSucceeded": true,
+    "CompilationDiagnostics": [],
+    "Sql": "WITH eligible_monthly_rows AS (SELECT r.\"CompanyId\" AS \"CompanyId\", r.\"PeriodStart\" AS \"PeriodStart\", r.\"PeriodEnd\" AS \"PeriodEnd\", li.\"ProductCode\" AS \"ProductCode\", li.\"Title\" AS \"ProductTitle\", li.\"SalesQuantity\" AS \"Value\", li.\"Unit\" AS \"SourceUnit\", COUNT(*) OVER (PARTITION BY r.\"CompanyId\", r.\"PeriodEnd\", li.\"ProductCode\") AS \"SamePeriodCandidateCount\", r.\"ProviderName\" AS \"ProviderName\", r.\"ReportType\" AS \"ReportType\", r.\"OutputType\" AS \"OutputType\", r.\"RevisionStatus\" AS \"RevisionStatus\", r.\"Id\" AS \"ReportIdentity\", r.\"ExternalReportId\" AS \"ExternalReportId\", li.\"SourceRowFingerprint\" AS \"SourceRowFingerprint\", li.\"SourceMultiplicity\" AS \"SourceMultiplicity\" FROM \"public\".\"MonthlyReportLineItems\" li JOIN \"public\".\"MonthlyReports\" r ON li.\"MonthlyReportId\" = r.\"Id\" WHERE r.\"CompanyId\" = @company_id AND r.\"ProviderName\" = @provider_name AND r.\"ReportType\" = @report_type AND r.\"OutputType\" = @output_type AND r.\"IsAccepted\" = @is_accepted AND r.\"RevisionStatus\" = @revision_status AND li.\"ProductCode\" = @product_code AND r.\"PeriodStart\" >= @period_start AND r.\"PeriodEnd\" <= @period_end),\nprojected_monthly_rows AS (SELECT * FROM eligible_monthly_rows)\nSELECT *, \"ReportIdentity\" AS \"ReportId\" FROM projected_monthly_rows ORDER BY \"CompanyId\", \"PeriodEnd\" ASC, \"ProductCode\", \"SourceMultiplicity\" LIMIT @row_limit OFFSET @row_offset",
+    "SqlParameters": {
+      "provider_name": "NoavaranCurrentApi",
+      "report_type": "ProductSales",
+      "output_type": 0,
+      "is_accepted": true,
+      "revision_status": "Accepted",
+      "row_limit": 2,
+      "row_offset": 0,
+      "company_id": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+      "product_code": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+      "period_start": "2026-08-23",
+      "period_end": "2026-09-22"
+    },
+    "QueryFingerprint": "0ea604d965e2fde548f9623fb5da24433b94d627881908cb95357f4b9a9809ad",
+    "CompiledEffectiveUnit": "row-source-unit",
+    "CompiledOperation": "DirectValueRetrieval",
+    "CompiledCompanyIds": [
+      "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac"
+    ],
+    "CompiledSemanticReviewApproved": true,
+    "CompiledIdentityAuthorized": false,
+    "CompiledQueryAuthorized": true,
+    "GrantIssued": true,
+    "GrantDatabase": "feature131_45ecfb555eeb48649fb908b32233bb85",
+    "GrantRole": "feature141_vs_monthly_reader_6113c949a602460d9555915391a2d4c3",
+    "GrantProvenance": "feature141-isolated-vertical-slice-fixture",
+    "ExecutionStatus": "Succeeded",
+    "ExecutionDiagnostic": null,
+    "ExecutionRowCount": 1,
+    "ExecutionRows": [
+      {
+        "CompanyId": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "ProductCode": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+        "ProductTitle": "گندله",
+        "Value": 20,
+        "SourceUnit": "ton",
+        "SamePeriodCandidateCount": 1,
+        "ProviderName": "NoavaranCurrentApi",
+        "ReportType": "ProductSales",
+        "OutputType": 0,
+        "RevisionStatus": "Accepted",
+        "ReportIdentity": "0b6f22ff-1bf1-476e-857b-4ce1c34f7591",
+        "ExternalReportId": "vs-kgol-1405-06",
+        "SourceRowFingerprint": "row-vs-kgol-1405-06-NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+        "SourceMultiplicity": 1,
+        "ReportId": "0b6f22ff-1bf1-476e-857b-4ce1c34f7591"
+      }
+    ],
+    "ActualValue": 20,
+    "ActualPeriodStart": "2026-08-23",
+    "ActualPeriodEnd": "2026-09-22",
+    "ActualPersianPeriodStart": "1405-06-01",
+    "ActualPersianPeriodEnd": "1405-06-31",
+    "ActualRowCompanyId": "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac",
+    "ActualRowSourceItemId": null,
+    "ExecutionEffectiveUnit": "row-source-unit",
+    "ExecutionAuthorizationProvenance": "feature141-isolated-vertical-slice-fixture",
+    "ExecutionElapsedMs": 29.8274,
+    "IndependentDatabaseValue": 20,
+    "IndependentLineItemCount": 5,
+    "PersianAnswerStatus": "Answered",
+    "PersianAnswer": "کگل گندله در بازهٔ ۲۰۲۶-۰۸-۲۳ تا ۲۰۲۶-۰۹-۲۲، مقدار فروش ماهانه: ۲۰ تن.\nمنبع: NoavaranCurrentApi، گزارش vs-kgol-1405-06.",
+    "PersianAnswerUnit": "تن",
+    "PersianEvidence": [
+      {
+        "Company": "کگل",
+        "Product": "گندله",
+        "PeriodStart": "2026-08-23",
+        "PeriodEnd": "2026-09-22",
+        "Provider": "NoavaranCurrentApi",
+        "ReportIdentities": [
+          "vs-kgol-1405-06"
+        ],
+        "SourceReferences": [
+          "row-vs-kgol-1405-06-NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton"
+        ],
+        "Facts": {
+          "Value": "20",
+          "SourceUnit": "ton"
+        },
+        "EvidenceStatus": "verified"
+      }
+    ],
+    "RestrictedRoleIsSelectOnly": true,
+    "RestrictedRoleCanReadOtherDomainTable": false,
+    "RequirementsMeasureIds": [
+      "metric_monthly_sales_quantity"
+    ],
+    "RequirementsNormalizationDiagnostics": [
+      "persian_period_normalized:1405-06:2026-08-23..2026-09-22"
+    ],
+    "ModelPeriodStart": "2026-08-23",
+    "ModelPeriodEnd": "2026-09-22",
+    "NormalizedPersianMonth": "1405-06",
+    "NormalizedPeriodStart": "2026-08-23",
+    "NormalizedPeriodEnd": "2026-09-22",
+    "ProductBindingStatus": "Found",
+    "ProductKey": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+    "ActualProductCode": "NoavaranCurrentApi:feature141-vs-kgol:TITLE:گندله|UNIT:ton",
+    "ActualSourceUnit": "ton",
+    "ProductConceptCatalogId": null,
+    "ProductConceptAliases": [],
+    "ProductMappingCoverageStatus": null,
+    "CompanyDiscoveryScopeId": null,
+    "CompanyDiscoveryCoverageComplete": null,
+    "GrantAllowedCompanyIds": [
+      "78b7284f-9cf2-433d-a8eb-a5c7888dc5ac"
+    ],
+    "ActualCompanySymbols": [],
+    "ActualCompanyIds": [],
+    "StatementQueryShape": null,
+    "ComparisonRows": [],
+    "ExecutionWarnings": [],
+    "IndependentComparisonValues": {},
+    "CompiledWithFixtureOnlyColumnApproval": false,
+    "FixtureOnlyApprovedColumns": [],
+    "WritablePrincipalExecutionStatus": "Unauthorized",
+    "WritablePrincipalDiagnostic": "database_read_only_identity_check_failed",
+    "LlmCalls": 4,
+    "ObservedModelCalls": 3,
+    "ObservedExecutorCalls": 1,
+    "LlmInputTokens": 14898,
+    "LlmOutputTokens": 1916,
+    "IntentLatencyMs": 5876.4446,
+    "NavigatorLatencyMs": 9315.2354,
+    "TotalElapsedMs": 15882.3829,
+    "SecretValuesLogged": false
+  }
+}

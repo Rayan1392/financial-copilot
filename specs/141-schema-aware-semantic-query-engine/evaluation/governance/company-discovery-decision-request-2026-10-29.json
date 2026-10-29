@@ -1,0 +1,69 @@
+{
+  "decisionRequestId": "feature141-governance-company-discovery-2026-10-29",
+  "status": "APPROVAL_REQUIRED",
+  "decisionAuthority": "Product owner (same authority as the 2026-10-29 monthly production approval)",
+  "preparedBy": "Feature 141 engineering, 2026-10-29",
+  "question": "کدام شرکت‌ها در شهریور ۱۴۰۵ گندله تولید کرده‌اند؟",
+  "whatIsAlreadyApproved": [
+    "metric_monthly_production_quantity, MonthlyReportLineItems, MonthlyReports and their relationships (2026-10-29)",
+    "Product concept product_iron_ore_pellets with aliases گندله and گندله سنگ‌آهن, mappingCoverageStatus approved-aliases-only (owner-confirmed 2026-10-09)",
+    "Companies table runtime query with approvedObjects [Id] (full-chat-activation)"
+  ],
+  "decisionsRequired": [
+    {
+      "id": "D1-companies-output-columns",
+      "object": "tables/tbl_8646d83cdb350f92.yaml (public.Companies) semantic.queryAuthorization.approvedObjects",
+      "proposal": "add tbl_8646d83cdb350f92_Name and tbl_8646d83cdb350f92_Ticker",
+      "reason": "CompileMonthlyCompanyDiscovery projects the discovered company's name and ticker so the answer can name the producers; today the compiler fails closed with population_discovery_required_catalog_columns_unapproved",
+      "blastRadius": "two display columns of a table the owner already authorized for runtime query; no other column"
+    },
+    {
+      "id": "D2-tenant-discovery-scope",
+      "object": "Feature141:CompanyDiscoveryScopes (application configuration) and Feature141:QueryExecution:ReviewedTenantCompanyDiscoveryScopes",
+      "proposal": "one scope per tenant: { TenantId, ScopeId, ApprovalReference, CompanyCoverageComplete } mirrored as 'tenant|scope|approval' in the executor options",
+      "reason": "the planner refuses discovery without a resolved scope (company_discovery_scope_not_authorized); the executor grant is refused without a matching scope",
+      "blastRadius": "discovery only; direct single-company retrieval is unaffected"
+    },
+    {
+      "id": "D3-reviewed-company-universe",
+      "object": "Feature141:QueryExecution:ReviewedTenantCompanyBindings (tenant-guid:company-guid pairs)",
+      "proposal": "the set of Companies.Id values the tenant may discover; the compiled query selects producers only with c.Id = ANY(@company_ids) from this set (restored in CatalogStructuredQueryAuthorizer on 2026-10-29)",
+      "reason": "discovery must never scan the whole Companies table; the universe is the explicit authorization boundary. CompanyCoverageComplete=true may only be set when this universe is known to cover every reporting company, otherwise the answer stays Incomplete/partial",
+      "blastRadius": "discovery only"
+    },
+    {
+      "id": "D4-alias-coverage",
+      "object": "Feature141:ProductCatalog:Concepts[product_iron_ore_pellets].MappingCoverageStatus",
+      "proposal": "keep approved-aliases-only unless the owner confirms every provider title variant for pellets is mapped; with it the engine returns Incomplete and the Persian answer states the list is partial",
+      "reason": "owner rule 3: equivalence only through approved mapping; the engine must not claim completeness it cannot prove",
+      "blastRadius": "wording of the discovery answer"
+    }
+  ],
+  "notRequested": [
+    "any new product equivalence",
+    "sales measures",
+    "cross-company value comparison or aggregation",
+    "chat routing"
+  ],
+  "readinessEvidence": "Feature141EngineVerticalSliceTests.CompanyDiscoveryQuestionRunsLiveLlmToIsolatedPostgreSqlAndReturnsTheProducerSet runs the full chain with the live provider and the isolated database using a fixture-only scope, a fixture-only reviewed universe and a fixture-only approval of the two display columns; the trace records CompiledWithFixtureOnlyColumnApproval=true.",
+  "nextStepAfterApproval": "apply D1 to the catalog and regenerate the hierarchy/hash; configure D2/D3 per tenant through the secure configuration source; rerun the runner without the fixture-only snapshot override and mark F141-E10 PASS.",
+  "statusUpdates": [
+    {
+      "date": "2026-10-29",
+      "decision": "D1-companies-output-columns",
+      "state": "ENGINEERING_APPLIED_OWNER_COUNTERSIGN_PENDING",
+      "appliedBy": "Feature 141 slice 3a (cross-company comparison and ranking)",
+      "provenance": "engineering-applied:Feature141-core-capabilities-directive-2026-10-29 (decision request D1-companies-output-columns; owner countersign pending)",
+      "change": "tables/tbl_8646d83cdb350f92.yaml queryAuthorization.approvedObjects += tbl_8646d83cdb350f92_Name, tbl_8646d83cdb350f92_Ticker, with per-object provenance; Id keeps product-owner-approved:Feature141-full-chat-activation",
+      "catalogHash": "2fb37d4a615338ef95a47a3406c96c495b1a8b22ff2dc1a4b916fc3d54cb9a28",
+      "reason": "A ranking of the authorized company population (F141-E14) must name its members from persisted identity; the compiler fails closed with statement_population_company_label_columns_unapproved without these two display columns.",
+      "reversal": "remove the two ids from approvedObjects and approvedObjectProvenance, run catalog.py hierarchy build and validate",
+      "stillOpen": [
+        "D2-tenant-discovery-scope",
+        "D3-reviewed-company-universe",
+        "D4-alias-coverage"
+      ],
+      "e10Effect": "F141-E10 still runs with its fixture-only snapshot override (now a no-op for these columns) and stays BLOCKED on D2-D4."
+    }
+  ]
+}

@@ -237,10 +237,33 @@ public sealed class AiModelProviderAdapterTests
         Assert.Equal("""{"intent":"Scanner","confidence":0.9}""", completion.StructuredJson);
         Assert.Equal(14, completion.InputTokens);
         Assert.Equal(6, completion.OutputTokens);
+        Assert.Null(completion.CacheWriteInputTokens);
+        Assert.Null(completion.CacheWrite30mInputTokens);
+        Assert.Null(completion.CacheWrite12hInputTokens);
         Assert.Equal("screen", Assert.Single(completion.ToolCalls).Name);
         Assert.True(available);
         Assert.Contains("\"text\":{\"format\":{\"type\":\"json_object\"}}", requestBody);
         Assert.Contains("\"tools\":[{\"type\":\"function\",\"name\":\"screen\"", requestBody);
+    }
+
+    [Fact]
+    public async Task OpenAiAdapter_PreservesCacheWriteCountsAndRetentionDurations()
+    {
+        using var httpClient = AuthenticatedOpenAiClient(new RouteHandler(_ => Json(
+            """{"output":[{"id":"message-1","type":"message","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":12000,"output_tokens":100,"input_tokens_details":{"cached_tokens":4000,"cache_write_tokens":7000,"cache_write_tokens_details":{"ttl_30m_tokens":3000,"ttl_12h_tokens":4000}}}}""")));
+        var transport = new OpenAiHostedAiModelTransport(httpClient);
+
+        var completion = await transport.CompleteAsync(
+            "gpt-5.6-luna",
+            CompletionRequest("openai-cache-write"),
+            CancellationToken.None);
+
+        Assert.Equal(12_000, completion.InputTokens);
+        Assert.Equal(4_000, completion.CachedInputTokens);
+        Assert.Equal(7_000, completion.CacheWriteInputTokens);
+        Assert.Equal(3_000, completion.CacheWrite30mInputTokens);
+        Assert.Equal(4_000, completion.CacheWrite12hInputTokens);
+        Assert.Equal(100, completion.OutputTokens);
     }
 
     [Fact]

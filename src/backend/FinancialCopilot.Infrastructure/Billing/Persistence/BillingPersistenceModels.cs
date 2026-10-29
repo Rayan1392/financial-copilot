@@ -46,6 +46,9 @@ public sealed class UsageReservationRow
 
     public string IdempotencyKey { get; set; } = string.Empty;
 
+    // SHA-256 of the caller payload; never store the raw user prompt here.
+    public string? RequestFingerprint { get; set; }
+
     public string OperationCode { get; set; } = string.Empty;
 
     public decimal ReservedCredits { get; set; }

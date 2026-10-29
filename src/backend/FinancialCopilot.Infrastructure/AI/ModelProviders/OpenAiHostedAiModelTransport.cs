@@ -140,7 +140,11 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                     toolCalls,
                     body.Usage?.InputTokens,
                     body.Usage?.OutputTokens,
-                    ResponseId: body.Id);
+                    ResponseId: body.Id,
+                    CachedInputTokens: body.Usage?.InputTokensDetails?.CachedTokens,
+                    CacheWriteInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokens,
+                    CacheWrite30mInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokensDetails?.Ttl30mTokens,
+                    CacheWrite12hInputTokens: body.Usage?.InputTokensDetails?.CacheWriteTokensDetails?.Ttl12hTokens);
             }
 
             var failure = await ReadFailureAsync(response, cancellationToken);
@@ -174,7 +178,12 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
                 AttemptNumber: 0,
                 response.InputTokens,
                 response.OutputTokens,
-                UsedTools: response.ToolCalls.Count > 0));
+                UsedTools: response.ToolCalls.Count > 0,
+                CachedInputTokens: response.CachedInputTokens,
+                CacheWriteInputTokens: response.CacheWriteInputTokens,
+                CacheWrite30mInputTokens: response.CacheWrite30mInputTokens,
+                CacheWrite12hInputTokens: response.CacheWrite12hInputTokens,
+                Workload: request.Workload));
     }
 
     public Task<HostedAiEmbeddingResponse> CreateEmbeddingsAsync(
@@ -416,7 +425,18 @@ public sealed class OpenAiHostedAiModelTransport(HttpClient httpClient) : IHoste
 
     private sealed record OpenAiUsage(
         [property: JsonPropertyName("input_tokens")] int? InputTokens,
-        [property: JsonPropertyName("output_tokens")] int? OutputTokens);
+        [property: JsonPropertyName("output_tokens")] int? OutputTokens,
+        [property: JsonPropertyName("input_tokens_details")] OpenAiInputTokensDetails? InputTokensDetails = null);
+
+    // cached_tokens is the part of input_tokens served from the prompt cache.
+    private sealed record OpenAiInputTokensDetails(
+        [property: JsonPropertyName("cached_tokens")] int? CachedTokens,
+        [property: JsonPropertyName("cache_write_tokens")] int? CacheWriteTokens,
+        [property: JsonPropertyName("cache_write_tokens_details")] OpenAiCacheWriteTokensDetails? CacheWriteTokensDetails);
+
+    private sealed record OpenAiCacheWriteTokensDetails(
+        [property: JsonPropertyName("ttl_30m_tokens")] int? Ttl30mTokens,
+        [property: JsonPropertyName("ttl_12h_tokens")] int? Ttl12hTokens);
 
     private sealed record OpenAiErrorResponse(OpenAiError? Error);
 

@@ -430,6 +430,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreditLinePolicyService, CreditLinePolicyService>();
         services.AddScoped<SubscriptionCreditLifecycleService>();
         services.AddScoped<ICreditReservationService, UsageReservationAuthorizationService>();
+        services.AddScoped<IUsageReservationUpgradeService>(sp =>
+            sp.GetRequiredService<ICreditReservationService>() as IUsageReservationUpgradeService ??
+            new UnsupportedUsageReservationUpgradeService());
         services.AddScoped<IUsageChargeCalculator, OperationUsageChargeCalculator>();
         services.AddScoped<IUsageAccountingService, UsageAccountingService>();
         services.AddScoped<IFinancialAccountingService, FinancialTransactionAccountingService>();
@@ -490,6 +493,17 @@ public static class ServiceCollectionExtensions
                 ["PartiallyCompleted"] = 0.5m
             }));
         services.AddSingleton<IPricingPolicyProvider, ConfiguredPricingPolicyProvider>();
+        services
+            .AddOptions<UsageBasedCreditBillingOptions>()
+            .Bind(configuration.GetSection(UsageBasedCreditBillingOptions.SectionName))
+            .Validate(
+                options => options.IsValid(),
+                "Billing:UsageBasedCredits in Shadow or Enforced mode requires a policy version of at most 64 characters, " +
+                "at least one operation code, positive CostPerCredit and PricingMultiplier, " +
+                "1 <= MinimumCredits <= MissingUsageFallbackCredits <= MaximumCreditsPerQuestion, " +
+                "and non-negative per-million token prices with provider and model keys.")
+            .ValidateOnStart();
+        services.AddSingleton<UsageBasedCreditCalculator>();
 
         services
             .AddOptions<AiProviderOptions>()

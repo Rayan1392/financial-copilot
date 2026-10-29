@@ -44,6 +44,9 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         using var document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseKey = Assert.Single(response.Headers.GetValues("Idempotency-Key"));
+        Assert.True(Guid.TryParse(responseKey, out var returnedKey));
+        Assert.NotEqual(Guid.Empty, returnedKey);
         Assert.NotEqual(Guid.Empty, document.RootElement.GetProperty("conversationId").GetGuid());
         Assert.Equal("Scanner", document.RootElement.GetProperty("intent").GetString());
         Assert.False(document.RootElement.GetProperty("clarificationRequired").GetBoolean());
@@ -55,6 +58,37 @@ public sealed class AiFacadeEndpointTests : IClassFixture<AiFacadeApiFactory>
         Assert.Equal("Completed", usage.GetProperty("completionStatus").GetString());
         Assert.Equal(1m, usage.GetProperty("creditsCharged").GetDecimal());
         Assert.Equal("v1", usage.GetProperty("pricingPolicyVersion").GetString());
+    }
+
+    [Fact]
+    public async Task AiQuery_ReusedIdempotencyKeyWithDifferentPayload_ReturnsConflictWithoutSecondCharge()
+    {
+        var countBefore = _factory.ReadUsageEntries().Count;
+        var idempotencyKey = Guid.NewGuid();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", AuthenticationApiFactory.ApiKey);
+
+        using var first = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 6",
+            idempotencyKey
+        });
+        using var replay = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 6",
+            idempotencyKey
+        });
+        using var conflict = await client.PostAsJsonAsync("/api/ai/v1/query", new
+        {
+            message = "P/E below 5",
+            idempotencyKey
+        });
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(idempotencyKey.ToString("D"), Assert.Single(first.Headers.GetValues("Idempotency-Key")));
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(countBefore + 1, _factory.ReadUsageEntries().Count);
     }
 
     [Fact]

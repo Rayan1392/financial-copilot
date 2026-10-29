@@ -61,7 +61,21 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         {
             throw new ConversationNotFoundException(conversationId);
         }
-        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+        var reservation = await billingFunctions.TryReserveAsync(request, cancellationToken);
+        try
+        {
+            request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+            if (reservation is not null)
+                reservation = await billingFunctions.EnsureCurrentUsageCapacityAsync(reservation, cancellationToken);
+        }
+        catch
+        {
+            if (reservation is not null)
+                await billingFunctions.FinalizeAsync(
+                    reservation, "ProviderFailed", false, CancellationToken.None,
+                    executionRoute: "v2_fallback_dialogue_routing");
+            throw;
+        }
 
         // Step 2: Memory retrieval
         var memoryContext = await memoryAdapter.GetContextAsync(
@@ -69,11 +83,6 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
             conversationId, request.CorrelationId, cancellationToken);
 
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
-
-        // Step 3: Billing reservation — before agent executes
-        var reservation = request.SemanticFrame is null
-            ? await billingFunctions.TryReserveAsync(request, cancellationToken)
-            : null;
 
         // Step 4: Build tools with request-scoped closures
         var state = new OrchestrationState();
@@ -84,7 +93,7 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
 
         if (request.SemanticFrame is { } semanticFrame)
         {
-            var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+            var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                 semanticFrame,
                 new QueryExecutionContext(request.TenantId, request.ActorId, conversationId,
                     request.CorrelationId, semanticFrame.Interpretation.ReplyLanguage, now,
@@ -94,6 +103,8 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
                     request.Context?.MonthlyActivityTrendReportYear,
                     request.Context?.MonthlyActivityTrendReportMonth),
                 request,
+                reservation,
+                deferSettlementForFallback: false,
                 cancellationToken);
             var scannerPayload = semantic.Execution.Payload as SemanticScannerPayload;
             var lookupTable = semantic.Execution.Payload as SymbolLookupTableResult;
@@ -261,6 +272,9 @@ internal sealed class FinancialCopilotAgentWorkflowRunner(
         var fromCache = false;
 
         // Step 5: Run the agent — billing finalization in all paths
+        if (reservation is not null)
+            reservation = await billingFunctions.EnsureReservedCapacityAsync(reservation, cancellationToken);
+
         try
         {
             var session = await agent.CreateSessionAsync(request.CorrelationId, cancellationToken);

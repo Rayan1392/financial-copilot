@@ -129,7 +129,7 @@ public sealed class UsageController(
                     entry.PromptTokens,
                     entry.CompletionTokens,
                     entry.TotalTokens,
-                    entry.EstimatedCost,
+                    EstimatedCost: null,
                     entry.AllocationSource,
                     entry.AllowanceDateKey))
                 .ToArray(),

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using FinancialCopilot.Application.FinancialData.Ingestion;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Memory;
@@ -63,7 +65,47 @@ public sealed record AiQueryRequest(
     ValidatedQueryFrame? SemanticFrame = null,
     ValidatedQueryFrame? SemanticShadowFrame = null,
     string? SuggestedActionId = null,
-    string? SemanticRoutingDisposition = null);
+    string? SemanticRoutingDisposition = null,
+    Guid? BillingOperationId = null);
+
+public static class AiQueryRequestFingerprint
+{
+    private sealed record Payload(
+        int Version,
+        string Message,
+        Guid? ConversationId,
+        int ScannerPage,
+        int ScannerPageSize,
+        int DisclosurePage,
+        int DisclosurePageSize,
+        Guid? InsightEventId,
+        Guid? AlertId,
+        int? MonthlyActivityTrendReportYear,
+        int? MonthlyActivityTrendReportMonth,
+        string? SuggestedActionId);
+
+    // Hash only the stable caller payload. Correlation IDs, workflow frames, and derived server
+    // context are excluded so retries can have a different trace ID without changing billing
+    // identity. The raw prompt is never persisted with the reservation.
+    public static string Compute(AiQueryRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var payload = new Payload(
+            1,
+            request.OriginalUserMessage ?? request.Message,
+            request.ConversationId,
+            request.ScannerPage,
+            request.ScannerPageSize,
+            request.DisclosurePage,
+            request.DisclosurePageSize,
+            request.Context?.InsightEventId,
+            request.Context?.AlertId,
+            request.Context?.MonthlyActivityTrendReportYear,
+            request.Context?.MonthlyActivityTrendReportMonth,
+            request.SuggestedActionId);
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
+    }
+}
 
 public sealed record AiQueryContext(
     Guid? InsightEventId = null,
@@ -122,7 +164,8 @@ public sealed record UsageAccountingResult(
     int? PromptTokens = null,
     int? CompletionTokens = null,
     int? TotalTokens = null,
-    decimal? EstimatedCost = null);
+    decimal? EstimatedCost = null,
+    string? ExecutionRoute = null);
 
 // Integration point for mandatory Billing reservation/finalization.
 // Story 007 defines this boundary; Story 010 provides the real implementation.
@@ -135,7 +178,12 @@ public sealed record BillingReservationRequest(
     string OperationCode,
     Guid? UserId,
     Guid? ApiClientId,
-    string? ExternalUserId = null);
+    string? ExternalUserId = null,
+    // The correlation id the turn's model calls are recorded under, when the reservation
+    // uses a derived correlation id (for example the Feature 141 fallback reservation).
+    string? UsageCorrelationId = null,
+    Guid? BillingOperationId = null,
+    string? RequestFingerprint = null);
 
 public sealed record BillingReservationHandle(
     string ReservationId,
@@ -147,7 +195,11 @@ public sealed record BillingReservationHandle(
     string? ExternalUserId,
     string OperationCode,
     string? AllocationSource = null,
-    string? AllowanceDateKey = null);
+    string? AllowanceDateKey = null,
+    // The credits held for this turn: the most its finalization may charge.
+    decimal ReservedCredits = 0,
+    string? UsageCorrelationId = null,
+    Guid? BillingOperationId = null);
 
 public sealed record BillingFinalizationRequest(
     string CompletionStatus,
@@ -157,7 +209,8 @@ public sealed record BillingFinalizationRequest(
     int? PromptTokens = null,
     int? CompletionTokens = null,
     int? TotalTokens = null,
-    decimal? EstimatedCost = null);
+    decimal? EstimatedCost = null,
+    string? ExecutionRoute = null);
 
 public interface IBillingFacadeHook
 {
@@ -166,6 +219,16 @@ public interface IBillingFacadeHook
     Task<BillingReservationHandle?> TryReserveAsync(
         BillingReservationRequest request,
         CancellationToken cancellationToken);
+
+    // In Enforced mode, increase the existing hold before entering an expensive path.
+    // Legacy and Shadow retain their operation-based reservation.
+    Task<BillingReservationHandle> EnsureReservedCapacityAsync(
+        BillingReservationHandle handle,
+        CancellationToken cancellationToken) => Task.FromResult(handle);
+
+    Task<BillingReservationHandle> EnsureCurrentUsageCapacityAsync(
+        BillingReservationHandle handle,
+        CancellationToken cancellationToken) => Task.FromResult(handle);
 
     // Finalizes the reservation after the workflow completes.
     Task<UsageAccountingResult?> FinalizeAsync(

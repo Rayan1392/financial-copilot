@@ -1282,6 +1282,10 @@ namespace FinancialCopilot.Infrastructure.Billing.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("RequestFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<decimal>("ReservedCredits")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FinancialCopilot.Application.AI.Orchestration;
@@ -152,7 +153,9 @@ public sealed class TelegramAiAssistantAdapter(
                 ExternalUserId: $"telegram:{update.TelegramUserId.ToString(CultureInfo.InvariantCulture)}",
                 DisclosurePageSize: 8,
                 ActorType: actor.ActorType,
-                AuthenticationMode: actor.AuthenticationMode),
+                AuthenticationMode: actor.AuthenticationMode,
+                OriginalUserMessage: text,
+                BillingOperationId: BuildBillingOperationId(update)),
             cancellationToken);
 
         await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
@@ -1444,7 +1447,9 @@ public sealed class TelegramAiAssistantAdapter(
             ScannerPage: salesGrowth ? page : 1,
             ScannerPageSize: salesGrowth ? 20 : 20,
             ActorType: actor.ActorType,
-            AuthenticationMode: actor.AuthenticationMode), cancellationToken);
+            AuthenticationMode: actor.AuthenticationMode,
+            OriginalUserMessage: state.OriginalQuery,
+            BillingOperationId: BuildBillingOperationId(update)), cancellationToken);
         await TouchConversationBindingAsync(update, actor, response.ConversationId, cancellationToken);
         activity?.SetTag("disclosure.callback.outcome", "success");
         activity?.SetTag("correlation_id", update.CorrelationId);
@@ -1834,6 +1839,13 @@ public sealed class TelegramAiAssistantAdapter(
         string.IsNullOrWhiteSpace(update.CallbackQueryId)
             ? $"message:{update.TelegramUpdateId.ToString(CultureInfo.InvariantCulture)}"
             : $"callback:{update.TelegramUpdateId.ToString(CultureInfo.InvariantCulture)}:{update.CallbackQueryId.Trim()}";
+
+    private static Guid BuildBillingOperationId(TelegramAssistantUpdate update)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"financial-copilot:telegram:{BuildIdempotencyKey(update)}"));
+        return new Guid(hash.AsSpan(0, 16));
+    }
 
     private static int MessageThreadKey(TelegramAssistantUpdate update) =>
         update.MessageThreadId ?? 0;

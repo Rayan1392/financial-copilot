@@ -2,6 +2,7 @@ using FinancialCopilot.API.Contracts;
 using FinancialCopilot.API.Middleware;
 using FinancialCopilot.API.Security;
 using FinancialCopilot.Application.AI.Orchestration;
+using FinancialCopilot.Billing;
 using FinancialCopilot.Application.Authentication;
 using FinancialCopilot.Application.Conversations;
 using FinancialCopilot.Application.FinancialData.Ingestion;
@@ -49,8 +50,18 @@ public sealed class AiFacadeController(
             return ValidationProblem(ModelState);
         }
 
+        if (httpRequest.IdempotencyKey == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(httpRequest.IdempotencyKey), "IdempotencyKey must be a non-empty GUID.");
+            return ValidationProblem(ModelState);
+        }
+
         var actor = actorContext.Actor;
         var correlationId = HttpContext.TraceIdentifier;
+        // Keep the legacy optional field usable while returning the generated key so clients can
+        // persist it for future retries. First-party chat clients send their stable key directly.
+        var billingOperationId = httpRequest.IdempotencyKey ?? Guid.NewGuid();
+        Response.Headers["Idempotency-Key"] = billingOperationId.ToString("D");
 
         var message = httpRequest.Message;
         if (httpRequest.Context?.AlertId is Guid alertId)
@@ -80,8 +91,19 @@ public sealed class AiFacadeController(
                     Context: httpRequest.Context is null
                         ? null
                         : new AiQueryContext(httpRequest.Context.InsightEventId, httpRequest.Context.AlertId),
-                    SuggestedActionId: httpRequest.SuggestedActionId),
+                    OriginalUserMessage: httpRequest.Message,
+                    SuggestedActionId: httpRequest.SuggestedActionId,
+                    BillingOperationId: billingOperationId),
                 cancellationToken);
+        }
+        catch (BillingIdempotencyConflictException)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Idempotency key conflict",
+                Detail = "This idempotency key has already been used with a different request payload."
+            });
         }
         catch (ConversationNotFoundException)
         {

@@ -171,7 +171,7 @@ public sealed class AiModelExecutionService(
                     Status = AiExecutionStatus.Completed
                 };
                 await telemetrySink.RecordAttemptAsync(facts, cancellationToken);
-                usageAccumulator?.Record(facts);
+                RecordUsageSafely(facts);
                 return result with { Usage = facts };
             }
             catch (AiModelProviderException exception)
@@ -203,7 +203,7 @@ public sealed class AiModelExecutionService(
                         exception.ProviderCompletionReason, timeProvider.GetUtcNow() - startedAt);
                 if (failedUsage is not null)
                 {
-                    usageAccumulator?.Record(failedUsage with
+                    RecordUsageSafely(failedUsage with
                     {
                         CorrelationId = selection.CorrelationId,
                         ProviderKey = client.Descriptor.ProviderKey,
@@ -218,5 +218,18 @@ public sealed class AiModelExecutionService(
         }
 
         throw lastFailure!;
+    }
+
+    private void RecordUsageSafely(AiExecutionUsageFacts facts)
+    {
+        try
+        {
+            usageAccumulator?.Record(facts);
+        }
+        catch (Exception)
+        {
+            // Usage aggregation is best-effort; the provider result and provider-attempt
+            // telemetry must remain usable if this optional observer fails.
+        }
     }
 }

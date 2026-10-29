@@ -16,7 +16,8 @@ internal sealed record WorkflowStartMessage(
     AiQueryRequest Request,
     Guid ConversationId,
     bool CreateConversation,
-    DateTimeOffset Now);
+    DateTimeOffset Now,
+    BillingReservationHandle? Reservation = null);
 
 internal sealed record MemoryRetrievedMessage(
     AiQueryRequest Request,
@@ -24,7 +25,8 @@ internal sealed record MemoryRetrievedMessage(
     bool CreateConversation,
     DateTimeOffset Now,
     AuthorizedMemoryContext MemoryContext,
-    string EnrichedMessage);
+    string EnrichedMessage,
+    BillingReservationHandle? Reservation = null);
 
 internal sealed record BillingReservedMessage(
     AiQueryRequest Request,

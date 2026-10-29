@@ -66,7 +66,34 @@ public sealed class AiQueryOrchestrationService(
         {
             throw new ConversationNotFoundException(conversationId);
         }
-        request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+
+        BillingReservationHandle? billingReservation = await billingHook.TryReserveAsync(
+            new BillingReservationRequest(
+                request.CorrelationId,
+                request.TenantId,
+                request.ActorId,
+                "AiQuery.Scanner",
+                request.UserId,
+                request.ApiClientId,
+                request.ExternalUserId,
+                BillingOperationId: request.BillingOperationId,
+                RequestFingerprint: AiQueryRequestFingerprint.Compute(request)),
+            cancellationToken);
+        try
+        {
+            request = (await dialogueGate.PrepareAsync(request, conversationId, cancellationToken)).Request;
+            if (billingReservation is not null)
+                billingReservation = await billingHook.EnsureCurrentUsageCapacityAsync(billingReservation, cancellationToken);
+        }
+        catch
+        {
+            if (billingReservation is not null)
+                await billingHook.FinalizeAsync(
+                    billingReservation,
+                    new BillingFinalizationRequest("ProviderFailed", ExecutionRoute: "v1_dialogue_routing"),
+                    CancellationToken.None);
+            throw;
+        }
 
         // Retrieve authorized memory context before AI execution.
         var subjectId = request.UserId ?? request.ActorId;
@@ -80,19 +107,6 @@ public sealed class AiQueryOrchestrationService(
             cancellationToken);
 
         var enrichedMessage = BuildEnrichedMessage(request.Message, memoryContext);
-
-        BillingReservationHandle? billingReservation = request.SemanticFrame is null
-            ? await billingHook.TryReserveAsync(
-            new BillingReservationRequest(
-                request.CorrelationId,
-                request.TenantId,
-                request.ActorId,
-                "AiQuery.Scanner",
-                request.UserId,
-                request.ApiClientId,
-                request.ExternalUserId),
-            cancellationToken)
-            : null;
 
         ScannerQueryPlan? scannerPlan = null;
         ScannerTableResult? scannerTable = null;
@@ -149,7 +163,7 @@ public sealed class AiQueryOrchestrationService(
             }
             else if (request.SemanticFrame is { } semanticFrame)
             {
-                var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+                var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                     semanticFrame,
                     new QueryExecutionContext(
                         request.TenantId,
@@ -168,6 +182,8 @@ public sealed class AiQueryOrchestrationService(
                         request.Context?.MonthlyActivityTrendReportYear,
                         request.Context?.MonthlyActivityTrendReportMonth),
                     request,
+                    billingReservation,
+                    deferSettlementForFallback: false,
                     cancellationToken);
                 usage = semantic.Usage;
                 semanticExecution = semantic.Execution;
@@ -212,6 +228,8 @@ public sealed class AiQueryOrchestrationService(
             }
             else
             {
+            if (billingReservation is not null)
+                billingReservation = await billingHook.EnsureReservedCapacityAsync(billingReservation, cancellationToken);
             var intentResult = await intentDetector.DetectAsync(
                 new IntentDetectionInput(
                     request.Message,
@@ -597,11 +615,11 @@ public sealed class AiQueryOrchestrationService(
             }
             }
 
-            if (billingReservation is not null)
+            if (billingReservation is not null && semanticExecution is null)
             {
                 usage = await billingHook.FinalizeAsync(
                     billingReservation,
-                    new BillingFinalizationRequest(completionStatus, fromCache),
+                    new BillingFinalizationRequest(completionStatus, fromCache, ExecutionRoute: "v1_orchestration"),
                     cancellationToken);
             }
 

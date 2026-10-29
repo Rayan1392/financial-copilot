@@ -90,8 +90,15 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         bool billSeparately = true)
     {
         if (feature141ChatQueryService?.IsEnabled(request) != true) return null;
-        var reservation = !billSeparately ? null : turnReservation ?? await billingFunctions.TryReserveAsync(
-            request with { CorrelationId = $"{request.CorrelationId}:feature141" }, ct);
+        // The derived reservation keeps its own idempotency keys, while the engine's model calls
+        // are recorded under the turn's correlation id that its usage-based charge reads.
+        var reservation = turnReservation ?? (!billSeparately
+            ? null
+            : await billingFunctions.TryReserveAsync(
+                request with { CorrelationId = $"{request.CorrelationId}:feature141" }, ct,
+                usageCorrelationId: request.CorrelationId));
+        if (reservation is not null)
+            reservation = await billingFunctions.EnsureReservedCapacityAsync(reservation, ct);
         var answer = await feature141ChatQueryService.AnswerAsync(request, null, ct);
         logger.LogInformation(
             "Chat Feature 141 fallback evaluated. PreviousRoute={PreviousRoute} Definitive={Definitive} CorrelationId={CorrelationId}",
@@ -103,10 +110,10 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 await billingFunctions.FinalizeAsync(reservation, "ClarificationRequired", false, CancellationToken.None);
             return null;
         }
-        var usage = reservation is null
+        var usage = reservation is null || !billSeparately
             ? null
             : await billingFunctions.FinalizeAsync(reservation, answer.Refused ? "ValidationFailed" : "Completed", false,
-                CancellationToken.None);
+                CancellationToken.None, executionRoute: "feature141_fallback");
         // The engine's typed refusal is the existing Unsupported chat outcome; every other definitive result is its answer.
         return (answer.Text, usage, answer.Refused ? DialogueOutcome.Unsupported : DialogueOutcome.Answered);
     }
@@ -248,8 +255,19 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             throw new ConversationNotFoundException(conversationId);
         }
 
-        var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
-        return new WorkflowStartMessage(prepared.Request, conversationId, createConversation, timeProvider.GetUtcNow());
+        var reservation = await billingFunctions.TryReserveAsync(request, ct);
+        try
+        {
+            var prepared = await dialogueGate.PrepareAsync(request, conversationId, ct);
+            return new WorkflowStartMessage(
+                prepared.Request, conversationId, createConversation, timeProvider.GetUtcNow(), reservation);
+        }
+        catch
+        {
+            if (reservation is not null)
+                await billingFunctions.FinalizeAsync(reservation, "ProviderFailed", false, CancellationToken.None);
+            throw;
+        }
     }
 
     private async ValueTask<MemoryRetrievedMessage> ExecuteConversationAndMemoryStepAsync(
@@ -265,7 +283,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return new MemoryRetrievedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
-            msg.Now, memoryContext, enrichedMessage);
+            msg.Now, memoryContext, enrichedMessage, msg.Reservation);
     }
 
     private async ValueTask<BillingReservedMessage> ExecuteBillingReservationStepAsync(
@@ -273,11 +291,11 @@ internal sealed class FinancialCopilotWorkflowDefinition(
     {
         using var stepActivity = ActivitySource.StartActivity("Step2.BillingReservation");
 
-        // A governed semantic frame is the authoritative execution contract. Raw-text
-        // intent rules are only for requests that did not produce a semantic frame.
-        var reservation = msg.Request.SemanticFrame is null
-            ? await billingFunctions.TryReserveAsync(msg.Request, ct)
-            : null;
+        // The initial hold is created before dialogue routing. Size it for any measured route
+        // interpretation now, while leaving inexpensive one-credit questions at their minimum.
+        var reservation = msg.Reservation is null
+            ? null
+            : await billingFunctions.EnsureCurrentUsageCapacityAsync(msg.Reservation, ct);
 
         return new BillingReservedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation,
@@ -329,7 +347,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 interpretation.Period?.Value,
                 interpretation.Comparison?.Value,
                 interpretation.Presentation?.Kind.ToString());
-            var semantic = await semanticExecutionCoordinator.ExecuteAsync(
+            var semantic = await semanticExecutionCoordinator.ExecuteWithReservationAsync(
                 semanticFrame,
                 new QueryExecutionContext(
                     request.TenantId, request.ActorId, msg.ConversationId,
@@ -341,6 +359,8 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                     request.Context?.MonthlyActivityTrendReportMonth,
                     request),
                 request,
+                msg.Reservation,
+                deferSettlementForFallback: true,
                 ct);
             logger.LogInformation(
                 "Chat semantic route completed. Route={Route} Capability={Capability} Status={Status} ReasonCode={ReasonCode} PayloadType={PayloadType}",
@@ -374,20 +394,51 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 semanticPsVisualizationResult = await psVisualizationExperienceUseCase.ExecuteAsync(
                     new PsVisualizationQuery(monthlyActivityTrendResult.CompanySymbol, IncludeHistory: false, IncludeInMonthlySalesTrendChart: true), ct);
             }
-            if (semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired
-                    or CapabilityExecutionStatus.Unsupported or CapabilityExecutionStatus.NoData
-                && await TryFeature141FallbackAsync(request, null,
-                    $"semantic_capability:{semanticFrame.CapabilityCode}:{semantic.Execution.Status}", ct) is { } semanticFallback)
+            var canUseFeature141 = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired
+                or CapabilityExecutionStatus.DisambiguationRequired
+                or CapabilityExecutionStatus.Unsupported
+                or CapabilityExecutionStatus.NoData;
+            var pendingSemanticReservation = semantic.DeferredReservation;
+            if (canUseFeature141 && pendingSemanticReservation is not null &&
+                feature141ChatQueryService?.IsEnabled(request) == true)
             {
+                pendingSemanticReservation = await billingFunctions.EnsureReservedCapacityAsync(
+                    pendingSemanticReservation, ct);
+            }
+
+            if (canUseFeature141
+                && await TryFeature141FallbackAsync(request, pendingSemanticReservation,
+                    $"semantic_capability:{semanticFrame.CapabilityCode}:{semantic.Execution.Status}", ct,
+                    billSeparately: false) is { } semanticFallback)
+            {
+                var fallbackUsage = pendingSemanticReservation is null
+                    ? semanticFallback.Usage
+                    : await billingFunctions.FinalizeAsync(
+                        pendingSemanticReservation,
+                        semanticFallback.Outcome == DialogueOutcome.Unsupported ? "ValidationFailed" : "Completed",
+                        false,
+                        CancellationToken.None,
+                        executionRoute: "feature141_fallback");
                 stepActivity?.SetTag("workflow.intent", "Feature141Fallback");
                 return new AgentExecutedMessage(
-                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext, null,
+                    msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now, msg.MemoryContext, pendingSemanticReservation,
                     semanticFallback.Answer, null, null, null, null, null, null, null, null,
-                    "Completed", false, null, semanticFallback.Usage,
+                    semanticFallback.Outcome == DialogueOutcome.Unsupported ? "ValidationFailed" : "Completed",
+                    false, null, fallbackUsage,
                     SemanticOutcome: semanticFallback.Outcome,
                     SemanticReplyLanguage: AiDialogueOutcomePolicy.DetectReplyLanguage(request.Message),
                     // The turn was answered by the registered financial source, not by the routed capability.
                     ExecutedFrame: semanticFrame with { CapabilityCode = CapabilityExecutionRoutes.RegisteredFinancialSource });
+            }
+            var semanticUsage = semantic.Usage;
+            if (pendingSemanticReservation is not null)
+            {
+                var completion = SemanticBillingCompletionStatus.For(semantic.Execution.Status);
+                var cached = semantic.Execution.Payload is SemanticScannerPayload cachedScanner &&
+                    cachedScanner.Table.ExecutionFacts.FromCache;
+                semanticUsage = await billingFunctions.FinalizeAsync(
+                    pendingSemanticReservation, completion, cached, CancellationToken.None,
+                    executionRoute: $"semantic:{semanticFrame.CapabilityCode}");
             }
             var clarification = semantic.Execution.Status is CapabilityExecutionStatus.ClarificationRequired or CapabilityExecutionStatus.DisambiguationRequired;
             var summary = semantic.Execution.Payload switch
@@ -430,7 +481,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 clarification ? "ClarificationRequired" : semantic.Execution.Status.ToString(),
                 scannerResult?.FromCache ?? false,
                 null,
-                semantic.Usage,
+                semanticUsage,
                 DisclosureListingResult: semantic.Execution.Payload as DisclosureListingResult,
                 PsVisualizationResult: semanticPsVisualizationResult ?? semantic.Execution.Payload as PsVisualizationResult,
                 SemanticOutcome: SemanticDialogueOutcome(semantic.Execution.Status),
@@ -955,7 +1006,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             // A lookup without rows or with unresolved symbols did not answer: a definitive Feature 141 answer
             // takes the turn, which is still settled once below on the turn's own reservation.
             if (!(lookupResult.Table?.Rows.Count > 0 && lookupResult.Table.UnresolvedSymbols.Count == 0)
-                && await TryFeature141FallbackAsync(request, null, "direct_metric_lookup_without_answer", ct,
+                && await TryFeature141FallbackAsync(request, msg.Reservation, "direct_metric_lookup_without_answer", ct,
                     billSeparately: false) is { } directFallback)
             {
                 directText = directFallback.Answer;
@@ -997,6 +1048,9 @@ internal sealed class FinancialCopilotWorkflowDefinition(
         DialogueOutcome? feature141FallbackOutcome = null;
         var completionStatus = "Completed";
         var fromCache = false;
+        var executionReservation = msg.Reservation;
+        if (executionReservation is not null)
+            executionReservation = await billingFunctions.EnsureReservedCapacityAsync(executionReservation, ct);
 
         try
         {
@@ -1017,7 +1071,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
                 || lookupResult?.Table?.Rows.Count > 0 && lookupResult.Table.UnresolvedSymbols.Count == 0
                 || comprehensiveAnalysisResult?.QueryResponse?.HasResults == true;
             if (feature141Answer is null && !groundedToolResult
-                && await TryFeature141FallbackAsync(request, null, "agent_without_grounded_result", ct,
+                && await TryFeature141FallbackAsync(request, executionReservation, "agent_without_grounded_result", ct,
                     billSeparately: false) is { } agentFallback)
             {
                 agentResponseText = agentFallback.Answer;
@@ -1031,22 +1085,25 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             completionStatus = scannerResult?.CompletionStatus ?? lookupResult?.CompletionStatus
                 ?? (feature141FallbackOutcome == DialogueOutcome.Unsupported ? "ValidationFailed" : "Completed");
 
-            if (msg.Reservation is not null)
+            if (executionReservation is not null)
                 usage = await billingFunctions.FinalizeAsync(
-                    msg.Reservation, completionStatus, fromCache, CancellationToken.None);
+                    executionReservation, completionStatus, fromCache, CancellationToken.None,
+                    executionRoute: "agent_tool_selection");
         }
         catch (OperationCanceledException)
         {
-            if (msg.Reservation is not null)
+            if (executionReservation is not null)
                 await billingFunctions.FinalizeAsync(
-                    msg.Reservation, "CancelledBeforeExecution", false, CancellationToken.None);
+                    executionReservation, "CancelledBeforeExecution", false, CancellationToken.None,
+                    executionRoute: "agent_tool_selection");
             throw;
         }
         catch
         {
-            if (msg.Reservation is not null)
+            if (executionReservation is not null)
                 await billingFunctions.FinalizeAsync(
-                    msg.Reservation, "ProviderFailed", false, CancellationToken.None);
+                    executionReservation, "ProviderFailed", false, CancellationToken.None,
+                    executionRoute: "agent_tool_selection");
             throw;
         }
 
@@ -1061,7 +1118,7 @@ internal sealed class FinancialCopilotWorkflowDefinition(
 
         return new AgentExecutedMessage(
             msg.Request, msg.ConversationId, msg.CreateConversation, msg.Now,
-            msg.MemoryContext, msg.Reservation,
+            msg.MemoryContext, executionReservation,
             agentResponseText, scannerResult, lookupResult, comprehensiveAnalysisResult, financialStatementAnalysisResult, financialStatementTableResult, productRevenueMixResult, monthlyActivityTrendResult,
             monthlySalesQualityRankingResult,
             completionStatus, fromCache, modelClient, usage,
@@ -1246,36 +1303,55 @@ internal sealed class FinancialCopilotWorkflowDefinition(
             (msg.Request.SemanticFrame is null && msg.Request.SemanticShadowFrame is null))
             return;
 
-        var frame = msg.Request.SemanticFrame ?? msg.Request.SemanticShadowFrame!;
-        var legacyCapability = frame.LegacyCapability ?? SemanticRouteMapping.FromIntent(detectedIntent);
-        var rollout = semanticRolloutCoordinator.Decide(
-            frame.CapabilityCode,
-            msg.Request.ActorId.ToString("N"));
-        var semanticExecution = msg.Request.SemanticFrame is not null;
-        var actualExecutedCapability = semanticExecution ? frame.CapabilityCode : legacyCapability;
-        var executionSource = semanticExecution ? "Semantic" : "Legacy";
-        var usageSummary = usageAccumulator.GetSummary(msg.Request.CorrelationId);
-        var status = frame.SemanticStatus;
-
-        if (semanticExecution && outcome.Outcome is DialogueOutcome.TemporarilyUnavailable or DialogueOutcome.Failed)
+        try
         {
-            status = outcome.ReasonCode == DialogueOutcomeReasonCodes.ProviderOrToolTimeout
-                ? "Timeout"
-                : "ProviderError";
-        }
+            var frame = msg.Request.SemanticFrame ?? msg.Request.SemanticShadowFrame!;
+            var legacyCapability = frame.LegacyCapability ?? SemanticRouteMapping.FromIntent(detectedIntent);
+            var rollout = semanticRolloutCoordinator.Decide(
+                frame.CapabilityCode,
+                msg.Request.ActorId.ToString("N"));
+            var semanticExecution = msg.Request.SemanticFrame is not null;
+            var actualExecutedCapability = semanticExecution ? frame.CapabilityCode : legacyCapability;
+            var executionSource = semanticExecution ? "Semantic" : "Legacy";
+            var usageSummary = usageAccumulator.GetSummary(msg.Request.CorrelationId);
+            var status = frame.SemanticStatus;
 
-        diagnosticSink.Record(SemanticRoutingTelemetryFactory.CreateDiagnostic(
-            msg.Request,
-            frame,
-            rollout.Mode,
-            actualExecutedCapability,
-            executionSource,
-            usageSummary?.ProviderKey,
-            usageSummary?.ModelKey,
-            status,
-            legacyCapability,
-            frame.LegacyConfidence,
-            msg.ExecutedFrame ?? (semanticExecution ? frame : null)));
+            if (semanticExecution && outcome.Outcome is DialogueOutcome.TemporarilyUnavailable or DialogueOutcome.Failed)
+            {
+                status = outcome.ReasonCode == DialogueOutcomeReasonCodes.ProviderOrToolTimeout
+                    ? "Timeout"
+                    : "ProviderError";
+            }
+
+            diagnosticSink.Record(SemanticRoutingTelemetryFactory.CreateDiagnostic(
+                msg.Request,
+                frame,
+                rollout.Mode,
+                actualExecutedCapability,
+                executionSource,
+                usageSummary?.ProviderKey,
+                usageSummary?.ModelKey,
+                status,
+                legacyCapability,
+                frame.LegacyConfidence,
+                msg.ExecutedFrame ?? (semanticExecution ? frame : null)));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            try
+            {
+                logger.LogWarning(
+                    "Semantic routing telemetry failed; continuing the chat response. " +
+                    "OperationId={OperationId} CorrelationId={CorrelationId} FailureType={FailureType}",
+                    msg.Request.BillingOperationId,
+                    msg.Request.CorrelationId,
+                    exception.GetType().Name);
+            }
+            catch
+            {
+                // A diagnostic logging failure must not become a chat failure.
+            }
+        }
     }
 
     private async ValueTask<AgentExecutedMessage> ExecuteLegacyProductCapabilityAsync(

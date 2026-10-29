@@ -11,7 +11,8 @@ public sealed record AiQueryHttpRequest(
     int ScannerPageSize = 20,
     int DisclosurePage = 1,
     AiQueryContextHttpRequest? Context = null,
-    string? SuggestedActionId = null);
+    string? SuggestedActionId = null,
+    Guid? IdempotencyKey = null);
 
 public sealed record CapabilityStarterPromptHttpResponse(
     string CapabilityCode,

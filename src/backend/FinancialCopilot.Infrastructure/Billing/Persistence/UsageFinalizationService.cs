@@ -49,6 +49,22 @@ public sealed class UsageFinalizationService(
 
         if (existingLedgerRow is not null)
         {
+            // Under READ COMMITTED, this ledger row may become visible after the earlier
+            // reservation read observed Reserved. A concurrent winner commits the reservation
+            // and ledger atomically; refresh both tracked rows before deciding this is a
+            // conflicting partial write.
+            await dbContext.Entry(reservationRow).ReloadAsync(cancellationToken);
+            await dbContext.Entry(walletRow).ReloadAsync(cancellationToken);
+            if (reservationRow.Status == nameof(UsageReservationStatus.Committed))
+            {
+                ValidateExistingCommit(reservationRow, existingLedgerRow, command);
+                return new UsageFinalizationResult(
+                    MapReservation(reservationRow),
+                    MapWallet(walletRow),
+                    MapLedger(existingLedgerRow),
+                    AlreadyFinalized: true);
+            }
+
             throw new InvalidOperationException(
                 "Usage ledger idempotency key already exists for an uncommitted reservation.");
         }
@@ -143,7 +159,42 @@ public sealed class UsageFinalizationService(
             },
             now);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Another application instance may have committed the same logical operation
+            // after our initial idempotency read. PostgreSQL can report the outbox or ledger
+            // unique-index race before EF observes the reservation concurrency token.
+            // Reuse only a fully persisted, payload-compatible winner; otherwise preserve the
+            // original persistence failure for the caller to retry or diagnose.
+            dbContext.ChangeTracker.Clear();
+            var persistedReservation = await dbContext.UsageReservations.AsNoTracking()
+                .SingleOrDefaultAsync(
+                    row => row.IdempotencyKey == command.ReservationIdempotencyKey.Trim(),
+                    cancellationToken);
+            var persistedLedger = await dbContext.UsageLedgerEntries.AsNoTracking()
+                .SingleOrDefaultAsync(
+                    row => row.IdempotencyKey == command.LedgerIdempotencyKey.Trim(),
+                    cancellationToken);
+
+            if (persistedReservation?.Status != nameof(UsageReservationStatus.Committed) ||
+                persistedLedger is null)
+            {
+                throw;
+            }
+
+            ValidateExistingCommit(persistedReservation, persistedLedger, command);
+            var persistedWallet = await dbContext.WalletProjections.AsNoTracking()
+                .SingleAsync(row => row.CustomerAccountId == command.CustomerAccountId, cancellationToken);
+            return new UsageFinalizationResult(
+                MapReservation(persistedReservation),
+                MapWallet(persistedWallet),
+                MapLedger(persistedLedger),
+                AlreadyFinalized: true);
+        }
 
         return new UsageFinalizationResult(reservation, updatedWallet, entry, AlreadyFinalized: false);
     }

@@ -32,7 +32,11 @@ public sealed record HostedAiCompletionResponse(
     bool CacheHit = false,
     decimal? ProviderReportedCost = null,
     string? ProviderReportedCurrency = null,
-    string? ResponseId = null);
+    string? ResponseId = null,
+    int? CachedInputTokens = null,
+    int? CacheWriteInputTokens = null,
+    int? CacheWrite30mInputTokens = null,
+    int? CacheWrite12hInputTokens = null);
 
 public sealed record HostedAiEmbeddingResponse(
     IReadOnlyCollection<IReadOnlyList<float>> Vectors,
@@ -71,7 +75,12 @@ public sealed class ConfiguredHostedAiModelClient(
                     response.CacheHit,
                     response.ToolCalls.Count > 0,
                     ProviderReportedCost: response.ProviderReportedCost,
-                    ProviderReportedCurrency: response.ProviderReportedCurrency),
+                    ProviderReportedCurrency: response.ProviderReportedCurrency,
+                    CachedInputTokens: response.CachedInputTokens,
+                    CacheWriteInputTokens: response.CacheWriteInputTokens,
+                    CacheWrite30mInputTokens: response.CacheWrite30mInputTokens,
+                    CacheWrite12hInputTokens: response.CacheWrite12hInputTokens,
+                    Workload: request.Workload),
                 ResponseId: response.ResponseId);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)

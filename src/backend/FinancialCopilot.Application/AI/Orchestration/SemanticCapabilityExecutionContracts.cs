@@ -150,10 +150,22 @@ public sealed class SemanticCapabilityDispatcher(
 
 }
 
-public sealed record SemanticOperationResult(CapabilityExecutionResult Execution, UsageAccountingResult? Usage);
+public sealed record SemanticOperationResult(
+    CapabilityExecutionResult Execution,
+    UsageAccountingResult? Usage,
+    BillingReservationHandle? DeferredReservation = null);
 public interface ISemanticExecutionCoordinator
 {
     Task<SemanticOperationResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, AiQueryRequest request, CancellationToken cancellationToken);
+
+    Task<SemanticOperationResult> ExecuteWithReservationAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        AiQueryRequest request,
+        BillingReservationHandle? reservation,
+        bool deferSettlementForFallback,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(frame, context, request, cancellationToken);
 }
 
 public sealed class SemanticExecutionCoordinator(
@@ -163,34 +175,76 @@ public sealed class SemanticExecutionCoordinator(
     ISemanticDialogueEventSink eventSink) : ISemanticExecutionCoordinator
 {
     public async Task<SemanticOperationResult> ExecuteAsync(ValidatedQueryFrame frame, QueryExecutionContext context, AiQueryRequest request, CancellationToken cancellationToken)
+        => await ExecuteCoreAsync(frame, context, request, reservation: null, reservationAlreadyMade: false,
+            deferSettlementForFallback: false, cancellationToken);
+
+    public async Task<SemanticOperationResult> ExecuteWithReservationAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        AiQueryRequest request,
+        BillingReservationHandle? reservation,
+        bool deferSettlementForFallback,
+        CancellationToken cancellationToken) =>
+        await ExecuteCoreAsync(frame, context, request, reservation, reservationAlreadyMade: true,
+            deferSettlementForFallback, cancellationToken);
+
+    private async Task<SemanticOperationResult> ExecuteCoreAsync(
+        ValidatedQueryFrame frame,
+        QueryExecutionContext context,
+        AiQueryRequest request,
+        BillingReservationHandle? reservation,
+        bool reservationAlreadyMade,
+        bool deferSettlementForFallback,
+        CancellationToken cancellationToken)
     {
         if (dispatcher.Validate(frame) is { } invalid)
         {
             RecordOutcomeEvent(frame, context, invalid);
             await feedbackCollector.TryCollectAsync(request, frame, invalid, context.Now, CancellationToken.None);
-            return new(invalid, null);
+            var invalidUsage = reservation is null
+                ? null
+                : await billingHook.FinalizeAsync(reservation,
+                    new BillingFinalizationRequest("ValidationFailed", ExecutionRoute: $"semantic:{frame.CapabilityCode}"),
+                    CancellationToken.None);
+            return new(invalid, invalidUsage);
         }
-        var reservation = await billingHook.TryReserveAsync(new BillingReservationRequest(
-            request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner",
-            request.UserId, request.ApiClientId, request.ExternalUserId), cancellationToken);
+        if (!reservationAlreadyMade)
+        {
+            reservation = await billingHook.TryReserveAsync(new BillingReservationRequest(
+                request.CorrelationId, request.TenantId, request.ActorId, "AiQuery.Scanner",
+                request.UserId, request.ApiClientId, request.ExternalUserId,
+                BillingOperationId: request.BillingOperationId), cancellationToken);
+        }
         try
         {
             var result = await dispatcher.DispatchAsync(frame, context, cancellationToken);
             RecordOutcomeEvent(frame, context, result);
             await feedbackCollector.TryCollectAsync(request, frame, result, context.Now, CancellationToken.None);
             if (reservation is null) return new(result, null);
+            if (deferSettlementForFallback && CanFallback(result.Status))
+                return new(result, null, reservation);
             var completion = SemanticBillingCompletionStatus.For(result.Status);
             var cached = result.Payload is SemanticScannerPayload scanner && scanner.Table.ExecutionFacts.FromCache;
-            var usage = await billingHook.FinalizeAsync(reservation, new BillingFinalizationRequest(completion, cached), cancellationToken);
+            var usage = await billingHook.FinalizeAsync(reservation,
+                new BillingFinalizationRequest(completion, cached, ExecutionRoute: $"semantic:{frame.CapabilityCode}"),
+                cancellationToken);
             return new(result, usage);
         }
         catch (OperationCanceledException)
         {
             if (reservation is not null)
-                await billingHook.FinalizeAsync(reservation, new BillingFinalizationRequest("CancelledBeforeExecution"), CancellationToken.None);
+                await billingHook.FinalizeAsync(reservation,
+                    new BillingFinalizationRequest("CancelledBeforeExecution", ExecutionRoute: $"semantic:{frame.CapabilityCode}"),
+                    CancellationToken.None);
             throw;
         }
     }
+
+    private static bool CanFallback(CapabilityExecutionStatus status) =>
+        status is CapabilityExecutionStatus.ClarificationRequired
+            or CapabilityExecutionStatus.DisambiguationRequired
+            or CapabilityExecutionStatus.Unsupported
+            or CapabilityExecutionStatus.NoData;
 
     private void RecordOutcomeEvent(ValidatedQueryFrame frame, QueryExecutionContext context, CapabilityExecutionResult result)
     {
